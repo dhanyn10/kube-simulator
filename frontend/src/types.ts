@@ -9,6 +9,9 @@ export interface K8sNodeData {
   targetPort?: number;
   selector?: string;
   onDelete?: () => void;
+  onRename?: (newName: string) => void;
+  isHovered?: boolean; // For when a Pod is dragged over it
+  isDetaching?: boolean; // For when a Pod is dragged out of it
 }
 
 export interface K8sManifest {
