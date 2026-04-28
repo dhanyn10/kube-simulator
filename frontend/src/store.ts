@@ -227,6 +227,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     // Capture final states before resetting visual feedback
     const finalDetachingDeploymentId = get().detachingDeploymentId;
     const finalHoveredDeploymentId = get().hoveredDeploymentId;
+    const activeDeploymentId = get().activeDeploymentId; // Get active deployment ID
 
     // Reset visual feedback for all deployments
     set((state) => ({
@@ -237,27 +238,100 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
     if (node.type !== 'Pod') return;
 
+    // --- NEW HIGH PRIORITY: Handle Active Deployment ---
+    if (activeDeploymentId) {
+        const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
+        // Only attach if activeDeployment exists and the pod is not already its child
+        if (activeDeployment && node.parentId !== activeDeployment.id) {
+            set((state) => {
+                let currentNodes = state.nodes;
+                // Decrement replicas of previous parent if any
+                if (node.parentId) {
+                    currentNodes = currentNodes.map(n => {
+                        if (n.id === node.parentId) {
+                            return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - 1) } };
+                        }
+                        return n;
+                    });
+                }
+
+                const podWidth = node.measured?.width || 160;
+                const podHeight = node.measured?.height || 80;
+                const targetWidth = activeDeployment.measured?.width || 320;
+                const targetHeight = activeDeployment.measured?.height || 160;
+
+                const updatedNodes = currentNodes.map((n) => {
+                    if (n.id === node.id) {
+                        // Snap inside the active deployment
+                        const paddingX = 20;
+                        const paddingY = 40;
+                        const randomX = paddingX + Math.random() * (targetWidth - podWidth - (2 * paddingX));
+                        const randomY = paddingY + Math.random() * (targetHeight - podHeight - (2 * paddingY));
+
+                        return {
+                            ...n,
+                            parentId: activeDeployment.id,
+                            position: { x: randomX, y: randomY },
+                        };
+                    }
+                    if (n.id === activeDeployment.id) {
+                        return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
+                    }
+                    return n;
+                });
+                return { nodes: sortNodes(updatedNodes) };
+            });
+            return; // Action completed, no further processing
+        }
+    }
+
     // --- Action 1: Handle Detaching (Merah) ---
     // If the pod was being detached from its parent
     if (node.parentId && finalDetachingDeploymentId === node.parentId) {
       set((state) => {
         const parent = state.nodes.find(n => n.id === node.parentId);
-        if (!parent) return state; // Should not happen if parentId exists
+        if (!parent) return state;
 
         const podWidth = node.measured?.width || 160;
         const podHeight = node.measured?.height || 80;
+        const parentWidth = parent.measured?.width || 320;
+        const parentHeight = parent.measured?.height || 160;
+        const snapOffset = 50;
+
+        let finalSnapX: number;
+        let finalSnapY: number;
+
+        const podCenterRelX = node.position.x + podWidth / 2;
+        const podCenterRelY = node.position.y + podHeight / 2;
+        const parentCenterRelX = parentWidth / 2;
+        const parentCenterRelY = parentHeight / 2;
+
+        const deltaX = podCenterRelX - parentCenterRelX;
+        const deltaY = podCenterRelY - parentCenterRelY;
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX < 0) {
+                finalSnapX = parent.position.x - podWidth - snapOffset;
+            } else {
+                finalSnapX = parent.position.x + parentWidth + snapOffset;
+            }
+            finalSnapY = parent.position.y + (parentHeight / 2) - (podHeight / 2);
+        } else {
+            if (deltaY < 0) {
+                finalSnapY = parent.position.y - podHeight - snapOffset;
+            } else {
+                finalSnapY = parent.position.y + parentHeight + snapOffset;
+            }
+            finalSnapX = parent.position.x + (parentWidth / 2) - (podWidth / 2);
+        }
 
         return {
           nodes: state.nodes.map((n) => {
             if (n.id === node.id) {
-              // Snap outside the parent deployment
               return {
                 ...n,
                 parentId: undefined,
-                position: { 
-                  x: parent.position.x + parent.measured?.width + 50, // Snap to the right of the parent + 50px
-                  y: parent.position.y + (parent.measured?.height / 2) - (podHeight / 2), // Center vertically
-                },
+                position: { x: finalSnapX, y: finalSnapY },
               };
             }
             if (n.id === node.parentId) {
@@ -267,20 +341,21 @@ export const useFlowStore = create<FlowState>((set, get) => ({
           }),
         };
       });
-      return; // Detaching action completed, no need to check for attaching
+      return;
     } 
     
     // --- Action 2: Handle Attaching (Ungu) ---
-    // If the pod was hovering over a new deployment (or its own parent, if not detaching)
-    // And it's not already a child of that deployment
-    if (finalHoveredDeploymentId && node.parentId !== finalHoveredDeploymentId) {
+    // This block will now handle both:
+    // a) Attaching a standalone pod to a new hovered deployment
+    // b) Snapping a pod back into its own parent deployment if it was hovered (not detaching)
+    if (finalHoveredDeploymentId) { // Simplified condition
       set((state) => {
         const targetDeployment = state.nodes.find(n => n.id === finalHoveredDeploymentId);
         if (!targetDeployment) return state;
 
         let currentNodes = state.nodes;
-        // If it was in another deployment, we need to decrement that one first
-        if (node.parentId) {
+        // Decrement replicas of previous parent if it's a different parent
+        if (node.parentId && node.parentId !== finalHoveredDeploymentId) {
             currentNodes = currentNodes.map(n => {
                 if (n.id === node.parentId) {
                     return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - 1) } };
@@ -296,10 +371,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
         const updatedNodes = currentNodes.map((n) => {
           if (n.id === node.id) {
-            // Snap inside the target deployment
-            // Calculate a random position within the target, with padding
             const paddingX = 20;
-            const paddingY = 40; // More padding from top for header
+            const paddingY = 40;
             
             const randomX = paddingX + Math.random() * (targetWidth - podWidth - (2 * paddingX));
             const randomY = paddingY + Math.random() * (targetHeight - podHeight - (2 * paddingY));
@@ -307,13 +380,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             return {
               ...n,
               parentId: targetDeployment.id,
-              position: { 
-                x: randomX, 
-                y: randomY
-              },
+              position: { x: randomX, y: randomY },
             };
           }
-          if (n.id === targetDeployment.id) {
+          // Increment replicas only if it's a new attachment or snapping back into its own parent
+          // and it wasn't already a child of this target.
+          if (n.id === targetDeployment.id && node.parentId !== finalHoveredDeploymentId) {
             return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
           }
           return n;
@@ -321,6 +393,5 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         return { nodes: sortNodes(updatedNodes) };
       });
     }
-    // If neither detaching nor attaching to a new deployment, the pod just stays where it was dropped (or moves freely if it was standalone)
   },
 }));
