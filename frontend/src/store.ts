@@ -32,6 +32,7 @@ interface FlowState {
   onPaneClick: () => void;
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
+  onNodeResize: (event: any, node: Node) => void; 
 }
 
 const sortNodes = (nodes: Node[]): Node[] => {
@@ -40,6 +41,45 @@ const sortNodes = (nodes: Node[]): Node[] => {
     if (a.type === 'Pod' && b.type === 'Deployment') return 1;
     return 0;
   });
+};
+
+// Helper function to layout pods within a deployment
+const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
+  const paddingX = 20;
+  const paddingY = 40; // Account for deployment header
+  const spacing = 10;
+  
+  const deploymentWidth = deployment.width || deployment.measured?.width || 320;
+  const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
+
+  let currentX = paddingX;
+  let currentY = paddingY;
+  let rowMaxHeight = 0;
+
+  const updatedPods = pods.map(pod => {
+    const podW = pod.width || pod.measured?.width || 160;
+    const podH = pod.height || pod.measured?.height || 80;
+
+    // If the current pod doesn't fit in the current row, move to next row
+    if (currentX + podW > deployableWidth + paddingX && currentX > paddingX) {
+      currentX = paddingX; // Reset X for new row
+      currentY += rowMaxHeight + spacing; // Move Y down by max height of previous row + spacing
+      rowMaxHeight = 0; // Reset max height for new row
+    }
+
+    // Update max height for the current row
+    rowMaxHeight = Math.max(rowMaxHeight, podH);
+
+    const newPosition = { x: currentX, y: currentY };
+    currentX += podW + spacing; // Advance X for next pod
+
+    return {
+      ...pod,
+      position: newPosition,
+    };
+  });
+
+  return updatedPods;
 };
 
 export const useFlowStore = create<FlowState>((set, get) => ({
@@ -73,15 +113,28 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   addNode: (type: K8sResourceType) => {
     const { nodes, activeDeploymentId } = get();
-    const id = `${type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = type.toLowerCase() + '-' + Math.random().toString(36).substr(2, 9);
     let position = { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 };
     let parentId: string | undefined = undefined;
+    let width = undefined;
+    let height = undefined;
+
+    if (type === 'Pod') {
+      width = 160;
+      height = 80;
+    } else if (type === 'Deployment') {
+      width = 320;
+      height = 160;
+    } else if (type === 'Service') {
+        width = 180;
+        height = 120;
+    }
 
     if (type === 'Pod' && activeDeploymentId) {
       const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
       if (activeDeployment) {
         parentId = activeDeployment.id;
-        position = { x: 20 + Math.random() * 50, y: 40 + Math.random() * 50 }; 
+        position = { x: 0, y: 0 }; 
       }
     } else {
       const lastNodeOfType = [...nodes].reverse().find(n => n.type === type);
@@ -95,8 +148,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       type,
       position,
       parentId,
+      width, 
+      height, 
       data: {
-        label: `${type} ${nodes.length + 1}`,
+        label: type + ' ' + (nodes.length + 1),
         type,
         replicas: type === 'Deployment' ? 0 : undefined,
         onDelete: () => {
@@ -110,6 +165,25 @@ export const useFlowStore = create<FlowState>((set, get) => ({
                 }
                 return n;
               });
+              
+              const parentDeployment = updatedNodes.find(n => n.id === nodeToDelete.parentId);
+              if (parentDeployment) {
+                const siblingPods = updatedNodes.filter(n => n.parentId === parentDeployment.id);
+                const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
+                updatedNodes = updatedNodes.map(n => {
+                  const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+                  return reLayoutedPod || n;
+                });
+                
+                const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+                const minHeightNeeded = maxPodY + 40; 
+                updatedNodes = updatedNodes.map(n => {
+                  if (n.id === parentDeployment.id) {
+                    return { ...n, height: Math.max(n.height || 0, minHeightNeeded) };
+                  }
+                  return n;
+                });
+              }
             }
             return { nodes: updatedNodes };
           });
@@ -132,8 +206,36 @@ export const useFlowStore = create<FlowState>((set, get) => ({
           }
           return n;
         });
+        nextNodes = [...nextNodes.filter(n => n.id !== newNode.id), newNode]; 
+        
+        const parentDeployment = nextNodes.find(n => n.id === parentId);
+        if (parentDeployment) {
+          const siblingPods = nextNodes.filter(n => n.parentId === parentId);
+          const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
+          nextNodes = nextNodes.map(n => {
+            const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+            return reLayoutedPod || n;
+          });
+          
+          const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+          const minWidthNeeded = maxPodX + 20;
+          const minHeightNeeded = maxPodY + 40; 
+          nextNodes = nextNodes.map(n => {
+            if (n.id === parentId) {
+              return { 
+                ...n, 
+                width: Math.max(n.width || 0, minWidthNeeded),
+                height: Math.max(n.height || 0, minHeightNeeded) 
+              };
+            }
+            return n;
+          });
+        }
+      } else {
+        nextNodes = [...nextNodes, newNode];
       }
-      return { nodes: sortNodes([...nextNodes, newNode]) };
+      return { nodes: sortNodes(nextNodes) };
     });
   },
 
@@ -156,11 +258,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     let newHoveredDeploymentId: string | null = null;
     let newDetachingDeploymentId: string | null = null;
 
-    const podWidth = node.measured?.width || 160;
-    const podHeight = node.measured?.height || 80;
+    const podWidth = node.width || node.measured?.width || 160;
+    const podHeight = node.height || node.measured?.height || 80;
     const podArea = podWidth * podHeight;
 
-    // Calculate Pod's current absolute position
     let podAbsX = node.position.x;
     let podAbsY = node.position.y;
     if (node.parentId) {
@@ -171,7 +272,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         }
     }
 
-    // Reset all visual states for deployments before recalculating
     let nextNodes = nodes.map(n => {
       if (n.type === 'Deployment') {
         return { ...n, data: { ...n.data, isHovered: false, isDetaching: false } };
@@ -182,8 +282,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     for (const deployment of nodes.filter(n => n.type === 'Deployment')) {
         const depAbsX = deployment.position.x;
         const depAbsY = deployment.position.y;
-        const depWidth = deployment.measured?.width || 320;
-        const depHeight = deployment.measured?.height || 160;
+        const depWidth = deployment.width || deployment.measured?.width || 320;
+        const depHeight = deployment.height || deployment.measured?.height || 160;
 
         const intersects = 
             podAbsX < depAbsX + depWidth &&
@@ -192,7 +292,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             podAbsY + podHeight > depAbsY;
 
         if (node.parentId === deployment.id) {
-            // This is the Pod's current parent deployment
             const overlapX = Math.max(0, Math.min(podAbsX + podWidth, depAbsX + depWidth) - Math.max(podAbsX, depAbsX));
             const overlapY = Math.max(0, Math.min(podAbsY + podHeight, depAbsY + depHeight) - Math.max(podAbsY, depAbsY));
             const overlapArea = overlapX * overlapY;
@@ -200,15 +299,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
             if (overlapPercentage < 50) {
                 newDetachingDeploymentId = deployment.id;
-                // Mark this deployment as detaching
                 nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
             } else {
-                // If still mostly inside, it's considered "hovered" over its own parent
                 newHoveredDeploymentId = deployment.id;
                 nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
             }
         } else if (intersects) {
-            // This is a different deployment being hovered
             newHoveredDeploymentId = deployment.id;
             nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
         }
@@ -223,13 +319,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   onNodeDragStop: (event: any, node: Node) => {
     const { nodes } = get();
-    
-    // Capture final states before resetting visual feedback
     const finalDetachingDeploymentId = get().detachingDeploymentId;
     const finalHoveredDeploymentId = get().hoveredDeploymentId;
-    const activeDeploymentId = get().activeDeploymentId; // Get active deployment ID
+    const activeDeploymentId = get().activeDeploymentId;
 
-    // Reset visual feedback for all deployments
     set((state) => ({
       hoveredDeploymentId: null,
       detachingDeploymentId: null,
@@ -238,14 +331,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
     if (node.type !== 'Pod') return;
 
-    // --- NEW HIGH PRIORITY: Handle Active Deployment ---
     if (activeDeploymentId) {
         const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
-        // Only attach if activeDeployment exists and the pod is not already its child
         if (activeDeployment && node.parentId !== activeDeployment.id) {
             set((state) => {
                 let currentNodes = state.nodes;
-                // Decrement replicas of previous parent if any
                 if (node.parentId) {
                     currentNodes = currentNodes.map(n => {
                         if (n.id === node.parentId) {
@@ -255,47 +345,53 @@ export const useFlowStore = create<FlowState>((set, get) => ({
                     });
                 }
 
-                const podWidth = node.measured?.width || 160;
-                const podHeight = node.measured?.height || 80;
-                const targetWidth = activeDeployment.measured?.width || 320;
-                const targetHeight = activeDeployment.measured?.height || 160;
+                const podToAdd = { ...node, parentId: activeDeployment.id };
+                let nextNodes = [...currentNodes.filter(n => n.id !== node.id), podToAdd];
 
-                const updatedNodes = currentNodes.map((n) => {
-                    if (n.id === node.id) {
-                        // Snap inside the active deployment
-                        const paddingX = 20;
-                        const paddingY = 40;
-                        const randomX = paddingX + Math.random() * (targetWidth - podWidth - (2 * paddingX));
-                        const randomY = paddingY + Math.random() * (targetHeight - podHeight - (2 * paddingY));
-
-                        return {
-                            ...n,
-                            parentId: activeDeployment.id,
-                            position: { x: randomX, y: randomY },
-                        };
-                    }
-                    if (n.id === activeDeployment.id) {
-                        return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
-                    }
-                    return n;
+                const siblingPods = nextNodes.filter(n => n.parentId === activeDeployment.id);
+                const reLayoutedPods = layoutPodsInDeployment(activeDeployment, siblingPods);
+                nextNodes = nextNodes.map(n => {
+                  const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+                  return reLayoutedPod || n;
                 });
-                return { nodes: sortNodes(updatedNodes) };
+
+                nextNodes = nextNodes.map(n => {
+                  if (n.id === activeDeployment.id) {
+                    return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
+                  }
+                  return n;
+                });
+                
+                const maxPodX = Math.max(0, ...nextNodes.filter(n => n.parentId === activeDeployment.id).map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+                const maxPodY = Math.max(0, ...nextNodes.filter(n => n.parentId === activeDeployment.id).map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+                const minWidthNeeded = maxPodX + 20;
+                const minHeightNeeded = maxPodY + 40; 
+                nextNodes = nextNodes.map(n => {
+                  if (n.id === activeDeployment.id) {
+                    return { 
+                      ...n, 
+                      width: Math.max(n.width || 0, minWidthNeeded),
+                      height: Math.max(n.height || 0, minHeightNeeded) 
+                    };
+                  }
+                  return n;
+                });
+
+                return { nodes: sortNodes(nextNodes) };
             });
-            return; // Action completed, no further processing
+            return;
         }
     }
 
-    // --- Action 1: Handle Detaching (Merah) ---
-    // If the pod was being detached from its parent
     if (node.parentId && finalDetachingDeploymentId === node.parentId) {
       set((state) => {
         const parent = state.nodes.find(n => n.id === node.parentId);
         if (!parent) return state;
 
-        const podWidth = node.measured?.width || 160;
-        const podHeight = node.measured?.height || 80;
-        const parentWidth = parent.measured?.width || 320;
-        const parentHeight = parent.measured?.height || 160;
+        const podWidth = node.width || node.measured?.width || 160;
+        const podHeight = node.height || node.measured?.height || 80;
+        const parentWidth = parent.width || parent.measured?.width || 320;
+        const parentHeight = parent.height || parent.measured?.height || 160;
         const snapOffset = 50;
 
         let finalSnapX: number;
@@ -344,17 +440,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       return;
     } 
     
-    // --- Action 2: Handle Attaching (Ungu) ---
-    // This block will now handle both:
-    // a) Attaching a standalone pod to a new hovered deployment
-    // b) Snapping a pod back into its own parent deployment if it was hovered (not detaching)
-    if (finalHoveredDeploymentId) { // Simplified condition
+    if (finalHoveredDeploymentId) {
       set((state) => {
         const targetDeployment = state.nodes.find(n => n.id === finalHoveredDeploymentId);
         if (!targetDeployment) return state;
 
         let currentNodes = state.nodes;
-        // Decrement replicas of previous parent if it's a different parent
         if (node.parentId && node.parentId !== finalHoveredDeploymentId) {
             currentNodes = currentNodes.map(n => {
                 if (n.id === node.parentId) {
@@ -364,34 +455,109 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             });
         }
 
-        const podWidth = node.measured?.width || 160;
-        const podHeight = node.measured?.height || 80;
-        const targetWidth = targetDeployment.measured?.width || 320;
-        const targetHeight = targetDeployment.measured?.height || 160;
+        const podToAdd = { ...node, parentId: targetDeployment.id };
+        let nextNodes = [...currentNodes.filter(n => n.id !== node.id), podToAdd];
 
-        const updatedNodes = currentNodes.map((n) => {
-          if (n.id === node.id) {
-            const paddingX = 20;
-            const paddingY = 40;
-            
-            const randomX = paddingX + Math.random() * (targetWidth - podWidth - (2 * paddingX));
-            const randomY = paddingY + Math.random() * (targetHeight - podHeight - (2 * paddingY));
+        const siblingPods = nextNodes.filter(n => n.parentId === targetDeployment.id);
+        const reLayoutedPods = layoutPodsInDeployment(targetDeployment, siblingPods);
+        nextNodes = nextNodes.map(n => {
+          const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+          return reLayoutedPod || n;
+        });
 
-            return {
-              ...n,
-              parentId: targetDeployment.id,
-              position: { x: randomX, y: randomY },
-            };
-          }
-          // Increment replicas only if it's a new attachment or snapping back into its own parent
-          // and it wasn't already a child of this target.
+        nextNodes = nextNodes.map(n => {
           if (n.id === targetDeployment.id && node.parentId !== finalHoveredDeploymentId) {
             return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
           }
           return n;
         });
-        return { nodes: sortNodes(updatedNodes) };
+
+        const maxPodX = Math.max(0, ...nextNodes.filter(n => n.parentId === targetDeployment.id).map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+        const maxPodY = Math.max(0, ...nextNodes.filter(n => n.parentId === targetDeployment.id).map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+        const minWidthNeeded = maxPodX + 20;
+        const minHeightNeeded = maxPodY + 40; 
+        nextNodes = nextNodes.map(n => {
+          if (n.id === targetDeployment.id) {
+            return { 
+                ...n, 
+                width: Math.max(n.width || 0, minWidthNeeded),
+                height: Math.max(n.height || 0, minHeightNeeded) 
+            };
+          }
+          return n;
+        });
+        
+        return { nodes: sortNodes(nextNodes) };
       });
     }
+  },
+
+  onNodeResize: (event: any, node: Node) => {
+    set((state) => {
+      let nextNodes = state.nodes.map(n => n.id === node.id ? { ...n, width: node.width, height: node.height } : n);
+      
+      const resizedNode = nextNodes.find(n => n.id === node.id);
+      if (!resizedNode) return state;
+
+      if (resizedNode.type === 'Pod' && resizedNode.parentId) {
+        const parentDeployment = nextNodes.find(n => n.id === resizedNode.parentId);
+
+        if (parentDeployment) {
+          // Sync sibling dimensions
+          nextNodes = nextNodes.map(n => {
+            if (n.parentId === parentDeployment.id) {
+                return { ...n, width: resizedNode.width, height: resizedNode.height };
+            }
+            return n;
+          });
+
+          // Re-layout
+          const siblingPods = nextNodes.filter(n => n.parentId === parentDeployment.id);
+          const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
+          nextNodes = nextNodes.map(n => {
+            const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+            return reLayoutedPod || n;
+          });
+
+          // Auto-resize deployment height & width
+          const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+          const minWidthNeeded = maxPodX + 20;
+          const minHeightNeeded = maxPodY + 40;
+          nextNodes = nextNodes.map(n => {
+            if (n.id === parentDeployment.id) {
+              return { 
+                ...n, 
+                width: Math.max(n.width || 0, minWidthNeeded),
+                height: Math.max(n.height || 0, minHeightNeeded) 
+              };
+            }
+            return n;
+          });
+        }
+      } else if (resizedNode.type === 'Deployment') {
+        const childPods = nextNodes.filter(n => n.parentId === resizedNode.id);
+        const reLayoutedPods = layoutPodsInDeployment(resizedNode, childPods);
+        nextNodes = nextNodes.map(n => {
+          const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+          return reLayoutedPod || n;
+        });
+
+        // Ensure deployment height/width is at least enough for children
+        const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+        const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+        const minWidthNeeded = maxPodX + 20;
+        const minHeightNeeded = maxPodY + 40;
+        
+        if ((resizedNode.height || 0) < minHeightNeeded || (resizedNode.width || 0) < minWidthNeeded) {
+            nextNodes = nextNodes.map(n => n.id === resizedNode.id ? { 
+                ...n, 
+                height: Math.max(n.height || 0, minHeightNeeded),
+                width: Math.max(n.width || 0, minWidthNeeded)
+            } : n);
+        }
+      }
+      return { nodes: nextNodes };
+    });
   },
 }));

@@ -12,6 +12,8 @@ export interface K8sNodeData {
   onRename?: (newName: string) => void;
   isHovered?: boolean; // For when a Pod is dragged over it
   isDetaching?: boolean; // For when a Pod is dragged out of it
+  width?: number; // Added for resizing
+  height?: number; // Added for resizing
 }
 
 export interface K8sManifest {

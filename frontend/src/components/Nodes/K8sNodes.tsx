@@ -1,10 +1,11 @@
-import React, { memo, useState, useEffect, useRef } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
+import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { Box, Layers, Network, Trash2, Settings, ExternalLink } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
+import { useFlowStore } from '../../store'; // Import useFlowStore
 
-export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex }: { 
+export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex, id, type }: { 
   children?: React.ReactNode; 
   data: K8sNodeData; 
   selected?: boolean;
@@ -12,10 +13,13 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   icon: any;
   color: string;
   colorHex?: string;
+  id: string; // Add id prop
+  type: string; // Add type prop
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
+  const onNodeResize = useFlowStore((state) => state.onNodeResize); // Get onNodeResize from store
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -42,12 +46,33 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     }
   };
 
+  const handleNodeResize = useCallback((event, params) => {
+    // Construct a partial node object with updated dimensions
+    const updatedNode = {
+      id: id,
+      type: type,
+      width: params.width,
+      height: params.height,
+      // position: { x: params.x, y: params.y }, // onNodeResize in store.ts doesn't use position from params
+    };
+    onNodeResize(event, updatedNode as any); // Cast to any to match the expected Node type in store.ts
+  }, [id, type, onNodeResize]);
+
   return (
     <div className={cn(
-      "group relative min-w-[160px] bg-slate-800 border-2 rounded-lg p-3 transition-all duration-200 cursor-grab",
+      "group relative bg-slate-800 border-2 rounded-lg p-3 cursor-grab w-full h-full",
       selected ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-slate-600 hover:border-slate-500",
       "shadow-xl"
     )}>
+      <NodeResizer 
+        minWidth={100} 
+        minHeight={60} 
+        isVisible={selected} 
+        lineClassName="border-blue-400" 
+        handleClassName="h-2 w-2 bg-white border-2 border-blue-400 rounded" 
+        onResize={handleNodeResize} // Pass onResize handler
+      />
+      
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
@@ -99,7 +124,6 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
       {children}
 
-      {/* Handles */}
       <Handle type="target" position={Position.Top} className="!bg-slate-600 !w-1.5 !h-1.5 !border-none" />
       <Handle type="source" position={Position.Bottom} className="!bg-slate-600 !w-1.5 !h-1.5 !border-none" />
     </div>
@@ -108,7 +132,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
 export const PodNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
-  return <BaseNode {...props} data={data} title="Pod" icon={Box} color="cyan" />;
+  return <BaseNode {...props} data={data} title="Pod" icon={Box} color="cyan" id={props.id} type={props.type} />;
 });
 
 export const ServiceNode = memo((props: NodeProps) => {
@@ -116,6 +140,7 @@ export const ServiceNode = memo((props: NodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
+  const onNodeResize = useFlowStore((state) => state.onNodeResize); // Get onNodeResize from store
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -142,11 +167,30 @@ export const ServiceNode = memo((props: NodeProps) => {
     }
   };
 
+  const handleNodeResize = useCallback((event, params) => {
+    const updatedNode = {
+      id: props.id,
+      type: props.type,
+      width: params.width,
+      height: params.height,
+    };
+    onNodeResize(event, updatedNode as any);
+  }, [props.id, props.type, onNodeResize]);
+
   return (
     <div className={cn(
-      "relative min-w-[180px] p-4 bg-slate-900 border-2 border-amber-500 rounded-lg shadow-2xl transition-all cursor-grab",
-      props.selected ? "ring-4 ring-amber-500/20 scale-105" : "hover:border-amber-400"
+      "relative p-4 bg-slate-900 border-2 border-amber-500 rounded-lg shadow-2xl cursor-grab w-full h-full",
+      props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>
+      <NodeResizer 
+        minWidth={150} 
+        minHeight={100} 
+        isVisible={props.selected} 
+        lineClassName="border-amber-500" 
+        handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded" 
+        onResize={handleNodeResize} // Pass onResize handler
+      />
+      
       <div className="flex items-center gap-2 mb-2">
         <div className="w-3 h-3 bg-amber-500 [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]"></div>
         <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tighter">Service</span>
@@ -190,6 +234,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
+  const onNodeResize = useFlowStore((state) => state.onNodeResize); // Get onNodeResize from store
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -216,16 +261,35 @@ export const DeploymentNode = memo((props: NodeProps) => {
     }
   };
 
+  const handleNodeResize = useCallback((event, params) => {
+    const updatedNode = {
+      id: props.id,
+      type: props.type,
+      width: params.width,
+      height: params.height,
+    };
+    onNodeResize(event, updatedNode as any);
+  }, [props.id, props.type, onNodeResize]);
+
   return (
     <div className={cn(
-      "group relative min-w-[320px] min-h-[160px] bg-violet-600/5 border-2 border-dashed rounded-xl p-6 transition-all duration-300 cursor-grab",
+      "group relative bg-violet-600/5 border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full",
       props.selected ? "border-violet-500 ring-4 ring-violet-500/10" : "border-slate-800 hover:border-slate-700",
-      isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 scale-[1.02] shadow-[0_0_30px_rgba(139,92,246,0.4)]",
-      isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 scale-[0.98] shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+      isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
+      isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>
+      <NodeResizer 
+        minWidth={300} 
+        minHeight={150} 
+        isVisible={props.selected} 
+        lineClassName="border-violet-500" 
+        handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded" 
+        onResize={handleNodeResize} // Pass onResize handler
+      />
+
       <div className="absolute -top-3 left-6 flex items-center gap-2">
         <span className={cn(
-          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase transition-colors duration-300",
+          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase",
           isHovered ? "bg-violet-400" : isDetaching ? "bg-red-500" : "bg-violet-600"
         )}>
           DEPLOYMENT
@@ -259,7 +323,8 @@ export const DeploymentNode = memo((props: NodeProps) => {
           e.stopPropagation();
           data.onDelete?.();
         }}
-        className="absolute top-3 right-12 opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all text-slate-500 hover:text-red-400"
+        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all text-slate-500 hover:text-red-400"
+        style={{ zIndex: 10 }} // Ensure button is clickable
       >
         <Trash2 size={12} />
       </button>
