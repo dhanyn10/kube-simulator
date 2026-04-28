@@ -16,6 +16,7 @@ interface FlowState {
   activeDeploymentId: string | null;
   hoveredDeploymentId: string | null;
   detachingDeploymentId: string | null;
+  colorMode: 'dark' | 'light'; // New: Add colorMode state
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -28,12 +29,13 @@ interface FlowState {
   setDetachingDeploymentId: (id: string | null) => void;
 
   addNode: (type: K8sResourceType) => void;
-  deleteNodes: (nodesToDelete: Node[]) => void; // New action
+  deleteNodes: (nodesToDelete: Node[]) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
+  toggleColorMode: () => void; // New: Add toggleColorMode action
 }
 
 const sortNodes = (nodes: Node[]): Node[] => {
@@ -89,6 +91,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   activeDeploymentId: null,
   hoveredDeploymentId: null,
   detachingDeploymentId: null,
+  colorMode: 'dark', // New: Initialize colorMode to 'dark'
 
   onNodesChange: (changes: NodeChange[]) => {
     set((state) => ({
@@ -578,4 +581,5 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       return { nodes: nextNodes };
     });
   },
+  toggleColorMode: () => set((state) => ({ colorMode: state.colorMode === 'dark' ? 'light' : 'dark' })),
 }));

@@ -3,7 +3,7 @@ import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { Box, Layers, Network, Trash2, Settings, ExternalLink } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store'; // Import useFlowStore
+import { useFlowStore } from '../../store';
 
 export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex, id, type }: { 
   children?: React.ReactNode; 
@@ -13,13 +13,14 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   icon: any;
   color: string;
   colorHex?: string;
-  id: string; // Add id prop
-  type: string; // Add type prop
+  id: string;
+  type: string;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize); // Get onNodeResize from store
+  const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -47,36 +48,37 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   };
 
   const handleNodeResize = useCallback((event, params) => {
-    // Construct a partial node object with updated dimensions
     const updatedNode = {
       id: id,
       type: type,
       width: params.width,
       height: params.height,
-      // position: { x: params.x, y: params.y }, // onNodeResize in store.ts doesn't use position from params
     };
-    onNodeResize(event, updatedNode as any); // Cast to any to match the expected Node type in store.ts
+    onNodeResize(event, updatedNode as any);
   }, [id, type, onNodeResize]);
 
   return (
     <div className={cn(
-      "group relative bg-slate-800 border-2 rounded-lg p-3 cursor-grab w-full h-full",
-      selected ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-slate-600 hover:border-slate-500",
-      "shadow-xl"
+      "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-colors",
+      colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
+      selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
     )}>
       <NodeResizer 
         minWidth={100} 
         minHeight={60} 
         isVisible={selected} 
-        lineClassName="border-blue-400" 
-        handleClassName="h-2 w-2 bg-white border-2 border-blue-400 rounded" 
-        onResize={handleNodeResize} // Pass onResize handler
+        lineClassName={colorMode === 'dark' ? "border-blue-400" : "border-blue-500"} 
+        handleClassName={cn("h-2 w-2 border-2 rounded", colorMode === 'dark' ? "bg-white border-blue-400" : "bg-white border-blue-500")}
+        onResize={handleNodeResize}
       />
       
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          <span className={cn("text-[8px] font-bold tracking-widest uppercase", `text-${color}-400`)}>
+          <span className={cn(
+            "text-[8px] font-bold tracking-widest uppercase", 
+            colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600'
+          )}>
             {data.type}
           </span>
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
@@ -86,7 +88,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             e.stopPropagation();
             data.onDelete?.();
           }}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all text-slate-500 hover:text-red-400"
+          className={cn(
+            "opacity-0 group-hover:opacity-100 p-1 rounded transition-all",
+            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+          )}
         >
           <Trash2 size={12} />
         </button>
@@ -101,31 +106,40 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleRename}
             onKeyDown={onKeyDown}
-            className="w-full bg-slate-900 text-xs font-mono font-bold text-slate-100 px-1 py-0.5 rounded border border-blue-500 outline-none"
+            className={cn(
+                "w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400"
+            )}
           />
         ) : (
           <div 
-            className="text-xs font-mono font-bold text-slate-100 truncate cursor-text"
+            className={cn(
+                "text-xs font-mono font-bold truncate cursor-text",
+                colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
+            )}
             onDoubleClick={() => setIsEditing(true)}
           >
             {data.label}
           </div>
         )}
         {data.image ? (
-          <div className="text-[9px] font-mono text-slate-400 truncate bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-700/50">
+          <div className={cn(
+            "text-[9px] font-mono truncate px-1.5 py-0.5 rounded border",
+            colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200"
+          )}>
             {data.image}
           </div>
         ) : (
-          <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">
-            <div className={cn("h-full w-full", `bg-${color}-500/50`)}></div>
+          <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
+            <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
           </div>
         )}
       </div>
 
       {children}
 
-      <Handle type="target" position={Position.Top} className="!bg-slate-600 !w-1.5 !h-1.5 !border-none" />
-      <Handle type="source" position={Position.Bottom} className="!bg-slate-600 !w-1.5 !h-1.5 !border-none" />
+      <Handle type="target" position={Position.Top} className={cn("!w-1.5 !h-1.5 !border-none", colorMode === 'dark' ? "!bg-slate-600" : "!bg-slate-300")} />
+      <Handle type="source" position={Position.Bottom} className={cn("!w-1.5 !h-1.5 !border-none", colorMode === 'dark' ? "!bg-slate-600" : "!bg-slate-300")} />
     </div>
   );
 });
@@ -140,7 +154,8 @@ export const ServiceNode = memo((props: NodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize); // Get onNodeResize from store
+  const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -179,7 +194,8 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "relative p-4 bg-slate-900 border-2 border-amber-500 rounded-lg shadow-2xl cursor-grab w-full h-full",
+      "relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors",
+      colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
       props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>
       <NodeResizer 
@@ -188,7 +204,7 @@ export const ServiceNode = memo((props: NodeProps) => {
         isVisible={props.selected} 
         lineClassName="border-amber-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded" 
-        onResize={handleNodeResize} // Pass onResize handler
+        onResize={handleNodeResize}
       />
       
       <div className="flex items-center gap-2 mb-2">
@@ -203,22 +219,28 @@ export const ServiceNode = memo((props: NodeProps) => {
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={handleRename}
           onKeyDown={onKeyDown}
-          className="w-full bg-slate-950 text-xs font-bold text-slate-100 mb-1 px-1 py-0.5 rounded border border-amber-500 outline-none"
+          className={cn(
+              "w-full text-xs font-bold mb-1 px-1 py-0.5 rounded border outline-none",
+              colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-amber-500" : "bg-slate-50 text-slate-900 border-amber-400"
+          )}
         />
       ) : (
         <div 
-          className="text-xs font-bold text-slate-100 mb-1 cursor-text truncate"
+          className={cn(
+              "text-xs font-bold mb-1 cursor-text truncate",
+              colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
+          )}
           onDoubleClick={() => setIsEditing(true)}
         >
           {data.label}
         </div>
       )}
 
-      <div className="text-[9px] text-slate-400 font-mono">targetPort: {data.targetPort || 8080}</div>
+      <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>targetPort: {data.targetPort || 8080}</div>
       
-      <div className="mt-3 pt-2 border-t border-slate-800">
-        <span className="text-[8px] text-slate-500 uppercase font-bold">Selector</span>
-        <div className="text-[9px] font-mono mt-0.5 text-amber-300">app: {data.selector || 'web-app'}</div>
+      <div className={cn("mt-3 pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+        <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
+        <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
       </div>
 
       <Handle type="target" position={Position.Top} className="!bg-amber-500" />
@@ -234,7 +256,8 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize); // Get onNodeResize from store
+  const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -273,8 +296,9 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative bg-violet-600/5 border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full",
-      props.selected ? "border-violet-500 ring-4 ring-violet-500/10" : "border-slate-800 hover:border-slate-700",
+      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors",
+      colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
+      props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
       isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
       isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>
@@ -284,12 +308,12 @@ export const DeploymentNode = memo((props: NodeProps) => {
         isVisible={props.selected} 
         lineClassName="border-violet-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded" 
-        onResize={handleNodeResize} // Pass onResize handler
+        onResize={handleNodeResize}
       />
 
       <div className="absolute -top-3 left-6 flex items-center gap-2">
         <span className={cn(
-          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase",
+          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
           isHovered ? "bg-violet-400" : isDetaching ? "bg-red-500" : "bg-violet-600"
         )}>
           DEPLOYMENT
@@ -302,11 +326,17 @@ export const DeploymentNode = memo((props: NodeProps) => {
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleRename}
             onKeyDown={onKeyDown}
-            className="bg-slate-900 text-xs font-mono font-bold text-violet-300 tracking-tight px-1 py-0.5 rounded border border-violet-500 outline-none"
+            className={cn(
+                "text-xs font-mono font-bold tracking-tight px-1 py-0.5 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-900 text-violet-300 border-violet-500" : "bg-white text-violet-700 border-violet-400"
+            )}
           />
         ) : (
           <span 
-            className="text-xs font-mono font-bold text-violet-300 tracking-tight cursor-text"
+            className={cn(
+                "text-xs font-mono font-bold tracking-tight cursor-text",
+                colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
+            )}
             onDoubleClick={() => setIsEditing(true)}
           >
             {data.label}
@@ -314,7 +344,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         )}
       </div>
       
-      <div className="absolute top-3 right-4 text-[9px] text-violet-400/60 font-mono">
+      <div className={cn("absolute top-3 right-4 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
         replicas: {data.replicas || 0}
       </div>
 
@@ -323,13 +353,19 @@ export const DeploymentNode = memo((props: NodeProps) => {
           e.stopPropagation();
           data.onDelete?.();
         }}
-        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all text-slate-500 hover:text-red-400"
-        style={{ zIndex: 10 }} // Ensure button is clickable
+        className={cn(
+            "opacity-0 group-hover:opacity-100 p-1 rounded transition-all absolute top-2 right-2",
+            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+        )}
+        style={{ zIndex: 10 }}
       >
         <Trash2 size={12} />
       </button>
 
-      <div className="pointer-events-none mt-4 text-[9px] uppercase tracking-[0.2em] text-slate-700 font-black text-center italic opacity-40">
+      <div className={cn(
+          "pointer-events-none mt-4 text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40",
+          colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
+      )}>
         Workload Zone
       </div>
 
