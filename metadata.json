@@ -1,0 +1,6 @@
+{
+  "name": "InfraStack Builder",
+  "description": "A high-fidelity Kubernetes infrastructure visualizer with drag-and-drop snapping, automated grouping, and YAML manifest generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
