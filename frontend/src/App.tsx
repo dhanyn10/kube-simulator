@@ -76,7 +76,7 @@ export default function App() {
           onNodesDelete={deleteNodes}
           deleteKeyCode={["Backspace", "Delete"]}
           nodeTypes={nodeTypes}
-          fitView
+          defaultViewport={{ x: 0, y: 0, zoom: 0.2 }}
           className="bg-transparent"
           colorMode={colorMode} // Pass colorMode to ReactFlow
         >

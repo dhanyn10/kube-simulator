@@ -1,33 +1,10 @@
-import { create } from 'zustand';
-import {
-  Connection,
-  Edge,
-  Node,
-  NodeChange,
-  EdgeChange,
-  applyNodeChanges,
-  applyEdgeChanges,
-} from '@xyflow/react';
-import { K8sResourceType, K8sNodeData } from './types';
+import { StateCreator } from 'zustand';
+import { Node } from '@xyflow/react';
+import { FlowState } from '../types';
+import { K8sResourceType } from '../../types';
+import { sortNodes, layoutPodsInDeployment } from '../helpers';
 
-interface FlowState {
-  nodes: Node[];
-  edges: Edge[];
-  activeDeploymentId: string | null;
-  hoveredDeploymentId: string | null;
-  detachingDeploymentId: string | null;
-  colorMode: 'dark' | 'light'; // New: Add colorMode state
-
-  onNodesChange: (changes: NodeChange[]) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  onConnect: (connection: Connection) => void;
-  setNodes: (nodes: Node[]) => void;
-  setEdges: (edges: Edge[]) => void;
-
-  setActiveDeploymentId: (id: string | null) => void;
-  setHoveredDeploymentId: (id: string | null) => void;
-  setDetachingDeploymentId: (id: string | null) => void;
-
+export interface NodeSlice {
   addNode: (type: K8sResourceType) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
@@ -35,86 +12,9 @@ interface FlowState {
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
-  toggleColorMode: () => void; // New: Add toggleColorMode action
 }
 
-const sortNodes = (nodes: Node[]): Node[] => {
-  return [...nodes].sort((a, b) => {
-    if (a.type === 'Deployment' && b.type === 'Pod') return -1;
-    if (a.type === 'Pod' && b.type === 'Deployment') return 1;
-    return 0;
-  });
-};
-
-// Helper function to layout pods within a deployment
-const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
-  const paddingX = 20;
-  const paddingY = 40; // Account for deployment header
-  const spacing = 10;
-  
-  const deploymentWidth = deployment.width || deployment.measured?.width || 320;
-  const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
-
-  let currentX = paddingX;
-  let currentY = paddingY;
-  let rowMaxHeight = 0;
-
-  const updatedPods = pods.map(pod => {
-    const podW = pod.width || pod.measured?.width || 160;
-    const podH = pod.height || pod.measured?.height || 80;
-
-    // If the current pod doesn't fit in the current row, move to next row
-    if (currentX + podW > deployableWidth + paddingX && currentX > paddingX) {
-      currentX = paddingX; // Reset X for new row
-      currentY += rowMaxHeight + spacing; // Move Y down by max height of previous row + spacing
-      rowMaxHeight = 0; // Reset max height for new row
-    }
-
-    // Update max height for the current row
-    rowMaxHeight = Math.max(rowMaxHeight, podH);
-
-    const newPosition = { x: currentX, y: currentY };
-    currentX += podW + spacing; // Advance X for next pod
-
-    return {
-      ...pod,
-      position: newPosition,
-    };
-  });
-
-  return updatedPods;
-};
-
-export const useFlowStore = create<FlowState>((set, get) => ({
-  nodes: [],
-  edges: [],
-  activeDeploymentId: null,
-  hoveredDeploymentId: null,
-  detachingDeploymentId: null,
-  colorMode: 'dark', // New: Initialize colorMode to 'dark'
-
-  onNodesChange: (changes: NodeChange[]) => {
-    set((state) => ({
-      nodes: applyNodeChanges(changes, state.nodes),
-    }));
-  },
-  onEdgesChange: (changes: EdgeChange[]) => {
-    set((state) => ({
-      edges: applyEdgeChanges(changes, state.edges),
-    }));
-  },
-  onConnect: (connection: Connection) => {
-    set((state) => ({
-      edges: applyEdgeChanges([{ item: connection, type: 'add' }], state.edges),
-    }));
-  },
-  setNodes: (nodes: Node[]) => set({ nodes }),
-  setEdges: (edges: Edge[]) => set({ edges }),
-
-  setActiveDeploymentId: (id: string | null) => set({ activeDeploymentId: id }),
-  setHoveredDeploymentId: (id: string | null) => set({ hoveredDeploymentId: id }),
-  setDetachingDeploymentId: (id: string | null) => set({ detachingDeploymentId: id }),
-
+export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set, get) => ({
   addNode: (type: K8sResourceType) => {
     const { nodes, activeDeploymentId, deleteNodes } = get();
     const id = type.toLowerCase() + '-' + Math.random().toString(36).substr(2, 9);
@@ -160,7 +60,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         replicas: type === 'Deployment' ? 0 : undefined,
         onDelete: () => {
           const nodeToDelete = get().nodes.find(n => n.id === id);
-          if (nodeToDelete) deleteNodes([nodeToDelete]);
+          if (nodeToDelete) get().deleteNodes([nodeToDelete]);
         },
         onRename: (newName: string) => {
           set((state) => ({
@@ -218,7 +118,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set((state) => {
       let updatedNodes = state.nodes.filter(n => !idsToDelete.includes(n.id));
       
-      // Handle parent replica counts and layout if pods were deleted
       const parentsToUpdate = new Set<string>();
       nodesToDelete.forEach(node => {
         if (node.parentId) parentsToUpdate.add(node.parentId);
@@ -524,7 +423,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         const parentDeployment = nextNodes.find(n => n.id === resizedNode.parentId);
 
         if (parentDeployment) {
-          // Sync sibling dimensions
           nextNodes = nextNodes.map(n => {
             if (n.parentId === parentDeployment.id) {
                 return { ...n, width: resizedNode.width, height: resizedNode.height };
@@ -532,7 +430,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             return n;
           });
 
-          // Re-layout
           const siblingPods = nextNodes.filter(n => n.parentId === parentDeployment.id);
           const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
           nextNodes = nextNodes.map(n => {
@@ -540,7 +437,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             return reLayoutedPod || n;
           });
 
-          // Auto-resize deployment height & width
           const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
           const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
           const minWidthNeeded = maxPodX + 20;
@@ -564,7 +460,6 @@ export const useFlowStore = create<FlowState>((set, get) => ({
           return reLayoutedPod || n;
         });
 
-        // Ensure deployment height/width is at least enough for children
         const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
         const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
         const minWidthNeeded = maxPodX + 20;
@@ -581,5 +476,4 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       return { nodes: nextNodes };
     });
   },
-  toggleColorMode: () => set((state) => ({ colorMode: state.colorMode === 'dark' ? 'light' : 'dark' })),
-}));
+});
