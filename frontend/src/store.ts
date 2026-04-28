@@ -28,6 +28,7 @@ interface FlowState {
   setDetachingDeploymentId: (id: string | null) => void;
 
   addNode: (type: K8sResourceType) => void;
+  deleteNodes: (nodesToDelete: Node[]) => void; // New action
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
   onNodeDrag: (event: any, node: Node) => void;
@@ -112,7 +113,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   setDetachingDeploymentId: (id: string | null) => set({ detachingDeploymentId: id }),
 
   addNode: (type: K8sResourceType) => {
-    const { nodes, activeDeploymentId } = get();
+    const { nodes, activeDeploymentId, deleteNodes } = get();
     const id = type.toLowerCase() + '-' + Math.random().toString(36).substr(2, 9);
     let position = { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 };
     let parentId: string | undefined = undefined;
@@ -155,39 +156,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         type,
         replicas: type === 'Deployment' ? 0 : undefined,
         onDelete: () => {
-          set((state) => {
-            const nodeToDelete = state.nodes.find(n => n.id === id);
-            let updatedNodes = state.nodes.filter((n) => n.id !== id);
-            if (nodeToDelete?.parentId) {
-              updatedNodes = updatedNodes.map(n => {
-                if (n.id === nodeToDelete.parentId && n.type === 'Deployment') {
-                  return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - 1) } };
-                }
-                return n;
-              });
-              
-              const parentDeployment = updatedNodes.find(n => n.id === nodeToDelete.parentId);
-              if (parentDeployment) {
-                const siblingPods = updatedNodes.filter(n => n.parentId === parentDeployment.id);
-                const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
-                updatedNodes = updatedNodes.map(n => {
-                  const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
-                  return reLayoutedPod || n;
-                });
-                
-                const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-                const minHeightNeeded = maxPodY + 40; 
-                updatedNodes = updatedNodes.map(n => {
-                  if (n.id === parentDeployment.id) {
-                    return { ...n, height: Math.max(n.height || 0, minHeightNeeded) };
-                  }
-                  return n;
-                });
-              }
-            }
-            return { nodes: updatedNodes };
-          });
-          set((state) => ({ edges: state.edges.filter((e) => e.source !== id && e.target !== id) }));
+          const nodeToDelete = get().nodes.find(n => n.id === id);
+          if (nodeToDelete) deleteNodes([nodeToDelete]);
         },
         onRename: (newName: string) => {
           set((state) => ({
@@ -236,6 +206,54 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         nextNodes = [...nextNodes, newNode];
       }
       return { nodes: sortNodes(nextNodes) };
+    });
+  },
+
+  deleteNodes: (nodesToDelete: Node[]) => {
+    const idsToDelete = nodesToDelete.map(n => n.id);
+    
+    set((state) => {
+      let updatedNodes = state.nodes.filter(n => !idsToDelete.includes(n.id));
+      
+      // Handle parent replica counts and layout if pods were deleted
+      const parentsToUpdate = new Set<string>();
+      nodesToDelete.forEach(node => {
+        if (node.parentId) parentsToUpdate.add(node.parentId);
+      });
+
+      parentsToUpdate.forEach(parentId => {
+        const deletedCount = nodesToDelete.filter(n => n.parentId === parentId).length;
+        updatedNodes = updatedNodes.map(n => {
+          if (n.id === parentId && n.type === 'Deployment') {
+            return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - deletedCount) } };
+          }
+          return n;
+        });
+
+        const parentDeployment = updatedNodes.find(n => n.id === parentId);
+        if (parentDeployment) {
+          const siblingPods = updatedNodes.filter(n => n.parentId === parentId);
+          const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
+          updatedNodes = updatedNodes.map(n => {
+            const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+            return reLayoutedPod || n;
+          });
+
+          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+          const minHeightNeeded = maxPodY + 40;
+          updatedNodes = updatedNodes.map(n => {
+            if (n.id === parentId) {
+              return { ...n, height: Math.max(n.height || 0, minHeightNeeded) };
+            }
+            return n;
+          });
+        }
+      });
+
+      return { 
+        nodes: updatedNodes,
+        edges: state.edges.filter(e => !idsToDelete.includes(e.source) && !idsToDelete.includes(e.target))
+      };
     });
   },
 

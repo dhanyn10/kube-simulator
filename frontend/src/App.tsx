@@ -5,6 +5,7 @@ import {
   Panel,
   BackgroundVariant,
   useReactFlow,
+  MiniMap,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -27,6 +28,7 @@ export default function App() {
   const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
   const onConnect = useFlowStore((state) => state.onConnect);
   const addNode = useFlowStore((state) => state.addNode);
+  const deleteNodes = useFlowStore((state) => state.deleteNodes);
   const onNodeClick = useFlowStore((state) => state.onNodeClick);
   const onPaneClick = useFlowStore((state) => state.onPaneClick);
   const onNodeDrag = useFlowStore((state) => state.onNodeDrag);
@@ -65,6 +67,8 @@ export default function App() {
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onNodesDelete={deleteNodes}
+          deleteKeyCode={["Backspace", "Delete"]}
           nodeTypes={nodeTypes}
           fitView
           className="bg-transparent"
@@ -72,6 +76,21 @@ export default function App() {
         >
           <Background color="#334155" variant={BackgroundVariant.Dots} gap={24} size={1} />
           
+          <MiniMap 
+            position="bottom-right"
+            className="!bg-slate-900 !border-slate-800 rounded-lg shadow-2xl !m-12" // Increased margin to !m-12
+            nodeColor={(node) => {
+              if (node.type === 'Deployment') return '#8b5cf6'; // violet-500
+              if (node.type === 'Pod') return '#22d3ee'; // cyan-400
+              if (node.type === 'Service') return '#f59e0b'; // amber-500
+              return '#475569';
+            }}
+            maskColor="rgba(15, 23, 42, 0.7)"
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+          />
+
           <Panel position="top-left" className="m-4 flex flex-col gap-2">
             <button
               onClick={() => zoomIn()}
