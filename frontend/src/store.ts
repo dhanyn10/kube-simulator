@@ -237,23 +237,26 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
     if (node.type !== 'Pod') return;
 
-    // --- Action 1: Handle Detaching ---
+    // --- Action 1: Handle Detaching (Merah) ---
     // If the pod was being detached from its parent
     if (node.parentId && finalDetachingDeploymentId === node.parentId) {
       set((state) => {
         const parent = state.nodes.find(n => n.id === node.parentId);
         if (!parent) return state; // Should not happen if parentId exists
 
+        const podWidth = node.measured?.width || 160;
+        const podHeight = node.measured?.height || 80;
+
         return {
           nodes: state.nodes.map((n) => {
             if (n.id === node.id) {
+              // Snap outside the parent deployment
               return {
                 ...n,
                 parentId: undefined,
-                // Position needs to be absolute now
                 position: { 
-                  x: parent.position.x + node.position.x, 
-                  y: parent.position.y + node.position.y 
+                  x: parent.position.x + parent.measured?.width + 50, // Snap to the right of the parent + 50px
+                  y: parent.position.y + (parent.measured?.height / 2) - (podHeight / 2), // Center vertically
                 },
               };
             }
@@ -267,7 +270,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       return; // Detaching action completed, no need to check for attaching
     } 
     
-    // --- Action 2: Handle Attaching ---
+    // --- Action 2: Handle Attaching (Ungu) ---
     // If the pod was hovering over a new deployment (or its own parent, if not detaching)
     // And it's not already a child of that deployment
     if (finalHoveredDeploymentId && node.parentId !== finalHoveredDeploymentId) {
@@ -286,20 +289,27 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             });
         }
 
+        const podWidth = node.measured?.width || 160;
+        const podHeight = node.measured?.height || 80;
+        const targetWidth = targetDeployment.measured?.width || 320;
+        const targetHeight = targetDeployment.measured?.height || 160;
+
         const updatedNodes = currentNodes.map((n) => {
           if (n.id === node.id) {
-            // Calculate absolute position of the pod before it was dropped
-            const originalParent = nodes.find(p => p.id === node.parentId);
-            const podAbsXBeforeDrop = originalParent ? originalParent.position.x + node.position.x : node.position.x;
-            const podAbsYBeforeDrop = originalParent ? originalParent.position.y + node.position.y : node.position.y;
+            // Snap inside the target deployment
+            // Calculate a random position within the target, with padding
+            const paddingX = 20;
+            const paddingY = 40; // More padding from top for header
+            
+            const randomX = paddingX + Math.random() * (targetWidth - podWidth - (2 * paddingX));
+            const randomY = paddingY + Math.random() * (targetHeight - podHeight - (2 * paddingY));
 
             return {
               ...n,
               parentId: targetDeployment.id,
-              // New position relative to the new parent
               position: { 
-                x: podAbsXBeforeDrop - targetDeployment.position.x, 
-                y: podAbsYBeforeDrop - targetDeployment.position.y 
+                x: randomX, 
+                y: randomY
               },
             };
           }

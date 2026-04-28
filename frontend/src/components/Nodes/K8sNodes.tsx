@@ -218,14 +218,14 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative min-w-[320px] min-h-[160px] bg-violet-600/5 border-2 border-dashed rounded-xl p-6 transition-all duration-200 cursor-grab",
+      "group relative min-w-[320px] min-h-[160px] bg-violet-600/5 border-2 border-dashed rounded-xl p-6 transition-all duration-300 cursor-grab",
       props.selected ? "border-violet-500 ring-4 ring-violet-500/10" : "border-slate-800 hover:border-slate-700",
-      isHovered && "border-solid border-violet-400 bg-violet-500/10 ring-8 ring-violet-500/20 scale-[1.02] shadow-[0_0_20px_rgba(139,92,246,0.3)]",
-      isDetaching && "border-solid border-red-500 bg-red-500/10 ring-8 ring-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+      isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 scale-[1.02] shadow-[0_0_30px_rgba(139,92,246,0.4)]",
+      isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 scale-[0.98] shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>
       <div className="absolute -top-3 left-6 flex items-center gap-2">
         <span className={cn(
-          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase transition-colors",
+          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase transition-colors duration-300",
           isHovered ? "bg-violet-400" : isDetaching ? "bg-red-500" : "bg-violet-600"
         )}>
           DEPLOYMENT
