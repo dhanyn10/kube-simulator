@@ -128,11 +128,11 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     setNodes(sortNodes([...finalNodes, ...finalNewNodes]));
     setEdges([...edges, ...newEdges]);
   },
-  addNode: (type: K8sResourceType, customPosition?: { x: number, y: number }) => {
+  addNode: (type: K8sResourceType, customPosition?: { x: number, y: number }, customParentId?: string) => {
     const { nodes, activeDeploymentId, deleteNodes } = get();
     const id = type.toLowerCase() + '-' + Math.random().toString(36).substr(2, 9);
     let position = customPosition || { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 };
-    let parentId: string | undefined = undefined;
+    let parentId: string | undefined = customParentId;
     let width = undefined;
     let height = undefined;
 
@@ -147,13 +147,17 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         height = 120;
     }
 
-    if (type === 'Pod' && activeDeploymentId && !customPosition) {
-      const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
-      if (activeDeployment) {
-        parentId = activeDeployment.id;
-        position = { x: 0, y: 0 }; 
-      }
-    } else if (!customPosition) {
+    if (type === 'Pod' && !customParentId) {
+        if (activeDeploymentId && !customPosition) {
+            const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
+            if (activeDeployment) {
+                parentId = activeDeployment.id;
+                position = { x: 0, y: 0 }; 
+            }
+        }
+    }
+
+    if (!customPosition && !parentId) {
       const lastNodeOfType = [...nodes].reverse().find(n => n.type === type);
       position = lastNodeOfType
         ? { x: lastNodeOfType.position.x + 40, y: lastNodeOfType.position.y + 40 }
@@ -196,6 +200,18 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           }
           return n;
         });
+        
+        // If it's a drop from sidebar, calculate relative position if parent exists
+        if (customPosition) {
+            const parent = state.nodes.find(n => n.id === parentId);
+            if (parent) {
+                newNode.position = {
+                    x: customPosition.x - parent.position.x,
+                    y: customPosition.y - parent.position.y
+                };
+            }
+        }
+
         nextNodes = [...nextNodes.filter(n => n.id !== newNode.id), newNode]; 
         
         const parentDeployment = nextNodes.find(n => n.id === parentId);

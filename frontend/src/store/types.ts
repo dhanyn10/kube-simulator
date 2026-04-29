@@ -14,6 +14,7 @@ export interface FlowState {
   hoveredDeploymentId: string | null;
   detachingDeploymentId: string | null;
   configuringNodeId: string | null;
+  draggingSidebarItem: K8sResourceType | null;
   colorMode: 'dark' | 'light';
   clipboard: { nodes: Node[], edges: Edge[] } | null;
 

@@ -44,12 +44,49 @@ export default function App() {
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
+  const setHoveredDeploymentId = useFlowStore((state) => state.setHoveredDeploymentId);
+  const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
+
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+
+  const getTargetDeployment = useCallback((clientX: number, clientY: number) => {
+    const position = screenToFlowPosition({ x: clientX, y: clientY });
+    
+    // Check intersection with Deployment nodes
+    const deployment = nodes.find(n => {
+      if (n.type !== 'Deployment') return false;
+      const w = n.width || n.measured?.width || 320;
+      const h = n.height || n.measured?.height || 160;
+      return (
+        position.x >= n.position.x &&
+        position.x <= n.position.x + w &&
+        position.y >= n.position.y &&
+        position.y <= n.position.y + h
+      );
+    });
+    return deployment;
+  }, [nodes, screenToFlowPosition]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
-  }, []);
+
+    if (draggingSidebarItem === 'Pod') {
+        const target = getTargetDeployment(event.clientX, event.clientY);
+        setHoveredDeploymentId(target?.id || null);
+        
+        // Trigger manual nodes update to show hover effect
+        if (target) {
+            useFlowStore.setState((state) => ({
+                nodes: state.nodes.map(n => n.id === target.id ? { ...n, data: { ...n.data, isHovered: true } } : { ...n, data: { ...n.data, isHovered: false } })
+            }));
+        } else {
+            useFlowStore.setState((state) => ({
+                nodes: state.nodes.map(n => ({ ...n, data: { ...n.data, isHovered: false } }))
+            }));
+        }
+    }
+  }, [getTargetDeployment, setHoveredDeploymentId, draggingSidebarItem]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -57,7 +94,6 @@ export default function App() {
 
       const type = event.dataTransfer.getData('application/reactflow') as K8sResourceType;
 
-      // check if the dropped element is valid
       if (typeof type === 'undefined' || !type) {
         return;
       }
@@ -67,13 +103,11 @@ export default function App() {
         y: event.clientY,
       });
 
-      // Offset position to center the node under the cursor
-      // Default dimensions: Pod (160x80), Deployment (320x160), Service (180x120)
       const centerOffsets = {
         Pod: { x: 80, y: 40 },
         Deployment: { x: 160, y: 80 },
         Service: { x: 90, y: 60 },
-        Namespace: { x: 200, y: 150 }, // Assuming Namespace default
+        Namespace: { x: 200, y: 150 },
       };
 
       const offset = centerOffsets[type] || { x: 0, y: 0 };
@@ -82,9 +116,17 @@ export default function App() {
         y: position.y - offset.y,
       };
 
-      addNode(type, centeredPosition);
+      const targetDeployment = getTargetDeployment(event.clientX, event.clientY);
+      
+      // Cleanup hover effects
+      setHoveredDeploymentId(null);
+      useFlowStore.setState((state) => ({
+        nodes: state.nodes.map(n => ({ ...n, data: { ...n.data, isHovered: false } }))
+      }));
+
+      addNode(type, centeredPosition, targetDeployment?.id);
     },
-    [screenToFlowPosition, addNode],
+    [screenToFlowPosition, addNode, getTargetDeployment, setHoveredDeploymentId],
   );
 
   // Handle keyboard shortcuts
