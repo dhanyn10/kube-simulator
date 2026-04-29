@@ -20,6 +20,7 @@ export interface K8sNodeData {
   webserver?: 'nginx' | 'apache' | 'none';
   runtime?: 'php' | 'nodejs' | 'java' | 'go' | 'python' | 'none';
   framework?: string;
+  isAutoNamed?: boolean;
 }
 
 export interface K8sManifest {

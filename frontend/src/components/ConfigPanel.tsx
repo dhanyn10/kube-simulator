@@ -39,10 +39,24 @@ export const ConfigPanel = () => {
         // Simple logic for image name generation
         const runtimePart = nextData.runtime !== 'none' ? nextData.runtime : '';
         const serverPart = nextData.webserver !== 'none' ? nextData.webserver : '';
-        nextData.image = `k8s-app-${runtimePart}${serverPart ? '-' + serverPart : ''}:latest`.replace('--', '-');
+        nextData.image = `k8s-app-${runtimePart}${serverPart ? '-' + serverPart : ''}:latest`.replace('--', '-').toLowerCase();
+
+        // Auto-update label if user hasn't edited it manually
+        if (nextData.isAutoNamed) {
+            let newLabel = '';
+            if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
+                newLabel = `${nextData.webserver}-${nextData.runtime}`;
+            } else {
+                newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
+            }
+            nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
+        }
     } else {
         nextData.status = 'pending';
         nextData.image = undefined;
+        if (nextData.isAutoNamed) {
+            nextData.label = `pod-${nodes.length}`;
+        }
     }
 
     setNodes(nodes.map(n => n.id === selectedNode.id ? { ...n, data: nextData } : n));

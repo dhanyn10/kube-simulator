@@ -47,11 +47,39 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
     const idMap: Record<string, string> = {};
     const offset = 40;
+    const clipboardSourceIds = new Set(clipboard.nodes.map(n => n.id));
 
-    // 1. Generate new IDs and adjust positions
+    // 1. Update ORIGINAL nodes (source of copy) to have a random suffix if they still exist
+    const updatedExistingNodes = nodes.map(node => {
+      if (clipboardSourceIds.has(node.id) && node.type === 'Pod') {
+        const randomSuffix = Math.random().toString(36).substr(2, 4);
+        // Avoid double suffixing if it already has one
+        const baseLabel = node.data.label.split('-').slice(0, -1).join('-');
+        const isAlreadySuffixed = /-[a-z0-9]{4}$/.test(node.data.label);
+        const newLabel = isAlreadySuffixed 
+          ? `${baseLabel}-${randomSuffix}` 
+          : `${node.data.label}-${randomSuffix}`;
+
+        return {
+          ...node,
+          data: { ...node.data, label: newLabel, isAutoNamed: false }
+        };
+      }
+      return node;
+    });
+
+    // 2. Generate NEW nodes from clipboard and adjust positions/labels
     const newNodes: Node[] = clipboard.nodes.map(node => {
       const newId = `${node.type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
       idMap[node.id] = newId;
+
+      const randomSuffix = Math.random().toString(36).substr(2, 4);
+      // For the new node, we always want a fresh suffix
+      const isAlreadySuffixed = /-[a-z0-9]{4}$/.test(node.data.label);
+      const baseLabel = isAlreadySuffixed 
+        ? node.data.label.split('-').slice(0, -1).join('-') 
+        : node.data.label;
+      const newLabel = `${baseLabel}-${randomSuffix}`;
 
       return {
         ...node,
@@ -63,20 +91,22 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         },
         data: {
             ...node.data,
+            label: newLabel,
+            isAutoNamed: false, // Once pasted with suffix, it's a specific instance
             onDelete: () => {
                 const nodeToDelete = get().nodes.find(n => n.id === newId);
                 if (nodeToDelete) get().deleteNodes([nodeToDelete]);
             },
             onRename: (newName: string) => {
                 set((state) => ({
-                    nodes: state.nodes.map((n) => (n.id === newId ? { ...n, data: { ...n.data, label: newName } } : n)),
+                    nodes: state.nodes.map((n) => (n.id === newId ? { ...n, data: { ...n.data, label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false } } : n)),
                 }));
             },
         }
       };
     });
 
-    // 2. Fix parent-child relationships
+    // 3. Fix parent-child relationships for new nodes
     const finalNewNodes = newNodes.map(node => {
       if (node.parentId && idMap[node.parentId]) {
         return { ...node, parentId: idMap[node.parentId] };
@@ -84,7 +114,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       return node;
     });
 
-    // 3. Clone edges with new IDs
+    // 4. Clone edges with new IDs
     const newEdges: Edge[] = clipboard.edges.map(edge => ({
       ...edge,
       id: `edge-${Math.random().toString(36).substr(2, 9)}`,
@@ -92,10 +122,10 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       target: idMap[edge.target],
     }));
 
-    // 4. Deselect current nodes and add new ones
-    const deselectNodes = nodes.map(n => ({ ...n, selected: false }));
+    // 5. Deselect current nodes and combine everything
+    const finalNodes = updatedExistingNodes.map(n => ({ ...n, selected: false }));
     
-    setNodes(sortNodes([...deselectNodes, ...finalNewNodes]));
+    setNodes(sortNodes([...finalNodes, ...finalNewNodes]));
     setEdges([...edges, ...newEdges]);
   },
   addNode: (type: K8sResourceType) => {
@@ -138,19 +168,20 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       width, 
       height, 
       data: {
-        label: type + ' ' + (nodes.length + 1),
+        label: type.toLowerCase() + '-' + (nodes.length + 1),
         type,
         replicas: type === 'Deployment' ? 0 : undefined,
         status: type === 'Pod' ? 'pending' : undefined,
         webserver: type === 'Pod' ? 'none' : undefined,
         runtime: type === 'Pod' ? 'none' : undefined,
+        isAutoNamed: type === 'Pod',
         onDelete: () => {
           const nodeToDelete = get().nodes.find(n => n.id === id);
           if (nodeToDelete) get().deleteNodes([nodeToDelete]);
         },
         onRename: (newName: string) => {
           set((state) => ({
-            nodes: state.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, label: newName } } : n)),
+            nodes: state.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false } } : n)),
           }));
         },
       },
