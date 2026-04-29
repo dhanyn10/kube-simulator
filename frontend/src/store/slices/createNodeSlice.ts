@@ -45,6 +45,31 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     const { clipboard, nodes, edges, setNodes, setEdges } = get();
     if (!clipboard) return;
 
+    // Check if we are pasting a single Pod and it should be merged
+    if (clipboard.nodes.length === 1 && clipboard.nodes[0].type === 'Pod') {
+      const pastedPod = clipboard.nodes[0];
+      // Find if there's a pod at approximately the same position or in same parent
+      const targetPod = nodes.find(n =>
+        n.type === 'Pod' &&
+        n.parentId === pastedPod.parentId &&
+        (pastedPod.parentId ? true : (Math.abs(n.position.x - pastedPod.position.x) < 50 && Math.abs(n.position.y - pastedPod.position.y) < 50))
+      );
+
+      if (targetPod) {
+        const nextNodes = nodes.map(n => {
+          if (n.id === targetPod.id) {
+            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 1) + (pastedPod.data.replicas || 1) } };
+          }
+          if (targetPod.parentId && n.id === targetPod.parentId) {
+            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + (pastedPod.data.replicas || 1) } };
+          }
+          return n;
+        });
+        setNodes(nextNodes);
+        return;
+      }
+    }
+
     const idMap: Record<string, string> = {};
     const offset = 40;
     const clipboardSourceIds = new Set(clipboard.nodes.map(n => n.id));
@@ -174,7 +199,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       data: {
         label: type.toLowerCase() + '-' + (nodes.length + 1),
         type,
-        replicas: type === 'Deployment' ? 0 : undefined,
+        replicas: type === 'Pod' ? 1 : (type === 'Deployment' ? 0 : undefined),
         status: type === 'Pod' ? 'pending' : undefined,
         webserver: type === 'Pod' ? 'none' : undefined,
         runtime: type === 'Pod' ? 'none' : undefined,
@@ -194,49 +219,64 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     set((state) => {
       let nextNodes = [...state.nodes];
       if (parentId) {
-        nextNodes = nextNodes.map(n => {
-          if (n.id === parentId) {
-            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
-          }
-          return n;
-        });
+        const existingPodInDeployment = nextNodes.find(n => n.parentId === parentId && n.type === 'Pod');
         
-        // If it's a drop from sidebar, calculate relative position if parent exists
-        if (customPosition) {
-            const parent = state.nodes.find(n => n.id === parentId);
-            if (parent) {
-                newNode.position = {
-                    x: customPosition.x - parent.position.x,
-                    y: customPosition.y - parent.position.y
-                };
+        if (type === 'Pod' && existingPodInDeployment) {
+          // Increment replicas instead of adding new node
+          nextNodes = nextNodes.map(n => {
+            if (n.id === existingPodInDeployment.id) {
+              return { ...n, data: { ...n.data, replicas: (n.data.replicas || 1) + 1 } };
             }
-        }
-
-        nextNodes = [...nextNodes.filter(n => n.id !== newNode.id), newNode]; 
-        
-        const parentDeployment = nextNodes.find(n => n.id === parentId);
-        if (parentDeployment) {
-          const siblingPods = nextNodes.filter(n => n.parentId === parentId);
-          const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
-          nextNodes = nextNodes.map(n => {
-            const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
-            return reLayoutedPod || n;
-          });
-          
-          const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-          const minWidthNeeded = maxPodX + 20;
-          const minHeightNeeded = maxPodY + 40; 
-          nextNodes = nextNodes.map(n => {
             if (n.id === parentId) {
-              return { 
-                ...n, 
-                width: Math.max(n.width || 0, minWidthNeeded),
-                height: Math.max(n.height || 0, minHeightNeeded) 
-              };
+              return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
             }
             return n;
           });
+        } else {
+          nextNodes = nextNodes.map(n => {
+            if (n.id === parentId) {
+              return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
+            }
+            return n;
+          });
+
+          // If it's a drop from sidebar, calculate relative position if parent exists
+          if (customPosition) {
+              const parent = state.nodes.find(n => n.id === parentId);
+              if (parent) {
+                  newNode.position = {
+                      x: customPosition.x - parent.position.x,
+                      y: customPosition.y - parent.position.y
+                  };
+              }
+          }
+
+          nextNodes = [...nextNodes.filter(n => n.id !== newNode.id), newNode];
+
+          const parentDeployment = nextNodes.find(n => n.id === parentId);
+          if (parentDeployment) {
+            const siblingPods = nextNodes.filter(n => n.parentId === parentId);
+            const reLayoutedPods = layoutPodsInDeployment(parentDeployment, siblingPods);
+            nextNodes = nextNodes.map(n => {
+              const reLayoutedPod = reLayoutedPods.find(rp => rp.id === n.id);
+              return reLayoutedPod || n;
+            });
+
+            const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+            const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+            const minWidthNeeded = maxPodX + 20;
+            const minHeightNeeded = maxPodY + 40;
+            nextNodes = nextNodes.map(n => {
+              if (n.id === parentId) {
+                return {
+                  ...n,
+                  width: Math.max(n.width || 0, minWidthNeeded),
+                  height: Math.max(n.height || 0, minHeightNeeded)
+                };
+              }
+              return n;
+            });
+          }
         }
       } else {
         nextNodes = [...nextNodes, newNode];
@@ -395,10 +435,29 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         if (activeDeployment && node.parentId !== activeDeployment.id) {
             set((state) => {
                 let currentNodes = state.nodes;
+                const existingPodInTarget = currentNodes.find(n => n.parentId === activeDeployment.id && n.type === 'Pod');
+
+                if (existingPodInTarget) {
+                    // Merge into existing pod
+                    currentNodes = currentNodes.map(n => {
+                        if (n.id === existingPodInTarget.id) {
+                            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 1) + (node.data.replicas || 1) } };
+                        }
+                        if (n.id === activeDeployment.id) {
+                            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + (node.data.replicas || 1) } };
+                        }
+                        if (node.parentId && n.id === node.parentId) {
+                            return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - (node.data.replicas || 1)) } };
+                        }
+                        return n;
+                    });
+                    return { nodes: sortNodes(currentNodes.filter(n => n.id !== node.id)) };
+                }
+
                 if (node.parentId) {
                     currentNodes = currentNodes.map(n => {
                         if (n.id === node.parentId) {
-                            return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - 1) } };
+                            return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - (node.data.replicas || 1)) } };
                         }
                         return n;
                     });
@@ -416,7 +475,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
                 nextNodes = nextNodes.map(n => {
                   if (n.id === activeDeployment.id) {
-                    return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
+                    return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + (node.data.replicas || 1) } };
                   }
                   return n;
                 });
@@ -490,7 +549,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
               };
             }
             if (n.id === node.parentId) {
-              return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - 1) } };
+              return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - (node.data.replicas || 1)) } };
             }
             return n;
           }),
@@ -505,10 +564,29 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         if (!targetDeployment) return state;
 
         let currentNodes = state.nodes;
+        const existingPodInTarget = currentNodes.find(n => n.parentId === targetDeployment.id && n.type === 'Pod');
+
+        if (existingPodInTarget) {
+            // Merge into existing pod
+            currentNodes = currentNodes.map(n => {
+                if (n.id === existingPodInTarget.id) {
+                    return { ...n, data: { ...n.data, replicas: (n.data.replicas || 1) + (node.data.replicas || 1) } };
+                }
+                if (n.id === targetDeployment.id) {
+                    return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + (node.data.replicas || 1) } };
+                }
+                if (node.parentId && n.id === node.parentId) {
+                    return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - (node.data.replicas || 1)) } };
+                }
+                return n;
+            });
+            return { nodes: sortNodes(currentNodes.filter(n => n.id !== node.id)) };
+        }
+
         if (node.parentId && node.parentId !== finalHoveredDeploymentId) {
             currentNodes = currentNodes.map(n => {
                 if (n.id === node.parentId) {
-                    return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - 1) } };
+                    return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - (node.data.replicas || 1)) } };
                 }
                 return n;
             });
@@ -526,7 +604,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
         nextNodes = nextNodes.map(n => {
           if (n.id === targetDeployment.id && node.parentId !== finalHoveredDeploymentId) {
-            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + 1 } };
+            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + (node.data.replicas || 1) } };
           }
           return n;
         });
