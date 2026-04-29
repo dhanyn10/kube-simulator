@@ -9,6 +9,7 @@ export interface NodeSlice {
   deleteNodes: (nodesToDelete: Node[]) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
+  onNodeDragStart: (event: any, node: Node) => void;
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
@@ -169,6 +170,12 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
   onPaneClick: () => {
     get().setActiveDeploymentId(null);
+  },
+
+  onNodeDragStart: (event: any, node: Node) => {
+    if (node.type === 'Deployment') {
+      get().setActiveDeploymentId(node.id);
+    }
   },
 
   onNodeDrag: (event: any, node: Node) => {

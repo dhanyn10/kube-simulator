@@ -29,8 +29,10 @@ export interface FlowState {
   deleteNodes: (nodesToDelete: Node[]) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
+  onNodeDragStart: (event: any, node: Node) => void;
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
+  onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
   toggleColorMode: () => void;
 }

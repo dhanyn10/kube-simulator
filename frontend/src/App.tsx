@@ -32,6 +32,7 @@ export default function App() {
   const deleteNodes = useFlowStore((state) => state.deleteNodes);
   const onNodeClick = useFlowStore((state) => state.onNodeClick);
   const onPaneClick = useFlowStore((state) => state.onPaneClick);
+  const onNodeDragStart = useFlowStore((state) => state.onNodeDragStart);
   const onNodeDrag = useFlowStore((state) => state.onNodeDrag);
   const onNodeDragStop = useFlowStore((state) => state.onNodeDragStop);
   const activeDeploymentId = useFlowStore((state) => state.activeDeploymentId);
@@ -69,6 +70,7 @@ export default function App() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStart={onNodeDragStart}
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
@@ -76,7 +78,9 @@ export default function App() {
           onNodesDelete={deleteNodes}
           deleteKeyCode={["Backspace", "Delete"]}
           nodeTypes={nodeTypes}
-          defaultViewport={{ x: 0, y: 0, zoom: 0.2 }}
+          defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+          minZoom={0.5}
+          maxZoom={2}
           className="bg-transparent"
           colorMode={colorMode} // Pass colorMode to ReactFlow
         >

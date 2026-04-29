@@ -1,9 +1,48 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Box, Layers, Network, Trash2, Settings, ExternalLink } from 'lucide-react';
+import { Box, Layers, Network, Trash2, Settings, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
+
+const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
+  const onQuickConnect = useFlowStore((state) => state.onQuickConnect);
+  const colorMode = useFlowStore((state) => state.colorMode);
+  
+  const arrowStyle = cn(
+    "absolute flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-[1000]",
+    colorMode === 'dark' ? "bg-blue-500/20 hover:bg-blue-500/40 text-blue-400" : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-600"
+  );
+
+  return (
+    <>
+      <div 
+        className={cn(arrowStyle, "-top-6 left-1/2 -translate-x-1/2")}
+        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'top'); }}
+      >
+        <ChevronUp size={14} />
+      </div>
+      <div 
+        className={cn(arrowStyle, "-right-6 top-1/2 -translate-y-1/2")}
+        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'right'); }}
+      >
+        <ChevronRight size={14} />
+      </div>
+      <div 
+        className={cn(arrowStyle, "-bottom-6 left-1/2 -translate-x-1/2")}
+        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'bottom'); }}
+      >
+        <ChevronDown size={14} />
+      </div>
+      <div 
+        className={cn(arrowStyle, "-left-6 top-1/2 -translate-y-1/2")}
+        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'left'); }}
+      >
+        <ChevronLeft size={14} />
+      </div>
+    </>
+  );
+};
 
 export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex, id, type }: { 
   children?: React.ReactNode; 
@@ -63,6 +102,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
     )}>
+      <QuickConnectArrows nodeId={id} />
       <NodeResizer 
         minWidth={100} 
         minHeight={60} 
@@ -138,8 +178,17 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
       {children}
 
-      <Handle type="target" position={Position.Top} className={cn("!w-1.5 !h-1.5 !border-none", colorMode === 'dark' ? "!bg-slate-600" : "!bg-slate-300")} />
-      <Handle type="source" position={Position.Bottom} className={cn("!w-1.5 !h-1.5 !border-none", colorMode === 'dark' ? "!bg-slate-600" : "!bg-slate-300")} />
+      <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-1.5 !h-1.5 !border-none", colorMode === 'dark' ? "!bg-slate-600" : "!bg-slate-300")} />
+      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className={cn("!w-1.5 !h-1.5 !border-none", colorMode === 'dark' ? "!bg-slate-600" : "!bg-slate-300")} />
+      
+      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0" />
     </div>
   );
 });
@@ -194,10 +243,11 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors",
       colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
       props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>
+      <QuickConnectArrows nodeId={props.id} />
       <NodeResizer 
         minWidth={150} 
         minHeight={100} 
@@ -243,8 +293,17 @@ export const ServiceNode = memo((props: NodeProps) => {
         <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
       </div>
 
-      <Handle type="target" position={Position.Top} className="!bg-amber-500" />
-      <Handle type="source" position={Position.Bottom} className="!bg-amber-500" />
+      <Handle type="target" position={Position.Top} id="top-t" className="!bg-amber-500" />
+      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-amber-500" />
+      
+      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0" />
     </div>
   );
 });
@@ -302,6 +361,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
       isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>
+      <QuickConnectArrows nodeId={props.id} />
       <NodeResizer 
         minWidth={300} 
         minHeight={150} 
@@ -369,8 +429,17 @@ export const DeploymentNode = memo((props: NodeProps) => {
         Workload Zone
       </div>
 
-      <Handle type="target" position={Position.Left} className="!bg-violet-600" />
-      <Handle type="source" position={Position.Right} className="!bg-violet-600" />
+      <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Left} id="left-t" className="!bg-violet-600" />
+      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0" />
+      
+      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!bg-violet-600" />
     </div>
   );
 });
