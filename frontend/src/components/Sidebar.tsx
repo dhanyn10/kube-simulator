@@ -5,13 +5,14 @@ import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
 
 interface SidebarProps {
-  onAddNode: (type: K8sResourceType) => void;
+  onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
   onExport: () => void;
 }
 
 export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+  const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
@@ -32,6 +33,11 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const onDragStart = (event: React.DragEvent, nodeType: K8sResourceType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.effectAllowed = 'move';
+    setDraggingSidebarItem(nodeType);
+  };
+
+  const onDragEnd = () => {
+    setDraggingSidebarItem(null);
   };
 
   return (
@@ -107,6 +113,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                   key={type}
                   onClick={() => onAddNode(type)}
                   onDragStart={(event) => onDragStart(event, type)}
+                  onDragEnd={onDragEnd}
                   draggable
                   className={cn(
                     "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
@@ -154,6 +161,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                   key={type}
                   onClick={() => onAddNode(type)}
                   onDragStart={(event) => onDragStart(event, type)}
+                  onDragEnd={onDragEnd}
                   draggable
                   className={cn(
                     "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
