@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Box, Layers, Network, Trash2, Settings, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Box, Layers, Network, Trash2, Settings, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -61,6 +61,9 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
   const colorMode = useFlowStore((state) => state.colorMode);
 
+  const isPending = data.type === 'Pod' && data.status === 'pending';
+  const isReady = data.type === 'Pod' && data.status === 'ready';
+
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -98,10 +101,21 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-colors",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-all",
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
+      isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
+      isReady && (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30")
     )}>
+      <style>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; border-color: rgba(239, 68, 68, 0.5); }
+          50% { opacity: 0.8; border-color: rgba(239, 68, 68, 1); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+      `}</style>
       <QuickConnectArrows nodeId={id} />
       <NodeResizer 
         minWidth={100} 
@@ -117,24 +131,31 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <div className="flex items-center gap-1.5">
           <span className={cn(
             "text-[8px] font-bold tracking-widest uppercase", 
-            colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600'
+            isPending ? "text-red-500" : isReady ? "text-emerald-500" : (colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600')
           )}>
             {data.type}
           </span>
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
+          <div className={cn(
+            "w-1.5 h-1.5 rounded-full",
+            isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+          )}></div>
         </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            data.onDelete?.();
-          }}
-          className={cn(
-            "opacity-0 group-hover:opacity-100 p-1 rounded transition-all",
-            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-          )}
-        >
-          <Trash2 size={12} />
-        </button>
+        <div className="flex items-center gap-1">
+            {isPending && <AlertCircle size={10} className="text-red-500" />}
+            {isReady && <CheckCircle2 size={10} className="text-emerald-500" />}
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    data.onDelete?.();
+                }}
+                className={cn(
+                    "opacity-0 group-hover:opacity-100 p-1 rounded transition-all",
+                    colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+                )}
+            >
+                <Trash2 size={12} />
+            </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -162,17 +183,35 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             {data.label}
           </div>
         )}
+        
+        {data.type === 'Pod' && (
+            <div className="flex flex-wrap gap-1 mt-1">
+                {data.runtime && data.runtime !== 'none' && (
+                    <span className="text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold">
+                        {data.runtime}
+                    </span>
+                )}
+                {data.webserver && data.webserver !== 'none' && (
+                    <span className="text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold">
+                        {data.webserver}
+                    </span>
+                )}
+            </div>
+        )}
+
         {data.image ? (
           <div className={cn(
             "text-[9px] font-mono truncate px-1.5 py-0.5 rounded border",
-            colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200"
+            isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
           )}>
-            {data.image}
+            {isPending ? 'image: not configured' : data.image}
           </div>
         ) : (
-          <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
-            <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
-          </div>
+          data.type !== 'Pod' && (
+            <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
+                <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
+            </div>
+          )
         )}
       </div>
 

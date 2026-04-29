@@ -10,6 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { Sidebar } from './components/Sidebar';
+import { ConfigPanel } from './components/ConfigPanel';
 import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X } from 'lucide-react'; // Removed Sun, Moon icons
@@ -37,12 +38,36 @@ export default function App() {
   const onNodeDragStop = useFlowStore((state) => state.onNodeDragStop);
   const activeDeploymentId = useFlowStore((state) => state.activeDeploymentId);
   const colorMode = useFlowStore((state) => state.colorMode); // Get colorMode from store
-  // Removed toggleColorMode as it's no longer used here
+  const copyNodes = useFlowStore((state) => state.copyNodes);
+  const pasteNodes = useFlowStore((state) => state.pasteNodes);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
   const { zoomIn, zoomOut } = useReactFlow();
+
+  // Handle keyboard shortcuts
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isControl = event.ctrlKey || event.metaKey;
+      
+      if (isControl && event.key === 'c') {
+        // Only copy if no input is focused
+        if (document.activeElement?.tagName !== 'INPUT') {
+          copyNodes();
+        }
+      }
+      
+      if (isControl && event.key === 'v') {
+        if (document.activeElement?.tagName !== 'INPUT') {
+          pasteNodes();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [copyNodes, pasteNodes]);
 
   const handleExport = useCallback(() => {
     const yaml = generateYaml(nodes, edges);
@@ -62,6 +87,7 @@ export default function App() {
       colorMode === 'dark' ? "bg-slate-950 text-slate-200" : "bg-white text-slate-800"
     )}>
       <Sidebar onAddNode={addNode} onExport={handleExport} />
+      <ConfigPanel />
       
       <main className="flex-1 relative canvas-grid">
         <ReactFlow

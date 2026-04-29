@@ -13,9 +13,91 @@ export interface NodeSlice {
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
+  copyNodes: () => void;
+  pasteNodes: () => void;
 }
 
 export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set, get) => ({
+  clipboard: null,
+  // ... (previous methods)
+
+  copyNodes: () => {
+    const { nodes, edges } = get();
+    const selectedNodes = nodes.filter(n => n.selected);
+    
+    if (selectedNodes.length === 0) return;
+
+    // Inclusion logic: If a Deployment is copied, include all its child Pods
+    const nodeIdsToCopy = new Set(selectedNodes.map(n => n.id));
+    selectedNodes.forEach(node => {
+      if (node.type === 'Deployment') {
+        nodes.filter(n => n.parentId === node.id).forEach(child => nodeIdsToCopy.add(child.id));
+      }
+    });
+
+    const nodesToCopy = nodes.filter(n => nodeIdsToCopy.has(n.id));
+    const edgesToCopy = edges.filter(e => nodeIdsToCopy.has(e.source) && nodeIdsToCopy.has(e.target));
+
+    set({ clipboard: { nodes: JSON.parse(JSON.stringify(nodesToCopy)), edges: JSON.parse(JSON.stringify(edgesToCopy)) } });
+  },
+
+  pasteNodes: () => {
+    const { clipboard, nodes, edges, setNodes, setEdges } = get();
+    if (!clipboard) return;
+
+    const idMap: Record<string, string> = {};
+    const offset = 40;
+
+    // 1. Generate new IDs and adjust positions
+    const newNodes: Node[] = clipboard.nodes.map(node => {
+      const newId = `${node.type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
+      idMap[node.id] = newId;
+
+      return {
+        ...node,
+        id: newId,
+        selected: true,
+        position: {
+          x: node.position.x + (node.parentId ? 0 : offset),
+          y: node.position.y + (node.parentId ? 0 : offset),
+        },
+        data: {
+            ...node.data,
+            onDelete: () => {
+                const nodeToDelete = get().nodes.find(n => n.id === newId);
+                if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+            },
+            onRename: (newName: string) => {
+                set((state) => ({
+                    nodes: state.nodes.map((n) => (n.id === newId ? { ...n, data: { ...n.data, label: newName } } : n)),
+                }));
+            },
+        }
+      };
+    });
+
+    // 2. Fix parent-child relationships
+    const finalNewNodes = newNodes.map(node => {
+      if (node.parentId && idMap[node.parentId]) {
+        return { ...node, parentId: idMap[node.parentId] };
+      }
+      return node;
+    });
+
+    // 3. Clone edges with new IDs
+    const newEdges: Edge[] = clipboard.edges.map(edge => ({
+      ...edge,
+      id: `edge-${Math.random().toString(36).substr(2, 9)}`,
+      source: idMap[edge.source],
+      target: idMap[edge.target],
+    }));
+
+    // 4. Deselect current nodes and add new ones
+    const deselectNodes = nodes.map(n => ({ ...n, selected: false }));
+    
+    setNodes(sortNodes([...deselectNodes, ...finalNewNodes]));
+    setEdges([...edges, ...newEdges]);
+  },
   addNode: (type: K8sResourceType) => {
     const { nodes, activeDeploymentId, deleteNodes } = get();
     const id = type.toLowerCase() + '-' + Math.random().toString(36).substr(2, 9);
@@ -59,6 +141,9 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         label: type + ' ' + (nodes.length + 1),
         type,
         replicas: type === 'Deployment' ? 0 : undefined,
+        status: type === 'Pod' ? 'pending' : undefined,
+        webserver: type === 'Pod' ? 'none' : undefined,
+        runtime: type === 'Pod' ? 'none' : undefined,
         onDelete: () => {
           const nodeToDelete = get().nodes.find(n => n.id === id);
           if (nodeToDelete) get().deleteNodes([nodeToDelete]);

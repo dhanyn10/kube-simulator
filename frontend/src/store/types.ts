@@ -14,6 +14,7 @@ export interface FlowState {
   hoveredDeploymentId: string | null;
   detachingDeploymentId: string | null;
   colorMode: 'dark' | 'light';
+  clipboard: { nodes: Node[], edges: Edge[] } | null;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -34,5 +35,7 @@ export interface FlowState {
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
+  copyNodes: () => void;
+  pasteNodes: () => void;
   toggleColorMode: () => void;
 }

@@ -10,10 +10,16 @@ export interface K8sNodeData {
   selector?: string;
   onDelete?: () => void;
   onRename?: (newName: string) => void;
-  isHovered?: boolean; // For when a Pod is dragged over it
-  isDetaching?: boolean; // For when a Pod is dragged out of it
-  width?: number; // Added for resizing
-  height?: number; // Added for resizing
+  isHovered?: boolean;
+  isDetaching?: boolean;
+  width?: number;
+  height?: number;
+  
+  // Application Stack fields
+  status?: 'pending' | 'ready';
+  webserver?: 'nginx' | 'apache' | 'none';
+  runtime?: 'php' | 'nodejs' | 'java' | 'go' | 'python' | 'none';
+  framework?: string;
 }
 
 export interface K8sManifest {
