@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Settings, Server, Code, Box, X, Layers, Plus, Minus } from 'lucide-react';
+import { Settings, Server, Code, Box, X, Layers } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -121,41 +121,17 @@ export const ConfigPanel = () => {
             <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
               <Layers size={10} /> Replicas
             </label>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => updatePodData({ replicas: Math.max(1, (data.replicas || 1) - 1) })}
-                className={cn(
-                  "p-1.5 rounded border transition-all",
-                  colorMode === 'dark' 
-                    ? "bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-600 text-slate-300" 
-                    : "bg-slate-100 border-slate-300 hover:bg-slate-200 hover:border-slate-400 text-slate-700"
-                )}
-                title="Decrease replicas"
-              >
-                <Minus size={12} />
-              </button>
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min="1"
                 value={data.replicas || (selectedNode.type === 'Pod' ? 1 : 0)}
                 onChange={(e) => updatePodData({ replicas: parseInt(e.target.value) || 1 })}
                 className={cn(
-                  "flex-1 text-[10px] p-2 rounded border outline-none text-center",
+                  "w-full text-[10px] p-2 rounded border outline-none",
                   colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
                 )}
               />
-              <button
-                onClick={() => updatePodData({ replicas: (data.replicas || 1) + 1 })}
-                className={cn(
-                  "p-1.5 rounded border transition-all",
-                  colorMode === 'dark' 
-                    ? "bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-600 text-slate-300" 
-                    : "bg-slate-100 border-slate-300 hover:bg-slate-200 hover:border-slate-400 text-slate-700"
-                )}
-                title="Increase replicas"
-              >
-                <Plus size={12} />
-              </button>
             </div>
           </div>
         )}

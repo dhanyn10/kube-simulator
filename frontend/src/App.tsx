@@ -13,8 +13,8 @@ import { Sidebar } from './components/Sidebar';
 import { ConfigPanel } from './components/ConfigPanel';
 import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
 import { generateYaml } from './lib/utils';
-import { FileCode, Plus, Minus, X } from 'lucide-react'; // Removed Sun, Moon icons
-import { useFlowStore } from './store';
+import { FileCode, Plus, Minus, X, Undo2, Redo2 } from 'lucide-react'; // Removed Sun, Moon icons
+import { useFlowStore, useTemporalStore } from './store';
 import { cn } from './lib/utils';
 
 const nodeTypes = {
@@ -48,6 +48,7 @@ export default function App() {
   const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+  const { undo, redo } = useTemporalStore((state) => state);
 
   const getTargetDeployment = useCallback((clientX: number, clientY: number) => {
     const position = screenToFlowPosition({ x: clientX, y: clientY });
@@ -144,6 +145,22 @@ export default function App() {
       if (isControl && event.key === 'v') {
         if (document.activeElement?.tagName !== 'INPUT') {
           pasteNodes();
+        }
+      }
+
+      if (isControl && event.key === 'z') {
+        if (document.activeElement?.tagName !== 'INPUT') {
+          if (event.shiftKey) {
+            redo();
+          } else {
+            undo();
+          }
+        }
+      }
+
+      if (isControl && event.key === 'y') {
+        if (document.activeElement?.tagName !== 'INPUT') {
+          redo();
         }
       }
     };
@@ -245,6 +262,33 @@ export default function App() {
             >
               <Minus size={16} />
             </button>
+
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                onClick={() => undo()}
+                className={cn(
+                  "p-2 rounded-md transition-colors shadow-xl",
+                  colorMode === 'dark'
+                    ? "bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400"
+                    : "bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-600"
+                )}
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo2 size={16} />
+              </button>
+              <button
+                onClick={() => redo()}
+                className={cn(
+                  "p-2 rounded-md transition-colors shadow-xl",
+                  colorMode === 'dark'
+                    ? "bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400"
+                    : "bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-600"
+                )}
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo2 size={16} />
+              </button>
+            </div>
           </Panel>
 
           <Panel position="top-right" className="p-4 flex flex-col gap-2 items-end">

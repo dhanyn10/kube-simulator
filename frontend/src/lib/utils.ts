@@ -16,12 +16,39 @@ export function generateYaml(nodes: any[], edges: any[]): string {
       // If it has a parent, it's part of a Deployment and shouldn't be generated as a separate Pod
       if (node.parentId) return null;
 
+      // If a standalone Pod has multiple replicas, wrap it in a Deployment
+      if ((data.replicas || 1) > 1) {
+        return {
+          apiVersion: 'apps/v1',
+          kind: 'Deployment',
+          metadata: { name },
+          spec: {
+            replicas: data.replicas,
+            selector: { matchLabels: { app: name } },
+            template: {
+              metadata: { labels: { app: name } },
+              spec: {
+                containers: [{
+                  name: 'main',
+                  image: data.image || 'nginx:latest',
+                  ports: data.port ? [{ containerPort: data.port }] : undefined
+                }]
+              }
+            }
+          }
+        };
+      }
+
       return {
         apiVersion: 'v1',
         kind: 'Pod',
         metadata: { name },
         spec: {
-          containers: [{ name: 'main', image: data.image || 'nginx:latest' }]
+          containers: [{
+            name: 'main',
+            image: data.image || 'nginx:latest',
+            ports: data.port ? [{ containerPort: data.port }] : undefined
+          }]
         }
       };
     }
