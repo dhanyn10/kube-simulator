@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Settings, Server, Code, Box } from 'lucide-react';
+import { Settings, Server, Code, Box, X } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -22,11 +22,13 @@ export const ConfigPanel = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const setNodes = useFlowStore((state) => state.setNodes);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
+  const setConfiguringNodeId = useFlowStore((state) => state.setConfiguringNodeId);
   
-  // Find the selected pod
-  const selectedNode = nodes.find(n => n.selected && n.type === 'Pod');
+  // Find the node being configured
+  const selectedNode = nodes.find(n => n.id === configuringNodeId);
   
-  if (!selectedNode) return null;
+  if (!configuringNodeId || !selectedNode) return null;
 
   const data = selectedNode.data;
 
@@ -64,12 +66,20 @@ export const ConfigPanel = () => {
 
   return (
     <div className={cn(
-      "fixed right-4 top-24 w-64 rounded-xl border shadow-2xl z-40 p-4 animate-in slide-in-from-right",
+      "fixed right-4 top-24 w-64 rounded-xl border shadow-2xl z-[50] p-4 animate-in slide-in-from-right",
       colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
     )}>
-      <div className="flex items-center gap-2 mb-4 border-b pb-2">
-        <Settings size={14} className="text-blue-500" />
-        <h3 className="text-[10px] font-bold uppercase tracking-widest">Pod Configuration</h3>
+      <div className="flex items-center justify-between mb-4 border-b pb-2">
+        <div className="flex items-center gap-2">
+            <Settings size={14} className="text-blue-500" />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest">Pod Configuration</h3>
+        </div>
+        <button 
+            onClick={() => setConfiguringNodeId(null)}
+            className="p-1 hover:bg-slate-500/10 rounded-full transition-colors"
+        >
+            <X size={14} className="text-slate-500" />
+        </button>
       </div>
 
       <div className="space-y-4">

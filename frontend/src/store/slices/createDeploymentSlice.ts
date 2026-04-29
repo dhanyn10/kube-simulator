@@ -5,16 +5,20 @@ export interface DeploymentSlice {
   activeDeploymentId: string | null;
   hoveredDeploymentId: string | null;
   detachingDeploymentId: string | null;
+  configuringNodeId: string | null;
   setActiveDeploymentId: (id: string | null) => void;
   setHoveredDeploymentId: (id: string | null) => void;
   setDetachingDeploymentId: (id: string | null) => void;
+  setConfiguringNodeId: (id: string | null) => void;
 }
 
 export const createDeploymentSlice: StateCreator<FlowState, [], [], DeploymentSlice> = (set) => ({
   activeDeploymentId: null,
   hoveredDeploymentId: null,
   detachingDeploymentId: null,
+  configuringNodeId: null,
   setActiveDeploymentId: (id: string | null) => set({ activeDeploymentId: id }),
   setHoveredDeploymentId: (id: string | null) => set({ hoveredDeploymentId: id }),
   setDetachingDeploymentId: (id: string | null) => set({ detachingDeploymentId: id }),
+  setConfiguringNodeId: (id: string | null) => set({ configuringNodeId: id }),
 });

@@ -143,18 +143,34 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <div className="flex items-center gap-1">
             {isPending && <AlertCircle size={10} className="text-red-500" />}
             {isReady && <CheckCircle2 size={10} className="text-emerald-500" />}
-            <button 
-                onClick={(e) => {
-                    e.stopPropagation();
-                    data.onDelete?.();
-                }}
-                className={cn(
-                    "opacity-0 group-hover:opacity-100 p-1 rounded transition-all",
-                    colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+                {data.type === 'Pod' && (
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            useFlowStore.getState().setConfiguringNodeId(id);
+                        }}
+                        className={cn(
+                            "p-1 rounded transition-all",
+                            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
+                        )}
+                    >
+                        <Settings size={12} />
+                    </button>
                 )}
-            >
-                <Trash2 size={12} />
-            </button>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        data.onDelete?.();
+                    }}
+                    className={cn(
+                        "p-1 rounded transition-all",
+                        colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+                    )}
+                >
+                    <Trash2 size={12} />
+                </button>
+            </div>
         </div>
       </div>
 

@@ -13,6 +13,7 @@ export interface FlowState {
   activeDeploymentId: string | null;
   hoveredDeploymentId: string | null;
   detachingDeploymentId: string | null;
+  configuringNodeId: string | null;
   colorMode: 'dark' | 'light';
   clipboard: { nodes: Node[], edges: Edge[] } | null;
 
@@ -25,6 +26,7 @@ export interface FlowState {
   setActiveDeploymentId: (id: string | null) => void;
   setHoveredDeploymentId: (id: string | null) => void;
   setDetachingDeploymentId: (id: string | null) => void;
+  setConfiguringNodeId: (id: string | null) => void;
 
   addNode: (type: K8sResourceType) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
