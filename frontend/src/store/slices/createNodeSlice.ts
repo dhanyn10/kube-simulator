@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { FlowState } from '../types';
 import { K8sResourceType } from '../../types';
 import { sortNodes, layoutPodsInDeployment } from '../helpers';
@@ -345,87 +345,222 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   },
 
   onNodeDragStart: (event: any, node: Node) => {
+    get().setDraggedNodeId(node.id);
     if (node.type === 'Deployment') {
       get().setActiveDeploymentId(node.id);
     }
   },
 
   onNodeDrag: (event: any, node: Node) => {
-    const { nodes } = get();
-    if (node.type !== 'Pod') return;
-
-    let newHoveredDeploymentId: string | null = null;
-    let newDetachingDeploymentId: string | null = null;
-
-    const podWidth = node.width || node.measured?.width || 160;
-    const podHeight = node.height || node.measured?.height || 80;
-    const podArea = podWidth * podHeight;
-
-    let podAbsX = node.position.x;
-    let podAbsY = node.position.y;
+    const { nodes, setDraggedNodeId } = get();
+    
+    setDraggedNodeId(node.id);
+    
+    // Calculate dimensions and positions
+    const nodeWidth = node.width || node.measured?.width || 160;
+    const nodeHeight = node.height || node.measured?.height || 80;
+    
+    let nodeAbsX = node.position.x;
+    let nodeAbsY = node.position.y;
     if (node.parentId) {
         const parent = nodes.find(n => n.id === node.parentId);
         if (parent) {
-            podAbsX += parent.position.x;
-            podAbsY += parent.position.y;
+            nodeAbsX += parent.position.x;
+            nodeAbsY += parent.position.y;
         }
     }
 
-    let nextNodes = nodes.map(n => {
-      if (n.type === 'Deployment') {
-        return { ...n, data: { ...n.data, isHovered: false, isDetaching: false } };
-      }
-      return n;
-    });
+    // Calculate alignment guides for any node type
+    const SNAP_THRESHOLD = 8;
+    const SNAP_TOLERANCE = 4; // Threshold for snap guides to be active
+    const verticalGuides = new Set<number>();
+    const horizontalGuides = new Set<number>();
+    const verticalSnapGuides = new Map<number, boolean>();
+    const horizontalSnapGuides = new Map<number, boolean>();
 
-    for (const deployment of nodes.filter(n => n.type === 'Deployment')) {
-        const depAbsX = deployment.position.x;
-        const depAbsY = deployment.position.y;
-        const depWidth = deployment.width || deployment.measured?.width || 320;
-        const depHeight = deployment.height || deployment.measured?.height || 160;
+    // Detect vertical alignment (left, center, right)
+    const nodeLeftX = nodeAbsX;
+    const nodeCenterX = nodeAbsX + nodeWidth / 2;
+    const nodeRightX = nodeAbsX + nodeWidth;
+    
+    // Detect horizontal alignment (top, center, bottom)
+    const nodeTopY = nodeAbsY;
+    const nodeCenterY = nodeAbsY + nodeHeight / 2;
+    const nodeBottomY = nodeAbsY + nodeHeight;
 
-        const intersects = 
-            podAbsX < depAbsX + depWidth &&
-            podAbsX + podWidth > depAbsX &&
-            podAbsY < depAbsY + depHeight &&
-            podAbsY + podHeight > depAbsY;
+    // Check alignment with other nodes (all types)
+    for (const otherNode of nodes.filter(n => n.id !== node.id)) {
+        let otherAbsX = otherNode.position.x;
+        let otherAbsY = otherNode.position.y;
+        if (otherNode.parentId && !node.parentId) {
+            const parent = nodes.find(n => n.id === otherNode.parentId);
+            if (parent) {
+                otherAbsX += parent.position.x;
+                otherAbsY += parent.position.y;
+            }
+        } else if (!otherNode.parentId && !node.parentId) {
+            // Both are top-level nodes, compare absolute positions
+        } else if (otherNode.parentId && node.parentId && otherNode.parentId === node.parentId) {
+            // Both are in same parent, compare relative positions
+        } else {
+            // Different parent contexts, skip
+            continue;
+        }
 
-        if (node.parentId === deployment.id) {
-            const overlapX = Math.max(0, Math.min(podAbsX + podWidth, depAbsX + depWidth) - Math.max(podAbsX, depAbsX));
-            const overlapY = Math.max(0, Math.min(podAbsY + podHeight, depAbsY + depHeight) - Math.max(podAbsY, depAbsY));
-            const overlapArea = overlapX * overlapY;
-            const overlapPercentage = (overlapArea / podArea) * 100;
+        const otherWidth = otherNode.width || otherNode.measured?.width || 160;
+        const otherHeight = otherNode.height || otherNode.measured?.height || 80;
 
-            if (overlapPercentage < 50) {
-                newDetachingDeploymentId = deployment.id;
-                nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
-            } else {
+        // Detect vertical alignment
+        const otherLeftX = otherAbsX;
+        const otherCenterX = otherAbsX + otherWidth / 2;
+        const otherRightX = otherAbsX + otherWidth;
+
+        if (Math.abs(nodeLeftX - otherLeftX) < SNAP_THRESHOLD) {
+            verticalGuides.add(otherLeftX);
+            verticalSnapGuides.set(otherLeftX, Math.abs(nodeLeftX - otherLeftX) < SNAP_TOLERANCE);
+        }
+        if (Math.abs(nodeCenterX - otherCenterX) < SNAP_THRESHOLD) {
+            verticalGuides.add(otherCenterX);
+            verticalSnapGuides.set(otherCenterX, Math.abs(nodeCenterX - otherCenterX) < SNAP_TOLERANCE);
+        }
+        if (Math.abs(nodeRightX - otherRightX) < SNAP_THRESHOLD) {
+            verticalGuides.add(otherRightX);
+            verticalSnapGuides.set(otherRightX, Math.abs(nodeRightX - otherRightX) < SNAP_TOLERANCE);
+        }
+
+        // Detect horizontal alignment
+        const otherTopY = otherAbsY;
+        const otherCenterY = otherAbsY + otherHeight / 2;
+        const otherBottomY = otherAbsY + otherHeight;
+
+        if (Math.abs(nodeTopY - otherTopY) < SNAP_THRESHOLD) {
+            horizontalGuides.add(otherTopY);
+            horizontalSnapGuides.set(otherTopY, Math.abs(nodeTopY - otherTopY) < SNAP_TOLERANCE);
+        }
+        if (Math.abs(nodeCenterY - otherCenterY) < SNAP_THRESHOLD) {
+            horizontalGuides.add(otherCenterY);
+            horizontalSnapGuides.set(otherCenterY, Math.abs(nodeCenterY - otherCenterY) < SNAP_TOLERANCE);
+        }
+        if (Math.abs(nodeBottomY - otherBottomY) < SNAP_THRESHOLD) {
+            horizontalGuides.add(otherBottomY);
+            horizontalSnapGuides.set(otherBottomY, Math.abs(nodeBottomY - otherBottomY) < SNAP_TOLERANCE);
+        }
+    }
+
+    // Pod-specific logic for hover and detach
+    if (node.type === 'Pod') {
+        let newHoveredDeploymentId: string | null = null;
+        let newDetachingDeploymentId: string | null = null;
+
+        const podArea = nodeWidth * nodeHeight;
+
+        let nextNodes = nodes.map(n => {
+          if (n.type === 'Deployment') {
+            return { ...n, data: { ...n.data, isHovered: false, isDetaching: false } };
+          }
+          return n;
+        });
+
+        for (const deployment of nodes.filter(n => n.type === 'Deployment')) {
+            const depAbsX = deployment.position.x;
+            const depAbsY = deployment.position.y;
+            const depWidth = deployment.width || deployment.measured?.width || 320;
+            const depHeight = deployment.height || deployment.measured?.height || 160;
+
+            const intersects = 
+                nodeAbsX < depAbsX + depWidth &&
+                nodeAbsX + nodeWidth > depAbsX &&
+                nodeAbsY < depAbsY + depHeight &&
+                nodeAbsY + nodeHeight > depAbsY;
+
+            if (node.parentId === deployment.id) {
+                const overlapX = Math.max(0, Math.min(nodeAbsX + nodeWidth, depAbsX + depWidth) - Math.max(nodeAbsX, depAbsX));
+                const overlapY = Math.max(0, Math.min(nodeAbsY + nodeHeight, depAbsY + depHeight) - Math.max(nodeAbsY, depAbsY));
+                const overlapArea = overlapX * overlapY;
+                const overlapPercentage = (overlapArea / podArea) * 100;
+
+                if (overlapPercentage < 50) {
+                    newDetachingDeploymentId = deployment.id;
+                    nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
+                } else {
+                    newHoveredDeploymentId = deployment.id;
+                    nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
+                }
+            } else if (intersects) {
                 newHoveredDeploymentId = deployment.id;
                 nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
             }
-        } else if (intersects) {
-            newHoveredDeploymentId = deployment.id;
-            nextNodes = nextNodes.map(n => n.id === deployment.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
         }
-    }
 
-    set({ 
-        hoveredDeploymentId: newHoveredDeploymentId, 
-        detachingDeploymentId: newDetachingDeploymentId,
-        nodes: nextNodes 
-    });
+        set({ 
+            hoveredDeploymentId: newHoveredDeploymentId, 
+            detachingDeploymentId: newDetachingDeploymentId,
+            nodes: nextNodes,
+            alignmentGuides: {
+                vertical: Array.from(verticalGuides).map(pos => ({ position: pos })),
+                horizontal: Array.from(horizontalGuides).map(pos => ({ position: pos })),
+            },
+            snapGuides: {
+                vertical: Array.from(verticalSnapGuides).map(([pos, isActive]) => ({ position: pos, isActive })),
+                horizontal: Array.from(horizontalSnapGuides).map(([pos, isActive]) => ({ position: pos, isActive })),
+            }
+        });
+    } else {
+        // For other node types (Deployment, Service), just show alignment guides
+        set({
+            alignmentGuides: {
+                vertical: Array.from(verticalGuides).map(pos => ({ position: pos })),
+                horizontal: Array.from(horizontalGuides).map(pos => ({ position: pos })),
+            },
+            snapGuides: {
+                vertical: Array.from(verticalSnapGuides).map(([pos, isActive]) => ({ position: pos, isActive })),
+                horizontal: Array.from(horizontalSnapGuides).map(([pos, isActive]) => ({ position: pos, isActive })),
+            }
+        });
+    }
   },
 
   onNodeDragStop: (event: any, node: Node) => {
-    const { nodes } = get();
+    const { nodes, snapGuides } = get();
     const finalDetachingDeploymentId = get().detachingDeploymentId;
     const finalHoveredDeploymentId = get().hoveredDeploymentId;
     const activeDeploymentId = get().activeDeploymentId;
 
+    // Check if we should snap the node based on active snap guides
+    let newNodes = nodes;
+    const nodeWidth = node.width || node.measured?.width || 160;
+    const nodeHeight = node.height || node.measured?.height || 80;
+
+    // Check if any snap guides are active
+    const activeVerticalSnaps = snapGuides.vertical.filter(g => g.isActive).map(g => g.position);
+    const activeHorizontalSnaps = snapGuides.horizontal.filter(g => g.isActive).map(g => g.position);
+
+    if (activeVerticalSnaps.length > 0 || activeHorizontalSnaps.length > 0) {
+        // Apply snap
+        const updatedNode = { ...node };
+
+        // Snap to vertical guide (center point)
+        if (activeVerticalSnaps.length > 0) {
+            const snapX = activeVerticalSnaps[0];
+            updatedNode.position.x = snapX - nodeWidth / 2;
+        }
+
+        // Snap to horizontal guide (center point)
+        if (activeHorizontalSnaps.length > 0) {
+            const snapY = activeHorizontalSnaps[0];
+            updatedNode.position.y = snapY - nodeHeight / 2;
+        }
+
+        newNodes = nodes.map(n => n.id === node.id ? updatedNode : n);
+    }
+
     set((state) => ({
       hoveredDeploymentId: null,
       detachingDeploymentId: null,
-      nodes: state.nodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))
+      draggedNodeId: null,
+      alignmentGuides: { vertical: [], horizontal: [] },
+      snapGuides: { vertical: [], horizontal: [] },
+      nodes: newNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))
     }));
 
     if (node.type !== 'Pod') return;

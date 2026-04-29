@@ -11,6 +11,7 @@ import '@xyflow/react/dist/style.css';
 
 import { Sidebar } from './components/Sidebar';
 import { ConfigPanel } from './components/ConfigPanel';
+import { AlignmentGuides } from './components/AlignmentGuides';
 import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X, Undo2, Redo2 } from 'lucide-react'; // Removed Sun, Moon icons
@@ -218,6 +219,8 @@ export default function App() {
             gap={24} 
             size={1} 
           />
+          
+          <AlignmentGuides />
           
           <MiniMap 
             position="bottom-right"
