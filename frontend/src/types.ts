@@ -9,6 +9,18 @@ export interface K8sNodeData {
   targetPort?: number;
   selector?: string;
   onDelete?: () => void;
+  onRename?: (newName: string) => void;
+  isHovered?: boolean;
+  isDetaching?: boolean;
+  width?: number;
+  height?: number;
+  
+  // Application Stack fields
+  status?: 'pending' | 'ready';
+  webserver?: 'nginx' | 'apache' | 'none';
+  runtime?: 'php' | 'nodejs' | 'java' | 'go' | 'python' | 'none';
+  framework?: string;
+  isAutoNamed?: boolean;
 }
 
 export interface K8sManifest {
