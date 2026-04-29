@@ -128,10 +128,10 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     setNodes(sortNodes([...finalNodes, ...finalNewNodes]));
     setEdges([...edges, ...newEdges]);
   },
-  addNode: (type: K8sResourceType) => {
+  addNode: (type: K8sResourceType, customPosition?: { x: number, y: number }) => {
     const { nodes, activeDeploymentId, deleteNodes } = get();
     const id = type.toLowerCase() + '-' + Math.random().toString(36).substr(2, 9);
-    let position = { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 };
+    let position = customPosition || { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 };
     let parentId: string | undefined = undefined;
     let width = undefined;
     let height = undefined;
@@ -147,13 +147,13 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         height = 120;
     }
 
-    if (type === 'Pod' && activeDeploymentId) {
+    if (type === 'Pod' && activeDeploymentId && !customPosition) {
       const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
       if (activeDeployment) {
         parentId = activeDeployment.id;
         position = { x: 0, y: 0 }; 
       }
-    } else {
+    } else if (!customPosition) {
       const lastNodeOfType = [...nodes].reverse().find(n => n.type === type);
       position = lastNodeOfType
         ? { x: lastNodeOfType.position.x + 40, y: lastNodeOfType.position.y + 40 }

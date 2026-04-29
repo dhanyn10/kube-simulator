@@ -29,6 +29,11 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const workloadItems = filteredItems.filter(i => i.type === 'Deployment' || i.type === 'Pod');
   const networkingItems = filteredItems.filter(i => i.type === 'Service' || i.type === 'Namespace');
 
+  const onDragStart = (event: React.DragEvent, nodeType: K8sResourceType) => {
+    event.dataTransfer.setData('application/reactflow', nodeType);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div className={cn(
       "w-64 border-r flex flex-col h-full shrink-0 z-10 transition-colors",
@@ -101,12 +106,14 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                 <button
                   key={type}
                   onClick={() => onAddNode(type)}
+                  onDragStart={(event) => onDragStart(event, type)}
+                  draggable
                   className={cn(
-                    "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-pointer transition-all duration-200",
+                    "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
                     colorMode === 'dark' 
                       ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" 
                       : "bg-white border-slate-200 hover:bg-slate-50",
-                    "hover:shadow-lg",
+                    "hover:shadow-lg active:cursor-grabbing",
                     type === 'Deployment' ? "border-l-violet-500 hover:border-violet-500" : "border-l-cyan-500 hover:border-cyan-500"
                   )}
                 >
@@ -146,12 +153,14 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                 <button
                   key={type}
                   onClick={() => onAddNode(type)}
+                  onDragStart={(event) => onDragStart(event, type)}
+                  draggable
                   className={cn(
-                    "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-pointer transition-all duration-200",
+                    "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
                     colorMode === 'dark'
                       ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50"
                       : "bg-white border-slate-200 hover:bg-slate-50",
-                    "hover:shadow-lg",
+                    "hover:shadow-lg active:cursor-grabbing",
                     type === 'Service' ? "border-l-amber-500 hover:border-amber-500" : "border-l-emerald-500 hover:border-emerald-500"
                   )}
                 >

@@ -44,7 +44,48 @@ export default function App() {
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
-  const { zoomIn, zoomOut } = useReactFlow();
+  const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const type = event.dataTransfer.getData('application/reactflow') as K8sResourceType;
+
+      // check if the dropped element is valid
+      if (typeof type === 'undefined' || !type) {
+        return;
+      }
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      // Offset position to center the node under the cursor
+      // Default dimensions: Pod (160x80), Deployment (320x160), Service (180x120)
+      const centerOffsets = {
+        Pod: { x: 80, y: 40 },
+        Deployment: { x: 160, y: 80 },
+        Service: { x: 90, y: 60 },
+        Namespace: { x: 200, y: 150 }, // Assuming Namespace default
+      };
+
+      const offset = centerOffsets[type] || { x: 0, y: 0 };
+      const centeredPosition = {
+        x: position.x - offset.x,
+        y: position.y - offset.y,
+      };
+
+      addNode(type, centeredPosition);
+    },
+    [screenToFlowPosition, addNode],
+  );
 
   // Handle keyboard shortcuts
   React.useEffect(() => {
@@ -101,6 +142,8 @@ export default function App() {
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
           onNodesDelete={deleteNodes}
           deleteKeyCode={["Backspace", "Delete"]}
           nodeTypes={nodeTypes}
