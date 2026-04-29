@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Settings, Server, Code, Box, X } from 'lucide-react';
+import { Settings, Server, Code, Box, X, Layers } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -21,6 +21,7 @@ const WEBSERVERS = [
 export const ConfigPanel = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const setNodes = useFlowStore((state) => state.setNodes);
+  const activeDeploymentId = useFlowStore((state) => state.activeDeploymentId);
   const colorMode = useFlowStore((state) => state.colorMode);
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
   const setConfiguringNodeId = useFlowStore((state) => state.setConfiguringNodeId);
@@ -35,6 +36,33 @@ export const ConfigPanel = () => {
   const updatePodData = (updates: any) => {
     const nextData = { ...data, ...updates };
     
+    // If updating replicas on a Pod inside a Deployment, sync with Deployment replicas
+    if ('replicas' in updates && selectedNode.parentId) {
+        const parentId = selectedNode.parentId;
+        const siblingPods = nodes.filter(n => n.parentId === parentId && n.id !== selectedNode.id);
+        const totalReplicas = siblingPods.reduce((acc, p) => acc + (p.data.replicas || 1), 0) + (updates.replicas || 1);
+
+        setNodes(nodes.map(n => {
+            if (n.id === selectedNode.id) return { ...n, data: nextData };
+            if (n.id === parentId) return { ...n, data: { ...n.data, replicas: totalReplicas } };
+            return n;
+        }));
+        return;
+    }
+
+    // If updating replicas on a Deployment, sync with its child Pod (if only one)
+    if ('replicas' in updates && selectedNode.type === 'Deployment') {
+        const childPods = nodes.filter(n => n.parentId === selectedNode.id);
+        if (childPods.length === 1) {
+            setNodes(nodes.map(n => {
+                if (n.id === selectedNode.id) return { ...n, data: nextData };
+                if (n.id === childPods[0].id) return { ...n, data: { ...n.data, replicas: updates.replicas } };
+                return n;
+            }));
+            return;
+        }
+    }
+
     // Auto-update status and image if config is complete
     if (nextData.runtime !== 'none' || nextData.webserver !== 'none') {
         nextData.status = 'ready';
@@ -71,11 +99,15 @@ export const ConfigPanel = () => {
     )}>
       <div className="flex items-center justify-between mb-4 border-b pb-2">
         <div className="flex items-center gap-2">
-            <Settings size={14} className="text-blue-500" />
-            <h3 className="text-[10px] font-bold uppercase tracking-widest">Pod Configuration</h3>
+            <Settings size={14} className={cn(selectedNode.type === 'Deployment' ? "text-violet-500" : "text-blue-500")} />
+            <h3 className="text-[10px] font-bold uppercase tracking-widest">
+                {selectedNode.type} Configuration
+            </h3>
         </div>
         <button 
-            onClick={() => setConfiguringNodeId(null)}
+            onClick={() => {
+                setConfiguringNodeId(null);
+            }}
             className="p-1 hover:bg-slate-500/10 rounded-full transition-colors"
         >
             <X size={14} className="text-slate-500" />
@@ -83,6 +115,27 @@ export const ConfigPanel = () => {
       </div>
 
       <div className="space-y-4">
+        {/* Replicas */}
+        {(selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') && (
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Layers size={10} /> Replicas
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={data.replicas || (selectedNode.type === 'Pod' ? 1 : 0)}
+                onChange={(e) => updatePodData({ replicas: parseInt(e.target.value) || 1 })}
+                className={cn(
+                  "w-full text-[10px] p-2 rounded border outline-none",
+                  colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
+                )}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Web Server */}
         <div className="space-y-1.5">
           <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">

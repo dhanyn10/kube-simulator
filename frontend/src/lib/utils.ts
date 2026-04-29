@@ -13,6 +13,9 @@ export function generateYaml(nodes: any[], edges: any[]): string {
     const name = data.label.toLowerCase().replace(/\s+/g, '-');
 
     if (data.type === 'Pod') {
+      // If it has a parent, it's part of a Deployment and shouldn't be generated as a separate Pod
+      if (node.parentId) return null;
+
       return {
         apiVersion: 'v1',
         kind: 'Pod',
@@ -24,6 +27,10 @@ export function generateYaml(nodes: any[], edges: any[]): string {
     }
 
     if (data.type === 'Deployment') {
+      const childPods = nodes.filter(n => n.parentId === node.id && n.type === 'Pod');
+      const mainPod = childPods[0];
+      const podData = mainPod ? mainPod.data : data;
+
       return {
         apiVersion: 'apps/v1',
         kind: 'Deployment',
@@ -34,7 +41,11 @@ export function generateYaml(nodes: any[], edges: any[]): string {
           template: {
             metadata: { labels: { app: name } },
             spec: {
-              containers: [{ name: 'main', image: data.image || 'nginx:latest' }]
+              containers: [{
+                name: 'main',
+                image: podData.image || 'nginx:latest',
+                ports: podData.port ? [{ containerPort: podData.port }] : undefined
+              }]
             }
           }
         }
