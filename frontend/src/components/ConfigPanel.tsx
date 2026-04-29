@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Settings, Server, Code, Box, X, Layers } from 'lucide-react';
+import { Settings, Server, Code, Box, X, Layers, Plus, Minus } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -122,16 +122,51 @@ export const ConfigPanel = () => {
               <Layers size={10} /> Replicas
             </label>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const currentValue = data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
+                  const newValue = Math.max(1, currentValue - 1);
+                  updatePodData({ replicas: newValue });
+                }}
+                className={cn(
+                  "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
+                  colorMode === 'dark' 
+                    ? "bg-slate-800 border-slate-700 hover:bg-slate-700" 
+                    : "bg-slate-100 border-slate-300 hover:bg-slate-200"
+                )}
+              >
+                <Minus size={12} />
+              </button>
               <input
                 type="number"
                 min="1"
                 value={data.replicas || (selectedNode.type === 'Pod' ? 1 : 0)}
-                onChange={(e) => updatePodData({ replicas: parseInt(e.target.value) || 1 })}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || /^\d+$/.test(value)) {
+                    updatePodData({ replicas: parseInt(value) || 1 });
+                  }
+                }}
                 className={cn(
-                  "w-full text-[10px] p-2 rounded border outline-none",
+                  "flex-1 text-[10px] p-2 rounded border outline-none text-center",
                   colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
                 )}
               />
+              <button
+                onClick={() => {
+                  const currentValue = data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
+                  const newValue = currentValue + 1;
+                  updatePodData({ replicas: newValue });
+                }}
+                className={cn(
+                  "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
+                  colorMode === 'dark' 
+                    ? "bg-slate-800 border-slate-700 hover:bg-slate-700" 
+                    : "bg-slate-100 border-slate-300 hover:bg-slate-200"
+                )}
+              >
+                <Plus size={12} />
+              </button>
             </div>
           </div>
         )}
