@@ -14,7 +14,7 @@ import { ConfigPanel } from './components/ConfigPanel';
 import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X, Undo2, Redo2 } from 'lucide-react'; // Removed Sun, Moon icons
-import { useFlowStore, useTemporalStore } from './store';
+import { useFlowStore } from './store';
 import { cn } from './lib/utils';
 
 const nodeTypes = {
@@ -48,7 +48,7 @@ export default function App() {
   const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
-  const { undo, redo } = useTemporalStore((state) => state);
+  const { undo, redo } = useFlowStore.temporal.getState();
 
   const getTargetDeployment = useCallback((clientX: number, clientY: number) => {
     const position = screenToFlowPosition({ x: clientX, y: clientY });

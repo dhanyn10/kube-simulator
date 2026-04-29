@@ -6,7 +6,9 @@ import { createDeploymentSlice } from './slices/createDeploymentSlice';
 import { createNodeSlice } from './slices/createNodeSlice';
 import { createUiSlice } from './slices/createUiSlice';
 
-export const useFlowStore = create<FlowState>()(
+import { createStore } from 'zustand';
+
+const flowStore = createStore<FlowState>()(
   temporal(
     (...a) => ({
       ...createFlowSlice(...a),
@@ -15,16 +17,15 @@ export const useFlowStore = create<FlowState>()(
       ...createUiSlice(...a),
     }),
     {
-      partialize: (state) => {
-        const { nodes, edges } = state;
-        return { nodes, edges };
-      },
+      partialize: (state) => ({
+        nodes: state.nodes,
+        edges: state.edges,
+      }),
     }
   )
 );
 
-// Helper to access temporal state
-export const useTemporalStore = <T,>(
-  selector: (state: TemporalState<{ nodes: any[]; edges: any[] }>) => T,
-  equality?: (a: T, b: T) => boolean
-) => useFlowStore.temporal(selector, equality);
+import { useStore } from 'zustand';
+
+export const useFlowStore = ((selector: any) => useStore(flowStore, selector)) as any;
+Object.assign(useFlowStore, flowStore);
