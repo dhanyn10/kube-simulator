@@ -57,6 +57,7 @@ export function generateYaml(nodes: any[], edges: any[]): string {
       const childPods = nodes.filter(n => n.parentId === node.id && n.type === 'Pod');
       const mainPod = childPods[0];
       const podData = mainPod ? mainPod.data : data;
+      const containerName = podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main';
 
       return {
         apiVersion: 'apps/v1',
@@ -69,7 +70,7 @@ export function generateYaml(nodes: any[], edges: any[]): string {
             metadata: { labels: { app: name } },
             spec: {
               containers: [{
-                name: 'main',
+                name: containerName,
                 image: podData.image || 'nginx:latest',
                 ports: podData.port ? [{ containerPort: podData.port }] : undefined
               }]

@@ -41,7 +41,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     runtime: templatePod.data.runtime,
     framework: templatePod.data.framework,
     status: templatePod.data.status,
-    label: templatePod.data.label, // Sync label too if it's not auto-named
+    label: templatePod.data.label,
     isAutoNamed: templatePod.data.isAutoNamed,
   } : {
     image: deployment.data.image,
@@ -49,6 +49,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     runtime: deployment.data.runtime || 'none',
     framework: deployment.data.framework,
     status: deployment.data.status || 'pending',
+    label: 'pod',
     isAutoNamed: true,
   };
 
@@ -62,7 +63,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
           ...commonData,
           replicas,
           parentReplicas: totalReplicas,
-          label: commonData.isAutoNamed ? deployment.data.label : commonData.label,
+          label: commonData.label,
         }
       });
     } else {
@@ -75,7 +76,6 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         width: 160,
         height: 80,
         data: {
-          label: commonData.isAutoNamed ? deployment.data.label : commonData.label,
           type: 'Pod',
           replicas,
           parentReplicas: totalReplicas,

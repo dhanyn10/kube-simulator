@@ -25,14 +25,8 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       if (nodeToDelete) get().deleteNodes([nodeToDelete]);
     },
     onRename: (newName: string) => {
-      const targetNode = get().nodes.find(n => n.id === podId);
       const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-      if (targetNode?.parentId) {
-        // If it's in a deployment, update the deployment's name which will sync to all pods
-        get().updateNodeData(targetNode.parentId, { label: cleanName });
-      } else {
-        get().updateNodeData(podId, { label: cleanName, isAutoNamed: false });
-      }
+      get().updateNodeData(podId, { label: cleanName, isAutoNamed: false });
     },
   });
 
