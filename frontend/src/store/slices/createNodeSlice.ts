@@ -18,9 +18,19 @@ export interface NodeSlice {
   pasteNodes: () => void;
 }
 
-export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set, get) => ({
+export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set, get) => {
+  const setupPodHandlers = (podId: string) => ({
+    onDelete: () => {
+      const nodeToDelete = get().nodes.find(n => n.id === podId);
+      if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+    },
+    onRename: (newName: string) => {
+      get().updateNodeData(podId, { label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false });
+    },
+  });
+
+  return {
   clipboard: null,
-  // ... (previous methods)
 
   copyNodes: () => {
     const { nodes, edges } = get();
@@ -45,16 +55,6 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   pasteNodes: () => {
     const { clipboard, nodes, edges, setNodes, setEdges } = get();
     if (!clipboard) return;
-
-    const setupPodData = (podId: string) => ({
-      onDelete: () => {
-        const nodeToDelete = get().nodes.find(n => n.id === podId);
-        if (nodeToDelete) get().deleteNodes([nodeToDelete]);
-      },
-      onRename: (newName: string) => {
-        get().updateNodeData(podId, { label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false });
-      },
-    });
 
     // Check if we are pasting a single Pod and it should be merged
     if (clipboard.nodes.length === 1 && clipboard.nodes[0].type === 'Pod') {
@@ -84,27 +84,13 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     const offset = 40;
     const clipboardSourceIds = new Set(clipboard.nodes.map(n => n.id));
 
-    // 1. Update ORIGINAL nodes labels with random suffix
-    const updatedExistingNodes = nodes.map(node => {
-      if (clipboardSourceIds.has(node.id) && node.type === 'Pod') {
-        const randomSuffix = Math.random().toString(36).substr(2, 4);
-        const baseLabel = node.data.label.split('-').slice(0, -1).join('-');
-        const isAlreadySuffixed = /-[a-z0-9]{4}$/.test(node.data.label);
-        const newLabel = isAlreadySuffixed ? `${baseLabel}-${randomSuffix}` : `${node.data.label}-${randomSuffix}`;
-        return { ...node, data: { ...node.data, label: newLabel, isAutoNamed: false } };
-      }
-      return node;
-    });
+    // 1. Update ORIGINAL nodes (don't suffix anymore as per user request to keep same names)
+    const updatedExistingNodes = [...nodes];
 
     // 2. Generate NEW nodes from clipboard
     const newNodes: Node[] = clipboard.nodes.map(node => {
       const newId = `${node.type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
       idMap[node.id] = newId;
-
-      const randomSuffix = Math.random().toString(36).substr(2, 4);
-      const isAlreadySuffixed = /-[a-z0-9]{4}$/.test(node.data.label);
-      const baseLabel = isAlreadySuffixed ? node.data.label.split('-').slice(0, -1).join('-') : node.data.label;
-      const newLabel = `${baseLabel}-${randomSuffix}`;
 
       return {
         ...node,
@@ -116,9 +102,8 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         },
         data: {
           ...node.data,
-          label: newLabel,
-          isAutoNamed: false,
-          ...setupPodData(newId),
+          isAutoNamed: false, // Lock the name on paste so it doesn't change
+          ...setupPodHandlers(newId),
         }
       };
     });
@@ -149,7 +134,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
         const updatedDeployment = { ...deployment, data: { ...deployment.data, replicas: totalReplicas } };
         const syncedPods = syncPodsInDeployment(updatedDeployment, childPods);
-        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
         const laidOutPods = layoutPodsInDeployment(updatedDeployment, syncedWithHandlers);
 
         nextNodes = nextNodes.filter(n => n.parentId !== depId || n.type !== 'Pod');
@@ -184,23 +169,13 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       const updatedNode = nextNodes.find(n => n.id === nodeId);
       if (!updatedNode) return state;
 
-      const setupPodData = (podId: string) => ({
-        onDelete: () => {
-          const nodeToDelete = get().nodes.find(n => n.id === podId);
-          if (nodeToDelete) get().deleteNodes([nodeToDelete]);
-        },
-        onRename: (newName: string) => {
-          get().updateNodeData(podId, { label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false });
-        },
-      });
-
       if (updatedNode.type === 'Deployment') {
         const parentId = updatedNode.id;
         const currentPods = nextNodes.filter(n => n.parentId === parentId && n.type === 'Pod');
         const syncedPods = syncPodsInDeployment(updatedNode, currentPods);
         const syncedWithHandlers = syncedPods.map(p => ({
           ...p,
-          data: { ...p.data, ...setupPodData(p.id) }
+          data: { ...p.data, ...setupPodHandlers(p.id) }
         }));
         const laidOutPods = layoutPodsInDeployment(updatedNode, syncedWithHandlers);
 
@@ -224,7 +199,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           const syncedPods = syncPodsInDeployment(parent, currentPods, updatedNode);
           const syncedWithHandlers = syncedPods.map(p => ({
             ...p,
-            data: { ...p.data, ...setupPodData(p.id) }
+            data: { ...p.data, ...setupPodHandlers(p.id) }
           }));
           const laidOutPods = layoutPodsInDeployment(parent, syncedWithHandlers);
 
@@ -266,15 +241,6 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         }
     }
 
-    const setupPodData = (podId: string) => ({
-      onDelete: () => {
-        const nodeToDelete = get().nodes.find(n => n.id === podId);
-        if (nodeToDelete) get().deleteNodes([nodeToDelete]);
-      },
-      onRename: (newName: string) => {
-        get().updateNodeData(podId, { label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false });
-      },
-    });
 
     if (!customPosition && !parentId) {
       const lastNodeOfType = [...nodes].reverse().find(n => n.type === type);
@@ -298,7 +264,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         webserver: type === 'Pod' ? 'none' : undefined,
         runtime: type === 'Pod' ? 'none' : undefined,
         isAutoNamed: type === 'Pod',
-        ...setupPodData(id),
+        ...setupPodHandlers(id),
       },
     };
 
@@ -325,7 +291,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
             ...pod,
             data: {
               ...pod.data,
-              ...setupPodData(pod.id)
+              ...setupPodHandlers(pod.id)
             }
           }));
 
@@ -363,6 +329,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   deleteNodes: (nodesToDelete: Node[]) => {
     set((state) => {
       let nextNodes = state.nodes;
+      const nodeIdsToDelete = new Set(nodesToDelete.map(n => n.id));
       const podDeletions = nodesToDelete.filter(n => n.type === 'Pod');
       const otherDeletions = nodesToDelete.filter(n => n.type !== 'Pod');
 
@@ -375,7 +342,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       // Track which parents we've already synced to avoid redundant work and bugs
       const syncedParents = new Set<string>();
 
-      // Handle pod deletions: decrement 1 replica from deployment and re-sync
+      // Handle pod deletions: decrement replicas from deployment and re-sync
       podDeletions.forEach(pod => {
         if (pod.parentId) {
           const parentId = pod.parentId;
@@ -386,6 +353,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
             const replicasToDelete = podDeletions
                 .filter(p => p.parentId === parentId)
                 .reduce((acc, p) => acc + (p.data.replicas || 1), 0);
+
             const updatedParent = {
               ...parentDeployment,
               data: {
@@ -394,16 +362,22 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
               }
             };
 
-            const currentPods = nextNodes.filter(n => n.parentId === parentId && n.type === 'Pod');
-            const syncedPods = syncPodsInDeployment(updatedParent, currentPods);
-            const syncedPodsWithHandlers = syncedPods.map(p => ({
+            // CRITICAL: Filter out the pods being deleted before syncing
+            const remainingPods = nextNodes.filter(n =>
+                n.parentId === parentId &&
+                n.type === 'Pod' &&
+                !nodeIdsToDelete.has(n.id)
+            );
+
+            const syncedPods = syncPodsInDeployment(updatedParent, remainingPods);
+            const syncedWithHandlers = syncedPods.map(p => ({
               ...p,
               data: {
                 ...p.data,
-                ...setupPodData(p.id)
+                ...setupPodHandlers(p.id)
               }
             }));
-            const laidOutPods = layoutPodsInDeployment(updatedParent, syncedPodsWithHandlers);
+            const laidOutPods = layoutPodsInDeployment(updatedParent, syncedWithHandlers);
 
             nextNodes = nextNodes.filter(n => n.parentId !== parentId || n.type !== 'Pod');
             nextNodes = nextNodes.map(n => n.id === parentId ? updatedParent : n);
@@ -692,7 +666,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
                 if (targetDeployment) {
                     const podsInTarget = currentNodes.filter(n => n.parentId === targetParentId && n.type === 'Pod' && n.id !== node.id);
                     const syncedPods = syncPodsInDeployment(targetDeployment, [node, ...podsInTarget]);
-                    const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+                    const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
                     const laidOutPods = layoutPodsInDeployment(targetDeployment, syncedWithHandlers);
 
                     currentNodes = currentNodes.filter(n => n.parentId !== targetParentId || n.type !== 'Pod');
@@ -714,7 +688,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
                     if (oldParent) {
                         const podsInOld = currentNodes.filter(n => n.parentId === oldParentId && n.type === 'Pod' && n.id !== node.id);
                         const syncedPods = syncPodsInDeployment(oldParent, podsInOld);
-                        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+                        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
                         const laidOutPods = layoutPodsInDeployment(oldParent, syncedWithHandlers);
 
                         currentNodes = currentNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
@@ -776,14 +750,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
         const podsInOld = state.nodes.filter(n => n.parentId === parent.id && n.type === 'Pod' && n.id !== node.id);
         const syncedPods = syncPodsInDeployment(updatedParent, podsInOld);
-        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
         const laidOutPods = layoutPodsInDeployment(updatedParent, syncedWithHandlers);
 
         const detachingPod = {
             ...node,
             parentId: undefined,
             position: { x: finalSnapX, y: finalSnapY },
-            data: { ...node.data, ...setupPodData(node.id) }
+            data: { ...node.data, ...setupPodHandlers(node.id) }
         };
 
         let nextNodes = state.nodes.filter(n => (n.parentId !== parent.id || n.type !== 'Pod') && n.id !== node.id);
@@ -819,7 +793,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         if (targetDeployment) {
             const podsInTarget = currentNodes.filter(n => n.parentId === targetParentId && n.type === 'Pod' && n.id !== node.id);
             const syncedPods = syncPodsInDeployment(targetDeployment, [node, ...podsInTarget]);
-            const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+            const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
             const laidOutPods = layoutPodsInDeployment(targetDeployment, syncedWithHandlers);
 
             currentNodes = currentNodes.filter(n => n.parentId !== targetParentId || n.type !== 'Pod');
@@ -841,7 +815,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
             if (oldParent) {
                 const podsInOld = currentNodes.filter(n => n.parentId === oldParentId && n.type === 'Pod' && n.id !== node.id);
                 const syncedPods = syncPodsInDeployment(oldParent, podsInOld);
-                const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+                const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
                 const laidOutPods = layoutPodsInDeployment(oldParent, syncedWithHandlers);
 
                 currentNodes = currentNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
@@ -920,4 +894,5 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       return { nodes: nextNodes };
     });
   },
-});
+};
+};
