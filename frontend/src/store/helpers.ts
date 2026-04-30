@@ -58,6 +58,9 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     if (existingPod) {
       newPods.push({
         ...existingPod,
+        style: { width: existingPod.width || 160, height: existingPod.height || 80 },
+        measured: { width: existingPod.width || 160, height: existingPod.height || 80 },
+        extent: 'parent',
         data: {
           ...existingPod.data,
           ...commonData,
@@ -75,6 +78,9 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         parentId: deploymentId,
         width: 160,
         height: 80,
+        style: { width: 160, height: 80 },
+        measured: { width: 160, height: 80 },
+        extent: 'parent',
         data: {
           type: 'Pod',
           replicas,

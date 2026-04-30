@@ -186,10 +186,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         // Ensure deployment is large enough
         const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || 160)));
         const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || 80)));
+        const depW = Math.max(updatedNode.width || 0, maxPodX + 20);
+        const depH = Math.max(updatedNode.height || 0, maxPodY + 40);
         nextNodes = nextNodes.map(n => n.id === parentId ? {
           ...n,
-          width: Math.max(n.width || 0, maxPodX + 20),
-          height: Math.max(n.height || 0, maxPodY + 40)
+          width: depW,
+          height: depH,
+          style: { width: depW, height: depH },
+          measured: { width: depW, height: depH }
         } : n);
       } else if (updatedNode.type === 'Pod' && updatedNode.parentId) {
         const parentId = updatedNode.parentId;
@@ -257,6 +261,9 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       parentId,
       width, 
       height, 
+      style: { width, height },
+      measured: { width, height },
+      extent: parentId ? 'parent' : undefined,
       data: {
         label: type === 'Pod' ? 'new-app-pod-' + (nodes.length + 1) : type.toLowerCase() + '-' + (nodes.length + 1),
         type,
@@ -307,14 +314,18 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           // Resize deployment
           const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
           const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-          const minWidthNeeded = maxPodX + 20;
-          const minHeightNeeded = maxPodY + 40;
+          const minW = maxPodX + 20;
+          const minH = maxPodY + 40;
           nextNodes = nextNodes.map(n => {
             if (n.id === parentId) {
+              const finalW = Math.max(n.width || 0, minW);
+              const finalH = Math.max(n.height || 0, minH);
               return {
                 ...n,
-                width: Math.max(n.width || 0, minWidthNeeded),
-                height: Math.max(n.height || 0, minHeightNeeded)
+                width: finalW,
+                height: finalH,
+                style: { width: finalW, height: finalH },
+                measured: { width: finalW, height: finalH }
               };
             }
             return n;
@@ -388,10 +399,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
             // Resize deployment if needed
             const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
             const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+            const finalW = Math.max(parentDeployment.width || 0, maxPodX + 20);
+            const finalH = Math.max(parentDeployment.height || 0, maxPodY + 40);
             nextNodes = nextNodes.map(n => n.id === parentId ? {
                 ...n,
-                width: Math.max(n.width || 0, maxPodX + 20),
-                height: Math.max(n.height || 0, maxPodY + 40)
+                width: finalW,
+                height: finalH,
+                style: { width: finalW, height: finalH },
+                measured: { width: finalW, height: finalH }
             } : n);
           }
         } else {
@@ -676,10 +691,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
                     // Resize target
                     const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
                     const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+                    const finalW = Math.max(targetDeployment.width || 0, maxPodX + 20);
+                    const finalH = Math.max(targetDeployment.height || 0, maxPodY + 40);
                     currentNodes = currentNodes.map(n => n.id === targetParentId ? {
                         ...n,
-                        width: Math.max(n.width || 0, maxPodX + 20),
-                        height: Math.max(n.height || 0, maxPodY + 40)
+                        width: finalW,
+                        height: finalH,
+                        style: { width: finalW, height: finalH },
+                        measured: { width: finalW, height: finalH }
                     } : n);
                 }
 
@@ -746,7 +765,9 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
         const updatedParent = {
             ...parent,
-            data: { ...parent.data, replicas: Math.max(0, (parent.data.replicas || 0) - movingReplicas) }
+            data: { ...parent.data, replicas: Math.max(0, (parent.data.replicas || 0) - movingReplicas) },
+            style: { width: parent.width, height: parent.height },
+            measured: { width: parent.width, height: parent.height }
         };
 
         const podsInOld = state.nodes.filter(n => n.parentId === parent.id && n.type === 'Pod' && n.id !== node.id);
@@ -803,10 +824,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
             // Resize target
             const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
             const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+            const finalW = Math.max(targetDeployment.width || 0, maxPodX + 20);
+            const finalH = Math.max(targetDeployment.height || 0, maxPodY + 40);
             currentNodes = currentNodes.map(n => n.id === targetParentId ? {
                 ...n, 
-                width: Math.max(n.width || 0, maxPodX + 20),
-                height: Math.max(n.height || 0, maxPodY + 40)
+                width: finalW,
+                height: finalH,
+                style: { width: finalW, height: finalH },
+                measured: { width: finalW, height: finalH }
             } : n);
         }
 
@@ -833,7 +858,13 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
   onNodeResize: (event: any, node: Node) => {
     set((state) => {
-      let nextNodes = state.nodes.map(n => n.id === node.id ? { ...n, width: node.width, height: node.height } : n);
+      let nextNodes = state.nodes.map(n => n.id === node.id ? {
+          ...n,
+          width: node.width,
+          height: node.height,
+          style: { width: node.width, height: node.height },
+          measured: { width: node.width, height: node.height }
+      } : n);
       
       const resizedNode = nextNodes.find(n => n.id === node.id);
       if (!resizedNode) return state;
@@ -844,7 +875,13 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         if (parentDeployment) {
           nextNodes = nextNodes.map(n => {
             if (n.parentId === parentDeployment.id) {
-                return { ...n, width: resizedNode.width, height: resizedNode.height };
+                return {
+                    ...n,
+                    width: resizedNode.width,
+                    height: resizedNode.height,
+                    style: { width: resizedNode.width, height: resizedNode.height },
+                    measured: { width: resizedNode.width, height: resizedNode.height }
+                };
             }
             return n;
           });
@@ -858,14 +895,18 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
           const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
           const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-          const minWidthNeeded = maxPodX + 20;
-          const minHeightNeeded = maxPodY + 40;
+          const minW = maxPodX + 20;
+          const minH = maxPodY + 40;
           nextNodes = nextNodes.map(n => {
             if (n.id === parentDeployment.id) {
+              const finalW = Math.max(n.width || 0, minW);
+              const finalH = Math.max(n.height || 0, minH);
               return { 
                 ...n, 
-                width: Math.max(n.width || 0, minWidthNeeded),
-                height: Math.max(n.height || 0, minHeightNeeded) 
+                width: finalW,
+                height: finalH,
+                style: { width: finalW, height: finalH },
+                measured: { width: finalW, height: finalH }
               };
             }
             return n;
@@ -881,14 +922,16 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
         const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
         const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-        const minWidthNeeded = maxPodX + 20;
-        const minHeightNeeded = maxPodY + 40;
+        const minW = maxPodX + 20;
+        const minH = maxPodY + 40;
         
-        if ((resizedNode.height || 0) < minHeightNeeded || (resizedNode.width || 0) < minWidthNeeded) {
+        if ((resizedNode.height || 0) < minH || (resizedNode.width || 0) < minW) {
             nextNodes = nextNodes.map(n => n.id === resizedNode.id ? { 
                 ...n, 
-                height: Math.max(n.height || 0, minHeightNeeded),
-                width: Math.max(n.width || 0, minWidthNeeded)
+                width: Math.max(n.width || 0, minW),
+                height: Math.max(n.height || 0, minH),
+                style: { width: Math.max(n.width || 0, minW), height: Math.max(n.height || 0, minH) },
+                measured: { width: Math.max(n.width || 0, minW), height: Math.max(n.height || 0, minH) }
             } : n);
         }
       }
