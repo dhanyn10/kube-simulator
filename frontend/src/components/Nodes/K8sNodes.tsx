@@ -100,6 +100,8 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   }, [id, type, onNodeResize]);
 
   const replicas = data.replicas || 1;
+  const totalDeploymentReplicas = data.parentReplicas || 0;
+  const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
 
   return (
     <div className={cn(
@@ -109,20 +111,12 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
       isReady && (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30")
     )}>
-      {/* Visual Stacking for Replicas */}
+      {/* Visual Stacking for Replicas - Symbolic 2 cards stack if replicas > 1 */}
       {replicas > 1 && (
-        <>
-          <div className={cn(
-            "absolute -right-1 -top-1 w-full h-full border-2 rounded-lg -z-10",
-            colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300"
-          )} />
-          {replicas > 2 && (
-            <div className={cn(
-                "absolute -right-2 -top-2 w-full h-full border-2 rounded-lg -z-20",
-                colorMode === 'dark' ? "bg-slate-800/30 border-slate-800" : "bg-slate-100 border-slate-400"
-            )} />
-          )}
-        </>
+        <div className={cn(
+          "absolute -right-1 -top-1 w-full h-full border-2 rounded-lg -z-10",
+          colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300"
+        )} />
       )}
 
       <style>{`
@@ -254,6 +248,23 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                 <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
             </div>
           )
+        )}
+
+        {/* Dashed Progress Bar for Pods in Deployment with > 3 replicas */}
+        {showDashedProgress && (
+            <div className="flex gap-0.5 mt-1 h-1 w-full">
+                {Array.from({ length: 10 }).map((_, i) => (
+                    <div
+                        key={i}
+                        className={cn(
+                            "flex-1 rounded-sm",
+                            i < (data.replicas || 0)
+                                ? "bg-emerald-500 shadow-[0_0_3px_rgba(16,185,129,0.5)]"
+                                : (colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")
+                        )}
+                    />
+                ))}
+            </div>
         )}
       </div>
 
@@ -485,7 +496,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         )}
       </div>
       
-      <div className={cn("absolute top-3 right-4 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
+      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
         replicas: {data.replicas || 0}
       </div>
 
