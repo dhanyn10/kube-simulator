@@ -8,6 +8,88 @@ export const sortNodes = (nodes: Node[]): Node[] => {
   });
 };
 
+// Helper function to sync pods within a deployment based on replica count
+export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], dataTemplate?: Node): Node[] => {
+  const totalReplicas = deployment.data.replicas || 0;
+  const deploymentId = deployment.id;
+
+  // 1. Determine target pod counts and their replica values
+  const targetPodReplicas: number[] = [];
+  if (totalReplicas <= 3) {
+    for (let i = 0; i < totalReplicas; i++) {
+      targetPodReplicas.push(1);
+    }
+  } else {
+    let remaining = totalReplicas;
+    while (remaining > 0) {
+      const count = Math.min(remaining, 10);
+      targetPodReplicas.push(count);
+      remaining -= count;
+    }
+  }
+
+  // 2. Map existing pods or create new ones
+  // We try to keep as many existing pods as possible to preserve their IDs and positions if relevant
+  // Although layoutPodsInDeployment will override positions.
+  const newPods: Node[] = [];
+
+  // Get template data from the provided dataTemplate, or first existing pod, otherwise use deployment defaults
+  const templatePod = dataTemplate || currentPods[0];
+  const commonData = templatePod ? {
+    image: templatePod.data.image,
+    webserver: templatePod.data.webserver,
+    runtime: templatePod.data.runtime,
+    framework: templatePod.data.framework,
+    status: templatePod.data.status,
+    label: templatePod.data.label, // Sync label too if it's not auto-named
+    isAutoNamed: templatePod.data.isAutoNamed,
+  } : {
+    image: deployment.data.image,
+    webserver: deployment.data.webserver || 'none',
+    runtime: deployment.data.runtime || 'none',
+    framework: deployment.data.framework,
+    status: deployment.data.status || 'pending',
+    isAutoNamed: true,
+  };
+
+  targetPodReplicas.forEach((replicas, index) => {
+    const existingPod = currentPods[index];
+    if (existingPod) {
+      newPods.push({
+        ...existingPod,
+        data: {
+          ...existingPod.data,
+          ...commonData,
+          replicas,
+          parentReplicas: totalReplicas,
+          label: commonData.isAutoNamed ? `${deployment.data.label}-pod-${index + 1}` : commonData.label,
+        }
+      });
+    } else {
+      const id = `pod-${Math.random().toString(36).substr(2, 9)}`;
+      newPods.push({
+        id,
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        parentId: deploymentId,
+        width: 160,
+        height: 80,
+        data: {
+          label: commonData.isAutoNamed ? `${deployment.data.label}-pod-${index + 1}` : commonData.label,
+          type: 'Pod',
+          replicas,
+          parentReplicas: totalReplicas,
+          ...commonData,
+          onDelete: () => {}, // Will be set in slice
+          onRename: () => {}, // Will be set in slice
+        }
+      });
+    }
+  });
+
+  return newPods;
+};
+
 // Helper function to layout pods within a deployment
 export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
   const paddingX = 20;

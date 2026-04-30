@@ -2,6 +2,7 @@ import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Settings, Server, Code, Box, X, Layers, Plus, Minus } from 'lucide-react';
+import { syncPodsInDeployment, layoutPodsInDeployment, sortNodes } from '../store/helpers';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -20,8 +21,7 @@ const WEBSERVERS = [
 
 export const ConfigPanel = () => {
   const nodes = useFlowStore((state) => state.nodes);
-  const setNodes = useFlowStore((state) => state.setNodes);
-  const activeDeploymentId = useFlowStore((state) => state.activeDeploymentId);
+  const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const colorMode = useFlowStore((state) => state.colorMode);
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
   const setConfiguringNodeId = useFlowStore((state) => state.setConfiguringNodeId);
@@ -33,63 +33,33 @@ export const ConfigPanel = () => {
 
   const data = selectedNode.data;
 
-  const updatePodData = (updates: any) => {
+  const performUpdate = (updates: any) => {
     const nextData = { ...data, ...updates };
-    
-    // If updating replicas on a Pod inside a Deployment, sync with Deployment replicas
-    if ('replicas' in updates && selectedNode.parentId) {
-        const parentId = selectedNode.parentId;
-        const siblingPods = nodes.filter(n => n.parentId === parentId && n.id !== selectedNode.id);
-        const totalReplicas = siblingPods.reduce((acc, p) => acc + (p.data.replicas || 1), 0) + (updates.replicas || 1);
 
-        setNodes(nodes.map(n => {
-            if (n.id === selectedNode.id) return { ...n, data: nextData };
-            if (n.id === parentId) return { ...n, data: { ...n.data, replicas: totalReplicas } };
-            return n;
-        }));
-        return;
-    }
+    // Auto-update status and image if config is complete (only for Pods or Deployment templates)
+    if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
+        if (nextData.runtime !== 'none' || nextData.webserver !== 'none') {
+            nextData.status = 'ready';
+            const runtimePart = nextData.runtime !== 'none' ? nextData.runtime : '';
+            const serverPart = nextData.webserver !== 'none' ? nextData.webserver : '';
+            nextData.image = `k8s-app-${runtimePart}${serverPart ? '-' + serverPart : ''}:latest`.replace('--', '-').toLowerCase();
 
-    // If updating replicas on a Deployment, sync with its child Pod (if only one)
-    if ('replicas' in updates && selectedNode.type === 'Deployment') {
-        const childPods = nodes.filter(n => n.parentId === selectedNode.id);
-        if (childPods.length === 1) {
-            setNodes(nodes.map(n => {
-                if (n.id === selectedNode.id) return { ...n, data: nextData };
-                if (n.id === childPods[0].id) return { ...n, data: { ...n.data, replicas: updates.replicas } };
-                return n;
-            }));
-            return;
-        }
-    }
-
-    // Auto-update status and image if config is complete
-    if (nextData.runtime !== 'none' || nextData.webserver !== 'none') {
-        nextData.status = 'ready';
-        // Simple logic for image name generation
-        const runtimePart = nextData.runtime !== 'none' ? nextData.runtime : '';
-        const serverPart = nextData.webserver !== 'none' ? nextData.webserver : '';
-        nextData.image = `k8s-app-${runtimePart}${serverPart ? '-' + serverPart : ''}:latest`.replace('--', '-').toLowerCase();
-
-        // Auto-update label if user hasn't edited it manually
-        if (nextData.isAutoNamed) {
-            let newLabel = '';
-            if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
-                newLabel = `${nextData.webserver}-${nextData.runtime}`;
-            } else {
-                newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
+            if (nextData.isAutoNamed) {
+                let newLabel = '';
+                if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
+                    newLabel = `${nextData.webserver}-${nextData.runtime}`;
+                } else {
+                    newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
+                }
+                nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
             }
-            nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
-        }
-    } else {
-        nextData.status = 'pending';
-        nextData.image = undefined;
-        if (nextData.isAutoNamed) {
-            nextData.label = `pod-${nodes.length}`;
+        } else {
+            nextData.status = 'pending';
+            nextData.image = undefined;
         }
     }
 
-    setNodes(nodes.map(n => n.id === selectedNode.id ? { ...n, data: nextData } : n));
+    updateNodeData(selectedNode.id, nextData);
   };
 
   return (
@@ -126,7 +96,7 @@ export const ConfigPanel = () => {
                 onClick={() => {
                   const currentValue = data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
                   const newValue = Math.max(1, currentValue - 1);
-                  updatePodData({ replicas: newValue });
+                  performUpdate({ replicas: newValue });
                 }}
                 className={cn(
                   "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
@@ -144,7 +114,7 @@ export const ConfigPanel = () => {
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === '' || /^\d+$/.test(value)) {
-                    updatePodData({ replicas: parseInt(value) || 1 });
+                    performUpdate({ replicas: parseInt(value) || 1 });
                   }
                 }}
                 className={cn(
@@ -156,7 +126,7 @@ export const ConfigPanel = () => {
                 onClick={() => {
                   const currentValue = data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
                   const newValue = currentValue + 1;
-                  updatePodData({ replicas: newValue });
+                  performUpdate({ replicas: newValue });
                 }}
                 className={cn(
                   "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
@@ -180,7 +150,7 @@ export const ConfigPanel = () => {
             {WEBSERVERS.map((ws) => (
               <button
                 key={ws.id}
-                onClick={() => updatePodData({ webserver: ws.id })}
+                onClick={() => performUpdate({ webserver: ws.id })}
                 className={cn(
                   "text-[9px] py-1 rounded border transition-all",
                   data.webserver === ws.id 
@@ -201,7 +171,7 @@ export const ConfigPanel = () => {
           </label>
           <select
             value={data.runtime || 'none'}
-            onChange={(e) => updatePodData({ runtime: e.target.value, framework: '' })}
+            onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
             className={cn(
               "w-full text-[10px] p-2 rounded border outline-none",
               colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
@@ -223,7 +193,7 @@ export const ConfigPanel = () => {
               {RUNTIMES[data.runtime as keyof typeof RUNTIMES]?.frameworks.map((fw) => (
                 <button
                   key={fw}
-                  onClick={() => updatePodData({ framework: fw })}
+                  onClick={() => performUpdate({ framework: fw })}
                   className={cn(
                     "text-[8px] px-2 py-1 rounded-full border transition-all",
                     data.framework === fw
