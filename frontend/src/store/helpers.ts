@@ -62,7 +62,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
           ...commonData,
           replicas,
           parentReplicas: totalReplicas,
-          label: commonData.isAutoNamed ? `${deployment.data.label}-pod` : commonData.label,
+          label: commonData.isAutoNamed ? deployment.data.label : commonData.label,
         }
       });
     } else {
@@ -75,7 +75,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         width: 160,
         height: 80,
         data: {
-          label: commonData.isAutoNamed ? `${deployment.data.label}-pod` : commonData.label,
+          label: commonData.isAutoNamed ? deployment.data.label : commonData.label,
           type: 'Pod',
           replicas,
           parentReplicas: totalReplicas,
