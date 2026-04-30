@@ -46,10 +46,19 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     const { clipboard, nodes, edges, setNodes, setEdges } = get();
     if (!clipboard) return;
 
+    const setupPodData = (podId: string) => ({
+      onDelete: () => {
+        const nodeToDelete = get().nodes.find(n => n.id === podId);
+        if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+      },
+      onRename: (newName: string) => {
+        get().updateNodeData(podId, { label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false });
+      },
+    });
+
     // Check if we are pasting a single Pod and it should be merged
     if (clipboard.nodes.length === 1 && clipboard.nodes[0].type === 'Pod') {
       const pastedPod = clipboard.nodes[0];
-      // Find if there's a pod at approximately the same position or in same parent
       const targetPod = nodes.find(n =>
         n.type === 'Pod' &&
         n.parentId === pastedPod.parentId &&
@@ -57,17 +66,17 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       );
 
       if (targetPod) {
-        const nextNodes = nodes.map(n => {
-          if (n.id === targetPod.id) {
-            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 1) + (pastedPod.data.replicas || 1) } };
+        const delta = pastedPod.data.replicas || 1;
+        if (targetPod.parentId) {
+          const parent = nodes.find(n => n.id === targetPod.parentId);
+          if (parent) {
+            get().updateNodeData(parent.id, { replicas: (parent.data.replicas || 0) + delta });
+            return;
           }
-          if (targetPod.parentId && n.id === targetPod.parentId) {
-            return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + (pastedPod.data.replicas || 1) } };
-          }
-          return n;
-        });
-        setNodes(nextNodes);
-        return;
+        } else {
+          get().updateNodeData(targetPod.id, { replicas: (targetPod.data.replicas || 1) + delta });
+          return;
+        }
       }
     }
 
@@ -75,36 +84,26 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     const offset = 40;
     const clipboardSourceIds = new Set(clipboard.nodes.map(n => n.id));
 
-    // 1. Update ORIGINAL nodes (source of copy) to have a random suffix if they still exist
+    // 1. Update ORIGINAL nodes labels with random suffix
     const updatedExistingNodes = nodes.map(node => {
       if (clipboardSourceIds.has(node.id) && node.type === 'Pod') {
         const randomSuffix = Math.random().toString(36).substr(2, 4);
-        // Avoid double suffixing if it already has one
         const baseLabel = node.data.label.split('-').slice(0, -1).join('-');
         const isAlreadySuffixed = /-[a-z0-9]{4}$/.test(node.data.label);
-        const newLabel = isAlreadySuffixed 
-          ? `${baseLabel}-${randomSuffix}` 
-          : `${node.data.label}-${randomSuffix}`;
-
-        return {
-          ...node,
-          data: { ...node.data, label: newLabel, isAutoNamed: false }
-        };
+        const newLabel = isAlreadySuffixed ? `${baseLabel}-${randomSuffix}` : `${node.data.label}-${randomSuffix}`;
+        return { ...node, data: { ...node.data, label: newLabel, isAutoNamed: false } };
       }
       return node;
     });
 
-    // 2. Generate NEW nodes from clipboard and adjust positions/labels
+    // 2. Generate NEW nodes from clipboard
     const newNodes: Node[] = clipboard.nodes.map(node => {
       const newId = `${node.type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
       idMap[node.id] = newId;
 
       const randomSuffix = Math.random().toString(36).substr(2, 4);
-      // For the new node, we always want a fresh suffix
       const isAlreadySuffixed = /-[a-z0-9]{4}$/.test(node.data.label);
-      const baseLabel = isAlreadySuffixed 
-        ? node.data.label.split('-').slice(0, -1).join('-') 
-        : node.data.label;
+      const baseLabel = isAlreadySuffixed ? node.data.label.split('-').slice(0, -1).join('-') : node.data.label;
       const newLabel = `${baseLabel}-${randomSuffix}`;
 
       return {
@@ -116,31 +115,59 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           y: node.position.y + (node.parentId ? 0 : offset),
         },
         data: {
-            ...node.data,
-            label: newLabel,
-            isAutoNamed: false, // Once pasted with suffix, it's a specific instance
-            onDelete: () => {
-                const nodeToDelete = get().nodes.find(n => n.id === newId);
-                if (nodeToDelete) get().deleteNodes([nodeToDelete]);
-            },
-            onRename: (newName: string) => {
-                set((state) => ({
-                    nodes: state.nodes.map((n) => (n.id === newId ? { ...n, data: { ...n.data, label: newName.toLowerCase().replace(/\s+/g, '-'), isAutoNamed: false } } : n)),
-                }));
-            },
+          ...node.data,
+          label: newLabel,
+          isAutoNamed: false,
+          ...setupPodData(newId),
         }
       };
     });
 
-    // 3. Fix parent-child relationships for new nodes
-    const finalNewNodes = newNodes.map(node => {
+    // 3. Fix parent-child relationships
+    let finalNewNodes = newNodes.map(node => {
       if (node.parentId && idMap[node.parentId]) {
         return { ...node, parentId: idMap[node.parentId] };
       }
       return node;
     });
 
-    // 4. Clone edges with new IDs
+    // 4. Combine and sync affected deployments
+    const affectedDeploymentIds = new Set<string>();
+    finalNewNodes.forEach(n => {
+      if (n.type === 'Deployment') affectedDeploymentIds.add(n.id);
+      else if (n.type === 'Pod' && n.parentId) affectedDeploymentIds.add(n.parentId);
+    });
+
+    let nextNodes = [...updatedExistingNodes.map(n => ({ ...n, selected: false })), ...finalNewNodes];
+
+    affectedDeploymentIds.forEach(depId => {
+      const deployment = nextNodes.find(n => n.id === depId);
+      if (deployment) {
+        // Recalculate replicas from child pods if needed, or just sync
+        const childPods = nextNodes.filter(n => n.parentId === depId && n.type === 'Pod');
+        const totalReplicas = childPods.reduce((acc, p) => acc + (p.data.replicas || 1), 0);
+
+        const updatedDeployment = { ...deployment, data: { ...deployment.data, replicas: totalReplicas } };
+        const syncedPods = syncPodsInDeployment(updatedDeployment, childPods);
+        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodData(p.id) } }));
+        const laidOutPods = layoutPodsInDeployment(updatedDeployment, syncedWithHandlers);
+
+        nextNodes = nextNodes.filter(n => n.parentId !== depId || n.type !== 'Pod');
+        nextNodes = nextNodes.map(n => n.id === depId ? updatedDeployment : n);
+        nextNodes = [...nextNodes, ...laidOutPods];
+
+        // Resize
+        const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || 160)));
+        const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || 80)));
+        nextNodes = nextNodes.map(n => n.id === depId ? {
+            ...n,
+            width: Math.max(n.width || 0, maxPodX + 20),
+            height: Math.max(n.height || 0, maxPodY + 40)
+        } : n);
+      }
+    });
+
+    // 5. Clone edges
     const newEdges: Edge[] = clipboard.edges.map(edge => ({
       ...edge,
       id: `edge-${Math.random().toString(36).substr(2, 9)}`,
@@ -148,10 +175,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       target: idMap[edge.target],
     }));
 
-    // 5. Deselect current nodes and combine everything
-    const finalNodes = updatedExistingNodes.map(n => ({ ...n, selected: false }));
-    
-    setNodes(sortNodes([...finalNodes, ...finalNewNodes]));
+    setNodes(sortNodes(nextNodes));
     setEdges([...edges, ...newEdges]);
   },
   updateNodeData: (nodeId: string, newData: any) => {
