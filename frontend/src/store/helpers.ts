@@ -49,7 +49,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     runtime: deployment.data.runtime || 'none',
     framework: deployment.data.framework,
     status: deployment.data.status || 'pending',
-    label: 'pod',
+    label: 'new-app-pod',
     isAutoNamed: true,
   };
 

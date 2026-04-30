@@ -258,7 +258,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       width, 
       height, 
       data: {
-        label: type.toLowerCase() + '-' + (nodes.length + 1),
+        label: type === 'Pod' ? 'new-app-pod-' + (nodes.length + 1) : type.toLowerCase() + '-' + (nodes.length + 1),
         type,
         replicas: type === 'Pod' ? 1 : (type === 'Deployment' ? 0 : undefined),
         status: type === 'Pod' ? 'pending' : undefined,
