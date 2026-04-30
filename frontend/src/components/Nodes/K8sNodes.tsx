@@ -496,7 +496,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         )}
       </div>
       
-      <div className={cn("absolute top-3 right-4 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
+      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
         replicas: {data.replicas || 0}
       </div>
 
