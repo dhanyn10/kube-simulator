@@ -105,16 +105,16 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-all",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-all flex flex-col",
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
       isReady && (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30")
     )}>
-      {/* Visual Stacking for Replicas - Symbolic 2 cards stack if replicas > 1 */}
+      {/* Visual Stacking for Replicas */}
       {replicas > 1 && (
         <div className={cn(
-          "absolute -right-1 -top-1 w-full h-full border-2 rounded-lg -z-10",
+          "absolute -right-1.5 -top-1.5 w-full h-full border-2 rounded-lg -z-10",
           colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300"
         )} />
       )}
@@ -139,7 +139,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       />
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 shrink-0">
         <div className="flex items-center gap-1.5">
           <span className={cn(
             "text-[8px] font-bold tracking-widest uppercase", 
@@ -194,78 +194,84 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
       </div>
 
-      {/* Content */}
-      <div className="space-y-1.5">
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleRename}
-            onKeyDown={onKeyDown}
-            className={cn(
-                "w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
-                colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400"
-            )}
-          />
-        ) : (
-          <div 
-            className={cn(
-                "text-xs font-mono font-bold truncate cursor-text",
-                colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
-            )}
-            onDoubleClick={() => setIsEditing(true)}
-          >
-            {data.label}
-          </div>
-        )}
-        
-        {data.type === 'Pod' && (
-            <div className="flex flex-wrap gap-1 mt-1">
-                {data.runtime && data.runtime !== 'none' && (
-                    <span className="text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold">
-                        {data.runtime}
-                    </span>
-                )}
-                {data.webserver && data.webserver !== 'none' && (
-                    <span className="text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold">
-                        {data.webserver}
-                    </span>
-                )}
+      {/* Content Area - now a simple flex-col to stack elements */}
+      <div className="flex-1 flex flex-col gap-2 min-h-0"> {/* Removed justify-between, added gap */}
+        {/* Top section: Label, Dashed Progress, Badges */}
+        <div className="flex flex-col gap-1.5">
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleRename}
+              onKeyDown={onKeyDown}
+              className={cn(
+                  "w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
+                  colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400"
+              )}
+            />
+          ) : (
+            <div
+              className={cn(
+                  "text-xs font-mono font-bold truncate cursor-text",
+                  colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
+              )}
+              onDoubleClick={() => setIsEditing(true)}
+            >
+              {data.label}
             </div>
-        )}
+          )}
 
-        {data.image ? (
-          <div className={cn(
-            "text-[9px] font-mono truncate px-1.5 py-0.5 rounded border",
-            isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
-          )}>
-            {isPending ? 'image: not configured' : data.image}
-          </div>
-        ) : (
-          data.type !== 'Pod' && (
-            <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
-                <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
-            </div>
-          )
-        )}
+          {/* Dashed Progress Bar for Replicas (moved here) */}
+          {showDashedProgress && (
+              <div className="flex gap-0.5 h-1 w-full items-center pb-0.5">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                      <div
+                          key={i}
+                          className={cn(
+                              "flex-1 h-1 rounded-sm transition-all",
+                              i < (data.replicas || 0)
+                                  ? "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]"
+                                  : (colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")
+                          )}
+                      />
+                  ))}
+              </div>
+          )}
 
-        {/* Dashed Progress Bar for Pods in Deployment with > 3 replicas */}
-        {showDashedProgress && (
-            <div className="flex gap-0.5 mt-1 h-1 w-full">
-                {Array.from({ length: 10 }).map((_, i) => (
-                    <div
-                        key={i}
-                        className={cn(
-                            "flex-1 rounded-sm",
-                            i < (data.replicas || 0)
-                                ? "bg-emerald-500 shadow-[0_0_3px_rgba(16,185,129,0.5)]"
-                                : (colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")
-                        )}
-                    />
-                ))}
+          {data.type === 'Pod' && (
+              <div className="flex flex-wrap items-center gap-1">
+                  {data.runtime && data.runtime !== 'none' && (
+                      <span className="text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold whitespace-nowrap">
+                          {data.runtime}
+                      </span>
+                  )}
+                  {data.webserver && data.webserver !== 'none' && (
+                      <span className="text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold whitespace-nowrap">
+                          {data.webserver}
+                      </span>
+                  )}
+              </div>
+          )}
+        </div>
+
+        {/* Bottom section: Image / Generic Progress */}
+        <div className="flex flex-col gap-1.5 shrink-0"> {/* Removed mt-2, rely on parent gap */}
+          {data.image ? (
+            <div className={cn(
+              "text-[9px] font-mono truncate px-1.5 py-0.5 rounded border",
+              isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
+            )}>
+              {isPending ? 'image: not configured' : data.image}
             </div>
-        )}
+          ) : (
+            data.type !== 'Pod' && (
+              <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
+                  <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
+              </div>
+            )
+          )}
+        </div>
       </div>
 
       {children}
@@ -335,7 +341,7 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col",
       colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
       props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>
@@ -349,40 +355,42 @@ export const ServiceNode = memo((props: NodeProps) => {
         onResize={handleNodeResize}
       />
       
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 shrink-0">
         <div className="w-3 h-3 bg-amber-500 [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]"></div>
         <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tighter">Service</span>
       </div>
       
-      {isEditing ? (
-        <input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleRename}
-          onKeyDown={onKeyDown}
-          className={cn(
-              "w-full text-xs font-bold mb-1 px-1 py-0.5 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-amber-500" : "bg-slate-50 text-slate-900 border-amber-400"
-          )}
-        />
-      ) : (
-        <div 
-          className={cn(
-              "text-xs font-bold mb-1 cursor-text truncate",
-              colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
-          )}
-          onDoubleClick={() => setIsEditing(true)}
-        >
-          {data.label}
-        </div>
-      )}
+      <div className="flex-1 flex flex-col min-h-0">
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleRename}
+            onKeyDown={onKeyDown}
+            className={cn(
+                "w-full text-xs font-bold mb-1 px-1 py-0.5 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-amber-500" : "bg-slate-50 text-slate-900 border-amber-400"
+            )}
+          />
+        ) : (
+          <div 
+            className={cn(
+                "text-xs font-bold mb-1 cursor-text truncate",
+                colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
+            )}
+            onDoubleClick={() => setIsEditing(true)}
+          >
+            {data.label}
+          </div>
+        )}
 
-      <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>targetPort: {data.targetPort || 8080}</div>
-      
-      <div className={cn("mt-3 pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-        <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
-        <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
+        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>targetPort: {data.targetPort || 8080}</div>
+        
+        <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
+          <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
+        </div>
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-amber-500" />
@@ -447,7 +455,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors",
+      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col",
       colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
       props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
       isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
@@ -515,7 +523,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       </button>
 
       <div className={cn(
-          "pointer-events-none mt-4 text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40",
+          "pointer-events-none mt-auto text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2",
           colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
       )}>
         Workload Zone
