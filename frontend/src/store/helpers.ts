@@ -58,8 +58,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     if (existingPod) {
       newPods.push({
         ...existingPod,
-        style: { width: existingPod.width || 160, height: existingPod.height || 80 },
-        measured: { width: existingPod.width || 160, height: existingPod.height || 80 },
+        style: { ...existingPod.style, width: existingPod.width || 160 },
         extent: 'parent',
         data: {
           ...existingPod.data,
@@ -77,9 +76,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         position: { x: 0, y: 0 },
         parentId: deploymentId,
         width: 160,
-        height: 80,
-        style: { width: 160, height: 80 },
-        measured: { width: 160, height: 80 },
+        style: { width: 160 },
         extent: 'parent',
         data: {
           type: 'Pod',
@@ -111,7 +108,7 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
 
   const updatedPods = pods.map(pod => {
     const podW = pod.width || pod.measured?.width || 160;
-    const podH = pod.height || pod.measured?.height || 80;
+    const podH = pod.height || pod.measured?.height || 130; // Use measured height for layout if available
 
     // If the current pod doesn't fit in the current row, move to next row
     if (currentX + podW > deployableWidth + paddingX && currentX > paddingX) {

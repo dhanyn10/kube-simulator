@@ -185,15 +185,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
         // Ensure deployment is large enough
         const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || 160)));
-        const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || 80)));
+        const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
         const depW = Math.max(updatedNode.width || 0, maxPodX + 20);
         const depH = Math.max(updatedNode.height || 0, maxPodY + 40);
         nextNodes = nextNodes.map(n => n.id === parentId ? {
           ...n,
           width: depW,
           height: depH,
-          style: { width: depW, height: depH },
-          measured: { width: depW, height: depH }
+          style: { ...n.style, width: depW, height: depH },
         } : n);
       } else if (updatedNode.type === 'Pod' && updatedNode.parentId) {
         const parentId = updatedNode.parentId;
@@ -227,13 +226,10 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
     if (type === 'Pod') {
       width = 160;
-      height = 80;
     } else if (type === 'Deployment') {
       width = 320;
-      height = 160;
     } else if (type === 'Service') {
         width = 180;
-        height = 120;
     }
 
     if (type === 'Pod' && !customParentId) {
@@ -260,9 +256,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       position,
       parentId,
       width, 
-      height, 
-      style: { width, height },
-      measured: { width, height },
+      style: { width },
       extent: parentId ? 'parent' : undefined,
       data: {
         label: type === 'Pod' ? 'new-app-pod-' + (nodes.length + 1) : type.toLowerCase() + '-' + (nodes.length + 1),
@@ -313,7 +307,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
           // Resize deployment
           const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-          const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+          const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
           const minW = maxPodX + 20;
           const minH = maxPodY + 40;
           nextNodes = nextNodes.map(n => {
@@ -324,8 +318,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
                 ...n,
                 width: finalW,
                 height: finalH,
-                style: { width: finalW, height: finalH },
-                measured: { width: finalW, height: finalH }
+                style: { ...n.style, width: finalW, height: finalH },
               };
             }
             return n;
@@ -398,15 +391,14 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
             // Resize deployment if needed
             const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-            const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+            const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
             const finalW = Math.max(parentDeployment.width || 0, maxPodX + 20);
             const finalH = Math.max(parentDeployment.height || 0, maxPodY + 40);
             nextNodes = nextNodes.map(n => n.id === parentId ? {
                 ...n,
                 width: finalW,
                 height: finalH,
-                style: { width: finalW, height: finalH },
-                measured: { width: finalW, height: finalH }
+                style: { ...n.style, width: finalW, height: finalH },
             } : n);
           }
         } else {
@@ -894,7 +886,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           });
 
           const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
           const minW = maxPodX + 20;
           const minH = maxPodY + 40;
           nextNodes = nextNodes.map(n => {
@@ -905,8 +897,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
                 ...n, 
                 width: finalW,
                 height: finalH,
-                style: { width: finalW, height: finalH },
-                measured: { width: finalW, height: finalH }
+                style: { ...n.style, width: finalW, height: finalH },
               };
             }
             return n;
@@ -921,7 +912,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         });
 
         const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-        const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+        const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
         const minW = maxPodX + 20;
         const minH = maxPodY + 40;
         
@@ -930,8 +921,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
                 ...n, 
                 width: Math.max(n.width || 0, minW),
                 height: Math.max(n.height || 0, minH),
-                style: { width: Math.max(n.width || 0, minW), height: Math.max(n.height || 0, minH) },
-                measured: { width: Math.max(n.width || 0, minW), height: Math.max(n.height || 0, minH) }
+                style: { ...n.style, width: Math.max(n.width || 0, minW), height: Math.max(n.height || 0, minH) },
             } : n);
         }
       }
