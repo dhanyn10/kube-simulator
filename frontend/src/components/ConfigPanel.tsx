@@ -2,7 +2,6 @@ import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Settings, Server, Code, Box, X, Layers, Plus, Minus } from 'lucide-react';
-import { syncPodsInDeployment, layoutPodsInDeployment, sortNodes } from '../store/helpers';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -32,6 +31,17 @@ export const ConfigPanel = () => {
   if (!configuringNodeId || !selectedNode) return null;
 
   const data = selectedNode.data;
+  const selectedPodLabel = selectedNode.data.label;
+  const podReplicaGroup = selectedNode.type === 'Pod' && selectedNode.parentId
+    ? nodes.filter(n =>
+        n.type === 'Pod' &&
+        n.parentId === selectedNode.parentId &&
+        n.data.label === selectedPodLabel
+      )
+    : [];
+  const replicaValue = podReplicaGroup.length > 0
+    ? podReplicaGroup.reduce((acc, pod) => acc + (pod.data.replicas || 1), 0)
+    : data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
 
   const performUpdate = (updates: any) => {
     const nextData = { ...data, ...updates };
@@ -59,7 +69,16 @@ export const ConfigPanel = () => {
         }
     }
 
+    if (selectedNode.type === 'Pod' && selectedNode.parentId && !('replicas' in updates)) {
+      delete nextData.replicas;
+      delete nextData.parentReplicas;
+    }
+
     updateNodeData(selectedNode.id, nextData);
+  };
+
+  const updateReplicas = (replicas: number) => {
+    updateNodeData(selectedNode.id, { replicas });
   };
 
   return (
@@ -94,9 +113,7 @@ export const ConfigPanel = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  const currentValue = data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
-                  const newValue = Math.max(1, currentValue - 1);
-                  performUpdate({ replicas: newValue });
+                  updateReplicas(Math.max(1, replicaValue - 1));
                 }}
                 className={cn(
                   "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
@@ -110,11 +127,11 @@ export const ConfigPanel = () => {
               <input
                 type="number"
                 min="1"
-                value={data.replicas || (selectedNode.type === 'Pod' ? 1 : 0)}
+                value={replicaValue}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === '' || /^\d+$/.test(value)) {
-                    performUpdate({ replicas: parseInt(value) || 1 });
+                    updateReplicas(parseInt(value) || 1);
                   }
                 }}
                 className={cn(
@@ -124,9 +141,7 @@ export const ConfigPanel = () => {
               />
               <button
                 onClick={() => {
-                  const currentValue = data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
-                  const newValue = currentValue + 1;
-                  performUpdate({ replicas: newValue });
+                  updateReplicas(replicaValue + 1);
                 }}
                 className={cn(
                   "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",

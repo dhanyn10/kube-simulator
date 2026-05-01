@@ -166,6 +166,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   },
   updateNodeData: (nodeId: string, newData: any) => {
     set((state) => {
+      const previousNode = state.nodes.find(n => n.id === nodeId);
       let nextNodes = state.nodes.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n);
       const updatedNode = nextNodes.find(n => n.id === nodeId);
       if (!updatedNode) return state;
@@ -200,16 +201,59 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         const parent = nextNodes.find(n => n.id === parentId);
         if (parent) {
           const currentPods = nextNodes.filter(n => n.parentId === parentId && n.type === 'Pod');
-          // Use the specifically updated node as the data template if it was a data change
-          const syncedPods = syncPodsInDeployment(parent, currentPods, updatedNode);
+          const previousLabel = previousNode?.data.label;
+          const selectedLabel = previousLabel || updatedNode.data.label;
+          const groupPods = currentPods.filter(pod =>
+            pod.data.label === selectedLabel || pod.id === updatedNode.id
+          );
+          const otherPods = currentPods.filter(pod =>
+            pod.data.label !== selectedLabel && pod.id !== updatedNode.id
+          );
+          const groupReplicas = typeof newData.replicas === 'number'
+            ? newData.replicas
+            : groupPods.reduce((acc, pod) => acc + (pod.data.replicas || 1), 0);
+          const otherReplicas = otherPods.reduce((acc, pod) => acc + (pod.data.replicas || 1), 0);
+          const totalReplicas = groupReplicas + otherReplicas;
+          const updatedParent = {
+            ...parent,
+            data: {
+              ...parent.data,
+              replicas: totalReplicas
+            }
+          };
+
+          nextNodes = nextNodes.map(n => n.id === parentId ? updatedParent : n);
+
+          const groupDeployment = {
+            ...updatedParent,
+            data: {
+              ...updatedParent.data,
+              replicas: groupReplicas
+            }
+          };
+
+          // Use the specifically updated node as the data template for this label group.
+          const syncedPods = syncPodsInDeployment(groupDeployment, groupPods, updatedNode);
           const syncedWithHandlers = syncedPods.map(p => ({
             ...p,
             data: { ...p.data, ...setupPodHandlers(p.id) }
           }));
-          const laidOutPods = layoutPodsInDeployment(parent, syncedWithHandlers);
+          const laidOutPods = layoutPodsInDeployment(updatedParent, [...otherPods, ...syncedWithHandlers]);
 
           nextNodes = nextNodes.filter(n => n.parentId !== parentId || n.type !== 'Pod');
           nextNodes = [...nextNodes, ...laidOutPods];
+
+          const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || 160)));
+          const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || 80)));
+          const depW = Math.max(updatedParent.width || 0, maxPodX + 20);
+          const depH = Math.max(updatedParent.height || 0, maxPodY + 40);
+          nextNodes = nextNodes.map(n => n.id === parentId ? {
+            ...n,
+            width: depW,
+            height: depH,
+            style: { width: depW, height: depH },
+            measured: { width: depW, height: depH }
+          } : n);
         }
       }
 
