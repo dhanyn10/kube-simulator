@@ -106,6 +106,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   return (
     <div className={cn(
       "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-all flex flex-col",
+      data.type === 'Pod' ? "min-h-[130px]" : "min-h-[100px]",
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
@@ -131,7 +132,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       <QuickConnectArrows nodeId={id} />
       <NodeResizer 
         minWidth={100} 
-        minHeight={60} 
+        minHeight={data.type === 'Pod' ? 130 : 60}
         isVisible={selected} 
         lineClassName={colorMode === 'dark' ? "border-blue-400" : "border-blue-500"} 
         handleClassName={cn("h-2 w-2 border-2 rounded", colorMode === 'dark' ? "bg-white border-blue-400" : "bg-white border-blue-500")}
@@ -195,7 +196,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       </div>
 
       {/* Content Area - now a simple flex-col to stack elements */}
-      <div className="flex-1 flex flex-col gap-2 min-h-0"> {/* Removed justify-between, added gap */}
+      <div className="flex-1 flex flex-col gap-1.5 min-h-0"> {/* Adjusted gap */}
         {/* Top section: Label, Dashed Progress, Badges */}
         <div className="flex flex-col gap-1.5">
           {isEditing ? (
@@ -213,7 +214,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           ) : (
             <div
               className={cn(
-                  "text-xs font-mono font-bold truncate cursor-text",
+                  "text-xs font-mono font-bold break-all cursor-text",
                   colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
               )}
               onDoubleClick={() => setIsEditing(true)}
@@ -256,10 +257,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
 
         {/* Bottom section: Image / Generic Progress */}
-        <div className="flex flex-col gap-1.5 shrink-0"> {/* Removed mt-2, rely on parent gap */}
+        <div className="flex flex-col gap-1.5 mt-auto shrink-0"> {/* Added mt-auto to push image to bottom */}
           {data.image ? (
             <div className={cn(
-              "text-[9px] font-mono truncate px-1.5 py-0.5 rounded border",
+              "text-[9px] font-mono break-all px-1.5 py-0.5 rounded border",
               isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
             )}>
               {isPending ? 'image: not configured' : data.image}
@@ -341,14 +342,14 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[120px]",
       colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
       props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>
       <QuickConnectArrows nodeId={props.id} />
       <NodeResizer 
         minWidth={150} 
-        minHeight={100} 
+        minHeight={120}
         isVisible={props.selected} 
         lineClassName="border-amber-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded" 
@@ -455,7 +456,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col",
+      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col min-h-[160px]",
       colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
       props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
       isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
@@ -464,7 +465,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       <QuickConnectArrows nodeId={props.id} />
       <NodeResizer 
         minWidth={300} 
-        minHeight={150} 
+        minHeight={160}
         isVisible={props.selected} 
         lineClassName="border-violet-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded" 
