@@ -1,5 +1,42 @@
 import { Node } from '@xyflow/react';
 
+export const POD_MIN_DIMENSIONS = {
+  width: 168,
+  height: 92,
+};
+
+export const getPodMinimumSize = (data: any = {}) => {
+  const label = String(data.label || '');
+  const image = String(data.image || '');
+  const badges = [data.runtime, data.webserver]
+    .filter(value => value && value !== 'none')
+    .map(String);
+  const replicas = data.replicas || 1;
+  const showsReplicaBadge = replicas > 1;
+
+  const horizontalPadding = 24;
+  const contentPadding = 16;
+  const headerToolsWidth = 44;
+  const headerContentWidth = 36 + (showsReplicaBadge ? String(replicas).length * 5 + 18 : 0);
+  const labelWidth = label.length * 7 + contentPadding;
+  const badgeWidth = badges.length > 0
+    ? badges.reduce((total, badge) => total + badge.length * 5 + 14, 0) + Math.max(0, badges.length - 1) * 4
+    : 0;
+  const readableImageWidth = image.length > 0
+    ? Math.min(320, Math.max(148, image.length * 5.5 + contentPadding))
+    : 0;
+
+  const width = Math.ceil(Math.max(
+    POD_MIN_DIMENSIONS.width,
+    headerContentWidth + headerToolsWidth + horizontalPadding,
+    labelWidth + horizontalPadding,
+    badgeWidth + horizontalPadding,
+    readableImageWidth + horizontalPadding
+  ));
+
+  return { width, height: POD_MIN_DIMENSIONS.height };
+};
+
 export const sortNodes = (nodes: Node[]): Node[] => {
   return [...nodes].sort((a, b) => {
     if (a.type === 'Deployment' && b.type === 'Pod') return -1;
@@ -56,10 +93,20 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
   targetPodReplicas.forEach((replicas, index) => {
     const existingPod = currentPods[index];
     if (existingPod) {
+      const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
+      const width = existingPod.data?.isManuallyResized
+        ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
+        : minSize.width;
+      const minHeight = existingPod.data?.isManuallyResized
+        ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, minSize.height)
+        : minSize.height;
+
       newPods.push({
         ...existingPod,
-        style: { width: existingPod.width || 160, height: existingPod.height || 80 },
-        measured: { width: existingPod.width || 160, height: existingPod.height || 80 },
+        width,
+        height: undefined,
+        style: { width, minHeight },
+        measured: undefined,
         extent: 'parent',
         data: {
           ...existingPod.data,
@@ -71,15 +118,16 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
       });
     } else {
       const id = `pod-${Math.random().toString(36).substr(2, 9)}`;
+      const minSize = getPodMinimumSize({ ...commonData, replicas });
       newPods.push({
         id,
         type: 'Pod',
         position: { x: 0, y: 0 },
         parentId: deploymentId,
-        width: 160,
-        height: 80,
-        style: { width: 160, height: 80 },
-        measured: { width: 160, height: 80 },
+        width: minSize.width,
+        height: undefined,
+        style: { width: minSize.width, minHeight: minSize.height },
+        measured: undefined,
         extent: 'parent',
         data: {
           type: 'Pod',
@@ -110,8 +158,14 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   let rowMaxHeight = 0;
 
   const updatedPods = pods.map(pod => {
-    const podW = pod.width || pod.measured?.width || 160;
-    const podH = pod.height || pod.measured?.height || 80;
+    const minSize = getPodMinimumSize(pod.data);
+    const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
+    const podH = Math.max(
+      pod.height || 0,
+      pod.measured?.height || 0,
+      Number((pod.style as any)?.minHeight) || 0,
+      minSize.height
+    );
 
     // If the current pod doesn't fit in the current row, move to next row
     if (currentX + podW > deployableWidth + paddingX && currentX > paddingX) {
@@ -128,6 +182,10 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
 
     return {
       ...pod,
+      width: podW,
+      height: pod.height,
+      style: { ...(pod.style || {}), width: podW, minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minSize.height) },
+      measured: pod.measured,
       position: newPosition,
     };
   });

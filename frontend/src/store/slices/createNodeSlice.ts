@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState } from '../types';
 import { K8sResourceType } from '../../types';
-import { sortNodes, layoutPodsInDeployment, syncPodsInDeployment } from '../helpers';
+import { sortNodes, layoutPodsInDeployment, syncPodsInDeployment, getPodMinimumSize, POD_MIN_DIMENSIONS } from '../helpers';
 
 export interface NodeSlice {
   addNode: (type: K8sResourceType) => void;
@@ -255,6 +255,19 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
             measured: { width: depW, height: depH }
           } : n);
         }
+      } else if (updatedNode.type === 'Pod' && !updatedNode.parentId) {
+        const minSize = getPodMinimumSize(updatedNode.data);
+        nextNodes = nextNodes.map(n => n.id === updatedNode.id ? {
+          ...n,
+          width: n.data?.isManuallyResized ? Math.max(n.width || 0, minSize.width) : minSize.width,
+          height: undefined,
+          style: {
+            ...(n.style || {}),
+            width: n.data?.isManuallyResized ? Math.max(n.width || 0, minSize.width) : minSize.width,
+            minHeight: n.data?.isManuallyResized ? Math.max(n.height || 0, minSize.height) : minSize.height
+          },
+          measured: undefined
+        } : n);
       }
 
       return { nodes: sortNodes(nextNodes) };
@@ -270,8 +283,8 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
     let height = undefined;
 
     if (type === 'Pod') {
-      width = 160;
-      height = 80;
+      width = POD_MIN_DIMENSIONS.width;
+      height = undefined;
     } else if (type === 'Deployment') {
       width = 320;
       height = 160;
@@ -305,7 +318,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       parentId,
       width, 
       height, 
-      style: { width, height },
+      style: type === 'Pod' ? { width, minHeight: POD_MIN_DIMENSIONS.height } : { width, height },
       measured: { width, height },
       extent: parentId ? 'parent' : undefined,
       data: {
@@ -902,12 +915,19 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
 
   onNodeResize: (event: any, node: Node) => {
     set((state) => {
+      const currentNode = state.nodes.find(n => n.id === node.id);
+      const minSize = currentNode?.type === 'Pod'
+        ? getPodMinimumSize(currentNode.data)
+        : { width: node.width || 0, height: node.height || 0 };
+      const nextWidth = Math.max(node.width || 0, minSize.width);
+      const nextHeight = Math.max(node.height || 0, minSize.height);
       let nextNodes = state.nodes.map(n => n.id === node.id ? {
           ...n,
-          width: node.width,
-          height: node.height,
-          style: { width: node.width, height: node.height },
-          measured: { width: node.width, height: node.height }
+          width: nextWidth,
+          height: n.type === 'Pod' ? undefined : nextHeight,
+          style: n.type === 'Pod' ? { ...(n.style || {}), width: nextWidth, minHeight: nextHeight } : { width: nextWidth, height: nextHeight },
+          measured: n.type === 'Pod' ? undefined : { width: nextWidth, height: nextHeight },
+          data: n.type === 'Pod' ? { ...n.data, isManuallyResized: true } : n.data
       } : n);
       
       const resizedNode = nextNodes.find(n => n.id === node.id);
@@ -917,14 +937,15 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         const parentDeployment = nextNodes.find(n => n.id === resizedNode.parentId);
 
         if (parentDeployment) {
+          const resizedMinHeight = Number((resizedNode.style as any)?.minHeight) || POD_MIN_DIMENSIONS.height;
           nextNodes = nextNodes.map(n => {
             if (n.parentId === parentDeployment.id) {
                 return {
                     ...n,
                     width: resizedNode.width,
-                    height: resizedNode.height,
-                    style: { width: resizedNode.width, height: resizedNode.height },
-                    measured: { width: resizedNode.width, height: resizedNode.height }
+                    height: undefined,
+                    style: { ...(n.style || {}), width: resizedNode.width, minHeight: resizedMinHeight },
+                    measured: undefined
                 };
             }
             return n;
@@ -938,7 +959,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           });
 
           const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+          const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || Number((p.style as any)?.minHeight) || POD_MIN_DIMENSIONS.height)));
           const minW = maxPodX + 20;
           const minH = maxPodY + 40;
           nextNodes = nextNodes.map(n => {
@@ -965,7 +986,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         });
 
         const maxPodX = Math.max(0, ...reLayoutedPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-        const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+        const maxPodY = Math.max(0, ...reLayoutedPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || Number((p.style as any)?.minHeight) || POD_MIN_DIMENSIONS.height)));
         const minW = maxPodX + 20;
         const minH = maxPodY + 40;
         

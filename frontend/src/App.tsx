@@ -16,6 +16,7 @@ import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNode
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X, Undo2, Redo2 } from 'lucide-react'; // Removed Sun, Moon icons
 import { useFlowStore } from './store';
+import { POD_MIN_DIMENSIONS } from './store/helpers';
 import { cn } from './lib/utils';
 
 const nodeTypes = {
@@ -106,7 +107,7 @@ export default function App() {
       });
 
       const centerOffsets = {
-        Pod: { x: 80, y: 40 },
+        Pod: { x: POD_MIN_DIMENSIONS.width / 2, y: POD_MIN_DIMENSIONS.height / 2 },
         Deployment: { x: 160, y: 80 },
         Service: { x: 90, y: 60 },
         Namespace: { x: 200, y: 150 },
