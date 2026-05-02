@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
@@ -20,15 +20,17 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
     { type: 'Namespace', icon: Anchor, label: 'Namespace', desc: 'Virtual cluster' },
+    { type: 'Internet', icon: Globe, label: 'Internet', desc: 'External Component' },
   ];
 
-  const filteredItems = items.filter(item => 
+  const filteredItems = items.filter(item =>
     item.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.desc.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const workloadItems = filteredItems.filter(i => i.type === 'Deployment' || i.type === 'Pod');
   const networkingItems = filteredItems.filter(i => i.type === 'Service' || i.type === 'Namespace');
+  const othersItems = filteredItems.filter(i => i.type === 'Internet');
 
   const onDragStart = (event: React.DragEvent, nodeType: K8sResourceType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -43,7 +45,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   return (
     <div className={cn(
       "w-64 border-r flex flex-col h-full shrink-0 z-10 transition-colors",
-      colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"
+      colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
     )}>
       <div className={cn(
         "p-5 border-b flex flex-col gap-4",
@@ -64,7 +66,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
               Cloud Component Library
             </p>
           </div>
-          
+
           <button
             onClick={toggleColorMode}
             className={cn(
@@ -90,8 +92,8 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className={cn(
               "w-full pl-8 pr-3 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium",
-              colorMode === 'dark' 
-                ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50" 
+              colorMode === 'dark'
+                ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
                 : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
             )}
           />
@@ -117,8 +119,8 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                   draggable
                   className={cn(
                     "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
-                    colorMode === 'dark' 
-                      ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" 
+                    colorMode === 'dark'
+                      ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50"
                       : "bg-white border-slate-200 hover:bg-slate-50",
                     "hover:shadow-lg active:cursor-grabbing",
                     type === 'Deployment' ? "border-l-violet-500 hover:border-violet-500" : "border-l-cyan-500 hover:border-cyan-500"
@@ -169,13 +171,65 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                       ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50"
                       : "bg-white border-slate-200 hover:bg-slate-50",
                     "hover:shadow-lg active:cursor-grabbing",
-                    type === 'Service' ? "border-l-amber-500 hover:border-amber-500" : "border-l-emerald-500 hover:border-emerald-500"
+                    type === 'Service' ? "border-l-amber-500 hover:border-amber-500" :
+                      "border-l-emerald-500 hover:border-emerald-500"
                   )}
                 >
                   <div className={cn(
                     "p-1.5 rounded transition-colors",
                     colorMode === 'dark' ? "bg-slate-900/50" : "bg-slate-100",
-                    type === 'Service' ? "text-amber-400" : "text-emerald-400"
+                    type === 'Service' ? "text-amber-400" :
+                      "text-emerald-400"
+                  )}>
+                    <Icon size={16} />
+                  </div>
+                  <div className="text-left overflow-hidden">
+                    <div className={cn(
+                      "text-xs font-semibold",
+                      colorMode === 'dark' ? "text-slate-200" : "text-slate-800"
+                    )}>{label}</div>
+                    <div className={cn(
+                      "text-[9px] font-medium truncate",
+                      colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
+                    )}>{desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {othersItems.length > 0 && (
+          <section>
+            <label className={cn(
+              "text-[10px] uppercase font-bold mb-3 block tracking-wider",
+              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
+            )}>
+              Others
+            </label>
+            <div className="grid gap-2">
+              {othersItems.map(({ type, icon: Icon, label, desc }) => (
+                <button
+                  key={type}
+                  onClick={() => onAddNode(type)}
+                  onDragStart={(event) => onDragStart(event, type)}
+                  onDragEnd={onDragEnd}
+                  draggable
+                  className={cn(
+                    "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
+                    colorMode === 'dark'
+                      ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50"
+                      : "bg-white border-slate-200 hover:bg-slate-50",
+                    "hover:shadow-lg active:cursor-grabbing",
+                    type === 'Internet' ? "border-l-blue-500 hover:border-blue-500" :
+                      "border-l-slate-500 hover:border-slate-500"
+                  )}
+                >
+                  <div className={cn(
+                    "p-1.5 rounded transition-colors",
+                    colorMode === 'dark' ? "bg-slate-900/50" : "bg-slate-100",
+                    type === 'Internet' ? "text-blue-400" :
+                      "text-slate-400"
                   )}>
                     <Icon size={16} />
                   </div>
@@ -196,40 +250,21 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
         )}
 
         {filteredItems.length === 0 && (
-            <div className={cn(
-                "text-center py-8",
-                colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-            )}>
-                <Search size={24} className="mx-auto mb-2 opacity-20" />
-                <p className="text-[10px] font-medium">No elements found</p>
-            </div>
-        )}
-
-        <section className={cn(
-          "rounded-lg p-3 border border-dashed",
-          colorMode === 'dark' ? "bg-slate-950/30 border-slate-800" : "bg-slate-100/50 border-slate-300"
-        )}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className={cn(
-              "text-[9px] font-bold uppercase tracking-tighter",
-              colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
-            )}>Status: Live</span>
-          </div>
-          <p className={cn(
-            "text-[9px] leading-relaxed font-mono",
-            colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
+          <div className={cn(
+            "text-center py-8",
+            colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
           )}>
-            Cluster: prod-us-east-1
-          </p>
-        </section>
+            <Search size={24} className="mx-auto mb-2 opacity-20" />
+            <p className="text-[10px] font-medium">No elements found</p>
+          </div>
+        )}
       </div>
 
       <div className={cn(
         "p-4 space-y-3",
         colorMode === 'dark' ? "bg-slate-950/50" : "bg-slate-100"
       )}>
-        <button 
+        <button
           onClick={onExport}
           className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
         >

@@ -35,47 +35,48 @@ export const AlignmentGuides = () => {
   const snapGuidesTransformed = React.useMemo(() => {
     if (!draggedNode) return { vertical: [], horizontal: [] };
 
+    // Calculate absolute position of the dragged node
+    const getAbsPosition = (node: any): { x: number, y: number } => {
+      if (!node.parentId) return node.position;
+      const parent = nodes.find((n: any) => n.id === node.parentId);
+      if (!parent) return node.position;
+      const parentAbs = getAbsPosition(parent);
+      return { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
+    };
+
+    const nodeAbs = getAbsPosition(draggedNode);
+    const nodeScreenX = nodeAbs.x * viewport.zoom + viewport.x;
+    const nodeScreenY = nodeAbs.y * viewport.zoom + viewport.y;
+
     return {
       vertical: snapGuides.vertical
-        .filter((g: { isActive: any; }) => g.isActive) // Only show active snap guides
+        .filter((g: { isActive: any; }) => g.isActive)
         .map((guide: { position: number; }) => {
-          // Snap guides are in flow coordinates, calculate relative to node center
-          const nodeAbsX = draggedNode.position.x;
-          const nodeAbsY = draggedNode.position.y;
-          const nodeScreenX = nodeAbsX * viewport.zoom + viewport.x;
-          const nodeScreenY = nodeAbsY * viewport.zoom + viewport.y;
-          
-          // Calculate position of snap point inside the node
           const guideScreenX = guide.position * viewport.zoom + viewport.x;
           const relativeX = guideScreenX - nodeScreenX;
-          
-          return { 
-            nodeScreenX, 
-            nodeScreenY, 
+
+          return {
+            nodeScreenX,
+            nodeScreenY,
             relativeX,
             screenX: guideScreenX,
           };
         }),
       horizontal: snapGuides.horizontal
-        .filter((g: { isActive: any; }) => g.isActive) // Only show active snap guides
+        .filter((g: { isActive: any; }) => g.isActive)
         .map((guide: { position: number; }) => {
-          const nodeAbsX = draggedNode.position.x;
-          const nodeAbsY = draggedNode.position.y;
-          const nodeScreenX = nodeAbsX * viewport.zoom + viewport.x;
-          const nodeScreenY = nodeAbsY * viewport.zoom + viewport.y;
-          
           const guideScreenY = guide.position * viewport.zoom + viewport.y;
           const relativeY = guideScreenY - nodeScreenY;
-          
-          return { 
-            nodeScreenX, 
-            nodeScreenY, 
+
+          return {
+            nodeScreenX,
+            nodeScreenY,
             relativeY,
             screenY: guideScreenY,
           };
         }),
     };
-  }, [snapGuides, draggedNode, viewport]);
+  }, [snapGuides, draggedNode, nodes, viewport]);
 
   const nodeScreenWidth = nodeWidth * viewport.zoom;
   const nodeScreenHeight = nodeHeight * viewport.zoom;
@@ -166,6 +167,3 @@ export const AlignmentGuides = () => {
     </div>
   );
 };
-
-
-

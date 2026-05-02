@@ -1,4 +1,23 @@
 import { Node } from '@xyflow/react';
+import { K8sNodeData } from '../types';
+
+export const getNodeData = (node: Node): K8sNodeData => {
+  return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
+};
+
+export const isAllowed = (parentType: string, childType: string): boolean => {
+  if (parentType === 'Deployment') return childType === 'Pod';
+  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet'].includes(childType);
+  return false;
+};
+
+export const getAbsPos = (nodeId: string, currentNodes: Node[], draggedNode?: Node): { x: number, y: number } => {
+  const n = (draggedNode && nodeId === draggedNode.id) ? draggedNode : currentNodes.find(i => i.id === nodeId);
+  if (!n) return { x: 0, y: 0 };
+  if (!n.parentId) return n.position;
+  const pAbs = getAbsPos(n.parentId, currentNodes, draggedNode);
+  return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
+};
 
 export const POD_MIN_DIMENSIONS = {
   width: 168,
@@ -54,16 +73,25 @@ export const getPodMinimumSize = (data: any = {}) => {
 };
 
 export const sortNodes = (nodes: Node[]): Node[] => {
+  const priority: Record<string, number> = {
+    Namespace: 0,
+    Deployment: 1,
+    Pod: 2,
+    Service: 3,
+    Internet: 3,
+  };
+
   return [...nodes].sort((a, b) => {
-    if (a.type === 'Deployment' && b.type === 'Pod') return -1;
-    if (a.type === 'Pod' && b.type === 'Deployment') return 1;
-    return 0;
+    const aPrio = priority[a.type || ''] ?? 5;
+    const bPrio = priority[b.type || ''] ?? 5;
+    return aPrio - bPrio;
   });
 };
 
 // Helper function to sync pods within a deployment based on replica count
 export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], dataTemplate?: Node): Node[] => {
-  const totalReplicas = deployment.data.replicas || 0;
+  const data = deployment.data as unknown as K8sNodeData;
+  const totalReplicas = data.replicas || 0;
   const deploymentId = deployment.id;
 
   // 1. Determine target pod counts and their replica values
@@ -119,6 +147,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
 
       newPods.push({
         ...existingPod,
+        parentId: deploymentId,
         width,
         height: undefined,
         style: { width, minHeight },
@@ -207,4 +236,101 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   });
 
   return updatedPods;
+};
+
+export const calculateAlignmentGuides = (
+  node: Node,
+  nodes: Node[],
+  nodeAbs: { x: number, y: number },
+  isDetaching: boolean,
+  hoveredDeploymentId: string | null = null
+) => {
+  const SNAP_THRESHOLD = 8;
+  const SNAP_TOLERANCE = 4;
+  const verticalGuides = new Set<number>();
+  const horizontalGuides = new Set<number>();
+  const vSnap = new Map<number, boolean>();
+  const hSnap = new Map<number, boolean>();
+
+  const nodeWidth = node.width || node.measured?.width || 160;
+  const nodeHeight = node.height || node.measured?.height || 80;
+
+  // If a pod is being dragged over a deployment, show guides for its auto-layout slot
+  if (node.type === 'Pod' && hoveredDeploymentId && !isDetaching) {
+    const deployment = nodes.find(n => n.id === hoveredDeploymentId);
+    if (deployment) {
+      const depPods = nodes.filter(n => n.parentId === deployment.id && n.type === 'Pod');
+      let layoutNodes = depPods;
+      if (!depPods.find(p => p.id === node.id)) {
+        layoutNodes = [...depPods, node];
+      }
+      
+      const laidOut = layoutPodsInDeployment(deployment, layoutNodes);
+      const targetPod = laidOut.find(p => p.id === node.id);
+      
+      if (targetPod) {
+        const depAbs = getAbsPos(deployment.id, nodes);
+        const targetAbsX = depAbs.x + targetPod.position.x;
+        const targetAbsY = depAbs.y + targetPod.position.y;
+        
+        verticalGuides.add(targetAbsX);
+        horizontalGuides.add(targetAbsY);
+        vSnap.set(targetAbsX, true); // Force snap
+        hSnap.set(targetAbsY, true); // Force snap
+      }
+      return { verticalGuides, horizontalGuides, vSnap, hSnap };
+    }
+  }
+
+  // Detect if we should show guides for this node
+  const shouldShowGuides = true;
+
+  if (shouldShowGuides) {
+    const nodeLeftX = nodeAbs.x;
+    const nodeCenterX = nodeAbs.x + nodeWidth / 2;
+    const nodeRightX = nodeAbs.x + nodeWidth;
+    const nodeTopY = nodeAbs.y;
+    const nodeCenterY = nodeAbs.y + nodeHeight / 2;
+    const nodeBottomY = nodeAbs.y + nodeHeight;
+
+    for (const otherNode of nodes.filter(n => n.id !== node.id)) {
+      const otherAbs = getAbsPos(otherNode.id, nodes);
+      const otherWidth = otherNode.width || otherNode.measured?.width || 160;
+      const otherHeight = otherNode.height || otherNode.measured?.height || 80;
+
+      const otherLeftX = otherAbs.x;
+      const otherCenterX = otherAbs.x + otherWidth / 2;
+      const otherRightX = otherAbs.x + otherWidth;
+      const otherTopY = otherAbs.y;
+      const otherCenterY = otherAbs.y + otherHeight / 2;
+      const otherBottomY = otherAbs.y + otherHeight;
+
+      if (Math.abs(nodeLeftX - otherLeftX) < SNAP_THRESHOLD) {
+        verticalGuides.add(otherLeftX);
+        vSnap.set(otherLeftX, Math.abs(nodeLeftX - otherLeftX) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeCenterX - otherCenterX) < SNAP_THRESHOLD) {
+        verticalGuides.add(otherCenterX);
+        vSnap.set(otherCenterX, Math.abs(nodeCenterX - otherCenterX) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeRightX - otherRightX) < SNAP_THRESHOLD) {
+        verticalGuides.add(otherRightX);
+        vSnap.set(otherRightX, Math.abs(nodeRightX - otherRightX) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeTopY - otherTopY) < SNAP_THRESHOLD) {
+        horizontalGuides.add(otherTopY);
+        hSnap.set(otherTopY, Math.abs(nodeTopY - otherTopY) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeCenterY - otherCenterY) < SNAP_THRESHOLD) {
+        horizontalGuides.add(otherCenterY);
+        hSnap.set(otherCenterY, Math.abs(nodeCenterY - otherCenterY) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeBottomY - otherBottomY) < SNAP_THRESHOLD) {
+        horizontalGuides.add(otherBottomY);
+        hSnap.set(otherBottomY, Math.abs(nodeBottomY - otherBottomY) < SNAP_TOLERANCE);
+      }
+    }
+  }
+
+  return { verticalGuides, horizontalGuides, vSnap, hSnap };
 };

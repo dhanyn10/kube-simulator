@@ -7,6 +7,7 @@ import {
   EdgeChange,
   applyNodeChanges,
   applyEdgeChanges,
+  addEdge,
 } from '@xyflow/react';
 import { FlowState } from '../types';
 
@@ -36,7 +37,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onConnect: (connection: Connection) => {
     set((state) => ({
-      edges: applyEdgeChanges([{ item: connection, type: 'add' }], state.edges),
+      edges: addEdge({ ...connection, type: 'custom' }, state.edges),
     }));
   },
   setNodes: (nodes: Node[]) => set({ nodes }),

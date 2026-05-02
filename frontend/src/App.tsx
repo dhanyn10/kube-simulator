@@ -12,7 +12,8 @@ import '@xyflow/react/dist/style.css';
 import { Sidebar } from './components/Sidebar';
 import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
-import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
+import { PodNode, ServiceNode, DeploymentNode, InternetNode, NamespaceNode } from './components/Nodes/K8sNodes';
+import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X, Undo2 } from 'lucide-react';
 import { useFlowStore, applyHistoryState } from './store';
@@ -24,6 +25,16 @@ const nodeTypes = {
   Pod: PodNode,
   Service: ServiceNode,
   Deployment: DeploymentNode,
+  Internet: InternetNode,
+  Namespace: NamespaceNode,
+};
+
+const edgeTypes = {
+  custom: CustomEdge,
+};
+
+const defaultEdgeOptions = {
+  type: 'custom',
 };
 
 export default function App() {
@@ -97,29 +108,53 @@ export default function App() {
     }
   }, [isHistoryOpen, fetchHistoryLogs]);
 
-  const getTargetDeployment = useCallback((clientX: number, clientY: number) => {
+  const getTargetContainer = useCallback((clientX: number, clientY: number, childType: K8sResourceType) => {
     const position = screenToFlowPosition({ x: clientX, y: clientY });
     
-    const deployment = nodes.find(n => {
-      if (n.type !== 'Deployment') return false;
-      const w = n.width || n.measured?.width || 320;
-      const h = n.height || n.measured?.height || 160;
+    // Check Deployment first (smaller), then Namespace (larger)
+    const candidates = nodes.filter(n => {
+      if (childType === 'Pod') return n.type === 'Deployment' || n.type === 'Namespace';
+      if (childType === 'Deployment' || childType === 'Service' || childType === 'Internet') return n.type === 'Namespace';
+      return false;
+    });
+
+    // Sort candidates by area (smallest first) to get the most specific container
+    const sortedCandidates = [...candidates].sort((a, b) => {
+      const areaA = (a.width || 0) * (a.height || 0);
+      const areaB = (b.width || 0) * (b.height || 0);
+      return areaA - areaB;
+    });
+
+    return sortedCandidates.find(n => {
+      const w = n.width || n.measured?.width || (n.type === 'Deployment' ? 320 : 600);
+      const h = n.height || n.measured?.height || (n.type === 'Deployment' ? 160 : 400);
+      
+      // Use absolute coordinates for check
+      let absX = n.position.x;
+      let absY = n.position.y;
+      if (n.parentId) {
+        const parent = nodes.find(p => p.id === n.parentId);
+        if (parent) {
+          absX += parent.position.x;
+          absY += parent.position.y;
+        }
+      }
+
       return (
-        position.x >= n.position.x &&
-        position.x <= n.position.x + w &&
-        position.y >= n.position.y &&
-        position.y <= n.position.y + h
+        position.x >= absX &&
+        position.x <= absX + w &&
+        position.y >= absY &&
+        position.y <= absY + h
       );
     });
-    return deployment;
   }, [nodes, screenToFlowPosition]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
 
-    if (draggingSidebarItem === 'Pod') {
-        const target = getTargetDeployment(event.clientX, event.clientY);
+    if (draggingSidebarItem) {
+        const target = getTargetContainer(event.clientX, event.clientY, draggingSidebarItem);
         setHoveredDeploymentId(target?.id || null);
         
         if (target) {
@@ -132,7 +167,7 @@ export default function App() {
             }));
         }
     }
-  }, [getTargetDeployment, setHoveredDeploymentId, draggingSidebarItem]);
+  }, [getTargetContainer, setHoveredDeploymentId, draggingSidebarItem]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -147,7 +182,8 @@ export default function App() {
         Pod: { x: POD_MIN_DIMENSIONS.width / 2, y: POD_MIN_DIMENSIONS.height / 2 },
         Deployment: { x: 160, y: 80 },
         Service: { x: 90, y: 60 },
-        Namespace: { x: 200, y: 150 },
+        Namespace: { x: 300, y: 200 },
+        Internet: { x: 90, y: 60 },
       };
 
       const offset = centerOffsets[type as keyof typeof centerOffsets] || { x: 0, y: 0 };
@@ -156,15 +192,34 @@ export default function App() {
         y: position.y - offset.y,
       };
 
-      const targetDeployment = getTargetDeployment(event.clientX, event.clientY);
+      const targetContainer = getTargetContainer(event.clientX, event.clientY, type);
+      
+      // If we drop into a container, we need to adjust the position to be relative to the container
+      let finalPosition = centeredPosition;
+      if (targetContainer) {
+          let absX = targetContainer.position.x;
+          let absY = targetContainer.position.y;
+          if (targetContainer.parentId) {
+              const p = nodes.find(n => n.id === targetContainer.parentId);
+              if (p) {
+                  absX += p.position.x;
+                  absY += p.position.y;
+              }
+          }
+          finalPosition = {
+              x: centeredPosition.x - absX,
+              y: centeredPosition.y - absY
+          };
+      }
+
       setHoveredDeploymentId(null);
       useFlowStore.setState((state: any) => ({
         nodes: state.nodes.map((n: any) => ({ ...n, data: { ...n.data, isHovered: false } }))
       }));
 
-      addNode(type, centeredPosition, targetDeployment?.id);
+      addNode(type, finalPosition, targetContainer?.id);
     },
-    [screenToFlowPosition, addNode, getTargetDeployment, setHoveredDeploymentId],
+    [screenToFlowPosition, addNode, getTargetContainer, setHoveredDeploymentId, nodes],
   );
 
   // Handle keyboard shortcuts
@@ -234,6 +289,8 @@ export default function App() {
           onNodesDelete={deleteNodes}
           deleteKeyCode={["Backspace", "Delete"]}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
           defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
           minZoom={0.5}
           maxZoom={2}
