@@ -31,8 +31,8 @@ export default function CustomEdge({
     targetPosition,
   });
 
-  const edgeColor = data?.color || '#1d4ed8';
-  const edgeWidth = data?.width || 2;
+  const edgeColor = (data?.color as string) || '#1d4ed8';
+  const edgeWidth = (data?.width as number) || 2;
 
   const onRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
