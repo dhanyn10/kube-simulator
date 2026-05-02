@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -47,9 +48,6 @@ func (a *App) startup(ctx context.Context) {
 		log.Fatal(err)
 	}
 	a.db = db
-
-	// Reset indices on startup or we could load last state if we wanted persistence across sessions
-	// For now, let's start fresh each session but using DB for robustness
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -64,21 +62,17 @@ func (a *App) PushHistory(state string) {
 		return
 	}
 
-	// 1. Increment index
 	a.currentIndex++
 	a.maxIndex = a.currentIndex
 
-	// 2. Write to BadgerDB
 	err := a.db.Update(func(txn *badger.Txn) error {
 		key := []byte(fmt.Sprintf("hist:%d", a.currentIndex))
 		return txn.Set(key, []byte(state))
 	})
 
 	if err != nil {
-		log.Printf("Error saving history to BadgerDB: %v", err)
+		log.Printf("Error saving history: %v", err)
 	}
-
-	log.Printf("[DB Log] Recorded activity at index %d", a.currentIndex)
 }
 
 // Undo returns the previous state from BadgerDB
@@ -88,36 +82,62 @@ func (a *App) Undo() string {
 	}
 
 	a.currentIndex--
-	var state string
-
-	err := a.db.View(func(txn *badger.Txn) error {
-		key := []byte(fmt.Sprintf("hist:%d", a.currentIndex))
-		item, err := txn.Get(key)
-		if err != nil {
-			return err
-		}
-		return item.Value(func(val []byte) error {
-			state = string(val)
-			return nil
-		})
-	})
-
-	if err != nil {
-		log.Printf("Error fetching Undo state from BadgerDB: %v", err)
-		return ""
-	}
-
-	log.Printf("[DB Log] Undo to index %d", a.currentIndex)
-	return state
+	return a.JumpToHistory(a.currentIndex)
 }
 
-// Redo returns the next state from BadgerDB
-func (a *App) Redo() string {
-	if a.db == nil || a.currentIndex >= a.maxIndex {
+// HistoryLog represents a metadata entry for the dropdown
+type HistoryLog struct {
+	Index      int    `json:"index"`
+	ActionName string `json:"actionName"`
+	Timestamp  int64  `json:"timestamp"`
+}
+
+// GetHistoryLogs returns the list of all recorded activities
+func (a *App) GetHistoryLogs() []HistoryLog {
+	if a.db == nil {
+		return []HistoryLog{}
+	}
+
+	logs := make([]HistoryLog, 0)
+	for i := 0; i <= a.maxIndex; i++ {
+		_ = a.db.View(func(txn *badger.Txn) error {
+			key := []byte(fmt.Sprintf("hist:%d", i))
+			item, err := txn.Get(key)
+			if err != nil {
+				return err
+			}
+			return item.Value(func(val []byte) error {
+				var data struct {
+					ActionName string `json:"actionName"`
+					Timestamp  int64  `json:"timestamp"`
+				}
+				if err := json.Unmarshal(val, &data); err == nil {
+					logs = append(logs, HistoryLog{
+						Index:      i,
+						ActionName: data.ActionName,
+						Timestamp:  data.Timestamp,
+					})
+				} else {
+					logs = append(logs, HistoryLog{
+						Index:      i,
+						ActionName: fmt.Sprintf("Activity #%d", i),
+						Timestamp:  0,
+					})
+				}
+				return nil
+			})
+		})
+	}
+	return logs
+}
+
+// JumpToHistory applies a specific index from history
+func (a *App) JumpToHistory(index int) string {
+	if a.db == nil || index < 0 || index > a.maxIndex {
 		return ""
 	}
 
-	a.currentIndex++
+	a.currentIndex = index
 	var state string
 
 	err := a.db.View(func(txn *badger.Txn) error {
@@ -133,11 +153,9 @@ func (a *App) Redo() string {
 	})
 
 	if err != nil {
-		log.Printf("Error fetching Redo state from BadgerDB: %v", err)
 		return ""
 	}
 
-	log.Printf("[DB Log] Redo to index %d", a.currentIndex)
 	return state
 }
 
