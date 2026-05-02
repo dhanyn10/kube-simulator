@@ -4,6 +4,7 @@ import { Box, Layers, Network, Trash2, Settings, ExternalLink, ChevronUp, Chevro
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
+import { getPodMinimumSize } from '../../store/helpers';
 
 const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
   const onQuickConnect = useFlowStore((state) => state.onQuickConnect);
@@ -59,6 +60,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const isPending = data.type === 'Pod' && data.status === 'pending';
@@ -99,14 +101,18 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     onNodeResize(event, updatedNode as any);
   }, [id, type, onNodeResize]);
 
+  const handleNodeResizeStop = useCallback((event, params) => {
+    onNodeResizeStop(event, { id, ...params } as any);
+  }, [id, onNodeResizeStop]);
+
   const replicas = data.replicas || 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
   const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
+  const minSize = getPodMinimumSize(data);
 
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-full h-full transition-all flex flex-col",
-      data.type === 'Pod' ? "min-h-[130px]" : "min-h-[100px]",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-full min-h-full h-auto transition-all flex flex-col min-w-0",
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
@@ -131,19 +137,20 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       `}</style>
       <QuickConnectArrows nodeId={id} />
       <NodeResizer 
-        minWidth={100} 
-        minHeight={data.type === 'Pod' ? 130 : 60}
+        minWidth={minSize.width} 
+        minHeight={minSize.height} 
         isVisible={selected} 
         lineClassName={colorMode === 'dark' ? "border-blue-400" : "border-blue-500"} 
         handleClassName={cn("h-2 w-2 border-2 rounded", colorMode === 'dark' ? "bg-white border-blue-400" : "bg-white border-blue-500")}
         onResize={handleNodeResize}
+        onResizeEnd={handleNodeResizeStop}
       />
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-2 shrink-0">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0 min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <span className={cn(
-            "text-[8px] font-bold tracking-widest uppercase", 
+            "text-[8px] font-bold tracking-widest uppercase shrink-0", 
             isPending ? "text-red-500" : isReady ? "text-emerald-500" : (colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600')
           )}>
             {data.type}
@@ -154,14 +161,14 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           )}></div>
           {replicas > 1 && (
             <span className={cn(
-                "text-[8px] font-bold px-1 rounded-full",
+                "text-[8px] font-bold px-1 rounded-full shrink min-w-0 max-w-[56px] truncate",
                 colorMode === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-500 text-white"
             )}>
                 x{replicas}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
             {isPending && <AlertCircle size={10} className="text-red-500" />}
             {isReady && <CheckCircle2 size={10} className="text-emerald-500" />}
             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
@@ -196,9 +203,9 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       </div>
 
       {/* Content Area - now a simple flex-col to stack elements */}
-      <div className="flex-1 flex flex-col gap-1.5 min-h-0"> {/* Adjusted gap */}
+      <div className="flex-1 flex flex-col gap-2 min-h-0 min-w-0"> {/* Removed justify-between, added gap */}
         {/* Top section: Label, Dashed Progress, Badges */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 min-w-0">
           {isEditing ? (
             <input
               ref={inputRef}
@@ -207,17 +214,18 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               onBlur={handleRename}
               onKeyDown={onKeyDown}
               className={cn(
-                  "w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
+                  "w-full min-w-0 max-w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
                   colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400"
               )}
             />
           ) : (
             <div
               className={cn(
-                  "text-xs font-mono font-bold break-all cursor-text",
+                  "w-full min-w-0 max-w-full text-xs font-mono font-bold truncate cursor-text",
                   colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
               )}
               onDoubleClick={() => setIsEditing(true)}
+              title={data.label}
             >
               {data.label}
             </div>
@@ -241,14 +249,14 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           )}
 
           {data.type === 'Pod' && (
-              <div className="flex flex-wrap items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1 min-w-0 max-w-full overflow-hidden">
                   {data.runtime && data.runtime !== 'none' && (
-                      <span className="text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold whitespace-nowrap">
+                      <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold whitespace-nowrap">
                           {data.runtime}
                       </span>
                   )}
                   {data.webserver && data.webserver !== 'none' && (
-                      <span className="text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold whitespace-nowrap">
+                      <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold whitespace-nowrap">
                           {data.webserver}
                       </span>
                   )}
@@ -257,12 +265,14 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
 
         {/* Bottom section: Image / Generic Progress */}
-        <div className="flex flex-col gap-1.5 mt-auto shrink-0"> {/* Added mt-auto to push image to bottom */}
+        <div className="flex flex-col gap-1.5 shrink-0 min-w-0"> {/* Removed mt-2, rely on parent gap */}
           {data.image ? (
             <div className={cn(
-              "text-[9px] font-mono break-all px-1.5 py-0.5 rounded border",
+              "w-full min-w-0 max-w-full text-[9px] font-mono whitespace-normal break-all leading-tight px-1.5 py-0.5 rounded border",
               isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
-            )}>
+            )}
+            title={isPending ? 'image: not configured' : data.image}
+            >
               {isPending ? 'image: not configured' : data.image}
             </div>
           ) : (
@@ -303,6 +313,7 @@ export const ServiceNode = memo((props: NodeProps) => {
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
@@ -340,6 +351,10 @@ export const ServiceNode = memo((props: NodeProps) => {
     onNodeResize(event, updatedNode as any);
   }, [props.id, props.type, onNodeResize]);
 
+  const handleNodeResizeStop = useCallback((event, params) => {
+    onNodeResizeStop(event, { id: props.id, ...params } as any);
+  }, [props.id, onNodeResizeStop]);
+
   return (
     <div className={cn(
       "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[120px]",
@@ -354,6 +369,7 @@ export const ServiceNode = memo((props: NodeProps) => {
         lineClassName="border-amber-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded" 
         onResize={handleNodeResize}
+        onResizeEnd={handleNodeResizeStop}
       />
       
       <div className="flex items-center gap-2 mb-2 shrink-0">
@@ -417,6 +433,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
@@ -454,6 +471,10 @@ export const DeploymentNode = memo((props: NodeProps) => {
     onNodeResize(event, updatedNode as any);
   }, [props.id, props.type, onNodeResize]);
 
+  const handleNodeResizeStop = useCallback((event, params) => {
+    onNodeResizeStop(event, { id: props.id, ...params } as any);
+  }, [props.id, onNodeResizeStop]);
+
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col min-h-[160px]",
@@ -470,6 +491,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         lineClassName="border-violet-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded" 
         onResize={handleNodeResize}
+        onResizeEnd={handleNodeResizeStop}
       />
 
       <div className="absolute -top-3 left-6 flex items-center gap-2">

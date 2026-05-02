@@ -35,6 +35,8 @@ export interface FlowState {
     horizontal: SnapGuide[];
   };
   draggedNodeId: string | null;
+  lastActionId: string;
+  lastActionName: string;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
