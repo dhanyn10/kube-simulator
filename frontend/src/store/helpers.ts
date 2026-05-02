@@ -1,6 +1,24 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '../types';
 
+export const getNodeData = (node: Node): K8sNodeData => {
+  return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
+};
+
+export const isAllowed = (parentType: string, childType: string): boolean => {
+  if (parentType === 'Deployment') return childType === 'Pod';
+  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet'].includes(childType);
+  return false;
+};
+
+export const getAbsPos = (nodeId: string, currentNodes: Node[], draggedNode?: Node): { x: number, y: number } => {
+  const n = (draggedNode && nodeId === draggedNode.id) ? draggedNode : currentNodes.find(i => i.id === nodeId);
+  if (!n) return { x: 0, y: 0 };
+  if (!n.parentId) return n.position;
+  const pAbs = getAbsPos(n.parentId, currentNodes, draggedNode);
+  return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
+};
+
 export const POD_MIN_DIMENSIONS = {
   width: 168,
   height: 92,
@@ -217,4 +235,77 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   });
 
   return updatedPods;
+};
+
+export const calculateAlignmentGuides = (
+  node: Node,
+  nodes: Node[],
+  nodeAbs: { x: number, y: number },
+  isDetaching: boolean
+) => {
+  const SNAP_THRESHOLD = 8;
+  const SNAP_TOLERANCE = 4;
+  const verticalGuides = new Set<number>();
+  const horizontalGuides = new Set<number>();
+  const vSnap = new Map<number, boolean>();
+  const hSnap = new Map<number, boolean>();
+
+  const nodeWidth = node.width || node.measured?.width || 160;
+  const nodeHeight = node.height || node.measured?.height || 80;
+
+  // Detect if we should show guides for this node
+  const isAutoLaidOutPod = node.type === 'Pod' && node.parentId && nodes.find(p => p.id === node.parentId)?.type === 'Deployment';
+  const shouldShowGuides = !isAutoLaidOutPod || isDetaching;
+
+  if (shouldShowGuides) {
+    const nodeLeftX = nodeAbs.x;
+    const nodeCenterX = nodeAbs.x + nodeWidth / 2;
+    const nodeRightX = nodeAbs.x + nodeWidth;
+    const nodeTopY = nodeAbs.y;
+    const nodeCenterY = nodeAbs.y + nodeHeight / 2;
+    const nodeBottomY = nodeAbs.y + nodeHeight;
+
+    for (const otherNode of nodes.filter(n => n.id !== node.id)) {
+      const otherIsAutoPod = otherNode.type === 'Pod' && otherNode.parentId && nodes.find(p => p.id === otherNode.parentId)?.type === 'Deployment';
+      if (otherIsAutoPod) continue;
+
+      const otherAbs = getAbsPos(otherNode.id, nodes);
+      const otherWidth = otherNode.width || otherNode.measured?.width || 160;
+      const otherHeight = otherNode.height || otherNode.measured?.height || 80;
+
+      const otherLeftX = otherAbs.x;
+      const otherCenterX = otherAbs.x + otherWidth / 2;
+      const otherRightX = otherAbs.x + otherWidth;
+      const otherTopY = otherAbs.y;
+      const otherCenterY = otherAbs.y + otherHeight / 2;
+      const otherBottomY = otherAbs.y + otherHeight;
+
+      if (Math.abs(nodeLeftX - otherLeftX) < SNAP_THRESHOLD) {
+        verticalGuides.add(otherLeftX);
+        vSnap.set(otherLeftX, Math.abs(nodeLeftX - otherLeftX) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeCenterX - otherCenterX) < SNAP_THRESHOLD) {
+        verticalGuides.add(otherCenterX);
+        vSnap.set(otherCenterX, Math.abs(nodeCenterX - otherCenterX) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeRightX - otherRightX) < SNAP_THRESHOLD) {
+        verticalGuides.add(otherRightX);
+        vSnap.set(otherRightX, Math.abs(nodeRightX - otherRightX) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeTopY - otherTopY) < SNAP_THRESHOLD) {
+        horizontalGuides.add(otherTopY);
+        hSnap.set(otherTopY, Math.abs(nodeTopY - otherTopY) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeCenterY - otherCenterY) < SNAP_THRESHOLD) {
+        horizontalGuides.add(otherCenterY);
+        hSnap.set(otherCenterY, Math.abs(nodeCenterY - otherCenterY) < SNAP_TOLERANCE);
+      }
+      if (Math.abs(nodeBottomY - otherBottomY) < SNAP_THRESHOLD) {
+        horizontalGuides.add(otherBottomY);
+        hSnap.set(otherBottomY, Math.abs(nodeBottomY - otherBottomY) < SNAP_TOLERANCE);
+      }
+    }
+  }
+
+  return { verticalGuides, horizontalGuides, vSnap, hSnap };
 };
