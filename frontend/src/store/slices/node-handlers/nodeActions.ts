@@ -137,7 +137,11 @@ export const nodeActions = (set: any, get: any) => ({
         }
       }
 
-      return { nodes: nextNodes };
+      return { 
+        nodes: nextNodes,
+        lastActionId: `update-${Date.now()}`,
+        lastActionName: newData.replicas !== undefined ? 'Update Replicas' : 'Update Node Data'
+      };
     });
   },
 
