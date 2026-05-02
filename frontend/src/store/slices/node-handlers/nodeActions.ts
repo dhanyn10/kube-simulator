@@ -131,7 +131,7 @@ export const nodeActions = (set: any, get: any) => ({
         const parentId = updatedNode.parentId;
         const parent = nextNodes.find(n => n.id === parentId);
         if (parent?.type === 'Deployment') {
-           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get);
+           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, updatedNode);
            nextNodes = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');
            nextNodes = [...nextNodes.map(n => n.id === parent.id ? updatedDeployment : n), ...laidOut];
         }

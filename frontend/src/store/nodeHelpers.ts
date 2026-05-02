@@ -38,7 +38,7 @@ export const syncDeployment = (
       pods = [podToInclude, ...pods.filter(p => p.id !== podToInclude.id)];
   }
 
-  const syncedPods = syncPodsInDeployment(updatedDeployment, pods);
+  const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
   const withHandlers = syncedPods.map(p => ({ 
     ...p, 
     data: { ...p.data, ...setupPodHandlers(p.id, get) } 

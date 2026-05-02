@@ -63,6 +63,13 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
+  // Keep editValue in sync with prop when not editing
+  useEffect(() => {
+    if (!isEditing) {
+      setEditValue(data.label);
+    }
+  }, [data.label, isEditing]);
+
   const isPending = data.type === 'Pod' && data.status === 'pending';
   const isReady = data.type === 'Pod' && data.status === 'ready';
 
@@ -319,6 +326,12 @@ export const ServiceNode = memo((props: NodeProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
+    if (!isEditing) {
+      setEditValue(data.label);
+    }
+  }, [data.label, isEditing]);
+
+  useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
@@ -437,6 +450,12 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
   const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditValue(data.label);
+    }
+  }, [data.label, isEditing]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -577,6 +596,12 @@ export const NamespaceNode = memo((props: NodeProps) => {
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
   const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditValue(data.label);
+    }
+  }, [data.label, isEditing]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
