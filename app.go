@@ -85,6 +85,16 @@ func (a *App) Undo() string {
 	return a.JumpToHistory(a.currentIndex)
 }
 
+// Redo returns the next state from BadgerDB
+func (a *App) Redo() string {
+	if a.db == nil || a.currentIndex >= a.maxIndex {
+		return ""
+	}
+
+	a.currentIndex++
+	return a.JumpToHistory(a.currentIndex)
+}
+
 // HistoryLog represents a metadata entry for the dropdown
 type HistoryLog struct {
 	Index      int    `json:"index"`
