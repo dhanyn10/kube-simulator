@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { FlowState } from '../types';
+import { K8sResourceType } from '../../types';
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
