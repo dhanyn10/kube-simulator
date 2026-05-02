@@ -56,7 +56,7 @@ export interface FlowState {
   clearSnapGuides: () => void;
   setDraggedNodeId: (id: string | null) => void;
 
-  addNode: (type: K8sResourceType) => void;
+  addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
   updateNodeData: (nodeId: string, newData: any) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;

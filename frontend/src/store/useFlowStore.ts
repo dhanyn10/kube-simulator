@@ -13,6 +13,7 @@ import * as App from '../wailsjs/go/main/App';
 
 const flowStore = createStore<FlowState>()(
   (...a) => ({
+    clipboard: null,
     alignmentGuides: { vertical: [], horizontal: [] },
     snapGuides: { vertical: [], horizontal: [] },
     draggedNodeId: null,
