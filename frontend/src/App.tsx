@@ -12,7 +12,7 @@ import '@xyflow/react/dist/style.css';
 import { Sidebar } from './components/Sidebar';
 import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
-import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
+import { PodNode, ServiceNode, DeploymentNode, InternetNode } from './components/Nodes/K8sNodes';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X, Undo2 } from 'lucide-react';
@@ -25,6 +25,7 @@ const nodeTypes = {
   Pod: PodNode,
   Service: ServiceNode,
   Deployment: DeploymentNode,
+  Internet: InternetNode,
 };
 
 const edgeTypes = {
@@ -157,6 +158,7 @@ export default function App() {
         Deployment: { x: 160, y: 80 },
         Service: { x: 90, y: 60 },
         Namespace: { x: 200, y: 150 },
+        Internet: { x: 90, y: 60 },
       };
 
       const offset = centerOffsets[type as keyof typeof centerOffsets] || { x: 0, y: 0 };

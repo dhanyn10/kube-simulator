@@ -364,6 +364,8 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       width = 320;
     } else if (type === 'Service') {
         width = 180;
+    } else if (type === 'Internet') {
+        width = 180;
     }
 
     if (type === 'Pod' && !customParentId) {

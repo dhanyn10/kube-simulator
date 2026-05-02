@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Settings, Server, Code, Box, X, Layers, Plus, Minus } from 'lucide-react';
+import { Settings, Server, Code, Box, X, Layers, Plus, Minus, Network } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -203,6 +203,52 @@ export const ConfigPanel = () => {
       </div>
 
       <div className="space-y-4">
+        {/* Internet Specific Configuration */}
+        {selectedNode.type === 'Internet' && (
+          <>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Network size={10} /> Data Traffic
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  value={data.traffic || 0}
+                  onChange={(e) => performUpdate({ traffic: parseInt(e.target.value) || 0 })}
+                  className={cn(
+                    "flex-1 text-[10px] p-2 rounded border outline-none",
+                    colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
+                  )}
+                />
+                <span className="text-[10px] font-mono text-slate-400">MB</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Layers size={10} /> Data Duration
+              </label>
+              <div className="grid grid-cols-3 gap-1">
+                {(['second', 'minute', 'hour'] as const).map((unit) => (
+                  <button
+                    key={unit}
+                    onClick={() => performUpdate({ durationUnit: unit })}
+                    className={cn(
+                      "text-[9px] py-1 rounded border transition-all capitalize",
+                      (data.durationUnit || 'minute') === unit 
+                        ? "bg-blue-600 border-blue-600 text-white" 
+                        : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                    )}
+                  >
+                    {unit}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Replicas */}
         {(selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') && (
           <div className="space-y-1.5">
@@ -255,71 +301,76 @@ export const ConfigPanel = () => {
           </div>
         )}
 
-        {/* Web Server */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Server size={10} /> Web Server
-          </label>
-          <div className="grid grid-cols-3 gap-1">
-            {WEBSERVERS.map((ws) => (
-              <button
-                key={ws.id}
-                onClick={() => performUpdate({ webserver: ws.id })}
+        {/* Workload Specific Configuration */}
+        {(selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') && (
+          <>
+            {/* Web Server */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Server size={10} /> Web Server
+              </label>
+              <div className="grid grid-cols-3 gap-1">
+                {WEBSERVERS.map((ws) => (
+                  <button
+                    key={ws.id}
+                    onClick={() => performUpdate({ webserver: ws.id })}
+                    className={cn(
+                      "text-[9px] py-1 rounded border transition-all",
+                      data.webserver === ws.id 
+                        ? "bg-blue-600 border-blue-600 text-white" 
+                        : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                    )}
+                  >
+                    {ws.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Runtime */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Code size={10} /> App Runtime
+              </label>
+              <select
+                value={data.runtime || 'none'}
+                onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
                 className={cn(
-                  "text-[9px] py-1 rounded border transition-all",
-                  data.webserver === ws.id 
-                    ? "bg-blue-600 border-blue-600 text-white" 
-                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                  "w-full text-[10px] p-2 rounded border outline-none",
+                  colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
                 )}
               >
-                {ws.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Runtime */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Code size={10} /> App Runtime
-          </label>
-          <select
-            value={data.runtime || 'none'}
-            onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
-            className={cn(
-              "w-full text-[10px] p-2 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
-            )}
-          >
-            {Object.entries(RUNTIMES).map(([id, rt]) => (
-              <option key={id} value={id}>{rt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Framework */}
-        {data.runtime && data.runtime !== 'none' && (
-          <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Box size={10} /> Framework
-            </label>
-            <div className="flex flex-wrap gap-1">
-              {RUNTIMES[data.runtime as keyof typeof RUNTIMES]?.frameworks.map((fw) => (
-                <button
-                  key={fw}
-                  onClick={() => performUpdate({ framework: fw })}
-                  className={cn(
-                    "text-[8px] px-2 py-1 rounded-full border transition-all",
-                    data.framework === fw
-                      ? "bg-emerald-600 border-emerald-600 text-white"
-                      : (colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:border-slate-700" : "bg-white border-slate-200 hover:border-slate-300")
-                  )}
-                >
-                  {fw}
-                </button>
-              ))}
+                {Object.entries(RUNTIMES).map(([id, rt]) => (
+                  <option key={id} value={id}>{rt.label}</option>
+                ))}
+              </select>
             </div>
-          </div>
+
+            {/* Framework */}
+            {data.runtime && data.runtime !== 'none' && (
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                  <Box size={10} /> Framework
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {RUNTIMES[data.runtime as keyof typeof RUNTIMES]?.frameworks.map((fw) => (
+                    <button
+                      key={fw}
+                      onClick={() => performUpdate({ framework: fw })}
+                      className={cn(
+                        "text-[8px] px-2 py-1 rounded-full border transition-all",
+                        data.framework === fw
+                          ? "bg-emerald-600 border-emerald-600 text-white"
+                          : (colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:border-slate-700" : "bg-white border-slate-200 hover:border-slate-300")
+                      )}
+                    >
+                      {fw}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

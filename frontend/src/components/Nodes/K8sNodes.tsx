@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Box, Layers, Network, Trash2, Settings, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Box, Layers, Network, Trash2, Settings, ExternalLink, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, Globe } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -155,10 +155,12 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           )}>
             {data.type}
           </span>
-          <div className={cn(
-            "w-1.5 h-1.5 rounded-full",
-            isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
-          )}></div>
+          {data.type !== 'Internet' && (
+            <div className={cn(
+              "w-1.5 h-1.5 rounded-full",
+              isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+            )}></div>
+          )}
           {replicas > 1 && (
             <span className={cn(
                 "text-[8px] font-bold px-1 rounded-full shrink min-w-0 max-w-[56px] truncate",
@@ -172,7 +174,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             {isPending && <AlertCircle size={10} className="text-red-500" />}
             {isReady && <CheckCircle2 size={10} className="text-emerald-500" />}
             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-                {data.type === 'Pod' && (
+                {(data.type === 'Pod' || data.type === 'Internet') && (
                     <button 
                         onClick={(e) => {
                             e.stopPropagation();
@@ -276,7 +278,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               {isPending ? 'image: not configured' : data.image}
             </div>
           ) : (
-            data.type !== 'Pod' && (
+            (data.type !== 'Pod' && data.type !== 'Internet') && (
               <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
                   <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
               </div>
@@ -565,4 +567,8 @@ export const DeploymentNode = memo((props: NodeProps) => {
       <Handle type="source" position={Position.Right} id="right-s" className="!bg-violet-600" />
     </div>
   );
+});
+export const InternetNode = memo((props: NodeProps) => {
+  const data = props.data as unknown as K8sNodeData;
+  return <BaseNode {...props} data={data} title="Internet" icon={Globe} color="blue" id={props.id} type={props.type} />;
 });

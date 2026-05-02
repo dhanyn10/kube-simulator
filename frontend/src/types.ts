@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet';
 
 export interface K8sNodeData {
   label: string;
@@ -21,6 +21,10 @@ export interface K8sNodeData {
   runtime?: 'php' | 'nodejs' | 'java' | 'go' | 'python' | 'none';
   framework?: string;
   isAutoNamed?: boolean;
+
+  // Internet specific fields
+  traffic?: number;
+  durationUnit?: 'second' | 'minute' | 'hour';
 }
 
 export interface K8sManifest {
