@@ -108,5 +108,9 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
         sourceHandle,
         targetHandle,
     });
+    set({
+      lastActionId: `connect-${Date.now()}`,
+      lastActionName: 'Connect Nodes'
+    });
   },
 });

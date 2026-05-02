@@ -14,6 +14,7 @@ export interface NodeSlice {
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
+  onNodeResizeStop: (event: any, node: Node) => void;
   copyNodes: () => void;
   pasteNodes: () => void;
 }
@@ -161,15 +162,19 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       target: idMap[edge.target],
     }));
 
-    setNodes(sortNodes(nextNodes));
-    setEdges([...edges, ...newEdges]);
+    set({
+      nodes: sortNodes(nextNodes),
+      edges: [...edges, ...newEdges],
+      lastActionId: `paste-${Date.now()}`,
+      lastActionName: 'Paste Elements'
+    });
   },
   updateNodeData: (nodeId: string, newData: any) => {
     set((state) => {
       const previousNode = state.nodes.find(n => n.id === nodeId);
       let nextNodes = state.nodes.map(n => n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n);
       const updatedNode = nextNodes.find(n => n.id === nodeId);
-      if (!updatedNode) return state;
+      if (!updatedNode) return { ...state };
 
       if (updatedNode.type === 'Deployment') {
         const parentId = updatedNode.id;
@@ -256,21 +261,92 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
           } : n);
         }
       } else if (updatedNode.type === 'Pod' && !updatedNode.parentId) {
-        const minSize = getPodMinimumSize(updatedNode.data);
-        nextNodes = nextNodes.map(n => n.id === updatedNode.id ? {
-          ...n,
-          width: n.data?.isManuallyResized ? Math.max(n.width || 0, minSize.width) : minSize.width,
-          height: undefined,
-          style: {
-            ...(n.style || {}),
-            width: n.data?.isManuallyResized ? Math.max(n.width || 0, minSize.width) : minSize.width,
-            minHeight: n.data?.isManuallyResized ? Math.max(n.height || 0, minSize.height) : minSize.height
-          },
-          measured: undefined
-        } : n);
+        const label = updatedNode.data.label;
+        
+        // 1. Sync all top-level pods with the same label
+        nextNodes = nextNodes.map(n => {
+          if (n.type === 'Pod' && !n.parentId && (n.id === updatedNode.id || n.data.label === label)) {
+            const podData = { ...n.data, ...newData };
+            const minSize = getPodMinimumSize(podData);
+            const width = n.data?.isManuallyResized ? Math.max(n.width || 0, minSize.width) : minSize.width;
+            const minHeight = n.data?.isManuallyResized ? Math.max(n.height || 0, minSize.height) : minSize.height;
+            return {
+              ...n,
+              data: podData,
+              width,
+              style: {
+                ...(n.style || {}),
+                width,
+                minHeight
+              },
+              measured: undefined
+            };
+          }
+          return n;
+        });
+
+        // 2. Simple Collision Avoidance (Push logic)
+        // We only push nodes that are below or to the right of the updated group
+        const MARGIN = 24;
+        const affectedLabelNodes = nextNodes.filter(n => n.type === 'Pod' && !n.parentId && n.data.label === label);
+        
+        // For each node in the affected group, check if it now overlaps with other top-level nodes
+        affectedLabelNodes.forEach(movedNode => {
+          let hasCollision = true;
+          let safetyCounter = 0;
+          
+          while (hasCollision && safetyCounter < 5) {
+            hasCollision = false;
+            safetyCounter++;
+
+            const rectA = {
+              left: movedNode.position.x,
+              top: movedNode.position.y,
+              right: movedNode.position.x + (movedNode.width || 160),
+              bottom: movedNode.position.y + (Number((movedNode.style as any)?.minHeight) || 80)
+            };
+
+            nextNodes = nextNodes.map(other => {
+              if (other.parentId || other.id === movedNode.id || (other.type === 'Pod' && other.data.label === label)) return other;
+
+              const otherW = other.width || other.measured?.width || 160;
+              const otherH = other.measured?.height || Number((other.style as any)?.minHeight) || 80;
+              
+              const rectB = {
+                left: other.position.x,
+                top: other.position.y,
+                right: other.position.x + otherW,
+                bottom: other.position.y + otherH
+              };
+
+              const isOverlapping = !(rectA.right + MARGIN < rectB.left || 
+                                     rectA.left - MARGIN > rectB.right || 
+                                     rectA.bottom + MARGIN < rectB.top || 
+                                     rectA.top - MARGIN > rectB.bottom);
+
+              if (isOverlapping) {
+                hasCollision = true;
+                // Push logic: prefer pushing down, then right
+                const dy = rectB.top - rectA.top;
+                const dx = rectB.left - rectA.left;
+
+                if (Math.abs(dy) >= Math.abs(dx) && dy >= 0) {
+                  return { ...other, position: { ...other.position, y: rectA.bottom + MARGIN } };
+                } else if (dx >= 0) {
+                  return { ...other, position: { ...other.position, x: rectA.right + MARGIN } };
+                }
+              }
+              return other;
+            });
+          }
+        });
       }
 
-      return { nodes: sortNodes(nextNodes) };
+      return { 
+        nodes: sortNodes(nextNodes),
+        lastActionId: `update-${Date.now()}`,
+        lastActionName: 'Update Node Data'
+      };
     });
   },
 
@@ -391,7 +467,11 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       } else {
         nextNodes = [...nextNodes, newNode];
       }
-      return { nodes: sortNodes(nextNodes) };
+      return { 
+        nodes: sortNodes(nextNodes),
+        lastActionId: `add-${Date.now()}`,
+        lastActionName: `Add ${type}`
+      };
     });
   },
 
@@ -476,7 +556,9 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       // Additionally remove edges
       return { 
         nodes: sortNodes(nextNodes),
-        edges: state.edges.filter(e => !finalIdsToDelete.has(e.source) && !finalIdsToDelete.has(e.target))
+        edges: state.edges.filter(e => !finalIdsToDelete.has(e.source) && !finalIdsToDelete.has(e.target)),
+        lastActionId: `delete-${Date.now()}`,
+        lastActionName: 'Delete Elements'
       };
     });
   },
@@ -670,247 +752,182 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   },
 
   onNodeDragStop: (event: any, node: Node) => {
-    const { nodes, snapGuides } = get();
-    const finalDetachingDeploymentId = get().detachingDeploymentId;
-    const finalHoveredDeploymentId = get().hoveredDeploymentId;
-    const activeDeploymentId = get().activeDeploymentId;
+    const { nodes, snapGuides, detachingDeploymentId, hoveredDeploymentId, activeDeploymentId } = get();
 
-    // Check if we should snap the node based on active snap guides
-    let newNodes = nodes;
-    const nodeWidth = node.width || node.measured?.width || 160;
-    const nodeHeight = node.height || node.measured?.height || 80;
+    set((state) => {
+      let nextNodes = [...state.nodes];
+      const nodeWidth = node.width || node.measured?.width || 160;
+      const nodeHeight = node.height || node.measured?.height || 80;
 
-    // Check if any snap guides are active
-    const activeVerticalSnaps = snapGuides.vertical.filter(g => g.isActive).map(g => g.position);
-    const activeHorizontalSnaps = snapGuides.horizontal.filter(g => g.isActive).map(g => g.position);
+      // 1. Handle Snapping
+      const activeVerticalSnaps = state.snapGuides.vertical.filter(g => g.isActive).map(g => g.position);
+      const activeHorizontalSnaps = state.snapGuides.horizontal.filter(g => g.isActive).map(g => g.position);
 
-    if (activeVerticalSnaps.length > 0 || activeHorizontalSnaps.length > 0) {
-        // Apply snap
-        const updatedNode = { ...node };
+      let finalNode = { ...node };
+      if (activeVerticalSnaps.length > 0) {
+          finalNode.position.x = activeVerticalSnaps[0] - nodeWidth / 2;
+      }
+      if (activeHorizontalSnaps.length > 0) {
+          finalNode.position.y = activeHorizontalSnaps[0] - nodeHeight / 2;
+      }
+      
+      // Update the node in the list
+      nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
 
-        // Snap to vertical guide (center point)
-        if (activeVerticalSnaps.length > 0) {
-            const snapX = activeVerticalSnaps[0];
-            updatedNode.position.x = snapX - nodeWidth / 2;
-        }
+      // 2. Pod-specific logic (Attach/Detach/Move)
+      if (node.type === 'Pod') {
+        if (activeDeploymentId && node.parentId !== activeDeploymentId) {
+          const activeDeployment = nextNodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
+          if (activeDeployment) {
+            const oldParentId = node.parentId;
+            const targetParentId = activeDeployment.id;
+            const movingReplicas = node.data.replicas || 1;
 
-        // Snap to horizontal guide (center point)
-        if (activeHorizontalSnaps.length > 0) {
-            const snapY = activeHorizontalSnaps[0];
-            updatedNode.position.y = snapY - nodeHeight / 2;
-        }
-
-        newNodes = nodes.map(n => n.id === node.id ? updatedNode : n);
-    }
-
-    set((state) => ({
-      hoveredDeploymentId: null,
-      detachingDeploymentId: null,
-      draggedNodeId: null,
-      alignmentGuides: { vertical: [], horizontal: [] },
-      snapGuides: { vertical: [], horizontal: [] },
-      nodes: newNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))
-    }));
-
-    if (node.type !== 'Pod') return;
-
-    if (activeDeploymentId) {
-        const activeDeployment = nodes.find(n => n.id === activeDeploymentId && n.type === 'Deployment');
-        if (activeDeployment && node.parentId !== activeDeployment.id) {
-            set((state) => {
-                let currentNodes = state.nodes;
-                const oldParentId = node.parentId;
-                const targetParentId = activeDeployment.id;
-                const movingReplicas = node.data.replicas || 1;
-
-                // 1. Update replica counts for parents
-                currentNodes = currentNodes.map(n => {
-                    if (n.id === targetParentId) {
-                        return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + movingReplicas } };
-                    }
-                    if (oldParentId && n.id === oldParentId) {
-                        return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - movingReplicas) } };
-                    }
-                    return n;
-                });
-
-                // 2. Sync and layout for target parent
-                const targetDeployment = currentNodes.find(n => n.id === targetParentId);
-                if (targetDeployment) {
-                    const podsInTarget = currentNodes.filter(n => n.parentId === targetParentId && n.type === 'Pod' && n.id !== node.id);
-                    const syncedPods = syncPodsInDeployment(targetDeployment, [node, ...podsInTarget]);
-                    const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
-                    const laidOutPods = layoutPodsInDeployment(targetDeployment, syncedWithHandlers);
-
-                    currentNodes = currentNodes.filter(n => n.parentId !== targetParentId || n.type !== 'Pod');
-                    currentNodes = [...currentNodes, ...laidOutPods];
-
-                    // Resize target
-                    const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
-                    const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-                    const finalW = Math.max(targetDeployment.width || 0, maxPodX + 20);
-                    const finalH = Math.max(targetDeployment.height || 0, maxPodY + 40);
-                    currentNodes = currentNodes.map(n => n.id === targetParentId ? {
-                        ...n,
-                        width: finalW,
-                        height: finalH,
-                        style: { width: finalW, height: finalH },
-                        measured: { width: finalW, height: finalH }
-                    } : n);
-                }
-
-                // 3. Sync and layout for old parent
-                if (oldParentId) {
-                    const oldParent = currentNodes.find(n => n.id === oldParentId);
-                    if (oldParent) {
-                        const podsInOld = currentNodes.filter(n => n.parentId === oldParentId && n.type === 'Pod' && n.id !== node.id);
-                        const syncedPods = syncPodsInDeployment(oldParent, podsInOld);
-                        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
-                        const laidOutPods = layoutPodsInDeployment(oldParent, syncedWithHandlers);
-
-                        currentNodes = currentNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
-                        currentNodes = [...currentNodes, ...laidOutPods];
-                    }
-                } else {
-                    currentNodes = currentNodes.filter(n => n.id !== node.id);
-                }
-
-                return { nodes: sortNodes(currentNodes) };
+            // Update replicas
+            nextNodes = nextNodes.map(n => {
+              if (n.id === targetParentId) return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + movingReplicas } };
+              if (oldParentId && n.id === oldParentId) return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - movingReplicas) } };
+              return n;
             });
-            return;
-        }
-    }
 
-    if (node.parentId && finalDetachingDeploymentId === node.parentId) {
-      set((state) => {
-        const parent = state.nodes.find(n => n.id === node.parentId);
-        if (!parent) return state;
-
-        const movingReplicas = node.data.replicas || 1;
-        const podWidth = node.width || node.measured?.width || 160;
-        const podHeight = node.height || node.measured?.height || 80;
-        const parentWidth = parent.width || parent.measured?.width || 320;
-        const parentHeight = parent.height || parent.measured?.height || 160;
-        const snapOffset = 50;
-
-        let finalSnapX: number;
-        let finalSnapY: number;
-
-        const podCenterRelX = node.position.x + podWidth / 2;
-        const podCenterRelY = node.position.y + podHeight / 2;
-        const parentCenterRelX = parentWidth / 2;
-        const parentCenterRelY = parentHeight / 2;
-
-        const deltaX = podCenterRelX - parentCenterRelX;
-        const deltaY = podCenterRelY - parentCenterRelY;
-
-        if (Math.abs(deltaX) > Math.abs(deltaY)) {
-            if (deltaX < 0) {
-                finalSnapX = parent.position.x - podWidth - snapOffset;
-            } else {
-                finalSnapX = parent.position.x + parentWidth + snapOffset;
-            }
-            finalSnapY = parent.position.y + (parentHeight / 2) - (podHeight / 2);
-        } else {
-            if (deltaY < 0) {
-                finalSnapY = parent.position.y - podHeight - snapOffset;
-            } else {
-                finalSnapY = parent.position.y + parentHeight + snapOffset;
-            }
-            finalSnapX = parent.position.x + (parentWidth / 2) - (podWidth / 2);
-        }
-
-        const updatedParent = {
-            ...parent,
-            data: { ...parent.data, replicas: Math.max(0, (parent.data.replicas || 0) - movingReplicas) },
-            style: { width: parent.width, height: parent.height },
-            measured: { width: parent.width, height: parent.height }
-        };
-
-        const podsInOld = state.nodes.filter(n => n.parentId === parent.id && n.type === 'Pod' && n.id !== node.id);
-        const syncedPods = syncPodsInDeployment(updatedParent, podsInOld);
-        const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
-        const laidOutPods = layoutPodsInDeployment(updatedParent, syncedWithHandlers);
-
-        const detachingPod = {
-            ...node,
-            parentId: undefined,
-            position: { x: finalSnapX, y: finalSnapY },
-            data: { ...node.data, ...setupPodHandlers(node.id) }
-        };
-
-        let nextNodes = state.nodes.filter(n => (n.parentId !== parent.id || n.type !== 'Pod') && n.id !== node.id);
-        nextNodes = [...nextNodes.map(n => n.id === parent.id ? updatedParent : n), ...laidOutPods, detachingPod];
-
-        return { nodes: sortNodes(nextNodes) };
-      });
-      return;
-    } 
-    
-    if (finalHoveredDeploymentId) {
-      set((state) => {
-        let currentNodes = state.nodes;
-        const oldParentId = node.parentId;
-        const targetParentId = finalHoveredDeploymentId;
-        const movingReplicas = node.data.replicas || 1;
-
-        if (oldParentId === targetParentId) return state;
-
-        // 1. Update replica counts for parents
-        currentNodes = currentNodes.map(n => {
-            if (n.id === targetParentId) {
-                return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + movingReplicas } };
-            }
-            if (oldParentId && n.id === oldParentId) {
-                return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - movingReplicas) } };
-            }
-            return n;
-        });
-
-        // 2. Sync and layout for target parent
-        const targetDeployment = currentNodes.find(n => n.id === targetParentId);
-        if (targetDeployment) {
-            const podsInTarget = currentNodes.filter(n => n.parentId === targetParentId && n.type === 'Pod' && n.id !== node.id);
-            const syncedPods = syncPodsInDeployment(targetDeployment, [node, ...podsInTarget]);
+            // Re-layout target
+            const podsInTarget = nextNodes.filter(n => n.parentId === targetParentId && n.type === 'Pod' && n.id !== node.id);
+            const syncedPods = syncPodsInDeployment(activeDeployment, [finalNode, ...podsInTarget]);
             const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
-            const laidOutPods = layoutPodsInDeployment(targetDeployment, syncedWithHandlers);
-
-            currentNodes = currentNodes.filter(n => n.parentId !== targetParentId || n.type !== 'Pod');
-            currentNodes = [...currentNodes, ...laidOutPods];
+            const laidOutPods = layoutPodsInDeployment(activeDeployment, syncedWithHandlers);
+            
+            nextNodes = nextNodes.filter(n => n.parentId !== targetParentId || n.type !== 'Pod');
+            nextNodes = [...nextNodes, ...laidOutPods];
 
             // Resize target
             const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
             const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
-            const finalW = Math.max(targetDeployment.width || 0, maxPodX + 20);
-            const finalH = Math.max(targetDeployment.height || 0, maxPodY + 40);
-            currentNodes = currentNodes.map(n => n.id === targetParentId ? {
-                ...n, 
-                width: finalW,
-                height: finalH,
-                style: { width: finalW, height: finalH },
-                measured: { width: finalW, height: finalH }
+            nextNodes = nextNodes.map(n => n.id === targetParentId ? {
+                ...n, width: Math.max(n.width || 0, maxPodX + 20), height: Math.max(n.height || 0, maxPodY + 40),
+                style: { width: Math.max(n.width || 0, maxPodX + 20), height: Math.max(n.height || 0, maxPodY + 40) },
+                measured: { width: Math.max(n.width || 0, maxPodX + 20), height: Math.max(n.height || 0, maxPodY + 40) }
             } : n);
-        }
 
-        // 3. Sync and layout for old parent
-        if (oldParentId) {
-            const oldParent = currentNodes.find(n => n.id === oldParentId);
-            if (oldParent) {
-                const podsInOld = currentNodes.filter(n => n.parentId === oldParentId && n.type === 'Pod' && n.id !== node.id);
-                const syncedPods = syncPodsInDeployment(oldParent, podsInOld);
-                const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
-                const laidOutPods = layoutPodsInDeployment(oldParent, syncedWithHandlers);
-
-                currentNodes = currentNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
-                currentNodes = [...currentNodes, ...laidOutPods];
+            // Re-layout old parent
+            if (oldParentId) {
+              const oldParent = nextNodes.find(n => n.id === oldParentId);
+              if (oldParent) {
+                const podsInOld = nextNodes.filter(n => n.parentId === oldParentId && n.type === 'Pod' && n.id !== node.id);
+                const syncedPodsOld = syncPodsInDeployment(oldParent, podsInOld);
+                const syncedWithHandlersOld = syncedPodsOld.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
+                const laidOutPodsOld = layoutPodsInDeployment(oldParent, syncedWithHandlersOld);
+                nextNodes = nextNodes.filter(n => n.parentId !== oldParentId || n.type !== 'Pod');
+                nextNodes = [...nextNodes, ...laidOutPodsOld];
+              }
+            } else {
+                nextNodes = nextNodes.filter(n => n.id !== node.id); // Remove the old top-level pod as it's now in deployment
             }
-        } else {
-            currentNodes = currentNodes.filter(n => n.id !== node.id);
-        }
+          }
+        } else if (node.parentId && detachingDeploymentId === node.parentId) {
+          const parent = nextNodes.find(n => n.id === node.parentId);
+          if (parent) {
+            const movingReplicas = node.data.replicas || 1;
+            const parentWidth = parent.width || parent.measured?.width || 320;
+            const parentHeight = parent.height || parent.measured?.height || 160;
+            const snapOffset = 50;
 
-        return { nodes: sortNodes(currentNodes) };
-      });
-    }
+            const podCenterRelX = node.position.x + nodeWidth / 2;
+            const podCenterRelY = node.position.y + nodeHeight / 2;
+            const deltaX = podCenterRelX - parentWidth / 2;
+            const deltaY = podCenterRelY - parentHeight / 2;
+
+            let finalSnapX = parent.position.x;
+            let finalSnapY = parent.position.y;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                finalSnapX = deltaX < 0 ? parent.position.x - nodeWidth - snapOffset : parent.position.x + parentWidth + snapOffset;
+                finalSnapY = parent.position.y + (parentHeight / 2) - (nodeHeight / 2);
+            } else {
+                finalSnapY = deltaY < 0 ? parent.position.y - nodeHeight - snapOffset : parent.position.y + parentHeight + snapOffset;
+                finalSnapX = parent.position.x + (parentWidth / 2) - (nodeWidth / 2);
+            }
+
+            const updatedParent = {
+                ...parent,
+                data: { ...parent.data, replicas: Math.max(0, (parent.data.replicas || 0) - movingReplicas) },
+                style: { width: parent.width, height: parent.height },
+                measured: { width: parent.width, height: parent.height }
+            };
+
+            const podsInOld = nextNodes.filter(n => n.parentId === parent.id && n.type === 'Pod' && n.id !== node.id);
+            const syncedPods = syncPodsInDeployment(updatedParent, podsInOld);
+            const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
+            const laidOutPods = layoutPodsInDeployment(updatedParent, syncedWithHandlers);
+
+            const detachingPod = {
+                ...node,
+                parentId: undefined,
+                position: { x: finalSnapX, y: finalSnapY },
+                data: { ...node.data, ...setupPodHandlers(node.id) }
+            };
+
+            nextNodes = nextNodes.filter(n => (n.parentId !== parent.id || n.type !== 'Pod') && n.id !== node.id);
+            nextNodes = [...nextNodes.map(n => n.id === parent.id ? updatedParent : n), ...laidOutPods, detachingPod];
+          }
+        } else if (hoveredDeploymentId && node.parentId !== hoveredDeploymentId) {
+            const targetParentId = hoveredDeploymentId;
+            const targetDeployment = nextNodes.find(n => n.id === targetParentId);
+            if (targetDeployment) {
+                const oldParentId = node.parentId;
+                const movingReplicas = node.data.replicas || 1;
+
+                nextNodes = nextNodes.map(n => {
+                    if (n.id === targetParentId) return { ...n, data: { ...n.data, replicas: (n.data.replicas || 0) + movingReplicas } };
+                    if (oldParentId && n.id === oldParentId) return { ...n, data: { ...n.data, replicas: Math.max(0, (n.data.replicas || 0) - movingReplicas) } };
+                    return n;
+                });
+
+                const podsInTarget = nextNodes.filter(n => n.parentId === targetParentId && n.type === 'Pod' && n.id !== node.id);
+                const syncedPods = syncPodsInDeployment(targetDeployment, [finalNode, ...podsInTarget]);
+                const syncedWithHandlers = syncedPods.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
+                const laidOutPods = layoutPodsInDeployment(targetDeployment, syncedWithHandlers);
+
+                nextNodes = nextNodes.filter(n => n.parentId !== targetParentId || n.type !== 'Pod');
+                nextNodes = [...nextNodes, ...laidOutPods];
+
+                // Resize target
+                const maxPodX = Math.max(0, ...laidOutPods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
+                const maxPodY = Math.max(0, ...laidOutPods.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 80)));
+                nextNodes = nextNodes.map(n => n.id === targetParentId ? {
+                    ...n, width: Math.max(n.width || 0, maxPodX + 20), height: Math.max(n.height || 0, maxPodY + 40),
+                    style: { width: Math.max(n.width || 0, maxPodX + 20), height: Math.max(n.height || 0, maxPodY + 40) },
+                    measured: { width: Math.max(n.width || 0, maxPodX + 20), height: Math.max(n.height || 0, maxPodY + 40) }
+                } : n);
+
+                if (oldParentId) {
+                    const oldParent = nextNodes.find(n => n.id === oldParentId);
+                    if (oldParent) {
+                        const podsInOld = nextNodes.filter(n => n.parentId === oldParentId && n.type === 'Pod' && n.id !== node.id);
+                        const syncedPodsOld = syncPodsInDeployment(oldParent, podsInOld);
+                        const syncedWithHandlersOld = syncedPodsOld.map(p => ({ ...p, data: { ...p.data, ...setupPodHandlers(p.id) } }));
+                        const laidOutPodsOld = layoutPodsInDeployment(oldParent, syncedWithHandlersOld);
+                        nextNodes = nextNodes.filter(n => n.parentId !== oldParentId || n.type !== 'Pod');
+                        nextNodes = [...nextNodes, ...laidOutPodsOld];
+                    }
+                } else {
+                    nextNodes = nextNodes.filter(n => n.id !== node.id);
+                }
+            }
+        }
+      }
+
+      // 3. Final Cleanup and State Return
+      return {
+        hoveredDeploymentId: null,
+        detachingDeploymentId: null,
+        draggedNodeId: null,
+        alignmentGuides: { vertical: [], horizontal: [] },
+        snapGuides: { vertical: [], horizontal: [] },
+        nodes: sortNodes(nextNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))),
+        lastActionId: `drag-${Date.now()}`,
+        lastActionName: 'Move Element'
+      };
+    });
   },
 
   onNodeResize: (event: any, node: Node) => {
@@ -931,7 +948,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
       } : n);
       
       const resizedNode = nextNodes.find(n => n.id === node.id);
-      if (!resizedNode) return state;
+      if (!resizedNode) return { ...state };
 
       if (resizedNode.type === 'Pod' && resizedNode.parentId) {
         const parentDeployment = nextNodes.find(n => n.id === resizedNode.parentId);
@@ -1001,6 +1018,13 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
         }
       }
       return { nodes: nextNodes };
+    });
+  },
+
+  onNodeResizeStop: (event: any, node: Node) => {
+    set({
+      lastActionId: `resize-${Date.now()}`,
+      lastActionName: 'Resize Element'
     });
   },
 };

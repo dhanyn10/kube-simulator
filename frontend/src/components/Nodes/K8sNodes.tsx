@@ -60,6 +60,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const isPending = data.type === 'Pod' && data.status === 'pending';
@@ -100,6 +101,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     onNodeResize(event, updatedNode as any);
   }, [id, type, onNodeResize]);
 
+  const handleNodeResizeStop = useCallback((event, params) => {
+    onNodeResizeStop(event, { id, ...params } as any);
+  }, [id, onNodeResizeStop]);
+
   const replicas = data.replicas || 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
   const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
@@ -138,6 +143,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         lineClassName={colorMode === 'dark' ? "border-blue-400" : "border-blue-500"} 
         handleClassName={cn("h-2 w-2 border-2 rounded", colorMode === 'dark' ? "bg-white border-blue-400" : "bg-white border-blue-500")}
         onResize={handleNodeResize}
+        onResizeEnd={handleNodeResizeStop}
       />
       
       {/* Header */}
@@ -307,6 +313,7 @@ export const ServiceNode = memo((props: NodeProps) => {
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
@@ -344,6 +351,10 @@ export const ServiceNode = memo((props: NodeProps) => {
     onNodeResize(event, updatedNode as any);
   }, [props.id, props.type, onNodeResize]);
 
+  const handleNodeResizeStop = useCallback((event, params) => {
+    onNodeResizeStop(event, { id: props.id, ...params } as any);
+  }, [props.id, onNodeResizeStop]);
+
   return (
     <div className={cn(
       "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col",
@@ -358,6 +369,7 @@ export const ServiceNode = memo((props: NodeProps) => {
         lineClassName="border-amber-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded" 
         onResize={handleNodeResize}
+        onResizeEnd={handleNodeResizeStop}
       />
       
       <div className="flex items-center gap-2 mb-2 shrink-0">
@@ -421,6 +433,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
+  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
   useEffect(() => {
@@ -458,6 +471,10 @@ export const DeploymentNode = memo((props: NodeProps) => {
     onNodeResize(event, updatedNode as any);
   }, [props.id, props.type, onNodeResize]);
 
+  const handleNodeResizeStop = useCallback((event, params) => {
+    onNodeResizeStop(event, { id: props.id, ...params } as any);
+  }, [props.id, onNodeResizeStop]);
+
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col",
@@ -474,6 +491,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         lineClassName="border-violet-500" 
         handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded" 
         onResize={handleNodeResize}
+        onResizeEnd={handleNodeResizeStop}
       />
 
       <div className="absolute -top-3 left-6 flex items-center gap-2">

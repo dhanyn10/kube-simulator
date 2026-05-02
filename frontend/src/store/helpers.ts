@@ -13,6 +13,8 @@ export const getPodMinimumSize = (data: any = {}) => {
     .map(String);
   const replicas = data.replicas || 1;
   const showsReplicaBadge = replicas > 1;
+  const totalDeploymentReplicas = data.parentReplicas || 0;
+  const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
 
   const horizontalPadding = 24;
   const contentPadding = 16;
@@ -34,7 +36,21 @@ export const getPodMinimumSize = (data: any = {}) => {
     readableImageWidth + horizontalPadding
   ));
 
-  return { width, height: POD_MIN_DIMENSIONS.height };
+  // Dynamic height calculation
+  // Base height: Padding(24) + Header(24) + Gap(8) + Label(16) + Gap(8) = 80
+  let height = 80;
+
+  if (showDashedProgress) height += 12; // Progress bar + gap
+  if (badges.length > 0) height += 18; // Badges + gap
+
+  if (image) {
+    const imageContainerWidth = width - horizontalPadding;
+    const charsPerLine = Math.max(10, Math.floor(imageContainerWidth / 5.5));
+    const lines = Math.ceil(image.length / charsPerLine);
+    height += lines * 12 + 4; // 12px per line + small padding
+  }
+
+  return { width, height: Math.max(POD_MIN_DIMENSIONS.height, Math.ceil(height)) };
 };
 
 export const sortNodes = (nodes: Node[]): Node[] => {
@@ -148,7 +164,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
 export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
   const paddingX = 20;
   const paddingY = 40; // Account for deployment header
-  const spacing = 10;
+  const spacing = 16;
   
   const deploymentWidth = deployment.width || deployment.measured?.width || 320;
   const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
