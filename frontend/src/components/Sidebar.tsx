@@ -204,25 +204,6 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
                 <p className="text-[10px] font-medium">No elements found</p>
             </div>
         )}
-
-        <section className={cn(
-          "rounded-lg p-3 border border-dashed",
-          colorMode === 'dark' ? "bg-slate-950/30 border-slate-800" : "bg-slate-100/50 border-slate-300"
-        )}>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className={cn(
-              "text-[9px] font-bold uppercase tracking-tighter",
-              colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
-            )}>Status: Live</span>
-          </div>
-          <p className={cn(
-            "text-[9px] leading-relaxed font-mono",
-            colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-          )}>
-            Cluster: prod-us-east-1
-          </p>
-        </section>
       </div>
 
       <div className={cn(
