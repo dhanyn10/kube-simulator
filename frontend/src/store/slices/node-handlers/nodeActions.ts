@@ -8,14 +8,16 @@ import {
 import { syncDeployment, setupPodHandlers } from '../../nodeHelpers';
 
 export const nodeActions = (set: any, get: any) => ({
-  addNode: (type: K8sResourceType) => {
+  addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
     const id = `${type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
-    const position = { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
+    const finalPosition = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
     
     const newNode: Node<K8sNodeData> = {
       id,
       type,
-      position,
+      position: finalPosition,
+      parentId,
+      extent: parentId ? 'parent' : undefined,
       data: { 
         label: `new-${type.toLowerCase()}`, 
         type, 
@@ -48,11 +50,25 @@ export const nodeActions = (set: any, get: any) => ({
        newNode.style = { width: 600, height: 400 };
     }
 
-    set((state: any) => ({
-      nodes: sortNodes([...state.nodes, newNode]),
-      lastActionId: `add-${Date.now()}`,
-      lastActionName: `Add ${type}`
-    }));
+    set((state: any) => {
+      let nextNodes = [...state.nodes, newNode];
+      
+      if (parentId) {
+        const parent = nextNodes.find(n => n.id === parentId);
+        if (parent?.type === 'Deployment' && type === 'Pod') {
+           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 1, get, newNode);
+           // Filter out existing pods and the new node to replace them with laid out ones
+           nextNodes = nextNodes.filter(n => (n.parentId !== parentId || n.type !== 'Pod') && n.id !== id);
+           nextNodes = [...nextNodes.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
+        }
+      }
+
+      return {
+        nodes: sortNodes(nextNodes),
+        lastActionId: `add-${Date.now()}`,
+        lastActionName: `Add ${type}`
+      };
+    });
   },
 
   deleteNodes: (nodesToDelete: Node[]) => {

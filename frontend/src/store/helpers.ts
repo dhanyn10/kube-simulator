@@ -147,6 +147,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
 
       newPods.push({
         ...existingPod,
+        parentId: deploymentId,
         width,
         height: undefined,
         style: { width, minHeight },
@@ -241,7 +242,8 @@ export const calculateAlignmentGuides = (
   node: Node,
   nodes: Node[],
   nodeAbs: { x: number, y: number },
-  isDetaching: boolean
+  isDetaching: boolean,
+  hoveredDeploymentId: string | null = null
 ) => {
   const SNAP_THRESHOLD = 8;
   const SNAP_TOLERANCE = 4;
@@ -253,9 +255,35 @@ export const calculateAlignmentGuides = (
   const nodeWidth = node.width || node.measured?.width || 160;
   const nodeHeight = node.height || node.measured?.height || 80;
 
+  // If a pod is being dragged over a deployment, show guides for its auto-layout slot
+  if (node.type === 'Pod' && hoveredDeploymentId && !isDetaching) {
+    const deployment = nodes.find(n => n.id === hoveredDeploymentId);
+    if (deployment) {
+      const depPods = nodes.filter(n => n.parentId === deployment.id && n.type === 'Pod');
+      let layoutNodes = depPods;
+      if (!depPods.find(p => p.id === node.id)) {
+        layoutNodes = [...depPods, node];
+      }
+      
+      const laidOut = layoutPodsInDeployment(deployment, layoutNodes);
+      const targetPod = laidOut.find(p => p.id === node.id);
+      
+      if (targetPod) {
+        const depAbs = getAbsPos(deployment.id, nodes);
+        const targetAbsX = depAbs.x + targetPod.position.x;
+        const targetAbsY = depAbs.y + targetPod.position.y;
+        
+        verticalGuides.add(targetAbsX);
+        horizontalGuides.add(targetAbsY);
+        vSnap.set(targetAbsX, true); // Force snap
+        hSnap.set(targetAbsY, true); // Force snap
+      }
+      return { verticalGuides, horizontalGuides, vSnap, hSnap };
+    }
+  }
+
   // Detect if we should show guides for this node
-  const isAutoLaidOutPod = node.type === 'Pod' && node.parentId && nodes.find(p => p.id === node.parentId)?.type === 'Deployment';
-  const shouldShowGuides = !isAutoLaidOutPod || isDetaching;
+  const shouldShowGuides = true;
 
   if (shouldShowGuides) {
     const nodeLeftX = nodeAbs.x;
@@ -266,9 +294,6 @@ export const calculateAlignmentGuides = (
     const nodeBottomY = nodeAbs.y + nodeHeight;
 
     for (const otherNode of nodes.filter(n => n.id !== node.id)) {
-      const otherIsAutoPod = otherNode.type === 'Pod' && otherNode.parentId && nodes.find(p => p.id === otherNode.parentId)?.type === 'Deployment';
-      if (otherIsAutoPod) continue;
-
       const otherAbs = getAbsPos(otherNode.id, nodes);
       const otherWidth = otherNode.width || otherNode.measured?.width || 160;
       const otherHeight = otherNode.height || otherNode.measured?.height || 80;

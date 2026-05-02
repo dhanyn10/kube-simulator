@@ -16,6 +16,12 @@ export const dragHandlers = (set: any, get: any) => ({
     } else {
       get().setActiveDeploymentId(null);
     }
+    
+    if (node.parentId) {
+      set((state: any) => ({
+        nodes: state.nodes.map((n: Node) => n.id === node.id ? { ...n, extent: undefined } : n)
+      }));
+    }
   },
 
   onNodeDrag: (event: any, node: Node) => {
@@ -62,16 +68,25 @@ export const dragHandlers = (set: any, get: any) => ({
             if (overlapPercentage < 50) {
                 newDetachingDeploymentId = container.id;
                 nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
-            } else {
+            } else if (!newHoveredDeploymentId) {
                 newHoveredDeploymentId = container.id;
+                nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
             }
         } else if (intersects && isAllowed(container.type || '', node.type || '')) {
-            newHoveredDeploymentId = container.id;
-            nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
+            if (!newHoveredDeploymentId) {
+                newHoveredDeploymentId = container.id;
+                nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isHovered: true } } : n);
+            }
         }
     }
 
-    const { verticalGuides, horizontalGuides, vSnap: verticalSnapGuides, hSnap: horizontalSnapGuides } = calculateAlignmentGuides(node, nodes, nodeAbs, newDetachingDeploymentId !== null);
+    const { verticalGuides, horizontalGuides, vSnap: verticalSnapGuides, hSnap: horizontalSnapGuides } = calculateAlignmentGuides(
+      node, 
+      nodes, 
+      nodeAbs, 
+      newDetachingDeploymentId !== null,
+      newHoveredDeploymentId
+    );
 
     set({ 
         hoveredDeploymentId: newHoveredDeploymentId, 
@@ -100,11 +115,38 @@ export const dragHandlers = (set: any, get: any) => ({
       const activeHorizontalSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
 
       let finalNode = { ...node };
-      if (activeVerticalSnaps.length > 0) {
-          finalNode.position.x = activeVerticalSnaps[0] - nodeWidth / 2;
-      }
-      if (activeHorizontalSnaps.length > 0) {
-          finalNode.position.y = activeHorizontalSnaps[0] - nodeHeight / 2;
+      if (activeVerticalSnaps.length > 0 || activeHorizontalSnaps.length > 0) {
+          const parentAbs = node.parentId ? getAbsPos(node.parentId, nextNodes) : { x: 0, y: 0 };
+          const nodeAbs = { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
+          
+          if (activeVerticalSnaps.length > 0) {
+              const guide = activeVerticalSnaps[0];
+              const dLeft = Math.abs(nodeAbs.x - guide);
+              const dCenter = Math.abs((nodeAbs.x + nodeWidth / 2) - guide);
+              const dRight = Math.abs((nodeAbs.x + nodeWidth) - guide);
+              
+              if (dLeft <= dCenter && dLeft <= dRight) {
+                  finalNode.position.x = guide - parentAbs.x;
+              } else if (dRight <= dLeft && dRight <= dCenter) {
+                  finalNode.position.x = (guide - nodeWidth) - parentAbs.x;
+              } else {
+                  finalNode.position.x = (guide - nodeWidth / 2) - parentAbs.x;
+              }
+          }
+          if (activeHorizontalSnaps.length > 0) {
+              const guide = activeHorizontalSnaps[0];
+              const dTop = Math.abs(nodeAbs.y - guide);
+              const dCenter = Math.abs((nodeAbs.y + nodeHeight / 2) - guide);
+              const dBottom = Math.abs((nodeAbs.y + nodeHeight) - guide);
+              
+              if (dTop <= dCenter && dTop <= dBottom) {
+                  finalNode.position.y = guide - parentAbs.y;
+              } else if (dBottom <= dTop && dBottom <= dCenter) {
+                  finalNode.position.y = (guide - nodeHeight) - parentAbs.y;
+              } else {
+                  finalNode.position.y = (guide - nodeHeight / 2) - parentAbs.y;
+              }
+          }
       }
       
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
@@ -167,6 +209,22 @@ export const dragHandlers = (set: any, get: any) => ({
         } else {
           nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
         }
+      } else if (oldParentId && targetParentId === oldParentId) {
+        const parent = nextNodes.find(n => n.id === oldParentId);
+        if (parent?.type === 'Deployment' && node.type === 'Pod') {
+           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get);
+           nextNodes = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
+           nextNodes = [...nextNodes.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
+        } else {
+           const pWidth = parent?.width || (parent?.type === 'Namespace' ? 600 : 320);
+           const pHeight = parent?.height || (parent?.type === 'Namespace' ? 400 : 160);
+           let newX = Math.max(0, Math.min(finalNode.position.x, pWidth - nodeWidth));
+           let newY = Math.max(0, Math.min(finalNode.position.y, pHeight - nodeHeight));
+           
+           nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: { x: newX, y: newY }, extent: 'parent' as const } : n);
+        }
+      } else if (oldParentId && !targetParentId && !detachingDeploymentId) {
+        nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, extent: 'parent' as const } : n);
       }
 
       return {
