@@ -559,6 +559,8 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   },
 
   onNodeClick: (event: React.MouseEvent, node: Node) => {
+    get().setConfiguringNodeId(null);
+    get().setConfiguringEdgeId(null);
     if (node.type === 'Deployment') {
       get().setActiveDeploymentId(node.id);
     } else {
@@ -567,6 +569,8 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   },
 
   onPaneClick: () => {
+    get().setConfiguringNodeId(null);
+    get().setConfiguringEdgeId(null);
     get().setActiveDeploymentId(null);
   },
 

@@ -23,6 +23,7 @@ export interface FlowState {
   hoveredDeploymentId: string | null;
   detachingDeploymentId: string | null;
   configuringNodeId: string | null;
+  configuringEdgeId: string | null;
   draggingSidebarItem: K8sResourceType | null;
   colorMode: 'dark' | 'light';
   clipboard: { nodes: Node[], edges: Edge[] } | null;
@@ -48,6 +49,7 @@ export interface FlowState {
   setHoveredDeploymentId: (id: string | null) => void;
   setDetachingDeploymentId: (id: string | null) => void;
   setConfiguringNodeId: (id: string | null) => void;
+  setConfiguringEdgeId: (id: string | null) => void;
   setAlignmentGuides: (guides: { vertical: AlignmentGuide[], horizontal: AlignmentGuide[] }) => void;
   clearAlignmentGuides: () => void;
   setSnapGuides: (guides: { vertical: SnapGuide[], horizontal: SnapGuide[] }) => void;

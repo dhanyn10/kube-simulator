@@ -36,7 +36,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onConnect: (connection: Connection) => {
     set((state) => ({
-      edges: applyEdgeChanges([{ item: connection, type: 'add' }], state.edges),
+      edges: applyEdgeChanges([{ item: { ...connection, type: 'custom' }, type: 'add' }], state.edges),
     }));
   },
   setNodes: (nodes: Node[]) => set({ nodes }),

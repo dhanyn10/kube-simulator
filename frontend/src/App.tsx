@@ -13,6 +13,7 @@ import { Sidebar } from './components/Sidebar';
 import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
 import { PodNode, ServiceNode, DeploymentNode } from './components/Nodes/K8sNodes';
+import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, X, Undo2 } from 'lucide-react';
 import { useFlowStore, applyHistoryState } from './store';
@@ -24,6 +25,14 @@ const nodeTypes = {
   Pod: PodNode,
   Service: ServiceNode,
   Deployment: DeploymentNode,
+};
+
+const edgeTypes = {
+  custom: CustomEdge,
+};
+
+const defaultEdgeOptions = {
+  type: 'custom',
 };
 
 export default function App() {
@@ -234,6 +243,8 @@ export default function App() {
           onNodesDelete={deleteNodes}
           deleteKeyCode={["Backspace", "Delete"]}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
           defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
           minZoom={0.5}
           maxZoom={2}
