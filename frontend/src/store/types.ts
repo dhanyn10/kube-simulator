@@ -58,12 +58,14 @@ export interface FlowState {
 
   addNode: (type: K8sResourceType) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
+  updateNodeData: (nodeId: string, newData: any) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
   onNodeDragStart: (event: any, node: Node) => void;
   onNodeDrag: (event: any, node: Node) => void;
   onNodeDragStop: (event: any, node: Node) => void;
   onNodeResize: (event: any, node: Node) => void; 
+  onNodeResizeStop: (event: any, node: Node) => void;
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
   copyNodes: () => void;
   pasteNodes: () => void;

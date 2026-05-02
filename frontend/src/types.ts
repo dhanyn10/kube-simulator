@@ -25,6 +25,7 @@ export interface K8sNodeData {
   // Internet specific fields
   traffic?: number;
   durationUnit?: 'second' | 'minute' | 'hour';
+  parentReplicas?: number;
 }
 
 export interface K8sManifest {

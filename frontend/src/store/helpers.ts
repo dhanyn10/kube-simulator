@@ -1,4 +1,5 @@
 import { Node } from '@xyflow/react';
+import { K8sNodeData } from '../types';
 
 export const POD_MIN_DIMENSIONS = {
   width: 168,
@@ -54,16 +55,25 @@ export const getPodMinimumSize = (data: any = {}) => {
 };
 
 export const sortNodes = (nodes: Node[]): Node[] => {
+  const priority: Record<string, number> = {
+    Namespace: 0,
+    Deployment: 1,
+    Pod: 2,
+    Service: 3,
+    Internet: 3,
+  };
+
   return [...nodes].sort((a, b) => {
-    if (a.type === 'Deployment' && b.type === 'Pod') return -1;
-    if (a.type === 'Pod' && b.type === 'Deployment') return 1;
-    return 0;
+    const aPrio = priority[a.type || ''] ?? 5;
+    const bPrio = priority[b.type || ''] ?? 5;
+    return aPrio - bPrio;
   });
 };
 
 // Helper function to sync pods within a deployment based on replica count
 export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], dataTemplate?: Node): Node[] => {
-  const totalReplicas = deployment.data.replicas || 0;
+  const data = deployment.data as unknown as K8sNodeData;
+  const totalReplicas = data.replicas || 0;
   const deploymentId = deployment.id;
 
   // 1. Determine target pod counts and their replica values

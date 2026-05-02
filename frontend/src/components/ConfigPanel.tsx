@@ -221,7 +221,7 @@ export const ConfigPanel = () => {
                     colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
                   )}
                 />
-                <span className="text-[10px] font-mono text-slate-400">MB</span>
+                <span className="text-[10px] font-mono text-slate-400">Visits</span>
               </div>
             </div>
 
