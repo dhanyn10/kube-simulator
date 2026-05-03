@@ -38,6 +38,7 @@ export interface FlowState {
   draggedNodeId: string | null;
   lastActionId: string;
   lastActionName: string;
+  currentProject: { id: number, name: string } | null;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;

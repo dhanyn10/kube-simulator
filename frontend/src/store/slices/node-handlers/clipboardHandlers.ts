@@ -34,7 +34,7 @@ export const clipboardHandlers = (set: any, get: any) => ({
       );
 
       if (targetPod) {
-        const delta = getNodeData(pastedPod).replicas || 1;
+        const delta = 1;
         
         if (targetPod.parentId) {
           const parent = nodes.find(n => n.id === targetPod.parentId);
@@ -57,9 +57,16 @@ export const clipboardHandlers = (set: any, get: any) => ({
     const pastedNodes = clipboard.nodes.map((n: Node) => {
       const newId = `${n.type?.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
       idMap[n.id] = newId;
+
+      const newData = { ...n.data };
+      if (n.type === 'Pod') {
+        newData.replicas = 1;
+      }
+
       return {
         ...n,
         id: newId,
+        data: newData,
         position: { x: n.position.x + offset, y: n.position.y + offset },
         selected: true,
       };

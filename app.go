@@ -5,25 +5,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 
+	"build-wails/backend/db"
 	"github.com/dgraph-io/badger/v4"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
 type App struct {
-	ctx          context.Context
-	db           *badger.DB
-	currentIndex int
-	maxIndex     int
+	ctx      context.Context
+	history  *db.HistoryManager
+	projects *db.ProjectManager
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
-		currentIndex: -1,
-		maxIndex:     -1,
+		history:  db.NewHistoryManager(),
+		projects: db.NewProjectManager(),
 	}
 }
 
@@ -32,103 +31,67 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Initialize BadgerDB
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal(err)
+	if err := a.history.Init(); err != nil {
+		log.Fatalf("Failed to initialize history manager: %v", err)
 	}
-	dbPath := filepath.Join(userHome, ".kube-builder", "history_db")
-	
-	// Create directory if not exists
-	os.MkdirAll(dbPath, os.ModePerm)
 
-	opts := badger.DefaultOptions(dbPath).WithLogger(nil)
-	db, err := badger.Open(opts)
-	if err != nil {
-		log.Fatal(err)
+	if err := a.projects.Init(); err != nil {
+		log.Fatalf("Failed to initialize project manager: %v", err)
 	}
-	a.db = db
 }
 
 func (a *App) shutdown(ctx context.Context) {
-	if a.db != nil {
-		a.db.Close()
-	}
+	a.history.Close()
+	a.projects.Close()
 }
 
-// PushHistory saves a new state snapshot to BadgerDB
+// History actions
+
 func (a *App) PushHistory(state string) {
-	if a.db == nil {
-		return
-	}
-
-	a.currentIndex++
-	a.maxIndex = a.currentIndex
-
-	err := a.db.Update(func(txn *badger.Txn) error {
-		key := []byte(fmt.Sprintf("hist:%d", a.currentIndex))
-		return txn.Set(key, []byte(state))
-	})
-
-	if err != nil {
-		log.Printf("Error saving history: %v", err)
-	}
+	a.history.Push(state)
 }
 
-// Undo returns the previous state from BadgerDB
 func (a *App) Undo() string {
-	if a.db == nil || a.currentIndex <= 0 {
-		return ""
-	}
-
-	a.currentIndex--
-	return a.JumpToHistory(a.currentIndex)
+	return a.history.Undo()
 }
 
-// Redo returns the next state from BadgerDB
 func (a *App) Redo() string {
-	if a.db == nil || a.currentIndex >= a.maxIndex {
-		return ""
-	}
-
-	a.currentIndex++
-	return a.JumpToHistory(a.currentIndex)
+	return a.history.Redo()
 }
 
-// HistoryLog represents a metadata entry for the dropdown
-type HistoryLog struct {
-	Index      int    `json:"index"`
-	ActionName string `json:"actionName"`
-	Timestamp  int64  `json:"timestamp"`
+func (a *App) JumpToHistory(index int) string {
+	return a.history.JumpTo(index)
 }
 
-// GetHistoryLogs returns the list of all recorded activities
-func (a *App) GetHistoryLogs() []HistoryLog {
-	if a.db == nil {
-		return []HistoryLog{}
+func (a *App) GetHistoryLogs() []db.HistoryLog {
+	badgerDB := a.history.GetDB()
+	if badgerDB == nil {
+		return []db.HistoryLog{}
 	}
 
-	logs := make([]HistoryLog, 0)
-	for i := 0; i <= a.maxIndex; i++ {
-		_ = a.db.View(func(txn *badger.Txn) error {
+	logs := make([]db.HistoryLog, 0)
+	maxIndex := a.history.GetMaxIndex()
+
+	_ = badgerDB.View(func(txn *badger.Txn) error {
+		for i := 0; i <= maxIndex; i++ {
 			key := []byte(fmt.Sprintf("hist:%d", i))
 			item, err := txn.Get(key)
 			if err != nil {
-				return err
+				continue
 			}
-			return item.Value(func(val []byte) error {
+			_ = item.Value(func(val []byte) error {
 				var data struct {
 					ActionName string `json:"actionName"`
 					Timestamp  int64  `json:"timestamp"`
 				}
 				if err := json.Unmarshal(val, &data); err == nil {
-					logs = append(logs, HistoryLog{
+					logs = append(logs, db.HistoryLog{
 						Index:      i,
 						ActionName: data.ActionName,
 						Timestamp:  data.Timestamp,
 					})
 				} else {
-					logs = append(logs, HistoryLog{
+					logs = append(logs, db.HistoryLog{
 						Index:      i,
 						ActionName: fmt.Sprintf("Activity #%d", i),
 						Timestamp:  0,
@@ -136,37 +99,76 @@ func (a *App) GetHistoryLogs() []HistoryLog {
 				}
 				return nil
 			})
-		})
-	}
+		}
+		return nil
+	})
 	return logs
 }
 
-// JumpToHistory applies a specific index from history
-func (a *App) JumpToHistory(index int) string {
-	if a.db == nil || index < 0 || index > a.maxIndex {
-		return ""
+// Project actions
+
+func (a *App) SaveProject(name string, content string) int64 {
+	id, err := a.projects.SaveProject(name, content)
+	if err != nil {
+		log.Printf("Error saving project: %v", err)
+		return -1
 	}
+	runtime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", name))
+	return id
+}
 
-	a.currentIndex = index
-	var state string
+func (a *App) UpdateProject(id int64, content string) bool {
+	err := a.projects.UpdateProject(id, content)
+	if err != nil {
+		log.Printf("Error updating project: %v", err)
+		return false
+	}
+	return true
+}
 
-	err := a.db.View(func(txn *badger.Txn) error {
-		key := []byte(fmt.Sprintf("hist:%d", a.currentIndex))
-		item, err := txn.Get(key)
-		if err != nil {
-			return err
-		}
-		return item.Value(func(val []byte) error {
-			state = string(val)
-			return nil
-		})
-	})
+func (a *App) GetProjects() []db.Project {
+	projects, err := a.projects.GetProjects()
+	if err != nil {
+		log.Printf("Error getting projects: %v", err)
+		return []db.Project{}
+	}
+	return projects
+}
 
+func (a *App) LoadProject(id int64) *db.Project {
+	proj, err := a.projects.LoadProject(id)
+	if err != nil {
+		log.Printf("Error loading project: %v", err)
+		return nil
+	}
+	runtime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", proj.Name))
+	return proj
+}
+
+func (a *App) DeleteProject(id int64) bool {
+	err := a.projects.DeleteProject(id)
+	if err != nil {
+		log.Printf("Error deleting project: %v", err)
+		return false
+	}
+	return true
+}
+
+func (a *App) SaveSetting(key string, value string) bool {
+	err := a.projects.SaveSetting(key, value)
+	if err != nil {
+		log.Printf("Error saving setting: %v", err)
+		return false
+	}
+	return true
+}
+
+func (a *App) GetSetting(key string) string {
+	val, err := a.projects.GetSetting(key)
 	if err != nil {
 		return ""
 	}
-
-	return state
+	return val
 }
 
 // Greet returns a greeting for the given name

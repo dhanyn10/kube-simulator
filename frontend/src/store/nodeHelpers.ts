@@ -41,7 +41,17 @@ export const syncDeployment = (
   const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
   const withHandlers = syncedPods.map(p => ({ 
     ...p, 
-    data: { ...p.data, ...setupPodHandlers(p.id, get) } 
+    data: {
+      ...p.data,
+      onDelete: () => {
+        const nodeToDelete = get().nodes.find((n: Node) => n.id === p.id);
+        if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+      },
+      onRename: (newName: string) => {
+        const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
+        get().updateNodeData(p.id, { label: cleanName, isAutoNamed: false });
+      },
+    }
   }));
   const laidOut = layoutPodsInDeployment(updatedDeployment, withHandlers);
   
