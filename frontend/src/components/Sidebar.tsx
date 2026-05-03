@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
+import { ProjectManager } from './ProjectManager';
 
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
@@ -14,6 +15,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isProjectOpen, setIsProjectOpen] = useState(false);
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
@@ -265,6 +267,16 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
         colorMode === 'dark' ? "bg-slate-950/50" : "bg-slate-100"
       )}>
         <button
+          onClick={() => setIsProjectOpen(true)}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
+            colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-blue-400" : "bg-white hover:bg-slate-50 text-blue-600 border border-slate-200"
+          )}
+        >
+          <FolderOpen size={12} />
+          Projects
+        </button>
+        <button
           onClick={onExport}
           className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
         >
@@ -272,6 +284,8 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
           Export YAML
         </button>
       </div>
+
+      <ProjectManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
     </div>
   );
 };
