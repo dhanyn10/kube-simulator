@@ -34,7 +34,8 @@ export const clipboardHandlers = (set: any, get: any) => ({
       );
 
       if (targetPod) {
-        const delta = getNodeData(pastedPod).replicas || 1;
+        // Always default to 1 replica when pasting, as requested by user
+        const delta = 1;
         
         if (targetPod.parentId) {
           const parent = nodes.find(n => n.id === targetPod.parentId);
@@ -57,12 +58,23 @@ export const clipboardHandlers = (set: any, get: any) => ({
     const pastedNodes = clipboard.nodes.map((n: Node) => {
       const newId = `${n.type?.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
       idMap[n.id] = newId;
-      return {
+      
+      const newNode = {
         ...n,
         id: newId,
         position: { x: n.position.x + offset, y: n.position.y + offset },
         selected: true,
       };
+
+      // Ensure pasted Pods always start with 1 replica, regardless of source count
+      if (n.type === 'Pod' && newNode.data) {
+        newNode.data = {
+          ...newNode.data,
+          replicas: 1
+        };
+      }
+
+      return newNode;
     });
 
     const pastedEdges = clipboard.edges.map((e: any) => ({
