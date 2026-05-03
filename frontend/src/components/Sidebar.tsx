@@ -60,7 +60,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
               "text-xs font-bold uppercase tracking-[0.2em]",
               colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
             )}>
-              {currentProject?.name || "InfraStack Architect"}
+              InfraStack Architect
             </h1>
             <p className={cn(
               "text-[10px] mt-1 font-medium font-mono",

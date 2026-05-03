@@ -8,6 +8,7 @@ import (
 
 	"build-wails/backend/db"
 	"github.com/dgraph-io/badger/v4"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -112,6 +113,7 @@ func (a *App) SaveProject(name string, content string) int64 {
 		log.Printf("Error saving project: %v", err)
 		return -1
 	}
+	runtime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", name))
 	return id
 }
 
@@ -139,6 +141,7 @@ func (a *App) LoadProject(id int64) *db.Project {
 		log.Printf("Error loading project: %v", err)
 		return nil
 	}
+	runtime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", proj.Name))
 	return proj
 }
 
