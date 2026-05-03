@@ -1,24 +1,30 @@
 package db
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type Project struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	Content   string `json:"content"`
-	CreatedAt int64  `json:"createdAt"`
-	UpdatedAt int64  `json:"updatedAt"`
+	ID        int64  `gorm:"primaryKey" json:"id"`
+	Name      string `gorm:"not null" json:"name"`
+	Content   string `gorm:"type:text;not null" json:"content"`
+	CreatedAt int64  `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt int64  `gorm:"autoUpdateTime" json:"updatedAt"`
+}
+
+type Setting struct {
+	Key   string `gorm:"primaryKey" json:"key"`
+	Value string `gorm:"not null" json:"value"`
 }
 
 type ProjectManager struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
 func NewProjectManager() *ProjectManager {
@@ -33,101 +39,74 @@ func (p *ProjectManager) Init() error {
 	dbPath := filepath.Join(userHome, ".kube-builder", "app_data.db")
 	os.MkdirAll(filepath.Dir(dbPath), os.ModePerm)
 
-	db, err := sql.Open("sqlite", dbPath)
+	// Use pure-Go SQLite driver with GORM
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return err
 	}
 
 	p.db = db
 
-	// Create tables
-	query := `
-	CREATE TABLE IF NOT EXISTS projects (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		content TEXT NOT NULL,
-		created_at INTEGER NOT NULL,
-		updated_at INTEGER NOT NULL
-	);
-	CREATE TABLE IF NOT EXISTS settings (
-		key TEXT PRIMARY KEY,
-		value TEXT NOT NULL
-	);
-	`
-	_, err = p.db.Exec(query)
-	return err
+	// Auto Migration (Like Laravel migrations)
+	return p.db.AutoMigrate(&Project{}, &Setting{})
 }
 
 func (p *ProjectManager) Close() {
 	if p.db != nil {
-		p.db.Close()
+		sqlDB, _ := p.db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
 	}
 }
 
 func (p *ProjectManager) SaveProject(name string, content string) (int64, error) {
-	now := time.Now().Unix()
-	res, err := p.db.Exec(
-		"INSERT INTO projects (name, content, created_at, updated_at) VALUES (?, ?, ?, ?)",
-		name, content, now, now,
-	)
-	if err != nil {
-		return 0, err
+	project := Project{
+		Name:    name,
+		Content: content,
 	}
-	return res.LastInsertId()
+	result := p.db.Create(&project)
+	return project.ID, result.Error
 }
 
 func (p *ProjectManager) UpdateProject(id int64, content string) error {
-	now := time.Now().Unix()
-	_, err := p.db.Exec(
-		"UPDATE projects SET content = ?, updated_at = ? WHERE id = ?",
-		content, now, id,
-	)
-	return err
+	return p.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"content":    content,
+		"updated_at": time.Now().Unix(),
+	}).Error
 }
 
 func (p *ProjectManager) GetProjects() ([]Project, error) {
-	rows, err := p.db.Query("SELECT id, name, created_at, updated_at FROM projects ORDER BY updated_at DESC")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var projects []Project
-	for rows.Next() {
-		var proj Project
-		if err := rows.Scan(&proj.ID, &proj.Name, &proj.CreatedAt, &proj.UpdatedAt); err != nil {
-			return nil, err
-		}
-		projects = append(projects, proj)
-	}
-	return projects, nil
+	result := p.db.Order("updated_at desc").Find(&projects)
+	return projects, result.Error
 }
 
 func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
-	var proj Project
-	err := p.db.QueryRow("SELECT id, name, content, created_at, updated_at FROM projects WHERE id = ?", id).
-		Scan(&proj.ID, &proj.Name, &proj.Content, &proj.CreatedAt, &proj.UpdatedAt)
-	if err != nil {
-		return nil, err
+	var project Project
+	result := p.db.First(&project, id)
+	if result.Error != nil {
+		return nil, result.Error
 	}
-	return &proj, nil
+	return &project, nil
 }
 
 func (p *ProjectManager) DeleteProject(id int64) error {
-	_, err := p.db.Exec("DELETE FROM projects WHERE id = ?", id)
-	return err
+	return p.db.Delete(&Project{}, id).Error
 }
 
 func (p *ProjectManager) SaveSetting(key string, value string) error {
-	_, err := p.db.Exec("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", key, value)
-	return err
+	setting := Setting{Key: key, Value: value}
+	return p.db.Save(&setting).Error
 }
 
 func (p *ProjectManager) GetSetting(key string) (string, error) {
-	var value string
-	err := p.db.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
-	if err != nil {
-		return "", err
+	var setting Setting
+	result := p.db.First(&setting, "key = ?", key)
+	if result.Error != nil {
+		return "", result.Error
 	}
-	return value, nil
+	return setting.Value, nil
 }
