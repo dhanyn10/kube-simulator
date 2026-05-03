@@ -19,6 +19,7 @@ const flowStore = createStore<FlowState>()(
     draggedNodeId: null,
     lastActionId: 'init',
     lastActionName: 'Initialize Store',
+    currentProject: null,
     ...createFlowSlice(...a),
     ...createDeploymentSlice(...a),
     ...createNodeSlice(...a),
