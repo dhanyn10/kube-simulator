@@ -20,6 +20,7 @@ const flowStore = createStore<FlowState>()(
     lastActionId: 'init',
     lastActionName: 'Initialize Store',
     currentProject: null,
+    lastSavedSnapshot: null,
     ...createFlowSlice(...a),
     ...createDeploymentSlice(...a),
     ...createNodeSlice(...a),

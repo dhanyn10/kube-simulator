@@ -19,6 +19,23 @@ export const setupPodHandlers = (podId: string, get: () => any) => ({
   },
 });
 
+export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
+  return nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      onDelete: () => {
+        const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
+        if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+      },
+      onRename: (newName: string) => {
+        const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
+        get().updateNodeData(node.id, { label: cleanName, isAutoNamed: false });
+      },
+    }
+  }));
+};
+
 export const syncDeployment = (
   deployment: Node, 
   currentNodes: Node[], 

@@ -39,6 +39,7 @@ export interface FlowState {
   lastActionId: string;
   lastActionName: string;
   currentProject: { id: number, name: string } | null;
+  lastSavedSnapshot: string | null;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
