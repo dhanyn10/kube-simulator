@@ -25,6 +25,7 @@ export interface FlowSlice {
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
   nodes: [],
   edges: [],
+  currentProject: null,
   onNodesChange: (changes: NodeChange[]) => {
     set((state) => ({
       nodes: applyNodeChanges(changes, state.nodes),

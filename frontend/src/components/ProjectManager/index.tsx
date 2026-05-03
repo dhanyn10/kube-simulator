@@ -46,13 +46,14 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
     // @ts-ignore
     if (window.go?.main?.App?.SaveProject) {
       // @ts-ignore
-      await window.go.main.App.SaveProject(projectName, content);
+      const id = await window.go.main.App.SaveProject(projectName, content);
+      useFlowStore.setState({ currentProject: { id, name: projectName } });
       setProjectName('');
       loadProjects();
     }
   };
 
-  const handleLoad = async (id: number) => {
+  const handleLoad = async (id: number, name: string) => {
     // @ts-ignore
     if (window.go?.main?.App?.LoadProject) {
       // @ts-ignore
@@ -62,6 +63,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
         useFlowStore.setState({
           nodes: data.nodes || [],
           edges: data.edges || [],
+          currentProject: { id, name }
         });
         onClose();
       }
@@ -146,7 +148,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleLoad(p.id)}
+                        onClick={() => handleLoad(p.id, p.name)}
                         className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
                         title="Load Project"
                       >

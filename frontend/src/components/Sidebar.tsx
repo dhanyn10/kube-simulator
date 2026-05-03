@@ -12,6 +12,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const currentProject = useFlowStore((state) => state.currentProject);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,7 +60,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
               "text-xs font-bold uppercase tracking-[0.2em]",
               colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
             )}>
-              InfraStack Architect
+              {currentProject?.name || "InfraStack Architect"}
             </h1>
             <p className={cn(
               "text-[10px] mt-1 font-medium font-mono",
