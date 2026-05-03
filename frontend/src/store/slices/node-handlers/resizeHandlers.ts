@@ -20,7 +20,7 @@ export const resizeHandlers = (set: any, get: any) => ({
           height: n.type === 'Pod' ? undefined : nextHeight,
           style: n.type === 'Pod' ? { ...(n.style || {}), width: nextWidth, minHeight: nextHeight } : { width: nextWidth, height: nextHeight },
           measured: n.type === 'Pod' ? undefined : { width: nextWidth, height: nextHeight },
-          data: n.type === 'Pod' ? { ...n.data, isManuallyResized: true } : n.data
+          data: { ...n.data, isManuallyResized: true }
       } : n);
       
       const resizedNode = nextNodes.find(n => n.id === node.id);
