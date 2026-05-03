@@ -4,7 +4,9 @@ go 1.25.0
 
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
+	github.com/glebarez/sqlite v1.11.0
 	github.com/wailsapp/wails/v2 v2.12.0
+	gorm.io/gorm v1.31.1
 )
 
 require (
@@ -14,7 +16,6 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
-	github.com/glebarez/sqlite v1.11.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -54,7 +55,6 @@ require (
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
-	gorm.io/gorm v1.31.1 // indirect
 	modernc.org/libc v1.72.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
