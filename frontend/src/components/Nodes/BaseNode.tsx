@@ -1,10 +1,10 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeResizer } from '@xyflow/react';
 import { Settings, Trash2, AlertCircle, CheckCircle2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { K8sNodeData } from '../../../types';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
-import { getPodMinimumSize } from '../../../store/helpers';
+import { K8sNodeData } from '../../types';
+import { cn } from '../../lib/utils';
+import { useFlowStore } from '../../store';
+import { getPodMinimumSize } from '../../store/helpers';
 
 const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
   const onQuickConnect = useFlowStore((state) => state.onQuickConnect);

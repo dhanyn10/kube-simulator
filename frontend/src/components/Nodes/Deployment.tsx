@@ -1,9 +1,9 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { K8sNodeData } from '../../../types';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
+import { K8sNodeData } from '../../types';
+import { cn } from '../../lib/utils';
+import { useFlowStore } from '../../store';
 
 const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
   const onQuickConnect = useFlowStore((state) => state.onQuickConnect);
@@ -44,8 +44,10 @@ const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
   );
 };
 
-export const ServiceNode = memo((props: NodeProps) => {
+export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
+  const isHovered = data.isHovered;
+  const isDetaching = data.isDetaching;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,27 +102,31 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[120px]",
-      colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
-      props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
+      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col min-h-[160px]",
+      colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
+      props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
+      isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
+      isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>
       <QuickConnectArrows nodeId={props.id} />
       <NodeResizer
-        minWidth={150}
-        minHeight={120}
+        minWidth={300}
+        minHeight={160}
         isVisible={props.selected}
-        lineClassName="border-amber-500"
-        handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded"
+        lineClassName="border-violet-500"
+        handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded"
         onResize={handleNodeResize}
         onResizeEnd={handleNodeResizeStop}
       />
 
-      <div className="flex items-center gap-2 mb-2 shrink-0">
-        <div className="w-3 h-3 bg-amber-500 [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]"></div>
-        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tighter">Service</span>
-      </div>
+      <div className="absolute -top-3 left-6 flex items-center gap-2">
+        <span className={cn(
+          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
+          isHovered ? "bg-violet-400" : isDetaching ? "bg-red-500" : "bg-violet-600"
+        )}>
+          DEPLOYMENT
+        </span>
 
-      <div className="flex-1 flex flex-col min-h-0">
         {isEditing ? (
           <input
             ref={inputRef}
@@ -129,41 +135,59 @@ export const ServiceNode = memo((props: NodeProps) => {
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
-              "w-full text-xs font-bold mb-1 px-1 py-0.5 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-amber-500" : "bg-slate-50 text-slate-900 border-amber-400"
+              "text-xs font-mono font-bold tracking-tight px-1 py-0.5 rounded border outline-none",
+              colorMode === 'dark' ? "bg-slate-900 text-violet-300 border-violet-500" : "bg-white text-violet-700 border-violet-400"
             )}
           />
         ) : (
-          <div
+          <span
             className={cn(
-              "text-xs font-bold mb-1 cursor-text truncate",
-              colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
+              "text-xs font-mono font-bold tracking-tight cursor-text",
+              colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
             )}
             onDoubleClick={() => setIsEditing(true)}
           >
             {data.label}
-          </div>
+          </span>
         )}
-
-        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>targetPort: {data.targetPort || 8080}</div>
-
-        <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
-          <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
-        </div>
       </div>
 
-      <Handle type="target" position={Position.Top} id="top-t" className="!bg-amber-500" />
+      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
+        replicas: {data.replicas || 0}
+      </div>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          data.onDelete?.();
+        }}
+        className={cn(
+          "opacity-0 group-hover:opacity-100 p-1 rounded transition-all absolute top-2 right-2",
+          colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+        )}
+        style={{ zIndex: 10 }}
+      >
+        <Trash2 size={12} />
+      </button>
+
+      <div className={cn(
+        "pointer-events-none mt-auto text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2",
+        colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
+      )}>
+        Workload Zone
+      </div>
+
+      <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0" />
       <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0" />
 
       <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-amber-500" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!opacity-0" />
 
-      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0" />
+      <Handle type="target" position={Position.Left} id="left-t" className="!bg-violet-600" />
       <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0" />
 
       <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!bg-violet-600" />
     </div>
   );
 });

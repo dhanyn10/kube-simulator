@@ -1,6 +1,6 @@
 import React from 'react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { useFlowStore } from '../store';
+import { cn } from '../lib/utils';
 import { Settings, X } from 'lucide-react';
 import { NodeConfig } from './NodeConfig';
 import { EdgeConfig } from './EdgeConfig';

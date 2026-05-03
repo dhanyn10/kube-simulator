@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, X, Plus } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { hydrateNodes } from '../../store/nodeHelpers';
+import { useFlowStore } from '../store';
+import { cn } from '../lib/utils';
+import { hydrateNodes } from '../store/nodeHelpers';
 
 // @ts-ignore
-import * as App from '../../../wailsjs/go/main/App';
+import * as App from '../../wailsjs/go/main/App';
 
 interface Project {
   id: number;
