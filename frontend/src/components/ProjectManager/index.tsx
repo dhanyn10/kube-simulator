@@ -10,6 +10,7 @@ import * as App from '../../../wailsjs/go/main/App';
 interface Project {
   id: number;
   name: string;
+  content: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -26,6 +27,9 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
 
+  const isCanvasEmpty = nodes.length === 0;
+  const currentContent = JSON.stringify({ nodes, edges });
+
   const loadProjects = async () => {
     // @ts-ignore
     if (window.go?.main?.App?.GetProjects) {
@@ -40,6 +44,8 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
       loadProjects();
     }
   }, [isOpen]);
+
+  const [confirmOverwriteId, setConfirmOverwriteId] = useState<number | null>(null);
 
   const currentProject = useFlowStore((state) => state.currentProject);
   const lastSavedSnapshot = useFlowStore((state) => state.lastSavedSnapshot);
@@ -56,6 +62,22 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
         useFlowStore.setState({ lastSavedSnapshot: content });
         loadProjects();
         onClose();
+      }
+    }
+  };
+
+  const handleOverwrite = async (id: number) => {
+    const content = JSON.stringify({ nodes, edges });
+    // @ts-ignore
+    if (window.go?.main?.App?.UpdateProject) {
+      // @ts-ignore
+      const success = await window.go.main.App.UpdateProject(id, content);
+      if (success) {
+        if (currentProject?.id === id) {
+          useFlowStore.setState({ lastSavedSnapshot: content });
+        }
+        setConfirmOverwriteId(null);
+        loadProjects();
       }
     }
   };
@@ -187,31 +209,63 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {currentProject?.id === p.id ? (
-                        hasChanges && (
-                          <button
-                            onClick={handleUpdate}
-                            className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-900/20"
-                          >
-                            <Save size={14} />
-                            Update Data
-                          </button>
-                        )
+                      {confirmOverwriteId === p.id ? (
+                        <div className="flex items-center gap-3 bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20">
+                          <span className="text-[10px] font-bold text-red-500 uppercase tracking-tighter">Overwrite?</span>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleOverwrite(p.id)} 
+                              className="text-xs font-black text-emerald-500 hover:text-emerald-400"
+                            >
+                              YES
+                            </button>
+                            <button 
+                              onClick={() => setConfirmOverwriteId(null)} 
+                              className="text-xs font-black text-slate-500 hover:text-slate-400"
+                            >
+                              NO
+                            </button>
+                          </div>
+                        </div>
                       ) : (
-                        <button
-                          onClick={() => handleLoad(p.id, p.name)}
-                          className="px-3 py-1.5 text-xs font-bold text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors border border-blue-500/20"
-                        >
-                          Open
-                        </button>
+                        <>
+                          {currentProject?.id === p.id ? (
+                            hasChanges && (
+                              <button
+                                onClick={handleUpdate}
+                                className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-900/20"
+                              >
+                                <Save size={14} />
+                                Update Data
+                              </button>
+                            )
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {!isCanvasEmpty && p.content !== currentContent && (
+                                <button
+                                  onClick={() => setConfirmOverwriteId(p.id)}
+                                  className="opacity-0 group-hover:opacity-100 px-3 py-1.5 text-xs font-bold text-amber-500 hover:bg-amber-500/10 rounded-lg transition-all border border-amber-500/20 whitespace-nowrap"
+                                >
+                                  Overwrite
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleLoad(p.id, p.name)}
+                                className="px-3 py-1.5 text-xs font-bold text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors border border-blue-500/20"
+                              >
+                                Open
+                              </button>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Delete Project"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
                       )}
-                      <button
-                        onClick={() => handleDelete(p.id)}
-                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Delete Project"
-                      >
-                        <Trash2 size={18} />
-                      </button>
                     </div>
                   </div>
                 ))
