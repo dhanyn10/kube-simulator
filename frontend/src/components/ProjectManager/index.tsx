@@ -110,11 +110,17 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className={cn(
-        "w-[520px] max-h-[80vh] rounded-2xl border shadow-2xl flex flex-col",
-        colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
-      )}>
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div 
+        className={cn(
+          "w-[520px] max-h-[80vh] rounded-2xl border shadow-2xl flex flex-col",
+          colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderOpen className="text-blue-500" size={20} />
