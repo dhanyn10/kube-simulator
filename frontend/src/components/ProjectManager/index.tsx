@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, X, Plus } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
+import { hydrateNodes } from '../../store/nodeHelpers';
 
 // @ts-ignore
 import * as App from '../../../wailsjs/go/main/App';
@@ -40,6 +41,25 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
     }
   }, [isOpen]);
 
+  const currentProject = useFlowStore((state) => state.currentProject);
+  const lastSavedSnapshot = useFlowStore((state) => state.lastSavedSnapshot);
+  const hasChanges = JSON.stringify({ nodes, edges }) !== lastSavedSnapshot;
+
+  const handleUpdate = async () => {
+    if (!currentProject) return;
+    const content = JSON.stringify({ nodes, edges });
+    // @ts-ignore
+    if (window.go?.main?.App?.UpdateProject) {
+      // @ts-ignore
+      const success = await window.go.main.App.UpdateProject(currentProject.id, content);
+      if (success) {
+        useFlowStore.setState({ lastSavedSnapshot: content });
+        loadProjects();
+        onClose();
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!projectName.trim()) return;
     const content = JSON.stringify({ nodes, edges });
@@ -47,7 +67,10 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
     if (window.go?.main?.App?.SaveProject) {
       // @ts-ignore
       const id = await window.go.main.App.SaveProject(projectName, content);
-      useFlowStore.setState({ currentProject: { id, name: projectName } });
+      useFlowStore.setState({ 
+        currentProject: { id, name: projectName },
+        lastSavedSnapshot: content
+      });
       setProjectName('');
       loadProjects();
     }
@@ -60,10 +83,12 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
       const res = await window.go.main.App.LoadProject(id);
       if (res && res.content) {
         const data = JSON.parse(res.content);
+        const hydratedNodes = hydrateNodes(data.nodes || [], () => useFlowStore.getState());
         useFlowStore.setState({
-          nodes: data.nodes || [],
+          nodes: hydratedNodes,
           edges: data.edges || [],
-          currentProject: { id, name }
+          currentProject: { id, name },
+          lastSavedSnapshot: res.content
         });
         onClose();
       }
@@ -75,6 +100,9 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
     if (window.go?.main?.App?.DeleteProject) {
       // @ts-ignore
       await window.go.main.App.DeleteProject(id);
+      if (currentProject?.id === id) {
+        useFlowStore.setState({ currentProject: null, lastSavedSnapshot: null });
+      }
       loadProjects();
     }
   };
@@ -84,7 +112,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className={cn(
-        "w-[480px] max-h-[80vh] rounded-2xl border shadow-2xl flex flex-col",
+        "w-[520px] max-h-[80vh] rounded-2xl border shadow-2xl flex flex-col",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
       )}>
         <div className="p-6 border-b flex items-center justify-between">
@@ -100,7 +128,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
         <div className="p-6 space-y-6 flex-1 overflow-y-auto">
           {/* New Project */}
           <div className="space-y-3">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Save Current Design</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Save As New Project</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -115,10 +143,10 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
               <button
                 onClick={handleSave}
                 disabled={!projectName.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg font-bold flex items-center gap-2 transition-all"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg font-bold flex items-center gap-2 transition-all whitespace-nowrap"
               >
-                <Save size={16} />
-                Save
+                <Plus size={16} />
+                Save New
               </button>
             </div>
           </div>
@@ -137,23 +165,40 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
                     key={p.id}
                     className={cn(
                       "flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-lg group",
-                      colorMode === 'dark' ? "bg-slate-800/50 border-slate-700 hover:border-blue-500/50" : "bg-white border-slate-200 hover:border-blue-400"
+                      colorMode === 'dark' ? "bg-slate-800/50 border-slate-700 hover:border-blue-500/50" : "bg-white border-slate-200 hover:border-blue-400",
+                      currentProject?.id === p.id && (colorMode === 'dark' ? "ring-2 ring-blue-500 bg-slate-800" : "ring-2 ring-blue-400 bg-blue-50/30")
                     )}
                   >
                     <div>
-                      <div className="font-bold">{p.name}</div>
+                      <div className="font-bold flex items-center gap-2">
+                        {p.name}
+                        {currentProject?.id === p.id && (
+                          <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter animate-pulse">Active</span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                         {new Date(p.updatedAt * 1000).toLocaleString()}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleLoad(p.id, p.name)}
-                        className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors"
-                        title="Load Project"
-                      >
-                        <FolderOpen size={18} />
-                      </button>
+                      {currentProject?.id === p.id ? (
+                        hasChanges && (
+                          <button
+                            onClick={handleUpdate}
+                            className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-900/20"
+                          >
+                            <Save size={14} />
+                            Update Data
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => handleLoad(p.id, p.name)}
+                          className="px-3 py-1.5 text-xs font-bold text-blue-500 hover:bg-blue-500/10 rounded-lg transition-colors border border-blue-500/20"
+                        >
+                          Open
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(p.id)}
                         className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"

@@ -1,5 +1,6 @@
 import { Node } from '@xyflow/react';
 import { getNodeData, sortNodes } from '../../helpers';
+import { hydrateNodes } from '../../nodeHelpers';
 
 export const clipboardHandlers = (set: any, get: any) => ({
   copyNodes: () => {
@@ -85,8 +86,10 @@ export const clipboardHandlers = (set: any, get: any) => ({
       selected: true,
     }));
 
+    const hydratedPastedNodes = hydrateNodes(pastedNodes, get);
+
     set({
-      nodes: sortNodes([...updatedExistingNodes.map(n => ({ ...n, selected: false })), ...pastedNodes]),
+      nodes: sortNodes([...updatedExistingNodes.map(n => ({ ...n, selected: false })), ...hydratedPastedNodes]),
       edges: [...edges.map(e => ({ ...e, selected: false })), ...pastedEdges],
       lastActionId: `paste-${Date.now()}`,
       lastActionName: 'Paste Elements'
