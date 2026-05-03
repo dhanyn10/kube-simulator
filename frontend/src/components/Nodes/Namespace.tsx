@@ -1,9 +1,9 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { Trash2, Anchor } from 'lucide-react';
-import { K8sNodeData } from '../../../types';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
+import { K8sNodeData } from '../../types';
+import { cn } from '../../lib/utils';
+import { useFlowStore } from '../../store';
 
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;

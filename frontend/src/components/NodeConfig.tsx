@@ -1,6 +1,6 @@
 import React from 'react';
-import { useFlowStore } from '../../../store';
-import { cn } from '../../../lib/utils';
+import { useFlowStore } from '../store';
+import { cn } from '../lib/utils';
 import { Server, Code, Box, Layers, Network, Plus, Minus } from 'lucide-react';
 
 const RUNTIMES = {
