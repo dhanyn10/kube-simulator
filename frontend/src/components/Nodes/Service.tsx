@@ -153,17 +153,10 @@ export const ServiceNode = memo((props: NodeProps) => {
         </div>
       </div>
 
-      <Handle type="target" position={Position.Top} id="top-t" className="!bg-amber-500" />
-      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0" />
-
-      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-amber-500" />
-
-      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0" />
-
-      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0" />
+      <Handle type="target" position={Position.Top} id="top-t" className="!bg-amber-500 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-amber-500 !w-2 !h-2" />
+      <Handle type="target" position={Position.Left} id="left-t" className="!bg-amber-500 !w-2 !h-2" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!bg-amber-500 !w-2 !h-2" />
     </div>
   );
 });
