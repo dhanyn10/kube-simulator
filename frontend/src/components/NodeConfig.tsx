@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Server, Code, Box, Layers, Network, Plus, Minus } from 'lucide-react';
+import { Server, Code, Box, Layers, Network, Plus, Minus, Globe, Activity } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -17,6 +17,9 @@ const WEBSERVERS = [
   { id: 'nginx', label: 'Nginx' },
   { id: 'apache', label: 'Apache' },
 ];
+
+const CPU_OPTIONS = ['100m', '250m', '500m', '1', '2'];
+const MEMORY_OPTIONS = ['128Mi', '256Mi', '512Mi', '1Gi', '2Gi'];
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -177,9 +180,173 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         </div>
       )}
 
+      {/* Ingress Configuration */}
+      {selectedNode.type === 'Ingress' && (
+        <>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Globe size={10} /> Host
+            </label>
+            <input
+              type="text"
+              value={data.ingressHost || ''}
+              onChange={(e) => performUpdate({ ingressHost: e.target.value })}
+              placeholder="example.com"
+              className={cn(
+                "w-full text-[10px] p-2 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+              )}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Code size={10} /> Path
+            </label>
+            <input
+              type="text"
+              value={data.ingressPath || ''}
+              onChange={(e) => performUpdate({ ingressPath: e.target.value })}
+              placeholder="/"
+              className={cn(
+                "w-full text-[10px] p-2 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+              )}
+            />
+          </div>
+        </>
+      )}
+
+      {/* HPA Configuration */}
+      {selectedNode.type === 'HPA' && (
+        <>
+          <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Layers size={10} /> Min Replicas
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => performUpdate({ minReplicas: Math.max(1, (data.minReplicas || 1) - 1) })}
+                  className={cn(
+                    "p-1.5 rounded border transition-colors",
+                    colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
+                  )}
+                >
+                  <Minus size={10} />
+                </button>
+                <span className="flex-1 text-center font-mono text-[10px]">{data.minReplicas || 1}</span>
+                <button
+                  onClick={() => performUpdate({ minReplicas: (data.minReplicas || 1) + 1 })}
+                  className={cn(
+                    "p-1.5 rounded border transition-colors",
+                    colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
+                  )}
+                >
+                  <Plus size={10} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Layers size={10} /> Max Replicas
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => performUpdate({ maxReplicas: Math.max(1, (data.maxReplicas || 1) - 1) })}
+                  className={cn(
+                    "p-1.5 rounded border transition-colors",
+                    colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
+                  )}
+                >
+                  <Minus size={10} />
+                </button>
+                <span className="flex-1 text-center font-mono text-[10px]">{data.maxReplicas || 1}</span>
+                <button
+                  onClick={() => performUpdate({ maxReplicas: (data.maxReplicas || 1) + 1 })}
+                  className={cn(
+                    "p-1.5 rounded border transition-colors",
+                    colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
+                  )}
+                >
+                  <Plus size={10} />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Activity size={10} /> Target CPU (%)
+              </label>
+              <input
+                type="range"
+                min="10"
+                max="90"
+                step="5"
+                value={data.targetCPU || 50}
+                onChange={(e) => performUpdate({ targetCPU: parseInt(e.target.value) })}
+                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+              <div className="flex justify-between text-[8px] font-mono text-slate-500">
+                <span>10%</span>
+                <span className="text-blue-500 font-bold">{data.targetCPU || 50}%</span>
+                <span>90%</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Workload Specific Configuration */}
       {(selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') && (
         <>
+          {/* Resource Limits */}
+          <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Layers size={10} /> CPU Limit
+              </label>
+              <div className="flex flex-wrap gap-1">
+                {CPU_OPTIONS.map((cpu) => (
+                  <button
+                    key={cpu}
+                    onClick={() => performUpdate({ cpuLimit: cpu })}
+                    className={cn(
+                      "text-[9px] px-2 py-1 rounded border transition-all",
+                      data.cpuLimit === cpu
+                        ? "bg-violet-600 border-violet-600 text-white"
+                        : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                    )}
+                  >
+                    {cpu}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Layers size={10} /> Memory Limit
+              </label>
+              <div className="flex flex-wrap gap-1">
+                {MEMORY_OPTIONS.map((mem) => (
+                  <button
+                    key={mem}
+                    onClick={() => performUpdate({ memoryLimit: mem })}
+                    className={cn(
+                      "text-[9px] px-2 py-1 rounded border transition-all",
+                      data.memoryLimit === mem
+                        ? "bg-violet-600 border-violet-600 text-white"
+                        : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                    )}
+                  >
+                    {mem}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Web Server */}
           <div className="space-y-1.5">
             <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">

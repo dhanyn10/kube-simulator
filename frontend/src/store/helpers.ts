@@ -7,7 +7,7 @@ export const getNodeData = (node: Node): K8sNodeData => {
 
 export const isAllowed = (parentType: string, childType: string): boolean => {
   if (parentType === 'Deployment') return childType === 'Pod';
-  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet'].includes(childType);
+  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet', 'Ingress', 'HPA'].includes(childType);
   return false;
 };
 
@@ -79,6 +79,8 @@ export const sortNodes = (nodes: Node[]): Node[] => {
     Pod: 2,
     Service: 3,
     Internet: 3,
+    Ingress: 3,
+    HPA: 3,
   };
 
   return [...nodes].sort((a, b) => {
