@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -11,7 +11,7 @@ const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
 
   const arrowStyle = cn(
     "absolute flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-[1000]",
-    colorMode === 'dark' ? "bg-blue-500/20 hover:bg-blue-500/40 text-blue-400" : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-600"
+    colorMode === 'dark' ? "bg-fuchsia-500/20 hover:bg-fuchsia-500/40 text-fuchsia-400" : "bg-fuchsia-500/10 hover:bg-fuchsia-500/20 text-fuchsia-600"
   );
 
   return (
@@ -44,10 +44,8 @@ const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
   );
 };
 
-export const DeploymentNode = memo((props: NodeProps) => {
+export const HPANode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
-  const isHovered = data.isHovered;
-  const isDetaching = data.isDetaching;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +84,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
     }
   };
 
-  const handleNodeResize = useCallback((event, params) => {
+  const handleNodeResize = useCallback((event: any, params: any) => {
     const updatedNode = {
       id: props.id,
       type: props.type,
@@ -96,37 +94,33 @@ export const DeploymentNode = memo((props: NodeProps) => {
     onNodeResize(event, updatedNode as any);
   }, [props.id, props.type, onNodeResize]);
 
-  const handleNodeResizeStop = useCallback((event, params) => {
+  const handleNodeResizeStop = useCallback((event: any, params: any) => {
     onNodeResizeStop(event, { id: props.id, ...params } as any);
   }, [props.id, onNodeResizeStop]);
 
   return (
     <div className={cn(
-      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col min-h-[160px]",
-      colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
-      props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
-      isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
-      isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[140px]",
+      colorMode === 'dark' ? "bg-slate-900 border-fuchsia-500 shadow-fuchsia-900/20" : "bg-white border-fuchsia-500 shadow-fuchsia-100",
+      props.selected ? "ring-4 ring-fuchsia-500/20" : "hover:border-fuchsia-400"
     )}>
       <QuickConnectArrows nodeId={props.id} />
       <NodeResizer
-        minWidth={300}
-        minHeight={160}
+        minWidth={160}
+        minHeight={140}
         isVisible={props.selected}
-        lineClassName="border-violet-500"
-        handleClassName="h-2 w-2 bg-white border-2 border-violet-500 rounded"
+        lineClassName="border-fuchsia-500"
+        handleClassName="h-2 w-2 bg-white border-2 border-fuchsia-500 rounded"
         onResize={handleNodeResize}
         onResizeEnd={handleNodeResizeStop}
       />
 
-      <div className="absolute -top-3 left-6 flex items-center gap-2">
-        <span className={cn(
-          "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
-          isHovered ? "bg-violet-400" : isDetaching ? "bg-red-500" : "bg-violet-600"
-        )}>
-          DEPLOYMENT
-        </span>
+      <div className="flex items-center gap-2 mb-2 shrink-0">
+        <Activity size={12} className="text-fuchsia-500" />
+        <span className="text-[9px] font-bold text-fuchsia-500 uppercase tracking-tighter">HPA</span>
+      </div>
 
+      <div className="flex-1 flex flex-col min-h-0">
         {isEditing ? (
           <input
             ref={inputRef}
@@ -135,52 +129,51 @@ export const DeploymentNode = memo((props: NodeProps) => {
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
-              "text-xs font-mono font-bold tracking-tight px-1 py-0.5 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-900 text-violet-300 border-violet-500" : "bg-white text-violet-700 border-violet-400"
+              "w-full text-xs font-bold mb-1 px-1 py-0.5 rounded border outline-none",
+              colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-fuchsia-500" : "bg-slate-50 text-slate-900 border-fuchsia-400"
             )}
           />
         ) : (
-          <span
+          <div
             className={cn(
-              "text-xs font-mono font-bold tracking-tight cursor-text",
-              colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
+              "text-xs font-bold mb-1 cursor-text truncate",
+              colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
             )}
             onDoubleClick={() => setIsEditing(true)}
           >
             {data.label}
-          </span>
+          </div>
         )}
+
+        <div className="space-y-1 mt-1">
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>min:</span>
+            <span className="text-fuchsia-500 font-bold">{data.minReplicas || 1}</span>
+          </div>
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>max:</span>
+            <span className="text-fuchsia-500 font-bold">{data.maxReplicas || 10}</span>
+          </div>
+        </div>
+
+        <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Target CPU</span>
+          <div className="flex items-center gap-2 mt-0.5">
+            <div className={cn("flex-1 h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
+                <div
+                    className="h-full bg-fuchsia-500 transition-all duration-500"
+                    style={{ width: `${data.targetCPU || 50}%` }}
+                />
+            </div>
+            <span className="text-[9px] font-mono text-fuchsia-500 font-bold">{data.targetCPU || 50}%</span>
+          </div>
+        </div>
       </div>
 
-      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
-        replicas: {data.replicas || 0}
-      </div>
-
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          data.onDelete?.();
-        }}
-        className={cn(
-          "opacity-0 group-hover:opacity-100 p-1 rounded transition-all absolute top-2 right-2",
-          colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-        )}
-        style={{ zIndex: 10 }}
-      >
-        <Trash2 size={12} />
-      </button>
-
-      <div className={cn(
-        "pointer-events-none mt-auto text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2",
-        colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
-      )}>
-        Workload Zone
-      </div>
-
-      <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-violet-600 !w-2 !h-2" />
-      <Handle type="target" position={Position.Left} id="left-t" className="!bg-violet-600 !w-2 !h-2" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!bg-violet-600 !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} id="top-t" className="!bg-fuchsia-500 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-fuchsia-500 !w-2 !h-2" />
+      <Handle type="target" position={Position.Left} id="left-t" className="!bg-fuchsia-500 !w-2 !h-2" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!bg-fuchsia-500 !w-2 !h-2" />
     </div>
   );
 });

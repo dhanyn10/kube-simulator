@@ -47,7 +47,13 @@ export function generateYaml(nodes: any[], edges: any[]): string {
           containers: [{
             name: 'main',
             image: data.image || 'nginx:latest',
-            ports: data.port ? [{ containerPort: data.port }] : undefined
+            ports: data.port ? [{ containerPort: data.port }] : undefined,
+            resources: (data.cpuLimit || data.memoryLimit) ? {
+              limits: {
+                cpu: data.cpuLimit,
+                memory: data.memoryLimit
+              }
+            } : undefined
           }]
         }
       };
@@ -72,10 +78,76 @@ export function generateYaml(nodes: any[], edges: any[]): string {
               containers: [{
                 name: containerName,
                 image: podData.image || 'nginx:latest',
-                ports: podData.port ? [{ containerPort: podData.port }] : undefined
+                ports: podData.port ? [{ containerPort: podData.port }] : undefined,
+                resources: (podData.cpuLimit || podData.memoryLimit) ? {
+                  limits: {
+                    cpu: podData.cpuLimit,
+                    memory: podData.memoryLimit
+                  }
+                } : undefined
               }]
             }
           }
+        }
+      };
+    }
+
+    if (data.type === 'Ingress') {
+      const outgoingEdges = edges.filter(e => e.source === node.id);
+      const targetService = nodes.find(n => n.type === 'Service' && outgoingEdges.some(e => e.target === n.id));
+      const serviceName = targetService ? targetService.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-service';
+
+      return {
+        apiVersion: 'networking.k8s.io/v1',
+        kind: 'Ingress',
+        metadata: { name },
+        spec: {
+          rules: [{
+            host: data.ingressHost || 'example.local',
+            http: {
+              paths: [{
+                path: data.ingressPath || '/',
+                pathType: 'Prefix',
+                backend: {
+                  service: {
+                    name: serviceName,
+                    port: { number: targetService?.data.port || 80 }
+                  }
+                }
+              }]
+            }
+          }]
+        }
+      };
+    }
+
+    if (data.type === 'HPA') {
+      const outgoingEdges = edges.filter(e => e.source === node.id);
+      const targetDeployment = nodes.find(n => n.type === 'Deployment' && outgoingEdges.some(e => e.target === n.id));
+      const deploymentName = targetDeployment ? targetDeployment.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-deployment';
+
+      return {
+        apiVersion: 'autoscaling/v2',
+        kind: 'HorizontalPodAutoscaler',
+        metadata: { name },
+        spec: {
+          scaleTargetRef: {
+            apiVersion: 'apps/v1',
+            kind: 'Deployment',
+            name: deploymentName
+          },
+          minReplicas: data.minReplicas || 1,
+          maxReplicas: data.maxReplicas || 10,
+          metrics: [{
+            type: 'Resource',
+            resource: {
+              name: 'cpu',
+              target: {
+                type: 'Utilization',
+                averageUtilization: data.targetCPU || 50
+              }
+            }
+          }]
         }
       };
     }

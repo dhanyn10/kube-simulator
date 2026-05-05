@@ -10,6 +10,8 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Service: { x: 90, y: 60 },
   Namespace: { x: 300, y: 200 },
   Internet: { x: 90, y: 60 },
+  Ingress: { x: 100, y: 60 },
+  HPA: { x: 90, y: 70 },
 };
 
 export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: number }) => { x: number; y: number }) {
@@ -24,7 +26,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       const candidates = nodes.filter((n) => {
         if (childType === 'Pod') return n.type === 'Deployment' || n.type === 'Namespace';
-        if (['Deployment', 'Service', 'Internet'].includes(childType)) return n.type === 'Namespace';
+        if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA'].includes(childType)) return n.type === 'Namespace';
         return false;
       });
 
