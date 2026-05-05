@@ -106,7 +106,7 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
         {workloadItems.length > 0 && (
           <section>
             <label className={cn(
