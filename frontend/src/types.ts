@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA';
 
 export interface K8sNodeData {
   [key: string]: any;
@@ -22,6 +22,21 @@ export interface K8sNodeData {
   runtime?: 'php' | 'nodejs' | 'java' | 'go' | 'python' | 'none';
   framework?: string;
   isAutoNamed?: boolean;
+
+  // Resource Limits
+  cpuRequest?: string;
+  cpuLimit?: string;
+  memoryRequest?: string;
+  memoryLimit?: string;
+
+  // HPA specific fields
+  minReplicas?: number;
+  maxReplicas?: number;
+  targetCPU?: number;
+
+  // Ingress specific fields
+  ingressHost?: string;
+  ingressPath?: string;
 
   // Internet specific fields
   traffic?: number;

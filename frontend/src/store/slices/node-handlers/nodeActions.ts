@@ -48,6 +48,19 @@ export const nodeActions = (set: any, get: any) => ({
        newNode.width = 600;
        newNode.height = 400;
        newNode.style = { width: 600, height: 400 };
+    } else if (type === 'Ingress') {
+       newNode.data.ingressHost = 'example.local';
+       newNode.data.ingressPath = '/';
+       newNode.width = 200;
+       newNode.height = 120;
+       newNode.style = { width: 200, height: 120 };
+    } else if (type === 'HPA') {
+       newNode.data.minReplicas = 1;
+       newNode.data.maxReplicas = 10;
+       newNode.data.targetCPU = 50;
+       newNode.width = 180;
+       newNode.height = 140;
+       newNode.style = { width: 180, height: 140 };
     }
 
     set((state: any) => {
