@@ -119,7 +119,7 @@ export default function App() {
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={defaultEdgeOptions}
-          defaultViewport={{ x: 0, y: 0, zoom: 0.5 }}
+          defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
           minZoom={0.5}
           maxZoom={2}
           className="bg-transparent"

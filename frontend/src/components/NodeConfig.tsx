@@ -18,8 +18,20 @@ const WEBSERVERS = [
   { id: 'apache', label: 'Apache' },
 ];
 
-const CPU_OPTIONS = ['100m', '250m', '500m', '1', '2'];
-const MEMORY_OPTIONS = ['128Mi', '256Mi', '512Mi', '1Gi', '2Gi'];
+const CPU_OPTIONS = [
+  { label: '100m', value: '100m' },
+  { label: '250m', value: '250m' },
+  { label: '500m', value: '500m' },
+  { label: '1 Core', value: '1' },
+  { label: '2 Cores', value: '2' },
+];
+const MEMORY_OPTIONS = [
+  { label: '128 Mi', value: '128Mi' },
+  { label: '256 Mi', value: '256Mi' },
+  { label: '512 Mi', value: '512Mi' },
+  { label: '1 Gi', value: '1Gi' },
+  { label: '2 Gi', value: '2Gi' },
+];
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -312,16 +324,16 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
               <div className="flex flex-wrap gap-1">
                 {CPU_OPTIONS.map((cpu) => (
                   <button
-                    key={cpu}
-                    onClick={() => performUpdate({ cpuLimit: cpu })}
+                    key={cpu.value}
+                    onClick={() => performUpdate({ cpuLimit: cpu.value })}
                     className={cn(
                       "text-[9px] px-2 py-1 rounded border transition-all",
-                      data.cpuLimit === cpu
+                      data.cpuLimit === cpu.value
                         ? "bg-violet-600 border-violet-600 text-white"
                         : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
                     )}
                   >
-                    {cpu}
+                    {cpu.label}
                   </button>
                 ))}
               </div>
@@ -334,16 +346,16 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
               <div className="flex flex-wrap gap-1">
                 {MEMORY_OPTIONS.map((mem) => (
                   <button
-                    key={mem}
-                    onClick={() => performUpdate({ memoryLimit: mem })}
+                    key={mem.value}
+                    onClick={() => performUpdate({ memoryLimit: mem.value })}
                     className={cn(
                       "text-[9px] px-2 py-1 rounded border transition-all",
-                      data.memoryLimit === mem
+                      data.memoryLimit === mem.value
                         ? "bg-violet-600 border-violet-600 text-white"
                         : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
                     )}
                   >
-                    {mem}
+                    {mem.label}
                   </button>
                 ))}
               </div>
