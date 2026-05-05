@@ -47,7 +47,10 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     const nextData = { ...data, ...updates };
 
     if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
-        if (nextData.runtime !== 'none' || nextData.webserver !== 'none') {
+        const hasRuntime = nextData.runtime && nextData.runtime !== 'none';
+        const hasWebserver = nextData.webserver && nextData.webserver !== 'none';
+
+        if (hasRuntime || hasWebserver) {
             nextData.status = 'ready';
             const runtimePart = nextData.runtime !== 'none' ? nextData.runtime : '';
             const serverPart = nextData.webserver !== 'none' ? nextData.webserver : '';
