@@ -88,14 +88,14 @@ export const NamespaceNode = memo((props: NodeProps) => {
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
-              "text-sm font-mono font-bold tracking-tight px-2 py-0.5 rounded border-2 outline-none shadow-sm",
+              "relative text-sm font-mono font-bold tracking-tight px-2 py-0.5 rounded border-2 outline-none shadow-sm z-[100]",
               colorMode === 'dark' ? "bg-slate-900 text-emerald-300 border-emerald-500" : "bg-white text-emerald-700 border-emerald-400"
             )}
           />
         ) : (
           <span
             className={cn(
-              "text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm",
+              "relative text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm z-[100]",
               colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700"
             )}
             onDoubleClick={() => setIsEditing(true)}
