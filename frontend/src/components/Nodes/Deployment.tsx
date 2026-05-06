@@ -131,7 +131,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
           <input
             ref={inputRef}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
