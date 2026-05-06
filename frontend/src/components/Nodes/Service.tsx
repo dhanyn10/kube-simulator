@@ -173,11 +173,20 @@ export const ServiceNode = memo((props: NodeProps) => {
           </div>
         )}
 
-        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>targetPort: {data.targetPort || 8080}</div>
+        <div className="space-y-1.5 mt-1">
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
+            <span className="text-amber-500 font-bold">{data.port || 80}</span>
+          </div>
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
+            <span className="text-amber-500 font-bold">{data.targetPort || 80}</span>
+          </div>
+        </div>
 
         <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
           <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
-          <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
+          <div className="text-[9px] font-mono mt-0.5 text-amber-500 break-all">app: {data.selector || 'app-label'}</div>
         </div>
       </div>
 
