@@ -53,8 +53,12 @@ export const MegaMenu = ({ isOpen, onClose, onAddNode }: MegaMenuProps) => {
   })).filter(cat => cat.items.length > 0);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-6 backdrop-blur-sm bg-slate-950/20">
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-6 bg-slate-950/20"
+      onClick={onClose}
+    >
       <div
+        onClick={(e) => e.stopPropagation()}
         className={cn(
           "w-full max-w-5xl rounded-2xl shadow-2xl border animate-in zoom-in-95 duration-200 overflow-hidden",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"

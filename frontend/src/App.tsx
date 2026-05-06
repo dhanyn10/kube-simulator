@@ -99,16 +99,16 @@ export default function App() {
       'flex h-screen w-screen overflow-hidden font-sans antialiased',
       colorMode === 'dark' ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-800'
     )}>
-    <Sidebar
-      onAddNode={addNode}
-      onExport={handleExport}
-      onOpenMegaMenu={() => setIsMegaMenuOpen(true)}
-    />
-    <MegaMenu
-      isOpen={isMegaMenuOpen}
-      onClose={() => setIsMegaMenuOpen(false)}
-      onAddNode={addNode}
-    />
+      <Sidebar
+        onAddNode={addNode}
+        onExport={handleExport}
+        onOpenMegaMenu={() => setIsMegaMenuOpen(true)}
+      />
+      <MegaMenu
+        isOpen={isMegaMenuOpen}
+        onClose={() => setIsMegaMenuOpen(false)}
+        onAddNode={addNode}
+      />
       <ConfigPanel />
 
       <main className="flex-1 relative canvas-grid">
