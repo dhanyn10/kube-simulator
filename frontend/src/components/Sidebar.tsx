@@ -19,7 +19,7 @@ export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) =
   const [searchTerm, setSearchTerm] = useState('');
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    workloads: false,
+    workloads: true,
     networking: false,
     scaling: false,
     others: false,
