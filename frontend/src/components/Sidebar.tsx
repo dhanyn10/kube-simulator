@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Grid } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Grid, Save, Upload } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
 import { ProjectManager } from './ProjectManager';
+import { hydrateNodes } from '../store/nodeHelpers';
 
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
@@ -39,6 +40,46 @@ export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) =
       newState[section as keyof typeof newState] = !isCurrentlyExpanded;
       return newState;
     });
+  };
+
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+
+  const handleExportFile = async () => {
+    // @ts-ignore
+    if (window.go?.main?.App?.ExportProjectFile) {
+      const canvasContent = JSON.stringify({ nodes, edges });
+      const yamlContent = ""; // You can generate YAML here if needed
+      // @ts-ignore
+      await window.go.main.App.ExportProjectFile(
+        currentProject?.name || "unnamed-project",
+        canvasContent,
+        yamlContent
+      );
+    }
+  };
+
+  const handleImportFile = async () => {
+    // @ts-ignore
+    if (window.go?.main?.App?.ImportProjectFile) {
+      // @ts-ignore
+      const json = await window.go.main.App.ImportProjectFile();
+      if (json) {
+        try {
+          const data = JSON.parse(json);
+          const canvas = JSON.parse(data.canvas);
+          const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
+          useFlowStore.setState({
+            nodes: hydratedNodes,
+            edges: canvas.edges || [],
+            currentProject: { id: -1, name: data.name }, // Temporary ID for file-based project
+            lastSavedSnapshot: data.canvas
+          });
+        } catch (e) {
+          console.error("Failed to import file", e);
+        }
+      }
+    }
   };
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
@@ -373,23 +414,48 @@ export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) =
         "p-4 space-y-3",
         colorMode === 'dark' ? "bg-slate-950/50" : "bg-slate-100"
       )}>
-        <button
-          onClick={() => setIsProjectOpen(true)}
-          className={cn(
-            "w-full flex items-center justify-center gap-2 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-            colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-blue-400" : "bg-white hover:bg-slate-50 text-blue-600 border border-slate-200"
-          )}
-        >
-          <FolderOpen size={12} />
-          Projects
-        </button>
-        <button
-          onClick={onExport}
-          className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
-        >
-          <FileCode size={12} />
-          Export YAML
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setIsProjectOpen(true)}
+            className={cn(
+              "flex items-center justify-center gap-2 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
+              colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-blue-400" : "bg-white hover:bg-slate-50 text-blue-600 border border-slate-200"
+            )}
+            title="Database Projects"
+          >
+            <FolderOpen size={12} />
+            DB
+          </button>
+          <button
+            onClick={handleImportFile}
+            className={cn(
+              "flex items-center justify-center gap-2 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
+              colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-emerald-400" : "bg-white hover:bg-slate-50 text-emerald-600 border border-slate-200"
+            )}
+            title="Import .infra File"
+          >
+            <Upload size={12} />
+            File
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onExport}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
+            title="Export K8s YAML"
+          >
+            <FileCode size={12} />
+            YAML
+          </button>
+          <button
+            onClick={handleExportFile}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
+            title="Save .infra File"
+          >
+            <Save size={12} />
+            Save
+          </button>
+        </div>
       </div>
 
       <ProjectManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />

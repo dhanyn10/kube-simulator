@@ -30,6 +30,7 @@ import { cn } from './lib/utils';
 import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { hydrateNodes } from './store/nodeHelpers';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -73,6 +74,32 @@ export default function App() {
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
   const { handleUndo, handleRedo } = useHistory();
+
+  // Listen for external file open events (Open With)
+  React.useEffect(() => {
+    // @ts-ignore
+    if (window.runtime?.EventsOn) {
+      // @ts-ignore
+      const off = window.runtime.EventsOn('open-infra-file', (json: string) => {
+        if (json) {
+          try {
+            const data = JSON.parse(json);
+            const canvas = JSON.parse(data.canvas);
+            const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
+            useFlowStore.setState({
+              nodes: hydratedNodes,
+              edges: canvas.edges || [],
+              currentProject: { id: -1, name: data.name },
+              lastSavedSnapshot: data.canvas
+            });
+          } catch (e) {
+            console.error("Failed to open external file", e);
+          }
+        }
+      });
+      return () => off();
+    }
+  }, []);
   const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);
 
   useKeyboardShortcuts({

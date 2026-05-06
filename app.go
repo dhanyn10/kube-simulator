@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"build-wails/backend/db"
 	"github.com/dgraph-io/badger/v4"
@@ -13,9 +15,10 @@ import (
 
 // App struct
 type App struct {
-	ctx      context.Context
-	history  *db.HistoryManager
-	projects *db.ProjectManager
+	ctx             context.Context
+	history         *db.HistoryManager
+	projects        *db.ProjectManager
+	initialFilePath string
 }
 
 // NewApp creates a new App application struct
@@ -37,6 +40,17 @@ func (a *App) startup(ctx context.Context) {
 
 	if err := a.projects.Init(); err != nil {
 		log.Fatalf("Failed to initialize project manager: %v", err)
+	}
+
+	// If a file was passed via CLI, read it and emit to frontend after a short delay
+	if a.initialFilePath != "" {
+		go func() {
+			time.Sleep(1 * time.Second) // Wait for frontend to be ready
+			fileData, err := os.ReadFile(a.initialFilePath)
+			if err == nil {
+				runtime.EventsEmit(a.ctx, "open-infra-file", string(fileData))
+			}
+		}()
 	}
 }
 
@@ -117,6 +131,10 @@ func (a *App) SaveProject(name string, content string) int64 {
 	return id
 }
 
+func (a *App) SetInitialFile(path string) {
+	a.initialFilePath = path
+}
+
 func (a *App) UpdateProject(id int64, content string) bool {
 	err := a.projects.UpdateProject(id, content)
 	if err != nil {
@@ -124,6 +142,56 @@ func (a *App) UpdateProject(id int64, content string) bool {
 		return false
 	}
 	return true
+}
+
+func (a *App) ExportProjectFile(name string, canvasContent string, yamlContent string) bool {
+	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename: fmt.Sprintf("%s.infra", name),
+		Title:           "Export Infrastructure Project",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "InfraStack Project (*.infra)", Pattern: "*.infra"},
+		},
+	})
+
+	if err != nil || filePath == "" {
+		return false
+	}
+
+	data := map[string]string{
+		"name":   name,
+		"canvas": canvasContent,
+		"yaml":   yamlContent,
+	}
+
+	fileData, _ := json.MarshalIndent(data, "", "  ")
+	err = os.WriteFile(filePath, fileData, 0644)
+	if err != nil {
+		log.Printf("Error writing file: %v", err)
+		return false
+	}
+
+	return true
+}
+
+func (a *App) ImportProjectFile() string {
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Import Infrastructure Project",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "InfraStack Project (*.infra)", Pattern: "*.infra"},
+		},
+	})
+
+	if err != nil || filePath == "" {
+		return ""
+	}
+
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Printf("Error reading file: %v", err)
+		return ""
+	}
+
+	return string(fileData)
 }
 
 func (a *App) GetProjects() []db.Project {
