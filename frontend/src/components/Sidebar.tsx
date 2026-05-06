@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Grid } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
@@ -8,15 +8,38 @@ import { ProjectManager } from './ProjectManager';
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
   onExport: () => void;
+  onOpenMegaMenu: () => void;
 }
 
-export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
+export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const currentProject = useFlowStore((state) => state.currentProject);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProjectOpen, setIsProjectOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    workloads: true,
+    networking: false,
+    scaling: false,
+    others: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const isCurrentlyExpanded = prev[section];
+      // Reset all to false
+      const newState = {
+        workloads: false,
+        networking: false,
+        scaling: false,
+        others: false,
+      };
+      // Toggle the clicked one
+      newState[section as keyof typeof newState] = !isCurrentlyExpanded;
+      return newState;
+    });
+  };
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
@@ -85,37 +108,55 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
           </button>
         </div>
 
-        {/* Search Input */}
-        <div className="relative">
-          <Search className={cn(
-            "absolute left-2.5 top-1/2 -translate-y-1/2",
-            colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-          )} size={12} />
-          <input
-            type="text"
-            placeholder="Search elements..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+        {/* Search & Mega Menu Trigger */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className={cn(
+              "absolute left-2.5 top-1/2 -translate-y-1/2",
+              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
+            )} size={12} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={cn(
+                "w-full pl-8 pr-2 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium",
+                colorMode === 'dark'
+                  ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
+                  : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
+              )}
+            />
+          </div>
+          <button
+            onClick={onOpenMegaMenu}
             className={cn(
-              "w-full pl-8 pr-3 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium",
+              "p-1.5 rounded-md transition-all shadow-sm border",
               colorMode === 'dark'
-                ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
-                : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
+                ? "bg-slate-950 border-slate-800 hover:bg-slate-800 text-blue-400 hover:border-blue-500/50"
+                : "bg-white border-slate-200 hover:bg-slate-50 text-blue-600 hover:border-blue-300"
             )}
-          />
+            title="All Services (AWS Style)"
+          >
+            <Grid size={14} />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 overscroll-contain">
         {workloadItems.length > 0 && (
           <section>
-            <label className={cn(
-              "text-[10px] uppercase font-bold mb-3 block tracking-wider",
-              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-            )}>
+            <button
+              onClick={() => toggleSection('workloads')}
+              className={cn(
+                "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
+                colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
               Workloads
-            </label>
-            <div className="grid gap-2">
+              {expandedSections.workloads ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+            <div className={cn("grid gap-2 mt-1 overflow-hidden transition-all", expandedSections.workloads ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible")}>
               {workloadItems.map(({ type, icon: Icon, label, desc }) => (
                 <button
                   key={type}
@@ -157,13 +198,17 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
 
         {networkingItems.length > 0 && (
           <section>
-            <label className={cn(
-              "text-[10px] uppercase font-bold mb-3 block tracking-wider",
-              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-            )}>
+            <button
+              onClick={() => toggleSection('networking')}
+              className={cn(
+                "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
+                colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
               Networking
-            </label>
-            <div className="grid gap-2">
+              {expandedSections.networking ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+            <div className={cn("grid gap-2 mt-1 overflow-hidden transition-all", expandedSections.networking ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible")}>
               {networkingItems.map(({ type, icon: Icon, label, desc }) => (
                 <button
                   key={type}
@@ -209,13 +254,17 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
 
         {scalingItems.length > 0 && (
           <section>
-            <label className={cn(
-              "text-[10px] uppercase font-bold mb-3 block tracking-wider",
-              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-            )}>
+            <button
+              onClick={() => toggleSection('scaling')}
+              className={cn(
+                "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
+                colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
               Scaling
-            </label>
-            <div className="grid gap-2">
+              {expandedSections.scaling ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+            <div className={cn("grid gap-2 mt-1 overflow-hidden transition-all", expandedSections.scaling ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible")}>
               {scalingItems.map(({ type, icon: Icon, label, desc }) => (
                 <button
                   key={type}
@@ -257,13 +306,17 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
 
         {othersItems.length > 0 && (
           <section>
-            <label className={cn(
-              "text-[10px] uppercase font-bold mb-3 block tracking-wider",
-              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-            )}>
+            <button
+              onClick={() => toggleSection('others')}
+              className={cn(
+                "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
+                colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
               Others
-            </label>
-            <div className="grid gap-2">
+              {expandedSections.others ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+            <div className={cn("grid gap-2 mt-1 overflow-hidden transition-all", expandedSections.others ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible")}>
               {othersItems.map(({ type, icon: Icon, label, desc }) => (
                 <button
                   key={type}
