@@ -19,14 +19,26 @@ export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) =
   const [searchTerm, setSearchTerm] = useState('');
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    workloads: true,
-    networking: true,
-    scaling: true,
-    others: true,
+    workloads: false,
+    networking: false,
+    scaling: false,
+    others: false,
   });
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    setExpandedSections(prev => {
+      const isCurrentlyExpanded = prev[section];
+      // Reset all to false
+      const newState = {
+        workloads: false,
+        networking: false,
+        scaling: false,
+        others: false,
+      };
+      // Toggle the clicked one
+      newState[section as keyof typeof newState] = !isCurrentlyExpanded;
+      return newState;
+    });
   };
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
