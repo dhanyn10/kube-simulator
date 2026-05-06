@@ -158,7 +158,7 @@ export function generateYaml(nodes: any[], edges: any[]): string {
         kind: 'Service',
         metadata: { name },
         spec: {
-          selector: { app: data.selector || 'app' },
+          selector: { app: data.selector || 'app-label' },
           ports: [{ protocol: 'TCP', port: data.port || 80, targetPort: data.targetPort || 80 }]
         }
       };

@@ -431,12 +431,61 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         </>
       )}
 
+      {/* Service Configuration */}
+      {selectedNode.type === 'Service' && (
+        <>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Network size={10} /> Port
+            </label>
+            <input
+              type="number"
+              value={data.port || 80}
+              onChange={(e) => performUpdate({ port: parseInt(e.target.value) || 80 })}
+              className={cn(
+                "w-full text-[10px] p-2 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+              )}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Network size={10} /> Target Port
+            </label>
+            <input
+              type="number"
+              value={data.targetPort || 80}
+              onChange={(e) => performUpdate({ targetPort: parseInt(e.target.value) || 80 })}
+              className={cn(
+                "w-full text-[10px] p-2 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+              )}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Box size={10} /> Selector (app)
+            </label>
+            <input
+              type="text"
+              value={data.selector || ''}
+              onChange={(e) => performUpdate({ selector: e.target.value })}
+              placeholder="app-label"
+              className={cn(
+                "w-full text-[10px] p-2 rounded border outline-none",
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+              )}
+            />
+          </div>
+        </>
+      )}
+
       <div className={cn(
         "mt-6 pt-4 border-t text-center",
-        data.status === 'ready' ? "text-emerald-500" : "text-red-500"
+        data.status === 'ready' || (selectedNode.type === 'Service' || selectedNode.type === 'Ingress' || selectedNode.type === 'HPA' || selectedNode.type === 'Internet') ? "text-emerald-500" : "text-red-500"
       )}>
         <span className="text-[8px] font-bold uppercase tracking-[0.2em]">
-          Status: {data.status === 'ready' ? 'Ready to Deploy' : 'Configuration Required'}
+          Status: {data.status === 'ready' || (selectedNode.type === 'Service' || selectedNode.type === 'Ingress' || selectedNode.type === 'HPA' || selectedNode.type === 'Internet') ? 'Ready to Deploy' : 'Configuration Required'}
         </span>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Activity, Settings, Trash2 } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -115,9 +115,37 @@ export const HPANode = memo((props: NodeProps) => {
         onResizeEnd={handleNodeResizeStop}
       />
 
-      <div className="flex items-center gap-2 mb-2 shrink-0">
-        <Activity size={12} className="text-fuchsia-500" />
-        <span className="text-[9px] font-bold text-fuchsia-500 uppercase tracking-tighter">HPA</span>
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+        <div className="flex items-center gap-2">
+            <Activity size={12} className="text-fuchsia-500" />
+            <span className="text-[9px] font-bold text-fuchsia-500 uppercase tracking-tighter">HPA</span>
+        </div>
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              useFlowStore.getState().setConfiguringNodeId(props.id);
+            }}
+            className={cn(
+              "p-1 rounded transition-all",
+              colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
+            )}
+          >
+            <Settings size={12} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onDelete?.();
+            }}
+            className={cn(
+              "p-1 rounded transition-all",
+              colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+            )}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">

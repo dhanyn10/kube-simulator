@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Settings, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -115,9 +115,37 @@ export const ServiceNode = memo((props: NodeProps) => {
         onResizeEnd={handleNodeResizeStop}
       />
 
-      <div className="flex items-center gap-2 mb-2 shrink-0">
-        <div className="w-3 h-3 bg-amber-500 [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]"></div>
-        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tighter">Service</span>
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+        <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-amber-500 [clip-path:polygon(25%_0%,75%_0%,100%_50%,75%_100%,25%_100%,0%_50%)]"></div>
+            <span className="text-[9px] font-bold text-amber-500 uppercase tracking-tighter">Service</span>
+        </div>
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              useFlowStore.getState().setConfiguringNodeId(props.id);
+            }}
+            className={cn(
+              "p-1 rounded transition-all",
+              colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
+            )}
+          >
+            <Settings size={12} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onDelete?.();
+            }}
+            className={cn(
+              "p-1 rounded transition-all",
+              colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+            )}
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
@@ -145,11 +173,20 @@ export const ServiceNode = memo((props: NodeProps) => {
           </div>
         )}
 
-        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>targetPort: {data.targetPort || 8080}</div>
+        <div className="space-y-1.5 mt-1">
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
+            <span className="text-amber-500 font-bold">{data.port || 80}</span>
+          </div>
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
+            <span className="text-amber-500 font-bold">{data.targetPort || 80}</span>
+          </div>
+        </div>
 
         <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
           <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
-          <div className="text-[9px] font-mono mt-0.5 text-amber-500">app: {data.selector || 'web-app'}</div>
+          <div className="text-[9px] font-mono mt-0.5 text-amber-500 break-all">app: {data.selector || 'app-label'}</div>
         </div>
       </div>
 
