@@ -34,7 +34,15 @@ export const nodeActions = (set: any, get: any) => ({
       },
     };
 
-    if (type === 'Pod') {
+    // Initialize type-specific data if needed
+    if (type === 'Service') {
+       newNode.data.port = 80;
+       newNode.data.targetPort = 80;
+       newNode.data.selector = 'app-label';
+       newNode.width = 150;
+       newNode.height = 120;
+       newNode.style = { width: 150, height: 120 };
+    } else if (type === 'Pod') {
        newNode.data.replicas = 1;
        const minSize = getPodMinimumSize(newNode.data);
        newNode.width = minSize.width;
@@ -119,6 +127,21 @@ export const nodeActions = (set: any, get: any) => ({
       let nextNodes = state.nodes.map((node: Node) => {
         if (node.id === nodeId) {
           const updatedData = { ...node.data, ...newData };
+
+          // Re-attach handlers if they are missing
+          if (!updatedData.onDelete) {
+            updatedData.onDelete = () => {
+              const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
+              if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+            };
+          }
+          if (!updatedData.onRename) {
+            updatedData.onRename = (newName: string) => {
+              const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
+              get().updateNodeData(node.id, { label: cleanName, isAutoNamed: false });
+            };
+          }
+
           if (node.type === 'Pod' && !updatedData.isManuallyResized) {
              const minSize = getPodMinimumSize(updatedData);
              return { 

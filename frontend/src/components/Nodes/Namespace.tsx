@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, Anchor } from 'lucide-react';
+import { Trash2, Settings, Anchor } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -84,18 +84,18 @@ export const NamespaceNode = memo((props: NodeProps) => {
           <input
             ref={inputRef}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
-              "text-sm font-mono font-bold tracking-tight px-2 py-0.5 rounded border-2 outline-none shadow-sm",
+              "relative text-sm font-mono font-bold tracking-tight px-2 py-0.5 rounded border-2 outline-none shadow-sm z-[100]",
               colorMode === 'dark' ? "bg-slate-900 text-emerald-300 border-emerald-500" : "bg-white text-emerald-700 border-emerald-400"
             )}
           />
         ) : (
           <span
             className={cn(
-              "text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm",
+              "relative text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm z-[100]",
               colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700"
             )}
             onDoubleClick={() => setIsEditing(true)}
@@ -105,18 +105,32 @@ export const NamespaceNode = memo((props: NodeProps) => {
         )}
       </div>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          data.onDelete?.();
-        }}
-        className={cn(
-          "opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all absolute top-3 right-3 shadow-sm",
-          colorMode === 'dark' ? "bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400" : "bg-white hover:bg-red-50 text-slate-400 hover:text-red-500"
-        )}
-      >
-        <Trash2 size={14} />
-      </button>
+      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all absolute top-3 right-3" style={{ zIndex: 10 }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            useFlowStore.getState().setConfiguringNodeId(props.id);
+          }}
+          className={cn(
+            "p-1.5 rounded-lg transition-all shadow-sm",
+            colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-blue-400" : "bg-white hover:bg-slate-50 text-slate-400 hover:text-blue-500"
+          )}
+        >
+          <Settings size={14} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete?.();
+          }}
+          className={cn(
+            "p-1.5 rounded-lg transition-all shadow-sm",
+            colorMode === 'dark' ? "bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400" : "bg-white hover:bg-red-50 text-slate-400 hover:text-red-500"
+          )}
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
 
       <div className={cn(
         "pointer-events-none mt-auto text-[10px] uppercase tracking-[0.3em] font-black text-center italic opacity-20 pb-4 select-none",

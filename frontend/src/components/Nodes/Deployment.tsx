@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Settings, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -131,18 +131,18 @@ export const DeploymentNode = memo((props: NodeProps) => {
           <input
             ref={inputRef}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
-              "text-xs font-mono font-bold tracking-tight px-1 py-0.5 rounded border outline-none",
+              "relative text-xs font-mono font-bold tracking-tight px-1 py-0.5 rounded border outline-none z-[100]",
               colorMode === 'dark' ? "bg-slate-900 text-violet-300 border-violet-500" : "bg-white text-violet-700 border-violet-400"
             )}
           />
         ) : (
           <span
             className={cn(
-              "text-xs font-mono font-bold tracking-tight cursor-text",
+              "relative text-xs font-mono font-bold tracking-tight cursor-text z-[100]",
               colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
             )}
             onDoubleClick={() => setIsEditing(true)}
@@ -156,19 +156,32 @@ export const DeploymentNode = memo((props: NodeProps) => {
         replicas: {data.replicas || 0}
       </div>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          data.onDelete?.();
-        }}
-        className={cn(
-          "opacity-0 group-hover:opacity-100 p-1 rounded transition-all absolute top-2 right-2",
-          colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-        )}
-        style={{ zIndex: 10 }}
-      >
-        <Trash2 size={12} />
-      </button>
+      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all absolute top-2 right-2" style={{ zIndex: 10 }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            useFlowStore.getState().setConfiguringNodeId(props.id);
+          }}
+          className={cn(
+            "p-1 rounded transition-all",
+            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
+          )}
+        >
+          <Settings size={12} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete?.();
+          }}
+          className={cn(
+            "p-1 rounded transition-all",
+            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
+          )}
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
 
       <div className={cn(
         "pointer-events-none mt-auto text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2",
@@ -177,7 +190,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         Workload Zone
       </div>
 
-      <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2 z-[50]" />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-violet-600 !w-2 !h-2" />
       <Handle type="target" position={Position.Left} id="left-t" className="!bg-violet-600 !w-2 !h-2" />
       <Handle type="source" position={Position.Right} id="right-s" className="!bg-violet-600 !w-2 !h-2" />

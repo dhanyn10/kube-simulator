@@ -153,21 +153,22 @@ export const HPANode = memo((props: NodeProps) => {
           <input
             ref={inputRef}
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
+            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
             onBlur={handleRename}
             onKeyDown={onKeyDown}
             className={cn(
-              "w-full text-xs font-bold mb-1 px-1 py-0.5 rounded border outline-none",
+              "w-full text-xs font-mono font-bold mb-1 px-1 py-0.5 rounded border outline-none",
               colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-fuchsia-500" : "bg-slate-50 text-slate-900 border-fuchsia-400"
             )}
           />
         ) : (
           <div
             className={cn(
-              "text-xs font-bold mb-1 cursor-text truncate",
+              "text-xs font-mono font-bold mb-1 cursor-text break-all",
               colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
             )}
             onDoubleClick={() => setIsEditing(true)}
+            title={data.label}
           >
             {data.label}
           </div>
