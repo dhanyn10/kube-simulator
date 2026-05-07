@@ -19,7 +19,7 @@
         "ext": "infra",
         "name": "InfraStack Project",
         "description": "Infrastructure Design Project",
-        "iconName": "icon"
+        "iconName": "appicon"
       }
     ]
   }

@@ -13,7 +13,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const currentProject = useFlowStore((state) => state.currentProject);
+  const currentProject = useFlowStore((state) => state.currentProject) as any;
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
