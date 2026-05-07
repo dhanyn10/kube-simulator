@@ -127,8 +127,8 @@ export const MenuBar = ({
                     )}
                   >
                     <span>{item.label}</span>
-                    {item.shortcut && (
-                      <span className="text-[10px] opacity-50 font-mono ml-4">{item.shortcut}</span>
+                    {(item as any).shortcut && (
+                      <span className="text-[10px] opacity-50 font-mono ml-4">{(item as any).shortcut}</span>
                     )}
                   </button>
                 ))}
