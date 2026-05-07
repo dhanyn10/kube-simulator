@@ -69,6 +69,21 @@ flowStore.subscribe((state, prevState) => {
       // @ts-ignore
       window.go.main.App.PushHistory(snapshot);
     }
+
+    // Autosave logic
+    if (state.isAutosaveEnabled && state.currentProject && state.currentProject.id !== -1) {
+      const content = JSON.stringify({ nodes: state.nodes, edges: state.edges });
+      // @ts-ignore
+      if (window.go?.main?.App?.UpdateProject) {
+        console.log(`[Autosave] Saving project ${state.currentProject.name}...`);
+        // @ts-ignore
+        window.go.main.App.UpdateProject(state.currentProject.id, content).then((success) => {
+          if (success) {
+            flowStore.setState({ lastSavedSnapshot: content });
+          }
+        });
+      }
+    }
   }
 });
 

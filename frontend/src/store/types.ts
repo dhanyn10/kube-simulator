@@ -26,6 +26,7 @@ export interface FlowState {
   configuringEdgeId: string | null;
   draggingSidebarItem: K8sResourceType | null;
   colorMode: 'dark' | 'light';
+  isAutosaveEnabled: boolean;
   clipboard: { nodes: Node[], edges: Edge[] } | null;
   alignmentGuides: {
     vertical: AlignmentGuide[];
@@ -72,4 +73,5 @@ export interface FlowState {
   copyNodes: () => void;
   pasteNodes: () => void;
   toggleColorMode: () => void;
+  toggleAutosave: () => void;
 }

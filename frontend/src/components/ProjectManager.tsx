@@ -26,6 +26,8 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
+  const currentProject = useFlowStore((state) => state.currentProject);
+  const lastSavedSnapshot = useFlowStore((state) => state.lastSavedSnapshot);
 
   const isCanvasEmpty = nodes.length === 0;
   const currentContent = JSON.stringify({ nodes, edges });
@@ -42,13 +44,20 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   useEffect(() => {
     if (isOpen) {
       loadProjects();
+      if (!isCanvasEmpty && (!currentProject || currentProject.id === -1)) {
+        const d = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+        setProjectName(`Project-${dmyhis}`);
+      } else {
+        setProjectName('');
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isCanvasEmpty, currentProject]);
 
   const [confirmOverwriteId, setConfirmOverwriteId] = useState<number | null>(null);
 
-  const currentProject = useFlowStore((state) => state.currentProject);
-  const lastSavedSnapshot = useFlowStore((state) => state.lastSavedSnapshot);
+
   const hasChanges = JSON.stringify({ nodes, edges }) !== lastSavedSnapshot;
 
   const handleUpdate = async () => {

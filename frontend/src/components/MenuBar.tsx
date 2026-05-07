@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Square as SquareIcon } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 
@@ -17,6 +17,11 @@ export const MenuBar = ({
   onOpenProjects
 }: MenuBarProps) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
+  const isAutosaveEnabled = useFlowStore((state: any) => state.isAutosaveEnabled);
+  const toggleAutosave = useFlowStore((state: any) => state.toggleAutosave);
+  const currentProject = useFlowStore((state: any) => state.currentProject);
+  const nodes = useFlowStore((state: any) => state.nodes);
+  const edges = useFlowStore((state: any) => state.edges);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +47,32 @@ export const MenuBar = ({
     {
       label: 'Project',
       items: [
-        { label: 'Open', icon: FolderOpen, onClick: onOpenProjects },
+        { label: 'Manager', icon: FolderOpen, onClick: onOpenProjects },
+        { 
+          label: 'Save', 
+          icon: Save, 
+          onClick: async () => {
+            if (currentProject && currentProject.id !== -1) {
+              const content = JSON.stringify({ nodes, edges });
+              // @ts-ignore
+              if (window.go?.main?.App?.UpdateProject) {
+                // @ts-ignore
+                const success = await window.go.main.App.UpdateProject(currentProject.id, content);
+                if (success) {
+                  useFlowStore.setState({ lastSavedSnapshot: content });
+                  alert("Project saved successfully!");
+                }
+              }
+            } else {
+              onOpenProjects(); // Open manager to save as new
+            }
+          } 
+        },
+        { 
+          label: isAutosaveEnabled ? 'Autosave: ON' : 'Autosave: OFF', 
+          icon: isAutosaveEnabled ? CheckSquare : SquareIcon, 
+          onClick: toggleAutosave 
+        },
       ]
     },
     {

@@ -278,13 +278,7 @@ export default function App() {
         </main>
       </div>
 
-      <footer className={cn('fixed bottom-0 left-64 right-0 backdrop-blur-md h-8 border-t flex items-center px-4 justify-between text-[9px] uppercase tracking-widest font-medium z-20 pointer-events-none', colorMode === 'dark' ? 'bg-slate-900/80 border-slate-800 text-slate-500' : 'bg-white/80 border-slate-200 text-slate-600')}>
-        <div>X: 0.0 Y: 0.0</div>
-        <div className="flex gap-4">
-          <span>Engine: xyflow v12</span>
-          <span className={cn('font-bold', colorMode === 'dark' ? 'text-emerald-500/60' : 'text-emerald-700/60')}>● System Ready</span>
-        </div>
-      </footer>
+
     </div>
   );
 }
