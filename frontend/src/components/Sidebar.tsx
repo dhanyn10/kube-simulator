@@ -167,6 +167,52 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
             )}
           />
         </div>
+
+        {/* Action Toolbar */}
+        <div className="flex items-center gap-1.5 pt-1">
+          <button
+            onClick={() => setIsProjectOpen(true)}
+            className={cn(
+              "p-2 rounded-md transition-all border",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:bg-slate-800 text-blue-400" : "bg-white border-slate-200 hover:bg-slate-50 text-blue-600"
+            )}
+            title="Database Projects"
+          >
+            <FolderOpen size={14} />
+          </button>
+          <div className={cn("w-px h-4 mx-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
+          <button
+            onClick={handleImportFile}
+            className={cn(
+              "p-2 rounded-md transition-all border",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:bg-slate-800 text-emerald-400" : "bg-white border-slate-200 hover:bg-slate-50 text-emerald-600"
+            )}
+            title="Import .infra File"
+          >
+            <Upload size={14} />
+          </button>
+          <button
+            onClick={handleExportFile}
+            className={cn(
+              "p-2 rounded-md transition-all border",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:bg-slate-800 text-indigo-400" : "bg-white border-slate-200 hover:bg-slate-50 text-indigo-600"
+            )}
+            title="Save .infra File"
+          >
+            <Save size={14} />
+          </button>
+          <div className={cn("w-px h-4 mx-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
+          <button
+            onClick={onExport}
+            className={cn(
+              "p-2 rounded-md transition-all border",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:bg-slate-800 text-amber-400" : "bg-white border-slate-200 hover:bg-slate-50 text-amber-600"
+            )}
+            title="Export K8s YAML"
+          >
+            <FileCode size={14} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2 overscroll-contain">
@@ -395,53 +441,6 @@ export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
         )}
       </div>
 
-      <div className={cn(
-        "p-4 space-y-3",
-        colorMode === 'dark' ? "bg-slate-950/50" : "bg-slate-100"
-      )}>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => setIsProjectOpen(true)}
-            className={cn(
-              "flex items-center justify-center gap-2 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-              colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-blue-400" : "bg-white hover:bg-slate-50 text-blue-600 border border-slate-200"
-            )}
-            title="Database Projects"
-          >
-            <FolderOpen size={12} />
-            DB
-          </button>
-          <button
-            onClick={handleImportFile}
-            className={cn(
-              "flex items-center justify-center gap-2 py-2.5 rounded text-[10px] font-bold uppercase tracking-widest transition-all",
-              colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-emerald-400" : "bg-white hover:bg-slate-50 text-emerald-600 border border-slate-200"
-            )}
-            title="Import .infra File"
-          >
-            <Upload size={12} />
-            File
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={onExport}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
-            title="Export K8s YAML"
-          >
-            <FileCode size={12} />
-            YAML
-          </button>
-          <button
-            onClick={handleExportFile}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold py-2.5 rounded transition-all shadow-lg uppercase tracking-widest flex items-center justify-center gap-2"
-            title="Save .infra File"
-          >
-            <Save size={12} />
-            Save
-          </button>
-        </div>
-      </div>
 
       <ProjectManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
     </div>
