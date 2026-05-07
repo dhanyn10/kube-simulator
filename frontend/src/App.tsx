@@ -10,6 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { Sidebar } from './components/Sidebar';
+import { MenuBar } from './components/MenuBar';
 import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
 import { HistoryPanel } from './components/HistoryPanel';
@@ -68,6 +69,7 @@ export default function App() {
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
+  const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
@@ -112,6 +114,44 @@ export default function App() {
     setIsYamlOpen(true);
   }, [nodes, edges]);
 
+  const handleExportFile = useCallback(async () => {
+    const currentProject = useFlowStore.getState().currentProject as any;
+    // @ts-ignore
+    if (window.go?.main?.App?.ExportProjectFile) {
+      const canvasContent = JSON.stringify({ nodes, edges });
+      const yamlContent = generateYaml(nodes, edges);
+      // @ts-ignore
+      await window.go.main.App.ExportProjectFile(
+        currentProject?.name || "unnamed-project",
+        canvasContent,
+        yamlContent
+      );
+    }
+  }, [nodes, edges]);
+
+  const handleImportFile = useCallback(async () => {
+    // @ts-ignore
+    if (window.go?.main?.App?.ImportProjectFile) {
+      // @ts-ignore
+      const json = await window.go.main.App.ImportProjectFile();
+      if (json) {
+        try {
+          const data = JSON.parse(json);
+          const canvas = JSON.parse(data.canvas);
+          const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
+          useFlowStore.setState({
+            nodes: hydratedNodes,
+            edges: canvas.edges || [],
+            currentProject: { id: -1, name: data.name },
+            lastSavedSnapshot: data.canvas
+          });
+        } catch (e) {
+          console.error("Failed to import file", e);
+        }
+      }
+    }
+  }, []);
+
   const btnClass = cn(
     'p-2 rounded-md transition-colors shadow-xl',
     colorMode === 'dark'
@@ -121,16 +161,25 @@ export default function App() {
 
   return (
     <div className={cn(
-      'flex h-screen w-screen overflow-hidden font-sans antialiased',
+      'flex flex-col h-screen w-screen overflow-hidden font-sans antialiased',
       colorMode === 'dark' ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-800'
     )}>
-      <Sidebar
-        onAddNode={addNode}
-        onExport={handleExport}
+      <MenuBar
+        onExportYaml={handleExport}
+        onImportFile={handleImportFile}
+        onSaveFile={handleExportFile}
+        onOpenProjects={() => setIsProjectOpen(true)}
       />
-      <ConfigPanel />
 
-      <main className="flex-1 relative canvas-grid">
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          onAddNode={addNode}
+          isProjectOpen={isProjectOpen}
+          setIsProjectOpen={setIsProjectOpen}
+        />
+        <ConfigPanel />
+
+        <main className="flex-1 relative canvas-grid">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -219,14 +268,15 @@ export default function App() {
           </Panel>
         </ReactFlow>
 
-        {isYamlOpen && (
-          <YamlModal
-            content={yamlContent}
-            colorMode={colorMode}
-            onClose={() => setIsYamlOpen(false)}
-          />
-        )}
-      </main>
+          {isYamlOpen && (
+            <YamlModal
+              content={yamlContent}
+              colorMode={colorMode}
+              onClose={() => setIsYamlOpen(false)}
+            />
+          )}
+        </main>
+      </div>
 
       <footer className={cn('fixed bottom-0 left-64 right-0 backdrop-blur-md h-8 border-t flex items-center px-4 justify-between text-[9px] uppercase tracking-widest font-medium z-20 pointer-events-none', colorMode === 'dark' ? 'bg-slate-900/80 border-slate-800 text-slate-500' : 'bg-white/80 border-slate-200 text-slate-600')}>
         <div>X: 0.0 Y: 0.0</div>
