@@ -49,7 +49,7 @@ export const ConfigPanel = () => {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1 custom-scrollbar">
         {isEdge ? (
           <EdgeConfig selectedEdge={selectedEdge} />
         ) : (

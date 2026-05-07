@@ -106,8 +106,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
           type="text"
           value={data.label || ''}
           onChange={(e) => updateNodeData(selectedNode.id, {
-            label: e.target.value.toLowerCase().replace(/\s+/g, '-'),
-            isAutoNamed: false
+            label: e.target.value.toLowerCase().replace(/\s+/g, '-')
           })}
           placeholder="node-name"
           className={cn(
