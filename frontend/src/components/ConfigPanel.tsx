@@ -31,10 +31,10 @@ export const ConfigPanel = () => {
 
   return (
     <div className={cn(
-      "fixed right-4 top-24 w-64 rounded-xl border shadow-2xl z-[50] p-4 animate-in slide-in-from-right",
+      "fixed right-4 top-24 w-64 rounded-xl border shadow-2xl z-[50] p-4 animate-in slide-in-from-right flex flex-col resize-y overflow-hidden min-h-[200px] max-h-[70vh]",
       colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
     )}>
-      <div className="flex items-center justify-between mb-4 border-b pb-2">
+      <div className="flex items-center justify-between mb-4 border-b pb-2 shrink-0">
         <div className="flex items-center gap-2">
             <Settings size={14} className={IconColor} />
             <h3 className="text-[10px] font-bold uppercase tracking-widest">
@@ -49,19 +49,21 @@ export const ConfigPanel = () => {
         </button>
       </div>
 
-      {isEdge ? (
-        <EdgeConfig selectedEdge={selectedEdge} />
-      ) : (
-        <NodeConfig selectedNode={selectedNode} />
-      )}
+      <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+        {isEdge ? (
+          <EdgeConfig selectedEdge={selectedEdge} />
+        ) : (
+          <NodeConfig selectedNode={selectedNode} />
+        )}
 
-      {isEdge && (
-        <div className="mt-8 pt-4 border-t text-center text-emerald-500">
-          <span className="text-[8px] font-bold uppercase tracking-[0.2em]">
-            Connection Styled
-          </span>
-        </div>
-      )}
+        {isEdge && (
+          <div className="mt-8 pt-4 border-t text-center text-emerald-500">
+            <span className="text-[8px] font-bold uppercase tracking-[0.2em]">
+              Connection Styled
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
