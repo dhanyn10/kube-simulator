@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 
@@ -57,6 +57,7 @@ export const MenuBar = ({
   return (
     <div
       ref={menuRef}
+      style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
       className={cn(
         "h-10 border-b flex items-center px-4 justify-between z-50 select-none",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"
@@ -64,7 +65,7 @@ export const MenuBar = ({
     >
       <div className="flex items-center gap-1">
         {menuItems.map((menu) => (
-          <div key={menu.label} className="relative">
+          <div key={menu.label} className="relative" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
             <button
               onClick={() => setActiveMenu(activeMenu === menu.label ? null : menu.label)}
               onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
@@ -107,7 +108,7 @@ export const MenuBar = ({
         ))}
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <h1 className={cn(
           "text-[11px] font-bold uppercase tracking-[0.3em]",
           colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
@@ -116,8 +117,31 @@ export const MenuBar = ({
         </h1>
       </div>
 
-      <div className="flex items-center gap-4 text-[10px] font-medium opacity-50">
-        {/* Placeholder for right-side status if needed */}
+      <div className="flex items-center gap-1 text-[10px] font-medium" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+        <button
+          onClick={() => window.runtime?.WindowMinimize()}
+          className={cn(
+            "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
+            colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
+          )}
+        >
+          <Minus size={14} />
+        </button>
+        <button
+          onClick={() => window.runtime?.WindowToggleMaximize()}
+          className={cn(
+            "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
+            colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
+          )}
+        >
+          <Square size={12} />
+        </button>
+        <button
+          onClick={() => window.runtime?.Quit()}
+          className="p-2 hover:bg-red-500 hover:text-white rounded transition-colors text-slate-500"
+        >
+          <X size={14} />
+        </button>
       </div>
     </div>
   );
