@@ -15,7 +15,7 @@ export const setupPodHandlers = (podId: string, get: () => any) => ({
   },
   onRename: (newName: string) => {
     const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-    get().updateNodeData(podId, { label: cleanName, isAutoNamed: false });
+    get().updateNodeData(podId, { label: cleanName });
   },
 });
 
@@ -30,7 +30,7 @@ export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
       },
       onRename: (newName: string) => {
         const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-        get().updateNodeData(node.id, { label: cleanName, isAutoNamed: false });
+        get().updateNodeData(node.id, { label: cleanName });
       },
     }
   }));
@@ -66,7 +66,7 @@ export const syncDeployment = (
       },
       onRename: (newName: string) => {
         const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-        get().updateNodeData(p.id, { label: cleanName, isAutoNamed: false });
+        get().updateNodeData(p.id, { label: cleanName });
       },
     }
   }));

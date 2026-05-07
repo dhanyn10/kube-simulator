@@ -9,5 +9,18 @@
   "author": {
     "name": "google-labs-jules[bot]",
     "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+  },
+  "info": {
+    "productName": "InfraStack Builder",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright 2024",
+    "fileAssociations": [
+      {
+        "ext": "infra",
+        "name": "InfraStack Project",
+        "description": "Infrastructure Design Project",
+        "iconName": "appicon"
+      }
+    ]
   }
 }

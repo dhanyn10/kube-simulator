@@ -29,7 +29,7 @@ export const nodeActions = (set: any, get: any) => ({
         },
         onRename: (newName: string) => {
           const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-          get().updateNodeData(id, { label: cleanName, isAutoNamed: false });
+          get().updateNodeData(id, { label: cleanName });
         },
       },
     };
@@ -138,7 +138,7 @@ export const nodeActions = (set: any, get: any) => ({
           if (!updatedData.onRename) {
             updatedData.onRename = (newName: string) => {
               const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-              get().updateNodeData(node.id, { label: cleanName, isAutoNamed: false });
+              get().updateNodeData(node.id, { label: cleanName });
             };
           }
 

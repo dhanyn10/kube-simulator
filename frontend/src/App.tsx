@@ -10,7 +10,6 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { Sidebar } from './components/Sidebar';
-import { MegaMenu } from './components/MegaMenu';
 import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
 import { HistoryPanel } from './components/HistoryPanel';
@@ -30,6 +29,7 @@ import { cn } from './lib/utils';
 import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { hydrateNodes } from './store/nodeHelpers';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -68,11 +68,36 @@ export default function App() {
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
-  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
   const { handleUndo, handleRedo } = useHistory();
+
+  // Listen for external file open events (Open With)
+  React.useEffect(() => {
+    // @ts-ignore
+    if (window.runtime?.EventsOn) {
+      // @ts-ignore
+      const off = window.runtime.EventsOn('open-infra-file', (json: string) => {
+        if (json) {
+          try {
+            const data = JSON.parse(json);
+            const canvas = JSON.parse(data.canvas);
+            const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
+            useFlowStore.setState({
+              nodes: hydratedNodes,
+              edges: canvas.edges || [],
+              currentProject: { id: -1, name: data.name },
+              lastSavedSnapshot: data.canvas
+            });
+          } catch (e) {
+            console.error("Failed to open external file", e);
+          }
+        }
+      });
+      return () => off();
+    }
+  }, []);
   const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);
 
   useKeyboardShortcuts({
@@ -102,12 +127,6 @@ export default function App() {
       <Sidebar
         onAddNode={addNode}
         onExport={handleExport}
-        onOpenMegaMenu={() => setIsMegaMenuOpen(true)}
-      />
-      <MegaMenu
-        isOpen={isMegaMenuOpen}
-        onClose={() => setIsMegaMenuOpen(false)}
-        onAddNode={addNode}
       />
       <ConfigPanel />
 
