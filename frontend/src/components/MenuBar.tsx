@@ -16,7 +16,7 @@ export const MenuBar = ({
   onSaveFile,
   onOpenProjects
 }: MenuBarProps) => {
-  const colorMode = useFlowStore((state) => state.colorMode);
+  const colorMode = useFlowStore((state: any) => state.colorMode);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -119,7 +119,7 @@ export const MenuBar = ({
 
       <div className="flex items-center gap-1 text-[10px] font-medium" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <button
-          onClick={() => window.runtime?.WindowMinimize()}
+          onClick={() => (window as any).runtime?.WindowMinimize()}
           className={cn(
             "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
             colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
@@ -128,7 +128,7 @@ export const MenuBar = ({
           <Minus size={14} />
         </button>
         <button
-          onClick={() => window.runtime?.WindowToggleMaximize()}
+          onClick={() => (window as any).runtime?.WindowToggleMaximize()}
           className={cn(
             "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
             colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
@@ -137,7 +137,7 @@ export const MenuBar = ({
           <Square size={12} />
         </button>
         <button
-          onClick={() => window.runtime?.Quit()}
+          onClick={() => (window as any).runtime?.Quit()}
           className="p-2 hover:bg-red-500 hover:text-white rounded transition-colors text-slate-500"
         >
           <X size={14} />
