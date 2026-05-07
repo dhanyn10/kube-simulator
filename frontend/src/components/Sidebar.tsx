@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Grid, Save, Upload } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Save, Upload } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
@@ -9,10 +9,9 @@ import { hydrateNodes } from '../store/nodeHelpers';
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
   onExport: () => void;
-  onOpenMegaMenu: () => void;
 }
 
-export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) => {
+export const Sidebar = ({ onAddNode, onExport }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const currentProject = useFlowStore((state) => state.currentProject);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
@@ -149,38 +148,24 @@ export const Sidebar = ({ onAddNode, onExport, onOpenMegaMenu }: SidebarProps) =
           </button>
         </div>
 
-        {/* Search & Mega Menu Trigger */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className={cn(
-              "absolute left-2.5 top-1/2 -translate-y-1/2",
-              colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
-            )} size={12} />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={cn(
-                "w-full pl-8 pr-2 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium",
-                colorMode === 'dark'
-                  ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
-                  : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
-              )}
-            />
-          </div>
-          <button
-            onClick={onOpenMegaMenu}
+        {/* Search */}
+        <div className="relative">
+          <Search className={cn(
+            "absolute left-2.5 top-1/2 -translate-y-1/2",
+            colorMode === 'dark' ? "text-slate-500" : "text-slate-400"
+          )} size={12} />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className={cn(
-              "p-1.5 rounded-md transition-all shadow-sm border",
+              "w-full pl-8 pr-2 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium",
               colorMode === 'dark'
-                ? "bg-slate-950 border-slate-800 hover:bg-slate-800 text-blue-400 hover:border-blue-500/50"
-                : "bg-white border-slate-200 hover:bg-slate-50 text-blue-600 hover:border-blue-300"
+                ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
+                : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
             )}
-            title="All Services (AWS Style)"
-          >
-            <Grid size={14} />
-          </button>
+          />
         </div>
       </div>
 

@@ -10,7 +10,6 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { Sidebar } from './components/Sidebar';
-import { MegaMenu } from './components/MegaMenu';
 import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
 import { HistoryPanel } from './components/HistoryPanel';
@@ -69,7 +68,6 @@ export default function App() {
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
-  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
@@ -129,12 +127,6 @@ export default function App() {
       <Sidebar
         onAddNode={addNode}
         onExport={handleExport}
-        onOpenMegaMenu={() => setIsMegaMenuOpen(true)}
-      />
-      <MegaMenu
-        isOpen={isMegaMenuOpen}
-        onClose={() => setIsMegaMenuOpen(false)}
-        onAddNode={addNode}
       />
       <ConfigPanel />
 
