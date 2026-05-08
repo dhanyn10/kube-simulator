@@ -92,7 +92,12 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   };
 
   const updateReplicas = (replicas: number) => {
-    updateNodeData(selectedNode.id, { replicas });
+    if (selectedNode.type === 'Pod' && selectedNode.parentId) {
+      // If it's a pod in a deployment, we update the parent deployment's replicas
+      updateNodeData(selectedNode.parentId, { replicas });
+    } else {
+      updateNodeData(selectedNode.id, { replicas });
+    }
   };
 
   return (
