@@ -42,6 +42,10 @@ export interface FlowState {
   currentProject: { id: number, name: string } | null;
   lastSavedSnapshot: string | null;
 
+  // Simulation state
+  isSimulating: boolean;
+  activeSimulationEdges: string[];
+
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
@@ -74,4 +78,5 @@ export interface FlowState {
   pasteNodes: () => void;
   toggleColorMode: () => void;
   toggleAutosave: () => void;
+  setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
 }

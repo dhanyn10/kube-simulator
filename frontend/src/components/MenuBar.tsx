@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Square as SquareIcon } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Square as SquareIcon, Play, Square as StopCircle, ChevronDown as ChevronDownIcon, Globe } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 
@@ -22,7 +22,11 @@ export const MenuBar = ({
   const currentProject = useFlowStore((state: any) => state.currentProject);
   const nodes = useFlowStore((state: any) => state.nodes);
   const edges = useFlowStore((state: any) => state.edges);
+  const isSimulating = useFlowStore((state: any) => state.isSimulating);
+  const setSimulation = useFlowStore((state: any) => state.setSimulation);
+
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -84,6 +88,9 @@ export const MenuBar = ({
     }
   ];
 
+  const internetNodes = nodes.filter((n: any) => n.type === 'Internet');
+  const hasInternet = internetNodes.length > 0;
+
   return (
     <div
       ref={menuRef}
@@ -136,6 +143,83 @@ export const MenuBar = ({
             )}
           </div>
         ))}
+
+        <div className="mx-2 h-4 w-px bg-slate-700/30" />
+
+        {/* Simulation Controls */}
+        <div className="flex items-center bg-slate-800/50 dark:bg-slate-900/50 rounded-lg border border-slate-700/50 p-0.5" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+          <div className="relative flex">
+            <button
+              onClick={() => setSimulation(!isSimulating)}
+              disabled={!hasInternet}
+              title={hasInternet ? (isSimulating ? "Stop Simulation" : "Start Simulation") : "Add an Internet card to start simulation"}
+              className={cn(
+                "h-7 px-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md",
+                !hasInternet
+                  ? "text-slate-600 cursor-not-allowed"
+                  : isSimulating
+                    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                    : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+              )}
+            >
+              {isSimulating ? <StopCircle size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+              {isSimulating ? "Stop" : "Play"}
+            </button>
+
+            {hasInternet && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDropdownOpen(!isDropdownOpen);
+                }}
+                className={cn(
+                  "h-7 px-1.5 border-l border-slate-700/50 hover:bg-slate-700/30 transition-colors flex items-center justify-center text-slate-400 rounded-r-md",
+                  isDropdownOpen && "bg-slate-700/30"
+                )}
+              >
+                <ChevronDownIcon size={12} />
+              </button>
+            )}
+
+            {isDropdownOpen && (
+              <div className={cn(
+                "absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg border py-1 z-[1001] overflow-hidden",
+                colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+              )}>
+                <button
+                  onClick={() => {
+                    setSimulation(true);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-1.5 text-[10px] flex items-center gap-2 transition-colors",
+                    colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                  )}
+                >
+                  <Globe size={12} />
+                  <span>All Internet Nodes</span>
+                </button>
+                <div className="h-px bg-slate-700/50 my-1 mx-2" />
+                {internetNodes.map((node: any) => (
+                  <button
+                    key={node.id}
+                    onClick={() => {
+                      setSimulation(true, [node.id]);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={cn(
+                      "w-full px-3 py-1.5 text-[10px] flex items-center gap-2 transition-colors",
+                      colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                    )}
+                  >
+                    <Globe size={12} className="opacity-50" />
+                    <span className="truncate">{node.data.label || 'Internet'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>

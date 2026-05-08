@@ -20,7 +20,9 @@ export default function CustomEdge({
   const { setEdges } = useReactFlow();
   const setConfiguringEdgeId = useFlowStore((state: any) => state.setConfiguringEdgeId);
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
+  const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
   const isConfiguring = configuringEdgeId === id;
+  const isSimulating = activeSimulationEdges.includes(id);
   
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -50,10 +52,11 @@ export default function CustomEdge({
       <BaseEdge 
         path={edgePath} 
         markerEnd={markerEnd} 
+        className={cn(isSimulating && "traffic-line")}
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
-          stroke: edgeColor,
+          stroke: isSimulating ? '#3b82f6' : edgeColor,
           transition: 'stroke 0.2s, stroke-width 0.2s',
         }} 
       />
