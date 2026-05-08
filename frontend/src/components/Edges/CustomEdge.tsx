@@ -16,13 +16,20 @@ export default function CustomEdge({
   markerEnd,
   selected,
   data,
+  target,
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
   const setConfiguringEdgeId = useFlowStore((state: any) => state.setConfiguringEdgeId);
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
   const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
+  const nodes = useFlowStore((state: any) => state.nodes);
+
   const isConfiguring = configuringEdgeId === id;
   const isSimulating = activeSimulationEdges.includes(id);
+
+  // Check target node status for simulation coloring
+  const targetNode = nodes.find((n: any) => n.id === target);
+  const isTargetError = isSimulating && targetNode?.data?.status !== 'ready';
   
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -56,7 +63,7 @@ export default function CustomEdge({
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
-          stroke: isSimulating ? '#3b82f6' : edgeColor,
+          stroke: isTargetError ? '#ef4444' : (isSimulating ? '#3b82f6' : edgeColor),
           transition: 'stroke 0.2s, stroke-width 0.2s',
         }} 
       />
