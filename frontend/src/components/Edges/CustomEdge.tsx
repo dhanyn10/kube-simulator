@@ -29,7 +29,10 @@ export default function CustomEdge({
 
   // Check target node status for simulation coloring
   const targetNode = nodes.find((n: any) => n.id === target);
-  const isTargetError = isSimulating && targetNode?.data?.status !== 'ready';
+  const workloadTypes = ['Pod', 'Deployment'];
+  const isTargetError = isSimulating &&
+    workloadTypes.includes(targetNode?.type || '') &&
+    targetNode?.data?.status !== 'ready';
   
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,

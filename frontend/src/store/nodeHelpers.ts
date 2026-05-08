@@ -56,6 +56,19 @@ export const syncDeployment = (
   }
 
   const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
+
+  // Sync Deployment data with Pod template
+  if (syncedPods.length > 0) {
+    const podTemplate = syncedPods[0].data;
+    updatedDeployment.data = {
+      ...updatedDeployment.data,
+      status: podTemplate.status,
+      runtime: podTemplate.runtime,
+      webserver: podTemplate.webserver,
+      image: podTemplate.image,
+    };
+  }
+
   const withHandlers = syncedPods.map(p => ({ 
     ...p, 
     data: {
