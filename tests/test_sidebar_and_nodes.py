@@ -1,7 +1,8 @@
 import pytest
+import os
 from playwright.sync_api import Page, expect
 
-BASE_URL = "http://localhost:3000"
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:3000")
 
 def test_sidebar_sections_toggle(page: Page):
     page.goto(BASE_URL)
