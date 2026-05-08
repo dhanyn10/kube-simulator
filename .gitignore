@@ -35,3 +35,10 @@ yarn-error.log*
 
 # Wails specific build cache
 /frontend/build
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
