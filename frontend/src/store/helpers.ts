@@ -126,6 +126,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     status: templatePod.data.status,
     label: templatePod.data.label,
     isAutoNamed: templatePod.data.isAutoNamed,
+    displaySettings: templatePod.data.displaySettings, // Missing this!
   } : {
     image: deployment.data.image,
     webserver: deployment.data.webserver || 'none',
@@ -134,6 +135,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     status: deployment.data.status || 'pending',
     label: 'new-app-pod',
     isAutoNamed: true,
+    displaySettings: deployment.data.displaySettings, // Also missing this!
   };
 
   targetPodReplicas.forEach((replicas, index) => {

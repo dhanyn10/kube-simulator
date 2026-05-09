@@ -113,7 +113,8 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   const replicas = data.replicas || 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
-  const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
+  // Show dashed progress if in a deployment with > 3 replicas OR if it's a standalone pod with > 1 replica
+  const showDashedProgress = data.type === 'Pod' && (totalDeploymentReplicas > 3 || (replicas > 1 && !data.parentId));
   const minSize = getPodMinimumSize(data);
 
   const isInternet = data.type === 'Internet';

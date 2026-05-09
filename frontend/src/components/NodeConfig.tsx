@@ -57,12 +57,64 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
   const toggleVisibility = (field: string) => {
     const currentSettings = data.displaySettings || {};
-    updateNodeData(selectedNode.id, {
-      displaySettings: {
-        ...currentSettings,
-        [field]: !currentSettings[field]
+    const isCurrentlyVisible = currentSettings[field] !== false;
+    const nextVisibility = !isCurrentlyVisible;
+    
+    let nextSettings = {
+      ...currentSettings,
+      [field]: nextVisibility
+    };
+
+    let additionalUpdates: any = {};
+    
+    // If enabling a feature that is currently empty, set default values
+    if (nextVisibility) {
+      if (field === 'resources' && !data.cpuLimit && !data.memoryLimit) {
+        additionalUpdates.cpuLimit = '100m';
+        additionalUpdates.memoryLimit = '128Mi';
       }
-    });
+      if (field === 'webserver' && (!data.webserver || data.webserver === 'none')) {
+        additionalUpdates.webserver = 'nginx';
+      }
+      if (field === 'runtime' && (!data.runtime || data.runtime === 'none')) {
+        additionalUpdates.runtime = 'nodejs';
+      }
+    }
+
+    const finalData = {
+      ...data,
+      ...additionalUpdates,
+      displaySettings: nextSettings
+    };
+
+    updateNodeData(selectedNode.id, finalData);
+
+    // If this is a Pod in a Deployment, we MUST also update the parent deployment's data
+    if (selectedNode.type === 'Pod' && selectedNode.parentId) {
+      const state = useFlowStore.getState();
+      const parentDeployment = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+      
+      if (parentDeployment) {
+        updateNodeData(parentDeployment.id, {
+          ...additionalUpdates,
+          displaySettings: nextSettings
+        });
+      }
+
+      // Sync all other pods for immediate visual feedback
+      const podsInGroup = state.nodes.filter((n: any) => 
+        n.parentId === selectedNode.parentId && 
+        n.data.label === data.label
+      );
+      podsInGroup.forEach((p: any) => {
+        if (p.id !== selectedNode.id) {
+          updateNodeData(p.id, {
+            ...additionalUpdates,
+            displaySettings: nextSettings 
+          });
+        }
+      });
+    }
   };
 
   const performUpdate = (updates: any) => {
@@ -99,6 +151,27 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     }
 
     updateNodeData(selectedNode.id, nextData);
+
+    // Sync to parent deployment if it's a pod in one
+    if (selectedNode.type === 'Pod' && selectedNode.parentId) {
+        const state = useFlowStore.getState();
+        const parentDeployment = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+        if (parentDeployment) {
+            // Pick only the data that should be synced to deployment template
+            const syncData: any = {};
+            if ('cpuLimit' in updates) syncData.cpuLimit = updates.cpuLimit;
+            if ('memoryLimit' in updates) syncData.memoryLimit = updates.memoryLimit;
+            if ('label' in updates) syncData.label = updates.label;
+            if ('image' in updates) syncData.image = updates.image;
+            if ('status' in updates) syncData.status = updates.status;
+            if ('webserver' in updates) syncData.webserver = updates.webserver;
+            if ('runtime' in updates) syncData.runtime = updates.runtime;
+
+            if (Object.keys(syncData).length > 0) {
+                updateNodeData(parentDeployment.id, syncData);
+            }
+        }
+    }
   };
 
   const updateReplicas = (replicas: number) => {
