@@ -18,6 +18,7 @@ import { YamlModal } from './components/YamlModal';
 import { PodNode } from './components/Nodes/Pod';
 import { ServiceNode } from './components/Nodes/Service';
 import { DeploymentNode } from './components/Nodes/Deployment';
+import { ScenarioModal } from './components/ScenarioModal';
 import { InternetNode } from './components/Nodes/Internet';
 import { NamespaceNode } from './components/Nodes/Namespace';
 import { IngressNode } from './components/Nodes/Ingress';
@@ -70,6 +71,7 @@ export default function App() {
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
+  const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
   const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
@@ -197,6 +199,7 @@ export default function App() {
         onImportFile={handleImportFile}
         onSaveFile={handleExportFile}
         onOpenProjects={() => setIsProjectOpen(true)}
+        onOpenScenarios={() => setIsScenarioOpen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -303,6 +306,11 @@ export default function App() {
               onClose={() => setIsYamlOpen(false)}
             />
           )}
+
+          <ScenarioModal
+            isOpen={isScenarioOpen}
+            onClose={() => setIsScenarioOpen(false)}
+          />
         </main>
       </div>
 

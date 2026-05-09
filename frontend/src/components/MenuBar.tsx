@@ -8,13 +8,15 @@ interface MenuBarProps {
   onImportFile: () => void;
   onSaveFile: () => void;
   onOpenProjects: () => void;
+  onOpenScenarios: () => void;
 }
 
 export const MenuBar = ({
   onExportYaml,
   onImportFile,
   onSaveFile,
-  onOpenProjects
+  onOpenProjects,
+  onOpenScenarios
 }: MenuBarProps) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const isAutosaveEnabled = useFlowStore((state: any) => state.isAutosaveEnabled);
@@ -52,6 +54,7 @@ export const MenuBar = ({
       label: 'Project',
       items: [
         { label: 'Manager', icon: FolderOpen, onClick: onOpenProjects },
+        { label: 'Scenarios', icon: BookOpen, onClick: onOpenScenarios },
         { 
           label: 'Save', 
           icon: Save, 
