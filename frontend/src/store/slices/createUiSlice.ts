@@ -48,11 +48,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSimulation: (active, internetNodeIds) => {
     // Initial sync for detached window if starting simulation
     if (active && get().isMonitoringDetached) {
-        const deployments = get().nodes.filter(n => n.type === 'Deployment');
+        const workloads = get().nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
         metricsChannel.postMessage({
           type: 'METRICS_UPDATE',
           metrics: get().simulationMetrics,
-          deployments: deployments.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+          deployments: workloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
         });
         metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: get().colorMode });
     }
@@ -112,16 +112,37 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       const updatedNodes = [...nodes];
       let hasChanges = false;
 
-      // 1. Calculate Load for each Deployment
-      const deployments = nodes.filter(n => n.type === 'Deployment');
+      // 1. Calculate Load for each workload (Deployment or PodGroup)
+      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
 
-      console.log(`[Simulation] Processing ${deployments.length} deployments...`);
-      deployments.forEach(dep => {
+      workloads.forEach(dep => {
         // Trace back to internet nodes through edges
         const incomingTraffic = nodes
           .filter(n => n.type === 'Internet')
           .reduce((total, internet) => {
-            // Check if internet can reach this deployment using BFS/active path
+            // Smoothly move currentTraffic towards target traffic
+            const targetTraffic = internet.data.traffic || 0;
+            const currentTraffic = internet.data.currentTraffic || 0;
+            let nextTraffic = currentTraffic;
+            
+            if (currentTraffic < targetTraffic) {
+               nextTraffic = Math.min(targetTraffic, currentTraffic + 500); // Ramp up
+            } else if (currentTraffic > targetTraffic) {
+               nextTraffic = Math.max(targetTraffic, currentTraffic - 1000); // Ramp down
+            }
+
+            if (nextTraffic !== currentTraffic) {
+                const idx = updatedNodes.findIndex(un => un.id === internet.id);
+                if (idx !== -1) {
+                    updatedNodes[idx] = { 
+                      ...updatedNodes[idx], 
+                      data: { ...updatedNodes[idx].data, currentTraffic: nextTraffic } 
+                    };
+                    hasChanges = true;
+                }
+            }
+
+            // Check if internet can reach this workload using BFS/active path
             const reachableNodes = new Set<string>();
             const queue = [internet.id];
             while (queue.length > 0) {
@@ -140,12 +161,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
             const canReach = reachableNodes.has(dep.id) ||
                              nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
 
-            // If they are not connected by an edge but it's the only deployment,
-            // let's assume it gets some baseline noise data for visibility if no other internet source is active
-            // but for now let's stick to true path tracing.
-
             console.log(`[Simulation] Reachability: Internet(${internet.data.label}) -> Deployment(${dep.data.label}): ${canReach}`);
-            return total + (canReach ? (internet.data.traffic || 0) : 0);
+            return total + (canReach ? nextTraffic : 0);
           }, 0);
 
         const replicas = dep.data.replicas || 1;
@@ -172,32 +189,46 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         if (connectedHPA) {
           const hpaData = connectedHPA.data;
           const targetCPU = hpaData.targetCPU || 50;
-          const targetMem = hpaData.targetMemory || 50;
           const minReplicas = hpaData.minReplicas || 1;
           const maxReplicas = hpaData.maxReplicas || 10;
 
+          // Standard K8s HPA Formula: desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
+          const cpuRatio = cpuUsage / targetCPU;
+          
           let desiredReplicas = replicas;
+          
+          // Only scale if outside tolerance (0.1 is standard K8s tolerance)
+          if (Math.abs(1 - cpuRatio) > 0.1) {
+            desiredReplicas = Math.ceil(replicas * cpuRatio);
+          }
 
-          if (cpuUsage > targetCPU * 1.1 || memUsage > targetMem * 1.1) {
-            desiredReplicas = Math.min(maxReplicas, replicas + 1);
-          } else if ((cpuUsage < targetCPU * 0.7 && memUsage < targetMem * 0.7) && replicas > minReplicas) {
-            // Scaling down more conservatively
-            if (Math.random() > 0.7) { // 30% chance to scale down per tick to avoid thrashing
-                desiredReplicas = Math.max(minReplicas, replicas - 1);
-            }
+          // Bound by min/max
+          desiredReplicas = Math.max(minReplicas, Math.min(maxReplicas, desiredReplicas));
+
+          // Simple stabilization: only scale down if load has been low for a bit (simulation: 30% chance per tick)
+          if (desiredReplicas < replicas && Math.random() < 0.7) {
+             desiredReplicas = replicas; // Skip this scale down tick
           }
 
           if (desiredReplicas !== replicas) {
             const nodeIndex = updatedNodes.findIndex(n => n.id === dep.id);
             if (nodeIndex !== -1) {
               const { updatedDeployment, laidOut } = syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
-
-              // Remove old pods and update deployment
               const filteredNodes = updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
               updatedNodes.length = 0;
               updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
               hasChanges = true;
             }
+          }
+          
+          // Update HPA node data with current metrics for UI display
+          const hpaIndex = updatedNodes.findIndex(n => n.id === connectedHPA.id);
+          if (hpaIndex !== -1) {
+            updatedNodes[hpaIndex] = {
+              ...updatedNodes[hpaIndex],
+              data: { ...updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuUsage) }
+            };
+            hasChanges = true;
           }
         }
       });
@@ -209,13 +240,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
       // Broadcast to detached window
       if (get().isMonitoringDetached) {
+        const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
         const payload = {
           metrics: newMetrics,
-          deployments: deployments.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+          deployments: workloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
         };
         metricsChannel.postMessage({ type: 'METRICS_UPDATE', ...payload });
         if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));
       }
-    }, 2000);
+    }, 1000);
   },
 });

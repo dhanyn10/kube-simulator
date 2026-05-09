@@ -55,7 +55,7 @@ export const MonitoringDashboard = () => {
   const dragStart = useRef({ x: 0, y: 0 });
   const dashboardRef = useRef<HTMLDivElement>(null);
 
-  const deployments = nodes.filter(n => n.type === 'Deployment');
+  const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
 
   useEffect(() => {
     const channel = new BroadcastChannel('monitoring-data');
@@ -177,13 +177,13 @@ export const MonitoringDashboard = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 max-h-[500px] custom-scrollbar">
-        {deployments.length === 0 ? (
+        {workloads.length === 0 ? (
           <div className="h-40 flex flex-col items-center justify-center text-slate-500 gap-2">
             <Activity size={24} className="opacity-20" />
             <p className="text-[10px] uppercase font-bold tracking-tight">No deployments detected</p>
           </div>
         ) : (
-          deployments.map(dep => {
+          workloads.map(dep => {
             const metrics = simulationMetrics[dep.id] || { cpu: [], memory: [] };
             return (
               <div key={dep.id} className="space-y-3">

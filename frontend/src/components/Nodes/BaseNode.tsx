@@ -270,7 +270,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               {data.displaySettings?.traffic !== false && (
                 <div className="flex justify-between items-center text-[9px] font-mono">
                   <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>traffic:</span>
-                  <span className="text-blue-500 font-bold">{data.traffic || 0} visits</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-blue-500 font-bold">{data.currentTraffic || 0} visits</span>
+                    <span className="text-[7px] text-slate-500">target: {data.traffic || 0}</span>
+                  </div>
                 </div>
               )}
               {data.displaySettings?.duration !== false && (

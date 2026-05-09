@@ -27,9 +27,9 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
         <div className="px-1 py-2">
           <input
             type="range"
-            min="1000"
-            max="1000000"
-            step="1000"
+            min="0"
+            max="20000"
+            step="500"
             value={data.traffic || 1000}
             onChange={(e) => performUpdate({ traffic: parseInt(e.target.value) || 1000 })}
             className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"

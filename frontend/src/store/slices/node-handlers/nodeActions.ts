@@ -1,3 +1,4 @@
+import React from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { K8sResourceType, K8sNodeData } from '../../../types';
 import { 
