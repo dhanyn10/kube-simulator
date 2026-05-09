@@ -1,18 +1,43 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Activity, X, Maximize2, Minimize2, Cpu, Database, ExternalLink } from 'lucide-react';
+import { Activity, X, Maximize2, Minimize2, Cpu, Database, ExternalLink, AlertTriangle, ZapOff } from 'lucide-react';
+import { SimulationMetricPoint } from '../store/slices/createUiSlice';
+import { formatCPU, formatMemory } from '../lib/utils';
 
-const LineChart = ({ data, color, label }: { data: number[], color: string, label: string }) => {
-  const points = data.map((val, i) => `${(i / 29) * 200},${100 - val}`).join(' ');
+const LineChart = ({
+  data,
+  color,
+  label,
+  valueFormatter,
+  limitValue,
+  isPercent = true
+}: {
+  data: number[],
+  color: string,
+  label: string,
+  valueFormatter?: (v: number) => string,
+  limitValue?: number,
+  isPercent?: boolean
+}) => {
+  const points = data.map((val, i) => `${(i / 29) * 200},${100 - (isPercent ? val : (val / (limitValue || 100)) * 100)}`).join(' ');
 
   return (
     <div className="flex flex-col gap-1 pointer-events-none">
       <div className="flex justify-between items-center px-1 pointer-events-none">
-        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <span className={cn("text-[10px] font-mono font-bold", `text-${color}-500`)}>
-          {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+           {valueFormatter && data.length > 0 && (
+             <span className="text-[8px] font-mono text-slate-500">
+               {valueFormatter(data[data.length - 1])} / {valueFormatter(limitValue || 0)}
+             </span>
+           )}
+           <span className={cn("text-[10px] font-mono font-bold", `text-${color}-500`)}>
+             {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
+           </span>
+        </div>
       </div>
       <div className="h-24 w-full bg-slate-950/50 rounded border border-slate-800 relative overflow-hidden pointer-events-none">
         {/* Grid Lines */}
@@ -22,6 +47,14 @@ const LineChart = ({ data, color, label }: { data: number[], color: string, labe
           <div className="border-t border-slate-500 w-full" />
         </div>
         <svg viewBox="0 0 200 100" className="w-full h-full preserve-3d pointer-events-none" preserveAspectRatio="none">
+          {/* Limit Line */}
+          <line
+            x1="0" y1="0" x2="200" y2="0"
+            stroke="#ef4444"
+            strokeWidth="1"
+            strokeDasharray="4 2"
+            className="opacity-50"
+          />
           <polyline
             fill="none"
             stroke={color === 'blue' ? '#3b82f6' : '#a855f7'}
@@ -184,13 +217,30 @@ export const MonitoringDashboard = () => {
           </div>
         ) : (
           workloads.map(dep => {
-            const metrics = simulationMetrics[dep.id] || { cpu: [], memory: [] };
+            const points = simulationMetrics[dep.id] || [];
+            const lastPoint = points[points.length - 1];
+
+            const cpuData = points.map(p => p.cpuPercent);
+            const memData = points.map(p => p.memoryPercent);
+
             return (
               <div key={dep.id} className="space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
                    <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-violet-500" />
                       <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label}</span>
+                      {lastPoint?.isThrottled && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 animate-pulse">
+                           <ZapOff size={10} />
+                           <span className="text-[8px] font-bold uppercase">Throttled</span>
+                        </div>
+                      )}
+                      {lastPoint?.isOOM && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 animate-bounce">
+                           <AlertTriangle size={10} />
+                           <span className="text-[8px] font-bold uppercase">OOM Risk</span>
+                        </div>
+                      )}
                    </div>
                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
                       {dep.data.replicas || 1} Replicas
@@ -198,8 +248,20 @@ export const MonitoringDashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                  <LineChart data={metrics.cpu} color="blue" label="CPU Usage" />
-                  <LineChart data={metrics.memory} color="purple" label="Memory Usage" />
+                  <LineChart
+                    data={cpuData}
+                    color="blue"
+                    label="CPU Usage"
+                    valueFormatter={formatCPU}
+                    limitValue={lastPoint?.cpuLimit}
+                  />
+                  <LineChart
+                    data={memData}
+                    color="purple"
+                    label="Memory Usage"
+                    valueFormatter={formatMemory}
+                    limitValue={lastPoint?.memoryLimit}
+                  />
                 </div>
               </div>
             );

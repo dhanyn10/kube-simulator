@@ -71,6 +71,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   const isPending = (data.type === 'Pod' || data.type === 'Deployment') && data.status === 'pending';
   const isReady = (data.type === 'Pod' || data.type === 'Deployment') && data.status === 'ready';
+  const isCrashing = data.status === 'crashing';
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -125,7 +126,8 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
-      isReady && (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30")
+      isReady && (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30"),
+      isCrashing && "border-red-600 ring-8 ring-red-600/30 animate-crash-blink shadow-[0_0_30px_rgba(220,38,38,0.6)]"
     )}>
       {/* Visual Stacking for Replicas */}
       {replicas > 1 && (
@@ -140,8 +142,15 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           0%, 100% { opacity: 1; border-color: rgba(239, 68, 68, 0.5); }
           50% { opacity: 0.8; border-color: rgba(239, 68, 68, 1); }
         }
+        @keyframes crash-blink {
+          0%, 100% { opacity: 1; transform: scale(1); background-color: rgba(220, 38, 38, 0.1); }
+          50% { opacity: 0.5; transform: scale(0.98); background-color: rgba(220, 38, 38, 0.4); }
+        }
         .animate-pulse-slow {
           animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .animate-crash-blink {
+          animation: crash-blink 0.4s ease-in-out infinite;
         }
       `}</style>
       <QuickConnectArrows nodeId={id} />
@@ -151,14 +160,14 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <span className={cn(
             "text-[8px] font-bold tracking-widest uppercase shrink-0",
-            isPending ? "text-red-500" : isReady ? "text-emerald-500" : (colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600')
+            isCrashing ? "text-red-600" : isPending ? "text-red-500" : isReady ? "text-emerald-500" : (colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600')
           )}>
-            {data.type}
+            {isCrashing ? 'Crashing' : data.type}
           </span>
           {data.type !== 'Internet' && (
             <div className={cn(
               "w-1.5 h-1.5 rounded-full",
-              isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+              isCrashing ? "bg-red-600 animate-ping" : isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
             )}></div>
           )}
           {replicas > 1 && (

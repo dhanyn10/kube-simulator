@@ -2,6 +2,18 @@ import { StateCreator } from 'zustand';
 import { FlowState } from '../types';
 import { K8sResourceType, K8sNodeData } from '../../types';
 import { syncDeployment } from '../nodeHelpers';
+import { parseCPU, parseMemory } from '../../lib/utils';
+
+export interface SimulationMetricPoint {
+  cpuPercent: number;
+  memoryPercent: number;
+  cpuValue: number;
+  memoryValue: number;
+  cpuLimit: number;
+  memoryLimit: number;
+  isThrottled: boolean;
+  isOOM: boolean;
+}
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
@@ -9,7 +21,7 @@ export interface UiSlice {
   isAutosaveEnabled: boolean;
   isSimulating: boolean;
   activeSimulationEdges: string[];
-  simulationMetrics: Record<string, { cpu: number[], memory: number[] }>;
+  simulationMetrics: Record<string, SimulationMetricPoint[]>;
   isMonitoringOpen: boolean;
   isMonitoringDetached: boolean;
   toggleColorMode: () => void;
@@ -168,19 +180,82 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           }, 0);
 
         const replicas = (dData.replicas as number) || 1;
-        // Always give a tiny bit of baseline load if simulation is active, to see the lines moving
-        const baseLoad = (incomingTraffic / 1000) + 0.5;
 
-        // Calculate CPU and Memory with some noise
-        const noise = () => (Math.random() * 10 - 5);
-        const cpuUsage = Math.min(100, Math.max(5, (baseLoad / replicas) * 50 + noise()));
-        const memUsage = Math.min(100, Math.max(10, (baseLoad / replicas) * 30 + 20 + noise()));
+        // Define resource limits
+        const cpuLimitMilli = parseCPU(dData.cpuLimit);
+        const memLimitMiB = parseMemory(dData.memoryLimit);
 
-        const existing = newMetrics[dep.id] || { cpu: [], memory: [] };
-        newMetrics[dep.id] = {
-          cpu: [...existing.cpu, cpuUsage].slice(-30),
-          memory: [...existing.memory, memUsage].slice(-30),
+        // 1. Calculate base load values
+        // Traffic: 1000 visits/min roughly consumes 200m CPU and 256Mi RAM per replica
+        const baseCpuLoadPerReplica = (incomingTraffic / 1000) * 200;
+        const baseMemLoadPerReplica = (incomingTraffic / 1000) * 128;
+
+        const noise = () => (Math.random() * 20 - 10);
+
+        let cpuValue = (baseCpuLoadPerReplica / replicas) + 50 + noise();
+        let memValue = (baseMemLoadPerReplica / replicas) + 100 + noise();
+
+        // Caps and statuses
+        const isThrottled = cpuValue >= cpuLimitMilli;
+        const isOOM = memValue >= memLimitMiB;
+
+        cpuValue = Math.max(10, Math.min(cpuValue, cpuLimitMilli));
+        memValue = Math.max(20, Math.min(memValue, memLimitMiB));
+
+        const cpuPercent = (cpuValue / cpuLimitMilli) * 100;
+        const memoryPercent = (memValue / memLimitMiB) * 100;
+
+        const existing = newMetrics[dep.id] || [];
+        const newPoint: SimulationMetricPoint = {
+          cpuPercent,
+          memoryPercent,
+          cpuValue,
+          memoryValue,
+          cpuLimit: cpuLimitMilli,
+          memoryLimit: memLimitMiB,
+          isThrottled,
+          isOOM
         };
+        newMetrics[dep.id] = [...existing, newPoint].slice(-30);
+
+        // 1.5 Handle OOM Crashes
+        if (isOOM && Math.random() > 0.5) {
+          const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+          if (childPods.length > 0) {
+            // Pick a random pod to crash
+            const podToCrash = childPods[Math.floor(Math.random() * childPods.length)];
+            const podIdx = updatedNodes.findIndex(n => n.id === podToCrash.id);
+
+            if (podIdx !== -1 && updatedNodes[podIdx].data.status !== 'crashing') {
+              updatedNodes[podIdx] = {
+                ...updatedNodes[podIdx],
+                data: { ...updatedNodes[podIdx].data, status: 'crashing' }
+              };
+              hasChanges = true;
+
+              // Schedule recovery
+              setTimeout(() => {
+                const currentState = get();
+                const nodeToRecover = currentState.nodes.find(n => n.id === podToCrash.id);
+                if (nodeToRecover && nodeToRecover.data.status === 'crashing') {
+                   // Delete it first (simulating termination)
+                   currentState.deleteNodes([nodeToRecover]);
+
+                   // Then re-sync deployment after a delay to "respawn" it
+                   setTimeout(() => {
+                      const latestState = get();
+                      const parentDep = latestState.nodes.find(n => n.id === dep.id);
+                      if (parentDep) {
+                        const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, get);
+                        const filteredNodes = latestState.nodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+                        set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
+                      }
+                   }, 2000);
+                }
+              }, 3000);
+            }
+          }
+        }
 
         // 2. HPA Scaling Logic
         const connectedHPA = nodes.find(n =>
@@ -195,7 +270,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           const maxReplicas = hpaData.maxReplicas || 10;
 
           // Standard K8s HPA Formula: desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
-          const cpuRatio = cpuUsage / targetCPU;
+          const cpuRatio = cpuPercent / targetCPU;
           
           let desiredReplicas = replicas;
           
@@ -228,7 +303,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           if (hpaIndex !== -1) {
             updatedNodes[hpaIndex] = {
               ...updatedNodes[hpaIndex],
-              data: { ...updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuUsage) }
+              data: { ...updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) }
             };
             hasChanges = true;
           }
