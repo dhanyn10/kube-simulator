@@ -11,14 +11,17 @@ export interface UiSlice {
   activeSimulationEdges: string[];
   simulationMetrics: Record<string, { cpu: number[], memory: number[] }>;
   isMonitoringOpen: boolean;
+  isMonitoringDetached: boolean;
   toggleColorMode: () => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleAutosave: () => void;
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
   setMonitoringOpen: (open: boolean) => void;
+  setMonitoringDetached: (detached: boolean) => void;
 }
 
 let simulationInterval: any = null;
+const metricsChannel = new BroadcastChannel('monitoring-data');
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
@@ -28,11 +31,28 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   activeSimulationEdges: [],
   simulationMetrics: {},
   isMonitoringOpen: false,
-  toggleColorMode: () => set((state) => ({ colorMode: state.colorMode === 'dark' ? 'light' : 'dark' })),
+  isMonitoringDetached: false,
+  toggleColorMode: () => {
+    const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
+    set({ colorMode: newMode });
+    metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: newMode });
+  },
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
   toggleAutosave: () => set((state) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
   setMonitoringOpen: (open) => set({ isMonitoringOpen: open }),
+  setMonitoringDetached: (detached) => set({ isMonitoringDetached: detached }),
   setSimulation: (active, internetNodeIds) => {
+    // Initial sync for detached window if starting simulation
+    if (active && get().isMonitoringDetached) {
+        const deployments = get().nodes.filter(n => n.type === 'Deployment');
+        metricsChannel.postMessage({
+          type: 'METRICS_UPDATE',
+          metrics: get().simulationMetrics,
+          deployments: deployments.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+        });
+        metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: get().colorMode });
+    }
+
     if (simulationInterval) {
       clearInterval(simulationInterval);
       simulationInterval = null;
@@ -161,6 +181,15 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         simulationMetrics: newMetrics,
         ...(hasChanges ? { nodes: updatedNodes } : {})
       });
+
+      // Broadcast to detached window
+      if (get().isMonitoringDetached) {
+        metricsChannel.postMessage({
+          type: 'METRICS_UPDATE',
+          metrics: newMetrics,
+          deployments: deployments.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+        });
+      }
     }, 2000);
   },
 });

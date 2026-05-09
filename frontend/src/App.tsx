@@ -25,6 +25,7 @@ import { IngressNode } from './components/Nodes/Ingress';
 import { HPANode } from './components/Nodes/HPA';
 import { PodGroupNode } from './components/Nodes/PodGroup';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
+import { DetachedMonitoring } from './components/DetachedMonitoring';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus } from 'lucide-react';
@@ -55,6 +56,12 @@ const defaultEdgeOptions = {
 };
 
 export default function App() {
+  const isDetachedMode = new URLSearchParams(window.location.search).get('mode') === 'monitoring';
+
+  if (isDetachedMode) {
+    return <DetachedMonitoring />;
+  }
+
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
   const onNodesChange = useFlowStore((state) => state.onNodesChange);

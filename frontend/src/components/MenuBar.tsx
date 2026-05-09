@@ -28,6 +28,7 @@ export const MenuBar = ({
   const setSimulation = useFlowStore((state: any) => state.setSimulation);
   const isMonitoringOpen = useFlowStore((state: any) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state: any) => state.setMonitoringOpen);
+  const isMonitoringDetached = useFlowStore((state: any) => state.isMonitoringDetached);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -88,9 +89,9 @@ export const MenuBar = ({
       label: 'Monitoring',
       items: [
         {
-          label: isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard',
-          icon: Activity,
-          onClick: () => setMonitoringOpen(!isMonitoringOpen)
+          label: isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard'),
+          icon: isMonitoringDetached ? ExternalLink : Activity,
+          onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
         },
       ]
     },

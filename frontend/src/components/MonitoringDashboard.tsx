@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Activity, X, Maximize2, Minimize2, Cpu, Database } from 'lucide-react';
+import { Activity, X, Maximize2, Minimize2, Cpu, Database, ExternalLink } from 'lucide-react';
 
 const LineChart = ({ data, color, label }: { data: number[], color: string, label: string }) => {
   const points = data.map((val, i) => `${(i / 29) * 200},${100 - val}`).join(' ');
@@ -44,6 +44,8 @@ const LineChart = ({ data, color, label }: { data: number[], color: string, labe
 export const MonitoringDashboard = () => {
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state) => state.setMonitoringOpen);
+  const isMonitoringDetached = useFlowStore((state) => state.isMonitoringDetached);
+  const setMonitoringDetached = useFlowStore((state) => state.setMonitoringDetached);
   const simulationMetrics = useFlowStore((state) => state.simulationMetrics);
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -54,6 +56,32 @@ export const MonitoringDashboard = () => {
   const dashboardRef = useRef<HTMLDivElement>(null);
 
   const deployments = nodes.filter(n => n.type === 'Deployment');
+
+  useEffect(() => {
+    const channel = new BroadcastChannel('monitoring-data');
+    channel.onmessage = (event) => {
+      if (event.data.type === 'DETACHED_OPEN') {
+        setMonitoringDetached(true);
+        setMonitoringOpen(false);
+      } else if (event.data.type === 'DETACHED_CLOSED') {
+        setMonitoringDetached(false);
+      }
+    };
+    return () => channel.close();
+  }, []);
+
+  const handleDetach = () => {
+    const width = 800;
+    const height = 600;
+    const left = (window.screen.width / 2) - (width / 2);
+    const top = (window.screen.height / 2) - (height / 2);
+
+    window.open(
+      `${window.location.origin}${window.location.pathname}?mode=monitoring`,
+      'InfraStack Monitoring',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    );
+  };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -75,7 +103,7 @@ export const MonitoringDashboard = () => {
     };
   }, [isDragging]);
 
-  if (!isMonitoringOpen) return null;
+  if (!isMonitoringOpen || isMonitoringDetached) return null;
 
   return (
     <div
@@ -109,6 +137,20 @@ export const MonitoringDashboard = () => {
           className="p-1 hover:bg-red-500 hover:text-white rounded transition-colors"
         >
           <X size={14} />
+        </button>
+      </div>
+
+      <div className={cn(
+        "px-4 py-2 border-b flex items-center justify-between",
+        colorMode === 'dark' ? "bg-blue-500/5" : "bg-blue-50"
+      )}>
+        <span className="text-[10px] text-slate-500">View on separate window?</span>
+        <button
+          onClick={handleDetach}
+          className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
+        >
+          <ExternalLink size={10} />
+          Detach
         </button>
       </div>
 
