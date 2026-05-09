@@ -45,6 +45,8 @@ export interface FlowState {
   // Simulation state
   isSimulating: boolean;
   activeSimulationEdges: string[];
+  simulationMetrics: Record<string, { cpu: number[], memory: number[] }>;
+  isMonitoringOpen: boolean;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -80,4 +82,5 @@ export interface FlowState {
   toggleColorMode: () => void;
   toggleAutosave: () => void;
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
+  setMonitoringOpen: (open: boolean) => void;
 }

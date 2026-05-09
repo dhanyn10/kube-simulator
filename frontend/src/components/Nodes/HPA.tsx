@@ -186,6 +186,21 @@ export const HPANode = memo((props: NodeProps) => {
           </div>
         )}
 
+        {data.displaySettings?.targetMemory !== false && (
+          <div className={cn("mt-1 pt-1", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+            <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Target Mem</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className={cn("flex-1 h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
+                  <div
+                      className="h-full bg-purple-500 transition-all duration-500"
+                      style={{ width: `${data.targetMemory || 50}%` }}
+                  />
+              </div>
+              <span className="text-[9px] font-mono text-purple-500 font-bold">{data.targetMemory || 50}%</span>
+            </div>
+          </div>
+        )}
+
         {data.displaySettings?.targetCPU !== false && (
           <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
             <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Target CPU</span>

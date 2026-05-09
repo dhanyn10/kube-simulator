@@ -97,6 +97,31 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility }: HPA
           <span>90%</span>
         </div>
       </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+            <Activity size={10} /> Target Mem (%)
+          </label>
+          <button onClick={() => toggleVisibility('targetMemory')} className="text-slate-500 hover:text-blue-500 transition-colors">
+            {(data.displaySettings?.targetMemory !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+          </button>
+        </div>
+        <input
+          type="range"
+          min="10"
+          max="90"
+          step="5"
+          value={data.targetMemory || 50}
+          onChange={(e) => performUpdate({ targetMemory: parseInt(e.target.value) })}
+          className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        />
+        <div className="flex justify-between text-[8px] font-mono text-slate-500">
+          <span>10%</span>
+          <span className="text-blue-500 font-bold">{data.targetMemory || 50}%</span>
+          <span>90%</span>
+        </div>
+      </div>
     </div>
   );
 };

@@ -8,11 +8,16 @@ export interface UiSlice {
   isAutosaveEnabled: boolean;
   isSimulating: boolean;
   activeSimulationEdges: string[];
+  simulationMetrics: Record<string, { cpu: number[], memory: number[] }>;
+  isMonitoringOpen: boolean;
   toggleColorMode: () => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleAutosave: () => void;
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
+  setMonitoringOpen: (open: boolean) => void;
 }
+
+let simulationInterval: any = null;
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
@@ -20,12 +25,20 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isAutosaveEnabled: false,
   isSimulating: false,
   activeSimulationEdges: [],
+  simulationMetrics: {},
+  isMonitoringOpen: false,
   toggleColorMode: () => set((state) => ({ colorMode: state.colorMode === 'dark' ? 'light' : 'dark' })),
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
   toggleAutosave: () => set((state) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
+  setMonitoringOpen: (open) => set({ isMonitoringOpen: open }),
   setSimulation: (active, internetNodeIds) => {
+    if (simulationInterval) {
+      clearInterval(simulationInterval);
+      simulationInterval = null;
+    }
+
     if (!active) {
-      set({ isSimulating: false, activeSimulationEdges: [] });
+      set({ isSimulating: false, activeSimulationEdges: [], simulationMetrics: {} });
       return;
     }
 
@@ -55,7 +68,98 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
     set({
       isSimulating: true,
-      activeSimulationEdges: Array.from(activeEdges)
+      activeSimulationEdges: Array.from(activeEdges),
+      simulationMetrics: {}
     });
+
+    // Start Simulation Loop
+    simulationInterval = setInterval(() => {
+      const state = get();
+      if (!state.isSimulating) {
+        clearInterval(simulationInterval);
+        return;
+      }
+
+      const { nodes, edges, simulationMetrics } = state;
+      const newMetrics = { ...simulationMetrics };
+      const updatedNodes = [...nodes];
+      let hasChanges = false;
+
+      // 1. Calculate Load for each Deployment
+      const deployments = nodes.filter(n => n.type === 'Deployment');
+
+      deployments.forEach(dep => {
+        // Trace back to internet nodes through edges
+        const incomingTraffic = nodes
+          .filter(n => n.type === 'Internet')
+          .reduce((total, internet) => {
+            // Very simple BFS check if internet can reach this deployment
+            const canReach = state.activeSimulationEdges.some(eid => {
+                const edge = edges.find(e => e.id === eid);
+                return edge && (edge.target === dep.id || nodes.find(n => n.id === edge.target && n.parentId === dep.id));
+            });
+            return total + (canReach ? (internet.data.traffic || 0) : 0);
+          }, 0);
+
+        const replicas = dep.data.replicas || 1;
+        const baseLoad = incomingTraffic / 1000; // 1000 visits = 1 unit of load
+
+        // Calculate CPU and Memory with some noise
+        const noise = () => (Math.random() * 10 - 5);
+        const cpuUsage = Math.min(100, Math.max(5, (baseLoad / replicas) * 50 + noise()));
+        const memUsage = Math.min(100, Math.max(10, (baseLoad / replicas) * 30 + 20 + noise()));
+
+        if (!newMetrics[dep.id]) {
+          newMetrics[dep.id] = { cpu: [], memory: [] };
+        }
+
+        const history = newMetrics[dep.id];
+        history.cpu = [...history.cpu, cpuUsage].slice(-30);
+        history.memory = [...history.memory, memUsage].slice(-30);
+
+        // 2. HPA Scaling Logic
+        const connectedHPA = nodes.find(n =>
+          n.type === 'HPA' &&
+          edges.some(e => e.source === n.id && e.target === dep.id)
+        );
+
+        if (connectedHPA) {
+          const hpaData = connectedHPA.data;
+          const targetCPU = hpaData.targetCPU || 50;
+          const targetMem = hpaData.targetMemory || 50;
+          const minReplicas = hpaData.minReplicas || 1;
+          const maxReplicas = hpaData.maxReplicas || 10;
+
+          let desiredReplicas = replicas;
+
+          if (cpuUsage > targetCPU * 1.1 || memUsage > targetMem * 1.1) {
+            desiredReplicas = Math.min(maxReplicas, replicas + 1);
+          } else if ((cpuUsage < targetCPU * 0.7 && memUsage < targetMem * 0.7) && replicas > minReplicas) {
+            // Scaling down more conservatively
+            if (Math.random() > 0.7) { // 30% chance to scale down per tick to avoid thrashing
+                desiredReplicas = Math.max(minReplicas, replicas - 1);
+            }
+          }
+
+          if (desiredReplicas !== replicas) {
+            const nodeIndex = updatedNodes.findIndex(n => n.id === dep.id);
+            if (nodeIndex !== -1) {
+              const { updatedDeployment, laidOut } = (state as any).syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
+
+              // Remove old pods and update deployment
+              const filteredNodes = updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+              updatedNodes.length = 0;
+              updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
+              hasChanges = true;
+            }
+          }
+        }
+      });
+
+      set({
+        simulationMetrics: newMetrics,
+        ...(hasChanges ? { nodes: updatedNodes } : {})
+      });
+    }, 2000);
   },
 });

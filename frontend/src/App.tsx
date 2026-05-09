@@ -24,6 +24,7 @@ import { NamespaceNode } from './components/Nodes/Namespace';
 import { IngressNode } from './components/Nodes/Ingress';
 import { HPANode } from './components/Nodes/HPA';
 import { PodGroupNode } from './components/Nodes/PodGroup';
+import { MonitoringDashboard } from './components/MonitoringDashboard';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus } from 'lucide-react';
@@ -224,6 +225,8 @@ export default function App() {
             isOpen={isScenarioOpen}
             onClose={() => setIsScenarioOpen(false)}
           />
+
+          <MonitoringDashboard />
         </main>
       </div>
 

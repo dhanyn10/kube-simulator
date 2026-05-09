@@ -26,6 +26,8 @@ export const MenuBar = ({
   const edges = useFlowStore((state: any) => state.edges);
   const isSimulating = useFlowStore((state: any) => state.isSimulating);
   const setSimulation = useFlowStore((state: any) => state.setSimulation);
+  const isMonitoringOpen = useFlowStore((state: any) => state.isMonitoringOpen);
+  const setMonitoringOpen = useFlowStore((state: any) => state.setMonitoringOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -79,6 +81,16 @@ export const MenuBar = ({
           label: isAutosaveEnabled ? 'Autosave: ON' : 'Autosave: OFF', 
           icon: isAutosaveEnabled ? CheckSquare : Square,
           onClick: toggleAutosave 
+        },
+      ]
+    },
+    {
+      label: 'Monitoring',
+      items: [
+        {
+          label: isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard',
+          icon: Activity,
+          onClick: () => setMonitoringOpen(!isMonitoringOpen)
         },
       ]
     },
