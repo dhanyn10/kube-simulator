@@ -137,12 +137,6 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
                   )}>
                     {scenario.description}
                   </p>
-
-                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest flex items-center gap-1">
-                      Load Scenario <Zap size={10} fill="currentColor" />
-                    </span>
-                  </div>
                 </button>
               ))}
             </div>
