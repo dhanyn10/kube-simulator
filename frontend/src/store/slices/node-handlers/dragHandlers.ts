@@ -93,8 +93,8 @@ export const dragHandlers = (set: any, get: any) => ({
         detachingDeploymentId: newDetachingDeploymentId,
         nodes: nextNodes,
         alignmentGuides: {
-            vertical: Array.from(verticalGuides).map(pos => ({ position: pos })),
-            horizontal: Array.from(horizontalGuides).map(pos => ({ position: pos })),
+            vertical: verticalGuides,
+            horizontal: horizontalGuides,
         },
         snapGuides: {
             vertical: Array.from(verticalSnapGuides).map(([pos, isActive]) => ({ position: pos, isActive })),
@@ -120,7 +120,12 @@ export const dragHandlers = (set: any, get: any) => ({
           const nodeAbs = { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
           
           if (activeVerticalSnaps.length > 0) {
-              const guide = activeVerticalSnaps[0];
+              // Find the closest guide among active snaps
+              const guide = activeVerticalSnaps.reduce((prev, curr) => 
+                Math.min(Math.abs(nodeAbs.x - curr), Math.abs(nodeAbs.x + nodeWidth/2 - curr), Math.abs(nodeAbs.x + nodeWidth - curr)) < 
+                Math.min(Math.abs(nodeAbs.x - prev), Math.abs(nodeAbs.x + nodeWidth/2 - prev), Math.abs(nodeAbs.x + nodeWidth - prev)) ? curr : prev
+              );
+
               const dLeft = Math.abs(nodeAbs.x - guide);
               const dCenter = Math.abs((nodeAbs.x + nodeWidth / 2) - guide);
               const dRight = Math.abs((nodeAbs.x + nodeWidth) - guide);
@@ -134,7 +139,11 @@ export const dragHandlers = (set: any, get: any) => ({
               }
           }
           if (activeHorizontalSnaps.length > 0) {
-              const guide = activeHorizontalSnaps[0];
+              const guide = activeHorizontalSnaps.reduce((prev, curr) => 
+                Math.min(Math.abs(nodeAbs.y - curr), Math.abs(nodeAbs.y + nodeHeight/2 - curr), Math.abs(nodeAbs.y + nodeHeight - curr)) < 
+                Math.min(Math.abs(nodeAbs.y - prev), Math.abs(nodeAbs.y + nodeHeight/2 - prev), Math.abs(nodeAbs.y + nodeHeight - prev)) ? curr : prev
+              );
+
               const dTop = Math.abs(nodeAbs.y - guide);
               const dCenter = Math.abs((nodeAbs.y + nodeHeight / 2) - guide);
               const dBottom = Math.abs((nodeAbs.y + nodeHeight) - guide);

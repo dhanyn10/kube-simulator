@@ -20,13 +20,18 @@ export const AlignmentGuides = () => {
   // Transform flow coordinates to screen coordinates for alignment guides
   const alignmentGuidesTransformed = React.useMemo(() => {
     return {
-      vertical: alignmentGuides.vertical.map((guide: { position: number; }) => {
+      vertical: alignmentGuides.vertical.map((guide: any) => {
         const screenX = guide.position * viewport.zoom + viewport.x;
-        return { screenX };
+        // If minY/maxY are provided, use them for segmented lines
+        const screenTop = guide.minY !== undefined ? guide.minY * viewport.zoom + viewport.y : 0;
+        const screenBottom = guide.maxY !== undefined ? guide.maxY * viewport.zoom + viewport.y : 10000;
+        return { ...guide, screenX, screenTop, screenBottom };
       }),
-      horizontal: alignmentGuides.horizontal.map((guide: { position: number; }) => {
+      horizontal: alignmentGuides.horizontal.map((guide: any) => {
         const screenY = guide.position * viewport.zoom + viewport.y;
-        return { screenY };
+        const screenLeft = guide.minX !== undefined ? guide.minX * viewport.zoom + viewport.x : 0;
+        const screenRight = guide.maxX !== undefined ? guide.maxX * viewport.zoom + viewport.x : 10000;
+        return { ...guide, screenY, screenLeft, screenRight };
       }),
     };
   }, [alignmentGuides, viewport]);
@@ -91,42 +96,73 @@ export const AlignmentGuides = () => {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 100,
+        overflow: 'hidden'
       }}
     >
-      {/* Alignment guides (red lines) */}
-      {alignmentGuidesTransformed.vertical.map((guide: { screenX: any; }, idx: any) => (
+      {/* Alignment guides (premium red/pink segmented lines) */}
+      {alignmentGuidesTransformed.vertical.map((guide: any, idx: any) => (
         <div
           key={`v-align-${idx}`}
           style={{
             position: 'absolute',
             left: `${guide.screenX}px`,
-            top: 0,
-            bottom: 0,
+            top: `${guide.screenTop}px`,
+            height: `${guide.screenBottom - guide.screenTop}px`,
             width: '1px',
-            backgroundColor: '#ef4444',
-            opacity: 0.7,
-            boxShadow: '0 0 3px rgba(239, 68, 68, 0.6)',
+            backgroundColor: '#f43f5e', // rose-500
+            opacity: 0.8,
+            boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
           }}
-        />
+        >
+            {/* Center indicator dot */}
+            {guide.type === 'center' && (
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    backgroundColor: '#f43f5e',
+                    boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)'
+                }} />
+            )}
+        </div>
       ))}
 
-      {alignmentGuidesTransformed.horizontal.map((guide: { screenY: any; }, idx: any) => (
+      {alignmentGuidesTransformed.horizontal.map((guide: any, idx: any) => (
         <div
           key={`h-align-${idx}`}
           style={{
             position: 'absolute',
             top: `${guide.screenY}px`,
-            left: 0,
-            right: 0,
+            left: `${guide.screenLeft}px`,
+            width: `${guide.screenRight - guide.screenLeft}px`,
             height: '1px',
-            backgroundColor: '#ef4444',
-            opacity: 0.7,
-            boxShadow: '0 0 3px rgba(239, 68, 68, 0.6)',
+            backgroundColor: '#f43f5e',
+            opacity: 0.8,
+            boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
           }}
-        />
+        >
+            {/* Center indicator dot */}
+            {guide.type === 'center' && (
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '5px',
+                    height: '5px',
+                    borderRadius: '50%',
+                    backgroundColor: '#f43f5e',
+                    boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)'
+                }} />
+            )}
+        </div>
       ))}
 
-      {/* Snap guides (blue dashed lines inside dragged node) */}
+      {/* Snap guides (blue indicators inside dragged node) */}
       {draggedNode && (
         <>
           {snapGuidesTransformed.vertical.map((guide: { screenX: any; nodeScreenY: any; }, idx: any) => (
@@ -136,12 +172,11 @@ export const AlignmentGuides = () => {
                 position: 'absolute',
                 left: `${guide.screenX}px`,
                 top: `${guide.nodeScreenY}px`,
-                width: '1px',
+                width: '2px', // Slightly thicker for emphasis
                 height: `${nodeScreenHeight}px`,
-                backgroundColor: '#3b82f6',
-                opacity: 0.8,
-                borderLeft: '1px dashed #3b82f6',
-                boxShadow: '0 0 4px rgba(59, 130, 246, 0.7)',
+                backgroundColor: '#3b82f6', // blue-500
+                opacity: 0.9,
+                boxShadow: '0 0 8px rgba(59, 130, 246, 0.8)',
               }}
             />
           ))}
@@ -154,11 +189,10 @@ export const AlignmentGuides = () => {
                 top: `${guide.screenY}px`,
                 left: `${guide.nodeScreenX}px`,
                 width: `${nodeScreenWidth}px`,
-                height: '1px',
+                height: '2px',
                 backgroundColor: '#3b82f6',
-                opacity: 0.8,
-                borderTop: '1px dashed #3b82f6',
-                boxShadow: '0 0 4px rgba(59, 130, 246, 0.7)',
+                opacity: 0.9,
+                boxShadow: '0 0 8px rgba(59, 130, 246, 0.8)',
               }}
             />
           ))}
