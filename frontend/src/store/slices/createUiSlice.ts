@@ -98,9 +98,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     });
 
     // Start Simulation Loop
+    console.log('[Simulation] Starting loop...');
     simulationInterval = setInterval(() => {
       const state = get();
       if (!state.isSimulating) {
+        console.log('[Simulation] Loop stopped.');
         clearInterval(simulationInterval);
         return;
       }
@@ -113,34 +115,53 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       // 1. Calculate Load for each Deployment
       const deployments = nodes.filter(n => n.type === 'Deployment');
 
+      console.log(`[Simulation] Processing ${deployments.length} deployments...`);
       deployments.forEach(dep => {
         // Trace back to internet nodes through edges
         const incomingTraffic = nodes
           .filter(n => n.type === 'Internet')
           .reduce((total, internet) => {
-            // Very simple BFS check if internet can reach this deployment
-            const canReach = state.activeSimulationEdges.some(eid => {
-                const edge = edges.find(e => e.id === eid);
-                return edge && (edge.target === dep.id || nodes.find(n => n.id === edge.target && n.parentId === dep.id));
-            });
+            // Check if internet can reach this deployment using BFS/active path
+            const reachableNodes = new Set<string>();
+            const queue = [internet.id];
+            while (queue.length > 0) {
+              const currId = queue.shift()!;
+              if (reachableNodes.has(currId)) continue;
+              reachableNodes.add(currId);
+
+              // Only traverse active simulation edges
+              edges.forEach(e => {
+                if (state.activeSimulationEdges.includes(e.id) && e.source === currId) {
+                  queue.push(e.target);
+                }
+              });
+            }
+
+            const canReach = reachableNodes.has(dep.id) ||
+                             nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
+
+            // If they are not connected by an edge but it's the only deployment,
+            // let's assume it gets some baseline noise data for visibility if no other internet source is active
+            // but for now let's stick to true path tracing.
+
+            console.log(`[Simulation] Reachability: Internet(${internet.data.label}) -> Deployment(${dep.data.label}): ${canReach}`);
             return total + (canReach ? (internet.data.traffic || 0) : 0);
           }, 0);
 
         const replicas = dep.data.replicas || 1;
-        const baseLoad = incomingTraffic / 1000; // 1000 visits = 1 unit of load
+        // Always give a tiny bit of baseline load if simulation is active, to see the lines moving
+        const baseLoad = (incomingTraffic / 1000) + 0.5;
 
         // Calculate CPU and Memory with some noise
         const noise = () => (Math.random() * 10 - 5);
         const cpuUsage = Math.min(100, Math.max(5, (baseLoad / replicas) * 50 + noise()));
         const memUsage = Math.min(100, Math.max(10, (baseLoad / replicas) * 30 + 20 + noise()));
 
-        if (!newMetrics[dep.id]) {
-          newMetrics[dep.id] = { cpu: [], memory: [] };
-        }
-
-        const history = newMetrics[dep.id];
-        history.cpu = [...history.cpu, cpuUsage].slice(-30);
-        history.memory = [...history.memory, memUsage].slice(-30);
+        const existing = newMetrics[dep.id] || { cpu: [], memory: [] };
+        newMetrics[dep.id] = {
+          cpu: [...existing.cpu, cpuUsage].slice(-30),
+          memory: [...existing.memory, memUsage].slice(-30),
+        };
 
         // 2. HPA Scaling Logic
         const connectedHPA = nodes.find(n =>
