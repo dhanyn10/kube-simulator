@@ -13,7 +13,7 @@ export const isAllowed = (parentType: string, childType: string): boolean => {
 
 export const getAbsPos = (nodeId: string, currentNodes: Node[], draggedNode?: Node): { x: number, y: number } => {
   const n = (draggedNode && nodeId === draggedNode.id) ? draggedNode : currentNodes.find(i => i.id === nodeId);
-  if (!n) return { x: 0, y: 0 };
+  if (!n || !n.position) return { x: 0, y: 0 };
   if (!n.parentId) return n.position;
   const pAbs = getAbsPos(n.parentId, currentNodes, draggedNode);
   return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
@@ -290,7 +290,12 @@ export const calculateAlignmentGuides = (
         vSnap.set(targetAbsX, true); // Force snap
         hSnap.set(targetAbsY, true); // Force snap
       }
-      return { verticalGuides, horizontalGuides, vSnap, hSnap };
+      return {
+        verticalGuides: Array.from(verticalGuides.values()),
+        horizontalGuides: Array.from(horizontalGuides.values()),
+        vSnap,
+        hSnap
+      };
     }
   }
 

@@ -19,16 +19,19 @@ export const AlignmentGuides = () => {
 
   // Transform flow coordinates to screen coordinates for alignment guides
   const alignmentGuidesTransformed = React.useMemo(() => {
+    const vertical = Array.isArray(alignmentGuides?.vertical) ? alignmentGuides.vertical : [];
+    const horizontal = Array.isArray(alignmentGuides?.horizontal) ? alignmentGuides.horizontal : [];
+
     return {
-      vertical: alignmentGuides.vertical.map((guide: any) => {
-        const screenX = guide.position * viewport.zoom + viewport.x;
+      vertical: vertical.map((guide: any) => {
+        const screenX = (guide.position || 0) * viewport.zoom + viewport.x;
         // If minY/maxY are provided, use them for segmented lines
         const screenTop = guide.minY !== undefined ? guide.minY * viewport.zoom + viewport.y : 0;
         const screenBottom = guide.maxY !== undefined ? guide.maxY * viewport.zoom + viewport.y : 10000;
         return { ...guide, screenX, screenTop, screenBottom };
       }),
-      horizontal: alignmentGuides.horizontal.map((guide: any) => {
-        const screenY = guide.position * viewport.zoom + viewport.y;
+      horizontal: horizontal.map((guide: any) => {
+        const screenY = (guide.position || 0) * viewport.zoom + viewport.y;
         const screenLeft = guide.minX !== undefined ? guide.minX * viewport.zoom + viewport.x : 0;
         const screenRight = guide.maxX !== undefined ? guide.maxX * viewport.zoom + viewport.x : 10000;
         return { ...guide, screenY, screenLeft, screenRight };
@@ -38,10 +41,11 @@ export const AlignmentGuides = () => {
 
   // Transform snap guide coordinates to screen coordinates relative to dragged node
   const snapGuidesTransformed = React.useMemo(() => {
-    if (!draggedNode) return { vertical: [], horizontal: [] };
+    if (!draggedNode || !draggedNode.position) return { vertical: [], horizontal: [] };
 
     // Calculate absolute position of the dragged node
     const getAbsPosition = (node: any): { x: number, y: number } => {
+      if (!node || !node.position) return { x: 0, y: 0 };
       if (!node.parentId) return node.position;
       const parent = nodes.find((n: any) => n.id === node.parentId);
       if (!parent) return node.position;
@@ -53,11 +57,14 @@ export const AlignmentGuides = () => {
     const nodeScreenX = nodeAbs.x * viewport.zoom + viewport.x;
     const nodeScreenY = nodeAbs.y * viewport.zoom + viewport.y;
 
+    const vGuides = Array.isArray(snapGuides?.vertical) ? snapGuides.vertical : [];
+    const hGuides = Array.isArray(snapGuides?.horizontal) ? snapGuides.horizontal : [];
+
     return {
-      vertical: snapGuides.vertical
+      vertical: vGuides
         .filter((g: { isActive: any; }) => g.isActive)
         .map((guide: { position: number; }) => {
-          const guideScreenX = guide.position * viewport.zoom + viewport.x;
+          const guideScreenX = (guide.position || 0) * viewport.zoom + viewport.x;
           const relativeX = guideScreenX - nodeScreenX;
 
           return {
@@ -67,10 +74,10 @@ export const AlignmentGuides = () => {
             screenX: guideScreenX,
           };
         }),
-      horizontal: snapGuides.horizontal
+      horizontal: hGuides
         .filter((g: { isActive: any; }) => g.isActive)
         .map((guide: { position: number; }) => {
-          const guideScreenY = guide.position * viewport.zoom + viewport.y;
+          const guideScreenY = (guide.position || 0) * viewport.zoom + viewport.y;
           const relativeY = guideScreenY - nodeScreenY;
 
           return {
