@@ -85,10 +85,24 @@ export default function App() {
           try {
             const data = JSON.parse(json);
             const canvas = JSON.parse(data.canvas);
-            const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
+            const nodesWithStrings = (canvas.nodes || []).map((n: any) => ({ 
+              ...n, 
+              id: String(n.id), 
+              parentId: n.parentId ? String(n.parentId) : undefined 
+            })) as any[];
+            
+            const edgesWithStrings = (canvas.edges || []).map((e: any) => ({ 
+              ...e, 
+              id: String(e.id), 
+              source: String(e.source), 
+              target: String(e.target), 
+              type: 'custom' 
+            }));
+            
+            const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
             useFlowStore.setState({
               nodes: hydratedNodes,
-              edges: canvas.edges || [],
+              edges: edgesWithStrings,
               currentProject: { id: -1, name: data.name },
               lastSavedSnapshot: data.canvas
             });
@@ -138,10 +152,24 @@ export default function App() {
         try {
           const data = JSON.parse(json);
           const canvas = JSON.parse(data.canvas);
-          const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
+          const nodesWithStrings = (canvas.nodes || []).map((n: any) => ({ 
+            ...n, 
+            id: String(n.id), 
+            parentId: n.parentId ? String(n.parentId) : undefined 
+          })) as any[];
+
+          const edgesWithStrings = (canvas.edges || []).map((e: any) => ({ 
+            ...e, 
+            id: String(e.id), 
+            source: String(e.source), 
+            target: String(e.target), 
+            type: 'custom' 
+          }));
+
+          const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
           useFlowStore.setState({
             nodes: hydratedNodes,
-            edges: canvas.edges || [],
+            edges: edgesWithStrings,
             currentProject: { id: -1, name: data.name },
             lastSavedSnapshot: data.canvas
           });

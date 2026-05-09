@@ -19,11 +19,13 @@ export const setupPodHandlers = (podId: string, get: () => any) => ({
   },
 });
 
-export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
-  return nodes.map(node => ({
+export const hydrateNodes = (nodes: any[], get: () => any): any[] => {
+  let nextNodes = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
+      status: node.data.status || ((node.type === 'Pod' || node.type === 'Deployment') ? 'pending' : 'ready'),
+      type: node.type, // Ensure type is present in data too
       onDelete: () => {
         const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
         if (nodeToDelete) get().deleteNodes([nodeToDelete]);
@@ -34,6 +36,16 @@ export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
       },
     }
   }));
+
+  // Sync Deployments after all handlers are attached
+  const deployments = nextNodes.filter(n => n.type === 'Deployment');
+  deployments.forEach(dept => {
+    const { updatedDeployment, laidOut } = syncDeployment(dept, nextNodes, 0, get);
+    nextNodes = nextNodes.filter(n => n.parentId !== dept.id || n.type !== 'Pod');
+    nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
+  });
+
+  return nextNodes;
 };
 
 export const syncDeployment = (
@@ -56,6 +68,19 @@ export const syncDeployment = (
   }
 
   const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
+
+  // Sync Deployment data with Pod template
+  if (syncedPods.length > 0) {
+    const podTemplate = syncedPods[0].data as any;
+    updatedDeployment.data = {
+      ...updatedDeployment.data,
+      status: podTemplate.status,
+      runtime: podTemplate.runtime,
+      webserver: podTemplate.webserver,
+      image: podTemplate.image,
+    };
+  }
+
   const withHandlers = syncedPods.map(p => ({ 
     ...p, 
     data: {

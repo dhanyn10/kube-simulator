@@ -114,10 +114,24 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
       const res = await window.go.main.App.LoadProject(id);
       if (res && res.content) {
         const data = JSON.parse(res.content);
-        const hydratedNodes = hydrateNodes(data.nodes || [], () => useFlowStore.getState());
+        const nodesWithStrings = (data.nodes || []).map((n: any) => ({ 
+          ...n, 
+          id: String(n.id), 
+          parentId: n.parentId ? String(n.parentId) : undefined 
+        })) as any[];
+        
+        const edgesWithStrings = (data.edges || []).map((e: any) => ({ 
+          ...e, 
+          id: String(e.id), 
+          source: String(e.source), 
+          target: String(e.target), 
+          type: 'custom' 
+        }));
+        
+        const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
         useFlowStore.setState({
           nodes: hydratedNodes,
-          edges: data.edges || [],
+          edges: edgesWithStrings,
           currentProject: { id, name },
           lastSavedSnapshot: res.content
         });

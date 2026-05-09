@@ -58,4 +58,18 @@
   .light .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-slate-300 hover:bg-slate-400;
   }
+
+  .traffic-line {
+    stroke-dasharray: 5;
+    animation: dash 1s linear infinite;
+  }
+
+  @keyframes dash {
+    from {
+      stroke-dashoffset: 20;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
 }

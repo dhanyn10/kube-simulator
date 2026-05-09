@@ -16,11 +16,56 @@ export default function CustomEdge({
   markerEnd,
   selected,
   data,
+  target,
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
   const setConfiguringEdgeId = useFlowStore((state: any) => state.setConfiguringEdgeId);
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
-  const isConfiguring = configuringEdgeId === id;
+  const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
+  const nodes = useFlowStore((state: any) => state.nodes);
+
+  const isConfiguring = String(configuringEdgeId) === String(id);
+  const isSimulating = activeSimulationEdges.some(eid => String(eid) === String(id));
+  const edges = useFlowStore((state: any) => state.edges);
+
+  // Recursive error check to see if this edge leads to a failure
+  const checkErrorState = () => {
+    if (!isSimulating) return false;
+
+    const visited = new Set<string>();
+    const queue = [target];
+
+    while (queue.length > 0) {
+      const currentId = String(queue.shift()!);
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const node = nodes.find((n: any) => String(n.id) === currentId);
+      const data = node?.data;
+      const isWorkload = node?.type === 'Pod' || node?.type === 'Deployment';
+
+      // 1. Check current node status
+      if (isWorkload && data?.status !== 'ready') return true;
+
+      // 2. If it's a Deployment, explicitly check its child pods
+      if (node?.type === 'Deployment') {
+        const childPods = nodes.filter((n: any) => String(n.parentId) === currentId && n.type === 'Pod');
+        if (childPods.some((p: any) => p.data?.status !== 'ready')) return true;
+      }
+
+      // 3. Search downstream via edges
+      const outgoingEdges = edges.filter((e: any) =>
+        String(e.source) === currentId && activeSimulationEdges.some(eid => String(eid) === String(e.id))
+      );
+
+      for (const edge of outgoingEdges) {
+        queue.push(String(edge.target));
+      }
+    }
+    return false;
+  };
+
+  const isTargetError = checkErrorState();
   
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -50,10 +95,11 @@ export default function CustomEdge({
       <BaseEdge 
         path={edgePath} 
         markerEnd={markerEnd} 
+        className={cn(isSimulating && "traffic-line")}
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
-          stroke: edgeColor,
+          stroke: isTargetError ? '#ef4444' : (isSimulating ? '#3b82f6' : edgeColor),
           transition: 'stroke 0.2s, stroke-width 0.2s',
         }} 
       />

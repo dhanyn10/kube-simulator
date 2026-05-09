@@ -69,8 +69,8 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     }
   }, [data.label, isEditing]);
 
-  const isPending = data.type === 'Pod' && data.status === 'pending';
-  const isReady = data.type === 'Pod' && data.status === 'ready';
+  const isPending = (data.type === 'Pod' || data.type === 'Deployment') && data.status === 'pending';
+  const isReady = (data.type === 'Pod' || data.type === 'Deployment') && data.status === 'ready';
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
