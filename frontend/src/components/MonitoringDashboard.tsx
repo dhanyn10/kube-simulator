@@ -59,14 +59,31 @@ export const MonitoringDashboard = () => {
 
   useEffect(() => {
     const channel = new BroadcastChannel('monitoring-data');
+    // @ts-ignore
+    const runtime = window.runtime;
+
+    const handleOpen = () => {
+      setMonitoringDetached(true);
+      setMonitoringOpen(false);
+    };
+
+    const handleClose = () => {
+      setMonitoringDetached(false);
+    };
+
     channel.onmessage = (event) => {
       if (event.data.type === 'DETACHED_OPEN') {
-        setMonitoringDetached(true);
-        setMonitoringOpen(false);
+        handleOpen();
       } else if (event.data.type === 'DETACHED_CLOSED') {
-        setMonitoringDetached(false);
+        handleClose();
       }
     };
+
+    if (runtime) {
+      runtime.EventsOn('detached-open', handleOpen);
+      runtime.EventsOn('detached-closed', handleClose);
+    }
+
     return () => channel.close();
   }, []);
 
@@ -76,11 +93,15 @@ export const MonitoringDashboard = () => {
     const left = (window.screen.width / 2) - (width / 2);
     const top = (window.screen.height / 2) - (height / 2);
 
+    // Using _blank as the target name to ensure it doesn't try to reuse the main window
     window.open(
       `${window.location.origin}${window.location.pathname}?mode=monitoring`,
-      'InfraStack Monitoring',
+      '_blank',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
+
+    // We don't want to close the in-app monitoring yet, let the BroadcastChannel handle it
+    // so we know for sure the new window is alive.
   };
 
   useEffect(() => {

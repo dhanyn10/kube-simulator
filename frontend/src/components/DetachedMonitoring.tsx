@@ -44,23 +44,47 @@ export const DetachedMonitoring = () => {
   const [colorMode, setColorMode] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
+    console.log('[DetachedMonitoring] Initializing sync...');
     const channel = new BroadcastChannel('monitoring-data');
 
-    // Request initial state if possible, or wait for next tick
+    // @ts-ignore
+    const runtime = window.runtime;
+
+    const handleUpdate = (data: any) => {
+       setMetrics(data.metrics);
+       setDeployments(data.deployments);
+    };
+
+    const handleTheme = (mode: 'dark' | 'light') => {
+       setColorMode(mode);
+    };
+
+    // BroadcastChannel backup
     channel.onmessage = (event) => {
       if (event.data.type === 'METRICS_UPDATE') {
-        setMetrics(event.data.metrics);
-        setDeployments(event.data.deployments);
+        handleUpdate(event.data);
       } else if (event.data.type === 'THEME_SYNC') {
-        setColorMode(event.data.colorMode);
+        handleTheme(event.data.colorMode);
       }
     };
 
+    // Wails Events primary (more reliable between webviews)
+    if (runtime) {
+      runtime.EventsOn('metrics-update', (json: string) => {
+         try { handleUpdate(JSON.parse(json)); } catch(e) {}
+      });
+      runtime.EventsOn('theme-sync', (mode: any) => {
+         handleTheme(mode);
+      });
+    }
+
     // Notify main window we are open
     channel.postMessage({ type: 'DETACHED_OPEN' });
+    if (runtime) runtime.EventsEmit('detached-open');
 
     return () => {
       channel.postMessage({ type: 'DETACHED_CLOSED' });
+      if (runtime) runtime.EventsEmit('detached-closed');
       channel.close();
     };
   }, []);

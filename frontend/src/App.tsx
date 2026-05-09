@@ -56,7 +56,10 @@ const defaultEdgeOptions = {
 };
 
 export default function App() {
-  const isDetachedMode = new URLSearchParams(window.location.search).get('mode') === 'monitoring';
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const isDetachedMode = searchParams.get('mode') === 'monitoring';
+
+  console.log('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
 
   if (isDetachedMode) {
     return <DetachedMonitoring />;

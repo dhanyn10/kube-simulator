@@ -23,6 +23,9 @@ export interface UiSlice {
 let simulationInterval: any = null;
 const metricsChannel = new BroadcastChannel('monitoring-data');
 
+// @ts-ignore
+const runtime = window.runtime;
+
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
   draggingSidebarItem: null,
@@ -36,6 +39,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
     set({ colorMode: newMode });
     metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: newMode });
+    if (runtime) runtime.EventsEmit('theme-sync', newMode);
   },
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
   toggleAutosave: () => set((state) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
@@ -184,11 +188,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
       // Broadcast to detached window
       if (get().isMonitoringDetached) {
-        metricsChannel.postMessage({
-          type: 'METRICS_UPDATE',
+        const payload = {
           metrics: newMetrics,
           deployments: deployments.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
-        });
+        };
+        metricsChannel.postMessage({ type: 'METRICS_UPDATE', ...payload });
+        if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));
       }
     }, 2000);
   },
