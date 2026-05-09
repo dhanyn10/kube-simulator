@@ -17,6 +17,7 @@ export interface FlowSlice {
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
+  onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
@@ -40,6 +41,11 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     set((state) => ({
       edges: addEdge({ ...connection, type: 'custom' }, state.edges),
     }));
+  },
+  onReconnect: (oldEdge: Edge, newConnection: Connection) => {
+    const { edges } = get();
+    const newEdges = edges.map((e) => (e.id === oldEdge.id ? { ...e, ...newConnection } : e));
+    set({ edges: newEdges });
   },
   setNodes: (nodes: Node[]) => set({ nodes }),
   setEdges: (edges: Edge[]) => set({ edges }),
@@ -66,6 +72,9 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       const dy = targetCenter.y - sourceCenter.y;
 
       const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      // If source is HPA, target MUST be Deployment
+      if (sourceNode.type === 'HPA' && n.type !== 'Deployment') return false;
 
       if (direction === 'right') return angle > -45 && angle <= 45;
       if (direction === 'bottom') return angle > 45 && angle <= 135;

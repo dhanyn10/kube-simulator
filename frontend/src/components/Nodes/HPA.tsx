@@ -45,6 +45,7 @@ const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
 };
 
 export const HPANode = memo((props: NodeProps) => {
+  const nodes = useFlowStore((state) => state.nodes);
   const data = props.data as unknown as K8sNodeData;
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(data.label);
@@ -52,6 +53,13 @@ export const HPANode = memo((props: NodeProps) => {
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
   const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
+
+  const hasDeployment = nodes.some((n: any) => n.type === 'Deployment');
+
+  const isValidConnection = useCallback((connection: any) => {
+    const targetNode = nodes.find((n: any) => n.id === connection.target);
+    return targetNode?.type === 'Deployment';
+  }, [nodes]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -195,9 +203,21 @@ export const HPANode = memo((props: NodeProps) => {
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-fuchsia-500 !w-2 !h-2" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-fuchsia-500 !w-2 !h-2" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom-s"
+        className={cn("!bg-fuchsia-500 !w-2 !h-2", !hasDeployment && "opacity-20 pointer-events-none")}
+        isValidConnection={isValidConnection}
+      />
       <Handle type="target" position={Position.Left} id="left-t" className="!bg-fuchsia-500 !w-2 !h-2" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!bg-fuchsia-500 !w-2 !h-2" />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-s"
+        className={cn("!bg-fuchsia-500 !w-2 !h-2", !hasDeployment && "opacity-20 pointer-events-none")}
+        isValidConnection={isValidConnection}
+      />
     </div>
   );
 });

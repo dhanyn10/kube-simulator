@@ -59,6 +59,7 @@ export default function App() {
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
   const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
   const onConnect = useFlowStore((state) => state.onConnect);
+  const onReconnect = useFlowStore((state) => state.onReconnect);
   const addNode = useFlowStore((state) => state.addNode);
   const deleteNodes = useFlowStore((state) => state.deleteNodes);
   const onNodeClick = useFlowStore((state) => state.onNodeClick);
@@ -128,6 +129,7 @@ export default function App() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onReconnect={onReconnect}
           onNodeDragStart={onNodeDragStart}
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
