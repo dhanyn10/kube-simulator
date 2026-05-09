@@ -3,7 +3,8 @@ import { K8sResourceType, K8sNodeData } from '../../../types';
 import { 
   getNodeData, 
   sortNodes, 
-  getPodMinimumSize 
+  getPodMinimumSize,
+  getAbsPos
 } from '../../helpers';
 import { syncDeployment, setupPodHandlers } from '../../nodeHelpers';
 
@@ -34,7 +35,6 @@ export const nodeActions = (set: any, get: any) => ({
       },
     };
 
-    // Initialize type-specific data if needed
     if (type === 'Service') {
        newNode.data.port = 80;
        newNode.data.targetPort = 80;
@@ -72,7 +72,6 @@ export const nodeActions = (set: any, get: any) => ({
         const parent = nextNodes.find(n => n.id === parentId);
         if (parent?.type === 'Deployment' && type === 'Pod') {
            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 1, get, newNode);
-           // Filter out existing pods and the new node to replace them with laid out ones
            nextNodes = nextNodes.filter(n => (n.parentId !== parentId || n.type !== 'Pod') && n.id !== id);
            nextNodes = [...nextNodes.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
         }
@@ -118,60 +117,74 @@ export const nodeActions = (set: any, get: any) => ({
 
   updateNodeData: (nodeId: string, newData: any) => {
     set((state: any) => {
-      let nextNodes = state.nodes.map((node: Node) => {
-        if (node.id === nodeId) {
-          const updatedData = { ...node.data, ...newData };
+      const targetNode = state.nodes.find((n: Node) => n.id === nodeId);
+      if (!targetNode) return state;
 
-          // Re-attach handlers if they are missing
-          if (!updatedData.onDelete) {
-            updatedData.onDelete = () => {
-              const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
-              if (nodeToDelete) get().deleteNodes([nodeToDelete]);
+      const updatedData = { ...targetNode.data, ...newData };
+      const updatedNode = { 
+        ...targetNode, 
+        data: updatedData,
+        ...(targetNode.type !== 'Deployment' && targetNode.type !== 'Namespace' ? {
+          width: undefined,
+          height: undefined,
+          style: { ...targetNode.style, width: undefined, height: undefined }
+        } : {})
+      };
+
+      let nextNodes = state.nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
+
+      if (updatedNode.type === 'Pod' && !updatedNode.parentId && (updatedData.replicas || 0) > 3) {
+        const podPos = getAbsPos(nodeId, state.nodes);
+        const groupId = `podgroup-${Math.random().toString(36).substr(2, 9)}`;
+        const newGroup: Node = {
+          id: groupId,
+          type: 'PodGroup',
+          position: { x: podPos.x - 20, y: podPos.y - 40 },
+          data: { 
+            ...updatedData, 
+            label: updatedData.label,
+            onDelete: () => {
+              const node = get().nodes.find((n: Node) => n.id === groupId);
+              if (node) get().deleteNodes([node]);
+            }
+          }
+        };
+        const tempPod = { ...updatedNode, parentId: groupId, position: { x: 20, y: 40 } };
+        const { updatedDeployment, laidOut } = syncDeployment(newGroup, [tempPod], 0, get, tempPod);
+        const otherNodes = nextNodes.filter(n => n.id !== nodeId);
+        nextNodes = sortNodes([...otherNodes, updatedDeployment, ...laidOut]);
+      }
+      else if (updatedNode.type === 'Pod' && updatedNode.parentId) {
+        const parent = nextNodes.find(n => n.id === updatedNode.parentId);
+        if (parent) {
+          if (parent.type === 'PodGroup' && (updatedData.replicas || 0) <= 3) {
+            const groupPos = getAbsPos(parent.id, nextNodes);
+            nextNodes = nextNodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
+            const standalonePod = { 
+              ...updatedNode, 
+              parentId: undefined, 
+              position: groupPos, 
+              extent: undefined,
+              data: { ...updatedNode.data, replicas: updatedData.replicas }
             };
+            nextNodes = sortNodes([...nextNodes, standalonePod]);
+          } else {
+            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, updatedNode);
+            const otherNodes = nextNodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
+            nextNodes = sortNodes([...otherNodes, updatedDeployment, ...laidOut]);
           }
-          if (!updatedData.onRename) {
-            updatedData.onRename = (newName: string) => {
-              const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-              get().updateNodeData(node.id, { label: cleanName });
-            };
-          }
-
-          const dynamicTypes = ['Pod', 'Service', 'Ingress', 'HPA', 'Internet'];
-          if (dynamicTypes.includes(node.type as string)) {
-             return { 
-               ...node, 
-               data: updatedData,
-               width: undefined,
-               height: undefined,
-               style: { ...node.style, width: undefined, height: undefined, minHeight: undefined }
-             };
-          }
-          return { ...node, data: updatedData };
-        }
-        return node;
-      });
-
-      const updatedNode = nextNodes.find((n: Node) => n.id === nodeId);
-      if (!updatedNode) return { ...state };
-
-      if (updatedNode.type === 'Deployment') {
-        const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nextNodes, 0, get);
-        nextNodes = nextNodes.filter(n => n.parentId !== updatedNode.id || n.type !== 'Pod');
-        nextNodes = [...nextNodes.map(n => n.id === updatedNode.id ? updatedDeployment : n), ...laidOut];
-      } else if (updatedNode.type === 'Pod' && updatedNode.parentId) {
-        const parentId = updatedNode.parentId;
-        const parent = nextNodes.find(n => n.id === parentId);
-        if (parent?.type === 'Deployment') {
-           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, updatedNode);
-           nextNodes = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');
-           nextNodes = [...nextNodes.map(n => n.id === parent.id ? updatedDeployment : n), ...laidOut];
         }
       }
+      else if (updatedNode.type === 'Deployment' || updatedNode.type === 'PodGroup') {
+        const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nextNodes, 0, get);
+        const otherNodes = nextNodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
+        nextNodes = sortNodes([...otherNodes, updatedDeployment, ...laidOut]);
+      }
 
-      return { 
+      return {
         nodes: nextNodes,
         lastActionId: `update-${Date.now()}`,
-        lastActionName: newData.replicas !== undefined ? 'Update Replicas' : 'Update Node Data'
+        lastActionName: 'Update Node Data'
       };
     });
   },

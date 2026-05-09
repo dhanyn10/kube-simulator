@@ -176,8 +176,13 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
   const updateReplicas = (replicas: number) => {
     if (selectedNode.type === 'Pod' && selectedNode.parentId) {
-      // If it's a pod in a deployment, we update the parent deployment's replicas
-      updateNodeData(selectedNode.parentId, { replicas });
+      const state = useFlowStore.getState();
+      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+      if (parent?.type === 'Deployment' || parent?.type === 'PodGroup') {
+        updateNodeData(selectedNode.parentId, { replicas });
+      } else {
+        updateNodeData(selectedNode.id, { replicas });
+      }
     } else {
       updateNodeData(selectedNode.id, { replicas });
     }

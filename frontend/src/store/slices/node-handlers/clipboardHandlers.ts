@@ -28,26 +28,37 @@ export const clipboardHandlers = (set: any, get: any) => ({
 
     if (clipboard.nodes.length === 1 && clipboard.nodes[0].type === 'Pod') {
       const pastedPod = clipboard.nodes[0];
-      const targetPod = nodes.find(n =>
-        n.type === 'Pod' &&
-        n.parentId === pastedPod.parentId &&
-        (pastedPod.parentId ? true : (Math.abs(n.position.x - pastedPod.position.x) < 50 && Math.abs(n.position.y - pastedPod.position.y) < 50))
-      );
-
-      if (targetPod) {
-        // Always default to 1 replica when pasting, as requested by user
-        const delta = 1;
+      const pastedLabel = pastedPod.data.label;
+      
+      // 1. Try to find a logical match by Label and Context
+      const target = nodes.find(n => {
+        // Match if it's the exact same Pod
+        if (n.id === pastedPod.id) return true;
         
-        if (targetPod.parentId) {
-          const parent = nodes.find(n => n.id === targetPod.parentId);
-          if (parent) {
-            get().updateNodeData(parent.id, { replicas: (getNodeData(parent).replicas || 0) + delta });
-            return;
-          }
+        // Match if it's a Pod with the same label in the same parent context
+        if (n.type === 'Pod' && n.data.label === pastedLabel && n.parentId === pastedPod.parentId) return true;
+        
+        // Match PodGroup that was created from this Pod (it will have the same label)
+        if (n.type === 'PodGroup' && n.data.label === pastedLabel && (!pastedPod.parentId || n.id === pastedPod.parentId)) return true;
+        
+        return false;
+      });
+
+      if (target) {
+        const delta = 1;
+        // Identify the parent container ID
+        const parentId = (target.type === 'PodGroup' || target.type === 'Deployment') ? target.id : target.parentId;
+        
+        if (parentId) {
+          const parent = nodes.find(n => n.id === parentId);
+          const currentTotal = parent?.data?.replicas || 0;
+          get().updateNodeData(parentId, { replicas: currentTotal + delta });
         } else {
-          get().updateNodeData(targetPod.id, { replicas: (getNodeData(targetPod).replicas || 1) + delta });
-          return;
+          // It's a standalone pod with no parent
+          const currentTotal = target.data?.replicas || 1;
+          get().updateNodeData(target.id, { replicas: currentTotal + delta });
         }
+        return;
       }
     }
 
