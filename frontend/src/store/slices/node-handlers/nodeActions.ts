@@ -39,14 +39,10 @@ export const nodeActions = (set: any, get: any) => ({
        newNode.data.port = 80;
        newNode.data.targetPort = 80;
        newNode.data.selector = 'app-label';
-       newNode.width = 150;
-       newNode.height = 120;
-       newNode.style = { width: 150, height: 120 };
+       newNode.data.displaySettings = { port: true, targetPort: true, selector: true };
     } else if (type === 'Pod') {
        newNode.data.replicas = 1;
-       const minSize = getPodMinimumSize(newNode.data);
-       newNode.width = minSize.width;
-       newNode.style = { width: minSize.width, minHeight: minSize.height };
+       newNode.data.displaySettings = { runtime: true, webserver: true, image: true, resources: true };
     } else if (type === 'Deployment') {
        newNode.data.replicas = 0;
        newNode.width = 320;
@@ -59,16 +55,14 @@ export const nodeActions = (set: any, get: any) => ({
     } else if (type === 'Ingress') {
        newNode.data.ingressHost = 'example.local';
        newNode.data.ingressPath = '/';
-       newNode.width = 200;
-       newNode.height = 120;
-       newNode.style = { width: 200, height: 120 };
+       newNode.data.displaySettings = { host: true, path: true };
     } else if (type === 'HPA') {
        newNode.data.minReplicas = 1;
        newNode.data.maxReplicas = 10;
        newNode.data.targetCPU = 50;
-       newNode.width = 180;
-       newNode.height = 140;
-       newNode.style = { width: 180, height: 140 };
+       newNode.data.displaySettings = { replicas: true, targetCPU: true };
+    } else if (type === 'Internet') {
+       newNode.data.displaySettings = { traffic: true, duration: true };
     }
 
     set((state: any) => {
@@ -142,13 +136,14 @@ export const nodeActions = (set: any, get: any) => ({
             };
           }
 
-          if (node.type === 'Pod' && !updatedData.isManuallyResized) {
-             const minSize = getPodMinimumSize(updatedData);
+          const dynamicTypes = ['Pod', 'Service', 'Ingress', 'HPA', 'Internet'];
+          if (dynamicTypes.includes(node.type as string)) {
              return { 
                ...node, 
-               data: updatedData, 
-               width: minSize.width, 
-               style: { ...node.style, width: minSize.width, minHeight: minSize.height } 
+               data: updatedData,
+               width: undefined,
+               height: undefined,
+               style: { ...node.style, width: undefined, height: undefined, minHeight: undefined }
              };
           }
           return { ...node, data: updatedData };

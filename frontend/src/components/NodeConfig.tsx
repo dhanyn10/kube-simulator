@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Server, Code, Box, Layers, Network, Plus, Minus, Globe, Activity, Type } from 'lucide-react';
+import { Server, Code, Box, Layers, Network, Plus, Minus, Globe, Activity, Type, Eye, EyeOff } from 'lucide-react';
 
 const RUNTIMES = {
   none: { label: 'None', frameworks: [] },
@@ -54,6 +54,16 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   const replicaValue = podReplicaGroup.length > 0
     ? podReplicaGroup.reduce((acc, pod) => acc + (pod.data.replicas || 1), 0)
     : data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
+
+  const toggleVisibility = (field: string) => {
+    const currentSettings = data.displaySettings || {};
+    updateNodeData(selectedNode.id, {
+      displaySettings: {
+        ...currentSettings,
+        [field]: !currentSettings[field]
+      }
+    });
+  };
 
   const performUpdate = (updates: any) => {
     const nextData = { ...data, ...updates };
@@ -125,9 +135,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
       {selectedNode.type === 'Internet' && (
         <>
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Network size={10} /> Data Traffic
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Network size={10} /> Data Traffic
+              </label>
+              <button onClick={() => toggleVisibility('traffic')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.traffic !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -144,9 +159,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Layers size={10} /> Data Duration
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Layers size={10} /> Data Duration
+              </label>
+              <button onClick={() => toggleVisibility('duration')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.duration !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <div className="grid grid-cols-3 gap-1">
               {(['second', 'minute', 'hour'] as const).map((unit) => (
                 <button
@@ -223,9 +243,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
       {selectedNode.type === 'Ingress' && (
         <>
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Globe size={10} /> Host
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Globe size={10} /> Host
+              </label>
+              <button onClick={() => toggleVisibility('host')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.host !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <input
               type="text"
               value={data.ingressHost || ''}
@@ -238,9 +263,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Code size={10} /> Path
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Code size={10} /> Path
+              </label>
+              <button onClick={() => toggleVisibility('path')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.path !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <input
               type="text"
               value={data.ingressPath || ''}
@@ -260,9 +290,15 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         <>
           <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                <Layers size={10} /> Min Replicas
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                  <Layers size={10} /> Replicas Range
+                </label>
+                <button onClick={() => toggleVisibility('replicas')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                  {(data.displaySettings?.replicas !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+                </button>
+              </div>
+              <label className="text-[8px] text-slate-500 uppercase">Min Replicas</label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => performUpdate({ minReplicas: Math.max(1, (data.minReplicas || 1) - 1) })}
@@ -287,9 +323,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                <Layers size={10} /> Max Replicas
-              </label>
+              <label className="text-[8px] text-slate-500 uppercase">Max Replicas</label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => performUpdate({ maxReplicas: Math.max(1, (data.maxReplicas || 1) - 1) })}
@@ -314,9 +348,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-                <Activity size={10} /> Target CPU (%)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                  <Activity size={10} /> Target CPU (%)
+                </label>
+                <button onClick={() => toggleVisibility('targetCPU')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                  {(data.displaySettings?.targetCPU !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+                </button>
+              </div>
               <input
                 type="range"
                 min="10"
@@ -341,6 +380,12 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         <>
           {/* Resource Limits */}
           <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-bold text-slate-500 uppercase">Resource Settings</span>
+              <button onClick={() => toggleVisibility('resources')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.resources !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                 <Layers size={10} /> CPU Limit
@@ -386,11 +431,26 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             </div>
           </div>
 
+          {/* Image Visibility Toggle */}
+          <div className="flex items-center justify-between py-1 border-t border-dashed border-slate-700/30">
+            <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Box size={10} /> Show Image
+            </span>
+            <button onClick={() => toggleVisibility('image')} className="text-slate-500 hover:text-blue-500 transition-colors">
+              {(data.displaySettings?.image !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+            </button>
+          </div>
+
           {/* Web Server */}
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Server size={10} /> Web Server
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Server size={10} /> Web Server
+              </label>
+              <button onClick={() => toggleVisibility('webserver')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.webserver !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <div className="grid grid-cols-3 gap-1">
               {WEBSERVERS.map((ws) => (
                 <button
@@ -411,9 +471,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
           {/* Runtime */}
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Code size={10} /> App Runtime
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Code size={10} /> App Runtime
+              </label>
+              <button onClick={() => toggleVisibility('runtime')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.runtime !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <select
               value={data.runtime || 'none'}
               onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
@@ -459,9 +524,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
       {selectedNode.type === 'Service' && (
         <>
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Network size={10} /> Port
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Network size={10} /> Port
+              </label>
+              <button onClick={() => toggleVisibility('port')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.port !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <input
               type="number"
               value={data.port || 80}
@@ -473,9 +543,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Network size={10} /> Target Port
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Network size={10} /> Target Port
+              </label>
+              <button onClick={() => toggleVisibility('targetPort')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.targetPort !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <input
               type="number"
               value={data.targetPort || 80}
@@ -487,9 +562,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Box size={10} /> Selector (app)
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                <Box size={10} /> Selector (app)
+              </label>
+              <button onClick={() => toggleVisibility('selector')} className="text-slate-500 hover:text-blue-500 transition-colors">
+                {(data.displaySettings?.selector !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+            </div>
             <input
               type="text"
               value={data.selector || ''}

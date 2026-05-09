@@ -100,20 +100,11 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[120px]",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-auto min-w-[160px] max-w-[240px] h-auto transition-colors flex flex-col",
       colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
       props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>
       <QuickConnectArrows nodeId={props.id} />
-      <NodeResizer
-        minWidth={150}
-        minHeight={120}
-        isVisible={props.selected}
-        lineClassName="border-amber-500"
-        handleClassName="h-2 w-2 bg-white border-2 border-amber-500 rounded"
-        onResize={handleNodeResize}
-        onResizeEnd={handleNodeResizeStop}
-      />
 
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
         <div className="flex items-center gap-2">
@@ -175,20 +166,26 @@ export const ServiceNode = memo((props: NodeProps) => {
         )}
 
         <div className="space-y-1.5 mt-1">
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
-            <span className="text-amber-500 font-bold">{data.port || 80}</span>
-          </div>
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
-            <span className="text-amber-500 font-bold">{data.targetPort || 80}</span>
-          </div>
+          {data.displaySettings?.port !== false && (
+            <div className="flex justify-between items-center text-[9px] font-mono">
+              <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
+              <span className="text-amber-500 font-bold">{data.port || 80}</span>
+            </div>
+          )}
+          {data.displaySettings?.targetPort !== false && (
+            <div className="flex justify-between items-center text-[9px] font-mono">
+              <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
+              <span className="text-amber-500 font-bold">{data.targetPort || 80}</span>
+            </div>
+          )}
         </div>
 
-        <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
-          <div className="text-[9px] font-mono mt-0.5 text-amber-500 break-all">app: {data.selector || 'app-label'}</div>
-        </div>
+        {data.displaySettings?.selector !== false && (
+          <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+            <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Selector</span>
+            <div className="text-[9px] font-mono mt-0.5 text-amber-500 break-all">app: {data.selector || 'app-label'}</div>
+          </div>
+        )}
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-amber-500 !w-2 !h-2" />
