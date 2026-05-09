@@ -100,7 +100,7 @@ export const ServiceNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-auto min-w-[160px] max-w-[240px] h-auto transition-colors flex flex-col",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-auto min-w-[160px] h-auto transition-colors flex flex-col",
       colorMode === 'dark' ? "bg-slate-900 border-amber-500 shadow-amber-900/20" : "bg-white border-amber-500 shadow-amber-100",
       props.selected ? "ring-4 ring-amber-500/20" : "hover:border-amber-400"
     )}>

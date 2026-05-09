@@ -120,7 +120,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] max-w-[220px] h-auto transition-all flex flex-col min-w-0",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto transition-all flex flex-col min-w-0",
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
