@@ -23,6 +23,7 @@ import { InternetNode } from './components/Nodes/Internet';
 import { NamespaceNode } from './components/Nodes/Namespace';
 import { IngressNode } from './components/Nodes/Ingress';
 import { HPANode } from './components/Nodes/HPA';
+import { PodGroupNode } from './components/Nodes/PodGroup';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus } from 'lucide-react';
@@ -41,6 +42,7 @@ const nodeTypes = {
   Namespace: NamespaceNode,
   Ingress: IngressNode,
   HPA: HPANode,
+  PodGroup: PodGroupNode,
 };
 
 const edgeTypes = {

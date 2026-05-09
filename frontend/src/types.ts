@@ -42,6 +42,7 @@ export interface K8sNodeData {
   traffic?: number;
   durationUnit?: 'second' | 'minute' | 'hour';
   parentReplicas?: number;
+  displaySettings?: Record<string, boolean>;
 }
 
 export interface K8sManifest {

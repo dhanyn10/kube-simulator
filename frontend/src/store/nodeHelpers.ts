@@ -97,11 +97,11 @@ export const syncDeployment = (
   }));
   const laidOut = layoutPodsInDeployment(updatedDeployment, withHandlers);
   
-  // Dynamic sizing: Calculate required space for pods plus padding
+  const isPodGroup = deployment.type === 'PodGroup';
   const paddingX = 20;
-  const headerHeight = 40;
-  const minWidth = 320;
-  const minHeight = 160;
+  const headerHeight = isPodGroup ? 30 : 40;
+  const minWidth = isPodGroup ? 200 : 320;
+  const minHeight = isPodGroup ? 120 : 160;
 
   const maxPodX = Math.max(0, ...laidOut.map(p => (p.position.x || 0) + (p.width || 160)));
   const maxPodY = Math.max(0, ...laidOut.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
@@ -109,7 +109,7 @@ export const syncDeployment = (
   // If not manually resized, we can shrink to content. 
   // If manually resized, we still grow if content exceeds current size, but don't shrink below user's set width.
   let depW = maxPodX + paddingX;
-  let depH = maxPodY + 20; // 20px bottom padding
+  let depH = maxPodY + (isPodGroup ? 20 : 20); // padding bottom
 
   if (data.isManuallyResized) {
       depW = Math.max(depW, updatedDeployment.width || minWidth);

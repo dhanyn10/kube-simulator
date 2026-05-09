@@ -33,7 +33,8 @@ export const getPodMinimumSize = (data: any = {}) => {
   const replicas = data.replicas || 1;
   const showsReplicaBadge = replicas > 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
-  const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
+  // Match visibility logic with BaseNode
+  const showDashedProgress = data.type === 'Pod' && (totalDeploymentReplicas > 3 || (replicas > 1 && !data.parentId));
 
   const horizontalPadding = 24;
   const contentPadding = 16;
@@ -56,17 +57,23 @@ export const getPodMinimumSize = (data: any = {}) => {
   ));
 
   // Dynamic height calculation
-  // Base height: Padding(24) + Header(24) + Gap(8) + Label(16) + Gap(8) = 80
-  let height = 80;
+  // Base height: Header(24) + Gap(8) + Label(16) + Padding(24) = ~72
+  let height = 72;
 
-  if (showDashedProgress) height += 12; // Progress bar + gap
-  if (badges.length > 0) height += 18; // Badges + gap
+  if (showDashedProgress) height += 14; // Progress bar + gap
+  
+  // Resources block
+  if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) {
+    height += 38; 
+  }
 
-  if (image) {
+  if (badges.length > 0) height += 20; // Badges + gap
+
+  if (image && data.displaySettings?.image !== false) {
     const imageContainerWidth = width - horizontalPadding;
     const charsPerLine = Math.max(10, Math.floor(imageContainerWidth / 5.5));
     const lines = Math.ceil(image.length / charsPerLine);
-    height += lines * 12 + 4; // 12px per line + small padding
+    height += lines * 12 + 8; 
   }
 
   return { width, height: Math.max(POD_MIN_DIMENSIONS.height, Math.ceil(height)) };
@@ -76,6 +83,7 @@ export const sortNodes = (nodes: Node[]): Node[] => {
   const priority: Record<string, number> = {
     Namespace: 0,
     Deployment: 1,
+    PodGroup: 1,
     Pod: 2,
     Service: 3,
     Internet: 3,
@@ -126,6 +134,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     status: templatePod.data.status,
     label: templatePod.data.label,
     isAutoNamed: templatePod.data.isAutoNamed,
+    displaySettings: templatePod.data.displaySettings, // Missing this!
   } : {
     image: deployment.data.image,
     webserver: deployment.data.webserver || 'none',
@@ -134,6 +143,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     status: deployment.data.status || 'pending',
     label: 'new-app-pod',
     isAutoNamed: true,
+    displaySettings: deployment.data.displaySettings, // Also missing this!
   };
 
   targetPodReplicas.forEach((replicas, index) => {
@@ -249,8 +259,8 @@ export const calculateAlignmentGuides = (
 ) => {
   const SNAP_THRESHOLD = 8;
   const SNAP_TOLERANCE = 4;
-  const verticalGuides = new Set<number>();
-  const horizontalGuides = new Set<number>();
+  const verticalGuides = new Map<number, any>();
+  const horizontalGuides = new Map<number, any>();
   const vSnap = new Map<number, boolean>();
   const hSnap = new Map<number, boolean>();
 
@@ -275,8 +285,8 @@ export const calculateAlignmentGuides = (
         const targetAbsX = depAbs.x + targetPod.position.x;
         const targetAbsY = depAbs.y + targetPod.position.y;
         
-        verticalGuides.add(targetAbsX);
-        horizontalGuides.add(targetAbsY);
+        verticalGuides.set(targetAbsX, { position: targetAbsX });
+        horizontalGuides.set(targetAbsY, { position: targetAbsY });
         vSnap.set(targetAbsX, true); // Force snap
         hSnap.set(targetAbsY, true); // Force snap
       }
@@ -301,38 +311,74 @@ export const calculateAlignmentGuides = (
       const otherHeight = otherNode.height || otherNode.measured?.height || 80;
 
       const otherLeftX = otherAbs.x;
-      const otherCenterX = otherAbs.x + otherWidth / 2;
       const otherRightX = otherAbs.x + otherWidth;
       const otherTopY = otherAbs.y;
-      const otherCenterY = otherAbs.y + otherHeight / 2;
       const otherBottomY = otherAbs.y + otherHeight;
 
-      if (Math.abs(nodeLeftX - otherLeftX) < SNAP_THRESHOLD) {
-        verticalGuides.add(otherLeftX);
-        vSnap.set(otherLeftX, Math.abs(nodeLeftX - otherLeftX) < SNAP_TOLERANCE);
+      const otherPointsX = [
+        otherLeftX,
+        otherAbs.x + otherWidth / 2,
+        otherRightX
+      ];
+      const otherPointsY = [
+        otherTopY,
+        otherAbs.y + otherHeight / 2,
+        otherBottomY
+      ];
+
+      const nodePointsX = [
+        { pos: nodeLeftX, type: 'edge' },
+        { pos: nodeCenterX, type: 'center' },
+        { pos: nodeRightX, type: 'edge' }
+      ];
+      const nodePointsY = [
+        { pos: nodeTopY, type: 'edge' },
+        { pos: nodeCenterY, type: 'center' },
+        { pos: nodeBottomY, type: 'edge' }
+      ];
+
+      // Check X alignment (Vertical lines)
+      for (const nP of nodePointsX) {
+        for (const oP of otherPointsX) {
+          if (Math.abs(nP.pos - oP) < SNAP_THRESHOLD) {
+            verticalGuides.set(oP, {
+              position: oP,
+              targetNodeId: otherNode.id,
+              type: nP.type === 'center' ? 'center' : 'edge',
+              // Store bounds to draw a segment later
+              minY: Math.min(nodeTopY, otherTopY),
+              maxY: Math.max(nodeBottomY, otherBottomY)
+            });
+            if (Math.abs(nP.pos - oP) < SNAP_TOLERANCE) {
+              vSnap.set(oP, true);
+            }
+          }
+        }
       }
-      if (Math.abs(nodeCenterX - otherCenterX) < SNAP_THRESHOLD) {
-        verticalGuides.add(otherCenterX);
-        vSnap.set(otherCenterX, Math.abs(nodeCenterX - otherCenterX) < SNAP_TOLERANCE);
-      }
-      if (Math.abs(nodeRightX - otherRightX) < SNAP_THRESHOLD) {
-        verticalGuides.add(otherRightX);
-        vSnap.set(otherRightX, Math.abs(nodeRightX - otherRightX) < SNAP_TOLERANCE);
-      }
-      if (Math.abs(nodeTopY - otherTopY) < SNAP_THRESHOLD) {
-        horizontalGuides.add(otherTopY);
-        hSnap.set(otherTopY, Math.abs(nodeTopY - otherTopY) < SNAP_TOLERANCE);
-      }
-      if (Math.abs(nodeCenterY - otherCenterY) < SNAP_THRESHOLD) {
-        horizontalGuides.add(otherCenterY);
-        hSnap.set(otherCenterY, Math.abs(nodeCenterY - otherCenterY) < SNAP_TOLERANCE);
-      }
-      if (Math.abs(nodeBottomY - otherBottomY) < SNAP_THRESHOLD) {
-        horizontalGuides.add(otherBottomY);
-        hSnap.set(otherBottomY, Math.abs(nodeBottomY - otherBottomY) < SNAP_TOLERANCE);
+
+      // Check Y alignment (Horizontal lines)
+      for (const nP of nodePointsY) {
+        for (const oP of otherPointsY) {
+          if (Math.abs(nP.pos - oP) < SNAP_THRESHOLD) {
+            horizontalGuides.set(oP, {
+              position: oP,
+              targetNodeId: otherNode.id,
+              type: nP.type === 'center' ? 'center' : 'edge',
+              minX: Math.min(nodeLeftX, otherLeftX),
+              maxX: Math.max(nodeRightX, otherRightX)
+            });
+            if (Math.abs(nP.pos - oP) < SNAP_TOLERANCE) {
+              hSnap.set(oP, true);
+            }
+          }
+        }
       }
     }
   }
 
-  return { verticalGuides, horizontalGuides, vSnap, hSnap };
+  // Convert back to arrays
+  const vGuides = Array.from(verticalGuides.values());
+  const hGuides = Array.from(horizontalGuides.values());
+
+  return { verticalGuides: vGuides, horizontalGuides: hGuides, vSnap, hSnap };
 };

@@ -100,20 +100,11 @@ export const HPANode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[140px]",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-auto min-w-[160px] h-auto transition-colors flex flex-col",
       colorMode === 'dark' ? "bg-slate-900 border-fuchsia-500 shadow-fuchsia-900/20" : "bg-white border-fuchsia-500 shadow-fuchsia-100",
       props.selected ? "ring-4 ring-fuchsia-500/20" : "hover:border-fuchsia-400"
     )}>
       <QuickConnectArrows nodeId={props.id} />
-      <NodeResizer
-        minWidth={160}
-        minHeight={140}
-        isVisible={props.selected}
-        lineClassName="border-fuchsia-500"
-        handleClassName="h-2 w-2 bg-white border-2 border-fuchsia-500 rounded"
-        onResize={handleNodeResize}
-        onResizeEnd={handleNodeResizeStop}
-      />
 
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
         <div className="flex items-center gap-2">
@@ -174,29 +165,33 @@ export const HPANode = memo((props: NodeProps) => {
           </div>
         )}
 
-        <div className="space-y-1 mt-1">
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>min:</span>
-            <span className="text-fuchsia-500 font-bold">{data.minReplicas || 1}</span>
-          </div>
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>max:</span>
-            <span className="text-fuchsia-500 font-bold">{data.maxReplicas || 10}</span>
-          </div>
-        </div>
-
-        <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Target CPU</span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <div className={cn("flex-1 h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-                <div
-                    className="h-full bg-fuchsia-500 transition-all duration-500"
-                    style={{ width: `${data.targetCPU || 50}%` }}
-                />
+        {data.displaySettings?.replicas !== false && (
+          <div className="space-y-1 mt-1">
+            <div className="flex justify-between items-center text-[9px] font-mono">
+              <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>min:</span>
+              <span className="text-fuchsia-500 font-bold">{data.minReplicas || 1}</span>
             </div>
-            <span className="text-[9px] font-mono text-fuchsia-500 font-bold">{data.targetCPU || 50}%</span>
+            <div className="flex justify-between items-center text-[9px] font-mono">
+              <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>max:</span>
+              <span className="text-fuchsia-500 font-bold">{data.maxReplicas || 10}</span>
+            </div>
           </div>
-        </div>
+        )}
+
+        {data.displaySettings?.targetCPU !== false && (
+          <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+            <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Target CPU</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <div className={cn("flex-1 h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
+                  <div
+                      className="h-full bg-fuchsia-500 transition-all duration-500"
+                      style={{ width: `${data.targetCPU || 50}%` }}
+                  />
+              </div>
+              <span className="text-[9px] font-mono text-fuchsia-500 font-bold">{data.targetCPU || 50}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-fuchsia-500 !w-2 !h-2" />

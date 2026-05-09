@@ -113,12 +113,15 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   const replicas = data.replicas || 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
-  const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
+  // Show dashed progress if in a deployment with > 3 replicas OR if it's a standalone pod with > 1 replica
+  const showDashedProgress = data.type === 'Pod' && (totalDeploymentReplicas > 3 || (replicas > 1 && !data.parentId));
   const minSize = getPodMinimumSize(data);
+
+  const isInternet = data.type === 'Internet';
 
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-full min-h-full h-auto transition-all flex flex-col min-w-0",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto transition-all flex flex-col min-w-0",
       colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
       selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : "hover:border-slate-500",
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
@@ -142,15 +145,6 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         }
       `}</style>
       <QuickConnectArrows nodeId={id} />
-      <NodeResizer
-        minWidth={minSize.width}
-        minHeight={minSize.height}
-        isVisible={selected}
-        lineClassName={colorMode === 'dark' ? "border-blue-400" : "border-blue-500"}
-        handleClassName={cn("h-2 w-2 border-2 rounded", colorMode === 'dark' ? "bg-white border-blue-400" : "bg-white border-blue-500")}
-        onResize={handleNodeResize}
-        onResizeEnd={handleNodeResizeStop}
-      />
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0 min-w-0">
@@ -256,12 +250,12 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
           {data.type === 'Pod' && (
             <div className="flex flex-wrap items-center gap-1 min-w-0 max-w-full overflow-hidden">
-              {data.runtime && data.runtime !== 'none' && (
+              {data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none' && (
                 <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold whitespace-nowrap">
                   {data.runtime}
                 </span>
               )}
-              {data.webserver && data.webserver !== 'none' && (
+              {data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none' && (
                 <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold whitespace-nowrap">
                   {data.webserver}
                 </span>
@@ -271,21 +265,55 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
 
         <div className="flex flex-col gap-1.5 shrink-0 min-w-0">
-          {data.image ? (
-            <div className={cn(
-              "w-full min-w-0 max-w-full text-[9px] font-mono whitespace-normal break-all leading-tight px-1.5 py-0.5 rounded border",
-              isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
-            )}
-              title={isPending ? 'image: not configured' : data.image}
-            >
-              {isPending ? 'image: not configured' : data.image}
-            </div>
+          {isInternet ? (
+            <>
+              {data.displaySettings?.traffic !== false && (
+                <div className="flex justify-between items-center text-[9px] font-mono">
+                  <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>traffic:</span>
+                  <span className="text-blue-500 font-bold">{data.traffic || 0} visits</span>
+                </div>
+              )}
+              {data.displaySettings?.duration !== false && (
+                <div className="flex justify-between items-center text-[9px] font-mono">
+                  <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>per:</span>
+                  <span className="text-blue-500 font-bold">{data.durationUnit || 'minute'}</span>
+                </div>
+              )}
+            </>
+          ) : data.image ? (
+            data.displaySettings?.image !== false && (
+              <div className={cn(
+                "w-full min-w-0 max-w-full text-[9px] font-mono whitespace-normal break-all leading-tight px-1.5 py-0.5 rounded border",
+                isPending ? "text-red-400 bg-red-500/5 border-red-500/20 italic" : (colorMode === 'dark' ? "text-slate-400 bg-slate-900/50 border-slate-700/50" : "text-slate-500 bg-slate-50 border-slate-200")
+              )}
+                title={isPending ? 'image: not configured' : data.image}
+              >
+                {isPending ? 'image: not configured' : data.image}
+              </div>
+            )
           ) : (
             (data.type !== 'Pod' && data.type !== 'Internet') && (
               <div className={cn("w-full h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")}>
                 <div className={cn("h-full w-full", colorMode === 'dark' ? 'bg-' + color + '-500/50' : 'bg-' + color + '-500/70')}></div>
               </div>
             )
+          )}
+
+          {data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit) && (
+            <div className="flex flex-col gap-1 mt-1 pt-1 border-t border-slate-700/30">
+               {data.cpuLimit && (
+                 <div className="flex justify-between text-[7px] font-mono">
+                   <span className="text-slate-500">CPU:</span>
+                   <span className="text-violet-400">{data.cpuLimit}</span>
+                 </div>
+               )}
+               {data.memoryLimit && (
+                 <div className="flex justify-between text-[7px] font-mono">
+                   <span className="text-slate-500">MEM:</span>
+                   <span className="text-violet-400">{data.memoryLimit}</span>
+                 </div>
+               )}
+            </div>
           )}
         </div>
       </div>

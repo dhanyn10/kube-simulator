@@ -100,20 +100,11 @@ export const IngressNode = memo((props: NodeProps) => {
 
   return (
     <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-full h-full transition-colors flex flex-col min-h-[120px]",
+      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-auto min-w-[160px] h-auto transition-colors flex flex-col",
       colorMode === 'dark' ? "bg-slate-900 border-rose-500 shadow-rose-900/20" : "bg-white border-rose-500 shadow-rose-100",
       props.selected ? "ring-4 ring-rose-500/20" : "hover:border-rose-400"
     )}>
       <QuickConnectArrows nodeId={props.id} />
-      <NodeResizer
-        minWidth={150}
-        minHeight={120}
-        isVisible={props.selected}
-        lineClassName="border-rose-500"
-        handleClassName="h-2 w-2 bg-white border-2 border-rose-500 rounded"
-        onResize={handleNodeResize}
-        onResizeEnd={handleNodeResizeStop}
-      />
 
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
         <div className="flex items-center gap-2">
@@ -174,12 +165,16 @@ export const IngressNode = memo((props: NodeProps) => {
           </div>
         )}
 
-        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>host: {data.ingressHost || 'example.local'}</div>
+        {data.displaySettings?.host !== false && (
+          <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>host: {data.ingressHost || 'example.local'}</div>
+        )}
 
-        <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Path</span>
-          <div className="text-[9px] font-mono mt-0.5 text-rose-500">{data.ingressPath || '/'}</div>
-        </div>
+        {data.displaySettings?.path !== false && (
+          <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
+            <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Path</span>
+            <div className="text-[9px] font-mono mt-0.5 text-rose-500">{data.ingressPath || '/'}</div>
+          </div>
+        )}
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-rose-500 !w-2 !h-2" />
