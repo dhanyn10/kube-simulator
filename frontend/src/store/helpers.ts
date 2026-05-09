@@ -33,7 +33,8 @@ export const getPodMinimumSize = (data: any = {}) => {
   const replicas = data.replicas || 1;
   const showsReplicaBadge = replicas > 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
-  const showDashedProgress = data.type === 'Pod' && totalDeploymentReplicas > 3;
+  // Match visibility logic with BaseNode
+  const showDashedProgress = data.type === 'Pod' && (totalDeploymentReplicas > 3 || (replicas > 1 && !data.parentId));
 
   const horizontalPadding = 24;
   const contentPadding = 16;
@@ -56,17 +57,23 @@ export const getPodMinimumSize = (data: any = {}) => {
   ));
 
   // Dynamic height calculation
-  // Base height: Padding(24) + Header(24) + Gap(8) + Label(16) + Gap(8) = 80
-  let height = 80;
+  // Base height: Header(24) + Gap(8) + Label(16) + Padding(24) = ~72
+  let height = 72;
 
-  if (showDashedProgress) height += 12; // Progress bar + gap
-  if (badges.length > 0) height += 18; // Badges + gap
+  if (showDashedProgress) height += 14; // Progress bar + gap
+  
+  // Resources block
+  if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) {
+    height += 38; 
+  }
 
-  if (image) {
+  if (badges.length > 0) height += 20; // Badges + gap
+
+  if (image && data.displaySettings?.image !== false) {
     const imageContainerWidth = width - horizontalPadding;
     const charsPerLine = Math.max(10, Math.floor(imageContainerWidth / 5.5));
     const lines = Math.ceil(image.length / charsPerLine);
-    height += lines * 12 + 4; // 12px per line + small padding
+    height += lines * 12 + 8; 
   }
 
   return { width, height: Math.max(POD_MIN_DIMENSIONS.height, Math.ceil(height)) };
