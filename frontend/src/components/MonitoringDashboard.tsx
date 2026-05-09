@@ -7,21 +7,21 @@ const LineChart = ({ data, color, label }: { data: number[], color: string, labe
   const points = data.map((val, i) => `${(i / 29) * 200},${100 - val}`).join(' ');
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex justify-between items-center px-1">
+    <div className="flex flex-col gap-1 pointer-events-none">
+      <div className="flex justify-between items-center px-1 pointer-events-none">
         <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
         <span className={cn("text-[10px] font-mono font-bold", `text-${color}-500`)}>
           {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
         </span>
       </div>
-      <div className="h-24 w-full bg-slate-950/50 rounded border border-slate-800 relative overflow-hidden">
+      <div className="h-24 w-full bg-slate-950/50 rounded border border-slate-800 relative overflow-hidden pointer-events-none">
         {/* Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between opacity-10">
+        <div className="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
         </div>
-        <svg viewBox="0 0 200 100" className="w-full h-full preserve-3d" preserveAspectRatio="none">
+        <svg viewBox="0 0 200 100" className="w-full h-full preserve-3d pointer-events-none" preserveAspectRatio="none">
           <polyline
             fill="none"
             stroke={color === 'blue' ? '#3b82f6' : '#a855f7'}
@@ -48,7 +48,7 @@ export const MonitoringDashboard = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [position, setPosition] = useState({ x: 400, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const dashboardRef = useRef<HTMLDivElement>(null);

@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import { FlowState } from '../types';
 import { K8sResourceType } from '../../types';
+import { syncDeployment } from '../nodeHelpers';
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
@@ -144,7 +145,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           if (desiredReplicas !== replicas) {
             const nodeIndex = updatedNodes.findIndex(n => n.id === dep.id);
             if (nodeIndex !== -1) {
-              const { updatedDeployment, laidOut } = (state as any).syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
+              const { updatedDeployment, laidOut } = syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
 
               // Remove old pods and update deployment
               const filteredNodes = updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
