@@ -150,22 +150,25 @@ export const MenuBar = ({
         <div className="mx-2 h-4 w-px bg-slate-700/30" />
 
         {/* Simulation Controls */}
-        <div className="flex items-center bg-slate-800/50 dark:bg-slate-900/50 rounded-lg border border-slate-700/50 p-0.5" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+        <div className={cn(
+          "flex items-center rounded-lg border p-0.5 shadow-sm",
+          colorMode === 'dark' ? "bg-slate-900/50 border-slate-700/50" : "bg-white border-slate-200"
+        )} style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
           <div className="relative flex">
             <button
               onClick={() => setSimulation(!isSimulating)}
               disabled={!hasInternet}
               title={hasInternet ? (isSimulating ? "Stop Simulation" : "Start Simulation") : "Add an Internet card to start simulation"}
               className={cn(
-                "h-7 px-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md",
+                "h-7 px-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
                 !hasInternet
-                  ? (colorMode === 'dark' ? "text-slate-600 cursor-not-allowed" : "text-slate-400 cursor-not-allowed")
+                  ? "text-slate-400 cursor-not-allowed bg-transparent"
                   : isSimulating
-                    ? (colorMode === 'dark' ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-red-100 text-red-600 hover:bg-red-200")
-                    : (colorMode === 'dark' ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" : "bg-blue-100 text-blue-600 hover:bg-blue-200")
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-emerald-500 text-white hover:bg-emerald-600"
               )}
             >
-              {isSimulating ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+              {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
               {isSimulating ? "Stop" : "Play"}
             </button>
 
@@ -176,8 +179,9 @@ export const MenuBar = ({
                   setIsDropdownOpen(!isDropdownOpen);
                 }}
                 className={cn(
-                  "h-7 px-1.5 border-l border-slate-700/50 hover:bg-slate-700/30 transition-colors flex items-center justify-center text-slate-400 rounded-r-md",
-                  isDropdownOpen && "bg-slate-700/30"
+                  "h-7 px-1.5 border-l transition-colors flex items-center justify-center text-slate-400 rounded-r-md",
+                  colorMode === 'dark' ? "border-slate-700/50 hover:bg-slate-700/30" : "border-slate-200 hover:bg-slate-100",
+                  isDropdownOpen && (colorMode === 'dark' ? "bg-slate-700/30" : "bg-slate-100")
                 )}
               >
                 <ChevronDown size={12} />
@@ -234,30 +238,30 @@ export const MenuBar = ({
         </h1>
       </div>
 
-      <div className="flex items-center gap-1 text-[10px] font-medium" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+      <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <button
-          onClick={() => (window as any).runtime.WindowMinimize()}
+          onClick={() => (window as any).go?.main?.App?.MinimizeWindow?.()}
           className={cn(
-            "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
-            colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
+            "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
+            colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
           )}
         >
-          <Minus size={14} />
+          <Minus size={16} />
         </button>
         <button
-          onClick={() => (window as any).runtime.WindowToggleMaximize()}
+          onClick={() => (window as any).go?.main?.App?.MaximizeWindow?.()}
           className={cn(
-            "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
-            colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
+            "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
+            colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
           )}
         >
           <Square size={12} />
         </button>
         <button
-          onClick={() => (window as any).runtime.Quit()}
-          className="p-2 hover:bg-red-500 hover:text-white rounded transition-colors text-slate-500"
+          onClick={() => (window as any).go?.main?.App?.CloseWindow?.()}
+          className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"
         >
-          <X size={14} />
+          <X size={18} />
         </button>
       </div>
     </div>

@@ -10,7 +10,7 @@ import (
 
 	"build-wails/backend/db"
 	"github.com/dgraph-io/badger/v4"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -48,7 +48,7 @@ func (a *App) startup(ctx context.Context) {
 			time.Sleep(1 * time.Second) // Wait for frontend to be ready
 			fileData, err := os.ReadFile(a.initialFilePath)
 			if err == nil {
-				runtime.EventsEmit(a.ctx, "open-infra-file", string(fileData))
+				wailsRuntime.EventsEmit(a.ctx, "open-infra-file", string(fileData))
 			}
 		}()
 	}
@@ -127,7 +127,7 @@ func (a *App) SaveProject(name string, content string) int64 {
 		log.Printf("Error saving project: %v", err)
 		return -1
 	}
-	runtime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", name))
+	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", name))
 	return id
 }
 
@@ -145,10 +145,10 @@ func (a *App) UpdateProject(id int64, content string) bool {
 }
 
 func (a *App) ExportProjectFile(name string, canvasContent string, yamlContent string) bool {
-	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+	filePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
 		DefaultFilename: fmt.Sprintf("%s.infra", name),
 		Title:           "Export Infrastructure Project",
-		Filters: []runtime.FileFilter{
+		Filters: []wailsRuntime.FileFilter{
 			{DisplayName: "InfraStack Project (*.infra)", Pattern: "*.infra"},
 		},
 	})
@@ -174,9 +174,9 @@ func (a *App) ExportProjectFile(name string, canvasContent string, yamlContent s
 }
 
 func (a *App) ImportProjectFile() string {
-	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+	filePath, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
 		Title: "Import Infrastructure Project",
-		Filters: []runtime.FileFilter{
+		Filters: []wailsRuntime.FileFilter{
 			{DisplayName: "InfraStack Project (*.infra)", Pattern: "*.infra"},
 		},
 	})
@@ -209,7 +209,7 @@ func (a *App) LoadProject(id int64) *db.Project {
 		log.Printf("Error loading project: %v", err)
 		return nil
 	}
-	runtime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", proj.Name))
+	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", proj.Name))
 	return proj
 }
 
@@ -237,6 +237,24 @@ func (a *App) GetSetting(key string) string {
 		return ""
 	}
 	return val
+}
+
+// Window Control Actions
+
+func (a *App) MinimizeWindow() {
+	wailsRuntime.WindowMinimise(a.ctx)
+}
+
+func (a *App) MaximizeWindow() {
+	if wailsRuntime.WindowIsMaximised(a.ctx) {
+		wailsRuntime.WindowUnmaximise(a.ctx)
+	} else {
+		wailsRuntime.WindowMaximise(a.ctx)
+	}
+}
+
+func (a *App) CloseWindow() {
+	wailsRuntime.Quit(a.ctx)
 }
 
 // Greet returns a greeting for the given name
