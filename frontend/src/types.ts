@@ -18,8 +18,8 @@ export interface K8sNodeData {
   
   // Application Stack fields
   status?: 'pending' | 'ready';
-  webserver?: 'nginx' | 'apache' | 'none';
-  runtime?: 'php' | 'nodejs' | 'java' | 'go' | 'python' | 'none';
+  webserver?: string;
+  runtime?: string;
   framework?: string;
   isAutoNamed?: boolean;
 
