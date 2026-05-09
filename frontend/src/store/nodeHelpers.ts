@@ -20,7 +20,7 @@ export const setupPodHandlers = (podId: string, get: () => any) => ({
 });
 
 export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
-  return nodes.map(node => ({
+  let nextNodes = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
@@ -34,6 +34,16 @@ export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
       },
     }
   }));
+
+  // Sync Deployments after all handlers are attached
+  const deployments = nextNodes.filter(n => n.type === 'Deployment');
+  deployments.forEach(dept => {
+    const { updatedDeployment, laidOut } = syncDeployment(dept, nextNodes, 0, get);
+    nextNodes = nextNodes.filter(n => n.parentId !== dept.id || n.type !== 'Pod');
+    nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
+  });
+
+  return nextNodes;
 };
 
 export const syncDeployment = (
