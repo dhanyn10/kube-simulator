@@ -45,11 +45,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       if (visitedNodes.has(currentNodeId)) continue;
       visitedNodes.add(currentNodeId);
 
-      // Find all edges starting from this node
-      const outgoingEdges = edges.filter(e => e.source === currentNodeId);
+      // Find all edges starting from this node, using safe string comparison for IDs
+      const outgoingEdges = edges.filter(e => String(e.source) === String(currentNodeId));
       for (const edge of outgoingEdges) {
-        activeEdges.add(edge.id);
-        queue.push(edge.target);
+        activeEdges.add(String(edge.id));
+        queue.push(String(edge.target));
       }
     }
 

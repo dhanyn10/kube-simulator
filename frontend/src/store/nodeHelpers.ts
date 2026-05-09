@@ -19,12 +19,13 @@ export const setupPodHandlers = (podId: string, get: () => any) => ({
   },
 });
 
-export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
+export const hydrateNodes = (nodes: any[], get: () => any): any[] => {
   let nextNodes = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
       status: node.data.status || ((node.type === 'Pod' || node.type === 'Deployment') ? 'pending' : 'ready'),
+      type: node.type, // Ensure type is present in data too
       onDelete: () => {
         const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
         if (nodeToDelete) get().deleteNodes([nodeToDelete]);
@@ -70,7 +71,7 @@ export const syncDeployment = (
 
   // Sync Deployment data with Pod template
   if (syncedPods.length > 0) {
-    const podTemplate = syncedPods[0].data;
+    const podTemplate = syncedPods[0].data as any;
     updatedDeployment.data = {
       ...updatedDeployment.data,
       status: podTemplate.status,

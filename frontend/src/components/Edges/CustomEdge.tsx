@@ -24,8 +24,8 @@ export default function CustomEdge({
   const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
   const nodes = useFlowStore((state: any) => state.nodes);
 
-  const isConfiguring = configuringEdgeId === id;
-  const isSimulating = activeSimulationEdges.includes(id);
+  const isConfiguring = String(configuringEdgeId) === String(id);
+  const isSimulating = activeSimulationEdges.some(eid => String(eid) === String(id));
   const edges = useFlowStore((state: any) => state.edges);
 
   // Recursive error check to see if this edge leads to a failure
@@ -36,24 +36,30 @@ export default function CustomEdge({
     const queue = [target];
 
     while (queue.length > 0) {
-      const currentId = queue.shift()!;
+      const currentId = String(queue.shift()!);
       if (visited.has(currentId)) continue;
       visited.add(currentId);
 
-      const node = nodes.find((n: any) => n.id === currentId);
+      const node = nodes.find((n: any) => String(n.id) === currentId);
+      const data = node?.data;
       const isWorkload = node?.type === 'Pod' || node?.type === 'Deployment';
 
-      // If we find a workload that is not ready, the whole path is "errored"
-      if (isWorkload && node?.data?.status !== 'ready') return true;
+      // 1. Check current node status
+      if (isWorkload && data?.status !== 'ready') return true;
 
-      // If it's a Service/Ingress, we must continue searching downstream
-      // only if they are part of the current active simulation
+      // 2. If it's a Deployment, explicitly check its child pods
+      if (node?.type === 'Deployment') {
+        const childPods = nodes.filter((n: any) => String(n.parentId) === currentId && n.type === 'Pod');
+        if (childPods.some((p: any) => p.data?.status !== 'ready')) return true;
+      }
+
+      // 3. Search downstream via edges
       const outgoingEdges = edges.filter((e: any) =>
-        e.source === currentId && activeSimulationEdges.includes(e.id)
+        String(e.source) === currentId && activeSimulationEdges.some(eid => String(eid) === String(e.id))
       );
 
       for (const edge of outgoingEdges) {
-        queue.push(edge.target);
+        queue.push(String(edge.target));
       }
     }
     return false;
