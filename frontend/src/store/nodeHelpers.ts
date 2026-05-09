@@ -24,6 +24,7 @@ export const hydrateNodes = (nodes: Node[], get: () => any): Node[] => {
     ...node,
     data: {
       ...node.data,
+      status: node.data.status || ((node.type === 'Pod' || node.type === 'Deployment') ? 'pending' : 'ready'),
       onDelete: () => {
         const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
         if (nodeToDelete) get().deleteNodes([nodeToDelete]);

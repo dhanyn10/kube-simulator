@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Square as SquareIcon, Play, Square as StopCircle, ChevronDown as ChevronDownIcon, Globe } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Play, Globe } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 
@@ -74,7 +74,7 @@ export const MenuBar = ({
         },
         { 
           label: isAutosaveEnabled ? 'Autosave: ON' : 'Autosave: OFF', 
-          icon: isAutosaveEnabled ? CheckSquare : SquareIcon, 
+          icon: isAutosaveEnabled ? CheckSquare : Square,
           onClick: toggleAutosave 
         },
       ]
@@ -162,7 +162,7 @@ export const MenuBar = ({
                     : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
               )}
             >
-              {isSimulating ? <StopCircle size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+              {isSimulating ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
               {isSimulating ? "Stop" : "Play"}
             </button>
 
@@ -177,7 +177,7 @@ export const MenuBar = ({
                   isDropdownOpen && "bg-slate-700/30"
                 )}
               >
-                <ChevronDownIcon size={12} />
+                <ChevronDown size={12} />
               </button>
             )}
 

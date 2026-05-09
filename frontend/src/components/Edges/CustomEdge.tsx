@@ -26,13 +26,40 @@ export default function CustomEdge({
 
   const isConfiguring = configuringEdgeId === id;
   const isSimulating = activeSimulationEdges.includes(id);
+  const edges = useFlowStore((state: any) => state.edges);
 
-  // Check target node status for simulation coloring
-  const targetNode = nodes.find((n: any) => n.id === target);
-  const workloadTypes = ['Pod', 'Deployment'];
-  const isTargetError = isSimulating &&
-    workloadTypes.includes(targetNode?.type || '') &&
-    targetNode?.data?.status !== 'ready';
+  // Recursive error check to see if this edge leads to a failure
+  const checkErrorState = () => {
+    if (!isSimulating) return false;
+
+    const visited = new Set<string>();
+    const queue = [target];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const node = nodes.find((n: any) => n.id === currentId);
+      const isWorkload = node?.type === 'Pod' || node?.type === 'Deployment';
+
+      // If we find a workload that is not ready, the whole path is "errored"
+      if (isWorkload && node?.data?.status !== 'ready') return true;
+
+      // If it's a Service/Ingress, we must continue searching downstream
+      // only if they are part of the current active simulation
+      const outgoingEdges = edges.filter((e: any) =>
+        e.source === currentId && activeSimulationEdges.includes(e.id)
+      );
+
+      for (const edge of outgoingEdges) {
+        queue.push(edge.target);
+      }
+    }
+    return false;
+  };
+
+  const isTargetError = checkErrorState();
   
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,

@@ -86,7 +86,7 @@ export default function App() {
             const data = JSON.parse(json);
             const canvas = JSON.parse(data.canvas);
             const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
-            const hydratedEdges = (canvas.edges || []).map((e: any) => ({ ...e, type: e.type || 'custom' }));
+            const hydratedEdges = (canvas.edges || []).map((e: any) => ({ ...e, type: 'custom' }));
             useFlowStore.setState({
               nodes: hydratedNodes,
               edges: hydratedEdges,
@@ -140,7 +140,7 @@ export default function App() {
           const data = JSON.parse(json);
           const canvas = JSON.parse(data.canvas);
           const hydratedNodes = hydrateNodes(canvas.nodes || [], () => useFlowStore.getState());
-          const hydratedEdges = (canvas.edges || []).map((e: any) => ({ ...e, type: e.type || 'custom' }));
+          const hydratedEdges = (canvas.edges || []).map((e: any) => ({ ...e, type: 'custom' }));
           useFlowStore.setState({
             nodes: hydratedNodes,
             edges: hydratedEdges,
