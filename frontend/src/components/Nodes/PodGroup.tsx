@@ -1,11 +1,10 @@
 import React, { memo } from 'react';
-import { NodeProps, NodeResizer, Handle, Position } from '@xyflow/react';
+import { NodeProps, NodeResizer, Handle, Position, Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { K8sNodeData } from '../../types';
 
-export const PodGroupNode = memo(({ id, selected, data: unknownData }: NodeProps) => {
-  const data = unknownData as K8sNodeData;
+export const PodGroupNode = memo(({ id, selected, data }: NodeProps<Node<K8sNodeData>>) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
   return (

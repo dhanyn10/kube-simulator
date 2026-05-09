@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Play, Globe } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Play, Globe, Activity, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 
@@ -26,6 +26,9 @@ export const MenuBar = ({
   const edges = useFlowStore((state: any) => state.edges);
   const isSimulating = useFlowStore((state: any) => state.isSimulating);
   const setSimulation = useFlowStore((state: any) => state.setSimulation);
+  const isMonitoringOpen = useFlowStore((state: any) => state.isMonitoringOpen);
+  const setMonitoringOpen = useFlowStore((state: any) => state.setMonitoringOpen);
+  const isMonitoringDetached = useFlowStore((state: any) => state.isMonitoringDetached);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -79,6 +82,16 @@ export const MenuBar = ({
           label: isAutosaveEnabled ? 'Autosave: ON' : 'Autosave: OFF', 
           icon: isAutosaveEnabled ? CheckSquare : Square,
           onClick: toggleAutosave 
+        },
+      ]
+    },
+    {
+      label: 'Monitoring',
+      items: [
+        {
+          label: isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard'),
+          icon: isMonitoringDetached ? ExternalLink : Activity,
+          onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
         },
       ]
     },

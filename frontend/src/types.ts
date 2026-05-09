@@ -33,6 +33,7 @@ export interface K8sNodeData {
   minReplicas?: number;
   maxReplicas?: number;
   targetCPU?: number;
+  targetMemory?: number;
 
   // Ingress specific fields
   ingressHost?: string;

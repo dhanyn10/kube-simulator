@@ -24,6 +24,8 @@ import { NamespaceNode } from './components/Nodes/Namespace';
 import { IngressNode } from './components/Nodes/Ingress';
 import { HPANode } from './components/Nodes/HPA';
 import { PodGroupNode } from './components/Nodes/PodGroup';
+import { MonitoringDashboard } from './components/MonitoringDashboard';
+import { DetachedMonitoring } from './components/DetachedMonitoring';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus } from 'lucide-react';
@@ -54,6 +56,15 @@ const defaultEdgeOptions = {
 };
 
 export default function App() {
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const isDetachedMode = searchParams.get('mode') === 'monitoring';
+
+  console.log('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
+
+  if (isDetachedMode) {
+    return <DetachedMonitoring />;
+  }
+
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
@@ -224,6 +235,8 @@ export default function App() {
             isOpen={isScenarioOpen}
             onClose={() => setIsScenarioOpen(false)}
           />
+
+          <MonitoringDashboard />
         </main>
       </div>
 

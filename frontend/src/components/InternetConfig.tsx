@@ -24,18 +24,21 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
             {(data.displaySettings?.traffic !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="px-1 py-2">
           <input
-            type="number"
+            type="range"
             min="0"
-            value={data.traffic || 0}
-            onChange={(e) => performUpdate({ traffic: parseInt(e.target.value) || 0 })}
-            className={cn(
-              "flex-1 text-[10px] p-2 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
-            )}
+            max="20000"
+            step="500"
+            value={data.traffic || 1000}
+            onChange={(e) => performUpdate({ traffic: parseInt(e.target.value) || 1000 })}
+            className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
-          <span className="text-[10px] font-mono text-slate-400">Visits</span>
+          <div className="flex justify-between mt-1.5">
+            <span className="text-[8px] font-mono text-slate-500 italic">1k</span>
+            <span className="text-[10px] font-bold text-blue-500">{(data.traffic || 1000).toLocaleString()} <span className="text-[8px] font-normal opacity-70">visits</span></span>
+            <span className="text-[8px] font-mono text-slate-500 italic">1M</span>
+          </div>
         </div>
       </div>
 
