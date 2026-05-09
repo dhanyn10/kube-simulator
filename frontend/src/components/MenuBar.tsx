@@ -159,10 +159,10 @@ export const MenuBar = ({
               className={cn(
                 "h-7 px-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md",
                 !hasInternet
-                  ? "text-slate-600 cursor-not-allowed"
+                  ? (colorMode === 'dark' ? "text-slate-600 cursor-not-allowed" : "text-slate-400 cursor-not-allowed")
                   : isSimulating
-                    ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                    : "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30"
+                    ? (colorMode === 'dark' ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-red-100 text-red-600 hover:bg-red-200")
+                    : (colorMode === 'dark' ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" : "bg-blue-100 text-blue-600 hover:bg-blue-200")
               )}
             >
               {isSimulating ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
@@ -236,7 +236,7 @@ export const MenuBar = ({
 
       <div className="flex items-center gap-1 text-[10px] font-medium" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <button
-          onClick={() => (window as any).runtime?.WindowMinimize()}
+          onClick={() => (window as any).runtime.WindowMinimize()}
           className={cn(
             "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
             colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
@@ -245,7 +245,7 @@ export const MenuBar = ({
           <Minus size={14} />
         </button>
         <button
-          onClick={() => (window as any).runtime?.WindowToggleMaximize()}
+          onClick={() => (window as any).runtime.WindowToggleMaximize()}
           className={cn(
             "p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-500",
             colorMode === 'dark' ? "hover:text-slate-300" : "hover:text-slate-700"
@@ -254,7 +254,7 @@ export const MenuBar = ({
           <Square size={12} />
         </button>
         <button
-          onClick={() => (window as any).runtime?.Quit()}
+          onClick={() => (window as any).runtime.Quit()}
           className="p-2 hover:bg-red-500 hover:text-white rounded transition-colors text-slate-500"
         >
           <X size={14} />
