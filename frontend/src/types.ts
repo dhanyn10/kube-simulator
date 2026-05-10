@@ -17,7 +17,7 @@ export interface K8sNodeData {
   height?: number;
   
   // Application Stack fields
-  status?: 'pending' | 'ready';
+  status?: 'pending' | 'ready' | 'crashing';
   webserver?: string;
   runtime?: string;
   framework?: string;

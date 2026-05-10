@@ -16,6 +16,17 @@ export interface SnapGuide {
   isActive: boolean;
 }
 
+export interface SimulationMetricPoint {
+  cpuPercent: number;
+  memoryPercent: number;
+  cpuValue: number;
+  memoryValue: number;
+  cpuLimit: number;
+  memoryLimit: number;
+  isThrottled: boolean;
+  isOOM: boolean;
+}
+
 export interface FlowState {
   nodes: Node[];
   edges: Edge[];
@@ -45,7 +56,7 @@ export interface FlowState {
   // Simulation state
   isSimulating: boolean;
   activeSimulationEdges: string[];
-  simulationMetrics: Record<string, { cpu: number[], memory: number[] }>;
+  simulationMetrics: Record<string, SimulationMetricPoint[]>;
   isMonitoringOpen: boolean;
   isMonitoringDetached: boolean;
 

@@ -1,19 +1,9 @@
 import { StateCreator } from 'zustand';
-import { FlowState } from '../types';
+import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sResourceType, K8sNodeData } from '../../types';
 import { syncDeployment } from '../nodeHelpers';
 import { parseCPU, parseMemory } from '../../lib/utils';
 
-export interface SimulationMetricPoint {
-  cpuPercent: number;
-  memoryPercent: number;
-  cpuValue: number;
-  memoryValue: number;
-  cpuLimit: number;
-  memoryLimit: number;
-  isThrottled: boolean;
-  isOOM: boolean;
-}
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
@@ -59,7 +49,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setMonitoringDetached: (detached) => set({ isMonitoringDetached: detached }),
   setSimulation: (active, internetNodeIds) => {
     // Initial sync for detached window if starting simulation
-    if (active && get().isMonitoringDetached) {
+    if (active) {
         const workloads = get().nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
         metricsChannel.postMessage({
           type: 'METRICS_UPDATE',
@@ -135,14 +125,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           .reduce((total, internet) => {
             // Smoothly move currentTraffic towards target traffic
             const iData = internet.data as K8sNodeData;
-            const targetTraffic = iData.traffic || 0;
+            const targetTraffic = iData.traffic ?? 1000;
             const currentTraffic = iData.currentTraffic || 0;
             let nextTraffic = currentTraffic;
             
             if (currentTraffic < targetTraffic) {
-               nextTraffic = Math.min(targetTraffic as number, (currentTraffic as number) + 500); // Ramp up
+               nextTraffic = Math.min(targetTraffic as number, (currentTraffic as number) + 1000); // Ramp up faster
             } else if (currentTraffic > targetTraffic) {
-               nextTraffic = Math.max(targetTraffic as number, (currentTraffic as number) - 1000); // Ramp down
+               nextTraffic = Math.max(targetTraffic as number, (currentTraffic as number) - 2000); // Ramp down faster
             }
 
             if (nextTraffic !== currentTraffic) {
@@ -166,8 +156,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
               // Only traverse active simulation edges
               edges.forEach(e => {
-                if (state.activeSimulationEdges.includes(e.id) && e.source === currId) {
-                  queue.push(e.target);
+                if (state.activeSimulationEdges.includes(String(e.id)) && String(e.source) === String(currId)) {
+                  queue.push(String(e.target));
                 }
               });
             }
@@ -210,7 +200,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           cpuPercent,
           memoryPercent,
           cpuValue,
-          memoryValue,
+          memoryValue: memValue,
           cpuLimit: cpuLimitMilli,
           memoryLimit: memLimitMiB,
           isThrottled,
@@ -317,7 +307,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
       // 3. Emergency Stop if all pods are red (pending)
       const activeWorkloads = workloads.filter(w => {
-         const hasTraffic = (newMetrics[w.id]?.cpu?.reduce((a, b) => a + b, 0) || 0) > 0;
+         const points = newMetrics[w.id] || [];
+         const hasTraffic = points.length > 0 && points[points.length - 1].cpuValue > 0;
          return hasTraffic;
       });
 
@@ -350,16 +341,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         }
       }
 
-      // Broadcast to detached window
-      if (get().isMonitoringDetached) {
-        const currentWorkloads = updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
-        const payload = {
-          metrics: newMetrics,
-          deployments: currentWorkloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
-        };
-        metricsChannel.postMessage({ type: 'METRICS_UPDATE', ...payload });
-        if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));
-      }
+      // Broadcast to detached window - always broadcast if simulating so detached windows can sync
+      const currentWorkloads = updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
+      const payload = {
+        metrics: newMetrics,
+        deployments: currentWorkloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+      };
+      metricsChannel.postMessage({ type: 'METRICS_UPDATE', ...payload });
+      if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));
     }, 1000);
   },
 });

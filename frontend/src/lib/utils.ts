@@ -14,17 +14,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function parseCPU(cpu: string | undefined): number {
-  if (!cpu) return 500; // Default to 500m if not set
-  if (cpu.endsWith('m')) return parseInt(cpu);
-  return parseFloat(cpu) * 1000;
+export function parseCPU(cpu: string | number | undefined): number {
+  if (cpu === undefined || cpu === null || cpu === '') return 500;
+  if (typeof cpu === 'number') return cpu;
+  if (cpu.endsWith('m')) return parseInt(cpu) || 500;
+  const val = parseFloat(cpu);
+  return isNaN(val) ? 500 : val * 1000;
 }
 
-export function parseMemory(mem: string | undefined): number {
-  if (!mem) return 512; // Default to 512Mi if not set
-  if (mem.endsWith('Mi')) return parseInt(mem);
-  if (mem.endsWith('Gi')) return parseFloat(mem) * 1024;
-  return parseFloat(mem);
+export function parseMemory(mem: string | number | undefined): number {
+  if (mem === undefined || mem === null || mem === '') return 512;
+  if (typeof mem === 'number') return mem;
+  if (mem.endsWith('Mi')) return parseInt(mem) || 512;
+  if (mem.endsWith('Gi')) {
+    const val = parseFloat(mem);
+    return isNaN(val) ? 512 : val * 1024;
+  }
+  const val = parseFloat(mem);
+  return isNaN(val) ? 512 : val;
 }
 
 export function formatCPU(milli: number): string {
