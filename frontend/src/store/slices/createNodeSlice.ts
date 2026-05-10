@@ -22,6 +22,8 @@ export interface NodeSlice {
   onNodeResizeStop: (event: any, node: Node) => void;
   copyNodes: () => void;
   pasteNodes: () => void;
+  groupNodes: (nodeIds: string[]) => void;
+  ungroupNodes: (nodeIds: string[]) => void;
 }
 
 export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set, get) => {

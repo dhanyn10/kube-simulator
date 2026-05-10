@@ -96,4 +96,6 @@ export interface FlowState {
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
+  groupNodes: (nodeIds: string[]) => void;
+  ungroupNodes: (nodeIds: string[]) => void;
 }
