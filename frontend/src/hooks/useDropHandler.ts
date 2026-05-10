@@ -12,6 +12,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Internet: { x: 90, y: 60 },
   Ingress: { x: 100, y: 60 },
   HPA: { x: 90, y: 70 },
+  PVC: { x: 90, y: 60 },
 };
 
 export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: number }) => { x: number; y: number }) {

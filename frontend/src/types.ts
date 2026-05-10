@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC';
 
 export interface K8sNodeData {
   [key: string]: any;
@@ -44,6 +44,12 @@ export interface K8sNodeData {
   durationUnit?: 'second' | 'minute' | 'hour';
   parentReplicas?: number;
   displaySettings?: Record<string, boolean>;
+
+  // PVC specific fields
+  storageCapacity?: string;
+  accessMode?: 'ReadWriteOnce' | 'ReadOnlyMany' | 'ReadWriteMany';
+  storageClass?: string;
+  pvcStatus?: 'Pending' | 'Bound';
 }
 
 export interface K8sManifest {

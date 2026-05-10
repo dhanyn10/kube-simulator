@@ -7,7 +7,8 @@ import {
   generateDeploymentYaml,
   generateServiceYaml,
   generateIngressYaml,
-  generateHPAYaml
+  generateHPAYaml,
+  generatePVCYaml
 } from './yaml/generators';
 
 export function cn(...inputs: ClassValue[]) {
@@ -52,15 +53,17 @@ export function generateYaml(nodes: any[], edges: any[]): string {
     switch (node.type) {
       case 'Pod':
         if (node.parentId) return null;
-        return generatePodYaml(data, name);
+        return generatePodYaml(data, name, nodes, edges);
       case 'Deployment':
-        return generateDeploymentYaml(data, name, nodes);
+        return generateDeploymentYaml(data, name, nodes, edges);
       case 'Service':
         return generateServiceYaml(data, name);
       case 'Ingress':
         return generateIngressYaml(data, name, nodes, edges);
       case 'HPA':
         return generateHPAYaml(data, name, nodes, edges);
+      case 'PVC':
+        return generatePVCYaml(data, name);
       default:
         return null;
     }

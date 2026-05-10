@@ -1,186 +1,27 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
-import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Globe, Settings, Trash2 } from 'lucide-react';
+import React, { memo } from 'react';
+import { NodeProps } from '@xyflow/react';
+import { Globe } from 'lucide-react';
+import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '../../types';
-import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
-
-const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
-  const onQuickConnect = useFlowStore((state) => state.onQuickConnect);
-  const colorMode = useFlowStore((state) => state.colorMode);
-
-  const arrowStyle = cn(
-    "absolute flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-[1000]",
-    colorMode === 'dark' ? "bg-rose-500/20 hover:bg-rose-500/40 text-rose-400" : "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600"
-  );
-
-  return (
-    <>
-      <div
-        className={cn(arrowStyle, "-top-6 left-1/2 -translate-x-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'top'); }}
-      >
-        <ChevronUp size={14} />
-      </div>
-      <div
-        className={cn(arrowStyle, "-right-6 top-1/2 -translate-y-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'right'); }}
-      >
-        <ChevronRight size={14} />
-      </div>
-      <div
-        className={cn(arrowStyle, "-bottom-6 left-1/2 -translate-x-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'bottom'); }}
-      >
-        <ChevronDown size={14} />
-      </div>
-      <div
-        className={cn(arrowStyle, "-left-6 top-1/2 -translate-y-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'left'); }}
-      >
-        <ChevronLeft size={14} />
-      </div>
-    </>
-  );
-};
+import { cn } from '../../lib/utils';
 
 export const IngressNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(data.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize);
-  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setEditValue(data.label);
-    }
-  }, [data.label, isEditing]);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleRename = () => {
-    setIsEditing(false);
-    if (editValue.trim() && editValue !== data.label) {
-      data.onRename?.(editValue.trim());
-    } else {
-      setEditValue(data.label);
-    }
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRename();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditValue(data.label);
-    }
-  };
-
-  const handleNodeResize = useCallback((event: any, params: any) => {
-    const updatedNode = {
-      id: props.id,
-      type: props.type,
-      width: params.width,
-      height: params.height,
-    };
-    onNodeResize(event, updatedNode as any);
-  }, [props.id, props.type, onNodeResize]);
-
-  const handleNodeResizeStop = useCallback((event: any, params: any) => {
-    onNodeResizeStop(event, { id: props.id, ...params } as any);
-  }, [props.id, onNodeResizeStop]);
-
   return (
-    <div className={cn(
-      "group relative p-4 border-2 rounded-lg shadow-2xl cursor-grab w-auto min-w-[160px] h-auto transition-colors flex flex-col",
-      colorMode === 'dark' ? "bg-slate-900 border-rose-500 shadow-rose-900/20" : "bg-white border-rose-500 shadow-rose-100",
-      props.selected ? "ring-4 ring-rose-500/20" : "hover:border-rose-400"
-    )}>
-      <QuickConnectArrows nodeId={props.id} />
+    <BaseNode {...props} data={data} title="Ingress" icon={Globe} color="rose" id={props.id} type={props.type}>
+      {data.displaySettings?.host !== false && (
+        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>host: {data.ingressHost || 'example.local'}</div>
+      )}
 
-      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-        <div className="flex items-center gap-2">
-            <Globe size={12} className="text-rose-500" />
-            <span className="text-[9px] font-bold text-rose-500 uppercase tracking-tighter">Ingress</span>
+      {data.displaySettings?.path !== false && (
+        <div className="mt-auto pt-2 border-t border-slate-700/30">
+          <span className="text-[8px] uppercase font-bold text-slate-500">Path</span>
+          <div className="text-[9px] font-mono mt-0.5 text-rose-500">{data.ingressPath || '/'}</div>
         </div>
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              useFlowStore.getState().setConfiguringNodeId(props.id);
-            }}
-            className={cn(
-              "p-1 rounded transition-all",
-              colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
-            )}
-          >
-            <Settings size={12} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              data.onDelete?.();
-            }}
-            className={cn(
-              "p-1 rounded transition-all",
-              colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-            )}
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col min-h-0">
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-            onBlur={handleRename}
-            onKeyDown={onKeyDown}
-            className={cn(
-              "w-full text-xs font-mono font-bold mb-1 px-1 py-0.5 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-950 text-slate-100 border-rose-500" : "bg-slate-50 text-slate-900 border-rose-400"
-            )}
-          />
-        ) : (
-          <div
-            className={cn(
-              "text-xs font-mono font-bold mb-1 cursor-text break-all",
-              colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
-            )}
-            onDoubleClick={() => setIsEditing(true)}
-            title={data.label}
-          >
-            {data.label}
-          </div>
-        )}
-
-        {data.displaySettings?.host !== false && (
-          <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>host: {data.ingressHost || 'example.local'}</div>
-        )}
-
-        {data.displaySettings?.path !== false && (
-          <div className={cn("mt-auto pt-2 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-            <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Path</span>
-            <div className="text-[9px] font-mono mt-0.5 text-rose-500">{data.ingressPath || '/'}</div>
-          </div>
-        )}
-      </div>
-
-      <Handle type="target" position={Position.Top} id="top-t" className="!bg-rose-500 !w-2 !h-2" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-rose-500 !w-2 !h-2" />
-      <Handle type="target" position={Position.Left} id="left-t" className="!bg-rose-500 !w-2 !h-2" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!bg-rose-500 !w-2 !h-2" />
-    </div>
+      )}
+    </BaseNode>
   );
 });
