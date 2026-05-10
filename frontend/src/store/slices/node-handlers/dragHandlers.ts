@@ -7,7 +7,7 @@ import {
   sortNodes,
   resolveCollisions
 } from '../../helpers';
-import { syncDeployment } from '../../nodeHelpers';
+import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 
 export const dragHandlers = (set: any, get: any) => ({
   onNodeDragStart: (event: any, node: Node) => {
@@ -198,6 +198,8 @@ export const dragHandlers = (set: any, get: any) => ({
             const relativePos = { x: absPos.x - targetAbsPos.x, y: absPos.y - targetAbsPos.y };
             
             nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, parentId: targetParentId, position: relativePos, extent: 'parent' as const } : n);
+            // Auto-expand new parent Namespace
+            nextNodes = syncContainerSize(targetParentId, nextNodes);
 
             if (oldParentId) {
               const oldParent = nextNodes.find(n => n.id === oldParentId);
@@ -232,16 +234,14 @@ export const dragHandlers = (set: any, get: any) => ({
            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get);
            nextNodes = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
            nextNodes = [...nextNodes.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
-        } else {
-           const pWidth = parent?.width || (parent?.type === 'Namespace' ? 600 : 320);
-           const pHeight = parent?.height || (parent?.type === 'Namespace' ? 400 : 160);
-           let newX = Math.max(0, Math.min(finalNode.position.x, pWidth - nodeWidth));
-           let newY = Math.max(0, Math.min(finalNode.position.y, pHeight - nodeHeight));
-           
-           nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: { x: newX, y: newY }, extent: 'parent' as const } : n);
+            nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
+            // Auto-expand Namespace if needed
+            nextNodes = syncContainerSize(oldParentId, nextNodes);
         }
       } else if (oldParentId && !targetParentId && !detachingDeploymentId) {
-        nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, extent: 'parent' as const } : n);
+        nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
+        // Auto-expand Namespace if child is pulled near/past edge
+        nextNodes = syncContainerSize(oldParentId, nextNodes);
       }
 
       return {

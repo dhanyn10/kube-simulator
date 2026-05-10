@@ -7,7 +7,7 @@ import {
   getPodMinimumSize,
   getAbsPos
 } from '../../helpers';
-import { syncDeployment, setupPodHandlers } from '../../nodeHelpers';
+import { syncDeployment, setupPodHandlers, syncContainerSize } from '../../nodeHelpers';
 
 export const nodeActions = (set: any, get: any) => ({
   addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
@@ -122,6 +122,14 @@ export const nodeActions = (set: any, get: any) => ({
       if (!targetNode) return state;
 
       const updatedData = { ...targetNode.data, ...newData };
+
+      // Automatic Status Validation
+      if (targetNode.type === 'Pod' || targetNode.type === 'Deployment' || targetNode.type === 'PodGroup') {
+        const hasWebserver = updatedData.webserver && updatedData.webserver !== 'none';
+        const hasRuntime = updatedData.runtime && updatedData.runtime !== 'none';
+        updatedData.status = (hasWebserver || hasRuntime) ? 'ready' : 'pending';
+      }
+
       const updatedNode = { 
         ...targetNode, 
         data: updatedData,
@@ -159,6 +167,7 @@ export const nodeActions = (set: any, get: any) => ({
         const parent = nextNodes.find(n => n.id === updatedNode.parentId);
         if (parent) {
           if (parent.type === 'PodGroup' && (updatedData.replicas || 0) <= 3) {
+            // ... (logika pelepasan podgroup tetap sama)
             const groupPos = getAbsPos(parent.id, nextNodes);
             nextNodes = nextNodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
             const standalonePod = { 
@@ -170,9 +179,19 @@ export const nodeActions = (set: any, get: any) => ({
             };
             nextNodes = sortNodes([...nextNodes, standalonePod]);
           } else {
-            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, updatedNode);
+            // Update total replicas in parent if it's a Deployment
+            let replicasChange = 0;
+            if (parent.type === 'Deployment' && newData.replicas !== undefined) {
+              const oldPodReplicas = targetNode.data.replicas || 0;
+              const newPodReplicas = newData.replicas || 0;
+              replicasChange = newPodReplicas - oldPodReplicas;
+            }
+
+            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, replicasChange, get, updatedNode);
             const otherNodes = nextNodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
             nextNodes = sortNodes([...otherNodes, updatedDeployment, ...laidOut]);
+            // Sync grandparent (Namespace)
+            nextNodes = syncContainerSize(parent.parentId, nextNodes);
           }
         }
       }
@@ -180,6 +199,8 @@ export const nodeActions = (set: any, get: any) => ({
         const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nextNodes, 0, get);
         const otherNodes = nextNodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
         nextNodes = sortNodes([...otherNodes, updatedDeployment, ...laidOut]);
+        // Sync parent (Namespace)
+        nextNodes = syncContainerSize(updatedNode.parentId, nextNodes);
       }
 
       return {

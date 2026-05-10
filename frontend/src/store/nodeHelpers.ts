@@ -138,3 +138,51 @@ export const syncDeployment = (
 
   return { updatedDeployment: finalDeployment, laidOut };
 };
+
+export const syncContainerSize = (containerId: string | undefined, currentNodes: Node[]): Node[] => {
+  if (!containerId) return currentNodes;
+  
+  const container = currentNodes.find(n => n.id === containerId);
+  if (!container) return currentNodes;
+
+  const children = currentNodes.filter(n => n.parentId === containerId);
+  if (children.length === 0) return currentNodes;
+
+  const padding = 40;
+  const headerHeight = container.type === 'Deployment' ? 40 : 60;
+  
+  let maxWidth = container.width || container.measured?.width || 320;
+  let maxHeight = container.height || container.measured?.height || 160;
+
+  children.forEach(child => {
+    const childWidth = child.width || child.measured?.width || 160;
+    const childHeight = child.height || child.measured?.height || 100;
+    
+    const requiredWidth = child.position.x + childWidth + padding;
+    const requiredHeight = child.position.y + childHeight + padding;
+
+    if (requiredWidth > maxWidth) maxWidth = requiredWidth;
+    if (requiredHeight > maxHeight) maxHeight = requiredHeight;
+  });
+
+  const isSizeChanged = maxWidth !== container.width || maxHeight !== container.height;
+
+  const nextNodes = currentNodes.map(n => {
+    if (n.id === containerId) {
+      return {
+        ...n,
+        width: maxWidth,
+        height: maxHeight,
+        style: { ...n.style, width: maxWidth, height: maxHeight }
+      };
+    }
+    return n;
+  });
+
+  // If size changed, recursively notify parent
+  if (isSizeChanged && container.parentId) {
+    return syncContainerSize(container.parentId, nextNodes);
+  }
+
+  return nextNodes;
+};
