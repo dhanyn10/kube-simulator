@@ -194,18 +194,56 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           )}
 
           {showDashedProgress && (
-            <div className="flex gap-0.5 h-1 w-full items-center pb-0.5">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex-1 h-1 rounded-sm transition-all",
-                    i < (data.replicas || 0)
-                      ? "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]"
-                      : (colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")
-                  )}
-                />
-              ))}
+            <div className={cn(
+              "flex gap-0.5 w-full items-center pb-1",
+              data.replicas === 100 ? "h-auto" : "h-1"
+            )}>
+              {data.replicas === 100 ? (
+                <div className="grid grid-cols-5 gap-x-2 gap-y-4 w-full py-4 px-1">
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <div className="relative flex items-center justify-center w-10 h-10">
+                        <svg className="w-full h-full transform -rotate-90">
+                          <circle
+                            cx="20"
+                            cy="20"
+                            r="16"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            fill="transparent"
+                            className={colorMode === 'dark' ? "text-slate-700" : "text-slate-200"}
+                          />
+                          <circle
+                            cx="20"
+                            cy="20"
+                            r="16"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            fill="transparent"
+                            strokeDasharray={2 * Math.PI * 16}
+                            strokeDashoffset={0}
+                            strokeLinecap="round"
+                            className="text-emerald-500 transition-all duration-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+                          />
+                        </svg>
+                        <span className="absolute text-[8px] font-black text-emerald-500">10</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                Array.from({ length: 10 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "flex-1 h-1 rounded-sm transition-all",
+                      i < (data.replicas || 0)
+                        ? "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]"
+                        : (colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")
+                    )}
+                  />
+                ))
+              )}
             </div>
           )}
 

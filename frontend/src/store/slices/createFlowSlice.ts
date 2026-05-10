@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand';
+import dagre from 'dagre';
 import {
   Connection,
   Edge,
@@ -21,12 +22,62 @@ export interface FlowSlice {
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
+  autoLayout: (direction?: 'LR' | 'TB') => void;
 }
 
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
   nodes: [],
   edges: [],
   currentProject: null,
+  autoLayout: (direction = 'LR') => {
+    const { nodes, edges } = get();
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+    dagreGraph.setGraph({ rankdir: direction, nodesep: 100, ranksep: 200 });
+
+    // Only layout top-level nodes to preserve child layouts
+    const topLevelNodes = nodes.filter(n => !n.parentId);
+
+    topLevelNodes.forEach((node) => {
+      const width = node.measured?.width || node.width || 150;
+      const height = node.measured?.height || node.height || 100;
+      dagreGraph.setNode(node.id, { width, height });
+    });
+
+    edges.forEach((edge) => {
+      // Only include edges where both source and target are top-level or their parents are top-level
+      // Simplification: only use edges between top-level nodes for the main layout
+      if (topLevelNodes.find(n => n.id === edge.source) && topLevelNodes.find(n => n.id === edge.target)) {
+        dagreGraph.setEdge(edge.source, edge.target);
+      }
+    });
+
+    dagre.layout(dagreGraph);
+
+    const nextNodes = nodes.map((node) => {
+      if (!node.parentId) {
+        const nodeWithPosition = dagreGraph.node(node.id);
+        const width = node.measured?.width || node.width || 150;
+        const height = node.measured?.height || node.height || 100;
+        
+        return {
+          ...node,
+          position: {
+            x: nodeWithPosition.x - width / 2,
+            y: nodeWithPosition.y - height / 2,
+          },
+        };
+      }
+      return node;
+    });
+
+    set({ 
+      nodes: nextNodes,
+      lastActionId: `layout-${Date.now()}`,
+      lastActionName: 'Auto Layout'
+    });
+  },
   onNodesChange: (changes: NodeChange[]) => {
     const { nodes } = get();
     let extraChanges: NodeChange[] = [];
