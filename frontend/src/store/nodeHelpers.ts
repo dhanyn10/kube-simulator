@@ -104,8 +104,8 @@ export const syncDeployment = (
   const isPodGroup = deployment.type === 'PodGroup';
   const paddingX = 20;
   const headerHeight = isPodGroup ? 30 : 40;
-  const minWidth = isPodGroup ? 200 : 320;
-  const minHeight = isPodGroup ? 120 : 160;
+  const minWidth = isPodGroup ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
+  const minHeight = isPodGroup ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + 20);
 
   const maxPodX = Math.max(0, ...laidOut.map(p => (p.position.x || 0) + (p.width || 160)));
   const maxPodY = Math.max(0, ...laidOut.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));

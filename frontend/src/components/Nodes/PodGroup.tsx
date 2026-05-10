@@ -16,8 +16,8 @@ export const PodGroupNode = memo(({ id, selected, data }: NodeProps<Node<K8sNode
       selected && (colorMode === 'dark' ? "border-emerald-400/60 bg-emerald-500/10" : "border-emerald-500/40 bg-emerald-500/[0.05]")
     )}>
       <NodeResizer 
-        minWidth={200} 
-        minHeight={150} 
+        minWidth={180} 
+        minHeight={100} 
         isVisible={selected} 
         lineClassName="border-emerald-500/40"
         handleClassName="w-2 h-2 bg-white border-2 border-emerald-500 rounded"

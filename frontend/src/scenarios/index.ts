@@ -1,6 +1,4 @@
-import basic from './basic.json';
-import intermediate from './intermediate.json';
-import advanced from './advanced.json';
+import mainScenarios from './main-scenarios.json';
 import pvcScenarios from './pvc-scenarios.json';
 
 export interface Scenario {
@@ -14,33 +12,19 @@ export interface Scenario {
   };
 }
 
-export const scenarios: Scenario[] = [
-  {
-    id: 'basic-web',
-    name: 'Simple Web Service',
-    level: 'Basic',
-    description: 'A simple setup with a Service connected to a single Pod.',
-    data: basic
-  },
-  {
-    id: 'intermediate-lb',
-    name: 'Load Balanced App',
-    level: 'Intermediate',
-    description: 'An Ingress exposing a Service that distributes traffic to multiple Pods in a Deployment.',
-    data: intermediate
-  },
-  {
-    id: 'advanced-scaling',
-    name: 'Scalable Microservice',
-    level: 'Advanced',
-    description: 'A production-ready setup inside a Namespace with Ingress, Service, Deployment, and HPA for auto-scaling.',
-    data: advanced
-  },
-  ...pvcScenarios.map(s => ({
+const levelWeight = {
+  'Basic': 0,
+  'Intermediate': 1,
+  'Advanced': 2
+};
+
+export const scenarios: Scenario[] = ([
+  ...mainScenarios,
+  ...pvcScenarios.map((s: any) => ({
     id: s.id,
     name: s.name,
-    level: s.difficulty as any,
+    level: (s.difficulty || s.level),
     description: s.description,
-    data: { nodes: s.nodes, edges: s.edges }
+    data: s.data || { nodes: s.nodes, edges: s.edges }
   }))
-];
+] as Scenario[]).sort((a, b) => levelWeight[a.level] - levelWeight[b.level]);

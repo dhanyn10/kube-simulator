@@ -48,8 +48,12 @@ export const getPodMinimumSize = (data: any = {}) => {
     ? Math.min(320, Math.max(148, image.length * 5.5 + contentPadding))
     : 0;
 
+  const isMegaPod = data.replicas === 100;
+  const baseWidth = isMegaPod ? POD_MIN_DIMENSIONS.width * 2 : POD_MIN_DIMENSIONS.width;
+  const baseHeight = isMegaPod ? POD_MIN_DIMENSIONS.height * 2 : POD_MIN_DIMENSIONS.height;
+
   const width = Math.ceil(Math.max(
-    POD_MIN_DIMENSIONS.width,
+    baseWidth,
     headerContentWidth + headerToolsWidth + horizontalPadding,
     labelWidth + horizontalPadding,
     badgeWidth + horizontalPadding,
@@ -60,7 +64,7 @@ export const getPodMinimumSize = (data: any = {}) => {
   // Base height: Header(24) + Gap(8) + Label(16) + Padding(24) = ~72
   let height = 72;
 
-  if (showDashedProgress) height += 14; // Progress bar + gap
+  if (showDashedProgress) height += isMegaPod ? 120 : 14; // More space for circles in mega pod
   
   // Resources block
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) {
@@ -76,7 +80,7 @@ export const getPodMinimumSize = (data: any = {}) => {
     height += lines * 12 + 8; 
   }
 
-  return { width, height: Math.max(POD_MIN_DIMENSIONS.height, Math.ceil(height)) };
+  return { width, height: Math.max(baseHeight, Math.ceil(height)) };
 };
 
 export const sortNodes = (nodes: Node[]): Node[] => {
@@ -110,10 +114,17 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     for (let i = 0; i < totalReplicas; i++) {
       targetPodReplicas.push(1);
     }
-  } else {
+  } else if (totalReplicas <= 100) {
     let remaining = totalReplicas;
     while (remaining > 0) {
       const count = Math.min(remaining, 10);
+      targetPodReplicas.push(count);
+      remaining -= count;
+    }
+  } else {
+    let remaining = totalReplicas;
+    while (remaining > 0) {
+      const count = Math.min(remaining, 100);
       targetPodReplicas.push(count);
       remaining -= count;
     }
@@ -194,9 +205,9 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
 
 // Helper function to layout pods within a deployment
 export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
-  const paddingX = 20;
-  const paddingY = 40; // Account for deployment header
-  const spacing = 16;
+  const paddingX = 24;
+  const paddingY = 48; // Account for deployment header
+  const spacing = 32;
   
   const deploymentWidth = deployment.width || deployment.measured?.width || 320;
   const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
@@ -264,7 +275,7 @@ export const calculateAlignmentGuides = (
     if (deployment) {
       const depPods = nodes.filter(n => n.parentId === deployment.id && n.type === 'Pod');
       let layoutNodes = depPods;
-      if (!depPods.find(p => p.id === node.id)) {
+      if (!depPods.some(p => p.id === node.id)) {
         layoutNodes = [...depPods, node];
       }
       

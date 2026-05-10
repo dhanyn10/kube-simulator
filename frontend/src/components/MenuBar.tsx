@@ -96,6 +96,21 @@ export const MenuBar = ({
       ]
     },
     {
+      label: 'View',
+      items: [
+        { 
+          label: 'Arrange (L → R)', 
+          icon: Play, 
+          onClick: () => useFlowStore.getState().autoLayout('LR') 
+        },
+        { 
+          label: 'Arrange (T → B)', 
+          icon: ChevronDown, 
+          onClick: () => useFlowStore.getState().autoLayout('TB') 
+        },
+      ]
+    },
+    {
       label: 'Help',
       items: [
         { label: 'About', icon: Info, onClick: () => alert('InfraStack Architect v1.0.0') },

@@ -1,7 +1,7 @@
 import { K8sNodeData } from '../../types';
 
 const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
-  const pvcEdges = edges.filter(e => e.source === sourceId && nodes.find(n => n.id === e.target && n.type === 'PVC'));
+  const pvcEdges = edges.filter(e => e.source === sourceId && nodes.some(n => n.id === e.target && n.type === 'PVC'));
   const volumes = pvcEdges.map((e, idx) => {
     const pvcNode = nodes.find(n => n.id === e.target);
     const pvcName = pvcNode?.data.label.toLowerCase().replace(/\s+/g, '-') || 'pvc-storage';

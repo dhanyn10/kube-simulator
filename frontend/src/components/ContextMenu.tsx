@@ -121,6 +121,31 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
 
         <div className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")} />
 
+        {/* Arrange Layout */}
+        <button
+          onClick={() => { useFlowStore.getState().autoLayout('LR'); onClose(); }}
+          className={cn(
+            "w-full px-3 py-2 text-xs flex items-center gap-3 transition-colors",
+            colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+          )}
+        >
+          <Boxes size={14} className="rotate-90 text-blue-400" />
+          <span className="font-medium">Arrange (L → R)</span>
+        </button>
+
+        <button
+          onClick={() => { useFlowStore.getState().autoLayout('TB'); onClose(); }}
+          className={cn(
+            "w-full px-3 py-2 text-xs flex items-center gap-3 transition-colors",
+            colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+          )}
+        >
+          <Boxes size={14} className="text-blue-400" />
+          <span className="font-medium">Arrange (T → B)</span>
+        </button>
+
+        <div className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")} />
+
         {/* Delete */}
         <button
           onClick={() => { onDelete(); onClose(); }}
