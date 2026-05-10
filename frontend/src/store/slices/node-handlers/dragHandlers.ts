@@ -4,9 +4,10 @@ import {
   isAllowed, 
   calculateAlignmentGuides, 
   getNodeData, 
-  sortNodes 
+  sortNodes,
+  resolveCollisions
 } from '../../helpers';
-import { syncDeployment } from '../../nodeHelpers';
+import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 
 export const dragHandlers = (set: any, get: any) => ({
   onNodeDragStart: (event: any, node: Node) => {
@@ -65,7 +66,8 @@ export const dragHandlers = (set: any, get: any) => ({
         const intersects = overlapArea > 0;
 
         if (node.parentId === container.id) {
-            if (overlapPercentage < 50) {
+            // Increased threshold to 80% to give expansion more room to work
+            if (overlapPercentage < 20) { 
                 newDetachingDeploymentId = container.id;
                 nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
             } else if (!newHoveredDeploymentId) {
@@ -91,7 +93,7 @@ export const dragHandlers = (set: any, get: any) => ({
     set({ 
         hoveredDeploymentId: newHoveredDeploymentId, 
         detachingDeploymentId: newDetachingDeploymentId,
-        nodes: nextNodes,
+        nodes: nextNodes, // Back to normal nextNodes
         alignmentGuides: {
             vertical: verticalGuides,
             horizontal: horizontalGuides,
@@ -115,13 +117,14 @@ export const dragHandlers = (set: any, get: any) => ({
       const activeHorizontalSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
 
       let finalNode = { ...node };
+      
+      // 1. Resolution Snapping (Alignment Guides)
       if (activeVerticalSnaps.length > 0 || activeHorizontalSnaps.length > 0) {
           const parentAbs = node.parentId ? getAbsPos(node.parentId, nextNodes) : { x: 0, y: 0 };
           const nodeAbs = { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
           
           if (activeVerticalSnaps.length > 0) {
-              // Find the closest guide among active snaps
-              const guide = activeVerticalSnaps.reduce((prev, curr) => 
+              const guide = activeVerticalSnaps.reduce((prev: any, curr: any) => 
                 Math.min(Math.abs(nodeAbs.x - curr), Math.abs(nodeAbs.x + nodeWidth/2 - curr), Math.abs(nodeAbs.x + nodeWidth - curr)) < 
                 Math.min(Math.abs(nodeAbs.x - prev), Math.abs(nodeAbs.x + nodeWidth/2 - prev), Math.abs(nodeAbs.x + nodeWidth - prev)) ? curr : prev
               );
@@ -139,7 +142,7 @@ export const dragHandlers = (set: any, get: any) => ({
               }
           }
           if (activeHorizontalSnaps.length > 0) {
-              const guide = activeHorizontalSnaps.reduce((prev, curr) => 
+              const guide = activeHorizontalSnaps.reduce((prev: any, curr: any) => 
                 Math.min(Math.abs(nodeAbs.y - curr), Math.abs(nodeAbs.y + nodeHeight/2 - curr), Math.abs(nodeAbs.y + nodeHeight - curr)) < 
                 Math.min(Math.abs(nodeAbs.y - prev), Math.abs(nodeAbs.y + nodeHeight/2 - prev), Math.abs(nodeAbs.y + nodeHeight - prev)) ? curr : prev
               );
@@ -156,6 +159,12 @@ export const dragHandlers = (set: any, get: any) => ({
                   finalNode.position.y = (guide - nodeHeight / 2) - parentAbs.y;
               }
           }
+      }
+
+      // 2. Collision Detection (Prevent Overlap) - Only for top-level nodes for now
+      if (!finalNode.parentId && !hoveredDeploymentId) {
+        const resolved = resolveCollisions(finalNode, nextNodes, finalNode.position);
+        finalNode.position = resolved;
       }
       
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
@@ -190,6 +199,8 @@ export const dragHandlers = (set: any, get: any) => ({
             const relativePos = { x: absPos.x - targetAbsPos.x, y: absPos.y - targetAbsPos.y };
             
             nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, parentId: targetParentId, position: relativePos, extent: 'parent' as const } : n);
+            // Auto-expand new parent Namespace
+            nextNodes = syncContainerSize(targetParentId, nextNodes);
 
             if (oldParentId) {
               const oldParent = nextNodes.find(n => n.id === oldParentId);
@@ -221,19 +232,22 @@ export const dragHandlers = (set: any, get: any) => ({
       } else if (oldParentId && targetParentId === oldParentId) {
         const parent = nextNodes.find(n => n.id === oldParentId);
         if (parent?.type === 'Deployment' && node.type === 'Pod') {
-           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get);
-           nextNodes = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
-           nextNodes = [...nextNodes.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
+            // Re-use current replicasChange=0 logic for internal move
+            let replicasChange = 0;
+            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, replicasChange, get, finalNode);
+            nextNodes = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
+            nextNodes = [...nextNodes.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
+            // Sync grandparent and allow expansion
+            nextNodes = syncContainerSize(oldParentId, nextNodes);
         } else {
-           const pWidth = parent?.width || (parent?.type === 'Namespace' ? 600 : 320);
-           const pHeight = parent?.height || (parent?.type === 'Namespace' ? 400 : 160);
-           let newX = Math.max(0, Math.min(finalNode.position.x, pWidth - nodeWidth));
-           let newY = Math.max(0, Math.min(finalNode.position.y, pHeight - nodeHeight));
-           
-           nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: { x: newX, y: newY }, extent: 'parent' as const } : n);
+            // For Namespace internal move or other components
+            nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
+            nextNodes = syncContainerSize(oldParentId, nextNodes);
         }
       } else if (oldParentId && !targetParentId && !detachingDeploymentId) {
-        nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, extent: 'parent' as const } : n);
+        // Fallback for when it's still child but outside
+        nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
+        nextNodes = syncContainerSize(oldParentId, nextNodes);
       }
 
       return {

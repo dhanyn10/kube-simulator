@@ -160,10 +160,12 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, minSize.height)
         : minSize.height;
 
-      const isSameLabel = existingPod.data.label === commonData.label;
-      const podData = isSameLabel 
-        ? { ...existingPod.data, ...commonData, replicas, parentReplicas: totalReplicas }
-        : { ...existingPod.data, replicas, parentReplicas: totalReplicas };
+      const podData = { 
+        ...existingPod.data, 
+        ...commonData, 
+        replicas, 
+        parentReplicas: totalReplicas 
+      };
 
       newPods.push({
         ...existingPod,
@@ -176,7 +178,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         data: podData
       });
     } else {
-      const id = `pod-${Math.random().toString(36).substr(2, 9)}`;
+      const id = `pod-${crypto.randomUUID().split('-')[0]}`;
       const minSize = getPodMinimumSize({ ...commonData, replicas });
       newPods.push({
         id,
@@ -388,4 +390,66 @@ export const calculateAlignmentGuides = (
   const hGuides = Array.from(horizontalGuides.values());
 
   return { verticalGuides: vGuides, horizontalGuides: hGuides, vSnap, hSnap };
+};
+
+export const resolveCollisions = (
+  draggedNode: Node,
+  nodes: Node[],
+  draggedAbsPos: { x: number, y: number }
+): { x: number, y: number } => {
+  const padding = 24; 
+  
+  const getEffectiveSize = (node: Node) => {
+    if (node.type === 'Pod') {
+      const minSize = getPodMinimumSize(node.data);
+      return {
+        width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
+        height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+      };
+    }
+    return {
+      width: node.width || node.measured?.width || (node.type === 'Deployment' ? 320 : 160),
+      height: node.height || node.measured?.height || (node.type === 'Deployment' ? 160 : 80)
+    };
+  };
+
+  const dSize = getEffectiveSize(draggedNode);
+  const dW = dSize.width;
+  const dH = dSize.height;
+
+  let resolvedX = draggedAbsPos.x;
+  let resolvedY = draggedAbsPos.y;
+
+  const otherNodes = nodes.filter(n => n.id !== draggedNode.id && !n.parentId && n.type !== 'Namespace');
+
+  for (const other of otherNodes) {
+    const oAbs = getAbsPos(other.id, nodes);
+    const oSize = getEffectiveSize(other);
+    const oW = oSize.width;
+    const oH = oSize.height;
+
+    // Check if rectangles overlap (AABB)
+    const isColliding = 
+      resolvedX < oAbs.x + oW + padding &&
+      resolvedX + dW + padding > oAbs.x &&
+      resolvedY < oAbs.y + oH + padding &&
+      resolvedY + dH + padding > oAbs.y;
+
+    if (isColliding) {
+       // Simple resolution: Snap to the nearest edge
+       const distLeft = Math.abs(resolvedX - (oAbs.x - dW - padding));
+       const distRight = Math.abs(resolvedX - (oAbs.x + oW + padding));
+       const distTop = Math.abs(resolvedY - (oAbs.y - dH - padding));
+       const distBottom = Math.abs(resolvedY - (oAbs.y + oH + padding));
+
+       const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+       if (minDist === distLeft) resolvedX = oAbs.x - dW - padding;
+       else if (minDist === distRight) resolvedX = oAbs.x + oW + padding;
+       else if (minDist === distTop) resolvedY = oAbs.y - dH - padding;
+       else resolvedY = oAbs.y + oH + padding;
+    }
+  }
+
+  return { x: resolvedX, y: resolvedY };
 };
