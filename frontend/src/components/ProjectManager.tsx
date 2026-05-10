@@ -133,7 +133,10 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
           nodes: hydratedNodes,
           edges: edgesWithStrings,
           currentProject: { id, name },
-          lastSavedSnapshot: res.content
+          lastSavedSnapshot: res.content,
+          isSimulating: false,
+          activeSimulationEdges: [],
+          simulationMetrics: {}
         });
         onClose();
       }

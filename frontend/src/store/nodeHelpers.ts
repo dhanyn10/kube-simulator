@@ -24,10 +24,14 @@ export const hydrateNodes = (nodes: any[], get: () => any): any[] => {
     ...node,
     data: {
       ...node.data,
-      status: node.data.status || ((node.type === 'Pod' || node.type === 'Deployment') ? 'pending' : 'ready'),
-      type: node.type, // Ensure type is present in data too
+      status: node.data.status || (
+        (node.type === 'Pod' || node.type === 'Deployment') 
+          ? (node.data.runtime && node.data.runtime !== 'none' || node.data.webserver && node.data.webserver !== 'none' ? 'ready' : 'pending')
+          : 'ready'
+      ),
+      type: node.type,
       onDelete: () => {
-        const nodeToDelete = get().nodes.find((n: Node) => n.id === node.id);
+        const nodeToDelete = get().nodes.find((n: any) => n.id === node.id);
         if (nodeToDelete) get().deleteNodes([nodeToDelete]);
       },
       onRename: (newName: string) => {

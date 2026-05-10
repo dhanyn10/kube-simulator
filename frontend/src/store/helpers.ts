@@ -126,24 +126,16 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
 
   // Get template data from the provided dataTemplate, or first existing pod, otherwise use deployment defaults
   const templatePod = dataTemplate || currentPods[0];
-  const commonData = templatePod ? {
-    image: templatePod.data.image,
-    webserver: templatePod.data.webserver,
-    runtime: templatePod.data.runtime,
-    framework: templatePod.data.framework,
-    status: templatePod.data.status,
-    label: templatePod.data.label,
-    isAutoNamed: templatePod.data.isAutoNamed,
-    displaySettings: templatePod.data.displaySettings, // Missing this!
-  } : {
-    image: deployment.data.image,
-    webserver: deployment.data.webserver || 'none',
-    runtime: deployment.data.runtime || 'none',
-    framework: deployment.data.framework,
-    status: deployment.data.status || 'pending',
-    label: 'new-app-pod',
-    isAutoNamed: true,
-    displaySettings: deployment.data.displaySettings, // Also missing this!
+  
+  const commonData = {
+    image: templatePod?.data?.image ?? deployment.data.image,
+    webserver: templatePod?.data?.webserver ?? deployment.data.webserver ?? 'none',
+    runtime: templatePod?.data?.runtime ?? deployment.data.runtime ?? 'none',
+    framework: templatePod?.data?.framework ?? deployment.data.framework,
+    status: templatePod?.data?.status ?? deployment.data.status ?? 'pending',
+    label: templatePod?.data?.label ?? deployment.data.label ?? 'new-app-pod',
+    isAutoNamed: templatePod?.data?.isAutoNamed ?? deployment.data.isAutoNamed ?? true,
+    displaySettings: dataTemplate ? dataTemplate.data.displaySettings : (deployment.data.displaySettings || templatePod?.data?.displaySettings),
   };
 
   targetPodReplicas.forEach((replicas, index) => {
@@ -157,6 +149,11 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, minSize.height)
         : minSize.height;
 
+      const isSameLabel = existingPod.data.label === commonData.label;
+      const podData = isSameLabel 
+        ? { ...existingPod.data, ...commonData, replicas, parentReplicas: totalReplicas }
+        : { ...existingPod.data, replicas, parentReplicas: totalReplicas };
+
       newPods.push({
         ...existingPod,
         parentId: deploymentId,
@@ -165,13 +162,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         style: { width, minHeight },
         measured: undefined,
         extent: 'parent',
-        data: {
-          ...existingPod.data,
-          ...commonData,
-          replicas,
-          parentReplicas: totalReplicas,
-          label: commonData.label,
-        }
+        data: podData
       });
     } else {
       const id = `pod-${Math.random().toString(36).substr(2, 9)}`;

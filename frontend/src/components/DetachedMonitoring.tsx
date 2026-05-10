@@ -1,17 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Cpu, Database } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Activity, Cpu, Database, AlertTriangle, ZapOff } from 'lucide-react';
+import { cn, formatCPU, formatMemory } from '../lib/utils';
 
-const LineChart = ({ data, color, label }: { data: number[], color: string, label: string }) => {
-  const points = data.map((val, i) => `${(i / 29) * 200},${100 - val}`).join(' ');
+const LineChart = ({
+  data,
+  color,
+  label,
+  valueFormatter,
+  limitValue,
+  isPercent = true
+}: {
+  data: number[],
+  color: string,
+  label: string,
+  valueFormatter?: (v: number) => string,
+  limitValue?: number,
+  isPercent?: boolean
+}) => {
+  const points = data.map((val, i) => `${(i / 29) * 200},${100 - (isPercent ? val : (val / (limitValue || 100)) * 100)}`).join(' ');
 
   return (
     <div className="flex flex-col gap-1 pointer-events-none">
       <div className="flex justify-between items-center px-1 pointer-events-none">
         <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
-        <span className={cn("text-[10px] font-mono font-bold", color === 'blue' ? "text-blue-500" : "text-purple-500")}>
-          {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
-        </span>
+        <div className="flex items-center gap-2">
+           {valueFormatter && data.length > 0 && (
+             <span className="text-[8px] font-mono text-slate-500">
+               {valueFormatter(data[data.length - 1])} / {valueFormatter(limitValue || 0)}
+             </span>
+           )}
+           <span className={cn("text-[10px] font-mono font-bold", color === 'blue' ? "text-blue-500" : "text-purple-500")}>
+             {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
+           </span>
+        </div>
       </div>
       <div className="h-24 w-full bg-slate-950/50 rounded border border-slate-800 relative overflow-hidden pointer-events-none">
         <div className="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
@@ -20,6 +41,14 @@ const LineChart = ({ data, color, label }: { data: number[], color: string, labe
           <div className="border-t border-slate-500 w-full" />
         </div>
         <svg viewBox="0 0 200 100" className="w-full h-full preserve-3d pointer-events-none" preserveAspectRatio="none">
+          {/* Limit Line */}
+          <line
+            x1="0" y1="0" x2="200" y2="0"
+            stroke="#ef4444"
+            strokeWidth="1"
+            strokeDasharray="4 2"
+            className="opacity-50"
+          />
           <polyline
             fill="none"
             stroke={color === 'blue' ? '#3b82f6' : '#a855f7'}
@@ -124,7 +153,12 @@ export const DetachedMonitoring = () => {
           </div>
         ) : (
           deployments.map(dep => {
-            const depMetrics = metrics[dep.id] || { cpu: [], memory: [] };
+            const points = metrics[dep.id] || [];
+            const lastPoint = points[points.length - 1];
+
+            const cpuData = points.map((p: any) => p.cpuPercent);
+            const memData = points.map((p: any) => p.memoryPercent);
+
             return (
               <div key={dep.id} className={cn(
                 "p-5 rounded-2xl border shadow-xl flex flex-col gap-4",
@@ -134,6 +168,18 @@ export const DetachedMonitoring = () => {
                     <div className="flex items-center gap-3">
                        <div className="w-2.5 h-2.5 rounded-full bg-violet-500 shadow-[0_0_10px_rgba(139,92,246,0.5)]" />
                        <span className="text-sm font-mono font-bold tracking-tight">{dep.label}</span>
+                       {lastPoint?.isThrottled && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 animate-pulse">
+                           <ZapOff size={12} />
+                           <span className="text-[10px] font-bold uppercase">Throttled</span>
+                        </div>
+                      )}
+                      {lastPoint?.isOOM && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 animate-bounce">
+                           <AlertTriangle size={12} />
+                           <span className="text-[10px] font-bold uppercase">OOM Risk</span>
+                        </div>
+                      )}
                     </div>
                     <span className="text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-800 text-slate-400 uppercase">
                        {dep.replicas || 1} Replicas
@@ -141,8 +187,20 @@ export const DetachedMonitoring = () => {
                  </div>
 
                  <div className="space-y-4">
-                    <LineChart data={depMetrics.cpu} color="blue" label="Processor Load (CPU)" />
-                    <LineChart data={depMetrics.memory} color="purple" label="Memory Usage" />
+                    <LineChart
+                      data={cpuData}
+                      color="blue"
+                      label="Processor Load (CPU)"
+                      valueFormatter={formatCPU}
+                      limitValue={lastPoint?.cpuLimit}
+                    />
+                    <LineChart
+                      data={memData}
+                      color="purple"
+                      label="Memory Usage"
+                      valueFormatter={formatMemory}
+                      limitValue={lastPoint?.memoryLimit}
+                    />
                  </div>
               </div>
             );

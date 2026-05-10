@@ -6,6 +6,7 @@ import {
   BackgroundVariant,
   useReactFlow,
   MiniMap,
+  Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -26,6 +27,7 @@ import { HPANode } from './components/Nodes/HPA';
 import { PodGroupNode } from './components/Nodes/PodGroup';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
+import { ContextMenu } from './components/ContextMenu';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus } from 'lucide-react';
@@ -82,6 +84,8 @@ export default function App() {
   const colorMode = useFlowStore((state) => state.colorMode);
   const copyNodes = useFlowStore((state) => state.copyNodes);
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
+  const groupNodes = useFlowStore((state) => state.groupNodes);
+  const ungroupNodes = useFlowStore((state) => state.ungroupNodes);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -98,7 +102,39 @@ export default function App() {
     onRedo: handleRedo,
     onCopy: copyNodes,
     onPaste: pasteNodes,
+    onGroup: () => {
+      const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
+      if (selectedIds.length > 1) groupNodes(selectedIds);
+    },
+    onUngroup: () => {
+      const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
+      if (selectedIds.length > 0) ungroupNodes(selectedIds);
+    }
   });
+
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
+
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      // If node not selected, select only this node
+      if (!node.selected) {
+        useFlowStore.setState({
+          nodes: nodes.map(n => ({ ...n, selected: n.id === node.id }))
+        });
+      }
+      setContextMenu({ x: event.clientX, y: event.clientY });
+    },
+    [nodes, setContextMenu]
+  );
+
+  const onPaneContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      setContextMenu({ x: event.clientX, y: event.clientY });
+    },
+    [setContextMenu]
+  );
 
   const handleExport = useCallback(() => {
     setYamlContent(generateYaml(nodes, edges));
@@ -146,6 +182,8 @@ export default function App() {
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
+          onNodeContextMenu={onNodeContextMenu}
+          onPaneContextMenu={onPaneContextMenu}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onNodesDelete={deleteNodes}
@@ -237,6 +275,16 @@ export default function App() {
           />
 
           <MonitoringDashboard />
+          
+          {contextMenu && (
+            <ContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onClose={() => setContextMenu(null)}
+              onInspect={handleExport}
+              onDelete={() => deleteNodes(nodes.filter(n => n.selected))}
+            />
+          )}
         </main>
       </div>
 

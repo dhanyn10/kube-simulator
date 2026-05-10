@@ -52,31 +52,41 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
     updateNodeData(selectedNode.id, finalData);
 
-    // If this is a Pod in a Deployment, we MUST also update the parent deployment's data
-    if (selectedNode.type === 'Pod' && selectedNode.parentId) {
-      const state = useFlowStore.getState();
-      const parentDeployment = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+    // Identify which pods should be synced
+    const state = useFlowStore.getState();
+    const podsToSync = state.nodes.filter((n: any) => {
+      if (n.type !== 'Pod' || n.id === selectedNode.id) return false;
       
+      // Case 1: Same parent and same label (Deployment/PodGroup member)
+      if (selectedNode.parentId && n.parentId === selectedNode.parentId) {
+        return n.data.label === data.label;
+      }
+      
+      // Case 2: No parent but same label (Standalone pods)
+      if (!selectedNode.parentId && !n.parentId) {
+        return n.data.label === data.label;
+      }
+      
+      return false;
+    });
+
+    // Update the other pods in the group
+    podsToSync.forEach((p: any) => {
+      updateNodeData(p.id, {
+        ...additionalUpdates,
+        displaySettings: nextSettings
+      });
+    });
+
+    // Also update parent if applicable
+    if (selectedNode.parentId) {
+      const parentDeployment = state.nodes.find((n: any) => n.id === selectedNode.parentId);
       if (parentDeployment) {
         updateNodeData(parentDeployment.id, {
           ...additionalUpdates,
           displaySettings: nextSettings
         });
       }
-
-      // Sync all other pods for immediate visual feedback
-      const podsInGroup = state.nodes.filter((n: any) => 
-        n.parentId === selectedNode.parentId && 
-        n.data.label === data.label
-      );
-      podsInGroup.forEach((p: any) => {
-        if (p.id !== selectedNode.id) {
-          updateNodeData(p.id, {
-            ...additionalUpdates,
-            displaySettings: nextSettings 
-          });
-        }
-      });
     }
   };
 

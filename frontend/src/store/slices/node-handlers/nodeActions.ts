@@ -197,4 +197,26 @@ export const nodeActions = (set: any, get: any) => ({
   onPaneClick: () => {
     set({ activeDeploymentId: null });
   },
+  
+  groupNodes: (nodeIds: string[]) => {
+    if (nodeIds.length < 2) return;
+    const groupId = `group-${Math.random().toString(36).substring(2, 9)}`;
+    set((state: any) => ({
+      nodes: state.nodes.map((n: Node) => 
+        nodeIds.includes(n.id) ? { ...n, data: { ...n.data, groupId } } : n
+      ),
+      lastActionId: `group-${Date.now()}`,
+      lastActionName: 'Group Elements'
+    }));
+  },
+  
+  ungroupNodes: (nodeIds: string[]) => {
+    set((state: any) => ({
+      nodes: state.nodes.map((n: Node) => 
+        nodeIds.includes(n.id) ? { ...n, data: { ...n.data, groupId: undefined } } : n
+      ),
+      lastActionId: `ungroup-${Date.now()}`,
+      lastActionName: 'Ungroup Elements'
+    }));
+  },
 });

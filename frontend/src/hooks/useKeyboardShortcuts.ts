@@ -5,9 +5,11 @@ interface UseKeyboardShortcutsOptions {
   onRedo: () => void;
   onCopy: () => void;
   onPaste: () => void;
+  onGroup?: () => void;
+  onUngroup?: () => void;
 }
 
-export function useKeyboardShortcuts({ onUndo, onRedo, onCopy, onPaste }: UseKeyboardShortcutsOptions) {
+export function useKeyboardShortcuts({ onUndo, onRedo, onCopy, onPaste, onGroup, onUngroup }: UseKeyboardShortcutsOptions) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const isControl = event.ctrlKey || event.metaKey;
@@ -21,6 +23,12 @@ export function useKeyboardShortcuts({ onUndo, onRedo, onCopy, onPaste }: UseKey
         onCopy();
       } else if (key === 'v') {
         onPaste();
+      } else if (key === 'g') {
+        event.preventDefault();
+        onGroup?.();
+      } else if (key === 'u') {
+        event.preventDefault();
+        onUngroup?.();
       } else if (key === 'z') {
         event.preventDefault();
         event.stopPropagation();
@@ -35,5 +43,5 @@ export function useKeyboardShortcuts({ onUndo, onRedo, onCopy, onPaste }: UseKey
 
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [onUndo, onRedo, onCopy, onPaste]);
+  }, [onUndo, onRedo, onCopy, onPaste, onGroup, onUngroup]);
 }
