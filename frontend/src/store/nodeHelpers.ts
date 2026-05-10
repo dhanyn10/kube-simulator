@@ -149,38 +149,78 @@ export const syncContainerSize = (containerId: string | undefined, currentNodes:
   if (children.length === 0) return currentNodes;
 
   const padding = 40;
-  const headerHeight = container.type === 'Deployment' ? 40 : 60;
   
-  let maxWidth = container.width || container.measured?.width || 320;
-  let maxHeight = container.height || container.measured?.height || 160;
+  let minX = 0;
+  let minY = 0;
+  // Start with current size or measured size
+  let maxX = Math.max(container.width || 0, container.measured?.width || 320);
+  let maxY = Math.max(container.height || 0, container.measured?.height || 160);
 
   children.forEach(child => {
-    const childWidth = child.width || child.measured?.width || 160;
-    const childHeight = child.height || child.measured?.height || 100;
-    
-    const requiredWidth = child.position.x + childWidth + padding;
-    const requiredHeight = child.position.y + childHeight + padding;
+    if (child.type === 'Internet') return;
 
-    if (requiredWidth > maxWidth) maxWidth = requiredWidth;
-    if (requiredHeight > maxHeight) maxHeight = requiredHeight;
+    let childMinSize = { width: 160, height: 80 };
+    if (child.type === 'Pod') {
+      childMinSize = getPodMinimumSize(child.data);
+    } else if (child.type === 'Deployment' || child.type === 'Namespace' || child.type === 'PodGroup') {
+      childMinSize = { width: child.width || 320, height: child.height || 160 };
+    }
+    
+    const childWidth = Math.max(child.width || 0, child.measured?.width || 0, childMinSize.width);
+    const childHeight = Math.max(child.height || 0, child.measured?.height || 0, childMinSize.height);
+    
+    // Detect if child is pushing any boundary
+    if (child.position.x < padding/2) minX = Math.min(minX, child.position.x - padding);
+    if (child.position.y < padding/2) minY = Math.min(minY, child.position.y - padding);
+    
+    const rightEdge = child.position.x + childWidth + padding;
+    const bottomEdge = child.position.y + childHeight + padding;
+    
+    if (rightEdge > maxX) maxX = rightEdge;
+    if (bottomEdge > maxY) maxY = bottomEdge;
   });
 
-  const isSizeChanged = maxWidth !== container.width || maxHeight !== container.height;
+  const shiftX = minX < 0 ? Math.abs(minX) : 0;
+  const shiftY = minY < 0 ? Math.abs(minY) : 0;
+  
+  const newWidth = maxX + shiftX;
+  const newHeight = maxY + shiftY;
+
+  // Small epsilon to avoid jitter
+  const isSizeChanged = Math.abs(newWidth - (container.width || 0)) > 1 || 
+                        Math.abs(newHeight - (container.height || 0)) > 1 || 
+                        shiftX > 0 || shiftY > 0;
+
+  if (!isSizeChanged) return currentNodes;
 
   const nextNodes = currentNodes.map(n => {
     if (n.id === containerId) {
       return {
         ...n,
-        width: maxWidth,
-        height: maxHeight,
-        style: { ...n.style, width: maxWidth, height: maxHeight }
+        position: {
+          x: n.position.x - shiftX,
+          y: n.position.y - shiftY
+        },
+        width: newWidth,
+        height: newHeight,
+        style: { ...n.style, width: newWidth, height: newHeight }
+      };
+    }
+    // Shift ALL children if the origin moved, to keep absolute positions same
+    if (n.parentId === containerId && (shiftX > 0 || shiftY > 0)) {
+      return {
+        ...n,
+        position: {
+          x: n.position.x + shiftX,
+          y: n.position.y + shiftY
+        }
       };
     }
     return n;
   });
 
-  // If size changed, recursively notify parent
-  if (isSizeChanged && container.parentId) {
+  // Recursively notify grandparent
+  if (container.parentId) {
     return syncContainerSize(container.parentId, nextNodes);
   }
 

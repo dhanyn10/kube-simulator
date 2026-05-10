@@ -66,7 +66,8 @@ export const dragHandlers = (set: any, get: any) => ({
         const intersects = overlapArea > 0;
 
         if (node.parentId === container.id) {
-            if (overlapPercentage < 50) {
+            // Increased threshold to 80% to give expansion more room to work
+            if (overlapPercentage < 20) { 
                 newDetachingDeploymentId = container.id;
                 nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
             } else if (!newHoveredDeploymentId) {
@@ -92,7 +93,7 @@ export const dragHandlers = (set: any, get: any) => ({
     set({ 
         hoveredDeploymentId: newHoveredDeploymentId, 
         detachingDeploymentId: newDetachingDeploymentId,
-        nodes: nextNodes,
+        nodes: nextNodes, // Back to normal nextNodes
         alignmentGuides: {
             vertical: verticalGuides,
             horizontal: horizontalGuides,
@@ -231,16 +232,21 @@ export const dragHandlers = (set: any, get: any) => ({
       } else if (oldParentId && targetParentId === oldParentId) {
         const parent = nextNodes.find(n => n.id === oldParentId);
         if (parent?.type === 'Deployment' && node.type === 'Pod') {
-           const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get);
-           nextNodes = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
-           nextNodes = [...nextNodes.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
+            // Re-use current replicasChange=0 logic for internal move
+            let replicasChange = 0;
+            const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, replicasChange, get, finalNode);
+            nextNodes = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
+            nextNodes = [...nextNodes.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
+            // Sync grandparent and allow expansion
+            nextNodes = syncContainerSize(oldParentId, nextNodes);
+        } else {
+            // For Namespace internal move or other components
             nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
-            // Auto-expand Namespace if needed
             nextNodes = syncContainerSize(oldParentId, nextNodes);
         }
       } else if (oldParentId && !targetParentId && !detachingDeploymentId) {
+        // Fallback for when it's still child but outside
         nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
-        // Auto-expand Namespace if child is pulled near/past edge
         nextNodes = syncContainerSize(oldParentId, nextNodes);
       }
 
