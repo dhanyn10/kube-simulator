@@ -50,11 +50,15 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSimulation: (active, internetNodeIds) => {
     // Initial sync for detached window if starting simulation
     if (active) {
-        const workloads = get().nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
+        const workloads = get().nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
         metricsChannel.postMessage({
           type: 'METRICS_UPDATE',
           metrics: get().simulationMetrics,
-          deployments: workloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+          deployments: workloads.map(d => ({ 
+            id: d.id, 
+            label: d.data.label, 
+            replicas: d.data.replicas || 1 
+          }))
         });
         metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: get().colorMode });
     }
@@ -93,6 +97,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       }
     }
 
+    console.log(`[Simulation] Starting simulation with ${activeEdges.size} active edges.`);
     set({
       isSimulating: true,
       activeSimulationEdges: Array.from(activeEdges),
@@ -101,7 +106,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
     // Start Simulation Loop
     console.log('[Simulation] Starting loop...');
+    if (simulationInterval) clearInterval(simulationInterval);
+    
+    let ticks = 0;
     simulationInterval = setInterval(() => {
+      ticks++;
       const state = get();
       if (!state.isSimulating) {
         console.log('[Simulation] Loop stopped.');
@@ -114,8 +123,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       const updatedNodes = [...nodes];
       let hasChanges = false;
 
-      // 1. Calculate Load for each workload (Deployment or PodGroup)
-      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
+      // 1. Calculate Load for each workload (Deployment, PodGroup, or Standalone Pod)
+      const workloads = nodes.filter(n => 
+        n.type === 'Deployment' || 
+        n.type === 'PodGroup' || 
+        (n.type === 'Pod' && !n.parentId)
+      );
 
       workloads.forEach(dep => {
         const dData = dep.data as K8sNodeData;
@@ -165,7 +178,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
             const canReach = reachableNodes.has(dep.id) ||
                              nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
 
-            console.log(`[Simulation] Reachability: Internet(${internet.data.label}) -> Deployment(${dep.data.label}): ${canReach}`);
+            if (ticks % 5 === 0) {
+              console.log(`[Simulation] Reachability Check: Internet(${internet.id}) -> Workload(${dep.id}, ${dep.data.label}): ${canReach}. Active Edges: ${state.activeSimulationEdges.length}`);
+            }
             return total + (canReach ? nextTraffic : 0);
           }, 0);
 
@@ -210,7 +225,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
         // 1.5 Handle OOM Crashes
         if (isOOM && Math.random() > 0.5) {
-          const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+          const childPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
           if (childPods.length > 0) {
             // Pick a random pod to crash
             const podToCrash = childPods[Math.floor(Math.random() * childPods.length)];
@@ -312,8 +327,13 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
          return hasTraffic;
       });
 
-      if (activeWorkloads.length > 0) {
-        const allPods = updatedNodes.filter(n => n.type === 'Pod' && n.parentId && activeWorkloads.some(w => w.id === n.parentId));
+      if (ticks > 3 && activeWorkloads.length > 0) {
+        const allPods = updatedNodes.filter(n => 
+          n.type === 'Pod' && (
+            (n.parentId && activeWorkloads.some(w => w.id === n.parentId)) || 
+            (!n.parentId && activeWorkloads.some(w => w.id === n.id))
+          )
+        );
         const readyPods = allPods.filter(p => (p.data as K8sNodeData).status === 'ready');
         
         if (allPods.length > 0 && readyPods.length === 0) {
@@ -342,10 +362,18 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       }
 
       // Broadcast to detached window - always broadcast if simulating so detached windows can sync
-      const currentWorkloads = updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
+      const currentWorkloads = updatedNodes.filter(n => 
+        n.type === 'Deployment' || 
+        n.type === 'PodGroup' || 
+        (n.type === 'Pod' && !n.parentId)
+      );
       const payload = {
         metrics: newMetrics,
-        deployments: currentWorkloads.map(d => ({ id: d.id, label: d.data.label, replicas: d.data.replicas }))
+        deployments: currentWorkloads.map(d => ({ 
+          id: d.id, 
+          label: d.data.label, 
+          replicas: d.data.replicas || 1 
+        }))
       };
       metricsChannel.postMessage({ type: 'METRICS_UPDATE', ...payload });
       if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));

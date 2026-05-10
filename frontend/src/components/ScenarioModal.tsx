@@ -50,7 +50,10 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
       nodes: hydratedNodes,
       edges: edgesWithStrings,
       currentProject: { id: -1, name: `Scenario: ${scenario.name}` },
-      lastSavedSnapshot: JSON.stringify({ nodes: hydratedNodes, edges: edgesWithStrings })
+      lastSavedSnapshot: JSON.stringify({ nodes: hydratedNodes, edges: edgesWithStrings }),
+      isSimulating: false,
+      activeSimulationEdges: [],
+      simulationMetrics: {}
     });
 
     onClose();

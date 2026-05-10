@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Activity, X, Maximize2, Minimize2, Cpu, Database, ExternalLink, AlertTriangle, ZapOff } from 'lucide-react';
-import { SimulationMetricPoint } from '../store/slices/createUiSlice';
+import { Activity, X, Cpu, Database, ExternalLink, AlertTriangle, ZapOff } from 'lucide-react';
 import { formatCPU, formatMemory } from '../lib/utils';
 
 const LineChart = ({
@@ -29,14 +28,14 @@ const LineChart = ({
           <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
         </div>
         <div className="flex items-center gap-2">
-           {valueFormatter && data.length > 0 && (
-             <span className="text-[8px] font-mono text-slate-500">
-               {valueFormatter(data[data.length - 1])} / {valueFormatter(limitValue || 0)}
-             </span>
-           )}
-           <span className={cn("text-[10px] font-mono font-bold", `text-${color}-500`)}>
-             {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
-           </span>
+          {valueFormatter && data.length > 0 && (
+            <span className="text-[8px] font-mono text-slate-500">
+              {valueFormatter(data[data.length - 1])} / {valueFormatter(limitValue || 0)}
+            </span>
+          )}
+          <span className={cn("text-[10px] font-mono font-bold", `text-${color}-500`)}>
+            {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
+          </span>
         </div>
       </div>
       <div className="h-24 w-full bg-slate-950/50 rounded border border-slate-800 relative overflow-hidden pointer-events-none">
@@ -88,7 +87,11 @@ export const MonitoringDashboard = () => {
   const dragStart = useRef({ x: 0, y: 0 });
   const dashboardRef = useRef<HTMLDivElement>(null);
 
-  const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup');
+  const workloads = nodes.filter(n =>
+    n.type === 'Deployment' ||
+    n.type === 'PodGroup' ||
+    (n.type === 'Pod' && !n.parentId)
+  );
 
   useEffect(() => {
     const channel = new BroadcastChannel('monitoring-data');
@@ -226,25 +229,25 @@ export const MonitoringDashboard = () => {
             return (
               <div key={dep.id} className="space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
-                   <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-violet-500" />
-                      <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label}</span>
-                      {lastPoint?.isThrottled && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 animate-pulse">
-                           <ZapOff size={10} />
-                           <span className="text-[8px] font-bold uppercase">Throttled</span>
-                        </div>
-                      )}
-                      {lastPoint?.isOOM && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 animate-bounce">
-                           <AlertTriangle size={10} />
-                           <span className="text-[8px] font-bold uppercase">OOM Risk</span>
-                        </div>
-                      )}
-                   </div>
-                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
-                      {dep.data.replicas || 1} Replicas
-                   </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-violet-500" />
+                    <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label}</span>
+                    {lastPoint?.isThrottled && (
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 animate-pulse">
+                        <ZapOff size={10} />
+                        <span className="text-[8px] font-bold uppercase">Throttled</span>
+                      </div>
+                    )}
+                    {lastPoint?.isOOM && (
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/20 text-red-500 animate-bounce">
+                        <AlertTriangle size={10} />
+                        <span className="text-[8px] font-bold uppercase">OOM Risk</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
+                    {dep.data.replicas || 1} Replicas
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
@@ -275,8 +278,8 @@ export const MonitoringDashboard = () => {
         colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-500" : "bg-slate-50 border-slate-200 text-slate-400"
       )}>
         <div className="flex gap-4">
-           <span className="flex items-center gap-1"><Cpu size={8} /> Real-time tracking</span>
-           <span className="flex items-center gap-1"><Database size={8} /> HPA Sync: Active</span>
+          <span className="flex items-center gap-1"><Cpu size={8} /> Real-time tracking</span>
+          <span className="flex items-center gap-1"><Database size={8} /> HPA Sync: Active</span>
         </div>
         <span>v1.0.0-mon</span>
       </div>
