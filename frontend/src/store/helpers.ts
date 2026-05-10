@@ -275,7 +275,7 @@ export const calculateAlignmentGuides = (
     if (deployment) {
       const depPods = nodes.filter(n => n.parentId === deployment.id && n.type === 'Pod');
       let layoutNodes = depPods;
-      if (!depPods.find(p => p.id === node.id)) {
+      if (!depPods.some(p => p.id === node.id)) {
         layoutNodes = [...depPods, node];
       }
       

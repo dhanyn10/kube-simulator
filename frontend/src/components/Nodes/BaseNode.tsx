@@ -201,7 +201,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               {data.replicas === 100 ? (
                 <div className="grid grid-cols-5 gap-x-2 gap-y-4 w-full py-4 px-1">
                   {Array.from({ length: 10 }).map((_, i) => (
-                    <div key={i} className="flex flex-col items-center gap-1">
+                    <div key={`${id}-mega-progress-${i}`} className="flex flex-col items-center gap-1">
                       <div className="relative flex items-center justify-center w-10 h-10">
                         <svg className="w-full h-full transform -rotate-90">
                           <circle
@@ -234,7 +234,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               ) : (
                 Array.from({ length: 10 }).map((_, i) => (
                   <div
-                    key={i}
+                    key={`${id}-progress-${i}`}
                     className={cn(
                       "flex-1 h-1 rounded-sm transition-all",
                       i < (data.replicas || 0)

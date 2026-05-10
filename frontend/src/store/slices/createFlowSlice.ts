@@ -48,7 +48,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     edges.forEach((edge) => {
       // Only include edges where both source and target are top-level or their parents are top-level
       // Simplification: only use edges between top-level nodes for the main layout
-      if (topLevelNodes.find(n => n.id === edge.source) && topLevelNodes.find(n => n.id === edge.target)) {
+      if (topLevelNodes.some(n => n.id === edge.source) && topLevelNodes.some(n => n.id === edge.target)) {
         dagreGraph.setEdge(edge.source, edge.target);
       }
     });
