@@ -160,10 +160,12 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, minSize.height)
         : minSize.height;
 
-      const isSameLabel = existingPod.data.label === commonData.label;
-      const podData = isSameLabel 
-        ? { ...existingPod.data, ...commonData, replicas, parentReplicas: totalReplicas }
-        : { ...existingPod.data, replicas, parentReplicas: totalReplicas };
+      const podData = { 
+        ...existingPod.data, 
+        ...commonData, 
+        replicas, 
+        parentReplicas: totalReplicas 
+      };
 
       newPods.push({
         ...existingPod,
@@ -388,4 +390,50 @@ export const calculateAlignmentGuides = (
   const hGuides = Array.from(horizontalGuides.values());
 
   return { verticalGuides: vGuides, horizontalGuides: hGuides, vSnap, hSnap };
+};
+
+export const resolveCollisions = (
+  draggedNode: Node,
+  nodes: Node[],
+  draggedAbsPos: { x: number, y: number }
+): { x: number, y: number } => {
+  const padding = 20; // Minimal distance between nodes
+  const dW = draggedNode.width || draggedNode.measured?.width || 160;
+  const dH = draggedNode.height || draggedNode.measured?.height || 80;
+
+  let resolvedX = draggedAbsPos.x;
+  let resolvedY = draggedAbsPos.y;
+
+  // For simplicity, we check against top-level nodes first
+  const otherNodes = nodes.filter(n => n.id !== draggedNode.id && !n.parentId && n.type !== 'Namespace');
+
+  for (const other of otherNodes) {
+    const oAbs = getAbsPos(other.id, nodes);
+    const oW = other.width || other.measured?.width || 160;
+    const oH = other.height || other.measured?.height || 80;
+
+    // Check if rectangles overlap (AABB)
+    const isColliding = 
+      resolvedX < oAbs.x + oW + padding &&
+      resolvedX + dW + padding > oAbs.x &&
+      resolvedY < oAbs.y + oH + padding &&
+      resolvedY + dH + padding > oAbs.y;
+
+    if (isColliding) {
+       // Simple resolution: Snap to the nearest edge
+       const distLeft = Math.abs(resolvedX - (oAbs.x - dW - padding));
+       const distRight = Math.abs(resolvedX - (oAbs.x + oW + padding));
+       const distTop = Math.abs(resolvedY - (oAbs.y - dH - padding));
+       const distBottom = Math.abs(resolvedY - (oAbs.y + oH + padding));
+
+       const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+       if (minDist === distLeft) resolvedX = oAbs.x - dW - padding;
+       else if (minDist === distRight) resolvedX = oAbs.x + oW + padding;
+       else if (minDist === distTop) resolvedY = oAbs.y - dH - padding;
+       else resolvedY = oAbs.y + oH + padding;
+    }
+  }
+
+  return { x: resolvedX, y: resolvedY };
 };

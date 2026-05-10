@@ -107,8 +107,14 @@ export const syncDeployment = (
   const minWidth = isPodGroup ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
   const minHeight = isPodGroup ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + 20);
 
-  const maxPodX = Math.max(0, ...laidOut.map(p => (p.position.x || 0) + (p.width || 160)));
-  const maxPodY = Math.max(0, ...laidOut.map(p => (p.position.y || 0) + (p.height || p.measured?.height || 130)));
+  const maxPodX = Math.max(0, ...laidOut.map(p => {
+    const minSize = getPodMinimumSize(p.data);
+    return (p.position.x || 0) + Math.max(p.width || 0, p.measured?.width || 0, minSize.width);
+  }));
+  const maxPodY = Math.max(0, ...laidOut.map(p => {
+    const minSize = getPodMinimumSize(p.data);
+    return (p.position.y || 0) + Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height);
+  }));
   
   // If not manually resized, we can shrink to content. 
   // If manually resized, we still grow if content exceeds current size, but don't shrink below user's set width.

@@ -4,7 +4,8 @@ import {
   isAllowed, 
   calculateAlignmentGuides, 
   getNodeData, 
-  sortNodes 
+  sortNodes,
+  resolveCollisions
 } from '../../helpers';
 import { syncDeployment } from '../../nodeHelpers';
 
@@ -115,13 +116,14 @@ export const dragHandlers = (set: any, get: any) => ({
       const activeHorizontalSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
 
       let finalNode = { ...node };
+      
+      // 1. Resolution Snapping (Alignment Guides)
       if (activeVerticalSnaps.length > 0 || activeHorizontalSnaps.length > 0) {
           const parentAbs = node.parentId ? getAbsPos(node.parentId, nextNodes) : { x: 0, y: 0 };
           const nodeAbs = { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
           
           if (activeVerticalSnaps.length > 0) {
-              // Find the closest guide among active snaps
-              const guide = activeVerticalSnaps.reduce((prev, curr) => 
+              const guide = activeVerticalSnaps.reduce((prev: any, curr: any) => 
                 Math.min(Math.abs(nodeAbs.x - curr), Math.abs(nodeAbs.x + nodeWidth/2 - curr), Math.abs(nodeAbs.x + nodeWidth - curr)) < 
                 Math.min(Math.abs(nodeAbs.x - prev), Math.abs(nodeAbs.x + nodeWidth/2 - prev), Math.abs(nodeAbs.x + nodeWidth - prev)) ? curr : prev
               );
@@ -139,7 +141,7 @@ export const dragHandlers = (set: any, get: any) => ({
               }
           }
           if (activeHorizontalSnaps.length > 0) {
-              const guide = activeHorizontalSnaps.reduce((prev, curr) => 
+              const guide = activeHorizontalSnaps.reduce((prev: any, curr: any) => 
                 Math.min(Math.abs(nodeAbs.y - curr), Math.abs(nodeAbs.y + nodeHeight/2 - curr), Math.abs(nodeAbs.y + nodeHeight - curr)) < 
                 Math.min(Math.abs(nodeAbs.y - prev), Math.abs(nodeAbs.y + nodeHeight/2 - prev), Math.abs(nodeAbs.y + nodeHeight - prev)) ? curr : prev
               );
@@ -156,6 +158,12 @@ export const dragHandlers = (set: any, get: any) => ({
                   finalNode.position.y = (guide - nodeHeight / 2) - parentAbs.y;
               }
           }
+      }
+
+      // 2. Collision Detection (Prevent Overlap) - Only for top-level nodes for now
+      if (!finalNode.parentId && !hoveredDeploymentId) {
+        const resolved = resolveCollisions(finalNode, nextNodes, finalNode.position);
+        finalNode.position = resolved;
       }
       
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
