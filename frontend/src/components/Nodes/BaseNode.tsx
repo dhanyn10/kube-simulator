@@ -124,7 +124,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           )}
           {replicas > 1 && (
             <span className={cn(
-              "text-[8px] font-bold px-1 rounded-full shrink min-w-0 max-w-[56px] truncate",
+              "text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0",
               colorMode === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-500 text-white"
             )}>
               x{replicas}
