@@ -1,14 +1,14 @@
 import React from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { K8sResourceType, K8sNodeData } from '../../../types';
-import { 
-  getNodeData, 
-  sortNodes, 
+import { K8sResourceType } from '../../../types';
+import {
+  getNodeData,
+  sortNodes,
   getAbsPos
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 
-// -- CALLBACK FACTORIES (To avoid nesting) --
+// -- CALLBACK FACTORIES --
 
 const createNodeHandlers = (id: string, get: () => any) => ({
   onDelete: () => {
@@ -21,7 +21,7 @@ const createNodeHandlers = (id: string, get: () => any) => ({
   }
 });
 
-// -- RESOURCE INITIALIZERS --
+// -- RESOURCE INITIALIZERS & STATUS --
 
 const getInitialData = (type: K8sResourceType, id: string, get: any) => {
   const handlers = createNodeHandlers(id, get);
@@ -47,22 +47,62 @@ const getInitialData = (type: K8sResourceType, id: string, get: any) => {
 
 const evaluateStatus = (type: string, data: any) => {
   if (['Pod', 'Deployment', 'PodGroup'].includes(type)) {
-    return (data.webserver && data.webserver !== 'none') || (data.runtime && data.runtime !== 'none') ? 'ready' : 'pending';
+    const hasWebOrRun = (data.webserver && data.webserver !== 'none') || (data.runtime && data.runtime !== 'none');
+    return hasWebOrRun ? 'ready' : 'pending';
   }
   return data.status || 'ready';
 };
 
-// -- ACTION IMPLEMENTATIONS (Flattened) --
+// -- SPECIFIC NODE HANDLERS (To reduce complexity) --
+
+const handlePodGroupTransform = (nodeId: string, updatedNode: Node, updatedData: any, nodes: Node[], get: any) => {
+  const podPos = getAbsPos(nodeId, nodes);
+  const groupId = `podgroup-${crypto.randomUUID().split('-')[0]}`;
+  const newGroup: Node = {
+    id: groupId, type: 'PodGroup', position: { x: podPos.x - 20, y: podPos.y - 40 },
+    data: { ...updatedData, label: updatedData.label, ...createNodeHandlers(groupId, get) }
+  };
+  const tempPod = { ...updatedNode, parentId: groupId, position: { x: 20, y: 40 } };
+  const { updatedDeployment, laidOut } = syncDeployment(newGroup, [tempPod], 0, get, tempPod);
+  return sortNodes([...nodes.filter(n => n.id !== nodeId), updatedDeployment, ...laidOut]);
+};
+
+const handlePodParentSync = (target: Node, updatedNode: Node, newData: any, nodes: Node[], get: any) => {
+  const parent = nodes.find(n => n.id === updatedNode.parentId);
+  if (!parent) return nodes;
+
+  if (parent.type === 'PodGroup' && (Number(updatedNode.data.replicas) || 0) <= 3) {
+    const groupPos = getAbsPos(parent.id, nodes);
+    const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
+    return sortNodes([...others, { ...updatedNode, parentId: undefined, position: groupPos, extent: undefined }]);
+  }
+
+  const replicasChange = (parent.type === 'Deployment' && newData.replicas !== undefined)
+    ? (newData.replicas || 0) - (Number(target.data.replicas) || 0) : 0;
+
+  const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
+  const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
+  const resultNodes = sortNodes([...others, updatedDeployment, ...laidOut]);
+  return syncContainerSize(parent.parentId, resultNodes);
+};
+
+const handleContainerSync = (updatedNode: Node, nodes: Node[], get: any) => {
+  const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nodes, 0, get);
+  const others = nodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
+  const resultNodes = sortNodes([...others, updatedDeployment, ...laidOut]);
+  return syncContainerSize(updatedNode.parentId, resultNodes);
+};
+
+// -- ACTION IMPLEMENTATIONS --
 
 const addNodeImpl = (set: any, get: any) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
   const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; // nosonar
-  const data = getInitialData(type, id, get);
 
   const newNode: Node = {
     id, type, position: finalPos, parentId,
     extent: parentId ? 'parent' : undefined,
-    data,
+    data: getInitialData(type, id, get),
     ...(type === 'Deployment' ? { width: 320, height: 160, style: { width: 320, height: 160 } } : {}),
     ...(type === 'Namespace' ? { width: 600, height: 400, style: { width: 600, height: 400 } } : {}),
   };
@@ -99,10 +139,10 @@ const deleteNodesImpl = (set: any, get: any) => (nodesToDelete: Node[]) => {
     }
   });
 
-  set({ 
-    nodes: nextNodes, 
+  set({
+    nodes: nextNodes,
     edges: edges.filter((e: Edge) => !deleteIds.has(e.source) && !deleteIds.has(e.target)),
-    lastActionId: `delete-${Date.now()}`, lastActionName: 'Delete Elements' 
+    lastActionId: `delete-${Date.now()}`, lastActionName: 'Delete Elements'
   });
 };
 
@@ -114,47 +154,24 @@ const updateNodeDataImpl = (set: any, get: any) => (nodeId: string, newData: any
   const updatedData = { ...target.data, ...newData };
   updatedData.status = evaluateStatus(target.type || '', updatedData);
 
-  const updatedNode = { 
+  const updatedNode = {
     ...target, data: updatedData,
     ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
-      width: undefined, height: undefined,
-      style: { ...target.style, width: undefined, height: undefined }
+      width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
     } : {})
   };
 
   let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
 
+  // Routing to specific handlers based on type
   if (updatedNode.type === 'Pod') {
     if (!updatedNode.parentId && (updatedData.replicas || 0) > 3) {
-      const podPos = getAbsPos(nodeId, nodes);
-      const groupId = `podgroup-${crypto.randomUUID().split('-')[0]}`;
-      const newGroup: Node = { 
-        id: groupId, type: 'PodGroup', position: { x: podPos.x - 20, y: podPos.y - 40 },
-        data: { ...updatedData, label: updatedData.label, ...createNodeHandlers(groupId, get) }
-      };
-      const tempPod = { ...updatedNode, parentId: groupId, position: { x: 20, y: 40 } };
-      const { updatedDeployment, laidOut } = syncDeployment(newGroup, [tempPod], 0, get, tempPod);
-      nextNodes = sortNodes([...nextNodes.filter(n => n.id !== nodeId), updatedDeployment, ...laidOut]);
+      nextNodes = handlePodGroupTransform(nodeId, updatedNode, updatedData, nodes, get);
     } else if (updatedNode.parentId) {
-      const parent = nextNodes.find(n => n.id === updatedNode.parentId);
-      if (parent) {
-        if (parent.type === 'PodGroup' && (updatedData.replicas || 0) <= 3) {
-          const groupPos = getAbsPos(parent.id, nextNodes);
-          const others = nextNodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
-          nextNodes = sortNodes([...others, { ...updatedNode, parentId: undefined, position: groupPos, extent: undefined }]);
-        } else {
-          const replicasChange = (parent.type === 'Deployment' && newData.replicas !== undefined) 
-            ? (newData.replicas || 0) - (target.data.replicas || 0) : 0;
-          const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, replicasChange, get, updatedNode);
-          const others = nextNodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
-          nextNodes = syncContainerSize(parent.parentId, sortNodes([...others, updatedDeployment, ...laidOut]));
-        }
-      }
+      nextNodes = handlePodParentSync(target, updatedNode, newData, nextNodes, get);
     }
   } else if (updatedNode.type === 'Deployment' || updatedNode.type === 'PodGroup') {
-    const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nextNodes, 0, get);
-    const others = nextNodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
-    nextNodes = syncContainerSize(updatedNode.parentId, sortNodes([...others, updatedDeployment, ...laidOut]));
+    nextNodes = handleContainerSync(updatedNode, nextNodes, get);
   }
 
   set({ nodes: nextNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
