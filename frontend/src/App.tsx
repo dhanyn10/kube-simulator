@@ -63,6 +63,10 @@ export default function App() {
 
   console.log('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
 
+  // Expose store for e2e testing
+  // @ts-ignore
+  if (typeof window !== 'undefined') window.useFlowStore = useFlowStore;
+
   if (isDetachedMode) {
     return <DetachedMonitoring />;
   }
