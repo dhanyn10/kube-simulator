@@ -8,6 +8,7 @@ export const NODE_TYPES: Record<K8sResourceType, { color: string; icon: string }
   Internet: { color: 'blue', icon: 'Globe' },
   Ingress: { color: 'rose', icon: 'Globe' },
   HPA: { color: 'fuchsia', icon: 'Activity' },
+  PVC: { color: 'orange', icon: 'Database' },
 };
 
 export const INITIAL_NODES = [];

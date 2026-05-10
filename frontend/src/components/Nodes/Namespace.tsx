@@ -1,57 +1,19 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { Trash2, Settings, Anchor } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
+import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(data.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize);
-  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setEditValue(data.label);
-    }
-  }, [data.label, isEditing]);
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
+    useNodeRename(props.id, data.label, data.onRename);
 
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleRename = () => {
-    setIsEditing(false);
-    if (editValue.trim() && editValue !== data.label) {
-      data.onRename?.(editValue.trim());
-    } else {
-      setEditValue(data.label);
-    }
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRename();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditValue(data.label);
-    }
-  };
-
-  const handleNodeResize = useCallback((event, params) => {
-    onNodeResize(event, { id: props.id, ...params } as any);
-  }, [props.id, onNodeResize]);
-
-  const handleNodeResizeStop = useCallback((event, params) => {
-    onNodeResizeStop(event, { id: props.id, ...params } as any);
-  }, [props.id, onNodeResizeStop]);
+  const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
   return (
     <div className={cn(

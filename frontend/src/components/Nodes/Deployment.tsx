@@ -1,114 +1,30 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
+import React, { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, Settings, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, Settings } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
-
-const QuickConnectArrows = ({ nodeId }: { nodeId: string }) => {
-  const onQuickConnect = useFlowStore((state) => state.onQuickConnect);
-  const colorMode = useFlowStore((state) => state.colorMode);
-
-  const arrowStyle = cn(
-    "absolute flex items-center justify-center w-5 h-5 rounded-full transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-[1000]",
-    colorMode === 'dark' ? "bg-blue-500/20 hover:bg-blue-500/40 text-blue-400" : "bg-blue-500/10 hover:bg-blue-500/20 text-blue-600"
-  );
-
-  return (
-    <>
-      <div
-        className={cn(arrowStyle, "-top-6 left-1/2 -translate-x-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'top'); }}
-      >
-        <ChevronUp size={14} />
-      </div>
-      <div
-        className={cn(arrowStyle, "-right-6 top-1/2 -translate-y-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'right'); }}
-      >
-        <ChevronRight size={14} />
-      </div>
-      <div
-        className={cn(arrowStyle, "-bottom-6 left-1/2 -translate-x-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'bottom'); }}
-      >
-        <ChevronDown size={14} />
-      </div>
-      <div
-        className={cn(arrowStyle, "-left-6 top-1/2 -translate-y-1/2")}
-        onClick={(e) => { e.stopPropagation(); onQuickConnect(nodeId, 'left'); }}
-      >
-        <ChevronLeft size={14} />
-      </div>
-    </>
-  );
-};
+import { QuickConnectArrows } from './QuickConnectArrows';
+import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 
 export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
-  const isHovered = data.isHovered;
-  const isDetaching = data.isDetaching;
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(data.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize);
-  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setEditValue(data.label);
-    }
-  }, [data.label, isEditing]);
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
+    useNodeRename(props.id, data.label, data.onRename);
 
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleRename = () => {
-    setIsEditing(false);
-    if (editValue.trim() && editValue !== data.label) {
-      data.onRename?.(editValue.trim());
-    } else {
-      setEditValue(data.label);
-    }
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRename();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditValue(data.label);
-    }
-  };
-
-  const handleNodeResize = useCallback((event, params) => {
-    const updatedNode = {
-      id: props.id,
-      type: props.type,
-      width: params.width,
-      height: params.height,
-    };
-    onNodeResize(event, updatedNode as any);
-  }, [props.id, props.type, onNodeResize]);
-
-  const handleNodeResizeStop = useCallback((event, params) => {
-    onNodeResizeStop(event, { id: props.id, ...params } as any);
-  }, [props.id, onNodeResizeStop]);
+  const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col min-h-[160px]",
       colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
       props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
-      isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
-      isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+      data.isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
+      data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>
-      <QuickConnectArrows nodeId={props.id} />
+      <QuickConnectArrows nodeId={props.id} color="violet" />
       <NodeResizer
         minWidth={300}
         minHeight={160}
@@ -122,7 +38,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       <div className="absolute -top-3 left-6 flex items-center gap-2">
         <span className={cn(
           "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
-          isHovered ? "bg-violet-400" : isDetaching ? "bg-red-500" : "bg-violet-600"
+          data.isHovered ? "bg-violet-400" : data.isDetaching ? "bg-red-500" : "bg-violet-600"
         )}>
           DEPLOYMENT
         </span>
