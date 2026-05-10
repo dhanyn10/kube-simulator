@@ -56,7 +56,7 @@ const evaluateStatus = (type: string, data: any) => {
 
 const addNodeImpl = (set: any, get: any) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
-  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
+  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; // nosonar
   const data = getInitialData(type, id, get);
 
   const newNode: Node = {

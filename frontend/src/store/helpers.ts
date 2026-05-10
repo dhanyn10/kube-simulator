@@ -178,7 +178,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
         data: podData
       });
     } else {
-      const id = `pod-${Math.random().toString(36).substr(2, 9)}`;
+      const id = `pod-${crypto.randomUUID().split('-')[0]}`;
       const minSize = getPodMinimumSize({ ...commonData, replicas });
       newPods.push({
         id,
