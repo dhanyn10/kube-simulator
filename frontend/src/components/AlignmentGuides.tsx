@@ -107,9 +107,9 @@ export const AlignmentGuides = () => {
       }}
     >
       {/* Alignment guides (premium red/pink segmented lines) */}
-      {alignmentGuidesTransformed.vertical.map((guide: any, idx: any) => (
+      {alignmentGuidesTransformed.vertical.map((guide: any) => (
         <div
-          key={`v-align-${idx}`}
+          key={`v-align-${guide.position}-${guide.screenTop}-${guide.screenBottom}`}
           style={{
             position: 'absolute',
             left: `${guide.screenX}px`,
@@ -138,9 +138,9 @@ export const AlignmentGuides = () => {
         </div>
       ))}
 
-      {alignmentGuidesTransformed.horizontal.map((guide: any, idx: any) => (
+      {alignmentGuidesTransformed.horizontal.map((guide: any) => (
         <div
-          key={`h-align-${idx}`}
+          key={`h-align-${guide.position}-${guide.screenLeft}-${guide.screenRight}`}
           style={{
             position: 'absolute',
             top: `${guide.screenY}px`,
@@ -172,9 +172,9 @@ export const AlignmentGuides = () => {
       {/* Snap guides (blue indicators inside dragged node) */}
       {draggedNode && (
         <>
-          {snapGuidesTransformed.vertical.map((guide: { screenX: any; nodeScreenY: any; }, idx: any) => (
+          {snapGuidesTransformed.vertical.map((guide: { screenX: any; nodeScreenY: any; relativeX: any; }) => (
             <div
-              key={`v-snap-${idx}`}
+              key={`v-snap-${guide.relativeX}`}
               style={{
                 position: 'absolute',
                 left: `${guide.screenX}px`,
@@ -188,9 +188,9 @@ export const AlignmentGuides = () => {
             />
           ))}
 
-          {snapGuidesTransformed.horizontal.map((guide: { screenY: any; nodeScreenX: any; }, idx: any) => (
+          {snapGuidesTransformed.horizontal.map((guide: { screenY: any; nodeScreenX: any; relativeY: any; }) => (
             <div
-              key={`h-snap-${idx}`}
+              key={`h-snap-${guide.relativeY}`}
               style={{
                 position: 'absolute',
                 top: `${guide.screenY}px`,
