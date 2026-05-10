@@ -204,6 +204,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                     <div key={`${id}-mega-progress-${i}`} className="flex flex-col items-center gap-1">
                       <div className="relative flex items-center justify-center w-10 h-10">
                         <svg className="w-full h-full transform -rotate-90">
+                          {/* Background segments */}
                           <circle
                             cx="20"
                             cy="20"
@@ -211,8 +212,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                             stroke="currentColor"
                             strokeWidth="2.5"
                             fill="transparent"
-                            className={colorMode === 'dark' ? "text-slate-700" : "text-slate-200"}
+                            strokeDasharray={`${(2 * Math.PI * 16) / 10 * 0.7} ${(2 * Math.PI * 16) / 10 * 0.3}`}
+                            className={colorMode === 'dark' ? "text-slate-700/50" : "text-slate-200"}
                           />
+                          {/* Active segments (showing 10 units each) */}
                           <circle
                             cx="20"
                             cy="20"
@@ -220,13 +223,13 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                             stroke="currentColor"
                             strokeWidth="2.5"
                             fill="transparent"
-                            strokeDasharray={2 * Math.PI * 16}
+                            strokeDasharray={`${(2 * Math.PI * 16) / 10 * 0.7} ${(2 * Math.PI * 16) / 10 * 0.3}`}
                             strokeDashoffset={0}
                             strokeLinecap="round"
-                            className="text-emerald-500 transition-all duration-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+                            className="text-emerald-500 transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
                           />
                         </svg>
-                        <span className="absolute text-[8px] font-black text-emerald-500">10</span>
+                        <span className="absolute text-[8px] font-black text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]">10</span>
                       </div>
                     </div>
                   ))}
