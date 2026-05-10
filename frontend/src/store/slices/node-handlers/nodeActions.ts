@@ -101,7 +101,7 @@ export const nodeActions = (set: any, get: any) => {
 
   return {
     addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
-      const id = `${type.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
+      const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
       const finalPosition = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
       
       const baseData = { 
@@ -182,7 +182,7 @@ export const nodeActions = (set: any, get: any) => {
           if (!updatedNode.parentId && (updatedData.replicas || 0) > 3) {
             // Auto-group to PodGroup
             const podPos = getAbsPos(nodeId, state.nodes);
-            const groupId = `podgroup-${Math.random().toString(36).substr(2, 9)}`;
+            const groupId = `podgroup-${crypto.randomUUID().split('-')[0]}`;
             const newGroup: Node = { 
               id: groupId, type: 'PodGroup', position: { x: podPos.x - 20, y: podPos.y - 40 },
               data: { ...updatedData, label: updatedData.label, onDelete: () => get().deleteNodes([get().nodes.find((n: Node) => n.id === groupId)]) }
@@ -204,7 +204,7 @@ export const nodeActions = (set: any, get: any) => {
     onNodeClick: (event: React.MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
     onPaneClick: () => set({ activeDeploymentId: null }),
     groupNodes: (nodeIds: string[]) => set((state: any) => ({
-      nodes: state.nodes.map((n: Node) => nodeIds.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${Math.random().toString(36).substring(2, 9)}` } } : n),
+      nodes: state.nodes.map((n: Node) => nodeIds.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
       lastActionId: `group-${Date.now()}`, lastActionName: 'Group Elements'
     })),
     ungroupNodes: (nodeIds: string[]) => set((state: any) => ({
