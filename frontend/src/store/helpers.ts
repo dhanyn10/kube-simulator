@@ -397,20 +397,36 @@ export const resolveCollisions = (
   nodes: Node[],
   draggedAbsPos: { x: number, y: number }
 ): { x: number, y: number } => {
-  const padding = 20; // Minimal distance between nodes
-  const dW = draggedNode.width || draggedNode.measured?.width || 160;
-  const dH = draggedNode.height || draggedNode.measured?.height || 80;
+  const padding = 24; 
+  
+  const getEffectiveSize = (node: Node) => {
+    if (node.type === 'Pod') {
+      const minSize = getPodMinimumSize(node.data);
+      return {
+        width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
+        height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+      };
+    }
+    return {
+      width: node.width || node.measured?.width || (node.type === 'Deployment' ? 320 : 160),
+      height: node.height || node.measured?.height || (node.type === 'Deployment' ? 160 : 80)
+    };
+  };
+
+  const dSize = getEffectiveSize(draggedNode);
+  const dW = dSize.width;
+  const dH = dSize.height;
 
   let resolvedX = draggedAbsPos.x;
   let resolvedY = draggedAbsPos.y;
 
-  // For simplicity, we check against top-level nodes first
   const otherNodes = nodes.filter(n => n.id !== draggedNode.id && !n.parentId && n.type !== 'Namespace');
 
   for (const other of otherNodes) {
     const oAbs = getAbsPos(other.id, nodes);
-    const oW = other.width || other.measured?.width || 160;
-    const oH = other.height || other.measured?.height || 80;
+    const oSize = getEffectiveSize(other);
+    const oW = oSize.width;
+    const oH = oSize.height;
 
     // Check if rectangles overlap (AABB)
     const isColliding = 
