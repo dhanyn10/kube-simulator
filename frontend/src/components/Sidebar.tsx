@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Save, Upload } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Plus, FileCode, Sun, Moon, Search, Globe, FolderOpen, Activity, ChevronDown, ChevronRight, Save, Upload, Database } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
@@ -48,6 +48,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
     { type: 'Internet', icon: Globe, label: 'Internet', desc: 'External Component' },
     { type: 'Ingress', icon: Globe, label: 'Ingress', desc: 'External Access' },
     { type: 'HPA', icon: Activity, label: 'HPA', desc: 'Auto-scaling' },
+    { type: 'PVC', icon: Database, label: 'PVC', desc: 'Storage Claim' },
   ];
 
   const filteredItems = items.filter(item =>
@@ -58,7 +59,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
   const workloadItems = filteredItems.filter(i => i.type === 'Deployment' || i.type === 'Pod');
   const networkingItems = filteredItems.filter(i => i.type === 'Service' || i.type === 'Namespace' || i.type === 'Ingress');
   const scalingItems = filteredItems.filter(i => i.type === 'HPA');
-  const othersItems = filteredItems.filter(i => i.type === 'Internet');
+  const othersItems = filteredItems.filter(i => i.type === 'Internet' || i.type === 'PVC');
 
   const onDragStart = (event: React.DragEvent, nodeType: K8sResourceType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -308,6 +309,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
                       : "bg-white border-slate-200 hover:bg-slate-50",
                     "hover:shadow-lg active:cursor-grabbing",
                     type === 'Internet' ? "border-l-blue-500 hover:border-blue-500" :
+                    type === 'PVC' ? "border-l-orange-500 hover:border-orange-500" :
                       "border-l-slate-500 hover:border-slate-500"
                   )}
                 >
@@ -315,6 +317,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
                     "p-1.5 rounded transition-colors",
                     colorMode === 'dark' ? "bg-slate-900/50" : "bg-slate-100",
                     type === 'Internet' ? "text-blue-400" :
+                    type === 'PVC' ? "text-orange-400" :
                       "text-slate-400"
                   )}>
                     <Icon size={16} />

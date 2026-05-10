@@ -69,7 +69,19 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     }
 
     if (!active) {
-      set({ isSimulating: false, activeSimulationEdges: [], simulationMetrics: {} });
+      // Reset PVC status when stopping simulation
+      const resetNodes = get().nodes.map(n => {
+        if (n.type === 'PVC') {
+          return { ...n, data: { ...n.data, pvcStatus: 'Pending' } };
+        }
+        return n;
+      });
+      set({
+        isSimulating: false,
+        activeSimulationEdges: [],
+        simulationMetrics: {},
+        nodes: resetNodes
+      });
       return;
     }
 
@@ -132,6 +144,68 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
       workloads.forEach(dep => {
         const dData = dep.data as K8sNodeData;
+
+        // 0. PVC Readiness Check
+        // If a workload is connected to a PVC, it must wait for PVC to be "Bound" (simulated)
+        const childPods = dep.type === 'Pod' ? [dep] : nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+        const podIds = childPods.map(p => p.id);
+        const workloadIds = [dep.id, ...podIds];
+
+        const connectedPVCs = nodes.filter(n =>
+          n.type === 'PVC' &&
+          edges.some(e => e.target === n.id && workloadIds.includes(String(e.source)))
+        );
+
+        const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
+        if (connectedPVCs.length > 0 && hasUnboundPVC) {
+          // Simulate binding process
+          connectedPVCs.forEach(pvc => {
+            if (pvc.data.pvcStatus !== 'Bound' && Math.random() > 0.7) {
+              const pvcIdx = updatedNodes.findIndex(un => un.id === pvc.id);
+              if (pvcIdx !== -1) {
+                updatedNodes[pvcIdx] = {
+                  ...updatedNodes[pvcIdx],
+                  data: { ...updatedNodes[pvcIdx].data, pvcStatus: 'Bound' }
+                };
+                hasChanges = true;
+              }
+            }
+          });
+
+          // If still has unbound PVCs, pod stays in pending or "mounting" state
+          const childPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+          childPods.forEach(pod => {
+            if (pod.data.status === 'ready') {
+              const pIdx = updatedNodes.findIndex(un => un.id === pod.id);
+              if (pIdx !== -1) {
+                updatedNodes[pIdx] = {
+                  ...updatedNodes[pIdx],
+                  data: { ...updatedNodes[pIdx].data, status: 'pending' }
+                };
+                hasChanges = true;
+              }
+            }
+          });
+
+          // Skip traffic processing for this workload if PVCs aren't ready
+          return;
+        } else if (connectedPVCs.length > 0 && !hasUnboundPVC) {
+          // PVCs are bound, ensure pods are ready if they have a runtime/webserver
+          const childPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+          childPods.forEach(pod => {
+            const pData = pod.data as K8sNodeData;
+            if (pData.status === 'pending' && (pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none')) {
+              const pIdx = updatedNodes.findIndex(un => un.id === pod.id);
+              if (pIdx !== -1) {
+                updatedNodes[pIdx] = {
+                  ...updatedNodes[pIdx],
+                  data: { ...updatedNodes[pIdx].data, status: 'ready' }
+                };
+                hasChanges = true;
+              }
+            }
+          });
+        }
         // Trace back to internet nodes through edges
         const incomingTraffic = nodes
           .filter(n => n.type === 'Internet')

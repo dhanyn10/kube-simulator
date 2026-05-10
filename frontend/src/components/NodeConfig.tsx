@@ -7,6 +7,7 @@ import { ServiceConfig } from './ServiceConfig';
 import { IngressConfig } from './IngressConfig';
 import { HPAConfig } from './HPAConfig';
 import { InternetConfig } from './InternetConfig';
+import { PVCConfig } from './PVCConfig';
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -162,13 +163,15 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         return <HPAConfig {...props} />;
       case 'Internet':
         return <InternetConfig {...props} />;
+      case 'PVC':
+        return <PVCConfig {...props} />;
       default:
         return null;
     }
   };
 
   const isReady = data.status === 'ready' ||
-    ['Service', 'Ingress', 'HPA', 'Internet', 'Namespace'].includes(selectedNode.type);
+    ['Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC'].includes(selectedNode.type);
 
   return (
     <div className="space-y-4">

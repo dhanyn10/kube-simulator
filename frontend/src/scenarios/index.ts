@@ -1,6 +1,7 @@
 import basic from './basic.json';
 import intermediate from './intermediate.json';
 import advanced from './advanced.json';
+import pvcScenarios from './pvc-scenarios.json';
 
 export interface Scenario {
   id: string;
@@ -34,5 +35,12 @@ export const scenarios: Scenario[] = [
     level: 'Advanced',
     description: 'A production-ready setup inside a Namespace with Ingress, Service, Deployment, and HPA for auto-scaling.',
     data: advanced
-  }
+  },
+  ...pvcScenarios.map(s => ({
+    id: s.id,
+    name: s.name,
+    level: s.difficulty as any,
+    description: s.description,
+    data: { nodes: s.nodes, edges: s.edges }
+  }))
 ];

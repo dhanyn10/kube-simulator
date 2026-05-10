@@ -24,6 +24,7 @@ import { InternetNode } from './components/Nodes/Internet';
 import { NamespaceNode } from './components/Nodes/Namespace';
 import { IngressNode } from './components/Nodes/Ingress';
 import { HPANode } from './components/Nodes/HPA';
+import { PVCNode } from './components/Nodes/PVC';
 import { PodGroupNode } from './components/Nodes/PodGroup';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
@@ -46,6 +47,7 @@ const nodeTypes = {
   Namespace: NamespaceNode,
   Ingress: IngressNode,
   HPA: HPANode,
+  PVC: PVCNode,
   PodGroup: PodGroupNode,
 };
 
