@@ -4,6 +4,12 @@ import { K8sResourceType, K8sNodeData } from '../../types';
 import { syncDeployment } from '../nodeHelpers';
 import { parseCPU, parseMemory } from '../../lib/utils';
 
+const safeRandom = () => {
+  const array = new Uint32Array(1);
+  window.crypto.getRandomValues(array);
+  return array[0] / (0xffffffff + 1);
+};
+
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
@@ -160,7 +166,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         if (connectedPVCs.length > 0 && hasUnboundPVC) {
           // Simulate binding process
           connectedPVCs.forEach(pvc => {
-            if (pvc.data.pvcStatus !== 'Bound' && Math.random() > 0.7) {
+            if (pvc.data.pvcStatus !== 'Bound' && safeRandom() > 0.7) {
               const pvcIdx = updatedNodes.findIndex(un => un.id === pvc.id);
               if (pvcIdx !== -1) {
                 updatedNodes[pvcIdx] = {
@@ -269,7 +275,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         const baseCpuLoadPerReplica = (incomingTraffic / 1000) * 200;
         const baseMemLoadPerReplica = (incomingTraffic / 1000) * 128;
 
-        const noise = () => (Math.random() * 20 - 10);
+        const noise = () => (safeRandom() * 20 - 10);
 
         let cpuValue = (baseCpuLoadPerReplica / replicas) + 50 + noise();
         let memValue = (baseMemLoadPerReplica / replicas) + 100 + noise();
@@ -298,11 +304,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
         newMetrics[dep.id] = [...existing, newPoint].slice(-30);
 
         // 1.5 Handle OOM Crashes
-        if (isOOM && Math.random() > 0.5) {
+        if (isOOM && safeRandom() > 0.5) {
           const childPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
           if (childPods.length > 0) {
             // Pick a random pod to crash
-            const podToCrash = childPods[Math.floor(Math.random() * childPods.length)];
+            const podToCrash = childPods[Math.floor(safeRandom() * childPods.length)];
             const podIdx = updatedNodes.findIndex(n => n.id === podToCrash.id);
 
             if (podIdx !== -1 && updatedNodes[podIdx].data.status !== 'crashing') {
@@ -362,7 +368,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           desiredReplicas = Math.max(minReplicas, Math.min(maxReplicas, desiredReplicas));
 
           // Simple stabilization: only scale down if load has been low for a bit (simulation: 30% chance per tick)
-          if (desiredReplicas < replicas && Math.random() < 0.7) {
+          if (desiredReplicas < replicas && safeRandom() < 0.7) {
              desiredReplicas = replicas; // Skip this scale down tick
           }
 

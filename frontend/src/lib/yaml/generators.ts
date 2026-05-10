@@ -1,7 +1,7 @@
 import { K8sNodeData } from '../../types';
 
-export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = []) => {
-  const pvcEdges = edges.filter(e => e.source === (data.id || '') && nodes.find(n => n.id === e.target && n.type === 'PVC'));
+const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
+  const pvcEdges = edges.filter(e => e.source === sourceId && nodes.find(n => n.id === e.target && n.type === 'PVC'));
   const volumes = pvcEdges.map((e, idx) => {
     const pvcNode = nodes.find(n => n.id === e.target);
     const pvcName = pvcNode?.data.label.toLowerCase().replace(/\s+/g, '-') || 'pvc-storage';
@@ -15,6 +15,12 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
     name: v.name,
     mountPath: `/data-${idx}`
   }));
+
+  return { volumes, volumeMounts };
+};
+
+export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = []) => {
+  const { volumes, volumeMounts } = getVolumeConfig(data.id || '', nodes, edges);
 
   // If a standalone Pod has multiple replicas, wrap it in a Deployment
   if ((data.replicas || 1) > 1) {
@@ -88,21 +94,7 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
 
   // Check for PVC connections either from Deployment itself or from child pod
   const podId = mainPod?.id || data.id || '';
-  const pvcEdges = edges.filter(e => (e.source === data.id || e.source === podId) && nodes.find(n => n.id === e.target && n.type === 'PVC'));
-
-  const volumes = pvcEdges.map((e, idx) => {
-    const pvcNode = nodes.find(n => n.id === e.target);
-    const pvcName = pvcNode?.data.label.toLowerCase().replace(/\s+/g, '-') || 'pvc-storage';
-    return {
-      name: `vol-${idx}`,
-      persistentVolumeClaim: { claimName: pvcName }
-    };
-  });
-
-  const volumeMounts = volumes.map((v, idx) => ({
-    name: v.name,
-    mountPath: `/data-${idx}`
-  }));
+  const { volumes, volumeMounts } = getVolumeConfig(podId, nodes, edges);
 
   return {
     apiVersion: 'apps/v1',
