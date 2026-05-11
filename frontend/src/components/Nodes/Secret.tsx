@@ -16,7 +16,7 @@ export const SecretNode = memo((props: NodeProps) => {
           </div>
           <div className="space-y-0.5">
             {data.configData.slice(0, 3).map((item, idx) => (
-              <div key={idx} className="text-[9px] font-mono truncate text-slate-400">
+              <div key={item.key} className="text-[9px] font-mono truncate text-slate-400">
                 <span className="text-indigo-500/80">{item.key}:</span> ********
               </div>
             ))}
