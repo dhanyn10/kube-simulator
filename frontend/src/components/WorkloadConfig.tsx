@@ -25,7 +25,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
       )
     : [];
   const replicaValue = podReplicaGroup.length > 0
-    ? podReplicaGroup.reduce((acc, pod) => acc + (pod.data.replicas || 1), 0)
+    ? podReplicaGroup.reduce((acc: number, pod: any) => acc + (Number(pod.data.replicas) || 1), 0)
     : data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
 
   const updateReplicas = (replicas: number) => {
@@ -52,8 +52,9 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
         <div className="flex items-center gap-2">
           <button
             onClick={() => updateReplicas(Math.max(1, replicaValue - 1))}
+            disabled={replicaValue <= 1}
             className={cn(
-              "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
+              "p-2 rounded border outline-none transition-colors hover:bg-opacity-80 disabled:opacity-30",
               colorMode === 'dark'
                 ? "bg-slate-800 border-slate-700 hover:bg-slate-700"
                 : "bg-slate-100 border-slate-300 hover:bg-slate-200"
@@ -64,11 +65,13 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
           <input
             type="number"
             min="1"
+            max="1000"
             value={replicaValue}
             onChange={(e) => {
               const value = e.target.value;
               if (value === '' || /^\d+$/.test(value)) {
-                updateReplicas(parseInt(value) || 1);
+                const num = parseInt(value) || 1;
+                updateReplicas(Math.min(1000, num));
               }
             }}
             className={cn(
@@ -77,9 +80,10 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
             )}
           />
           <button
-            onClick={() => updateReplicas(replicaValue + 1)}
+            onClick={() => updateReplicas(Math.min(1000, replicaValue + 1))}
+            disabled={replicaValue >= 1000}
             className={cn(
-              "p-2 rounded border outline-none transition-colors hover:bg-opacity-80",
+              "p-2 rounded border outline-none transition-colors hover:bg-opacity-80 disabled:opacity-30",
               colorMode === 'dark'
                 ? "bg-slate-800 border-slate-700 hover:bg-slate-700"
                 : "bg-slate-100 border-slate-300 hover:bg-slate-200"

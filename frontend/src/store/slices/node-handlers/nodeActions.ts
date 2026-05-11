@@ -152,7 +152,18 @@ const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, 
   const target = nodes.find((n: Node) => n.id === nodeId);
   if (!target) return;
 
-  const updatedData = { ...target.data, ...newData };
+  const sanitizedData = { ...newData };
+  if (sanitizedData.replicas !== undefined) {
+    sanitizedData.replicas = Math.max(0, Math.min(1000, Number(sanitizedData.replicas)));
+  }
+  if (sanitizedData.minReplicas !== undefined) {
+    sanitizedData.minReplicas = Math.max(1, Math.min(1000, Number(sanitizedData.minReplicas)));
+  }
+  if (sanitizedData.maxReplicas !== undefined) {
+    sanitizedData.maxReplicas = Math.max(1, Math.min(1000, Number(sanitizedData.maxReplicas)));
+  }
+
+  const updatedData = { ...target.data, ...sanitizedData };
   updatedData.status = evaluateStatus(target.type || '', updatedData);
 
   const updatedNode = {

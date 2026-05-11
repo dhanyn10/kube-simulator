@@ -128,7 +128,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
               const guide = activeVerticalSnaps.reduce((prev: any, curr: any) => 
                 Math.min(Math.abs(nodeAbs.x - curr), Math.abs(nodeAbs.x + nodeWidth/2 - curr), Math.abs(nodeAbs.x + nodeWidth - curr)) < 
                 Math.min(Math.abs(nodeAbs.x - prev), Math.abs(nodeAbs.x + nodeWidth/2 - prev), Math.abs(nodeAbs.x + nodeWidth - prev)) ? curr : prev
-              );
+              , activeVerticalSnaps[0]);
 
               const dLeft = Math.abs(nodeAbs.x - guide);
               const dCenter = Math.abs((nodeAbs.x + nodeWidth / 2) - guide);
@@ -146,7 +146,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
               const guide = activeHorizontalSnaps.reduce((prev: any, curr: any) => 
                 Math.min(Math.abs(nodeAbs.y - curr), Math.abs(nodeAbs.y + nodeHeight/2 - curr), Math.abs(nodeAbs.y + nodeHeight - curr)) < 
                 Math.min(Math.abs(nodeAbs.y - prev), Math.abs(nodeAbs.y + nodeHeight/2 - prev), Math.abs(nodeAbs.y + nodeHeight - prev)) ? curr : prev
-              );
+              , activeHorizontalSnaps[0]);
 
               const dTop = Math.abs(nodeAbs.y - guide);
               const dCenter = Math.abs((nodeAbs.y + nodeHeight / 2) - guide);
