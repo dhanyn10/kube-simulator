@@ -124,9 +124,15 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
   } else {
     let remaining = totalReplicas;
     while (remaining > 0) {
-      const count = Math.min(remaining, 100);
-      targetPodReplicas.push(count);
-      remaining -= count;
+      if (remaining >= 100) {
+        targetPodReplicas.push(100);
+        remaining -= 100;
+      } else {
+        // Break down the remainder into chunks of 10 for visual consistency
+        const count = Math.min(remaining, 10);
+        targetPodReplicas.push(count);
+        remaining -= count;
+      }
     }
   }
 
@@ -146,6 +152,10 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     status: templatePod?.data?.status ?? deployment.data.status ?? 'pending',
     label: templatePod?.data?.label ?? deployment.data.label ?? 'new-app-pod',
     isAutoNamed: templatePod?.data?.isAutoNamed ?? deployment.data.isAutoNamed ?? true,
+    cpuLimit: templatePod?.data?.cpuLimit ?? deployment.data.cpuLimit,
+    memoryLimit: templatePod?.data?.memoryLimit ?? deployment.data.memoryLimit,
+    cpuRequest: templatePod?.data?.cpuRequest ?? deployment.data.cpuRequest,
+    memoryRequest: templatePod?.data?.memoryRequest ?? deployment.data.memoryRequest,
     displaySettings: dataTemplate ? dataTemplate.data.displaySettings : (deployment.data.displaySettings || templatePod?.data?.displaySettings),
   };
 
