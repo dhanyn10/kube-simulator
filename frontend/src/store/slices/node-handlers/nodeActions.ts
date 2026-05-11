@@ -176,7 +176,7 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: any) => {
 
 const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
-  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
+  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; //nosonar
 
   const newNode: Node = {
     id, type, position: finalPos, parentId,
@@ -193,7 +193,7 @@ const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, 
 const deleteNodesImpl = (set: any, get: () => FlowState) => (nodesToDelete: Node[]) => {
   const { nodes, edges } = get();
   const deleteIds = new Set(nodesToDelete.map(n => n.id));
-  
+
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
   nodesToDelete.forEach(node => {
     nextNodes = processNodeDeletion(node, nextNodes, get);
