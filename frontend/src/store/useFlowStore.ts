@@ -106,5 +106,7 @@ export const applyHistoryState = (json: string) => {
   }
 };
 
-export const useFlowStore = ((selector: any) => useStore(flowStore, selector)) as any;
-Object.assign(useFlowStore, flowStore);
+export const useFlowStore = Object.assign(
+  <T>(selector: (state: FlowState) => T) => useStore(flowStore, selector),
+  flowStore
+);

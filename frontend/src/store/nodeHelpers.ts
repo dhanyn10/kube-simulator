@@ -1,5 +1,6 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '../types';
+import { FlowState } from './types';
 import { 
   getNodeData, 
   syncPodsInDeployment, 
@@ -8,7 +9,7 @@ import {
   POD_MIN_DIMENSIONS 
 } from './helpers';
 
-export const setupPodHandlers = (podId: string, get: () => any) => ({
+export const setupPodHandlers = (podId: string, get: () => FlowState) => ({
   onDelete: () => {
     const nodeToDelete = get().nodes.find((n: Node) => n.id === podId);
     if (nodeToDelete) get().deleteNodes([nodeToDelete]);
@@ -19,7 +20,7 @@ export const setupPodHandlers = (podId: string, get: () => any) => ({
   },
 });
 
-export const hydrateNodes = (nodes: any[], get: () => any): any[] => {
+export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   let nextNodes = nodes.map(node => ({
     ...node,
     data: {
@@ -56,7 +57,7 @@ export const syncDeployment = (
   deployment: Node, 
   currentNodes: Node[], 
   replicasChange: number, 
-  get: () => any,
+  get: () => FlowState,
   podToInclude?: Node
 ) => {
   const data = getNodeData(deployment);

@@ -50,7 +50,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     if (runtime) runtime.EventsEmit('theme-sync', newMode);
   },
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
-  toggleAutosave: () => set((state) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
+  toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
   setMonitoringOpen: (open) => set({ isMonitoringOpen: open }),
   setMonitoringDetached: (detached) => set({ isMonitoringDetached: detached }),
   setSimulation: (active, internetNodeIds) => {

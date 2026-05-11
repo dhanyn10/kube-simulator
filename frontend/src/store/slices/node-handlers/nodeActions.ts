@@ -1,6 +1,7 @@
 import React from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { K8sResourceType } from '../../../types';
+import { FlowState } from '../../types';
 import {
   getNodeData,
   sortNodes,
@@ -10,7 +11,7 @@ import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 
 // -- CALLBACK FACTORIES --
 
-const createNodeHandlers = (id: string, get: () => any) => ({
+const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onDelete: () => {
     const node = get().nodes.find((n: Node) => n.id === id);
     if (node) get().deleteNodes([node]);
@@ -23,7 +24,7 @@ const createNodeHandlers = (id: string, get: () => any) => ({
 
 // -- RESOURCE INITIALIZERS & STATUS --
 
-const getInitialData = (type: K8sResourceType, id: string, get: any) => {
+const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState) => {
   const handlers = createNodeHandlers(id, get);
   const base = { label: `new-${type.toLowerCase()}`, type, image: '', status: 'pending', ...handlers };
 
@@ -95,7 +96,7 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: any) => {
 
 // -- ACTION IMPLEMENTATIONS --
 
-const addNodeImpl = (set: any, get: any) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
+const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
   const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; // nosonar
 
@@ -122,7 +123,7 @@ const addNodeImpl = (set: any, get: any) => (type: K8sResourceType, position?: {
   set({ nodes: sortNodes(nextNodes), lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
 
-const deleteNodesImpl = (set: any, get: any) => (nodesToDelete: Node[]) => {
+const deleteNodesImpl = (set: any, get: () => FlowState) => (nodesToDelete: Node[]) => {
   const { nodes, edges } = get();
   const deleteIds = new Set(nodesToDelete.map(n => n.id));
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
@@ -146,7 +147,7 @@ const deleteNodesImpl = (set: any, get: any) => (nodesToDelete: Node[]) => {
   });
 };
 
-const updateNodeDataImpl = (set: any, get: any) => (nodeId: string, newData: any) => {
+const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, newData: any) => {
   const { nodes } = get();
   const target = nodes.find((n: Node) => n.id === nodeId);
   if (!target) return;
@@ -179,17 +180,17 @@ const updateNodeDataImpl = (set: any, get: any) => (nodeId: string, newData: any
 
 // -- MAIN EXPORT --
 
-export const nodeActions = (set: any, get: any) => ({
+export const nodeActions = (set: any, get: () => FlowState) => ({
   addNode: addNodeImpl(set, get),
   deleteNodes: deleteNodesImpl(set, get),
   updateNodeData: updateNodeDataImpl(set, get),
   onNodeClick: (event: React.MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
   onPaneClick: () => set({ activeDeploymentId: null }),
-  groupNodes: (ids: string[]) => set((s: any) => ({
+  groupNodes: (ids: string[]) => set((s: FlowState) => ({
     nodes: s.nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
     lastActionId: `group-${Date.now()}`, lastActionName: 'Group Elements'
   })),
-  ungroupNodes: (ids: string[]) => set((s: any) => ({
+  ungroupNodes: (ids: string[]) => set((s: FlowState) => ({
     nodes: s.nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: undefined } } : n),
     lastActionId: `ungroup-${Date.now()}`, lastActionName: 'Ungroup Elements'
   })),

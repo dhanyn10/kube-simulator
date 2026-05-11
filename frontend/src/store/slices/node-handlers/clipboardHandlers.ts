@@ -1,8 +1,9 @@
 import { Node } from '@xyflow/react';
 import { getNodeData, sortNodes } from '../../helpers';
 import { hydrateNodes } from '../../nodeHelpers';
+import { FlowState } from '../../types';
 
-export const clipboardHandlers = (set: any, get: any) => ({
+export const clipboardHandlers = (set: any, get: () => FlowState) => ({
   copyNodes: () => {
     const { nodes, edges } = get();
     const selectedNodes = nodes.filter(n => n.selected);
@@ -44,22 +45,24 @@ export const clipboardHandlers = (set: any, get: any) => ({
         return false;
       });
 
-      if (target) {
-        const delta = 1;
-        // Identify the parent container ID
-        const parentId = (target.type === 'PodGroup' || target.type === 'Deployment') ? target.id : target.parentId;
-        
-        if (parentId) {
-          const parent = nodes.find(n => n.id === parentId);
-          const currentTotal = parent?.data?.replicas || 0;
-          get().updateNodeData(parentId, { replicas: currentTotal + delta });
-        } else {
-          // It's a standalone pod with no parent
-          const currentTotal = target.data?.replicas || 1;
-          get().updateNodeData(target.id, { replicas: currentTotal + delta });
+        if (target) {
+          const delta = 1;
+          // Identify the parent container ID
+          const parentId = (target.type === 'PodGroup' || target.type === 'Deployment') ? target.id : target.parentId;
+          
+          if (parentId) {
+            const parent = nodes.find(n => n.id === parentId);
+            const parentData = parent ? getNodeData(parent) : null;
+            const currentTotal = parentData?.replicas || 0;
+            get().updateNodeData(parentId, { replicas: currentTotal + delta });
+          } else {
+            // It's a standalone pod with no parent
+            const targetData = getNodeData(target);
+            const currentTotal = targetData.replicas || 1;
+            get().updateNodeData(target.id, { replicas: currentTotal + delta });
+          }
+          return;
         }
-        return;
-      }
     }
 
     const idMap: Record<string, string> = {};

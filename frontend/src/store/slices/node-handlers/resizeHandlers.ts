@@ -4,10 +4,11 @@ import {
   POD_MIN_DIMENSIONS,
   layoutPodsInDeployment
 } from '../../helpers';
+import { FlowState } from '../../types';
 
-export const resizeHandlers = (set: any, get: any) => ({
+export const resizeHandlers = (set: any, get: () => FlowState) => ({
   onNodeResize: (event: any, node: Node) => {
-    set((state: any) => {
+    set((state: FlowState) => {
       const currentNode = state.nodes.find((n: Node) => n.id === node.id);
       const minSize = currentNode?.type === 'Pod'
         ? getPodMinimumSize(currentNode.data)

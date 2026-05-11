@@ -8,8 +8,9 @@ import {
   resolveCollisions
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
+import { FlowState } from '../../types';
 
-export const dragHandlers = (set: any, get: any) => ({
+export const dragHandlers = (set: any, get: () => FlowState) => ({
   onNodeDragStart: (event: any, node: Node) => {
     get().setDraggedNodeId(node.id);
     if (node.type === 'Deployment') {
@@ -19,7 +20,7 @@ export const dragHandlers = (set: any, get: any) => ({
     }
     
     if (node.parentId) {
-      set((state: any) => ({
+      set((state: FlowState) => ({
         nodes: state.nodes.map((n: Node) => n.id === node.id ? { ...n, extent: undefined } : n)
       }));
     }
@@ -108,7 +109,7 @@ export const dragHandlers = (set: any, get: any) => ({
   onNodeDragStop: (event: any, node: Node) => {
     const { nodes, snapGuides, detachingDeploymentId, hoveredDeploymentId } = get();
 
-    set((state: any) => {
+    set((state: FlowState) => {
       let nextNodes = [...state.nodes];
       const nodeWidth = node.width || node.measured?.width || 160;
       const nodeHeight = node.height || node.measured?.height || 80;
