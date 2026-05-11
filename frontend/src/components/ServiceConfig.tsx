@@ -27,7 +27,7 @@ export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility }:
         <input
           type="number"
           value={data.port || 80}
-          onChange={(e) => performUpdate({ port: parseInt(e.target.value) || 80 })}
+          onChange={(e) => performUpdate({ port: Number.parseInt(e.target.value) || 80 })}
           className={cn(
             "w-full text-[10px] p-2 rounded border outline-none",
             colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
@@ -46,7 +46,7 @@ export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility }:
         <input
           type="number"
           value={data.targetPort || 80}
-          onChange={(e) => performUpdate({ targetPort: parseInt(e.target.value) || 80 })}
+          onChange={(e) => performUpdate({ targetPort: Number.parseInt(e.target.value) || 80 })}
           className={cn(
             "w-full text-[10px] p-2 rounded border outline-none",
             colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"

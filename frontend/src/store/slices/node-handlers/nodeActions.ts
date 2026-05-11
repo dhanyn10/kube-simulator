@@ -32,7 +32,7 @@ const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState)
     case 'Service':
       return { ...base, port: 80, targetPort: 80, selector: 'app-label', displaySettings: { port: true, targetPort: true, selector: true } };
     case 'Pod':
-      return { ...base, replicas: 1, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
+      return { ...base, replicas: 1, image: 'nginx:latest', isAutoImage: true, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
     case 'Deployment':
       return { ...base, replicas: 0 };
     case 'Ingress':
@@ -161,6 +161,36 @@ const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, 
   }
   if (sanitizedData.maxReplicas !== undefined) {
     sanitizedData.maxReplicas = Math.max(1, Math.min(1000, Number(sanitizedData.maxReplicas)));
+  }
+
+  // Auto-image logic
+  if (sanitizedData.runtime !== undefined || sanitizedData.webserver !== undefined) {
+    const rt = sanitizedData.runtime ?? target.data.runtime ?? 'none';
+    const ws = sanitizedData.webserver ?? target.data.webserver ?? 'none';
+    
+    let autoImg = '';
+    if (rt === 'nodejs') autoImg = 'node:18-alpine';
+    else if (rt === 'go') autoImg = 'golang:1.21-alpine';
+    else if (rt === 'python') autoImg = 'python:3.11-slim';
+    else if (rt === 'java') autoImg = 'openjdk:17-jdk-slim';
+    else if (rt === 'php') {
+      if (ws === 'nginx') autoImg = 'php:8.2-fpm-alpine';
+      else if (ws === 'apache') autoImg = 'php:8.2-apache';
+      else autoImg = 'php:8.2-cli-alpine';
+    } else if (ws === 'nginx') autoImg = 'nginx:latest';
+    else if (ws === 'apache') autoImg = 'httpd:latest';
+    else autoImg = 'nginx:latest';
+
+    // Only auto-update if image is currently empty or was previously auto-set (not custom)
+    if (!target.data.image || target.data.isAutoImage) {
+      sanitizedData.image = autoImg;
+      sanitizedData.isAutoImage = true;
+    }
+  }
+
+  // If user manually sets image, mark as not auto
+  if (newData.image) {
+    sanitizedData.isAutoImage = false;
   }
 
   const updatedData = { ...target.data, ...sanitizedData };

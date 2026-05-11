@@ -70,7 +70,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
             onChange={(e) => {
               const value = e.target.value;
               if (value === '' || /^\d+$/.test(value)) {
-                const num = parseInt(value) || 1;
+                const num = Number.parseInt(value) || 1;
                 updateReplicas(Math.min(1000, num));
               }
             }}
@@ -147,14 +147,28 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
         </div>
       </div>
 
-      {/* Image Visibility Toggle */}
-      <div className="flex items-center justify-between py-1 border-t border-dashed border-slate-700/30">
-        <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-          <Box size={10} /> Show Image
-        </span>
-        <button onClick={() => toggleVisibility('image')} className="text-slate-500 hover:text-blue-500 transition-colors">
-          {(data.displaySettings?.image !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
-        </button>
+      {/* Container Image */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5 px-0.5">
+            <Box size={10} /> Container Image
+          </label>
+          <button onClick={() => toggleVisibility('image')} className="text-slate-500 hover:text-blue-500 transition-colors">
+            {(data.displaySettings?.image !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+          </button>
+        </div>
+        <div className="animate-in fade-in slide-in-from-top-1">
+          <input
+            type="text"
+            placeholder="e.g. nginx:latest"
+            value={data.image || ''}
+            onChange={(e) => performUpdate({ image: e.target.value })}
+            className={cn(
+              "w-full text-[10px] p-2 rounded border outline-none",
+              colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
+            )}
+          />
+        </div>
       </div>
 
       {/* Web Server */}
