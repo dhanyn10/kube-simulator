@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, BookOpen, GraduationCap, Zap, AlertCircle } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { scenarios, Scenario } from '../scenarios';
@@ -11,6 +12,7 @@ interface ScenarioModalProps {
 }
 
 export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
+  const { fitView } = useReactFlow();
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -53,12 +55,19 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
       lastSavedSnapshot: JSON.stringify({ nodes: hydratedNodes, edges: edgesWithStrings }),
       isSimulating: false,
       activeSimulationEdges: [],
-      simulationMetrics: {}
+      simulationMetrics: {},
+      lastActionId: `scenario-${Date.now()}`,
+      lastActionName: 'Load Scenario'
     });
 
     onClose();
     setShowConfirm(false);
     setSelectedScenario(null);
+
+    // Give React Flow a moment to render and measure the new nodes
+    setTimeout(() => {
+      fitView({ padding: 0.2, duration: 800 });
+    }, 50);
   };
 
   const getLevelIcon = (level: string) => {

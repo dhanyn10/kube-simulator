@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, X, Plus } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { hydrateNodes } from '../store/nodeHelpers';
@@ -21,6 +22,7 @@ interface ProjectManagerProps {
 }
 
 export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
+  const { fitView } = useReactFlow();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectName, setProjectName] = useState('');
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -136,9 +138,15 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
           lastSavedSnapshot: res.content,
           isSimulating: false,
           activeSimulationEdges: [],
-          simulationMetrics: {}
+          simulationMetrics: {},
+          lastActionId: `load-${Date.now()}`,
+          lastActionName: 'Load Project'
         });
         onClose();
+        
+        setTimeout(() => {
+          fitView({ padding: 0.2, duration: 800 });
+        }, 50);
       }
     }
   };
