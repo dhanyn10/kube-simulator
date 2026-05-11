@@ -19,8 +19,49 @@ const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
   return { volumes, volumeMounts };
 };
 
+const getEnvFromConnections = (targetId: string, nodes: any[], edges: any[]) => {
+  const incomingEdges = edges.filter(e => e.target === targetId);
+  const env: any[] = [];
+
+  incomingEdges.forEach(edge => {
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    if (!sourceNode) return;
+
+    const resourceName = sourceNode.data.label.toLowerCase().replace(/\s+/g, '-');
+    const configData = sourceNode.data.configData || [];
+
+    if (sourceNode.type === 'ConfigMap' || sourceNode.type === 'Secret') {
+      configData.forEach((item: any) => {
+        if (!item.key) return;
+
+        const envEntry: any = {
+          name: item.key,
+          valueFrom: {}
+        };
+
+        if (sourceNode.type === 'ConfigMap') {
+          envEntry.valueFrom.configMapKeyRef = {
+            name: resourceName,
+            key: item.key
+          };
+        } else {
+          envEntry.valueFrom.secretKeyRef = {
+            name: resourceName,
+            key: item.key
+          };
+        }
+
+        env.push(envEntry);
+      });
+    }
+  });
+
+  return env;
+};
+
 export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = []) => {
   const { volumes, volumeMounts } = getVolumeConfig(data.id || '', nodes, edges);
+  const env = getEnvFromConnections(data.id || '', nodes, edges);
 
   // If a standalone Pod has multiple replicas, wrap it in a Deployment
   if ((data.replicas || 1) > 1) {
@@ -38,6 +79,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
               name: 'main',
               image: data.image || 'nginx:latest',
               ports: data.port ? [{ containerPort: data.port }] : undefined,
+              env: env.length > 0 ? env : undefined,
               volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
             }],
             volumes: volumes.length > 0 ? volumes : undefined
@@ -56,6 +98,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
         name: 'main',
         image: data.image || 'nginx:latest',
         ports: data.port ? [{ containerPort: data.port }] : undefined,
+        env: env.length > 0 ? env : undefined,
         resources: (data.cpuLimit || data.memoryLimit) ? {
           limits: {
             cpu: data.cpuLimit,
@@ -66,6 +109,38 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
       }],
       volumes: volumes.length > 0 ? volumes : undefined
     }
+  };
+};
+
+export const generateConfigMapYaml = (data: K8sNodeData, name: string) => {
+  const configData: Record<string, string> = {};
+  (data.configData || []).forEach(item => {
+    if (item.key) configData[item.key] = item.value;
+  });
+
+  return {
+    apiVersion: 'v1',
+    kind: 'ConfigMap',
+    metadata: { name },
+    data: configData
+  };
+};
+
+export const generateSecretYaml = (data: K8sNodeData, name: string) => {
+  const secretData: Record<string, string> = {};
+  (data.configData || []).forEach(item => {
+    // In a real case, these would be base64 encoded.
+    // For simulation, we can keep them plain or base64 encode them.
+    // Kubernetes expects base64 in 'data' field, or plain in 'stringData' field.
+    if (item.key) secretData[item.key] = item.value;
+  });
+
+  return {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata: { name },
+    type: 'Opaque',
+    stringData: secretData
   };
 };
 
@@ -92,9 +167,10 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   const podData = mainPod ? mainPod.data : data;
   const containerName = podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main';
 
-  // Check for PVC connections either from Deployment itself or from child pod
+  // Check for connections either from Deployment itself or from child pod
   const podId = mainPod?.id || data.id || '';
   const { volumes, volumeMounts } = getVolumeConfig(podId, nodes, edges);
+  const env = getEnvFromConnections(podId, nodes, edges);
 
   return {
     apiVersion: 'apps/v1',
@@ -110,6 +186,7 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
             name: containerName,
             image: podData.image || 'nginx:latest',
             ports: podData.port ? [{ containerPort: podData.port }] : undefined,
+            env: env.length > 0 ? env : undefined,
             resources: (podData.cpuLimit || podData.memoryLimit) ? {
               limits: {
                 cpu: podData.cpuLimit,

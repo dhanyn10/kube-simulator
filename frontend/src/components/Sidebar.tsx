@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Sun, Moon, Search, Globe, ChevronDown, ChevronRight, Activity, Database } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Sun, Moon, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
@@ -20,11 +20,14 @@ const ITEM_STYLES: Record<string, { border: string, text: string }> = {
   Internet: { border: "border-l-blue-500 hover:border-blue-500", text: "text-blue-400" },
   PVC: { border: "border-l-orange-500 hover:border-orange-500", text: "text-orange-400" },
   Namespace: { border: "border-l-emerald-500 hover:border-emerald-500", text: "text-emerald-400" },
+  ConfigMap: { border: "border-l-teal-500 hover:border-teal-500", text: "text-teal-400" },
+  Secret: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
 };
 
 const SECTIONS = [
   { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
+  { id: 'configuration', title: 'Configuration', filter: (type: string) => type === 'ConfigMap' || type === 'Secret' },
   { id: 'scaling', title: 'Scaling', filter: (type: string) => type === 'HPA' },
   { id: 'others', title: 'Others', filter: (type: string) => type === 'Internet' || type === 'PVC' },
 ];
@@ -114,6 +117,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     workloads: true,
     networking: false,
+    configuration: false,
     scaling: false,
     others: false,
   });
@@ -121,7 +125,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const isCurrentlyExpanded = prev[section];
-      const newState = { workloads: false, networking: false, scaling: false, others: false };
+      const newState = { workloads: false, networking: false, configuration: false, scaling: false, others: false };
       newState[section as keyof typeof newState] = !isCurrentlyExpanded;
       return newState;
     });
@@ -136,6 +140,8 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
     { type: 'Ingress', icon: Globe, label: 'Ingress', desc: 'External Access' },
     { type: 'HPA', icon: Activity, label: 'HPA', desc: 'Auto-scaling' },
     { type: 'PVC', icon: Database, label: 'PVC', desc: 'Storage Claim' },
+    { type: 'ConfigMap', icon: Settings, label: 'ConfigMap', desc: 'General Config' },
+    { type: 'Secret', icon: Lock, label: 'Secret', desc: 'Sensitive Data' },
   ];
 
   const filteredItems = items.filter(item =>
