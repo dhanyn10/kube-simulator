@@ -1,7 +1,8 @@
 import { K8sNodeData } from '../../types';
 
-const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
-  const pvcEdges = edges.filter(e => e.source === sourceId && nodes.some(n => n.id === e.target && n.type === 'PVC'));
+const getVolumeConfig = (sourceIds: string | string[], nodes: any[], edges: any[]) => {
+  const ids = Array.isArray(sourceIds) ? sourceIds : [sourceIds];
+  const pvcEdges = edges.filter(e => ids.includes(e.source) && nodes.some(n => n.id === e.target && n.type === 'PVC'));
   const volumes = pvcEdges.map((e, idx) => {
     const pvcNode = nodes.find(n => n.id === e.target);
     const pvcName = pvcNode?.data.label.toLowerCase().replace(/\s+/g, '-') || 'pvc-storage';
@@ -19,15 +20,16 @@ const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
   return { volumes, volumeMounts };
 };
 
-const getEnvFromConnections = (targetId: string, nodes: any[], edges: any[]) => {
-  const incomingEdges = edges.filter(e => e.target === targetId);
+const getEnvFromConnections = (targetIds: string | string[], nodes: any[], edges: any[]) => {
+  const ids = Array.isArray(targetIds) ? targetIds : [targetIds];
+  const incomingEdges = edges.filter(e => ids.includes(e.target));
   const env: any[] = [];
 
   incomingEdges.forEach(edge => {
     const sourceNode = nodes.find(n => n.id === edge.source);
     if (!sourceNode) return;
 
-    const resourceName = sourceNode.data.label.toLowerCase().replace(/\s+/g, '-');
+    const resourceName = (sourceNode.data.label || 'config').toLowerCase().replace(/\s+/g, '-');
     const configData = sourceNode.data.configData || [];
 
     if (sourceNode.type === 'ConfigMap' || sourceNode.type === 'Secret') {
@@ -168,9 +170,11 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   const containerName = podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main';
 
   // Check for connections either from Deployment itself or from child pod
-  const podId = mainPod?.id || data.id || '';
-  const { volumes, volumeMounts } = getVolumeConfig(podId, nodes, edges);
-  const env = getEnvFromConnections(podId, nodes, edges);
+  const targetIds = [data.id || ''];
+  if (mainPod?.id) targetIds.push(mainPod.id);
+
+  const { volumes, volumeMounts } = getVolumeConfig(targetIds, nodes, edges);
+  const env = getEnvFromConnections(targetIds, nodes, edges);
 
   return {
     apiVersion: 'apps/v1',
