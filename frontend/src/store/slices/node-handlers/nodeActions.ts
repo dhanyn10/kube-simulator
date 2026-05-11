@@ -94,11 +94,89 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: any) => {
   return syncContainerSize(updatedNode.parentId, resultNodes);
 };
 
+// -- ACTION HELPERS (To reduce Cognitive Complexity) --
+
+const sanitizeResourceLimits = (data: any) => {
+  const res = { ...data };
+  const limit = (val: any, min: number, max: number) => Math.max(min, Math.min(max, Number(val)));
+  if (res.replicas !== undefined) res.replicas = limit(res.replicas, 0, 1000);
+  if (res.minReplicas !== undefined) res.minReplicas = limit(res.minReplicas, 1, 1000);
+  if (res.maxReplicas !== undefined) res.maxReplicas = limit(res.maxReplicas, 1, 1000);
+  return res;
+};
+
+const resolveAutoImage = (runtime: string, webserver: string) => {
+  if (runtime === 'nodejs') return 'node:18-alpine';
+  if (runtime === 'go') return 'golang:1.21-alpine';
+  if (runtime === 'python') return 'python:3.11-slim';
+  if (runtime === 'java') return 'openjdk:17-jdk-slim';
+  if (runtime === 'php') {
+    if (webserver === 'nginx') return 'php:8.2-fpm-alpine';
+    if (webserver === 'apache') return 'php:8.2-apache';
+    return 'php:8.2-cli-alpine';
+  }
+  if (webserver === 'nginx') return 'nginx:latest';
+  if (webserver === 'apache') return 'httpd:latest';
+  return 'nginx:latest';
+};
+
+const applyAutoImageLogic = (targetData: any, data: any) => {
+  if (data.runtime === undefined && data.webserver === undefined) return data;
+  const rt = data.runtime ?? targetData.runtime ?? 'none';
+  const ws = data.webserver ?? targetData.webserver ?? 'none';
+  if (!targetData.image || targetData.isAutoImage) {
+    return { ...data, image: resolveAutoImage(rt, ws), isAutoImage: true };
+  }
+  return data;
+};
+
+const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: any, target: Node, newData: any, nodes: Node[], get: any) => {
+  let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
+  if (updatedNode.type === 'Pod') {
+    if (!updatedNode.parentId && (updatedData.replicas || 0) > 3) {
+      return handlePodGroupTransform(nodeId, updatedNode, updatedData, nodes, get);
+    }
+    if (updatedNode.parentId) {
+      return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
+    }
+  }
+  if (updatedNode.type === 'Deployment' || updatedNode.type === 'PodGroup') {
+    return handleContainerSync(updatedNode, nextNodes, get);
+  }
+  return nextNodes;
+};
+
+const processNodeDeletion = (node: Node, currentNodes: Node[], get: any) => {
+  let nextNodes = currentNodes;
+  if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
+  if (node.type === 'Pod' && node.parentId) {
+    const parent = nextNodes.find(n => n.id === node.parentId);
+    if (parent?.type === 'Deployment') {
+      const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(getNodeData(node).replicas || 1), get);
+      const others = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');
+      nextNodes = [...others.map(n => n.id === parent.id ? updatedDeployment : n), ...laidOut];
+    }
+  }
+  return nextNodes;
+};
+
+const handleAdditionSync = (newNode: Node, nodes: Node[], get: any) => {
+  if (newNode.parentId && newNode.type === 'Pod') {
+    const parent = nodes.find(n => n.id === newNode.parentId);
+    if (parent?.type === 'Deployment') {
+      const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, 1, get, newNode);
+      const others = nodes.filter(n => (n.parentId !== newNode.parentId || n.type !== 'Pod') && n.id !== newNode.id);
+      return sortNodes([...others.map(n => n.id === newNode.parentId ? updatedDeployment : n), ...laidOut]);
+    }
+  }
+  return sortNodes(nodes);
+};
+
 // -- ACTION IMPLEMENTATIONS --
 
 const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
-  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; // nosonar
+  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 };
 
   const newNode: Node = {
     id, type, position: finalPos, parentId,
@@ -108,36 +186,17 @@ const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, 
     ...(type === 'Namespace' ? { width: 600, height: 400, style: { width: 600, height: 400 } } : {}),
   };
 
-  const { nodes } = get();
-  let nextNodes = [...nodes, newNode];
-
-  if (parentId && type === 'Pod') {
-    const parent = nextNodes.find(n => n.id === parentId);
-    if (parent?.type === 'Deployment') {
-      const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 1, get, newNode);
-      const others = nextNodes.filter(n => (n.parentId !== parentId || n.type !== 'Pod') && n.id !== id);
-      nextNodes = [...others.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
-    }
-  }
-
-  set({ nodes: sortNodes(nextNodes), lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
+  const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
+  set({ nodes: nextNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
 
 const deleteNodesImpl = (set: any, get: () => FlowState) => (nodesToDelete: Node[]) => {
   const { nodes, edges } = get();
   const deleteIds = new Set(nodesToDelete.map(n => n.id));
+  
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
-
   nodesToDelete.forEach(node => {
-    if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
-    if (node.type === 'Pod' && node.parentId) {
-      const parent = nextNodes.find(n => n.id === node.parentId);
-      if (parent?.type === 'Deployment') {
-        const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(getNodeData(node).replicas || 1), get);
-        const others = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');
-        nextNodes = [...others.map(n => n.id === parent.id ? updatedDeployment : n), ...laidOut];
-      }
-    }
+    nextNodes = processNodeDeletion(node, nextNodes, get);
   });
 
   set({
@@ -152,43 +211,9 @@ const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, 
   const target = nodes.find((n: Node) => n.id === nodeId);
   if (!target) return;
 
-  const sanitizedData = { ...newData };
-  if (sanitizedData.replicas !== undefined) {
-    sanitizedData.replicas = Math.max(0, Math.min(1000, Number(sanitizedData.replicas)));
-  }
-  if (sanitizedData.minReplicas !== undefined) {
-    sanitizedData.minReplicas = Math.max(1, Math.min(1000, Number(sanitizedData.minReplicas)));
-  }
-  if (sanitizedData.maxReplicas !== undefined) {
-    sanitizedData.maxReplicas = Math.max(1, Math.min(1000, Number(sanitizedData.maxReplicas)));
-  }
+  let sanitizedData = sanitizeResourceLimits(newData);
+  sanitizedData = applyAutoImageLogic(target.data, sanitizedData);
 
-  // Auto-image logic
-  if (sanitizedData.runtime !== undefined || sanitizedData.webserver !== undefined) {
-    const rt = sanitizedData.runtime ?? target.data.runtime ?? 'none';
-    const ws = sanitizedData.webserver ?? target.data.webserver ?? 'none';
-    
-    let autoImg = '';
-    if (rt === 'nodejs') autoImg = 'node:18-alpine';
-    else if (rt === 'go') autoImg = 'golang:1.21-alpine';
-    else if (rt === 'python') autoImg = 'python:3.11-slim';
-    else if (rt === 'java') autoImg = 'openjdk:17-jdk-slim';
-    else if (rt === 'php') {
-      if (ws === 'nginx') autoImg = 'php:8.2-fpm-alpine';
-      else if (ws === 'apache') autoImg = 'php:8.2-apache';
-      else autoImg = 'php:8.2-cli-alpine';
-    } else if (ws === 'nginx') autoImg = 'nginx:latest';
-    else if (ws === 'apache') autoImg = 'httpd:latest';
-    else autoImg = 'nginx:latest';
-
-    // Only auto-update if image is currently empty or was previously auto-set (not custom)
-    if (!target.data.image || target.data.isAutoImage) {
-      sanitizedData.image = autoImg;
-      sanitizedData.isAutoImage = true;
-    }
-  }
-
-  // If user manually sets image, mark as not auto
   if (newData.image) {
     sanitizedData.isAutoImage = false;
   }
@@ -197,25 +222,14 @@ const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, 
   updatedData.status = evaluateStatus(target.type || '', updatedData);
 
   const updatedNode = {
-    ...target, data: updatedData,
+    ...target,
+    data: updatedData,
     ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
       width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
     } : {})
   };
 
-  let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
-
-  // Routing to specific handlers based on type
-  if (updatedNode.type === 'Pod') {
-    if (!updatedNode.parentId && (updatedData.replicas || 0) > 3) {
-      nextNodes = handlePodGroupTransform(nodeId, updatedNode, updatedData, nodes, get);
-    } else if (updatedNode.parentId) {
-      nextNodes = handlePodParentSync(target, updatedNode, newData, nextNodes, get);
-    }
-  } else if (updatedNode.type === 'Deployment' || updatedNode.type === 'PodGroup') {
-    nextNodes = handleContainerSync(updatedNode, nextNodes, get);
-  }
-
+  const nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
   set({ nodes: nextNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
 };
 
