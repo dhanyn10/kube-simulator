@@ -31,7 +31,7 @@ import { DetachedMonitoring } from './components/DetachedMonitoring';
 import { ContextMenu } from './components/ContextMenu';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
-import { FileCode, Plus, Minus } from 'lucide-react';
+import { FileCode, Plus, Minus, Maximize } from 'lucide-react';
 import { useFlowStore } from './store';
 import { cn } from './lib/utils';
 import { useHistory } from './hooks/useHistory';
@@ -98,7 +98,7 @@ export default function App() {
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
-  const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, screenToFlowPosition } = useReactFlow();
   const { handleUndo, handleRedo } = useHistory();
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
   const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);
@@ -234,6 +234,9 @@ export default function App() {
             </button>
             <button onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
               <Minus size={16} />
+            </button>
+            <button onClick={() => fitView({ padding: 0.2, duration: 800 })} className={btnClass} title="Fit View">
+              <Maximize size={16} />
             </button>
             <HistoryPanel colorMode={colorMode} />
           </Panel>
