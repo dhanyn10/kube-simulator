@@ -1,5 +1,6 @@
 import mainScenarios from './main-scenarios.json';
 import pvcScenarios from './pvc-scenarios.json';
+import configScenarios from './config-scenarios.json';
 
 export interface Scenario {
   id: string;
@@ -26,5 +27,6 @@ export const scenarios: Scenario[] = ([
     level: (s.difficulty || s.level),
     description: s.description,
     data: s.data || { nodes: s.nodes, edges: s.edges }
-  }))
+  })),
+  ...configScenarios
 ] as Scenario[]).sort((a, b) => levelWeight[a.level] - levelWeight[b.level]);

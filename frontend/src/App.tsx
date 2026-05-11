@@ -19,6 +19,8 @@ import { YamlModal } from './components/YamlModal';
 import { PodNode } from './components/Nodes/Pod';
 import { ServiceNode } from './components/Nodes/Service';
 import { DeploymentNode } from './components/Nodes/Deployment';
+import { ConfigMapNode } from './components/Nodes/ConfigMap';
+import { SecretNode } from './components/Nodes/Secret';
 import { ScenarioModal } from './components/ScenarioModal';
 import { InternetNode } from './components/Nodes/Internet';
 import { NamespaceNode } from './components/Nodes/Namespace';
@@ -48,6 +50,8 @@ const nodeTypes = {
   Ingress: IngressNode,
   HPA: HPANode,
   PVC: PVCNode,
+  ConfigMap: ConfigMapNode,
+  Secret: SecretNode,
   PodGroup: PodGroupNode,
 };
 

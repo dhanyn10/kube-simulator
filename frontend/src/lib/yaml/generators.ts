@@ -1,7 +1,8 @@
 import { K8sNodeData } from '../../types';
 
-const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
-  const pvcEdges = edges.filter(e => e.source === sourceId && nodes.some(n => n.id === e.target && n.type === 'PVC'));
+const getVolumeConfig = (sourceIds: string | string[], nodes: any[], edges: any[]) => {
+  const ids = Array.isArray(sourceIds) ? sourceIds : [sourceIds];
+  const pvcEdges = edges.filter(e => ids.includes(e.source) && nodes.some(n => n.id === e.target && n.type === 'PVC'));
   const volumes = pvcEdges.map((e, idx) => {
     const pvcNode = nodes.find(n => n.id === e.target);
     const pvcName = pvcNode?.data.label.toLowerCase().replace(/\s+/g, '-') || 'pvc-storage';
@@ -19,8 +20,50 @@ const getVolumeConfig = (sourceId: string, nodes: any[], edges: any[]) => {
   return { volumes, volumeMounts };
 };
 
+const getEnvFromConnections = (targetIds: string | string[], nodes: any[], edges: any[]) => {
+  const ids = Array.isArray(targetIds) ? targetIds : [targetIds];
+  const incomingEdges = edges.filter(e => ids.includes(e.target));
+  const env: any[] = [];
+
+  incomingEdges.forEach(edge => {
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    if (!sourceNode) return;
+
+    const resourceName = (sourceNode.data.label || 'config').toLowerCase().replace(/\s+/g, '-');
+    const configData = sourceNode.data.configData || [];
+
+    if (sourceNode.type === 'ConfigMap' || sourceNode.type === 'Secret') {
+      configData.forEach((item: any) => {
+        if (!item.key) return;
+
+        const envEntry: any = {
+          name: item.key,
+          valueFrom: {}
+        };
+
+        if (sourceNode.type === 'ConfigMap') {
+          envEntry.valueFrom.configMapKeyRef = {
+            name: resourceName,
+            key: item.key
+          };
+        } else {
+          envEntry.valueFrom.secretKeyRef = {
+            name: resourceName,
+            key: item.key
+          };
+        }
+
+        env.push(envEntry);
+      });
+    }
+  });
+
+  return env;
+};
+
 export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = []) => {
   const { volumes, volumeMounts } = getVolumeConfig(data.id || '', nodes, edges);
+  const env = getEnvFromConnections(data.id || '', nodes, edges);
 
   // If a standalone Pod has multiple replicas, wrap it in a Deployment
   if ((data.replicas || 1) > 1) {
@@ -38,6 +81,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
               name: 'main',
               image: data.image || 'nginx:latest',
               ports: data.port ? [{ containerPort: data.port }] : undefined,
+              env: env.length > 0 ? env : undefined,
               volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
             }],
             volumes: volumes.length > 0 ? volumes : undefined
@@ -56,6 +100,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
         name: 'main',
         image: data.image || 'nginx:latest',
         ports: data.port ? [{ containerPort: data.port }] : undefined,
+        env: env.length > 0 ? env : undefined,
         resources: (data.cpuLimit || data.memoryLimit) ? {
           limits: {
             cpu: data.cpuLimit,
@@ -66,6 +111,38 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
       }],
       volumes: volumes.length > 0 ? volumes : undefined
     }
+  };
+};
+
+export const generateConfigMapYaml = (data: K8sNodeData, name: string) => {
+  const configData: Record<string, string> = {};
+  (data.configData || []).forEach(item => {
+    if (item.key) configData[item.key] = item.value;
+  });
+
+  return {
+    apiVersion: 'v1',
+    kind: 'ConfigMap',
+    metadata: { name },
+    data: configData
+  };
+};
+
+export const generateSecretYaml = (data: K8sNodeData, name: string) => {
+  const secretData: Record<string, string> = {};
+  (data.configData || []).forEach(item => {
+    // In a real case, these would be base64 encoded.
+    // For simulation, we can keep them plain or base64 encode them.
+    // Kubernetes expects base64 in 'data' field, or plain in 'stringData' field.
+    if (item.key) secretData[item.key] = item.value;
+  });
+
+  return {
+    apiVersion: 'v1',
+    kind: 'Secret',
+    metadata: { name },
+    type: 'Opaque',
+    stringData: secretData
   };
 };
 
@@ -92,9 +169,12 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   const podData = mainPod ? mainPod.data : data;
   const containerName = podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main';
 
-  // Check for PVC connections either from Deployment itself or from child pod
-  const podId = mainPod?.id || data.id || '';
-  const { volumes, volumeMounts } = getVolumeConfig(podId, nodes, edges);
+  // Check for connections either from Deployment itself or from child pod
+  const targetIds = [data.id || ''];
+  if (mainPod?.id) targetIds.push(mainPod.id);
+
+  const { volumes, volumeMounts } = getVolumeConfig(targetIds, nodes, edges);
+  const env = getEnvFromConnections(targetIds, nodes, edges);
 
   return {
     apiVersion: 'apps/v1',
@@ -110,6 +190,7 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
             name: containerName,
             image: podData.image || 'nginx:latest',
             ports: podData.port ? [{ containerPort: podData.port }] : undefined,
+            env: env.length > 0 ? env : undefined,
             resources: (podData.cpuLimit || podData.memoryLimit) ? {
               limits: {
                 cpu: podData.cpuLimit,

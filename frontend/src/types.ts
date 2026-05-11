@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret';
 
 export interface K8sNodeData {
   [key: string]: any;
@@ -50,6 +50,9 @@ export interface K8sNodeData {
   accessMode?: 'ReadWriteOnce' | 'ReadOnlyMany' | 'ReadWriteMany';
   storageClass?: string;
   pvcStatus?: 'Pending' | 'Bound';
+
+  // ConfigMap & Secret specific fields
+  configData?: Array<{ key: string; value: string }>;
 }
 
 export interface K8sManifest {

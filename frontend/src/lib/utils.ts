@@ -8,7 +8,9 @@ import {
   generateServiceYaml,
   generateIngressYaml,
   generateHPAYaml,
-  generatePVCYaml
+  generatePVCYaml,
+  generateConfigMapYaml,
+  generateSecretYaml
 } from './yaml/generators';
 
 export function cn(...inputs: ClassValue[]) {
@@ -64,6 +66,10 @@ export function generateYaml(nodes: any[], edges: any[]): string {
         return generateHPAYaml(data, name, nodes, edges);
       case 'PVC':
         return generatePVCYaml(data, name);
+      case 'ConfigMap':
+        return generateConfigMapYaml(data, name);
+      case 'Secret':
+        return generateSecretYaml(data, name);
       default:
         return null;
     }

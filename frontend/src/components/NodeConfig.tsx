@@ -8,6 +8,8 @@ import { IngressConfig } from './IngressConfig';
 import { HPAConfig } from './HPAConfig';
 import { InternetConfig } from './InternetConfig';
 import { PVCConfig } from './PVCConfig';
+import { ConfigMapConfig } from './ConfigMapConfig';
+import { SecretConfig } from './SecretConfig';
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -165,13 +167,17 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         return <InternetConfig {...props} />;
       case 'PVC':
         return <PVCConfig {...props} />;
+      case 'ConfigMap':
+        return <ConfigMapConfig {...props} />;
+      case 'Secret':
+        return <SecretConfig {...props} />;
       default:
         return null;
     }
   };
 
   const isReady = data.status === 'ready' ||
-    ['Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC'].includes(selectedNode.type);
+    ['Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret'].includes(selectedNode.type);
 
   return (
     <div className="space-y-4">
