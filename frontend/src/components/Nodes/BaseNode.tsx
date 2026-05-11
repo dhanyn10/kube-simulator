@@ -69,6 +69,29 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   const isInternet = data.type === 'Internet';
 
+  // Extract status-based colors into independent statements
+  const statusIconColor = isCrashing 
+    ? "text-red-600" 
+    : isPending 
+      ? "text-red-500" 
+      : isReady 
+        ? "text-emerald-500" 
+        : (colorMode === 'dark' ? `text-${color}-400` : `text-${color}-500`);
+
+  const statusTextColor = isCrashing 
+    ? "text-red-600" 
+    : isPending 
+      ? "text-red-500" 
+      : isReady 
+        ? "text-emerald-500" 
+        : (colorMode === 'dark' ? `text-${color}-400` : `text-${color}-600`);
+
+  const statusDotColor = isCrashing 
+    ? "bg-red-600 animate-ping" 
+    : isPending 
+      ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" 
+      : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]";
+
   return (
     <div className={cn(
       "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto transition-all flex flex-col min-w-0",
@@ -107,19 +130,17 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {Icon && <Icon size={12} className={cn(
-             isCrashing ? "text-red-600" : isPending ? "text-red-500" : isReady ? "text-emerald-500" : (colorMode === 'dark' ? `text-${color}-400` : `text-${color}-500`)
-          )} />}
+          {Icon && <Icon size={12} className={cn(statusIconColor)} />}
           <span className={cn(
             "text-[8px] font-bold tracking-widest uppercase shrink-0",
-            isCrashing ? "text-red-600" : isPending ? "text-red-500" : isReady ? "text-emerald-500" : (colorMode === 'dark' ? 'text-' + color + '-400' : 'text-' + color + '-600')
+            statusTextColor
           )}>
             {isCrashing ? 'Crashing' : title || data.type}
           </span>
           {data.type !== 'Internet' && data.type !== 'PVC' && (
             <div className={cn(
               "w-1.5 h-1.5 rounded-full",
-              isCrashing ? "bg-red-600 animate-ping" : isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+              statusDotColor
             )}></div>
           )}
           {replicas > 1 && (
