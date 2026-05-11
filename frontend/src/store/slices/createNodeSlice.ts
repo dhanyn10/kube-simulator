@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { Node } from '@xyflow/react';
 import { FlowState } from '../types';
-import { K8sResourceType } from '../../types';
+import { K8sResourceType, K8sNodeData } from '../../types';
 
 // Import modular handlers
 import { nodeActions } from './node-handlers/nodeActions';
@@ -12,7 +12,7 @@ import { clipboardHandlers } from './node-handlers/clipboardHandlers';
 export interface NodeSlice {
   addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
-  updateNodeData: (nodeId: string, newData: any) => void;
+  updateNodeData: (nodeId: string, newData: Partial<K8sNodeData>) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
   onNodeDragStart: (event: any, node: Node) => void;

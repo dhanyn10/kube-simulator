@@ -2,13 +2,12 @@ import React, { useCallback } from 'react';
 import { useFlowStore } from '../store';
 import { generateYaml } from '../lib/utils';
 import { hydrateNodes } from '../store/nodeHelpers';
+import { Node, Edge } from '@xyflow/react';
 
-export const useFileSystem = (nodes: any[], edges: any[]) => {
+export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
   // Listen for external file open events (Open With)
   React.useEffect(() => {
-    // @ts-ignore
     if (window.runtime?.EventsOn) {
-      // @ts-ignore
       const off = window.runtime.EventsOn('open-infra-file', (json: string) => {
         if (json) {
           try {
@@ -40,17 +39,17 @@ export const useFileSystem = (nodes: any[], edges: any[]) => {
           }
         }
       });
-      return () => off();
+      return () => {
+        if (typeof off === 'function') off();
+      };
     }
   }, []);
 
   const handleExportFile = useCallback(async () => {
-    const currentProject = useFlowStore.getState().currentProject as any;
-    // @ts-ignore
+    const currentProject = useFlowStore.getState().currentProject;
     if (window.go?.main?.App?.ExportProjectFile) {
       const canvasContent = JSON.stringify({ nodes, edges });
       const yamlContent = generateYaml(nodes, edges);
-      // @ts-ignore
       await window.go.main.App.ExportProjectFile(
         currentProject?.name || "unnamed-project",
         canvasContent,
@@ -60,9 +59,7 @@ export const useFileSystem = (nodes: any[], edges: any[]) => {
   }, [nodes, edges]);
 
   const handleImportFile = useCallback(async () => {
-    // @ts-ignore
     if (window.go?.main?.App?.ImportProjectFile) {
-      // @ts-ignore
       const json = await window.go.main.App.ImportProjectFile();
       if (json) {
         try {

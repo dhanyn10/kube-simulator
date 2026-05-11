@@ -5,7 +5,7 @@ import {
   NodeChange,
   EdgeChange,
 } from '@xyflow/react';
-import { K8sResourceType } from '../types';
+import { K8sResourceType, K8sNodeData } from '../types';
 
 export interface AlignmentGuide {
   position: number;
@@ -80,7 +80,7 @@ export interface FlowState {
 
   addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
-  updateNodeData: (nodeId: string, newData: any) => void;
+  updateNodeData: (nodeId: string, newData: Partial<K8sNodeData>) => void;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
   onPaneClick: () => void;
   onNodeDragStart: (event: any, node: Node) => void;
@@ -99,4 +99,5 @@ export interface FlowState {
   setMonitoringDetached: (detached: boolean) => void;
   groupNodes: (nodeIds: string[]) => void;
   ungroupNodes: (nodeIds: string[]) => void;
+  autoLayout: (direction?: 'LR' | 'TB') => void;
 }

@@ -9,6 +9,8 @@ export const NODE_TYPES: Record<K8sResourceType, { color: string; icon: string }
   Ingress: { color: 'rose', icon: 'Globe' },
   HPA: { color: 'fuchsia', icon: 'Activity' },
   PVC: { color: 'orange', icon: 'Database' },
+  ConfigMap: { color: 'amber', icon: 'FileText' },
+  Secret: { color: 'red', icon: 'Lock' },
 };
 
 export const INITIAL_NODES = [];

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ReactNode } from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Activity, X, Cpu, Database, ExternalLink, AlertTriangle, ZapOff } from 'lucide-react';
@@ -95,7 +95,6 @@ export const MonitoringDashboard = () => {
 
   useEffect(() => {
     const channel = new BroadcastChannel('monitoring-data');
-    // @ts-ignore
     const runtime = window.runtime;
 
     const handleOpen = () => {
@@ -121,7 +120,7 @@ export const MonitoringDashboard = () => {
     }
 
     return () => channel.close();
-  }, []);
+  }, [setMonitoringDetached, setMonitoringOpen]);
 
   const handleDetach = () => {
     const width = 800;
@@ -129,15 +128,11 @@ export const MonitoringDashboard = () => {
     const left = (window.screen.width / 2) - (width / 2);
     const top = (window.screen.height / 2) - (height / 2);
 
-    // Using _blank as the target name to ensure it doesn't try to reuse the main window
     window.open(
       `${window.location.origin}${window.location.pathname}?mode=monitoring`,
       '_blank',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
-
-    // We don't want to close the in-app monitoring yet, let the BroadcastChannel handle it
-    // so we know for sure the new window is alive.
   };
 
   useEffect(() => {
@@ -231,7 +226,7 @@ export const MonitoringDashboard = () => {
                 <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-violet-500" />
-                    <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label}</span>
+                    <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label as ReactNode}</span>
                     {lastPoint?.isThrottled && (
                       <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 animate-pulse">
                         <ZapOff size={10} />
@@ -246,7 +241,7 @@ export const MonitoringDashboard = () => {
                     )}
                   </div>
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
-                    {dep.data.replicas || 1} Replicas
+                    {(dep.data.replicas || 1) as ReactNode} Replicas
                   </span>
                 </div>
 

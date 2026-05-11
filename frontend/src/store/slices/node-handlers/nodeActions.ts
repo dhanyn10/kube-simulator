@@ -1,6 +1,6 @@
 import React from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { K8sResourceType } from '../../../types';
+import { K8sResourceType, K8sNodeData } from '../../../types';
 import { FlowState } from '../../types';
 import {
   getNodeData,
@@ -24,9 +24,9 @@ const createNodeHandlers = (id: string, get: () => FlowState) => ({
 
 // -- RESOURCE INITIALIZERS & STATUS --
 
-const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState) => {
+const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState): K8sNodeData => {
   const handlers = createNodeHandlers(id, get);
-  const base = { label: `new-${type.toLowerCase()}`, type, image: '', status: 'pending', ...handlers };
+  const base: K8sNodeData = { label: `new-${type.toLowerCase()}`, type, image: '', status: 'pending', ...handlers };
 
   switch (type) {
     case 'Service':
@@ -46,7 +46,7 @@ const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState)
   }
 };
 
-const evaluateStatus = (type: string, data: any) => {
+const evaluateStatus = (type: string, data: K8sNodeData): 'pending' | 'ready' | 'crashing' => {
   if (['Pod', 'Deployment', 'PodGroup'].includes(type)) {
     const hasWebOrRun = (data.webserver && data.webserver !== 'none') || (data.runtime && data.runtime !== 'none');
     return hasWebOrRun ? 'ready' : 'pending';
@@ -56,7 +56,7 @@ const evaluateStatus = (type: string, data: any) => {
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
-const handlePodGroupTransform = (nodeId: string, updatedNode: Node, updatedData: any, nodes: Node[], get: any) => {
+const handlePodGroupTransform = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, nodes: Node[], get: () => FlowState) => {
   const podPos = getAbsPos(nodeId, nodes);
   const groupId = `podgroup-${crypto.randomUUID().split('-')[0]}`;
   const newGroup: Node = {
@@ -68,9 +68,11 @@ const handlePodGroupTransform = (nodeId: string, updatedNode: Node, updatedData:
   return sortNodes([...nodes.filter(n => n.id !== nodeId), updatedDeployment, ...laidOut]);
 };
 
-const handlePodParentSync = (target: Node, updatedNode: Node, newData: any, nodes: Node[], get: any) => {
+const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
+
+  const targetData = target.data as K8sNodeData;
 
   if (parent.type === 'PodGroup' && (Number(updatedNode.data.replicas) || 0) <= 3) {
     const groupPos = getAbsPos(parent.id, nodes);
@@ -79,7 +81,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: any, node
   }
 
   const replicasChange = (parent.type === 'Deployment' && newData.replicas !== undefined)
-    ? (newData.replicas || 0) - (Number(target.data.replicas) || 0) : 0;
+    ? (newData.replicas || 0) - (Number(targetData.replicas) || 0) : 0;
 
   const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
   const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
@@ -87,7 +89,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: any, node
   return syncContainerSize(parent.parentId, resultNodes);
 };
 
-const handleContainerSync = (updatedNode: Node, nodes: Node[], get: any) => {
+const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowState) => {
   const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nodes, 0, get);
   const others = nodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
   const resultNodes = sortNodes([...others, updatedDeployment, ...laidOut]);
@@ -96,7 +98,7 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: any) => {
 
 // -- ACTION HELPERS (To reduce Cognitive Complexity) --
 
-const sanitizeResourceLimits = (data: any) => {
+const sanitizeResourceLimits = (data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   const res = { ...data };
   const limit = (val: any, min: number, max: number) => Math.max(min, Math.min(max, Number(val)));
   if (res.replicas !== undefined) res.replicas = limit(res.replicas, 0, 1000);
@@ -120,7 +122,7 @@ const resolveAutoImage = (runtime: string, webserver: string) => {
   return 'nginx:latest';
 };
 
-const applyAutoImageLogic = (targetData: any, data: any) => {
+const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   if (data.runtime === undefined && data.webserver === undefined) return data;
   const rt = data.runtime ?? targetData.runtime ?? 'none';
   const ws = data.webserver ?? targetData.webserver ?? 'none';
@@ -130,7 +132,7 @@ const applyAutoImageLogic = (targetData: any, data: any) => {
   return data;
 };
 
-const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: any, target: Node, newData: any, nodes: Node[], get: any) => {
+const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, target: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
   if (updatedNode.type === 'Pod') {
     if (!updatedNode.parentId && (updatedData.replicas || 0) > 3) {
@@ -146,13 +148,14 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: any, ta
   return nextNodes;
 };
 
-const processNodeDeletion = (node: Node, currentNodes: Node[], get: any) => {
+const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowState) => {
   let nextNodes = currentNodes;
   if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
   if (node.type === 'Pod' && node.parentId) {
     const parent = nextNodes.find(n => n.id === node.parentId);
     if (parent?.type === 'Deployment') {
-      const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(getNodeData(node).replicas || 1), get);
+      const nodeData = getNodeData(node);
+      const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(nodeData.replicas || 1), get);
       const others = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');
       nextNodes = [...others.map(n => n.id === parent.id ? updatedDeployment : n), ...laidOut];
     }
@@ -160,7 +163,7 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: any) => {
   return nextNodes;
 };
 
-const handleAdditionSync = (newNode: Node, nodes: Node[], get: any) => {
+const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) => {
   if (newNode.parentId && newNode.type === 'Pod') {
     const parent = nodes.find(n => n.id === newNode.parentId);
     if (parent?.type === 'Deployment') {
@@ -174,7 +177,7 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: any) => {
 
 // -- ACTION IMPLEMENTATIONS --
 
-const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
+const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
   const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; //nosonar
 
@@ -190,7 +193,7 @@ const addNodeImpl = (set: any, get: () => FlowState) => (type: K8sResourceType, 
   set({ nodes: nextNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
 
-const deleteNodesImpl = (set: any, get: () => FlowState) => (nodesToDelete: Node[]) => {
+const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodesToDelete: Node[]) => {
   const { nodes, edges } = get();
   const deleteIds = new Set(nodesToDelete.map(n => n.id));
 
@@ -206,22 +209,23 @@ const deleteNodesImpl = (set: any, get: () => FlowState) => (nodesToDelete: Node
   });
 };
 
-const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, newData: any) => {
+const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodeId: string, newData: Partial<K8sNodeData>) => {
   const { nodes } = get();
   const target = nodes.find((n: Node) => n.id === nodeId);
   if (!target) return;
 
+  const targetData = target.data as K8sNodeData;
   let sanitizedData = sanitizeResourceLimits(newData);
-  sanitizedData = applyAutoImageLogic(target.data, sanitizedData);
+  sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
 
   if (newData.image) {
     sanitizedData.isAutoImage = false;
   }
 
-  const updatedData = { ...target.data, ...sanitizedData };
+  const updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
   updatedData.status = evaluateStatus(target.type || '', updatedData);
 
-  const updatedNode = {
+  const updatedNode: Node = {
     ...target,
     data: updatedData,
     ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
@@ -235,18 +239,18 @@ const updateNodeDataImpl = (set: any, get: () => FlowState) => (nodeId: string, 
 
 // -- MAIN EXPORT --
 
-export const nodeActions = (set: any, get: () => FlowState) => ({
+export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => ({
   addNode: addNodeImpl(set, get),
   deleteNodes: deleteNodesImpl(set, get),
   updateNodeData: updateNodeDataImpl(set, get),
-  onNodeClick: (event: React.MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
+  onNodeClick: (_event: React.MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
   onPaneClick: () => set({ activeDeploymentId: null }),
-  groupNodes: (ids: string[]) => set((s: FlowState) => ({
-    nodes: s.nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
+  groupNodes: (ids: string[]) => set({
+    nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
     lastActionId: `group-${Date.now()}`, lastActionName: 'Group Elements'
-  })),
-  ungroupNodes: (ids: string[]) => set((s: FlowState) => ({
-    nodes: s.nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: undefined } } : n),
+  }),
+  ungroupNodes: (ids: string[]) => set({
+    nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: undefined } } : n),
     lastActionId: `ungroup-${Date.now()}`, lastActionName: 'Ungroup Elements'
-  })),
+  }),
 });
