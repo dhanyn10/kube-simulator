@@ -11,6 +11,24 @@ interface SidebarProps {
   setIsProjectOpen: (open: boolean) => void;
 }
 
+const ITEM_STYLES: Record<string, { border: string, text: string }> = {
+  Deployment: { border: "border-l-violet-500 hover:border-violet-500", text: "text-violet-400" },
+  Pod: { border: "border-l-cyan-500 hover:border-cyan-500", text: "text-cyan-400" },
+  Service: { border: "border-l-amber-500 hover:border-amber-500", text: "text-amber-400" },
+  Ingress: { border: "border-l-rose-500 hover:border-rose-500", text: "text-rose-400" },
+  HPA: { border: "border-l-fuchsia-500 hover:border-fuchsia-500", text: "text-fuchsia-400" },
+  Internet: { border: "border-l-blue-500 hover:border-blue-500", text: "text-blue-400" },
+  PVC: { border: "border-l-orange-500 hover:border-orange-500", text: "text-orange-400" },
+  Namespace: { border: "border-l-emerald-500 hover:border-emerald-500", text: "text-emerald-400" },
+};
+
+const SECTIONS = [
+  { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
+  { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
+  { id: 'scaling', title: 'Scaling', filter: (type: string) => type === 'HPA' },
+  { id: 'others', title: 'Others', filter: (type: string) => type === 'Internet' || type === 'PVC' },
+];
+
 const SidebarSection = ({ 
   title, 
   items, 
@@ -48,51 +66,41 @@ const SidebarSection = ({
         "grid gap-2 mt-1 overflow-hidden transition-all", 
         isExpanded ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible"
       )}>
-        {items.map(({ type, icon: Icon, label, desc }) => (
-          <button
-            key={type}
-            onClick={() => onAddNode(type)}
-            onDragStart={(event) => onDragStart(event, type)}
-            onDragEnd={onDragEnd}
-            draggable
-            className={cn(
-              "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
-              "hover:shadow-lg active:cursor-grabbing",
-              type === 'Deployment' ? "border-l-violet-500 hover:border-violet-500" : 
-              type === 'Pod' ? "border-l-cyan-500 hover:border-cyan-500" :
-              type === 'Service' ? "border-l-amber-500 hover:border-amber-500" :
-              type === 'Ingress' ? "border-l-rose-500 hover:border-rose-500" :
-              type === 'HPA' ? "border-l-fuchsia-500 hover:border-fuchsia-500" :
-              type === 'Internet' ? "border-l-blue-500 hover:border-blue-500" :
-              type === 'PVC' ? "border-l-orange-500 hover:border-orange-500" :
-              "border-l-emerald-500 hover:border-emerald-500"
-            )}
-          >
-            <div className={cn(
-              "p-1.5 rounded transition-colors",
-              colorMode === 'dark' ? "bg-slate-900/50" : "bg-slate-100",
-              type === 'Deployment' ? "text-violet-400" : 
-              type === 'Pod' ? "text-cyan-400" :
-              type === 'Service' ? "text-amber-400" :
-              type === 'Ingress' ? "text-rose-400" :
-              type === 'HPA' ? "text-fuchsia-400" :
-              type === 'Internet' ? "text-blue-400" :
-              type === 'PVC' ? "text-orange-400" :
-              "text-emerald-400"
-            )}>
-              <Icon size={16} />
-            </div>
-            <div className="text-left overflow-hidden">
-              <div className={cn("text-xs font-semibold", colorMode === 'dark' ? "text-slate-200" : "text-slate-800")}>
-                {label}
+        {items.map(({ type, icon: Icon, label, desc }) => {
+          const style = ITEM_STYLES[type] || ITEM_STYLES.Namespace;
+          
+          return (
+            <button
+              key={type}
+              onClick={() => onAddNode(type)}
+              onDragStart={(event) => onDragStart(event, type)}
+              onDragEnd={onDragEnd}
+              draggable
+              className={cn(
+                "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
+                "hover:shadow-lg active:cursor-grabbing",
+                style.border
+              )}
+            >
+              <div className={cn(
+                "p-1.5 rounded transition-colors",
+                colorMode === 'dark' ? "bg-slate-900/50" : "bg-slate-100",
+                style.text
+              )}>
+                <Icon size={16} />
               </div>
-              <div className={cn("text-[9px] font-medium truncate", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
-                {desc}
+              <div className="text-left overflow-hidden">
+                <div className={cn("text-xs font-semibold", colorMode === 'dark' ? "text-slate-200" : "text-slate-800")}>
+                  {label}
+                </div>
+                <div className={cn("text-[9px] font-medium truncate", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
+                  {desc}
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </section>
   );
@@ -177,46 +185,19 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-2 overscroll-contain">
-        <SidebarSection 
-          title="Workloads" 
-          items={filteredItems.filter(i => i.type === 'Deployment' || i.type === 'Pod')}
-          isExpanded={expandedSections.workloads}
-          onToggle={() => toggleSection('workloads')}
-          onAddNode={onAddNode}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          colorMode={colorMode}
-        />
-        <SidebarSection 
-          title="Networking" 
-          items={filteredItems.filter(i => i.type === 'Service' || i.type === 'Namespace' || i.type === 'Ingress')}
-          isExpanded={expandedSections.networking}
-          onToggle={() => toggleSection('networking')}
-          onAddNode={onAddNode}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          colorMode={colorMode}
-        />
-        <SidebarSection 
-          title="Scaling" 
-          items={filteredItems.filter(i => i.type === 'HPA')}
-          isExpanded={expandedSections.scaling}
-          onToggle={() => toggleSection('scaling')}
-          onAddNode={onAddNode}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          colorMode={colorMode}
-        />
-        <SidebarSection 
-          title="Others" 
-          items={filteredItems.filter(i => i.type === 'Internet' || i.type === 'PVC')}
-          isExpanded={expandedSections.others}
-          onToggle={() => toggleSection('others')}
-          onAddNode={onAddNode}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          colorMode={colorMode}
-        />
+        {SECTIONS.map(section => (
+          <SidebarSection 
+            key={section.id}
+            title={section.title} 
+            items={filteredItems.filter(i => section.filter(i.type))}
+            isExpanded={expandedSections[section.id]}
+            onToggle={() => toggleSection(section.id)}
+            onAddNode={onAddNode}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            colorMode={colorMode}
+          />
+        ))}
 
         {filteredItems.length === 0 && (
           <div className={cn("text-center py-8", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")}>

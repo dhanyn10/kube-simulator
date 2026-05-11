@@ -91,6 +91,7 @@ export interface FlowState {
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
   copyNodes: () => void;
   pasteNodes: () => void;
+  setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleColorMode: () => void;
   toggleAutosave: () => void;
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
