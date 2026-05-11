@@ -92,13 +92,28 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" 
       : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]";
 
+  // Container styles extraction
+  const containerBaseClasses = colorMode === 'dark' 
+    ? "bg-slate-800 border-slate-600 shadow-xl" 
+    : "bg-white border-slate-200 shadow-md";
+
+  const selectionClasses = selected 
+    ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") 
+    : `hover:border-${color}-500/50`;
+
+  const readyClasses = isReady 
+    ? (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30") 
+    : "";
+
+  const progressEmptyBgClass = colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200";
+
   return (
     <div className={cn(
       "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto transition-all flex flex-col min-w-0",
-      colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md",
-      selected ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") : `hover:border-${color}-500/50`,
+      containerBaseClasses,
+      selectionClasses,
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
-      isReady && (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30"),
+      readyClasses,
       isCrashing && "border-red-600 ring-8 ring-red-600/30 animate-crash-blink shadow-[0_0_30px_rgba(220,38,38,0.6)]"
     )}>
       {/* Visual Stacking for Replicas */}
@@ -263,7 +278,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                       "flex-1 h-1 rounded-sm transition-all",
                       i < (data.replicas || 0)
                         ? "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]"
-                        : (colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200")
+                        : progressEmptyBgClass
                     )}
                   />
                 ))
