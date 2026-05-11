@@ -31,7 +31,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
             max="20000"
             step="500"
             value={data.traffic || 1000}
-            onChange={(e) => performUpdate({ traffic: parseInt(e.target.value) || 1000 })}
+            onChange={(e) => performUpdate({ traffic: Number.parseInt(e.target.value) || 1000 })}
             className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
           />
           <div className="flex justify-between mt-1.5">

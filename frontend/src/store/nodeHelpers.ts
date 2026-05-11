@@ -63,7 +63,7 @@ export const syncDeployment = (
   const data = getNodeData(deployment);
   const updatedDeployment = {
     ...deployment,
-    data: { ...data, replicas: Math.max(0, (data.replicas || 0) + replicasChange) }
+    data: { ...data, replicas: Math.max(0, Math.min(1000, (data.replicas || 0) + replicasChange)) }
   };
   
   // Get all pods for this deployment, excluding the one we might be re-adding (to avoid duplicates)
