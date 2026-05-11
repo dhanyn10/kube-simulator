@@ -70,42 +70,57 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const isInternet = data.type === 'Internet';
 
   // Extract status-based colors into independent statements
-  const statusIconColor = isCrashing 
-    ? "text-red-600" 
-    : isPending 
-      ? "text-red-500" 
-      : isReady 
-        ? "text-emerald-500" 
-        : (colorMode === 'dark' ? `text-${color}-400` : `text-${color}-500`);
+  const getStatusColor = (mode: 'icon' | 'text') => {
+    if (isCrashing) return "text-red-600";
+    if (isPending) return "text-red-500";
+    if (isReady) return "text-emerald-500";
+    
+    if (colorMode === 'dark') return `text-${color}-400`;
+    
+    if (mode === 'icon') {
+      return `text-${color}-500`;
+    }
+    return `text-${color}-600`;
+  };
 
-  const statusTextColor = isCrashing 
-    ? "text-red-600" 
-    : isPending 
-      ? "text-red-500" 
-      : isReady 
-        ? "text-emerald-500" 
-        : (colorMode === 'dark' ? `text-${color}-400` : `text-${color}-600`);
+  const statusIconColor = getStatusColor('icon');
+  const statusTextColor = getStatusColor('text');
 
-  const statusDotColor = isCrashing 
-    ? "bg-red-600 animate-ping" 
-    : isPending 
-      ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" 
-      : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]";
+  let statusDotColor = "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]";
+  if (isCrashing) {
+    statusDotColor = "bg-red-600 animate-ping";
+  } else if (isPending) {
+    statusDotColor = "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]";
+  }
 
   // Container styles extraction
-  const containerBaseClasses = colorMode === 'dark' 
-    ? "bg-slate-800 border-slate-600 shadow-xl" 
-    : "bg-white border-slate-200 shadow-md";
+  let containerBaseClasses = "bg-white border-slate-200 shadow-md";
+  if (colorMode === 'dark') {
+    containerBaseClasses = "bg-slate-800 border-slate-600 shadow-xl";
+  }
 
-  const selectionClasses = selected 
-    ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg") 
-    : `hover:border-${color}-500/50`;
+  let selectionClasses = `hover:border-${color}-500/50`;
+  if (selected) {
+    if (colorMode === 'dark') {
+      selectionClasses = "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]";
+    } else {
+      selectionClasses = "border-blue-500 ring-4 ring-blue-500/10 shadow-lg";
+    }
+  }
 
-  const readyClasses = isReady 
-    ? (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30") 
-    : "";
+  let readyClasses = "";
+  if (isReady) {
+    if (colorMode === 'dark') {
+      readyClasses = "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]";
+    } else {
+      readyClasses = "border-emerald-500/30";
+    }
+  }
 
-  const progressEmptyBgClass = colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200";
+  let progressEmptyBgClass = "bg-slate-200";
+  if (colorMode === 'dark') {
+    progressEmptyBgClass = "bg-slate-700";
+  }
 
   return (
     <div className={cn(
