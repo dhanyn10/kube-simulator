@@ -6,7 +6,7 @@ interface KeyValueConfigProps {
   title: string;
   titleIcon: React.ReactNode;
   valueIcon: React.ReactNode;
-  configData: Array<{ key: string; value: string }>;
+  configData: Array<{ id?: string; key: string; value: string }>;
   performUpdate: (updates: any) => void;
   colorMode: string;
   addButtonText: string;
@@ -30,13 +30,15 @@ export const KeyValueConfig = ({
   valuePlaceholder = 'Value'
 }: KeyValueConfigProps) => {
   const addData = () => {
-    const newData = [...configData, { key: '', value: '' }];
+    const newData = [...configData, { id: crypto.randomUUID(), key: '', value: '' }];
     performUpdate({ configData: newData });
   };
 
   const updateData = (index: number, key: string, value: string) => {
     const newData = [...configData];
-    newData[index] = { key, value };
+    // Ensure ID exists for React keys
+    const id = newData[index].id || crypto.randomUUID();
+    newData[index] = { id, key, value };
     performUpdate({ configData: newData });
   };
 
@@ -92,7 +94,7 @@ export const KeyValueConfig = ({
           )}
 
           {configData.map((item, idx) => (
-            <div key={idx} className={cn(
+            <div key={item.id || idx} className={cn(
               "p-2 rounded-lg border space-y-2",
               colorMode === 'dark' ? "bg-slate-900/50 border-slate-800" : "bg-white border-slate-200"
             )}>
