@@ -219,16 +219,18 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
 export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
   const paddingX = 24;
   const paddingY = 48; // Account for deployment header
-  const spacing = 32;
-  
   const deploymentWidth = deployment.width || deployment.measured?.width || 320;
   const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
 
   let currentX = paddingX;
   let currentY = paddingY;
   let rowMaxHeight = 0;
+  let prevPodSpacing = 20;
 
-  const updatedPods = pods.map(pod => {
+  const updatedPods = pods.map((pod, idx) => {
+    const isMegaPod = pod.data?.replicas === 100;
+    const mySpacing = isMegaPod ? 56 : 20;
+    
     const minSize = getPodMinimumSize(pod.data);
     const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
     const podH = Math.max(
@@ -238,10 +240,22 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
       minSize.height
     );
 
+    // If we're not at the start of a row, ensure the gap between the previous pod and this one 
+    // is at least the maximum of their spacing requirements.
+    if (idx > 0 && currentX > paddingX) {
+      const gapRequired = Math.max(prevPodSpacing, mySpacing);
+      // 'currentX' already includes 'prevPodSpacing' from the previous iteration's 'currentX += podW + mySpacing'
+      if (gapRequired > prevPodSpacing) {
+        currentX += (gapRequired - prevPodSpacing);
+      }
+    }
+
     // If the current pod doesn't fit in the current row, move to next row
     if (currentX + podW > deployableWidth + paddingX && currentX > paddingX) {
       currentX = paddingX; // Reset X for new row
-      currentY += rowMaxHeight + spacing; // Move Y down by max height of previous row + spacing
+      // For vertical spacing, we also use the max requirement
+      const verticalGap = Math.max(prevPodSpacing, mySpacing);
+      currentY += rowMaxHeight + verticalGap; 
       rowMaxHeight = 0; // Reset max height for new row
     }
 
@@ -249,7 +263,8 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
     rowMaxHeight = Math.max(rowMaxHeight, podH);
 
     const newPosition = { x: currentX, y: currentY };
-    currentX += podW + spacing; // Advance X for next pod
+    currentX += podW + mySpacing; 
+    prevPodSpacing = mySpacing;
 
     return {
       ...pod,
