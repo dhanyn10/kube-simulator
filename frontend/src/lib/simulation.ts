@@ -219,10 +219,10 @@ export const processWorkloadSimulation = (
   edges: Edge[],
   activeSimulationEdges: string[],
   updatedNodes: Node[],
-  newMetrics: Record<string, SimulationMetricPoint[]>,
-  _ticks: number,
+  ticks: number,
   get: () => FlowState,
-  set: (state: Partial<FlowState>) => void
+  set: (state: Partial<FlowState>) => void,
+  newMetrics: Record<string, SimulationMetricPoint[]>
 ): { hasChanges: boolean } => {
   const pvcResult = checkPvcReadiness(dep, nodes, edges, updatedNodes);
   if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges };
