@@ -64,3 +64,17 @@ export interface K8sManifest {
   };
   spec?: any;
 }
+
+export interface Project {
+  id: number;
+  name: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface HistoryLog {
+  index: number;
+  actionName: string;
+  timestamp: number;
+}

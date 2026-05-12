@@ -13,6 +13,8 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Ingress: { x: 100, y: 60 },
   HPA: { x: 90, y: 70 },
   PVC: { x: 90, y: 60 },
+  ConfigMap: { x: 80, y: 50 },
+  Secret: { x: 80, y: 50 },
 };
 
 export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: number }) => { x: number; y: number }) {
@@ -64,8 +66,8 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
         const target = getTargetContainer(event.clientX, event.clientY, draggingSidebarItem);
         setHoveredDeploymentId(target?.id || null);
 
-        useFlowStore.setState((state: any) => ({
-          nodes: state.nodes.map((n: any) =>
+        useFlowStore.setState((state) => ({
+          nodes: state.nodes.map((n) =>
             n.id === target?.id
               ? { ...n, data: { ...n.data, isHovered: true } }
               : { ...n, data: { ...n.data, isHovered: false } }
@@ -103,8 +105,8 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       }
 
       setHoveredDeploymentId(null);
-      useFlowStore.setState((state: any) => ({
-        nodes: state.nodes.map((n: any) => ({ ...n, data: { ...n.data, isHovered: false } })),
+      useFlowStore.setState((state) => ({
+        nodes: state.nodes.map((n) => ({ ...n, data: { ...n.data, isHovered: false } })),
       }));
 
       addNode(type, finalPosition, targetContainer?.id);
