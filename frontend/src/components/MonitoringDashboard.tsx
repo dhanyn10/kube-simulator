@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ReactNode } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Activity, X, Cpu, Database, ExternalLink, AlertTriangle, ZapOff } from 'lucide-react';
@@ -226,7 +226,7 @@ export const MonitoringDashboard = () => {
                 <div className="flex items-center justify-between border-b border-slate-700/30 pb-1">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-violet-500" />
-                    <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label as ReactNode}</span>
+                    <span className="text-[11px] font-mono font-bold text-violet-400">{dep.data.label}</span>
                     {lastPoint?.isThrottled && (
                       <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 animate-pulse">
                         <ZapOff size={10} />
@@ -241,7 +241,7 @@ export const MonitoringDashboard = () => {
                     )}
                   </div>
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
-                    {(dep.data.replicas || 1) as ReactNode} Replicas
+                    {dep.data.replicas || 1} Replicas
                   </span>
                 </div>
 

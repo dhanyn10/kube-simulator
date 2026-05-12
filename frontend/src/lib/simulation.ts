@@ -29,21 +29,8 @@ export const calculateReachability = (startNodes: Node[], edges: Edge[], activeS
   return reachableNodes;
 };
 
-export const processWorkloadSimulation = (
-  dep: Node,
-  nodes: Node[],
-  edges: Edge[],
-  activeSimulationEdges: string[],
-  updatedNodes: Node[],
-  newMetrics: Record<string, SimulationMetricPoint[]>,
-  ticks: number,
-  get: () => FlowState,
-  set: (state: Partial<FlowState>) => void
-): { hasChanges: boolean } => {
+const checkPvcReadiness = (dep: Node, nodes: Node[], edges: Edge[], updatedNodes: Node[]) => {
   let hasChanges = false;
-  const dData = dep.data as K8sNodeData;
-
-  // 1. PVC Readiness Check
   const childPods = dep.type === 'Pod' ? [dep] : nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
   const podIds = childPods.map(p => p.id);
   const workloadIds = [dep.id, ...podIds];
@@ -54,15 +41,13 @@ export const processWorkloadSimulation = (
   );
 
   const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
+
   if (connectedPVCs.length > 0 && hasUnboundPVC) {
     connectedPVCs.forEach(pvc => {
       if (pvc.data.pvcStatus !== 'Bound' && safeRandom() > 0.7) {
         const pvcIdx = updatedNodes.findIndex(un => un.id === pvc.id);
         if (pvcIdx !== -1) {
-          updatedNodes[pvcIdx] = {
-            ...updatedNodes[pvcIdx],
-            data: { ...updatedNodes[pvcIdx].data, pvcStatus: 'Bound' }
-          };
+          updatedNodes[pvcIdx] = { ...updatedNodes[pvcIdx], data: { ...updatedNodes[pvcIdx].data, pvcStatus: 'Bound' } };
           hasChanges = true;
         }
       }
@@ -73,34 +58,34 @@ export const processWorkloadSimulation = (
       if (pod.data.status === 'ready') {
         const pIdx = updatedNodes.findIndex(un => un.id === pod.id);
         if (pIdx !== -1) {
-          updatedNodes[pIdx] = {
-            ...updatedNodes[pIdx],
-            data: { ...updatedNodes[pIdx].data, status: 'pending' }
-          };
+          updatedNodes[pIdx] = { ...updatedNodes[pIdx], data: { ...updatedNodes[pIdx].data, status: 'pending' } };
           hasChanges = true;
         }
       }
     });
-    return { hasChanges };
+    return { hasChanges, isBlocked: true };
   } else if (connectedPVCs.length > 0 && !hasUnboundPVC) {
     const currentChildPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
     currentChildPods.forEach(pod => {
       const pData = pod.data as K8sNodeData;
-      if (pData.status === 'pending' && (pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none')) {
+      const isPending = pData.status === 'pending';
+      const hasConfig = (pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none');
+      if (isPending && hasConfig) {
         const pIdx = updatedNodes.findIndex(un => un.id === pod.id);
         if (pIdx !== -1) {
-          updatedNodes[pIdx] = {
-            ...updatedNodes[pIdx],
-            data: { ...updatedNodes[pIdx].data, status: 'ready' }
-          };
+          updatedNodes[pIdx] = { ...updatedNodes[pIdx], data: { ...updatedNodes[pIdx].data, status: 'ready' } };
           hasChanges = true;
         }
       }
     });
   }
 
-  // 2. Traffic Calculation
-  const incomingTraffic = nodes
+  return { hasChanges, isBlocked: false };
+};
+
+const calculateIncomingTraffic = (dep: Node, nodes: Node[], edges: Edge[], activeSimulationEdges: string[], updatedNodes: Node[]) => {
+  let hasChanges = false;
+  const traffic = nodes
     .filter(n => n.type === 'Internet')
     .reduce((total, internet) => {
       const iData = internet.data as K8sNodeData;
@@ -117,32 +102,29 @@ export const processWorkloadSimulation = (
       if (nextTraffic !== currentTraffic) {
           const idx = updatedNodes.findIndex(un => un.id === internet.id);
           if (idx !== -1) {
-              updatedNodes[idx] = {
-                ...updatedNodes[idx],
-                data: { ...updatedNodes[idx].data, currentTraffic: nextTraffic }
-              };
+              updatedNodes[idx] = { ...updatedNodes[idx], data: { ...updatedNodes[idx].data, currentTraffic: nextTraffic } };
               hasChanges = true;
           }
       }
 
       const reachableNodes = calculateReachability([internet], edges, activeSimulationEdges);
-      const canReach = reachableNodes.has(dep.id) ||
-                       nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
+      const canReach = reachableNodes.has(dep.id) || nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
 
       return total + (canReach ? nextTraffic : 0);
     }, 0);
 
-  // 3. Resource Metrics
+  return { traffic, hasChanges };
+};
+
+const calculateResourceMetrics = (dep: Node, incomingTraffic: number, newMetrics: Record<string, SimulationMetricPoint[]>) => {
+  const dData = dep.data as K8sNodeData;
   const replicas = (dData.replicas as number) || 1;
   const cpuLimitMilli = parseCPU(dData.cpuLimit);
   const memLimitMiB = parseMemory(dData.memoryLimit);
 
-  const baseCpuLoadPerReplica = (incomingTraffic / 1000) * 200;
-  const baseMemLoadPerReplica = (incomingTraffic / 1000) * 128;
   const noise = () => (safeRandom() * 20 - 10);
-
-  let cpuValue = (baseCpuLoadPerReplica / replicas) + 50 + noise();
-  let memValue = (baseMemLoadPerReplica / replicas) + 100 + noise();
+  let cpuValue = ((incomingTraffic / 1000) * 200 / replicas) + 50 + noise();
+  let memValue = ((incomingTraffic / 1000) * 128 / replicas) + 100 + noise();
 
   const isThrottled = cpuValue >= cpuLimitMilli;
   const isOOM = memValue >= memLimitMiB;
@@ -155,94 +137,101 @@ export const processWorkloadSimulation = (
 
   const existing = newMetrics[dep.id] || [];
   newMetrics[dep.id] = [...existing, {
-    cpuPercent,
-    memoryPercent,
-    cpuValue,
-    memoryValue: memValue,
-    cpuLimit: cpuLimitMilli,
-    memoryLimit: memLimitMiB,
-    isThrottled,
-    isOOM
+    cpuPercent, memoryPercent, cpuValue, memoryValue: memValue,
+    cpuLimit: cpuLimitMilli, memoryLimit: memLimitMiB, isThrottled, isOOM
   }].slice(-30);
 
-  // 4. OOM Crash Simulation
-  if (isOOM && safeRandom() > 0.5) {
-    const currentChildPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-    if (currentChildPods.length > 0) {
-      const podToCrash = currentChildPods[Math.floor(safeRandom() * currentChildPods.length)];
-      const podIdx = updatedNodes.findIndex(n => n.id === podToCrash.id);
+  return { cpuPercent, isOOM };
+};
 
-      if (podIdx !== -1 && updatedNodes[podIdx].data.status !== 'crashing') {
-        updatedNodes[podIdx] = {
-          ...updatedNodes[podIdx],
-          data: { ...updatedNodes[podIdx].data, status: 'crashing' }
-        };
-        hasChanges = true;
+const handleOomCrashes = (dep: Node, isOOM: boolean, updatedNodes: Node[], get: () => FlowState, set: (state: Partial<FlowState>) => void) => {
+  if (!isOOM || safeRandom() <= 0.5) return false;
 
-        setTimeout(() => {
-          const currentState = get();
-          const nodeToRecover = currentState.nodes.find(n => n.id === podToCrash.id);
-          if (nodeToRecover && nodeToRecover.data.status === 'crashing') {
-             currentState.deleteNodes([nodeToRecover]);
-             setTimeout(() => {
-                const latestState = get();
-                const parentDep = latestState.nodes.find(n => n.id === dep.id);
-                if (parentDep) {
-                  const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, get);
-                  const filteredNodes = latestState.nodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-                  set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
-                }
-             }, 2000);
+  const currentChildPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  if (currentChildPods.length === 0) return false;
+
+  const podToCrash = currentChildPods[Math.floor(safeRandom() * currentChildPods.length)];
+  const podIdx = updatedNodes.findIndex(n => n.id === podToCrash.id);
+
+  if (podIdx === -1 || updatedNodes[podIdx].data.status === 'crashing') return false;
+
+  updatedNodes[podIdx] = { ...updatedNodes[podIdx], data: { ...updatedNodes[podIdx].data, status: 'crashing' } };
+
+  setTimeout(() => {
+    const currentState = get();
+    const nodeToRecover = currentState.nodes.find(n => n.id === podToCrash.id);
+    if (nodeToRecover && nodeToRecover.data.status === 'crashing') {
+       currentState.deleteNodes([nodeToRecover]);
+       setTimeout(() => {
+          const latestState = get();
+          const parentDep = latestState.nodes.find(n => n.id === dep.id);
+          if (parentDep) {
+            const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, get);
+            const filteredNodes = latestState.nodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+            set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
           }
-        }, 3000);
-      }
+       }, 2000);
     }
+  }, 3000);
+
+  return true;
+};
+
+const handleHpaScaling = (dep: Node, cpuPercent: number, nodes: Node[], edges: Edge[], updatedNodes: Node[], get: () => FlowState) => {
+  const connectedHPA = nodes.find(n => n.type === 'HPA' && edges.some(e => e.source === n.id && e.target === dep.id));
+  if (!connectedHPA) return false;
+
+  const hpaData = connectedHPA.data as K8sNodeData;
+  const replicas = (dep.data as K8sNodeData).replicas || 1;
+  const targetCPU = hpaData.targetCPU || 50;
+  const cpuRatio = cpuPercent / targetCPU;
+
+  let desiredReplicas = replicas;
+  if (Math.abs(1 - cpuRatio) > 0.1) {
+    desiredReplicas = Math.max(hpaData.minReplicas || 1, Math.min(hpaData.maxReplicas || 10, Math.ceil(replicas * cpuRatio)));
   }
 
-  // 5. HPA Scaling
-  const connectedHPA = nodes.find(n =>
-    n.type === 'HPA' &&
-    edges.some(e => e.source === n.id && e.target === dep.id)
-  );
+  if (desiredReplicas < replicas && safeRandom() < 0.7) desiredReplicas = replicas;
 
-  if (connectedHPA) {
-    const hpaData = connectedHPA.data as K8sNodeData;
-    const targetCPU = hpaData.targetCPU || 50;
-    const minReplicas = hpaData.minReplicas || 1;
-    const maxReplicas = hpaData.maxReplicas || 10;
-
-    const cpuRatio = cpuPercent / targetCPU;
-    let desiredReplicas = replicas;
-
-    if (Math.abs(1 - cpuRatio) > 0.1) {
-      desiredReplicas = Math.ceil(replicas * cpuRatio);
-    }
-    desiredReplicas = Math.max(minReplicas, Math.min(maxReplicas, desiredReplicas));
-
-    if (desiredReplicas < replicas && safeRandom() < 0.7) {
-       desiredReplicas = replicas;
-    }
-
-    if (desiredReplicas !== replicas) {
-      const nodeIndex = updatedNodes.findIndex(n => n.id === dep.id);
-      if (nodeIndex !== -1) {
-        const { updatedDeployment, laidOut } = syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
-        const filteredNodes = updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-        updatedNodes.length = 0;
-        updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
-        hasChanges = true;
-      }
-    }
-
-    const hpaIndex = updatedNodes.findIndex(n => n.id === connectedHPA.id);
-    if (hpaIndex !== -1) {
-      updatedNodes[hpaIndex] = {
-        ...updatedNodes[hpaIndex],
-        data: { ...updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) }
-      };
+  let hasChanges = false;
+  if (desiredReplicas !== replicas) {
+    const nodeIndex = updatedNodes.findIndex(n => n.id === dep.id);
+    if (nodeIndex !== -1) {
+      const { updatedDeployment, laidOut } = syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
+      const filteredNodes = updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+      updatedNodes.length = 0;
+      updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
       hasChanges = true;
     }
   }
 
-  return { hasChanges };
+  const hpaIndex = updatedNodes.findIndex(n => n.id === connectedHPA.id);
+  if (hpaIndex !== -1) {
+    updatedNodes[hpaIndex] = { ...updatedNodes[hpaIndex], data: { ...updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) } };
+    hasChanges = true;
+  }
+  return hasChanges;
+};
+
+export const processWorkloadSimulation = (
+  dep: Node,
+  nodes: Node[],
+  edges: Edge[],
+  activeSimulationEdges: string[],
+  updatedNodes: Node[],
+  newMetrics: Record<string, SimulationMetricPoint[]>,
+  _ticks: number,
+  get: () => FlowState,
+  set: (state: Partial<FlowState>) => void
+): { hasChanges: boolean } => {
+  const pvcResult = checkPvcReadiness(dep, nodes, edges, updatedNodes);
+  if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges };
+
+  const trafficResult = calculateIncomingTraffic(dep, nodes, edges, activeSimulationEdges, updatedNodes);
+  const metricsResult = calculateResourceMetrics(dep, trafficResult.traffic, newMetrics);
+
+  const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, updatedNodes, get, set);
+  const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, nodes, edges, updatedNodes, get);
+
+  return { hasChanges: pvcResult.hasChanges || trafficResult.hasChanges || oomChanged || hpaChanged };
 };

@@ -40,7 +40,7 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
         }
       });
       return () => {
-        if (typeof off === 'function') off();
+        if (typeof off === 'function') (off as () => void)();
       };
     }
   }, []);
