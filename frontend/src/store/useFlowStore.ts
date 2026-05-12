@@ -7,10 +7,6 @@ import { createNodeSlice } from './slices/createNodeSlice';
 import { createUiSlice } from './slices/createUiSlice';
 import { createAlignmentSlice } from './slices/createAlignmentSlice';
 
-// Import Wails bindings (assuming they will be updated by wails dev)
-// @ts-ignore
-import * as App from '../wailsjs/go/main/App';
-
 const flowStore = createStore<FlowState>()(
   (...a) => ({
     clipboard: null,
@@ -41,9 +37,7 @@ setTimeout(() => {
     actionName: 'Initial State',
     timestamp: Date.now()
   });
-  // @ts-ignore
   if (window.go?.main?.App?.PushHistory) {
-    // @ts-ignore
     window.go.main.App.PushHistory(snapshot);
     console.log('[History] Initial state recorded to Go database');
   }
@@ -64,19 +58,15 @@ flowStore.subscribe((state, prevState) => {
     console.log(`[History] Recording event: ${state.lastActionName} (${state.lastActionId})`);
     
     // Push to Go Backend "Database"
-    // @ts-ignore
     if (window.go?.main?.App?.PushHistory) {
-      // @ts-ignore
       window.go.main.App.PushHistory(snapshot);
     }
 
     // Autosave logic
     if (state.isAutosaveEnabled && state.currentProject && state.currentProject.id !== -1) {
       const content = JSON.stringify({ nodes: state.nodes, edges: state.edges });
-      // @ts-ignore
       if (window.go?.main?.App?.UpdateProject) {
         console.log(`[Autosave] Saving project ${state.currentProject.name}...`);
-        // @ts-ignore
         window.go.main.App.UpdateProject(state.currentProject.id, content).then((success) => {
           if (success) {
             flowStore.setState({ lastSavedSnapshot: content });

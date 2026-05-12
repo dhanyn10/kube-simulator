@@ -1,9 +1,19 @@
 import { Node, Edge } from '@xyflow/react';
 import { K8sNodeData } from '../types';
-import { SimulationMetricPoint } from '../store/types';
+import { SimulationMetricPoint, FlowState } from '../store/types';
 import { parseCPU, parseMemory } from './utils';
 import { syncDeployment } from '../store/nodeHelpers';
-import { FlowState } from '../store/types';
+
+export interface SimulationContext {
+  nodes: Node[];
+  edges: Edge[];
+  activeSimulationEdges: string[];
+  updatedNodes: Node[];
+  newMetrics: Record<string, SimulationMetricPoint[]>;
+  ticks: number;
+  get: () => FlowState;
+  set: (state: Partial<FlowState>) => void;
+}
 
 export const safeRandom = () => {
   const array = new Uint32Array(1);
@@ -29,15 +39,13 @@ export const calculateReachability = (startNodes: Node[], edges: Edge[], activeS
   return reachableNodes;
 };
 
-const checkPvcReadiness = (dep: Node, nodes: Node[], edges: Edge[], updatedNodes: Node[]) => {
+const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
   let hasChanges = false;
-  const childPods = dep.type === 'Pod' ? [dep] : nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-  const podIds = childPods.map(p => p.id);
-  const workloadIds = [dep.id, ...podIds];
+  const childPods = dep.type === 'Pod' ? [dep] : ctx.nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  const workloadIds = [dep.id, ...childPods.map(p => p.id)];
 
-  const connectedPVCs = nodes.filter(n =>
-    n.type === 'PVC' &&
-    edges.some(e => e.target === n.id && workloadIds.includes(String(e.source)))
+  const connectedPVCs = ctx.nodes.filter(n =>
+    n.type === 'PVC' && ctx.edges.some(e => e.target === n.id && workloadIds.includes(String(e.source)))
   );
 
   const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
@@ -45,35 +53,33 @@ const checkPvcReadiness = (dep: Node, nodes: Node[], edges: Edge[], updatedNodes
   if (connectedPVCs.length > 0 && hasUnboundPVC) {
     connectedPVCs.forEach(pvc => {
       if (pvc.data.pvcStatus !== 'Bound' && safeRandom() > 0.7) {
-        const pvcIdx = updatedNodes.findIndex(un => un.id === pvc.id);
+        const pvcIdx = ctx.updatedNodes.findIndex(un => un.id === pvc.id);
         if (pvcIdx !== -1) {
-          updatedNodes[pvcIdx] = { ...updatedNodes[pvcIdx], data: { ...updatedNodes[pvcIdx].data, pvcStatus: 'Bound' } };
+          ctx.updatedNodes[pvcIdx] = { ...ctx.updatedNodes[pvcIdx], data: { ...ctx.updatedNodes[pvcIdx].data, pvcStatus: 'Bound' } };
           hasChanges = true;
         }
       }
     });
 
-    const currentChildPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+    const currentChildPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
     currentChildPods.forEach(pod => {
       if (pod.data.status === 'ready') {
-        const pIdx = updatedNodes.findIndex(un => un.id === pod.id);
+        const pIdx = ctx.updatedNodes.findIndex(un => un.id === pod.id);
         if (pIdx !== -1) {
-          updatedNodes[pIdx] = { ...updatedNodes[pIdx], data: { ...updatedNodes[pIdx].data, status: 'pending' } };
+          ctx.updatedNodes[pIdx] = { ...ctx.updatedNodes[pIdx], data: { ...ctx.updatedNodes[pIdx].data, status: 'pending' } };
           hasChanges = true;
         }
       }
     });
     return { hasChanges, isBlocked: true };
   } else if (connectedPVCs.length > 0 && !hasUnboundPVC) {
-    const currentChildPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+    const currentChildPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
     currentChildPods.forEach(pod => {
       const pData = pod.data as K8sNodeData;
-      const isPending = pData.status === 'pending';
-      const hasConfig = (pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none');
-      if (isPending && hasConfig) {
-        const pIdx = updatedNodes.findIndex(un => un.id === pod.id);
+      if (pData.status === 'pending' && (pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none')) {
+        const pIdx = ctx.updatedNodes.findIndex(un => un.id === pod.id);
         if (pIdx !== -1) {
-          updatedNodes[pIdx] = { ...updatedNodes[pIdx], data: { ...updatedNodes[pIdx].data, status: 'ready' } };
+          ctx.updatedNodes[pIdx] = { ...ctx.updatedNodes[pIdx], data: { ...ctx.updatedNodes[pIdx].data, status: 'ready' } };
           hasChanges = true;
         }
       }
@@ -83,9 +89,9 @@ const checkPvcReadiness = (dep: Node, nodes: Node[], edges: Edge[], updatedNodes
   return { hasChanges, isBlocked: false };
 };
 
-const calculateIncomingTraffic = (dep: Node, nodes: Node[], edges: Edge[], activeSimulationEdges: string[], updatedNodes: Node[]) => {
+const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
   let hasChanges = false;
-  const traffic = nodes
+  const traffic = ctx.nodes
     .filter(n => n.type === 'Internet')
     .reduce((total, internet) => {
       const iData = internet.data as K8sNodeData;
@@ -100,15 +106,15 @@ const calculateIncomingTraffic = (dep: Node, nodes: Node[], edges: Edge[], activ
       }
 
       if (nextTraffic !== currentTraffic) {
-          const idx = updatedNodes.findIndex(un => un.id === internet.id);
+          const idx = ctx.updatedNodes.findIndex(un => un.id === internet.id);
           if (idx !== -1) {
-              updatedNodes[idx] = { ...updatedNodes[idx], data: { ...updatedNodes[idx].data, currentTraffic: nextTraffic } };
+              ctx.updatedNodes[idx] = { ...ctx.updatedNodes[idx], data: { ...ctx.updatedNodes[idx].data, currentTraffic: nextTraffic } };
               hasChanges = true;
           }
       }
 
-      const reachableNodes = calculateReachability([internet], edges, activeSimulationEdges);
-      const canReach = reachableNodes.has(dep.id) || nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
+      const reachableNodes = calculateReachability([internet], ctx.edges, ctx.activeSimulationEdges);
+      const canReach = reachableNodes.has(dep.id) || ctx.nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
 
       return total + (canReach ? nextTraffic : 0);
     }, 0);
@@ -116,7 +122,7 @@ const calculateIncomingTraffic = (dep: Node, nodes: Node[], edges: Edge[], activ
   return { traffic, hasChanges };
 };
 
-const calculateResourceMetrics = (dep: Node, incomingTraffic: number, newMetrics: Record<string, SimulationMetricPoint[]>) => {
+const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
   const dData = dep.data as K8sNodeData;
   const replicas = (dData.replicas as number) || 1;
   const cpuLimitMilli = parseCPU(dData.cpuLimit);
@@ -135,8 +141,8 @@ const calculateResourceMetrics = (dep: Node, incomingTraffic: number, newMetrics
   const cpuPercent = (cpuValue / cpuLimitMilli) * 100;
   const memoryPercent = (memValue / memLimitMiB) * 100;
 
-  const existing = newMetrics[dep.id] || [];
-  newMetrics[dep.id] = [...existing, {
+  const existing = ctx.newMetrics[dep.id] || [];
+  ctx.newMetrics[dep.id] = [...existing, {
     cpuPercent, memoryPercent, cpuValue, memoryValue: memValue,
     cpuLimit: cpuLimitMilli, memoryLimit: memLimitMiB, isThrottled, isOOM
   }].slice(-30);
@@ -144,31 +150,31 @@ const calculateResourceMetrics = (dep: Node, incomingTraffic: number, newMetrics
   return { cpuPercent, isOOM };
 };
 
-const handleOomCrashes = (dep: Node, isOOM: boolean, updatedNodes: Node[], get: () => FlowState, set: (state: Partial<FlowState>) => void) => {
+const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
   if (!isOOM || safeRandom() <= 0.5) return false;
 
-  const currentChildPods = dep.type === 'Pod' ? [dep] : updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  const currentChildPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
   if (currentChildPods.length === 0) return false;
 
   const podToCrash = currentChildPods[Math.floor(safeRandom() * currentChildPods.length)];
-  const podIdx = updatedNodes.findIndex(n => n.id === podToCrash.id);
+  const podIdx = ctx.updatedNodes.findIndex(n => n.id === podToCrash.id);
 
-  if (podIdx === -1 || updatedNodes[podIdx].data.status === 'crashing') return false;
+  if (podIdx === -1 || ctx.updatedNodes[podIdx].data.status === 'crashing') return false;
 
-  updatedNodes[podIdx] = { ...updatedNodes[podIdx], data: { ...updatedNodes[podIdx].data, status: 'crashing' } };
+  ctx.updatedNodes[podIdx] = { ...ctx.updatedNodes[podIdx], data: { ...ctx.updatedNodes[podIdx].data, status: 'crashing' } };
 
   setTimeout(() => {
-    const currentState = get();
+    const currentState = ctx.get();
     const nodeToRecover = currentState.nodes.find(n => n.id === podToCrash.id);
     if (nodeToRecover && nodeToRecover.data.status === 'crashing') {
        currentState.deleteNodes([nodeToRecover]);
        setTimeout(() => {
-          const latestState = get();
+          const latestState = ctx.get();
           const parentDep = latestState.nodes.find(n => n.id === dep.id);
           if (parentDep) {
-            const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, get);
+            const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, ctx.get);
             const filteredNodes = latestState.nodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-            set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
+            ctx.set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
           }
        }, 2000);
     }
@@ -177,8 +183,8 @@ const handleOomCrashes = (dep: Node, isOOM: boolean, updatedNodes: Node[], get: 
   return true;
 };
 
-const handleHpaScaling = (dep: Node, cpuPercent: number, nodes: Node[], edges: Edge[], updatedNodes: Node[], get: () => FlowState) => {
-  const connectedHPA = nodes.find(n => n.type === 'HPA' && edges.some(e => e.source === n.id && e.target === dep.id));
+const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext) => {
+  const connectedHPA = ctx.nodes.find(n => n.type === 'HPA' && ctx.edges.some(e => e.source === n.id && e.target === dep.id));
   if (!connectedHPA) return false;
 
   const hpaData = connectedHPA.data as K8sNodeData;
@@ -195,43 +201,33 @@ const handleHpaScaling = (dep: Node, cpuPercent: number, nodes: Node[], edges: E
 
   let hasChanges = false;
   if (desiredReplicas !== replicas) {
-    const nodeIndex = updatedNodes.findIndex(n => n.id === dep.id);
+    const nodeIndex = ctx.updatedNodes.findIndex(n => n.id === dep.id);
     if (nodeIndex !== -1) {
-      const { updatedDeployment, laidOut } = syncDeployment(updatedNodes[nodeIndex], updatedNodes, desiredReplicas - replicas, get);
-      const filteredNodes = updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-      updatedNodes.length = 0;
-      updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
+      const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, desiredReplicas - replicas, ctx.get);
+      const filteredNodes = ctx.updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+      ctx.updatedNodes.length = 0;
+      ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
       hasChanges = true;
     }
   }
 
-  const hpaIndex = updatedNodes.findIndex(n => n.id === connectedHPA.id);
+  const hpaIndex = ctx.updatedNodes.findIndex(n => n.id === connectedHPA.id);
   if (hpaIndex !== -1) {
-    updatedNodes[hpaIndex] = { ...updatedNodes[hpaIndex], data: { ...updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) } };
+    ctx.updatedNodes[hpaIndex] = { ...ctx.updatedNodes[hpaIndex], data: { ...ctx.updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) } };
     hasChanges = true;
   }
   return hasChanges;
 };
 
-export const processWorkloadSimulation = (
-  dep: Node,
-  nodes: Node[],
-  edges: Edge[],
-  activeSimulationEdges: string[],
-  updatedNodes: Node[],
-  ticks: number,
-  get: () => FlowState,
-  set: (state: Partial<FlowState>) => void,
-  newMetrics: Record<string, SimulationMetricPoint[]>
-): { hasChanges: boolean } => {
-  const pvcResult = checkPvcReadiness(dep, nodes, edges, updatedNodes);
+export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
+  const pvcResult = checkPvcReadiness(dep, ctx);
   if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges };
 
-  const trafficResult = calculateIncomingTraffic(dep, nodes, edges, activeSimulationEdges, updatedNodes);
-  const metricsResult = calculateResourceMetrics(dep, trafficResult.traffic, newMetrics);
+  const trafficResult = calculateIncomingTraffic(dep, ctx);
+  const metricsResult = calculateResourceMetrics(dep, trafficResult.traffic, ctx);
 
-  const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, updatedNodes, get, set);
-  const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, nodes, edges, updatedNodes, get);
+  const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, ctx);
+  const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx);
 
   return { hasChanges: pvcResult.hasChanges || trafficResult.hasChanges || oomChanged || hpaChanged };
 };

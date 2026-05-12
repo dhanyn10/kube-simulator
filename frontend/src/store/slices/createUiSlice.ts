@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sResourceType, K8sNodeData } from '../../types';
-import { processWorkloadSimulation, calculateReachability } from '../../lib/simulation';
+import { processWorkloadSimulation, calculateReachability, SimulationContext } from '../../lib/simulation';
 import { Node, Edge } from '@xyflow/react';
 
 export interface UiSlice {
@@ -43,13 +43,14 @@ const broadcastMetrics = (metrics: Record<string, SimulationMetricPoint[]>, work
   if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));
 };
 
-const checkEmergencyStop = (
+const checkEmergencyStop = (params: {
   ticks: number,
   workloads: Node[],
   nodes: Node[],
   metrics: Record<string, SimulationMetricPoint[]>,
   set: (state: Partial<FlowState>) => void
-) => {
+}) => {
+  const { ticks, workloads, nodes, metrics, set } = params;
   const activeWorkloads = workloads.filter(w => (metrics[w.id]?.slice(-1)[0]?.cpuValue || 0) > 0);
   if (ticks <= 3 || activeWorkloads.length === 0) return false;
 
@@ -69,28 +70,74 @@ const checkEmergencyStop = (
   return false;
 };
 
-const runSimulationTick = (
+const runSimulationTick = (params: {
   state: FlowState,
   ticks: number,
   set: (state: Partial<FlowState>) => void,
   get: () => FlowState
-) => {
+}) => {
+  const { state, ticks, set, get } = params;
   const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
   const newMetrics = { ...currentMetrics };
   const updatedNodes = [...currentNodes];
   let hasOverallChanges = false;
 
   const workloads = currentNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
+
+  const ctx: SimulationContext = {
+    nodes: currentNodes,
+    edges: currentEdges,
+    activeSimulationEdges: state.activeSimulationEdges,
+    updatedNodes,
+    newMetrics,
+    ticks,
+    get,
+    set
+  };
+
   workloads.forEach(dep => {
-    const { hasChanges } = processWorkloadSimulation(dep, currentNodes, currentEdges, state.activeSimulationEdges, updatedNodes, ticks, get, set, newMetrics);
+    const { hasChanges } = processWorkloadSimulation(dep, ctx);
     if (hasChanges) hasOverallChanges = true;
   });
 
   set({ simulationMetrics: newMetrics, ...(hasOverallChanges ? { nodes: updatedNodes } : {}) });
 
-  if (!checkEmergencyStop(ticks, workloads, updatedNodes, newMetrics, set)) {
+  const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set };
+  if (!checkEmergencyStop(stopParams)) {
     broadcastMetrics(newMetrics, updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId)));
   }
+};
+
+const startSimulation = (
+    internetNodeIds: string[] | undefined,
+    set: (state: Partial<FlowState>) => void,
+    get: () => FlowState
+  ) => {
+      const { nodes, edges, colorMode, simulationMetrics } = get();
+
+      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
+      broadcastMetrics(simulationMetrics, workloads);
+      metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode });
+
+      const startNodes = internetNodeIds ? nodes.filter(n => internetNodeIds.includes(n.id)) : nodes.filter(n => n.type === 'Internet');
+      if (startNodes.length === 0) return;
+
+      const reachableNodes = calculateReachability(startNodes, edges, edges.map(e => String(e.id)));
+      const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
+
+      set({ isSimulating: true, activeSimulationEdges: activeEdges, simulationMetrics: {} });
+
+      let ticks = 0;
+      if (simulationInterval) clearInterval(simulationInterval);
+      simulationInterval = setInterval(() => {
+        ticks++;
+        const state = get();
+        if (!state.isSimulating) {
+          if (simulationInterval) { clearInterval(simulationInterval); simulationInterval = null; }
+          return;
+        }
+        runSimulationTick({ state, ticks, set, get });
+      }, 1000);
 };
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
@@ -113,36 +160,10 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setMonitoringOpen: (open) => set({ isMonitoringOpen: open }),
   setMonitoringDetached: (detached) => set({ isMonitoringDetached: detached }),
   setSimulation: (active, internetNodeIds) => {
-    if (active) {
-      const workloads = get().nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
-      broadcastMetrics(get().simulationMetrics, workloads);
-      metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode: get().colorMode });
-    }
-
     if (!active) {
       stopSimulation(set, get);
-      return;
+    } else {
+      startSimulation(internetNodeIds, set, get);
     }
-
-    const { nodes, edges } = get();
-    const startNodes = internetNodeIds ? nodes.filter(n => internetNodeIds.includes(n.id)) : nodes.filter(n => n.type === 'Internet');
-    if (startNodes.length === 0) return;
-
-    const reachableNodes = calculateReachability(startNodes, edges, edges.map(e => String(e.id)));
-    const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
-
-    set({ isSimulating: true, activeSimulationEdges: activeEdges, simulationMetrics: {} });
-
-    let ticks = 0;
-    if (simulationInterval) clearInterval(simulationInterval);
-    simulationInterval = setInterval(() => {
-      ticks++;
-      const state = get();
-      if (!state.isSimulating) {
-        if (simulationInterval) { clearInterval(simulationInterval); simulationInterval = null; }
-        return;
-      }
-      runSimulationTick(state, ticks, set, get);
-    }, 1000);
   },
 });
