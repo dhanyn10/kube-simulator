@@ -49,7 +49,7 @@ test.describe('Traffic Simulation', () => {
     await page.getByRole('button', { name: 'Play' }).click();
 
     // 5. Check Dashboard
-    await page.getByRole('button', { name: 'Monitoring' }).click();
+    await page.getByText('View', { exact: true }).click();
     await page.getByText('Open Dashboard').click();
     await expect(page.getByText('System Monitoring')).toBeVisible();
     await expect(page.getByText('deployment', { exact: false }).last()).toBeVisible({ timeout: 10000 });
