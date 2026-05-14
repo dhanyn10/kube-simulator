@@ -292,9 +292,6 @@ export default function App() {
                 <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-slate-200 border border-slate-300 text-slate-700')}>
                   objects: {nodes.length}
                 </span>
-                <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700 text-emerald-400' : 'bg-slate-200 border border-slate-300 text-emerald-600')}>
-                  status: valid
-                </span>
                 <button 
                   onClick={() => toggleWidget('object-stats')}
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
