@@ -119,7 +119,7 @@ export const MenuBar = ({
     {
       label: 'Help',
       items: [
-        { label: 'About', icon: Info, onClick: () => alert('InfraStack Architect v1.0.0') },
+        { label: 'About', icon: Info, onClick: () => alert('Kube Simulator v1.0.0') },
         { label: 'Report Issue', icon: Bug, onClick: () => window.open('https://github.com', '_blank') },
       ]
     }
@@ -251,7 +251,7 @@ export const MenuBar = ({
           "text-[11px] font-bold uppercase tracking-[0.3em]",
           colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
         )}>
-          InfraStack Architect
+          Kube Simulator
         </h1>
       </div>
 

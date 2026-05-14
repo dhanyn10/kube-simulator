@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('ConfigMap and Secret', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForSelector('text=InfraStack Architect');
+    await page.waitForSelector('text=Kube Simulator');
   });
 
   test('can add and configure ConfigMap', async ({ page }) => {
