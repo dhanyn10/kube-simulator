@@ -6,7 +6,7 @@ import { cn } from '../lib/utils';
 import { hydrateNodes } from '../store/nodeHelpers';
 
 // @ts-ignore
-import * as App from '../../wailsjs/go/main/App';
+import * as App from '@wailsjs/go/main/App';
 
 interface Project {
   id: number;

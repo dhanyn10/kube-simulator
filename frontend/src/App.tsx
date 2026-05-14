@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { GetSystemResources } from '../wailsjs/go/main/App';
+import { GetSystemResources } from '@wailsjs/go/main/App';
 import {
   ReactFlow,
   Background,
