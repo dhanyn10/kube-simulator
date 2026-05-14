@@ -86,27 +86,12 @@ export const MenuBar = ({
       ]
     },
     {
-      label: 'Monitoring',
+      label: 'View',
       items: [
         {
           label: isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard'),
           icon: isMonitoringDetached ? ExternalLink : Activity,
           onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
-        },
-      ]
-    },
-    {
-      label: 'View',
-      items: [
-        { 
-          label: 'Arrange (L → R)', 
-          icon: Play, 
-          onClick: () => useFlowStore.getState().autoLayout('LR') 
-        },
-        { 
-          label: 'Arrange (T → B)', 
-          icon: ChevronDown, 
-          onClick: () => useFlowStore.getState().autoLayout('TB') 
         },
         { type: 'separator' },
         { 

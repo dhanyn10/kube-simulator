@@ -186,7 +186,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isMonitoringOpen: false,
   isMonitoringDetached: false,
   systemResources: null,
-  visibleWidgets: ['hardware-budget', 'object-stats', 'inspector-btn', 'target-indicator'],
+  visibleWidgets: ['object-stats', 'inspector-btn', 'target-indicator'],
   isCanvasConfigOpen: false,
   toggleColorMode: () => {
     const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
