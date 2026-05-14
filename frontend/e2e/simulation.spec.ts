@@ -73,8 +73,8 @@ test.describe('Traffic Simulation', () => {
 
       if (internet && deployment && hpa) {
         // Set low CPU limit and target
-        state.updateNodeData(deployment.id, { webserver: 'nginx', cpuLimit: '100m' });
-        state.updateNodeData(hpa.id, { targetCPU: 10, maxReplicas: 5 });
+        state.updateNodeData(deployment.id, { webserver: 'nginx', cpuLimit: '100m', memoryLimit: '128Mi' });
+        state.updateNodeData(hpa.id, { targetCPU: 10, minReplicas: 1, maxReplicas: 5 });
 
         // Connect
         state.onConnect({ source: internet.id, target: deployment.id, sourceHandle: 'right-s', targetHandle: 'left-t' });
