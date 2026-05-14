@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Persistence & Projects', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://127.0.0.1:3000');
+    await page.goto('/');
+    await expect(page.getByTestId('app-title')).toBeVisible({ timeout: 15000 });
   });
 
   test('Save and Load Project', async ({ page }) => {

@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { GetSystemResources } from '@wailsjs/go/main/App';
+import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import {
   ReactFlow,
   Background,
@@ -103,11 +103,14 @@ export default function App() {
   useEffect(() => {
     if (!isDetachedMode) {
       const fetchResources = () => {
-        GetSystemResources().then((resources: any) => {
-          setSystemResources(resources);
-        }).catch(err => {
-          console.error('[App] Failed to fetch system resources:', err);
-        });
+        // Safety check for Wails binding
+        if (typeof GetSystemResources === 'function') {
+          GetSystemResources().then((resources: any) => {
+            setSystemResources(resources);
+          }).catch(err => {
+            console.error('[App] Failed to fetch system resources:', err);
+          });
+        }
       };
 
       fetchResources();

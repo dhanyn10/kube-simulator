@@ -7,3 +7,4 @@ coverage/
 .env*
 !.env.example
 package.json.md5
+test-results/

@@ -247,10 +247,13 @@ export const MenuBar = ({
       </div>
 
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <h1 className={cn(
-          "text-[11px] font-bold uppercase tracking-[0.3em]",
-          colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
-        )}>
+        <h1 
+          data-testid="app-title"
+          className={cn(
+            "text-[11px] font-bold uppercase tracking-[0.3em]",
+            colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
+          )}
+        >
           Kube Simulator
         </h1>
       </div>

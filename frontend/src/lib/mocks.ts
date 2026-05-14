@@ -56,7 +56,18 @@ export const initWailsMocks = () => {
                 Undo: async () => null,
                 Redo: async () => null,
                 ExportProjectFile: async () => true,
-                ImportProjectFile: async () => ""
+                ImportProjectFile: async () => "",
+                GetSystemResources: async () => ({
+                    cpuCores: 8,
+                    cpuUsage: 25,
+                    totalMemoryGB: 16,
+                    freeMemoryGB: 12
+                }),
+                MinimizeWindow: async () => console.log('Minimize Window'),
+                MaximizeWindow: async () => console.log('Maximize Window'),
+                CloseWindow: async () => console.log('Close Window'),
+                GetSetting: async () => "",
+                SaveSetting: async () => true
             }
         }
     };

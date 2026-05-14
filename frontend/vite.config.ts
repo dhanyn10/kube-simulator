@@ -9,8 +9,8 @@ export default defineConfig(({mode}) => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
-        '@wailsjs': path.resolve(__dirname, 'wailsjs'),
+        '@': path.resolve(__dirname, './src'),
+        '@wailsjs': path.resolve(__dirname, './wailsjs'),
       },
     },
     server: {
