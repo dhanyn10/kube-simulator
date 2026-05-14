@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
 import { Layers, Activity, Minus, Plus, Eye, EyeOff } from 'lucide-react';
+import { K8sNodeData } from '../types';
 
 interface HPAConfigProps {
   selectedNode: any;
@@ -11,10 +12,62 @@ interface HPAConfigProps {
 
 export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility }: HPAConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
   const data = selectedNode.data;
+
+  // Find connected deployment
+  const connectedEdge = edges.find(e => e.source === selectedNode.id);
+  const targetNode = connectedEdge ? nodes.find(n => n.id === connectedEdge.target) : null;
+  const targetDeployment = targetNode?.type === 'Deployment' ? targetNode : null;
+
+  const hasRequests = targetDeployment
+    ? (targetDeployment.data as K8sNodeData).cpuRequest && (targetDeployment.data as K8sNodeData).memoryRequest
+    : false;
 
   return (
     <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+      {/* Validation Status */}
+      <div className={cn(
+        "p-2 rounded border mb-2 flex items-center gap-2",
+        !connectedEdge 
+          ? "bg-slate-500/10 border-slate-500/30 text-slate-500" 
+          : hasRequests 
+            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+            : "bg-amber-500/10 border-amber-500/30 text-amber-500"
+      )}>
+        <div className={cn(
+          "w-2 h-2 rounded-full animate-pulse",
+          !connectedEdge ? "bg-slate-500" : hasRequests ? "bg-emerald-500" : "bg-amber-500"
+        )} />
+        <span className="text-[10px] font-bold">
+          {!connectedEdge 
+            ? "NOT CONNECTED" 
+            : hasRequests 
+              ? `LINKED TO ${(targetDeployment?.data as K8sNodeData).label.toUpperCase()}` 
+              : "MISSING RESOURCE REQUESTS"}
+        </span>
+      </div>
+
+      {!hasRequests && connectedEdge && (
+        <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-tight mb-2">
+          HPA requires CPU/Memory requests on the target Deployment to function in real-world clusters.
+          <button 
+            onClick={() => {
+              if (targetDeployment) {
+                useFlowStore.getState().updateNodeData(targetDeployment.id, {
+                  cpuRequest: '100m',
+                  memoryRequest: '128Mi'
+                });
+              }
+            }}
+            className="block mt-1 underline font-bold hover:text-amber-400"
+          >
+            Fix automatically
+          </button>
+        </div>
+      )}
+
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">

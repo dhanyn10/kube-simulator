@@ -36,8 +36,10 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     // If enabling a feature that is currently empty, set default values
     if (nextVisibility) {
       if (field === 'resources' && !data.cpuLimit && !data.memoryLimit) {
-        additionalUpdates.cpuLimit = '100m';
-        additionalUpdates.memoryLimit = '128Mi';
+        additionalUpdates.cpuRequest = '100m';
+        additionalUpdates.cpuLimit = '250m';
+        additionalUpdates.memoryRequest = '128Mi';
+        additionalUpdates.memoryLimit = '256Mi';
       }
       if (field === 'webserver' && (!data.webserver || data.webserver === 'none')) {
         additionalUpdates.webserver = 'nginx';

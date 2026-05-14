@@ -8,9 +8,21 @@ import { cn } from '../../lib/utils';
 
 export const HPANode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
   const hasDeployment = nodes.some((n: any) => n.type === 'Deployment');
+  
+  // Find connected deployment
+  const connectedEdge = edges.find(e => e.source === props.id);
+  const targetNode = connectedEdge ? nodes.find(n => n.id === connectedEdge.target) : null;
+  const targetDeployment = targetNode?.type === 'Deployment' ? targetNode : null;
+  
+  const hasRequests = targetDeployment 
+    ? (targetDeployment.data as K8sNodeData).cpuRequest && (targetDeployment.data as K8sNodeData).memoryRequest
+    : false;
+
+  const showWarning = connectedEdge && !hasRequests;
 
   const isValidConnection = useCallback((connection: any) => {
     const targetNode = nodes.find((n: any) => n.id === connection.target);
@@ -19,6 +31,14 @@ export const HPANode = memo((props: NodeProps) => {
 
   return (
     <BaseNode {...props} data={data} title="HPA" icon={Activity} color="fuchsia" id={props.id} type={props.type}>
+      {showWarning && (
+        <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[100]">
+          <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs">⚠️</span> Missing Resource Requests on Target
+          </div>
+        </div>
+      )}
+      
       {data.displaySettings?.replicas !== false && (
         <div className="space-y-1 mt-1">
           <div className="flex justify-between items-center text-[9px] font-mono">

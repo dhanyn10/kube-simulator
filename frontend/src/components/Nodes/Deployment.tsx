@@ -10,6 +10,13 @@ import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const edges = useFlowStore((state) => state.edges);
+  const nodes = useFlowStore((state) => state.nodes);
+
+  // Check if targeted by HPA
+  const isTargetedByHPA = edges.some(e => e.target === props.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
+  const hasRequests = data.cpuRequest && data.memoryRequest;
+  const showHPAWarning = isTargetedByHPA && !hasRequests;
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(props.id, data.label, data.onRename);
@@ -99,8 +106,24 @@ export const DeploymentNode = memo((props: NodeProps) => {
         </button>
       </div>
 
+      {showHPAWarning && (
+        <div className="absolute -top-10 left-0 right-0 animate-pulse flex justify-center z-[100]">
+          <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1">
+            <span className="text-xs">⚠️</span> HPA ACTIVE: REQUESTS REQUIRED
+          </div>
+        </div>
+      )}
+
       <div className={cn(
-        "pointer-events-none mt-auto text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2",
+        "pointer-events-none mt-auto text-[9px] font-mono flex flex-col gap-0.5 opacity-60",
+        colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
+      )}>
+        {data.cpuRequest && <div>cpu: {data.cpuRequest}</div>}
+        {data.memoryRequest && <div>mem: {data.memoryRequest}</div>}
+      </div>
+
+      <div className={cn(
+        "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2 mt-2",
         colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
       )}>
         Workload Zone

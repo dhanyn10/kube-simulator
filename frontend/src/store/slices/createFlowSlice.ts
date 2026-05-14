@@ -11,6 +11,7 @@ import {
   addEdge,
 } from '@xyflow/react';
 import { FlowState } from '../types';
+import { K8sNodeData } from '../../types';
 
 export interface FlowSlice {
   nodes: Node[];
@@ -124,6 +125,21 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     }));
   },
   onConnect: (connection: Connection) => {
+    const { nodes, edges, updateNodeData } = get();
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+
+    // If HPA is connected to Deployment, ensure target has resource requests
+    if (sourceNode?.type === 'HPA' && targetNode?.type === 'Deployment') {
+      const data = targetNode.data as K8sNodeData;
+      if (!data.cpuRequest || !data.memoryRequest) {
+        updateNodeData(targetNode.id, {
+          cpuRequest: data.cpuRequest || '100m',
+          memoryRequest: data.memoryRequest || '128Mi'
+        });
+      }
+    }
+
     set((state) => ({
       edges: addEdge({ ...connection, type: 'custom' }, state.edges),
     }));
