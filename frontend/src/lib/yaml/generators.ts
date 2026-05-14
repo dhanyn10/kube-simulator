@@ -61,7 +61,15 @@ const getEnvFromConnections = (targetIds: string | string[], nodes: any[], edges
   return env;
 };
 
-export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = []) => {
+export const generateNamespaceYaml = (data: K8sNodeData, name: string) => {
+  return {
+    apiVersion: 'v1',
+    kind: 'Namespace',
+    metadata: { name }
+  };
+};
+
+export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = [], namespace?: string) => {
   const { volumes, volumeMounts } = getVolumeConfig(data.id || '', nodes, edges);
   const env = getEnvFromConnections(data.id || '', nodes, edges);
 
@@ -70,7 +78,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
     return {
       apiVersion: 'apps/v1',
       kind: 'Deployment',
-      metadata: { name },
+      metadata: { name, namespace },
       spec: {
         replicas: data.replicas,
         selector: { matchLabels: { app: name } },
@@ -94,7 +102,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
   return {
     apiVersion: 'v1',
     kind: 'Pod',
-    metadata: { name },
+    metadata: { name, namespace },
     spec: {
       containers: [{
         name: 'main',
@@ -114,7 +122,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
   };
 };
 
-export const generateConfigMapYaml = (data: K8sNodeData, name: string) => {
+export const generateConfigMapYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   const configData: Record<string, string> = {};
   (data.configData || []).forEach(item => {
     if (item.key) configData[item.key] = item.value;
@@ -123,12 +131,12 @@ export const generateConfigMapYaml = (data: K8sNodeData, name: string) => {
   return {
     apiVersion: 'v1',
     kind: 'ConfigMap',
-    metadata: { name },
+    metadata: { name, namespace },
     data: configData
   };
 };
 
-export const generateSecretYaml = (data: K8sNodeData, name: string) => {
+export const generateSecretYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   const secretData: Record<string, string> = {};
   (data.configData || []).forEach(item => {
     // In a real case, these would be base64 encoded.
@@ -140,17 +148,17 @@ export const generateSecretYaml = (data: K8sNodeData, name: string) => {
   return {
     apiVersion: 'v1',
     kind: 'Secret',
-    metadata: { name },
+    metadata: { name, namespace },
     type: 'Opaque',
     stringData: secretData
   };
 };
 
-export const generatePVCYaml = (data: K8sNodeData, name: string) => {
+export const generatePVCYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   return {
     apiVersion: 'v1',
     kind: 'PersistentVolumeClaim',
-    metadata: { name },
+    metadata: { name, namespace },
     spec: {
       accessModes: [data.accessMode || 'ReadWriteOnce'],
       storageClassName: data.storageClass || 'standard',
@@ -163,7 +171,7 @@ export const generatePVCYaml = (data: K8sNodeData, name: string) => {
   };
 };
 
-export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[] = []) => {
+export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[] = [], namespace?: string) => {
   const childPods = nodes.filter(n => n.parentId === data.id && n.type === 'Pod');
   const mainPod = childPods[0];
   const podData = mainPod ? mainPod.data : data;
@@ -179,7 +187,7 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   return {
     apiVersion: 'apps/v1',
     kind: 'Deployment',
-    metadata: { name },
+    metadata: { name, namespace },
     spec: {
       replicas: data.replicas || 1,
       selector: { matchLabels: { app: name } },
@@ -206,19 +214,24 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   };
 };
 
-export const generateServiceYaml = (data: K8sNodeData, name: string) => {
+export const generateServiceYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = [], namespace?: string) => {
+  // Try to find a workload connected to this service to get the correct selector
+  const outgoingEdges = edges.filter(e => e.source === data.id);
+  const targetWorkload = nodes.find(n => (n.type === 'Deployment' || n.type === 'Pod') && outgoingEdges.some(e => e.target === n.id));
+  const selectorLabel = targetWorkload ? targetWorkload.data.label.toLowerCase().replace(/\s+/g, '-') : (data.selector || 'app-label');
+
   return {
     apiVersion: 'v1',
     kind: 'Service',
-    metadata: { name },
+    metadata: { name, namespace },
     spec: {
-      selector: { app: data.selector || 'app-label' },
+      selector: { app: selectorLabel },
       ports: [{ protocol: 'TCP', port: data.port || 80, targetPort: data.targetPort || 80 }]
     }
   };
 };
 
-export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[]) => {
+export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[], namespace?: string) => {
   const outgoingEdges = edges.filter(e => e.source === data.id);
   const targetService = nodes.find(n => n.type === 'Service' && outgoingEdges.some(e => e.target === n.id));
   const serviceName = targetService ? targetService.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-service';
@@ -226,7 +239,7 @@ export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[
   return {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'Ingress',
-    metadata: { name },
+    metadata: { name, namespace },
     spec: {
       rules: [{
         host: data.ingressHost || 'example.local',
@@ -247,7 +260,7 @@ export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[
   };
 };
 
-export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[]) => {
+export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[], namespace?: string) => {
   const outgoingEdges = edges.filter(e => e.source === data.id);
   const targetDeployment = nodes.find(n => n.type === 'Deployment' && outgoingEdges.some(e => e.target === n.id));
   const deploymentName = targetDeployment ? targetDeployment.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-deployment';
@@ -255,7 +268,7 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
   return {
     apiVersion: 'autoscaling/v2',
     kind: 'HorizontalPodAutoscaler',
-    metadata: { name },
+    metadata: { name, namespace },
     spec: {
       scaleTargetRef: {
         apiVersion: 'apps/v1',

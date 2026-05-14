@@ -52,24 +52,35 @@ export function generateYaml(nodes: any[], edges: any[]): string {
     const data: K8sNodeData = { ...node.data, id: node.id };
     const name = data.label.toLowerCase().replace(/\s+/g, '-');
 
+    // Determine namespace if node is child of a Namespace node
+    let namespace: string | undefined;
+    if (node.parentId) {
+      const parent = nodes.find(n => n.id === node.parentId);
+      if (parent && parent.type === 'Namespace') {
+        namespace = parent.data.label.toLowerCase().replace(/\s+/g, '-');
+      }
+    }
+
     switch (node.type) {
+      case 'Namespace':
+        return generateNamespaceYaml(data, name);
       case 'Pod':
-        if (node.parentId) return null;
-        return generatePodYaml(data, name, nodes, edges);
+        if (node.parentId && nodes.find(n => n.id === node.parentId)?.type !== 'Namespace') return null;
+        return generatePodYaml(data, name, nodes, edges, namespace);
       case 'Deployment':
-        return generateDeploymentYaml(data, name, nodes, edges);
+        return generateDeploymentYaml(data, name, nodes, edges, namespace);
       case 'Service':
-        return generateServiceYaml(data, name);
+        return generateServiceYaml(data, name, nodes, edges, namespace);
       case 'Ingress':
-        return generateIngressYaml(data, name, nodes, edges);
+        return generateIngressYaml(data, name, nodes, edges, namespace);
       case 'HPA':
-        return generateHPAYaml(data, name, nodes, edges);
+        return generateHPAYaml(data, name, nodes, edges, namespace);
       case 'PVC':
-        return generatePVCYaml(data, name);
+        return generatePVCYaml(data, name, namespace);
       case 'ConfigMap':
-        return generateConfigMapYaml(data, name);
+        return generateConfigMapYaml(data, name, namespace);
       case 'Secret':
-        return generateSecretYaml(data, name);
+        return generateSecretYaml(data, name, namespace);
       default:
         return null;
     }
