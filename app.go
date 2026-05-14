@@ -127,7 +127,7 @@ func (a *App) SaveProject(name string, content string) int64 {
 		log.Printf("Error saving project: %v", err)
 		return -1
 	}
-	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", name))
+	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("Kube Simulator - %s", name))
 	return id
 }
 
@@ -149,7 +149,7 @@ func (a *App) ExportProjectFile(name string, canvasContent string, yamlContent s
 		DefaultFilename: fmt.Sprintf("%s.infra", name),
 		Title:           "Export Infrastructure Project",
 		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "InfraStack Project (*.infra)", Pattern: "*.infra"},
+			{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
 		},
 	})
 
@@ -177,7 +177,7 @@ func (a *App) ImportProjectFile() string {
 	filePath, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
 		Title: "Import Infrastructure Project",
 		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "InfraStack Project (*.infra)", Pattern: "*.infra"},
+			{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
 		},
 	})
 
@@ -209,7 +209,7 @@ func (a *App) LoadProject(id int64) *db.Project {
 		log.Printf("Error loading project: %v", err)
 		return nil
 	}
-	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("InfraStack Builder - %s", proj.Name))
+	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("Kube Simulator - %s", proj.Name))
 	return proj
 }
 

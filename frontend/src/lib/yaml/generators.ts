@@ -20,6 +20,24 @@ const getVolumeConfig = (sourceIds: string | string[], nodes: any[], edges: any[
   return { volumes, volumeMounts };
 };
 
+const getResourceConfig = (data: K8sNodeData) => {
+  const hasRequests = data.cpuRequest || data.memoryRequest;
+  const hasLimits = data.cpuLimit || data.memoryLimit;
+  
+  if (!hasRequests && !hasLimits) return undefined;
+
+  return {
+    requests: hasRequests ? {
+      cpu: data.cpuRequest,
+      memory: data.memoryRequest
+    } : undefined,
+    limits: hasLimits ? {
+      cpu: data.cpuLimit,
+      memory: data.memoryLimit
+    } : undefined
+  };
+};
+
 const getEnvFromConnections = (targetIds: string | string[], nodes: any[], edges: any[]) => {
   const ids = Array.isArray(targetIds) ? targetIds : [targetIds];
   const incomingEdges = edges.filter(e => ids.includes(e.target));
@@ -27,35 +45,22 @@ const getEnvFromConnections = (targetIds: string | string[], nodes: any[], edges
 
   incomingEdges.forEach(edge => {
     const sourceNode = nodes.find(n => n.id === edge.source);
-    if (!sourceNode) return;
+    if (!sourceNode || (sourceNode.type !== 'ConfigMap' && sourceNode.type !== 'Secret')) return;
 
     const resourceName = (sourceNode.data.label || 'config').toLowerCase().replace(/\s+/g, '-');
     const configData = sourceNode.data.configData || [];
 
-    if (sourceNode.type === 'ConfigMap' || sourceNode.type === 'Secret') {
-      configData.forEach((item: any) => {
-        if (!item.key) return;
-
-        const envEntry: any = {
-          name: item.key,
-          valueFrom: {}
-        };
-
-        if (sourceNode.type === 'ConfigMap') {
-          envEntry.valueFrom.configMapKeyRef = {
-            name: resourceName,
-            key: item.key
-          };
-        } else {
-          envEntry.valueFrom.secretKeyRef = {
-            name: resourceName,
-            key: item.key
-          };
-        }
-
-        env.push(envEntry);
-      });
-    }
+    configData.forEach((item: any) => {
+      if (!item.key) return;
+      
+      const envEntry: any = { name: item.key, valueFrom: {} };
+      if (sourceNode.type === 'ConfigMap') {
+        envEntry.valueFrom.configMapKeyRef = { name: resourceName, key: item.key };
+      } else {
+        envEntry.valueFrom.secretKeyRef = { name: resourceName, key: item.key };
+      }
+      env.push(envEntry);
+    });
   });
 
   return env;
@@ -69,11 +74,28 @@ export const generateNamespaceYaml = (data: K8sNodeData, name: string) => {
   };
 };
 
-export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = [], namespace?: string) => {
+const createPodSpec = (data: K8sNodeData, nodes: any[], edges: any[]) => {
   const { volumes, volumeMounts } = getVolumeConfig(data.id || '', nodes, edges);
   const env = getEnvFromConnections(data.id || '', nodes, edges);
+  const resources = getResourceConfig(data);
 
-  // If a standalone Pod has multiple replicas, wrap it in a Deployment
+  return {
+    containers: [{
+      name: data.label?.toLowerCase().replace(/\s+/g, '-') || 'main',
+      image: data.image || 'nginx:latest',
+      imagePullPolicy: 'IfNotPresent',
+      ports: data.port ? [{ containerPort: data.port }] : undefined,
+      env: env.length > 0 ? env : undefined,
+      resources,
+      volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
+    }],
+    volumes: volumes.length > 0 ? volumes : undefined
+  };
+};
+
+export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = [], edges: any[] = [], namespace?: string) => {
+  const podSpec = createPodSpec(data, nodes, edges);
+
   if ((data.replicas || 1) > 1) {
     return {
       apiVersion: 'apps/v1',
@@ -82,18 +104,13 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
       spec: {
         replicas: data.replicas,
         selector: { matchLabels: { app: name } },
+        strategy: {
+          type: 'RollingUpdate',
+          rollingUpdate: { maxSurge: '25%', maxUnavailable: '25%' }
+        },
         template: {
           metadata: { labels: { app: name } },
-          spec: {
-            containers: [{
-              name: 'main',
-              image: data.image || 'nginx:latest',
-              ports: data.port ? [{ containerPort: data.port }] : undefined,
-              env: env.length > 0 ? env : undefined,
-              volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
-            }],
-            volumes: volumes.length > 0 ? volumes : undefined
-          }
+          spec: podSpec
         }
       }
     };
@@ -103,22 +120,7 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
     apiVersion: 'v1',
     kind: 'Pod',
     metadata: { name, namespace },
-    spec: {
-      containers: [{
-        name: 'main',
-        image: data.image || 'nginx:latest',
-        ports: data.port ? [{ containerPort: data.port }] : undefined,
-        env: env.length > 0 ? env : undefined,
-        resources: (data.cpuLimit || data.memoryLimit) ? {
-          limits: {
-            cpu: data.cpuLimit,
-            memory: data.memoryLimit
-          }
-        } : undefined,
-        volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
-      }],
-      volumes: volumes.length > 0 ? volumes : undefined
-    }
+    spec: podSpec
   };
 };
 
@@ -139,9 +141,6 @@ export const generateConfigMapYaml = (data: K8sNodeData, name: string, namespace
 export const generateSecretYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   const secretData: Record<string, string> = {};
   (data.configData || []).forEach(item => {
-    // In a real case, these would be base64 encoded.
-    // For simulation, we can keep them plain or base64 encode them.
-    // Kubernetes expects base64 in 'data' field, or plain in 'stringData' field.
     if (item.key) secretData[item.key] = item.value;
   });
 
@@ -175,14 +174,14 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   const childPods = nodes.filter(n => n.parentId === data.id && n.type === 'Pod');
   const mainPod = childPods[0];
   const podData = mainPod ? mainPod.data : data;
-  const containerName = podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main';
 
-  // Check for connections either from Deployment itself or from child pod
   const targetIds = [data.id || ''];
   if (mainPod?.id) targetIds.push(mainPod.id);
 
+  // We need to merge connections from both Deployment and its child Pod
   const { volumes, volumeMounts } = getVolumeConfig(targetIds, nodes, edges);
   const env = getEnvFromConnections(targetIds, nodes, edges);
+  const resources = getResourceConfig(podData);
 
   return {
     apiVersion: 'apps/v1',
@@ -191,20 +190,20 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
     spec: {
       replicas: data.replicas || 1,
       selector: { matchLabels: { app: name } },
+      strategy: {
+        type: 'RollingUpdate',
+        rollingUpdate: { maxSurge: '25%', maxUnavailable: '25%' }
+      },
       template: {
         metadata: { labels: { app: name } },
         spec: {
           containers: [{
-            name: containerName,
+            name: podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main',
             image: podData.image || 'nginx:latest',
+            imagePullPolicy: 'IfNotPresent',
             ports: podData.port ? [{ containerPort: podData.port }] : undefined,
             env: env.length > 0 ? env : undefined,
-            resources: (podData.cpuLimit || podData.memoryLimit) ? {
-              limits: {
-                cpu: podData.cpuLimit,
-                memory: podData.memoryLimit
-              }
-            } : undefined,
+            resources,
             volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
           }],
           volumes: volumes.length > 0 ? volumes : undefined
@@ -239,8 +238,16 @@ export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[
   return {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'Ingress',
-    metadata: { name, namespace },
+    metadata: {
+      name,
+      namespace,
+      annotations: {
+        'nginx.ingress.kubernetes.io/rewrite-target': '/',
+        'kubernetes.io/ingress.class': 'nginx'
+      }
+    },
     spec: {
+      ingressClassName: 'nginx',
       rules: [{
         host: data.ingressHost || 'example.local',
         http: {
@@ -265,6 +272,34 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
   const targetDeployment = nodes.find(n => n.type === 'Deployment' && outgoingEdges.some(e => e.target === n.id));
   const deploymentName = targetDeployment ? targetDeployment.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-deployment';
 
+  const metrics: any[] = [];
+
+  if (data.targetCPU || !data.targetMemory) {
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'cpu',
+        target: {
+          type: 'Utilization',
+          averageUtilization: data.targetCPU || 50
+        }
+      }
+    });
+  }
+
+  if (data.targetMemory) {
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'memory',
+        target: {
+          type: 'Utilization',
+          averageUtilization: data.targetMemory
+        }
+      }
+    });
+  }
+
   return {
     apiVersion: 'autoscaling/v2',
     kind: 'HorizontalPodAutoscaler',
@@ -277,16 +312,7 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
       },
       minReplicas: data.minReplicas || 1,
       maxReplicas: data.maxReplicas || 10,
-      metrics: [{
-        type: 'Resource',
-        resource: {
-          name: 'cpu',
-          target: {
-            type: 'Utilization',
-            averageUtilization: data.targetCPU || 50
-          }
-        }
-      }]
+      metrics
     }
   };
 };

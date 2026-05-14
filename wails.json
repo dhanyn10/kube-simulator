@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "InfraStack Builder",
-  "outputfilename": "infrastack-builder",
+  "name": "Kube Simulator",
+  "outputfilename": "kube-simulator",
   "frontend:install": "pnpm install",
   "frontend:build": "pnpm run build",
   "frontend:dev:watcher": "pnpm run dev",
@@ -11,13 +11,13 @@
     "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
   },
   "info": {
-    "productName": "InfraStack Builder",
+    "productName": "Kube Simulator",
     "productVersion": "1.0.0",
     "copyright": "Copyright 2024",
     "fileAssociations": [
       {
         "ext": "infra",
-        "name": "InfraStack Project",
+        "name": "Kube Simulator Project",
         "description": "Infrastructure Design Project",
         "iconName": "appicon"
       }
