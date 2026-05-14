@@ -9,8 +9,13 @@ interface YamlModalProps {
 }
 
 export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
+  const [copied, setCopied] = React.useState(false);
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(content).catch((err) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch((err) => {
       console.error('Failed to copy text: ', err);
     });
   };
@@ -85,8 +90,15 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
           >
             Close
           </button>
-          <button onClick={handleCopy} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-[10px] font-bold uppercase shadow-lg shadow-blue-900/20 text-white">
-            Copy Output
+          <button onClick={handleCopy} className="relative px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-[10px] font-bold uppercase shadow-lg shadow-blue-900/20 text-white transition-all active:scale-95">
+            {copied ? (
+              <span className="flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
+                <CheckCircle2 size={12} />
+                Copied!
+              </span>
+            ) : (
+              'Copy'
+            )}
           </button>
         </div>
       </div>
