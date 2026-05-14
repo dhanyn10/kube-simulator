@@ -3,6 +3,7 @@ import { twMerge } from 'tailwind-merge';
 import dump from 'js-yaml';
 import { K8sNodeData } from '../types';
 import {
+  generateNamespaceYaml,
   generatePodYaml,
   generateDeploymentYaml,
   generateServiceYaml,
@@ -48,41 +49,53 @@ export function formatMemory(mib: number): string {
 }
 
 export function generateYaml(nodes: any[], edges: any[]): string {
+
   const manifests: any[] = nodes.map((node) => {
-    const data: K8sNodeData = { ...node.data, id: node.id };
-    const name = data.label.toLowerCase().replace(/\s+/g, '-');
+    try {
+      const data: K8sNodeData = { ...node.data, id: node.id };
+      if (!data.label) return null;
+      const name = data.label.toLowerCase().replace(/\s+/g, '-');
 
-    // Determine namespace if node is child of a Namespace node
-    let namespace: string | undefined;
-    if (node.parentId) {
-      const parent = nodes.find(n => n.id === node.parentId);
-      if (parent && parent.type === 'Namespace') {
-        namespace = parent.data.label.toLowerCase().replace(/\s+/g, '-');
+      // Determine namespace if node is child of a Namespace node
+      let namespace: string | undefined;
+      if (node.parentId) {
+        const parent = nodes.find(n => n.id === node.parentId);
+        if (parent && parent.type === 'Namespace') {
+          namespace = parent.data.label.toLowerCase().replace(/\s+/g, '-');
+        }
       }
-    }
 
-    switch (node.type) {
-      case 'Namespace':
-        return generateNamespaceYaml(data, name);
-      case 'Pod':
-        if (node.parentId && nodes.find(n => n.id === node.parentId)?.type !== 'Namespace') return null;
-        return generatePodYaml(data, name, nodes, edges, namespace);
-      case 'Deployment':
-        return generateDeploymentYaml(data, name, nodes, edges, namespace);
-      case 'Service':
-        return generateServiceYaml(data, name, nodes, edges, namespace);
-      case 'Ingress':
-        return generateIngressYaml(data, name, nodes, edges, namespace);
-      case 'HPA':
-        return generateHPAYaml(data, name, nodes, edges, namespace);
-      case 'PVC':
-        return generatePVCYaml(data, name, namespace);
-      case 'ConfigMap':
-        return generateConfigMapYaml(data, name, namespace);
-      case 'Secret':
-        return generateSecretYaml(data, name, namespace);
-      default:
-        return null;
+      switch (node.type) {
+        case 'Namespace':
+          return generateNamespaceYaml(data, name);
+        case 'Internet':
+          return null;
+        case 'Pod':
+          if (node.parentId && nodes.find(n => n.id === node.parentId)?.type !== 'Namespace') return null;
+          return generatePodYaml(data, name, nodes, edges, namespace);
+        case 'Deployment':
+          return generateDeploymentYaml(data, name, nodes, edges, namespace);
+        case 'Service':
+          return generateServiceYaml(data, name, nodes, edges, namespace);
+        case 'Ingress':
+          return generateIngressYaml(data, name, nodes, edges, namespace);
+        case 'HPA':
+          return generateHPAYaml(data, name, nodes, edges, namespace);
+        case 'PVC':
+          return generatePVCYaml(data, name, namespace);
+        case 'ConfigMap':
+          return generateConfigMapYaml(data, name, namespace);
+        case 'Secret':
+          return generateSecretYaml(data, name, namespace);
+        case 'PodGroup':
+          return null;
+        default:
+          console.warn('Unknown node type for YAML generation:', node.type);
+          return null;
+      }
+    } catch (err) {
+      console.error('Error generating YAML for node', node.id, err);
+      return null;
     }
   }).filter(Boolean);
 
