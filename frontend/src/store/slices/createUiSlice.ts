@@ -115,6 +115,38 @@ const startSimulation = (
   ) => {
       const { nodes, edges, colorMode, simulationMetrics } = get();
 
+      // Check if HPA is present but connected workloads lack resource limits
+      const hpaNodes = nodes.filter(n => n.type === 'HPA');
+      if (hpaNodes.length > 0) {
+        const hpaProblem = hpaNodes.some(hpa => {
+          const outgoingEdges = edges.filter(e => e.source === hpa.id);
+          const targets = nodes.filter(n => outgoingEdges.some(e => e.target === n.id));
+          return targets.some(target => {
+            const data = target.data as K8sNodeData;
+            // Deployment/PodGroup/Standalone Pod must have cpuLimit and memoryLimit for HPA to work
+            if (target.type === 'Deployment') {
+              return !data.cpuLimit || !data.memoryLimit;
+            }
+            if (target.type === 'Pod' && !target.parentId) {
+               return !data.cpuLimit || !data.memoryLimit;
+            }
+            return false;
+          });
+        });
+
+        if (hpaProblem) {
+          console.error('[Simulation] ERROR: HPA requires resource limits on target workloads.');
+          // Set to a "failed" simulation state: red button and no traffic
+          set({ isSimulating: true, activeSimulationEdges: [], simulationMetrics: {} });
+          // Force a state that can be visually represented as error if needed,
+          // but for now, we just auto-stop after 3 seconds as requested.
+          setTimeout(() => {
+            stopSimulation(set, get);
+          }, 3000);
+          return;
+        }
+      }
+
       const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
       broadcastMetrics(simulationMetrics, workloads);
       metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode });

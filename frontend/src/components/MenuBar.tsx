@@ -122,6 +122,23 @@ export const MenuBar = ({
   const internetNodes = nodes.filter((n: any) => n.type === 'Internet');
   const hasInternet = internetNodes.length > 0;
 
+  // Validation: HPA requires resource limits on workloads
+  const hpaNodes = nodes.filter((n: any) => n.type === 'HPA');
+  let hasHpaValidationError = false;
+  if (hpaNodes.length > 0) {
+    hasHpaValidationError = hpaNodes.some((hpa: any) => {
+      const outgoingEdges = edges.filter((e: any) => e.source === hpa.id);
+      const targets = nodes.filter((n: any) => outgoingEdges.some((e: any) => e.target === n.id));
+      return targets.some((target: any) => {
+        const data = target.data;
+        if (target.type === 'Deployment' || (target.type === 'Pod' && !target.parentId)) {
+          return !data.cpuLimit || !data.memoryLimit;
+        }
+        return false;
+      });
+    });
+  }
+
   return (
     <div
       ref={menuRef}
@@ -186,14 +203,20 @@ export const MenuBar = ({
             <button
               onClick={() => setSimulation(!isSimulating)}
               disabled={!hasInternet}
-              title={hasInternet ? (isSimulating ? "Stop Simulation" : "Start Simulation") : "Add an Internet card to start simulation"}
+              title={
+                !hasInternet
+                  ? "Add an Internet card to start simulation"
+                  : hasHpaValidationError
+                    ? "HPA requires Resource Limits on target workloads"
+                    : (isSimulating ? "Stop Simulation" : "Start Simulation")
+              }
               className={cn(
                 "h-7 px-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
                 !hasInternet
                   ? "text-slate-400 cursor-not-allowed bg-transparent"
                   : isSimulating
-                    ? "bg-red-500 text-white hover:bg-red-600"
-                    : "bg-emerald-500 text-white hover:bg-emerald-600"
+                    ? (hasHpaValidationError ? "bg-red-600 animate-pulse text-white" : "bg-red-500 text-white hover:bg-red-600")
+                    : (hasHpaValidationError ? "bg-amber-500/50 text-amber-900 border-amber-500/50" : "bg-emerald-500 text-white hover:bg-emerald-600")
               )}
             >
               {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
