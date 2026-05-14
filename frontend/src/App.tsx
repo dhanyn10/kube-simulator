@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
+import { GetSystemResources } from '../wailsjs/go/main/App';
 import {
   ReactFlow,
   Background,
@@ -31,6 +32,7 @@ import { PodGroupNode } from './components/Nodes/PodGroup';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
 import { ContextMenu } from './components/ContextMenu';
+import { ResourceBudget } from './components/ResourceBudget';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
 import { FileCode, Plus, Minus, Maximize } from 'lucide-react';
@@ -96,6 +98,24 @@ export default function App() {
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
   const groupNodes = useFlowStore((state) => state.groupNodes);
   const ungroupNodes = useFlowStore((state) => state.ungroupNodes);
+  const setSystemResources = useFlowStore((state) => state.setSystemResources);
+  const systemResources = useFlowStore((state) => state.systemResources);
+
+  useEffect(() => {
+    if (!isDetachedMode) {
+      const fetchResources = () => {
+        GetSystemResources().then((resources: any) => {
+          setSystemResources(resources);
+        }).catch(err => {
+          console.error('[App] Failed to fetch system resources:', err);
+        });
+      };
+
+      fetchResources();
+      const interval = setInterval(fetchResources, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isDetachedMode, setSystemResources]);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -246,7 +266,9 @@ export default function App() {
           </Panel>
 
           {/* Right Info Panel */}
-          <Panel position="top-right" className="p-4 flex flex-col gap-2 items-end">
+          <Panel position="top-right" className="p-4 flex flex-col gap-3 items-end">
+            <ResourceBudget />
+            
             <div className="flex gap-2">
               <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-slate-200 border border-slate-300 text-slate-700')}>
                 objects: {nodes.length}
@@ -255,6 +277,7 @@ export default function App() {
                 status: valid
               </span>
             </div>
+            
             <button
               onClick={handleExport}
               className={cn('px-4 py-1.5 rounded text-[10px] uppercase font-bold flex items-center gap-2 transition-all shadow-2xl', colorMode === 'dark' ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700' : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-700')}

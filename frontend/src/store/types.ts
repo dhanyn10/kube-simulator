@@ -59,6 +59,7 @@ export interface FlowState {
   simulationMetrics: Record<string, SimulationMetricPoint[]>;
   isMonitoringOpen: boolean;
   isMonitoringDetached: boolean;
+  systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -100,4 +101,5 @@ export interface FlowState {
   groupNodes: (nodeIds: string[]) => void;
   ungroupNodes: (nodeIds: string[]) => void;
   autoLayout: (direction?: 'LR' | 'TB') => void;
+  setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
 }

@@ -73,6 +73,17 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
   const { volumes, volumeMounts } = getVolumeConfig(data.id || '', nodes, edges);
   const env = getEnvFromConnections(data.id || '', nodes, edges);
 
+  const containerResources = (data.cpuLimit || data.memoryLimit || data.cpuRequest || data.memoryRequest) ? {
+    requests: (data.cpuRequest || data.memoryRequest) ? {
+      cpu: data.cpuRequest,
+      memory: data.memoryRequest
+    } : undefined,
+    limits: (data.cpuLimit || data.memoryLimit) ? {
+      cpu: data.cpuLimit,
+      memory: data.memoryLimit
+    } : undefined
+  } : undefined;
+
   // If a standalone Pod has multiple replicas, wrap it in a Deployment
   if ((data.replicas || 1) > 1) {
     return {
@@ -82,14 +93,20 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
       spec: {
         replicas: data.replicas,
         selector: { matchLabels: { app: name } },
+        strategy: {
+          type: 'RollingUpdate',
+          rollingUpdate: { maxSurge: '25%', maxUnavailable: '25%' }
+        },
         template: {
           metadata: { labels: { app: name } },
           spec: {
             containers: [{
               name: 'main',
               image: data.image || 'nginx:latest',
+              imagePullPolicy: 'IfNotPresent',
               ports: data.port ? [{ containerPort: data.port }] : undefined,
               env: env.length > 0 ? env : undefined,
+              resources: containerResources,
               volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
             }],
             volumes: volumes.length > 0 ? volumes : undefined
@@ -107,14 +124,10 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
       containers: [{
         name: 'main',
         image: data.image || 'nginx:latest',
+        imagePullPolicy: 'IfNotPresent',
         ports: data.port ? [{ containerPort: data.port }] : undefined,
         env: env.length > 0 ? env : undefined,
-        resources: (data.cpuLimit || data.memoryLimit) ? {
-          limits: {
-            cpu: data.cpuLimit,
-            memory: data.memoryLimit
-          }
-        } : undefined,
+        resources: containerResources,
         volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
       }],
       volumes: volumes.length > 0 ? volumes : undefined
@@ -139,9 +152,6 @@ export const generateConfigMapYaml = (data: K8sNodeData, name: string, namespace
 export const generateSecretYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   const secretData: Record<string, string> = {};
   (data.configData || []).forEach(item => {
-    // In a real case, these would be base64 encoded.
-    // For simulation, we can keep them plain or base64 encode them.
-    // Kubernetes expects base64 in 'data' field, or plain in 'stringData' field.
     if (item.key) secretData[item.key] = item.value;
   });
 
@@ -184,6 +194,17 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
   const { volumes, volumeMounts } = getVolumeConfig(targetIds, nodes, edges);
   const env = getEnvFromConnections(targetIds, nodes, edges);
 
+  const containerResources = (podData.cpuLimit || podData.memoryLimit || podData.cpuRequest || podData.memoryRequest) ? {
+    requests: (podData.cpuRequest || podData.memoryRequest) ? {
+      cpu: podData.cpuRequest,
+      memory: podData.memoryRequest
+    } : undefined,
+    limits: (podData.cpuLimit || podData.memoryLimit) ? {
+      cpu: podData.cpuLimit,
+      memory: podData.memoryLimit
+    } : undefined
+  } : undefined;
+
   return {
     apiVersion: 'apps/v1',
     kind: 'Deployment',
@@ -191,20 +212,20 @@ export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: a
     spec: {
       replicas: data.replicas || 1,
       selector: { matchLabels: { app: name } },
+      strategy: {
+        type: 'RollingUpdate',
+        rollingUpdate: { maxSurge: '25%', maxUnavailable: '25%' }
+      },
       template: {
         metadata: { labels: { app: name } },
         spec: {
           containers: [{
             name: containerName,
             image: podData.image || 'nginx:latest',
+            imagePullPolicy: 'IfNotPresent',
             ports: podData.port ? [{ containerPort: podData.port }] : undefined,
             env: env.length > 0 ? env : undefined,
-            resources: (podData.cpuLimit || podData.memoryLimit) ? {
-              limits: {
-                cpu: podData.cpuLimit,
-                memory: podData.memoryLimit
-              }
-            } : undefined,
+            resources: containerResources,
             volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
           }],
           volumes: volumes.length > 0 ? volumes : undefined
@@ -239,8 +260,16 @@ export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[
   return {
     apiVersion: 'networking.k8s.io/v1',
     kind: 'Ingress',
-    metadata: { name, namespace },
+    metadata: {
+      name,
+      namespace,
+      annotations: {
+        'nginx.ingress.kubernetes.io/rewrite-target': '/',
+        'kubernetes.io/ingress.class': 'nginx'
+      }
+    },
     spec: {
+      ingressClassName: 'nginx',
       rules: [{
         host: data.ingressHost || 'example.local',
         http: {
@@ -265,6 +294,34 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
   const targetDeployment = nodes.find(n => n.type === 'Deployment' && outgoingEdges.some(e => e.target === n.id));
   const deploymentName = targetDeployment ? targetDeployment.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-deployment';
 
+  const metrics: any[] = [];
+
+  if (data.targetCPU || !data.targetMemory) {
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'cpu',
+        target: {
+          type: 'Utilization',
+          averageUtilization: data.targetCPU || 50
+        }
+      }
+    });
+  }
+
+  if (data.targetMemory) {
+    metrics.push({
+      type: 'Resource',
+      resource: {
+        name: 'memory',
+        target: {
+          type: 'Utilization',
+          averageUtilization: data.targetMemory
+        }
+      }
+    });
+  }
+
   return {
     apiVersion: 'autoscaling/v2',
     kind: 'HorizontalPodAutoscaler',
@@ -277,16 +334,7 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
       },
       minReplicas: data.minReplicas || 1,
       maxReplicas: data.maxReplicas || 10,
-      metrics: [{
-        type: 'Resource',
-        resource: {
-          name: 'cpu',
-          target: {
-            type: 'Utilization',
-            averageUtilization: data.targetCPU || 50
-          }
-        }
-      }]
+      metrics
     }
   };
 };
