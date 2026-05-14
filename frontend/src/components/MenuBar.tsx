@@ -150,7 +150,7 @@ export const MenuBar = ({
       ref={menuRef}
       style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
       className={cn(
-        "h-10 border-b flex items-center px-4 justify-between z-50 select-none",
+        "h-10 border-b flex items-center px-4 justify-between z-50 select-none relative",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"
       )}
     >
