@@ -191,14 +191,16 @@ export const MenuBar = ({
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
-                            item.checked 
-                              ? "bg-blue-500 border-blue-500 text-white" 
-                              : (colorMode === 'dark' ? "border-slate-700" : "border-slate-300")
-                          )}>
-                            {item.checked && <CloseIcon size={10} className="rotate-45" />}
-                          </div>
+                          {typeof item.checked === 'boolean' && (
+                            <div className={cn(
+                              "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
+                              item.checked 
+                                ? "bg-blue-500 border-blue-500 text-white" 
+                                : (colorMode === 'dark' ? "border-slate-700" : "border-slate-300")
+                            )}>
+                              {item.checked && <CloseIcon size={10} className="rotate-45" />}
+                            </div>
+                          )}
                           <span>{item.label}</span>
                         </div>
                         {(item as any).shortcut && (
@@ -219,127 +221,38 @@ export const MenuBar = ({
           "flex items-center rounded-lg border p-0.5 shadow-sm",
           colorMode === 'dark' ? "bg-slate-900/50 border-slate-700/50" : "bg-white border-slate-200"
         )} style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-          <div className="relative flex">
-            <button
-              onClick={() => setSimulation(!isSimulating)}
-              disabled={!hasInternet}
-              title={
-                !hasInternet
-                  ? "Add an Internet card to start simulation"
-                  : hasHpaValidationError
-                    ? "HPA requires Resource Limits on target workloads"
-                    : (isSimulating ? "Stop Simulation" : "Start Simulation")
-              }
-              className={cn(
-                "h-7 px-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
-                !hasInternet
-                  ? "text-slate-400 cursor-not-allowed bg-transparent"
-                  : isSimulating
-                    ? (hasHpaValidationError ? "bg-red-600 animate-pulse text-white" : "bg-red-500 text-white hover:bg-red-600")
-                    : (hasHpaValidationError ? "bg-amber-500/50 text-amber-900 border-amber-500/50" : "bg-emerald-500 text-white hover:bg-emerald-600")
-              )}
-            >
-              {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
-              {isSimulating ? "Stop" : "Play"}
-            </button>
-
-            {hasInternet && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDropdownOpen(!isDropdownOpen);
-                }}
-                className={cn(
-                  "h-7 px-1.5 border-l transition-colors flex items-center justify-center text-slate-400 rounded-r-md",
-                  colorMode === 'dark' ? "border-slate-700/50 hover:bg-slate-700/30" : "border-slate-200 hover:bg-slate-100",
-                  isDropdownOpen && (colorMode === 'dark' ? "bg-slate-700/30" : "bg-slate-100")
-                )}
-              >
-                <ChevronDown size={12} />
-              </button>
+          <button
+            onClick={() => setSimulation(!isSimulating)}
+            disabled={!hasInternet}
+            title={
+              !hasInternet
+                ? "Add an Internet card to start simulation"
+                : hasHpaValidationError
+                  ? "HPA requires Resource Limits on target workloads"
+                  : (isSimulating ? "Stop Simulation" : "Start Simulation")
+            }
+            className={cn(
+              "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+              !hasInternet
+                ? "text-slate-400 cursor-not-allowed bg-transparent"
+                : isSimulating
+                  ? (hasHpaValidationError ? "bg-red-600 animate-pulse text-white" : "bg-red-500 text-white hover:bg-red-600")
+                  : (hasHpaValidationError ? "bg-amber-500/50 text-amber-900 border-amber-500/50" : "bg-emerald-500 text-white hover:bg-emerald-600")
             )}
-
-            {isDropdownOpen && (
-              <div className={cn(
-                "absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg border py-1 z-[1001] overflow-hidden",
-                colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-              )}>
-                <button
-                  onClick={() => {
-                    setSimulation(true);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={cn(
-                    "w-full px-3 py-1.5 text-[10px] flex items-center gap-2 transition-colors",
-                    colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
-                  )}
-                >
-                  <Globe size={12} />
-                  <span>All Internet Nodes</span>
-                </button>
-                <div className="h-px bg-slate-700/50 my-1 mx-2" />
-                {internetNodes.map((node: any) => (
-                  <button
-                    key={node.id}
-                    onClick={() => {
-                      setSimulation(true, [node.id]);
-                      setIsDropdownOpen(false);
-                    }}
-                    className={cn(
-                      "w-full px-3 py-1.5 text-[10px] flex items-center gap-2 transition-colors",
-                      colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
-                    )}
-                  >
-                    <Globe size={12} className="opacity-50" />
-                    <span className="truncate">{node.data.label || 'Internet'}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          >
+            {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
+            {isSimulating ? "Stop" : "Play"}
+          </button>
         </div>
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <div className="flex items-center text-[10px] font-medium text-slate-500 gap-2">
-          <FolderOpen size={12} className="opacity-50" />
-          <span>Projects</span>
-          <ChevronDown size={10} className="opacity-30 rotate-[-90deg]" />
-          
-          <div className="relative">
-            <button 
-              onClick={() => setActiveMenu(activeMenu === 'breadcrumb' ? null : 'breadcrumb')}
-              className={cn(
-                "px-2 py-0.5 rounded transition-colors flex items-center gap-1.5",
-                colorMode === 'dark' ? "text-blue-400 bg-blue-500/10 hover:bg-blue-500/20" : "text-blue-600 bg-blue-500/5 hover:bg-blue-500/10"
-              )}
-            >
-              <span className="font-bold">{currentProject?.name || 'Untitled Project'}</span>
-              <ChevronDown size={10} className={cn("transition-transform", activeMenu === 'breadcrumb' && "rotate-180")} />
-            </button>
-
-            {activeMenu === 'breadcrumb' && (
-              <div className={cn(
-                "absolute top-full left-0 mt-1 w-48 rounded-md shadow-2xl border py-1 z-[1001]",
-                colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-              )}>
-                <button
-                  onClick={() => {
-                    onOpenProjects();
-                    setActiveMenu(null);
-                  }}
-                  className={cn(
-                    "w-full px-3 py-1.5 text-xs flex items-center gap-3 transition-colors",
-                    colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
-                  )}
-                >
-                  <FolderOpen size={12} className="opacity-50" />
-                  <span>Project Manager...</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+        <h1 className={cn(
+          "text-[11px] font-bold uppercase tracking-[0.3em]",
+          colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
+        )}>
+          InfraStack Architect
+        </h1>
       </div>
 
       <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
