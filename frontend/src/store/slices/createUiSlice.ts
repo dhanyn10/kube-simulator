@@ -21,6 +21,8 @@ export interface UiSlice {
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
   setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
+  toggleWidget: (widgetId: string) => void;
+  setCanvasConfigOpen: (open: boolean) => void;
 }
 
 let simulationInterval: ReturnType<typeof setInterval> | null = null;
@@ -184,6 +186,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isMonitoringOpen: false,
   isMonitoringDetached: false,
   systemResources: null,
+  visibleWidgets: ['hardware-budget', 'object-stats', 'inspector-btn', 'target-indicator'],
+  isCanvasConfigOpen: false,
   toggleColorMode: () => {
     const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
     set({ colorMode: newMode });
@@ -195,6 +199,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setMonitoringOpen: (open) => set({ isMonitoringOpen: open }),
   setMonitoringDetached: (detached) => set({ isMonitoringDetached: detached }),
   setSystemResources: (resources) => set({ systemResources: resources }),
+  toggleWidget: (widgetId) => set((state: FlowState) => ({
+    visibleWidgets: state.visibleWidgets.includes(widgetId)
+      ? state.visibleWidgets.filter(w => w !== widgetId)
+      : [...state.visibleWidgets, widgetId]
+  })),
+  setCanvasConfigOpen: (open) => set({ isCanvasConfigOpen: open }),
   setSimulation: (active, internetNodeIds) => {
     if (!active) {
       stopSimulation(set, get);

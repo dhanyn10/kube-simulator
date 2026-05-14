@@ -12,25 +12,32 @@ export const ResourceBudget = () => {
 
   const totals = useMemo(() => {
     return nodes.reduce((acc, node) => {
-      // Only count nodes that have replicas (workloads)
       if (!['Deployment', 'Pod', 'PodGroup'].includes(node.type || '')) return acc;
       
       const data = node.data as K8sNodeData;
       const replicas = data.replicas || 1;
       
-      // If it's a child pod of a deployment/group, don't double count
       if (node.parentId && nodes.find(n => n.id === node.parentId && ['Deployment', 'PodGroup'].includes(n.type || ''))) {
           return acc;
       }
 
-      const cpu = parseCPU(data.cpuRequest || '0');
-      const mem = parseMemory(data.memoryRequest || '0');
+      const cpuReq = parseCPU(data.cpuRequest || '0');
+      const memReq = parseMemory(data.memoryRequest || '0');
+      
+      // If limit is missing, we treat it as a potential risk (showing it can grow)
+      // For calculation, let's assume it could go up to request * 2 if not specified, 
+      // or just show the actual limit if specified.
+      const cpuLim = data.cpuLimit ? parseCPU(data.cpuLimit) : cpuReq;
+      const memLim = data.memoryLimit ? parseMemory(data.memoryLimit) : memReq;
       
       return {
-        cpu: acc.cpu + (cpu * replicas),
-        mem: acc.mem + (mem * replicas)
+        cpuReq: acc.cpuReq + (cpuReq * replicas),
+        memReq: acc.memReq + (memReq * replicas),
+        cpuLim: acc.cpuLim + (cpuLim * replicas),
+        memLim: acc.memLim + (memLim * replicas),
+        hasMissingLimits: acc.hasMissingLimits || (!data.cpuLimit || !data.memoryLimit)
       };
-    }, { cpu: 0, mem: 0 });
+    }, { cpuReq: 0, memReq: 0, cpuLim: 0, memLim: 0, hasMissingLimits: false });
   }, [nodes]);
 
   if (!systemResources) return null;
@@ -38,97 +45,123 @@ export const ResourceBudget = () => {
   const cpuLimit = systemResources.cpuCores * 1000;
   const memLimit = systemResources.totalMemoryGB * 1024;
   
-  const externalCpuMilli = (systemResources.cpuUsage / 100) * cpuLimit;
   const usedMemMiB = (systemResources.totalMemoryGB - systemResources.freeMemoryGB) * 1024;
-  const externalMemMiB = Math.max(0, usedMemMiB - totals.mem);
-
-  const k8sCpuPercent = (totals.cpu / cpuLimit) * 100;
-  const k8sMemPercent = (totals.mem / memLimit) * 100;
+  
+  // Percentages for bars
+  const k8sCpuReqPercent = (totals.cpuReq / cpuLimit) * 100;
+  const k8sCpuLimPercent = (totals.cpuLim / cpuLimit) * 100;
+  const k8sMemReqPercent = (totals.memReq / memLimit) * 100;
+  const k8sMemLimPercent = (totals.memLim / memLimit) * 100;
   
   const totalCpuPercent = systemResources.cpuUsage;
   const totalMemPercent = (usedMemMiB / memLimit) * 100;
 
-  const isOverCpu = totalCpuPercent > 90;
-  const isOverMem = totalMemPercent > 90;
+  const isOverCpu = k8sCpuLimPercent > 90 || totalCpuPercent > 95;
+  const isOverMem = k8sMemLimPercent > 90 || totalMemPercent > 95;
 
   return (
     <div className={cn(
-      "flex flex-col gap-2 p-3 rounded-lg border shadow-2xl min-w-[240px]",
+      "flex flex-col gap-2 p-3 rounded-lg border shadow-2xl min-w-[260px]",
       colorMode === 'dark' ? "bg-slate-900/90 border-slate-700/50" : "bg-white/90 border-slate-200"
     )}>
       <div className="flex items-center justify-between">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Live Hardware Budget</span>
+        <div className="flex flex-col">
+          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Live Hardware Budget</span>
+          <span className="text-[7px] text-slate-600 uppercase">Requests vs Potential Limits</span>
+        </div>
         {(isOverCpu || isOverMem) && <AlertCircle size={12} className="text-red-500 animate-pulse" />}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {/* CPU */}
         <div className="space-y-1">
           <div className="flex justify-between text-[10px] font-mono">
-            <span className="flex items-center gap-1.5">
-              <Cpu size={10} className="text-blue-500" /> CPU
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <Cpu size={10} /> CPU Usage
             </span>
-            <span className={cn(isOverCpu ? "text-red-500 font-bold" : "text-slate-400")}>
-              {totalCpuPercent}% Used
+            <span className={cn(totalCpuPercent + k8sCpuReqPercent > 90 ? "text-red-500 font-bold" : "text-slate-400")}>
+              {Math.round(totalCpuPercent + k8sCpuReqPercent)}% Total
             </span>
           </div>
-          <div className={cn("h-1.5 rounded-full overflow-hidden flex", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-            {/* K8s Usage */}
+          <div className={cn("h-2.5 rounded-full overflow-hidden flex relative", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
+            {/* 1. Current System Usage (External) */}
             <div 
-              className="h-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)] transition-all duration-500"
-              style={{ width: `${k8sCpuPercent}%` }}
-              title={`K8s Request: ${formatCPU(totals.cpu)}`}
+              className="h-full bg-slate-500/40 transition-all duration-500"
+              style={{ width: `${totalCpuPercent}%` }}
+              title="Current System Load"
             />
-            {/* External Usage (Estimated) */}
+            {/* 2. K8s Predicted Usage (Requests) */}
             <div 
-              className="h-full bg-slate-500/30 transition-all duration-500"
-              style={{ width: `${Math.max(0, totalCpuPercent - k8sCpuPercent)}%` }}
-              title="Other Applications"
+              className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-500"
+              style={{ width: `${k8sCpuReqPercent}%` }}
+              title={`Predicted K8s: ${formatCPU(totals.cpuReq)}`}
+            />
+            {/* 3. K8s Risk (Limits) */}
+            <div 
+              className="h-full bg-red-500/30 border-l border-red-500/20 transition-all duration-500"
+              style={{ width: `${Math.max(0, k8sCpuLimPercent - k8sCpuReqPercent)}%` }}
+              title="Potential Overhead (Limits)"
             />
           </div>
-          <div className="flex justify-between text-[8px] text-slate-500 font-mono">
-            <span>K8s: {formatCPU(totals.cpu)}</span>
-            <span>Total: {systemResources.cpuCores} Core</span>
+          <div className="flex justify-between text-[8px] text-slate-500 font-mono pt-0.5">
+            <span>System: {totalCpuPercent}%</span>
+            <span>+ K8s: {formatCPU(totals.cpuReq)}</span>
+            <span>Free: {Math.max(0, 100 - totalCpuPercent - k8sCpuLimPercent).toFixed(0)}%</span>
           </div>
         </div>
 
         {/* Memory */}
         <div className="space-y-1">
           <div className="flex justify-between text-[10px] font-mono">
-            <span className="flex items-center gap-1.5">
-              <Database size={10} className="text-emerald-500" /> RAM
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <Database size={10} /> RAM Usage
             </span>
-            <span className={cn(isOverMem ? "text-red-500 font-bold" : "text-slate-400")}>
+            <span className={cn(totalMemPercent + k8sMemReqPercent > 90 ? "text-red-500 font-bold" : "text-slate-400")}>
               {systemResources.freeMemoryGB.toFixed(1)} GB Free
             </span>
           </div>
-          <div className={cn("h-1.5 rounded-full overflow-hidden flex", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-            {/* K8s Usage */}
+          <div className={cn("h-2.5 rounded-full overflow-hidden flex relative", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
+            {/* 1. Current System Usage (External) */}
             <div 
-              className="h-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-all duration-500"
-              style={{ width: `${k8sMemPercent}%` }}
-              title={`K8s Request: ${formatMemory(totals.mem)}`}
+              className="h-full bg-slate-500/40 transition-all duration-500"
+              style={{ width: `${totalMemPercent}%` }}
+              title="Current RAM Used by OS"
             />
-            {/* External Usage */}
+            {/* 2. K8s Predicted Usage (Requests) */}
             <div 
-              className="h-full bg-slate-500/30 transition-all duration-500"
-              style={{ width: `${(externalMemMiB / memLimit) * 100}%` }}
-              title="Other Applications"
+              className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-500"
+              style={{ width: `${k8sMemReqPercent}%` }}
+              title={`Predicted K8s: ${formatMemory(totals.memReq)}`}
+            />
+            {/* 3. K8s Risk (Limits) */}
+            <div 
+              className="h-full bg-red-500/30 border-l border-red-500/20 transition-all duration-500"
+              style={{ width: `${Math.max(0, k8sMemLimPercent - k8sMemReqPercent)}%` }}
+              title="Potential Overhead (Limits)"
             />
           </div>
-          <div className="flex justify-between text-[8px] text-slate-500 font-mono">
-            <span>K8s: {formatMemory(totals.mem)}</span>
-            <span>Total: {systemResources.totalMemoryGB} GB</span>
+          <div className="flex justify-between text-[8px] text-slate-500 font-mono pt-0.5">
+            <span>System: {Math.round(totalMemPercent)}%</span>
+            <span>+ K8s: {formatMemory(totals.memReq)}</span>
+            <span>Free: {systemResources.freeMemoryGB.toFixed(1)} GB</span>
           </div>
         </div>
       </div>
 
-      {(isOverCpu || isOverMem) && (
-        <div className="text-[8px] text-red-500 font-bold leading-tight mt-1 flex items-center gap-1 bg-red-500/10 p-1 rounded">
-          <AlertCircle size={8} /> 
-          Critical: Local hardware overloaded!
-        </div>
-      )}
+      <div className="mt-2 space-y-1">
+        {totals.hasMissingLimits && (
+          <div className="text-[8px] text-amber-500/80 flex items-center gap-1 bg-amber-500/5 p-1 rounded">
+            <AlertCircle size={8} /> 
+            Some nodes have no limits. Potential for "Noisy Neighbor" effect.
+          </div>
+        )}
+        {(isOverCpu || isOverMem) && (
+          <div className="text-[8px] text-red-500 font-bold leading-tight flex items-center gap-1 bg-red-500/10 p-1 rounded">
+            <AlertCircle size={8} /> 
+            CRITICAL: Potential usage exceeds host capacity!
+          </div>
+        )}
+      </div>
     </div>
   );
 };

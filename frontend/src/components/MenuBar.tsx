@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X, CheckSquare, Play, Globe, Activity, ExternalLink } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X as CloseIcon, CheckSquare, Play, Globe, Activity, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 
@@ -108,6 +108,12 @@ export const MenuBar = ({
           icon: ChevronDown, 
           onClick: () => useFlowStore.getState().autoLayout('TB') 
         },
+        { type: 'separator' },
+        { 
+          label: 'Canvas Settings...', 
+          icon: Activity, 
+          onClick: () => useFlowStore.getState().setCanvasConfigOpen(true)
+        },
       ]
     },
     {
@@ -169,24 +175,38 @@ export const MenuBar = ({
                 "absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg border py-1 z-[100]",
                 colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
               )}>
-                {menu.items.map((item) => (
-                  <button
-                    key={item.label}
-                    onClick={() => {
-                      item.onClick();
-                      setActiveMenu(null);
-                    }}
-                    className={cn(
-                      "w-full px-4 py-1.5 text-xs flex items-center justify-between transition-colors",
-                      colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
-                    )}
-                  >
-                    <span>{item.label}</span>
-                    {(item as any).shortcut && (
-                      <span className="text-[10px] opacity-50 font-mono ml-4">{(item as any).shortcut}</span>
-                    )}
-                  </button>
-                ))}
+                  {menu.items.map((item, idx) => (
+                    item.type === 'separator' ? (
+                      <div key={`sep-${idx}`} className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
+                    ) : (
+                      <button
+                        key={item.label}
+                        onClick={() => {
+                          item.onClick();
+                          if (!item.checked) setActiveMenu(null); // Keep open if it's a toggle
+                        }}
+                        className={cn(
+                          "w-full px-4 py-1.5 text-xs flex items-center justify-between transition-colors group",
+                          colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
+                            item.checked 
+                              ? "bg-blue-500 border-blue-500 text-white" 
+                              : (colorMode === 'dark' ? "border-slate-700" : "border-slate-300")
+                          )}>
+                            {item.checked && <CloseIcon size={10} className="rotate-45" />}
+                          </div>
+                          <span>{item.label}</span>
+                        </div>
+                        {(item as any).shortcut && (
+                          <span className="text-[10px] opacity-50 font-mono ml-4 group-hover:opacity-100">{(item as any).shortcut}</span>
+                        )}
+                      </button>
+                    )
+                  ))}
               </div>
             )}
           </div>
@@ -280,13 +300,46 @@ export const MenuBar = ({
         </div>
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <h1 className={cn(
-          "text-[11px] font-bold uppercase tracking-[0.3em]",
-          colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
-        )}>
-          InfraStack Architect
-        </h1>
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+        <div className="flex items-center text-[10px] font-medium text-slate-500 gap-2">
+          <FolderOpen size={12} className="opacity-50" />
+          <span>Projects</span>
+          <ChevronDown size={10} className="opacity-30 rotate-[-90deg]" />
+          
+          <div className="relative">
+            <button 
+              onClick={() => setActiveMenu(activeMenu === 'breadcrumb' ? null : 'breadcrumb')}
+              className={cn(
+                "px-2 py-0.5 rounded transition-colors flex items-center gap-1.5",
+                colorMode === 'dark' ? "text-blue-400 bg-blue-500/10 hover:bg-blue-500/20" : "text-blue-600 bg-blue-500/5 hover:bg-blue-500/10"
+              )}
+            >
+              <span className="font-bold">{currentProject?.name || 'Untitled Project'}</span>
+              <ChevronDown size={10} className={cn("transition-transform", activeMenu === 'breadcrumb' && "rotate-180")} />
+            </button>
+
+            {activeMenu === 'breadcrumb' && (
+              <div className={cn(
+                "absolute top-full left-0 mt-1 w-48 rounded-md shadow-2xl border py-1 z-[1001]",
+                colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+              )}>
+                <button
+                  onClick={() => {
+                    onOpenProjects();
+                    setActiveMenu(null);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-1.5 text-xs flex items-center gap-3 transition-colors",
+                    colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                  )}
+                >
+                  <FolderOpen size={12} className="opacity-50" />
+                  <span>Project Manager...</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
@@ -312,7 +365,7 @@ export const MenuBar = ({
           onClick={() => (window as any).go?.main?.App?.CloseWindow?.()}
           className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"
         >
-          <X size={18} />
+          <CloseIcon size={18} />
         </button>
       </div>
     </div>

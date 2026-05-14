@@ -60,6 +60,8 @@ export interface FlowState {
   isMonitoringOpen: boolean;
   isMonitoringDetached: boolean;
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
+  visibleWidgets: string[];
+  isCanvasConfigOpen: boolean;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -102,4 +104,6 @@ export interface FlowState {
   ungroupNodes: (nodeIds: string[]) => void;
   autoLayout: (direction?: 'LR' | 'TB') => void;
   setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
+  toggleWidget: (widgetId: string) => void;
+  setCanvasConfigOpen: (open: boolean) => void;
 }

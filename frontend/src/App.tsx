@@ -33,9 +33,10 @@ import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
 import { ContextMenu } from './components/ContextMenu';
 import { ResourceBudget } from './components/ResourceBudget';
+import { CanvasConfigModal } from './components/CanvasConfigModal';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml } from './lib/utils';
-import { FileCode, Plus, Minus, Maximize } from 'lucide-react';
+import { FileCode, Plus, Minus, Maximize, X as CloseIcon } from 'lucide-react';
 import { useFlowStore } from './store';
 import { cn } from './lib/utils';
 import { useHistory } from './hooks/useHistory';
@@ -98,6 +99,8 @@ export default function App() {
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
   const groupNodes = useFlowStore((state) => state.groupNodes);
   const ungroupNodes = useFlowStore((state) => state.ungroupNodes);
+  const visibleWidgets = useFlowStore((state) => state.visibleWidgets);
+  const toggleWidget = useFlowStore((state) => state.toggleWidget);
   const setSystemResources = useFlowStore((state) => state.setSystemResources);
   const systemResources = useFlowStore((state) => state.systemResources);
 
@@ -191,6 +194,8 @@ export default function App() {
         onOpenScenarios={() => setIsScenarioOpen(true)}
       />
 
+      <CanvasConfigModal />
+
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           onAddNode={addNode}
@@ -267,31 +272,67 @@ export default function App() {
 
           {/* Right Info Panel */}
           <Panel position="top-right" className="p-4 flex flex-col gap-3 items-end">
-            <ResourceBudget />
+            {visibleWidgets.includes('hardware-budget') && (
+              <div className="relative group/widget">
+                <ResourceBudget />
+                <button 
+                  onClick={() => toggleWidget('hardware-budget')}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
+                >
+                  <CloseIcon size={10} />
+                </button>
+              </div>
+            )}
             
-            <div className="flex gap-2">
-              <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-slate-200 border border-slate-300 text-slate-700')}>
-                objects: {nodes.length}
-              </span>
-              <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700 text-emerald-400' : 'bg-slate-200 border border-slate-300 text-emerald-600')}>
-                status: valid
-              </span>
-            </div>
-            
-            <button
-              onClick={handleExport}
-              className={cn('px-4 py-1.5 rounded text-[10px] uppercase font-bold flex items-center gap-2 transition-all shadow-2xl', colorMode === 'dark' ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700' : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-700')}
-            >
-              <FileCode size={12} className={colorMode === 'dark' ? 'text-blue-400' : 'text-blue-600'} />
-              Inspector
-            </button>
-
-            {activeDeploymentId && (
-              <div className={cn('mt-2 px-3 py-1.5 border rounded-md flex items-center gap-2 animate-pulse', colorMode === 'dark' ? 'bg-violet-500/10 border-violet-500/50' : 'bg-violet-200/30 border-violet-400/50')}>
-                <div className={cn('w-1.5 h-1.5 rounded-full', colorMode === 'dark' ? 'bg-violet-500' : 'bg-violet-600')} />
-                <span className={cn('text-[9px] font-bold uppercase tracking-wider', colorMode === 'dark' ? 'text-violet-400' : 'text-violet-700')}>
-                  Target: {nodes.find((n) => n.id === activeDeploymentId)?.data.label as string}
+            {visibleWidgets.includes('object-stats') && (
+              <div className="flex gap-2 relative group/widget">
+                <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-slate-200 border border-slate-300 text-slate-700')}>
+                  objects: {nodes.length}
                 </span>
+                <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700 text-emerald-400' : 'bg-slate-200 border border-slate-300 text-emerald-600')}>
+                  status: valid
+                </span>
+                <button 
+                  onClick={() => toggleWidget('object-stats')}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
+                >
+                  <CloseIcon size={10} />
+                </button>
+              </div>
+            )}
+            
+            {visibleWidgets.includes('inspector-btn') && (
+              <div className="relative group/widget">
+                <button
+                  onClick={handleExport}
+                  className={cn('px-4 py-1.5 rounded text-[10px] uppercase font-bold flex items-center gap-2 transition-all shadow-2xl', colorMode === 'dark' ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700' : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-700')}
+                >
+                  <FileCode size={12} className={colorMode === 'dark' ? 'text-blue-400' : 'text-blue-600'} />
+                  Inspector
+                </button>
+                <button 
+                  onClick={() => toggleWidget('inspector-btn')}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
+                >
+                  <CloseIcon size={10} />
+                </button>
+              </div>
+            )}
+            
+            {visibleWidgets.includes('target-indicator') && activeDeploymentId && (
+              <div className="relative group/widget">
+                <div className={cn('mt-1 px-3 py-1.5 border rounded-md flex items-center gap-2 animate-pulse', colorMode === 'dark' ? 'bg-violet-500/10 border-violet-500/50' : 'bg-violet-200/30 border-violet-400/50')}>
+                  <div className={cn('w-1.5 h-1.5 rounded-full', colorMode === 'dark' ? 'bg-violet-500' : 'bg-violet-600')} />
+                  <span className={cn('text-[9px] font-bold uppercase tracking-wider', colorMode === 'dark' ? 'text-violet-400' : 'text-violet-700')}>
+                    Target: {nodes.find((n) => n.id === activeDeploymentId)?.data.label as string}
+                  </span>
+                </div>
+                <button 
+                  onClick={() => toggleWidget('target-indicator')}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
+                >
+                  <CloseIcon size={10} />
+                </button>
               </div>
             )}
           </Panel>
