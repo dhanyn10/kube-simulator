@@ -53,7 +53,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
                 <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold', colorMode === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')}>1</div>
                 <div className="flex flex-col gap-1.5">
                   <span className={cn('text-[10px] font-bold uppercase', colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700')}>Copy Manifest</span>
-                  <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-500' : 'text-slate-500')}>Use the button below to copy the YAML content to your clipboard.</p>
+                  <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>Use the button below to copy the YAML content to your clipboard.</p>
                 </div>
               </div>
 
@@ -61,7 +61,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
                 <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold', colorMode === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')}>2</div>
                 <div className="flex flex-col gap-1.5">
                   <span className={cn('text-[10px] font-bold uppercase', colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700')}>Save to File</span>
-                  <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-500' : 'text-slate-500')}>Create a new file named <code className="bg-slate-800 px-1 rounded text-blue-400">infra.yaml</code> and paste the content.</p>
+                  <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>Create a new file named <code className="bg-slate-800 px-1 rounded text-blue-400">infra.yaml</code> and paste the content.</p>
                 </div>
               </div>
 
