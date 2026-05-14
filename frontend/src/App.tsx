@@ -76,10 +76,6 @@ export default function App() {
   // @ts-ignore
   if (typeof window !== 'undefined') window.useFlowStore = useFlowStore;
 
-  if (isDetachedMode) {
-    return <DetachedMonitoring />;
-  }
-
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
@@ -144,6 +140,10 @@ export default function App() {
       if (selectedIds.length > 0) ungroupNodes(selectedIds);
     }
   });
+
+  if (isDetachedMode) {
+    return <DetachedMonitoring />;
+  }
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
