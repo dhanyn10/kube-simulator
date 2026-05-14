@@ -42,6 +42,10 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
     }
   };
 
+  const edges = useFlowStore((state) => state.edges);
+  const isTargetedByHPA = edges.some(e => e.target === selectedNode.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
+  const hasRequests = data.cpuRequest && data.memoryRequest;
+
   return (
     <div className="space-y-4">
       {/* Replicas */}
@@ -94,7 +98,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
         </div>
       </div>
 
-      {/* Resource Limits */}
+      {/* Resource Requests & Limits */}
       <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[9px] font-bold text-slate-500 uppercase">Resource Settings</span>
@@ -102,9 +106,40 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
             {(data.displaySettings?.resources !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
           </button>
         </div>
+
+        {isTargetedByHPA && !hasRequests && (
+          <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[8px] text-amber-500 leading-tight mb-2">
+            ⚠️ HPA detected. CPU/Memory <strong>Requests</strong> are required for autoscaling to function.
+          </div>
+        )}
+
+        {/* CPU Requests */}
         <div className="space-y-1.5">
           <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Layers size={10} /> CPU Limit
+            <Layers size={10} className="text-emerald-500" /> CPU Request
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {CPU_OPTIONS.map((cpu) => (
+              <button
+                key={cpu.value}
+                onClick={() => performUpdate({ cpuRequest: cpu.value })}
+                className={cn(
+                  "text-[8px] px-2 py-0.5 rounded border transition-all",
+                  data.cpuRequest === cpu.value
+                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                )}
+              >
+                {cpu.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* CPU Limits */}
+        <div className="space-y-1.5 opacity-80">
+          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+            <Layers size={10} className="text-violet-500" /> CPU Limit
           </label>
           <div className="flex flex-wrap gap-1">
             {CPU_OPTIONS.map((cpu) => (
@@ -112,7 +147,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
                 key={cpu.value}
                 onClick={() => performUpdate({ cpuLimit: cpu.value })}
                 className={cn(
-                  "text-[9px] px-2 py-1 rounded border transition-all",
+                  "text-[8px] px-2 py-0.5 rounded border transition-all",
                   data.cpuLimit === cpu.value
                     ? "bg-violet-600 border-violet-600 text-white"
                     : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
@@ -124,9 +159,35 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
           </div>
         </div>
 
+        <div className="h-px bg-slate-700/30 my-2" />
+
+        {/* Memory Requests */}
         <div className="space-y-1.5">
           <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Layers size={10} /> Memory Limit
+            <Layers size={10} className="text-emerald-500" /> Memory Request
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {MEMORY_OPTIONS.map((mem) => (
+              <button
+                key={mem.value}
+                onClick={() => performUpdate({ memoryRequest: mem.value })}
+                className={cn(
+                  "text-[8px] px-2 py-0.5 rounded border transition-all",
+                  data.memoryRequest === mem.value
+                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                )}
+              >
+                {mem.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Memory Limits */}
+        <div className="space-y-1.5 opacity-80">
+          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+            <Layers size={10} className="text-violet-500" /> Memory Limit
           </label>
           <div className="flex flex-wrap gap-1">
             {MEMORY_OPTIONS.map((mem) => (
@@ -134,7 +195,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
                 key={mem.value}
                 onClick={() => performUpdate({ memoryLimit: mem.value })}
                 className={cn(
-                  "text-[9px] px-2 py-1 rounded border transition-all",
+                  "text-[8px] px-2 py-0.5 rounded border transition-all",
                   data.memoryLimit === mem.value
                     ? "bg-violet-600 border-violet-600 text-white"
                     : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
