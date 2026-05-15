@@ -5,7 +5,8 @@ import { FlowState } from '../../types';
 import {
   getNodeData,
   sortNodes,
-  getAbsPos
+  getAbsPos,
+  resolveGlobalCollisions
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import {
@@ -117,7 +118,8 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   };
 
   const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
-  set({ nodes: nextNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
+  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, id);
+  set({ nodes: collisionResolvedNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
 
 const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodesToDelete: Node[]) => {
@@ -161,7 +163,8 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   };
 
   const nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
-  set({ nodes: nextNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
+  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
+  set({ nodes: collisionResolvedNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
 };
 
 // -- MAIN EXPORT --

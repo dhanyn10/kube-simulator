@@ -417,12 +417,13 @@ export const calculateAlignmentGuides = (
   return { verticalGuides: vGuides, horizontalGuides: hGuides, vSnap, hSnap };
 };
 
-export const resolveCollisions = (
-  draggedNode: Node,
+export const resolveGlobalCollisions = (
   nodes: Node[],
-  draggedAbsPos: { x: number, y: number }
-): { x: number, y: number } => {
-  const padding = 24; 
+  fixedNodeId?: string,
+  iterations = 3
+): Node[] => {
+  let nextNodes = nodes.map(n => ({ ...n, position: { ...n.position } }));
+  const PADDING = 32;
   
   const getEffectiveSize = (node: Node) => {
     if (node.type === 'Pod') {
@@ -432,49 +433,113 @@ export const resolveCollisions = (
         height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
       };
     }
+    const defaultW = node.type === 'Deployment' ? 320 : (node.type === 'Namespace' ? 600 : 160);
+    const defaultH = node.type === 'Deployment' ? 160 : (node.type === 'Namespace' ? 400 : 80);
     return {
-      width: node.width || node.measured?.width || (node.type === 'Deployment' ? 320 : 160),
-      height: node.height || node.measured?.height || (node.type === 'Deployment' ? 160 : 80)
+      width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
+      height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
     };
   };
 
-  const dSize = getEffectiveSize(draggedNode);
-  const dW = dSize.width;
-  const dH = dSize.height;
+  for (let iter = 0; iter < iterations; iter++) {
+    let collisionDetected = false;
 
-  let resolvedX = draggedAbsPos.x;
-  let resolvedY = draggedAbsPos.y;
+    // Group nodes by parentId to resolve collisions in their own coordinate space (siblings)
+    const groups = new Map<string | undefined, string[]>();
+    nextNodes.forEach(n => {
+      const p = n.parentId;
+      if (!groups.has(p)) groups.set(p, []);
+      groups.get(p)!.push(n.id);
+    });
 
-  const otherNodes = nodes.filter(n => n.id !== draggedNode.id && !n.parentId && n.type !== 'Namespace');
+    for (const [parentId, siblingIds] of groups.entries()) {
+      // Skip strict auto-layout containers for sibling collision
+      const parentNode = parentId ? nextNodes.find(n => n.id === parentId) : null;
+      if (parentNode?.type === 'Deployment' || parentNode?.type === 'PodGroup') continue;
 
-  for (const other of otherNodes) {
-    const oAbs = getAbsPos(other.id, nodes);
-    const oSize = getEffectiveSize(other);
-    const oW = oSize.width;
-    const oH = oSize.height;
+      for (let i = 0; i < siblingIds.length; i++) {
+        for (let j = i + 1; j < siblingIds.length; j++) {
+          const idA = siblingIds[i];
+          const idB = siblingIds[j];
 
-    // Check if rectangles overlap (AABB)
-    const isColliding = 
-      resolvedX < oAbs.x + oW + padding &&
-      resolvedX + dW + padding > oAbs.x &&
-      resolvedY < oAbs.y + oH + padding &&
-      resolvedY + dH + padding > oAbs.y;
+          const nodeA = nextNodes.find(n => n.id === idA)!;
+          const nodeB = nextNodes.find(n => n.id === idB)!;
 
-    if (isColliding) {
-       // Simple resolution: Snap to the nearest edge
-       const distLeft = Math.abs(resolvedX - (oAbs.x - dW - padding));
-       const distRight = Math.abs(resolvedX - (oAbs.x + oW + padding));
-       const distTop = Math.abs(resolvedY - (oAbs.y - dH - padding));
-       const distBottom = Math.abs(resolvedY - (oAbs.y + oH + padding));
+          const sizeA = getEffectiveSize(nodeA);
+          const sizeB = getEffectiveSize(nodeB);
 
-       const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+          const bA = {
+            x: nodeA.position.x, y: nodeA.position.y,
+            w: sizeA.width, h: sizeA.height,
+            centerX: nodeA.position.x + sizeA.width / 2,
+            centerY: nodeA.position.y + sizeA.height / 2
+          };
+          const bB = {
+            x: nodeB.position.x, y: nodeB.position.y,
+            w: sizeB.width, h: sizeB.height,
+            centerX: nodeB.position.x + sizeB.width / 2,
+            centerY: nodeB.position.y + sizeB.height / 2
+          };
 
-       if (minDist === distLeft) resolvedX = oAbs.x - dW - padding;
-       else if (minDist === distRight) resolvedX = oAbs.x + oW + padding;
-       else if (minDist === distTop) resolvedY = oAbs.y - dH - padding;
-       else resolvedY = oAbs.y + oH + padding;
+          const isOverlapping = (
+            bA.x < bB.x + bB.w + PADDING &&
+            bA.x + bA.w + PADDING > bB.x &&
+            bA.y < bB.y + bB.h + PADDING &&
+            bA.y + bA.h + PADDING > bB.y
+          );
+
+          if (isOverlapping) {
+            collisionDetected = true;
+            const dx = bB.centerX - bA.centerX;
+            const dy = bB.centerY - bA.centerY;
+
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+
+            if (absDx > absDy) {
+              // Horizontal push priority
+              const totalW = (bA.w + bB.w) / 2 + PADDING;
+              const overlapDist = totalW - absDx;
+              const dir = dx >= 0 ? 1 : -1;
+
+              if (idA === fixedNodeId) {
+                nodeB.position.x += overlapDist * dir;
+                nodeB.position.y = bA.centerY - bB.h / 2; // Vertical alignment
+              } else if (idB === fixedNodeId) {
+                nodeA.position.x -= overlapDist * dir;
+                nodeA.position.y = bB.centerY - bA.h / 2; // Vertical alignment
+              } else {
+                nodeA.position.x -= (overlapDist / 2) * dir;
+                nodeB.position.x += (overlapDist / 2) * dir;
+                const midY = (bA.centerY + bB.centerY) / 2;
+                nodeA.position.y = midY - bA.h / 2;
+                nodeB.position.y = midY - bB.h / 2;
+              }
+            } else {
+              // Vertical push priority
+              const totalH = (bA.h + bB.h) / 2 + PADDING;
+              const overlapDist = totalH - absDy;
+              const dir = dy >= 0 ? 1 : -1;
+
+              if (idA === fixedNodeId) {
+                nodeB.position.y += overlapDist * dir;
+                nodeB.position.x = bA.centerX - bB.w / 2; // Horizontal alignment
+              } else if (idB === fixedNodeId) {
+                nodeA.position.y -= overlapDist * dir;
+                nodeA.position.x = bB.centerX - bA.w / 2; // Horizontal alignment
+              } else {
+                nodeA.position.y -= (overlapDist / 2) * dir;
+                nodeB.position.y += (overlapDist / 2) * dir;
+                const midX = (bA.centerX + bB.centerX) / 2;
+                nodeA.position.x = midX - bA.w / 2;
+                nodeB.position.x = midX - bB.w / 2;
+              }
+            }
+          }
+        }
+      }
     }
+    if (!collisionDetected) break;
   }
-
-  return { x: resolvedX, y: resolvedY };
+  return nextNodes;
 };

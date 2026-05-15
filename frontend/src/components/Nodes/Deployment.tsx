@@ -12,6 +12,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
+  const draggedNodeId = useFlowStore((state) => state.draggedNodeId);
 
   // Check if targeted by HPA
   const isTargetedByHPA = edges.some(e => e.target === props.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
@@ -23,9 +24,14 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
+  const isSelfDragged = draggedNodeId === props.id;
+  const isAnyNodeDragged = !!draggedNodeId;
+
   return (
     <div className={cn(
-      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full transition-colors flex flex-col min-h-[140px]",
+      "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full flex flex-col min-h-[140px]",
+      "transition-[border-color,background-color,box-shadow,transform,left,top,width,height] duration-300 ease-out",
+      (isSelfDragged || !isAnyNodeDragged) && "transition-colors duration-200",
       colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
       props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
       data.isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",

@@ -25,6 +25,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const onNodeResize = useFlowStore((state) => state.onNodeResize);
   const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const draggedNodeId = useFlowStore((state) => state.draggedNodeId);
 
   useEffect(() => {
     if (!isEditing) {
@@ -122,9 +123,16 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     progressEmptyBgClass = "bg-slate-700";
   }
 
+  const isSelfDragged = draggedNodeId === id;
+  const isAnyNodeDragged = !!draggedNodeId;
+
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto transition-all flex flex-col min-w-0",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0",
+      // Always transition non-drag related properties.
+      // Positional transitions (transform, top, left) are added conditionally when another node is being dragged.
+      "transition-[border-color,background-color,box-shadow,transform,left,top,width,height] duration-300 ease-out",
+      (isSelfDragged || !isAnyNodeDragged) && "transition-[border-color,background-color,box-shadow] duration-200",
       containerBaseClasses,
       selectionClasses,
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",

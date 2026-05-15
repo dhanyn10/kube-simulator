@@ -6,7 +6,8 @@ import {
   syncPodsInDeployment, 
   layoutPodsInDeployment, 
   getPodMinimumSize, 
-  POD_MIN_DIMENSIONS 
+  POD_MIN_DIMENSIONS,
+  resolveGlobalCollisions
 } from './helpers';
 
 /**
@@ -54,7 +55,7 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
     nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
   });
 
-  return nextNodes;
+  return resolveGlobalCollisions(nextNodes);
 };
 
 /**
