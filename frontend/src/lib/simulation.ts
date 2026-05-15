@@ -132,7 +132,7 @@ const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
   return { traffic, hasChanges };
 };
 
-const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
+export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
   const iData = internet.data as K8sNodeData;
   const targetTraffic = iData.traffic ?? 1000;
   const currentTraffic = iData.currentTraffic ?? 0;

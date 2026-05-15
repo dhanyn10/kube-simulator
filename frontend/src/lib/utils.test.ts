@@ -12,6 +12,9 @@ describe('resource utils', () => {
     });
     it('handles defaults', () => {
       expect(parseCPU(undefined)).toBe(500);
+      expect(parseCPU('')).toBe(500);
+      // @ts-ignore
+      expect(parseCPU(null)).toBe(500);
     });
   });
 
@@ -24,6 +27,9 @@ describe('resource utils', () => {
     });
     it('handles defaults', () => {
       expect(parseMemory('')).toBe(512);
+      expect(parseMemory(undefined)).toBe(512);
+      // @ts-ignore
+      expect(parseMemory(null)).toBe(512);
     });
   });
 
