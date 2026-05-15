@@ -80,7 +80,7 @@ export function generateYaml(nodes: any[], edges: any[]): string {
       let namespace: string | undefined;
       if (node.parentId) {
         const parent = nodes.find(n => n.id === node.parentId);
-        if (parent && parent.type === 'Namespace') {
+        if (parent?.type === 'Namespace') {
           namespace = parent.data.label.toLowerCase().replace(/\s+/g, '-');
         }
       }

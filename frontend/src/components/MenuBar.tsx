@@ -62,16 +62,12 @@ export const MenuBar = ({
           label: 'Save', 
           icon: Save, 
           onClick: async () => {
-            if (currentProject && currentProject.id !== -1) {
+            if (currentProject?.id !== undefined && currentProject.id !== -1) {
               const content = JSON.stringify({ nodes, edges });
-              // @ts-ignore
-              if (window.go?.main?.App?.UpdateProject) {
-                // @ts-ignore
-                const success = await window.go.main.App.UpdateProject(currentProject.id, content);
-                if (success) {
-                  useFlowStore.setState({ lastSavedSnapshot: content });
-                  alert("Project saved successfully!");
-                }
+              const success = await window.go?.main?.App?.UpdateProject(currentProject.id, content);
+              if (success) {
+                useFlowStore.setState({ lastSavedSnapshot: content });
+                alert("Project saved successfully!");
               }
             } else {
               onOpenProjects(); // Open manager to save as new

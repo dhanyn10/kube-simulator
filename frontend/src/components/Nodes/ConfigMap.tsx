@@ -9,7 +9,7 @@ export const ConfigMapNode = memo((props: NodeProps) => {
 
   return (
     <BaseNode {...props} data={data} title="ConfigMap" icon={Settings} color="teal" id={props.id} type={props.type}>
-      {data.configData && data.configData.length > 0 && (
+      {!!data.configData?.length && (
         <div className="mt-2 pt-1 border-t border-slate-700/30">
           <div className="text-[8px] font-bold text-teal-500 uppercase tracking-tighter mb-1">
             Data ({data.configData.length})

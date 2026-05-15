@@ -17,7 +17,7 @@ export const ResourceBudget = () => {
       const data = node.data as K8sNodeData;
       const replicas = data.replicas || 1;
       
-      if (node.parentId && nodes.find(n => n.id === node.parentId && ['Deployment', 'PodGroup'].includes(n.type || ''))) {
+      if (node.parentId && ['Deployment', 'PodGroup'].includes(nodes.find(n => n.id === node.parentId)?.type ?? '')) {
           return acc;
       }
 
