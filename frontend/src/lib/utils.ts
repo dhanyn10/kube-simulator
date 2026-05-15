@@ -27,7 +27,7 @@ export const safeRandom = (): number => {
     window.crypto.getRandomValues(array);
     return array[0] / (0xffffffff + 1);
   }
-  return Math.random();
+  return Math.random(); // nosonar
 };
 
 /**
