@@ -15,13 +15,22 @@ export interface SimulationContext {
   set: (state: Partial<FlowState>) => void;
 }
 
-export const safeRandom = () => {
+/**
+ * Utility to generate a cryptographically safe random number between 0 and 1.
+ */
+export const safeRandom = (): number => {
   const array = new Uint32Array(1);
-  window.crypto.getRandomValues(array);
-  return array[0] / (0xffffffff + 1);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+    return array[0] / (0xffffffff + 1);
+  }
+  return Math.random();
 };
 
-export const calculateReachability = (startNodes: Node[], edges: Edge[], activeSimulationEdges: string[]) => {
+/**
+ * Calculates which nodes are reachable from a set of starting nodes given active edges.
+ */
+export const calculateReachability = (startNodes: Node[], edges: Edge[], activeSimulationEdges: string[]): Set<string> => {
   const reachableNodes = new Set<string>();
   const queue = startNodes.map(n => n.id);
 
@@ -30,98 +39,140 @@ export const calculateReachability = (startNodes: Node[], edges: Edge[], activeS
     if (reachableNodes.has(currId)) continue;
     reachableNodes.add(currId);
 
-    edges.forEach(e => {
-      if (activeSimulationEdges.includes(String(e.id)) && String(e.source) === String(currId)) {
+    for (const e of edges) {
+      if (activeSimulationEdges.includes(String(e.id)) && String(e.source) === currId) {
         queue.push(String(e.target));
       }
-    });
+    }
   }
   return reachableNodes;
 };
 
+/**
+ * Handles PVC readiness logic. Pods remain pending if their connected PVCs are not Bound.
+ */
 const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
   let hasChanges = false;
   const childPods = dep.type === 'Pod' ? [dep] : ctx.nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
 
   const connectedPVCs = ctx.nodes.filter(n =>
-    n.type === 'PVC' && ctx.edges.some(e => e.target === n.id && workloadIds.includes(String(e.source)))
+    n.type === 'PVC' && ctx.edges.some(e => String(e.target) === n.id && workloadIds.includes(String(e.source)))
   );
 
   const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
 
   if (connectedPVCs.length > 0 && hasUnboundPVC) {
-    connectedPVCs.forEach(pvc => {
-      if (pvc.data.pvcStatus !== 'Bound' && safeRandom() > 0.7) {
-        const pvcIdx = ctx.updatedNodes.findIndex(un => un.id === pvc.id);
-        if (pvcIdx !== -1) {
-          ctx.updatedNodes[pvcIdx] = { ...ctx.updatedNodes[pvcIdx], data: { ...ctx.updatedNodes[pvcIdx].data, pvcStatus: 'Bound' } };
-          hasChanges = true;
-        }
-      }
-    });
-
-    const currentChildPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-    currentChildPods.forEach(pod => {
-      if (pod.data.status === 'ready') {
-        const pIdx = ctx.updatedNodes.findIndex(un => un.id === pod.id);
-        if (pIdx !== -1) {
-          ctx.updatedNodes[pIdx] = { ...ctx.updatedNodes[pIdx], data: { ...ctx.updatedNodes[pIdx].data, status: 'pending' } };
-          hasChanges = true;
-        }
-      }
-    });
-    return { hasChanges, isBlocked: true };
+    return handleUnboundPvcs(connectedPVCs, childPods, ctx);
   } else if (connectedPVCs.length > 0 && !hasUnboundPVC) {
-    const currentChildPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-    currentChildPods.forEach(pod => {
-      const pData = pod.data as K8sNodeData;
-      if (pData.status === 'pending' && (pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none')) {
-        const pIdx = ctx.updatedNodes.findIndex(un => un.id === pod.id);
-        if (pIdx !== -1) {
-          ctx.updatedNodes[pIdx] = { ...ctx.updatedNodes[pIdx], data: { ...ctx.updatedNodes[pIdx].data, status: 'ready' } };
-          hasChanges = true;
-        }
-      }
-    });
+    return handleBoundPvcs(childPods, ctx);
   }
 
   return { hasChanges, isBlocked: false };
 };
 
+const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx: SimulationContext) => {
+  let hasChanges = false;
+
+  // Randomly transition PVCs to Bound status
+  connectedPVCs.forEach(pvc => {
+    if (pvc.data.pvcStatus !== 'Bound' && safeRandom() > 0.7) {
+      const pvcIdx = ctx.updatedNodes.findIndex(un => un.id === pvc.id);
+      if (pvcIdx !== -1) {
+        ctx.updatedNodes[pvcIdx] = {
+          ...ctx.updatedNodes[pvcIdx],
+          data: { ...ctx.updatedNodes[pvcIdx].data, pvcStatus: 'Bound' }
+        };
+        hasChanges = true;
+      }
+    }
+  });
+
+  // Ensure pods stay/revert to pending if PVCs are still unbound
+  childPods.forEach(pod => {
+    if (pod.data.status === 'ready') {
+      const pIdx = ctx.updatedNodes.findIndex(un => un.id === pod.id);
+      if (pIdx !== -1) {
+        ctx.updatedNodes[pIdx] = {
+          ...ctx.updatedNodes[pIdx],
+          data: { ...ctx.updatedNodes[pIdx].data, status: 'pending' }
+        };
+        hasChanges = true;
+      }
+    }
+  });
+
+  return { hasChanges, isBlocked: true };
+};
+
+const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
+  let hasChanges = false;
+  childPods.forEach(pod => {
+    const pData = pod.data as K8sNodeData;
+    const isReadyStatus = pData.webserver && pData.webserver !== 'none' || pData.runtime && pData.runtime !== 'none';
+    if (pData.status === 'pending' && isReadyStatus) {
+      const pIdx = ctx.updatedNodes.findIndex(un => un.id === pod.id);
+      if (pIdx !== -1) {
+        ctx.updatedNodes[pIdx] = {
+          ...ctx.updatedNodes[pIdx],
+          data: { ...ctx.updatedNodes[pIdx].data, status: 'ready' }
+        };
+        hasChanges = true;
+      }
+    }
+  });
+  return { hasChanges, isBlocked: false };
+};
+
+/**
+ * Calculates incoming traffic for a workload based on 'Internet' nodes.
+ */
 const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
   let hasChanges = false;
   const traffic = ctx.nodes
     .filter(n => n.type === 'Internet')
     .reduce((total, internet) => {
-      const iData = internet.data as K8sNodeData;
-      const targetTraffic = iData.traffic ?? 1000;
-      const currentTraffic = iData.currentTraffic || 0;
-      let nextTraffic = currentTraffic;
-
-      if (currentTraffic < targetTraffic) {
-         nextTraffic = Math.min(targetTraffic as number, (currentTraffic as number) + 1000);
-      } else if (currentTraffic > targetTraffic) {
-         nextTraffic = Math.max(targetTraffic as number, (currentTraffic as number) - 2000);
-      }
-
-      if (nextTraffic !== currentTraffic) {
-          const idx = ctx.updatedNodes.findIndex(un => un.id === internet.id);
-          if (idx !== -1) {
-              ctx.updatedNodes[idx] = { ...ctx.updatedNodes[idx], data: { ...ctx.updatedNodes[idx].data, currentTraffic: nextTraffic } };
-              hasChanges = true;
-          }
-      }
+      const { traffic: internetTraffic, hasChanges: internetChanges } = updateInternetTraffic(internet, ctx);
+      if (internetChanges) hasChanges = true;
 
       const reachableNodes = calculateReachability([internet], ctx.edges, ctx.activeSimulationEdges);
       const canReach = reachableNodes.has(dep.id) || ctx.nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
 
-      return total + (canReach ? nextTraffic : 0);
+      return total + (canReach ? internetTraffic : 0);
     }, 0);
 
   return { traffic, hasChanges };
 };
 
+const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
+  const iData = internet.data as K8sNodeData;
+  const targetTraffic = iData.traffic ?? 1000;
+  const currentTraffic = iData.currentTraffic || 0;
+  let nextTraffic = currentTraffic;
+
+  if (currentTraffic < targetTraffic) {
+     nextTraffic = Math.min(targetTraffic as number, (currentTraffic as number) + 1000);
+  } else if (currentTraffic > targetTraffic) {
+     nextTraffic = Math.max(targetTraffic as number, (currentTraffic as number) - 2000);
+  }
+
+  let hasChanges = false;
+  if (nextTraffic !== currentTraffic) {
+      const idx = ctx.updatedNodes.findIndex(un => un.id === internet.id);
+      if (idx !== -1) {
+          ctx.updatedNodes[idx] = {
+            ...ctx.updatedNodes[idx],
+            data: { ...ctx.updatedNodes[idx].data, currentTraffic: nextTraffic }
+          };
+          hasChanges = true;
+      }
+  }
+  return { traffic: nextTraffic, hasChanges };
+};
+
+/**
+ * Computes resource usage metrics (CPU, Memory) based on incoming traffic.
+ */
 const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
   const dData = dep.data as K8sNodeData;
   const replicas = (dData.replicas as number) || 1;
@@ -150,22 +201,33 @@ const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: Simul
   return { cpuPercent, isOOM };
 };
 
+/**
+ * Simulates pod crashes due to OOM (Out Of Memory) conditions.
+ */
 const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
   if (!isOOM || safeRandom() <= 0.5) return false;
 
-  const currentChildPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-  if (currentChildPods.length === 0) return false;
+  const childPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  if (childPods.length === 0) return false;
 
-  const podToCrash = currentChildPods[Math.floor(safeRandom() * currentChildPods.length)];
+  const podToCrash = childPods[Math.floor(safeRandom() * childPods.length)];
   const podIdx = ctx.updatedNodes.findIndex(n => n.id === podToCrash.id);
 
   if (podIdx === -1 || ctx.updatedNodes[podIdx].data.status === 'crashing') return false;
 
-  ctx.updatedNodes[podIdx] = { ...ctx.updatedNodes[podIdx], data: { ...ctx.updatedNodes[podIdx].data, status: 'crashing' } };
+  ctx.updatedNodes[podIdx] = {
+    ...ctx.updatedNodes[podIdx],
+    data: { ...ctx.updatedNodes[podIdx].data, status: 'crashing' }
+  };
 
+  scheduleRecovery(dep, podToCrash.id, ctx);
+  return true;
+};
+
+const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
   setTimeout(() => {
     const currentState = ctx.get();
-    const nodeToRecover = currentState.nodes.find(n => n.id === podToCrash.id);
+    const nodeToRecover = currentState.nodes.find(n => n.id === podId);
     if (nodeToRecover && nodeToRecover.data.status === 'crashing') {
        currentState.deleteNodes([nodeToRecover]);
        setTimeout(() => {
@@ -179,10 +241,11 @@ const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => 
        }, 2000);
     }
   }, 3000);
-
-  return true;
 };
 
+/**
+ * Handles Horizontal Pod Autoscaler (HPA) scaling logic.
+ */
 const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext) => {
   const connectedHPA = ctx.nodes.find(n => n.type === 'HPA' && ctx.edges.some(e => e.source === n.id && e.target === dep.id));
   if (!connectedHPA) return false;
@@ -197,6 +260,7 @@ const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext)
     desiredReplicas = Math.max(hpaData.minReplicas || 1, Math.min(hpaData.maxReplicas || 10, Math.ceil(replicas * cpuRatio)));
   }
 
+  // Add some dampening/hysteresis to avoid flapping
   if (desiredReplicas < replicas && safeRandom() < 0.7) desiredReplicas = replicas;
 
   let hasChanges = false;
@@ -211,14 +275,21 @@ const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext)
     }
   }
 
+  // Update HPA status in UI
   const hpaIndex = ctx.updatedNodes.findIndex(n => n.id === connectedHPA.id);
   if (hpaIndex !== -1) {
-    ctx.updatedNodes[hpaIndex] = { ...ctx.updatedNodes[hpaIndex], data: { ...ctx.updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) } };
+    ctx.updatedNodes[hpaIndex] = {
+      ...ctx.updatedNodes[hpaIndex],
+      data: { ...ctx.updatedNodes[hpaIndex].data, currentCPU: Math.round(cpuPercent) }
+    };
     hasChanges = true;
   }
   return hasChanges;
 };
 
+/**
+ * Core entry point for processing simulation tick for a workload (Deployment/Pod).
+ */
 export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
   const pvcResult = checkPvcReadiness(dep, ctx);
   if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges };
