@@ -57,7 +57,7 @@ describe('simulation utils', () => {
 
     it('handles missing traffic and currentTraffic', () => {
       const internetNode: Node = { id: 'i1', data: {}, position: { x: 0, y: 0 } };
-      const updatedNodes: Node[] = [JSON.parse(JSON.stringify(internetNode))];
+      const updatedNodes: Node[] = [structuredClone(internetNode)];
       const ctx = mockCtx(updatedNodes);
 
       const result = updateInternetTraffic(internetNode, ctx);
@@ -69,7 +69,7 @@ describe('simulation utils', () => {
 
     it('maintains traffic when target reached', () => {
       const internetNode: Node = { id: 'i1', data: { traffic: 2000, currentTraffic: 2000 }, position: { x: 0, y: 0 } };
-      const updatedNodes: Node[] = [JSON.parse(JSON.stringify(internetNode))];
+      const updatedNodes: Node[] = [structuredClone(internetNode)];
       const ctx = mockCtx(updatedNodes);
 
       const result = updateInternetTraffic(internetNode, ctx);
