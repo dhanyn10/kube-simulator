@@ -35,7 +35,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   const currentContent = JSON.stringify({ nodes, edges });
 
   const loadProjects = async () => {
-    const res = await window.go?.main?.App?.GetProjects();
+    const res = await globalThis.go?.main?.App?.GetProjects();
     setProjects(res || []);
   };
 
@@ -61,7 +61,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   const handleUpdate = async () => {
     if (!currentProject) return;
     const content = JSON.stringify({ nodes, edges });
-    const success = await window.go?.main?.App?.UpdateProject(currentProject.id, content);
+    const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
     if (success) {
       useFlowStore.setState({ lastSavedSnapshot: content });
       loadProjects();
@@ -71,7 +71,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
 
   const handleOverwrite = async (id: number) => {
     const content = JSON.stringify({ nodes, edges });
-    const success = await window.go?.main?.App?.UpdateProject(id, content);
+    const success = await globalThis.go?.main?.App?.UpdateProject(id, content);
     if (success) {
       if (currentProject?.id === id) {
         useFlowStore.setState({ lastSavedSnapshot: content });
@@ -84,7 +84,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   const handleSave = async () => {
     if (!projectName.trim()) return;
     const content = JSON.stringify({ nodes, edges });
-    const id = await window.go?.main?.App?.SaveProject(projectName, content);
+    const id = await globalThis.go?.main?.App?.SaveProject(projectName, content);
     if (id !== undefined) {
       useFlowStore.setState({ 
         currentProject: { id, name: projectName },
@@ -96,7 +96,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   };
 
   const handleLoad = async (id: number, name: string) => {
-    const res = await window.go?.main?.App?.LoadProject(id);
+    const res = await globalThis.go?.main?.App?.LoadProject(id);
     if (res?.content) {
         const data = JSON.parse(res.content);
         const nodesWithStrings = (data.nodes || []).map((n: any) => ({ 
@@ -134,7 +134,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   };
 
   const handleDelete = async (id: number) => {
-    await window.go?.main?.App?.DeleteProject(id);
+    await globalThis.go?.main?.App?.DeleteProject(id);
     if (currentProject?.id === id) {
       useFlowStore.setState({ currentProject: null, lastSavedSnapshot: null });
     }

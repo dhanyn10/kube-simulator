@@ -1,9 +1,9 @@
 export const initWailsMocks = () => {
-    if (typeof window === 'undefined' || (window as any).go) return;
+    if (typeof globalThis === 'undefined' || (globalThis as any).go) return;
 
     console.log('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
 
-    (window as any).go = {
+    (globalThis as any).go = {
         main: {
             App: {
                 GetProjects: async () => JSON.parse(localStorage.getItem('mock_projects') || '[]'),

@@ -35,7 +35,7 @@ export interface UiSlice {
 }
 
 const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } = { current: null };
-const getRuntime = () => typeof window !== 'undefined' ? (window as any).runtime : undefined;
+const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
 const runSimulationTick = (params: {
   state: FlowState,

@@ -6,36 +6,36 @@ export function useHistory() {
 
   const handleUndo = useCallback(async () => {
     // @ts-ignore
-    if (window.go?.main?.App?.Undo) {
+    if (globalThis.go?.main?.App?.Undo) {
       // @ts-ignore
-      const state = await window.go.main.App.Undo();
+      const state = await globalThis.go.main.App.Undo();
       if (state) applyHistoryState(state);
     }
   }, []);
 
   const handleRedo = useCallback(async () => {
     // @ts-ignore
-    if (window.go?.main?.App?.Redo) {
+    if (globalThis.go?.main?.App?.Redo) {
       // @ts-ignore
-      const state = await window.go.main.App.Redo();
+      const state = await globalThis.go.main.App.Redo();
       if (state) applyHistoryState(state);
     }
   }, []);
 
   const fetchHistoryLogs = useCallback(async () => {
     // @ts-ignore
-    if (window.go?.main?.App?.GetHistoryLogs) {
+    if (globalThis.go?.main?.App?.GetHistoryLogs) {
       // @ts-ignore
-      const logs = await window.go.main.App.GetHistoryLogs();
+      const logs = await globalThis.go.main.App.GetHistoryLogs();
       setHistoryLogs([...logs].reverse());
     }
   }, []);
 
   const handleJumpToHistory = useCallback(async (index: number) => {
     // @ts-ignore
-    if (window.go?.main?.App?.JumpToHistory) {
+    if (globalThis.go?.main?.App?.JumpToHistory) {
       // @ts-ignore
-      const state = await window.go.main.App.JumpToHistory(index);
+      const state = await globalThis.go.main.App.JumpToHistory(index);
       if (state) applyHistoryState(state);
     }
   }, []);

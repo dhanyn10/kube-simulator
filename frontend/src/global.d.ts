@@ -28,6 +28,7 @@ interface WailsApp {
 
 declare global {
   interface Window {
+    useFlowStore: any;
     go: {
       main: {
         App: WailsApp;
@@ -40,4 +41,16 @@ declare global {
       // Add other Wails runtime methods if needed
     };
   }
+
+  var useFlowStore: any;
+  var go: {
+    main: {
+      App: WailsApp;
+    };
+  };
+  var runtime: {
+    EventsEmit(eventName: string, ...args: any[]): void;
+    EventsOn(eventName: string, callback: (...args: any[]) => void): void;
+    WindowSetTitle(title: string): void;
+  };
 }

@@ -23,8 +23,8 @@ export function cn(...inputs: ClassValue[]) {
  */
 export const safeRandom = (): number => {
   const array = new Uint32Array(1);
-  if (typeof window !== 'undefined' && window.crypto) {
-    window.crypto.getRandomValues(array);
+  if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+    globalThis.crypto.getRandomValues(array);
     return array[0] / (0xffffffff + 1);
   }
   return Math.random(); // nosonar
