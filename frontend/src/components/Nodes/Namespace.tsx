@@ -5,25 +5,23 @@ import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
+import { useNodeStyles } from '../../hooks/useNodeStyles';
 
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
-  const draggedNodeId = useFlowStore((state) => state.draggedNodeId);
+  const { transitionClasses } = useNodeStyles(props.id);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(props.id, data.label, data.onRename);
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
-  const isSelfDragged = draggedNodeId === props.id;
-  const isAnyNodeDragged = !!draggedNodeId;
-
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-2xl p-8 cursor-grab w-full h-full flex flex-col min-h-[280px]",
-      "transition-[border-color,background-color,box-shadow,border-style,transform,left,top,width,height] duration-300 ease-out",
-      (isSelfDragged || !isAnyNodeDragged) && "transition-[border-color,background-color,box-shadow,border-style] duration-200",
+      transitionClasses,
+      "transition-[border-color,background-color,box-shadow,border-style] duration-200",
       colorMode === 'dark' ? "bg-emerald-600/5 border-emerald-900/30 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]" : "bg-emerald-50/20 border-emerald-200 shadow-[inset_0_0_20px_rgba(16,185,129,0.02)]",
       props.selected ? "border-emerald-500/50 ring-4 ring-emerald-500/10" : "hover:border-emerald-400/50",
       data.isHovered && "border-solid border-violet-400 bg-violet-500/10 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",

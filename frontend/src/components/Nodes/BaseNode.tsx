@@ -5,6 +5,8 @@ import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { QuickConnectArrows } from './QuickConnectArrows';
+import { useNodeStyles } from '../../hooks/useNodeStyles';
+import { useNodeRename } from '../../hooks/useNodeEditor';
 
 export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex, id, type, hideSettings, statusOverride }: {
   children?: React.ReactNode;
@@ -19,49 +21,16 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   hideSettings?: boolean;
   statusOverride?: 'pending' | 'ready' | 'crashing';
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(data.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize);
-  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
-  const draggedNodeId = useFlowStore((state) => state.draggedNodeId);
+  const { transitionClasses } = useNodeStyles(id);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setEditValue(data.label);
-    }
-  }, [data.label, isEditing]);
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
+    useNodeRename(id, data.label, data.onRename);
 
   const effectiveStatus = statusOverride || data.status;
   const isPending = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'pending';
   const isReady = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'ready';
   const isCrashing = effectiveStatus === 'crashing';
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleRename = () => {
-    setIsEditing(false);
-    if (editValue.trim() && editValue !== data.label) {
-      data.onRename?.(editValue.trim());
-    } else {
-      setEditValue(data.label);
-    }
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRename();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditValue(data.label);
-    }
-  };
 
   const replicas = data.replicas || 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
@@ -123,16 +92,11 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     progressEmptyBgClass = "bg-slate-700";
   }
 
-  const isSelfDragged = draggedNodeId === id;
-  const isAnyNodeDragged = !!draggedNodeId;
-
   return (
     <div className={cn(
       "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0",
-      // Always transition non-drag related properties.
-      // Positional transitions (transform, top, left) are added conditionally when another node is being dragged.
-      "transition-[border-color,background-color,box-shadow,transform,left,top,width,height] duration-300 ease-out",
-      (isSelfDragged || !isAnyNodeDragged) && "transition-[border-color,background-color,box-shadow] duration-200",
+      transitionClasses,
+      "transition-[border-color,background-color,box-shadow] duration-200",
       containerBaseClasses,
       selectionClasses,
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",

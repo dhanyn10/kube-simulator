@@ -2,6 +2,7 @@ import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Type } from 'lucide-react';
+import { syncWorkloadMetadata } from '../store/slices/node-handlers/nodeUtils';
 import { WorkloadConfig } from './WorkloadConfig';
 import { ServiceConfig } from './ServiceConfig';
 import { IngressConfig } from './IngressConfig';
@@ -96,29 +97,20 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   };
 
   const performUpdate = (updates: any) => {
-    const nextData = { ...data, ...updates };
+    let nextData = { ...data, ...updates };
 
     if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
-        const hasRuntime = nextData.runtime && nextData.runtime !== 'none';
-        const hasWebserver = nextData.webserver && nextData.webserver !== 'none';
+        nextData = { ...nextData, ...syncWorkloadMetadata(selectedNode.type, nextData) };
 
-        if (hasRuntime || hasWebserver) {
-            nextData.status = 'ready';
-            const runtimePart = nextData.runtime !== 'none' ? nextData.runtime : '';
-            const serverPart = nextData.webserver !== 'none' ? nextData.webserver : '';
-            nextData.image = `k8s-app-${runtimePart}${serverPart ? '-' + serverPart : ''}:latest`.replace('--', '-').toLowerCase();
-
-            if (nextData.isAutoNamed) {
-                let newLabel = '';
-                if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
-                    newLabel = `${nextData.webserver}-${nextData.runtime}`;
-                } else {
-                    newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
-                }
-                nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
+        if (nextData.status === 'ready' && nextData.isAutoNamed) {
+            let newLabel = '';
+            if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
+                newLabel = `${nextData.webserver}-${nextData.runtime}`;
+            } else {
+                newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
             }
-        } else {
-            nextData.status = 'pending';
+            nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
+        } else if (nextData.status === 'pending') {
             nextData.image = undefined;
         }
     }

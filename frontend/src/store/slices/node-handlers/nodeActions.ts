@@ -11,10 +11,10 @@ import {
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import {
   getInitialData,
-  evaluateStatus,
   sanitizeResourceLimits,
   applyAutoImageLogic,
-  createNodeHandlers
+  createNodeHandlers,
+  syncWorkloadMetadata
 } from './nodeUtils';
 import { safeRandom } from '../../../lib/utils';
 
@@ -151,8 +151,8 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
     sanitizedData.isAutoImage = false;
   }
 
-  const updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
-  updatedData.status = evaluateStatus(target.type || '', updatedData);
+  let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
+  updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
   const updatedNode: Node = {
     ...target,

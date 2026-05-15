@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateStatus, resolveAutoImage, sanitizeResourceLimits } from './nodeUtils';
+import { syncWorkloadMetadata, resolveAutoImage, sanitizeResourceLimits } from './nodeUtils';
 import { K8sNodeData } from '../../../types';
 
 describe('nodeUtils', () => {
-  describe('evaluateStatus', () => {
+  describe('syncWorkloadMetadata', () => {
     it('returns ready for workloads with runtime', () => {
       const data: any = { runtime: 'nodejs' };
-      expect(evaluateStatus('Pod', data)).toBe('ready');
+      expect(syncWorkloadMetadata('Pod', data).status).toBe('ready');
     });
 
     it('returns pending for workloads without runtime or webserver', () => {
       const data: any = { runtime: 'none', webserver: 'none' };
-      expect(evaluateStatus('Pod', data)).toBe('pending');
+      expect(syncWorkloadMetadata('Pod', data).status).toBe('pending');
     });
 
-    it('returns ready for non-workload nodes by default', () => {
-      const data: any = {};
-      expect(evaluateStatus('Service', data)).toBe('ready');
+    it('sets correct auto-image', () => {
+      const data: any = { runtime: 'nodejs', isAutoImage: true };
+      expect(syncWorkloadMetadata('Pod', data).image).toBe('node:18-alpine');
     });
   });
 
