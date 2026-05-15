@@ -8,51 +8,14 @@ import {
   getAbsPos
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
-
-// -- CALLBACK FACTORIES --
-
-const createNodeHandlers = (id: string, get: () => FlowState) => ({
-  onDelete: () => {
-    const node = get().nodes.find((n: Node) => n.id === id);
-    if (node) get().deleteNodes([node]);
-  },
-  onRename: (newName: string) => {
-    const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
-    get().updateNodeData(id, { label: cleanName });
-  }
-});
-
-// -- RESOURCE INITIALIZERS & STATUS --
-
-const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState): K8sNodeData => {
-  const handlers = createNodeHandlers(id, get);
-  const base: K8sNodeData = { label: `new-${type.toLowerCase()}`, type, image: '', status: 'pending', ...handlers };
-
-  switch (type) {
-    case 'Service':
-      return { ...base, port: 80, targetPort: 80, selector: 'app-label', displaySettings: { port: true, targetPort: true, selector: true } };
-    case 'Pod':
-      return { ...base, replicas: 1, image: 'nginx:latest', isAutoImage: true, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
-    case 'Deployment':
-      return { ...base, replicas: 0 };
-    case 'Ingress':
-      return { ...base, ingressHost: 'example.local', ingressPath: '/', displaySettings: { host: true, path: true } };
-    case 'HPA':
-      return { ...base, minReplicas: 1, maxReplicas: 10, targetCPU: 50, displaySettings: { replicas: true, targetCPU: true } };
-    case 'Internet':
-      return { ...base, displaySettings: { traffic: true, duration: true } };
-    default:
-      return base;
-  }
-};
-
-const evaluateStatus = (type: string, data: K8sNodeData): 'pending' | 'ready' | 'crashing' => {
-  if (['Pod', 'Deployment', 'PodGroup'].includes(type)) {
-    const hasWebOrRun = (data.webserver && data.webserver !== 'none') || (data.runtime && data.runtime !== 'none');
-    return hasWebOrRun ? 'ready' : 'pending';
-  }
-  return data.status || 'ready';
-};
+import {
+  getInitialData,
+  evaluateStatus,
+  sanitizeResourceLimits,
+  applyAutoImageLogic,
+  createNodeHandlers
+} from './nodeUtils';
+import { safeRandom } from '../../../lib/utils';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -94,42 +57,6 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
   const others = nodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
   const resultNodes = sortNodes([...others, updatedDeployment, ...laidOut]);
   return syncContainerSize(updatedNode.parentId, resultNodes);
-};
-
-// -- ACTION HELPERS (To reduce Cognitive Complexity) --
-
-const sanitizeResourceLimits = (data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
-  const res = { ...data };
-  const limit = (val: any, min: number, max: number) => Math.max(min, Math.min(max, Number(val)));
-  if (res.replicas !== undefined) res.replicas = limit(res.replicas, 0, 1000);
-  if (res.minReplicas !== undefined) res.minReplicas = limit(res.minReplicas, 1, 1000);
-  if (res.maxReplicas !== undefined) res.maxReplicas = limit(res.maxReplicas, 1, 1000);
-  return res;
-};
-
-const resolveAutoImage = (runtime: string, webserver: string) => {
-  if (runtime === 'nodejs') return 'node:18-alpine';
-  if (runtime === 'go') return 'golang:1.21-alpine';
-  if (runtime === 'python') return 'python:3.11-slim';
-  if (runtime === 'java') return 'openjdk:17-jdk-slim';
-  if (runtime === 'php') {
-    if (webserver === 'nginx') return 'php:8.2-fpm-alpine';
-    if (webserver === 'apache') return 'php:8.2-apache';
-    return 'php:8.2-cli-alpine';
-  }
-  if (webserver === 'nginx') return 'nginx:latest';
-  if (webserver === 'apache') return 'httpd:latest';
-  return 'nginx:latest';
-};
-
-const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
-  if (data.runtime === undefined && data.webserver === undefined) return data;
-  const rt = data.runtime ?? targetData.runtime ?? 'none';
-  const ws = data.webserver ?? targetData.webserver ?? 'none';
-  if (!targetData.image || targetData.isAutoImage) {
-    return { ...data, image: resolveAutoImage(rt, ws), isAutoImage: true };
-  }
-  return data;
 };
 
 const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, target: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
@@ -179,7 +106,7 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) 
 
 const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
-  const finalPos = position || { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 }; //nosonar
+  const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 }; //nosonar
 
   const newNode: Node = {
     id, type, position: finalPos, parentId,

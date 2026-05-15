@@ -2,6 +2,7 @@ import { Node } from '@xyflow/react';
 import { getNodeData, sortNodes } from '../../helpers';
 import { hydrateNodes } from '../../nodeHelpers';
 import { FlowState } from '../../types';
+import { randomId } from '../../../lib/utils';
 
 export const clipboardHandlers = (set: any, get: () => FlowState) => ({
   copyNodes: () => {
@@ -67,11 +68,10 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
 
     const idMap: Record<string, string> = {};
     const offset = 40;
-    const clipboardSourceIds = new Set(clipboard.nodes.map((n: Node) => n.id));
 
     const updatedExistingNodes = [...nodes];
     const pastedNodes = clipboard.nodes.map((n: Node) => {
-      const newId = `${n.type?.toLowerCase()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newId = randomId(n.type?.toLowerCase());
       idMap[n.id] = newId;
       
       const newNode = {
@@ -94,7 +94,7 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
 
     const pastedEdges = clipboard.edges.map((e: any) => ({
       ...e,
-      id: `edge-${Math.random().toString(36).substr(2, 9)}`,
+      id: randomId('edge'),
       source: idMap[e.source] || e.source,
       target: idMap[e.target] || e.target,
       selected: true,
