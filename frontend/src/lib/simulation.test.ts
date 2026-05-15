@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateReachability, safeRandom } from './simulation';
+import { calculateReachability } from './simulation';
+import { safeRandom } from './utils';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulation utils', () => {

@@ -1,7 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { K8sNodeData } from '../types';
 import { SimulationMetricPoint, FlowState } from '../store/types';
-import { parseCPU, parseMemory } from './utils';
+import { parseCPU, parseMemory, safeRandom } from './utils';
 import { syncDeployment } from '../store/nodeHelpers';
 
 export interface SimulationContext {
@@ -14,18 +14,6 @@ export interface SimulationContext {
   get: () => FlowState;
   set: (state: Partial<FlowState>) => void;
 }
-
-/**
- * Utility to generate a cryptographically safe random number between 0 and 1.
- */
-export const safeRandom = (): number => {
-  const array = new Uint32Array(1);
-  if (typeof window !== 'undefined' && window.crypto) {
-    window.crypto.getRandomValues(array);
-    return array[0] / (0xffffffff + 1);
-  }
-  return Math.random();
-};
 
 /**
  * Calculates which nodes are reachable from a set of starting nodes given active edges.

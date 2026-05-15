@@ -18,6 +18,26 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Utility to generate a cryptographically safe random number between 0 and 1.
+ */
+export const safeRandom = (): number => {
+  const array = new Uint32Array(1);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
+    return array[0] / (0xffffffff + 1);
+  }
+  return Math.random();
+};
+
+/**
+ * Utility to generate a random string for IDs.
+ */
+export const randomId = (prefix: string = ''): string => {
+  const suffix = safeRandom().toString(36).substring(2, 11);
+  return prefix ? `${prefix}-${suffix}` : suffix;
+};
+
 export function parseCPU(cpu: string | number | undefined): number {
   if (cpu === undefined || cpu === null || cpu === '') return 500;
   if (typeof cpu === 'number') return cpu;
