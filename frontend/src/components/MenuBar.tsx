@@ -62,16 +62,12 @@ export const MenuBar = ({
           label: 'Save', 
           icon: Save, 
           onClick: async () => {
-            if (currentProject && currentProject.id !== -1) {
+            if (currentProject?.id !== undefined && currentProject.id !== -1) {
               const content = JSON.stringify({ nodes, edges });
-              // @ts-ignore
-              if (window.go?.main?.App?.UpdateProject) {
-                // @ts-ignore
-                const success = await window.go.main.App.UpdateProject(currentProject.id, content);
-                if (success) {
-                  useFlowStore.setState({ lastSavedSnapshot: content });
-                  alert("Project saved successfully!");
-                }
+              const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+              if (success) {
+                useFlowStore.setState({ lastSavedSnapshot: content });
+                alert("Project saved successfully!");
               }
             } else {
               onOpenProjects(); // Open manager to save as new
@@ -105,7 +101,7 @@ export const MenuBar = ({
       label: 'Help',
       items: [
         { label: 'About', icon: Info, onClick: () => alert('Kube Simulator v1.0.0') },
-        { label: 'Report Issue', icon: Bug, onClick: () => window.open('https://github.com', '_blank') },
+        { label: 'Report Issue', icon: Bug, onClick: () => globalThis.open('https://github.com', '_blank') },
       ]
     }
   ];
@@ -245,7 +241,7 @@ export const MenuBar = ({
 
       <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
         <button
-          onClick={() => (window as any).go?.main?.App?.MinimizeWindow?.()}
+          onClick={() => (globalThis as any).go?.main?.App?.MinimizeWindow?.()}
           className={cn(
             "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
             colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
@@ -254,7 +250,7 @@ export const MenuBar = ({
           <Minus size={16} />
         </button>
         <button
-          onClick={() => (window as any).go?.main?.App?.MaximizeWindow?.()}
+          onClick={() => (globalThis as any).go?.main?.App?.MaximizeWindow?.()}
           className={cn(
             "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
             colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
@@ -263,7 +259,7 @@ export const MenuBar = ({
           <Square size={12} />
         </button>
         <button
-          onClick={() => (window as any).go?.main?.App?.CloseWindow?.()}
+          onClick={() => (globalThis as any).go?.main?.App?.CloseWindow?.()}
           className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"
         >
           <CloseIcon size={18} />

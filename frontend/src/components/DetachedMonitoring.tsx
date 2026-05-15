@@ -77,7 +77,7 @@ export const DetachedMonitoring = () => {
     const channel = new BroadcastChannel('monitoring-data');
 
     // @ts-ignore
-    const runtime = window.runtime;
+    const runtime = globalThis.runtime;
 
     const handleUpdate = (data: any) => {
        setMetrics(data.metrics);

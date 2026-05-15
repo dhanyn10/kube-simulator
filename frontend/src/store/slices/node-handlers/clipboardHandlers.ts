@@ -21,7 +21,7 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
     const nodesToCopy = nodes.filter(n => nodeIdsToCopy.has(n.id));
     const edgesToCopy = edges.filter(e => nodeIdsToCopy.has(e.source) && nodeIdsToCopy.has(e.target));
 
-    set({ clipboard: { nodes: JSON.parse(JSON.stringify(nodesToCopy)), edges: JSON.parse(JSON.stringify(edgesToCopy)) } });
+    set({ clipboard: { nodes: structuredClone(nodesToCopy), edges: structuredClone(edgesToCopy) } });
   },
 
   pasteNodes: () => {

@@ -15,7 +15,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   // Check if targeted by HPA
   const isTargetedByHPA = edges.some(e => e.target === props.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
-  const hasRequests = data.cpuRequest && data.memoryRequest;
+  const hasRequests = !!(data.cpuRequest && data.memoryRequest);
   const showHPAWarning = isTargetedByHPA && !hasRequests;
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =

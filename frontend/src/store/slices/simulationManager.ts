@@ -3,8 +3,8 @@ import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sNodeData } from '../../types';
 
 // Centralize side-effect handlers
-const metricsChannel = typeof window !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
-const getRuntime = () => typeof window !== 'undefined' ? (window as any).runtime : undefined;
+const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
+const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
 /**
  * Stops the simulation and resets relevant state.

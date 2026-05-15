@@ -67,14 +67,14 @@ const defaultEdgeOptions = {
 };
 
 export default function App() {
-  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
   console.log('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
 
   // Expose store for e2e testing
   // @ts-ignore
-  if (typeof window !== 'undefined') window.useFlowStore = useFlowStore;
+  if (typeof globalThis !== 'undefined') globalThis.useFlowStore = useFlowStore;
 
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);

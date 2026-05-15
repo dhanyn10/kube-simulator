@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateReachability } from './simulation';
+import { calculateReachability, updateInternetTraffic, SimulationContext } from './simulation';
 import { safeRandom } from './utils';
 import { Node, Edge } from '@xyflow/react';
 
@@ -41,5 +41,41 @@ describe('simulation utils', () => {
     const reachable = calculateReachability([nodes[0]], edges, activeEdges);
     expect(reachable.has('1')).toBe(true);
     expect(reachable.has('2')).toBe(false);
+  });
+
+  describe('updateInternetTraffic', () => {
+    const mockCtx = (updatedNodes: Node[] = []): SimulationContext => ({
+      nodes: [],
+      edges: [],
+      activeSimulationEdges: [],
+      updatedNodes,
+      newMetrics: {},
+      ticks: 0,
+      get: vi.fn(),
+      set: vi.fn()
+    });
+
+    it('handles missing traffic and currentTraffic', () => {
+      const internetNode: Node = { id: 'i1', data: {}, position: { x: 0, y: 0 } };
+      const updatedNodes: Node[] = [structuredClone(internetNode)];
+      const ctx = mockCtx(updatedNodes);
+
+      const result = updateInternetTraffic(internetNode, ctx);
+
+      expect(result.traffic).toBe(1000); // target defaults to 1000, current defaults to 0, next is 0 + 1000
+      expect(result.hasChanges).toBe(true);
+      expect(ctx.updatedNodes[0].data.currentTraffic).toBe(1000);
+    });
+
+    it('maintains traffic when target reached', () => {
+      const internetNode: Node = { id: 'i1', data: { traffic: 2000, currentTraffic: 2000 }, position: { x: 0, y: 0 } };
+      const updatedNodes: Node[] = [structuredClone(internetNode)];
+      const ctx = mockCtx(updatedNodes);
+
+      const result = updateInternetTraffic(internetNode, ctx);
+
+      expect(result.traffic).toBe(2000);
+      expect(result.hasChanges).toBe(false);
+    });
   });
 });

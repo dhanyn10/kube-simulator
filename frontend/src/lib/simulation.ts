@@ -132,16 +132,16 @@ const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
   return { traffic, hasChanges };
 };
 
-const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
+export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
   const iData = internet.data as K8sNodeData;
   const targetTraffic = iData.traffic ?? 1000;
-  const currentTraffic = iData.currentTraffic || 0;
+  const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
   if (currentTraffic < targetTraffic) {
-     nextTraffic = Math.min(targetTraffic as number, (currentTraffic as number) + 1000);
+     nextTraffic = Math.min(targetTraffic as number, currentTraffic + 1000);
   } else if (currentTraffic > targetTraffic) {
-     nextTraffic = Math.max(targetTraffic as number, (currentTraffic as number) - 2000);
+     nextTraffic = Math.max(targetTraffic as number, currentTraffic - 2000);
   }
 
   let hasChanges = false;
@@ -216,7 +216,7 @@ const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
   setTimeout(() => {
     const currentState = ctx.get();
     const nodeToRecover = currentState.nodes.find(n => n.id === podId);
-    if (nodeToRecover && nodeToRecover.data.status === 'crashing') {
+    if (nodeToRecover?.data.status === 'crashing') {
        currentState.deleteNodes([nodeToRecover]);
        setTimeout(() => {
           const latestState = ctx.get();

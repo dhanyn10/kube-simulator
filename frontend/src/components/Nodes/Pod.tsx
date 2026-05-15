@@ -11,7 +11,7 @@ export const PodNode = memo((props: NodeProps) => {
 
   return (
     <BaseNode {...props} data={data} title="Pod" icon={Box} color="cyan" id={props.id} type={props.type}>
-      {data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit) && (
+      {data.displaySettings?.resources !== false && (!!data.cpuLimit || !!data.memoryLimit) && (
         <div className="space-y-1 mt-1 pt-1 border-t border-slate-700/30">
           {data.cpuLimit && (
             <div className="flex justify-between items-center text-[9px] font-mono">

@@ -37,8 +37,8 @@ setTimeout(() => {
     actionName: 'Initial State',
     timestamp: Date.now()
   });
-  if (window.go?.main?.App?.PushHistory) {
-    window.go.main.App.PushHistory(snapshot);
+  if (globalThis.go?.main?.App?.PushHistory) {
+    globalThis.go.main.App.PushHistory(snapshot);
     console.log('[History] Initial state recorded to Go database');
   }
 }, 500);
@@ -58,16 +58,16 @@ flowStore.subscribe((state, prevState) => {
     console.log(`[History] Recording event: ${state.lastActionName} (${state.lastActionId})`);
     
     // Push to Go Backend "Database"
-    if (window.go?.main?.App?.PushHistory) {
-      window.go.main.App.PushHistory(snapshot);
+    if (globalThis.go?.main?.App?.PushHistory) {
+      globalThis.go.main.App.PushHistory(snapshot);
     }
 
     // Autosave logic
     if (state.isAutosaveEnabled && state.currentProject && state.currentProject.id !== -1) {
       const content = JSON.stringify({ nodes: state.nodes, edges: state.edges });
-      if (window.go?.main?.App?.UpdateProject) {
+      if (globalThis.go?.main?.App?.UpdateProject) {
         console.log(`[Autosave] Saving project ${state.currentProject.name}...`);
-        window.go.main.App.UpdateProject(state.currentProject.id, content).then((success) => {
+        globalThis.go.main.App.UpdateProject(state.currentProject.id, content).then((success) => {
           if (success) {
             flowStore.setState({ lastSavedSnapshot: content });
           }
