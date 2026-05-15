@@ -28,6 +28,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   return (
     <div
       className="fixed inset-0 z-[2000]"
+      role="presentation"
       onClick={onClose}
       onContextMenu={(e) => {
         e.preventDefault();

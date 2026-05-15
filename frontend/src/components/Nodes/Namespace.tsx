@@ -61,15 +61,24 @@ export const NamespaceNode = memo((props: NodeProps) => {
             )}
           />
         ) : (
-          <span
+          <button
+            type="button"
             className={cn(
-              "relative text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm z-[100]",
+              "relative text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm z-[100] border-none bg-transparent p-0 outline-none focus:ring-2 focus:ring-emerald-500/50 rounded",
               colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700"
             )}
             onDoubleClick={() => setIsEditing(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsEditing(true);
+              }
+            }}
+            title={`Double click to rename namespace: ${data.label}`}
+            aria-label={`Rename namespace ${data.label}`}
           >
             {data.label}
-          </span>
+          </button>
         )}
       </div>
 

@@ -69,15 +69,24 @@ export const DeploymentNode = memo((props: NodeProps) => {
             )}
           />
         ) : (
-          <span
+          <button
+            type="button"
             className={cn(
-              "relative text-xs font-mono font-bold tracking-tight cursor-text z-[100]",
+              "relative text-xs font-mono font-bold tracking-tight cursor-text z-[100] border-none bg-transparent p-0 outline-none focus:ring-2 focus:ring-violet-500/50 rounded",
               colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
             )}
             onDoubleClick={() => setIsEditing(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsEditing(true);
+              }
+            }}
+            title={`Double click to rename deployment: ${data.label}`}
+            aria-label={`Rename deployment ${data.label}`}
           >
             {data.label}
-          </span>
+          </button>
         )}
       </div>
 

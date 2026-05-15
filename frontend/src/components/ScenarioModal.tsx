@@ -91,6 +91,8 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
   return (
     <div
       className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
       onClick={onClose}
     >
       <div

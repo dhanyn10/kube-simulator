@@ -240,16 +240,24 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               )}
             />
           ) : (
-            <div
+            <button
+              type="button"
               className={cn(
-                "w-full min-w-0 max-w-full text-xs font-mono font-bold truncate cursor-text",
+                "w-full min-w-0 max-w-full text-xs font-mono font-bold truncate cursor-text text-left border-none bg-transparent p-0 outline-none focus:ring-1 focus:ring-blue-500/50 rounded",
                 colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
               )}
               onDoubleClick={() => setIsEditing(true)}
-              title={data.label}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setIsEditing(true);
+                }
+              }}
+              title={`Double click to rename: ${data.label}`}
+              aria-label={`Rename ${data.label}`}
             >
               {data.label}
-            </div>
+            </button>
           )}
 
           {showDashedProgress && (
