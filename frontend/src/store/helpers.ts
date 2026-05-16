@@ -388,28 +388,55 @@ const resolvePairOverlap = (nodeA: Node, nodeB: Node, fixedNodeId?: string, padd
   return true;
 };
 
+// Helper to group nodes by their parent ID
+const groupNodesByParent = (nodes: Node[]) => {
+  const groups = new Map<string | undefined, string[]>();
+  nodes.forEach(n => {
+    const p = n.parentId;
+    if (!groups.has(p)) groups.set(p, []);
+    groups.get(p)!.push(n.id);
+  });
+  return groups;
+};
+
+// Helper to resolve collisions between siblings within a single group
+const resolveCollisionsInGroup = (siblingIds: string[], nextNodes: Node[], padding: number, fixedNodeId?: string): boolean => {
+  let detected = false;
+  for (let i = 0; i < siblingIds.length; i++) {
+    for (let j = i + 1; j < siblingIds.length; j++) {
+      const nodeA = nextNodes.find(n => n.id === siblingIds[i])!;
+      const nodeB = nextNodes.find(n => n.id === siblingIds[j])!;
+      if (resolvePairOverlap(nodeA, nodeB, fixedNodeId, padding)) {
+        detected = true;
+      }
+    }
+  }
+  return detected;
+};
+
+// Helper to perform a single iteration of global collision resolution
+const performCollisionIteration = (nextNodes: Node[], padding: number, fixedNodeId?: string): boolean => {
+  let anyCollision = false;
+  const groups = groupNodesByParent(nextNodes);
+
+  for (const [parentId, siblingIds] of groups.entries()) {
+    const parentNode = parentId ? nextNodes.find(n => n.id === parentId) : null;
+    // Skip containers that manage their own internal layout (Pods in Deployments)
+    if (parentNode?.type === 'Deployment' || parentNode?.type === 'PodGroup') continue;
+
+    if (resolveCollisionsInGroup(siblingIds, nextNodes, padding, fixedNodeId)) {
+      anyCollision = true;
+    }
+  }
+  return anyCollision;
+};
+
 export const resolveGlobalCollisions = (nodes: Node[], fixedNodeId?: string, iterations = 3): Node[] => {
   let nextNodes = nodes.map(n => ({ ...n, position: { ...n.position } }));
   const PADDING = 32;
 
   for (let iter = 0; iter < iterations; iter++) {
-    let collisionDetected = false;
-    const groups = new Map<string | undefined, string[]>();
-    nextNodes.forEach(n => { const p = n.parentId; if (!groups.has(p)) groups.set(p, []); groups.get(p)!.push(n.id); });
-
-    for (const [parentId, siblingIds] of groups.entries()) {
-      const parentNode = parentId ? nextNodes.find(n => n.id === parentId) : null;
-      if (parentNode?.type === 'Deployment' || parentNode?.type === 'PodGroup') continue;
-
-      for (let i = 0; i < siblingIds.length; i++) {
-        for (let j = i + 1; j < siblingIds.length; j++) {
-          const nodeA = nextNodes.find(n => n.id === siblingIds[i])!;
-          const nodeB = nextNodes.find(n => n.id === siblingIds[j])!;
-          if (resolvePairOverlap(nodeA, nodeB, fixedNodeId, PADDING)) collisionDetected = true;
-        }
-      }
-    }
-    if (!collisionDetected) break;
+    if (!performCollisionIteration(nextNodes, PADDING, fixedNodeId)) break;
   }
   return nextNodes;
 };

@@ -12,6 +12,19 @@ import { FlowState } from '../../types';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './dragUtils';
 
 /**
+ * Determines the relationship between a node and a potential container.
+ */
+const getRelationshipStatus = (node: Node, container: Node, intersects: boolean, overlapPercentage: number) => {
+  if (node.parentId === container.id) {
+    return overlapPercentage < 20 ? 'detaching' : 'hovering';
+  }
+  if (intersects && isAllowed(container.type || '', node.type || '')) {
+    return 'hovering';
+  }
+  return null;
+};
+
+/**
  * Finds the container that the node is currently hovering over or detaching from.
  */
 const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nodes: Node[]) => {
@@ -23,13 +36,14 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
 
   for (const container of containers) {
     if (container.id === node.id) continue;
+    
     const { intersects, overlapPercentage } = calculateOverlap(node, nodeAbs, container, nodes);
+    const status = getRelationshipStatus(node, container, intersects, overlapPercentage);
 
-    if (node.parentId === container.id) {
-      if (overlapPercentage < 20) detachingId = container.id;
-      else if (!hoveredId) hoveredId = container.id;
-    } else if (intersects && isAllowed(container.type || '', node.type || '')) {
-      if (!hoveredId) hoveredId = container.id;
+    if (status === 'detaching') {
+      detachingId = container.id;
+    } else if (status === 'hovering' && !hoveredId) {
+      hoveredId = container.id;
     }
   }
   return { hoveredId, detachingId };
@@ -53,46 +67,71 @@ const getSnappedCoord = (abs: number, size: number, guides: number[], parentAbs:
 };
 
 /**
+ * Case 1: Drop into a new container
+ */
+const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos: { x: number, y: number }, get: () => FlowState, finalNode: Node) => {
+  const target = nextNodes.find(n => n.id === hoveredId);
+  if (!target || !isAllowed(target.type || '', node.type || '')) {
+    return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
+  }
+  return target.type === 'Deployment' && node.type === 'Pod'
+    ? handlePodMoveToDeployment(hoveredId, target, node, nextNodes, node.parentId, get, finalNode)
+    : handleGenericContainerMove(hoveredId, node, nextNodes, node.parentId, absPos, get);
+};
+
+/**
+ * Case 2: Detach from current container
+ */
+const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, absPos: { x: number, y: number }, get: () => FlowState) => {
+  const parent = nextNodes.find(n => n.id === oldParentId);
+  if (parent?.type === 'Deployment' && node.type === 'Pod') {
+    const movingReplicas = getNodeData(node).replicas || 1;
+    const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -movingReplicas, get);
+    const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
+    return [
+      ...filtered.map(n => n.id === oldParentId ? updatedDeployment : n),
+      ...laidOut,
+      { ...node, parentId: undefined, position: absPos, extent: undefined }
+    ];
+  }
+  return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
+};
+
+/**
+ * Case 3: Move within same container or fallback
+ */
+const applyInternalMove = (node: Node, finalNode: Node, nextNodes: Node[], oldParentId: string, get: () => FlowState) => {
+  const parent = nextNodes.find(n => n.id === oldParentId);
+  let resultNodes = [...nextNodes];
+  
+  if (parent?.type === 'Deployment' && node.type === 'Pod') {
+    const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, finalNode);
+    const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
+    resultNodes = [...filtered.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
+  } else {
+    resultNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
+  }
+  
+  return syncContainerSize(oldParentId, resultNodes);
+};
+
+/**
  * Handles the logic for re-parenting, detaching, or moving a node within its container after drop.
  */
 const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hoveredId: string | null, detachingId: string | null, get: () => FlowState) => {
   const oldParentId = node.parentId;
   const absPos = getAbsPos(node.id, nextNodes, finalNode);
 
-  // Case 1: Drop into a new container
   if (hoveredId && hoveredId !== oldParentId) {
-    const target = nextNodes.find(n => n.id === hoveredId);
-    if (!target || !isAllowed(target.type || '', node.type || '')) {
-      return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
-    }
-    return target.type === 'Deployment' && node.type === 'Pod'
-      ? handlePodMoveToDeployment(hoveredId, target, node, nextNodes, oldParentId, get, finalNode)
-      : handleGenericContainerMove(hoveredId, node, nextNodes, oldParentId, absPos, get);
+    return applyNewParent(node, nextNodes, hoveredId, absPos, get, finalNode);
   }
 
-  // Case 2: Detach from current container
   if (detachingId && oldParentId === detachingId) {
-    const parent = nextNodes.find(n => n.id === oldParentId);
-    if (parent?.type === 'Deployment' && node.type === 'Pod') {
-      const movingReplicas = getNodeData(node).replicas || 1;
-      const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -movingReplicas, get);
-      const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
-      return [...filtered.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut, { ...node, parentId: undefined, position: absPos, extent: undefined }];
-    }
-    return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
+    return applyDetachment(node, nextNodes, oldParentId, absPos, get);
   }
 
-  // Case 3: Move within same container or fallback
   if (oldParentId) {
-    const parent = nextNodes.find(n => n.id === oldParentId);
-    if (parent?.type === 'Deployment' && node.type === 'Pod') {
-      const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, finalNode);
-      const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
-      nextNodes = [...filtered.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
-    } else {
-      nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, position: finalNode.position, extent: 'parent' as const } : n);
-    }
-    return syncContainerSize(oldParentId, nextNodes);
+    return applyInternalMove(node, finalNode, nextNodes, oldParentId, get);
   }
 
   return nextNodes;
