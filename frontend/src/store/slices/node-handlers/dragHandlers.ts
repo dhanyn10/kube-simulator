@@ -9,6 +9,7 @@ import {
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import { FlowState } from '../../types';
+import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './dragUtils';
 
 export const dragHandlers = (set: any, get: () => FlowState) => ({
   onNodeDragStart: (event: any, node: Node) => {
@@ -55,19 +56,9 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
 
     for (const container of sortedContainers) {
         if (container.id === node.id) continue;
-
-        const contAbs = getAbsPos(container.id, nodes);
-        const contWidth = container.width || container.measured?.width || (container.type === 'Deployment' ? 320 : 600);
-        const contHeight = container.height || container.measured?.height || (container.type === 'Deployment' ? 160 : 400);
-
-        const overlapX = Math.max(0, Math.min(nodeAbs.x + nodeWidth, contAbs.x + contWidth) - Math.max(nodeAbs.x, contAbs.x));
-        const overlapY = Math.max(0, Math.min(nodeAbs.y + nodeHeight, contAbs.y + contHeight) - Math.max(nodeAbs.y, contAbs.y));
-        const overlapArea = overlapX * overlapY;
-        const overlapPercentage = (overlapArea / podArea) * 100;
-        const intersects = overlapArea > 0;
+        const { intersects, overlapPercentage } = calculateOverlap(node, nodeAbs, container, nodes);
 
         if (node.parentId === container.id) {
-            // Increased threshold to 80% to give expansion more room to work
             if (overlapPercentage < 20) { 
                 newDetachingDeploymentId = container.id;
                 nextNodes = nextNodes.map((n: Node) => n.id === container.id ? { ...n, data: { ...n.data, isDetaching: true } } : n);
@@ -180,37 +171,9 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       if (targetParentId && targetParent && targetParentId !== oldParentId) {
         if (isAllowed(targetParent.type || '', node.type || '')) {
           if (targetParent.type === 'Deployment' && node.type === 'Pod') {
-            const movingReplicas = getNodeData(node).replicas || 1;
-            const { updatedDeployment, laidOut } = syncDeployment(targetParent, nextNodes, movingReplicas, get, finalNode);
-
-            nextNodes = nextNodes.filter(n => (n.parentId !== targetParentId || n.type !== 'Pod') && n.id !== node.id);
-            nextNodes = [...nextNodes.map(n => n.id === targetParentId ? updatedDeployment : n), ...laidOut];
-
-            if (oldParentId) {
-              const oldParent = nextNodes.find(n => n.id === oldParentId);
-              if (oldParent?.type === 'Deployment') {
-                const { updatedDeployment: uOld, laidOut: lOld } = syncDeployment(oldParent, nextNodes, -movingReplicas, get);
-                nextNodes = nextNodes.filter(n => n.parentId !== oldParentId || n.type !== 'Pod');
-                nextNodes = [...nextNodes.map(n => n.id === oldParentId ? uOld : n), ...lOld];
-              }
-            }
+            nextNodes = handlePodMoveToDeployment(targetParentId, targetParent, node, nextNodes, oldParentId, get, finalNode);
           } else {
-            const targetAbsPos = getAbsPos(targetParentId, nextNodes);
-            const relativePos = { x: absPos.x - targetAbsPos.x, y: absPos.y - targetAbsPos.y };
-            
-            nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, parentId: targetParentId, position: relativePos, extent: 'parent' as const } : n);
-            // Auto-expand new parent Namespace
-            nextNodes = syncContainerSize(targetParentId, nextNodes);
-
-            if (oldParentId) {
-              const oldParent = nextNodes.find(n => n.id === oldParentId);
-              if (oldParent?.type === 'Deployment' && node.type === 'Pod') {
-                 const movingReplicas = getNodeData(node).replicas || 1;
-                 const { updatedDeployment: uOld, laidOut: lOld } = syncDeployment(oldParent, nextNodes, -movingReplicas, get);
-                 nextNodes = nextNodes.filter(n => n.parentId !== oldParentId || n.type !== 'Pod');
-                 nextNodes = [...nextNodes.map(n => n.id === oldParentId ? uOld : n), ...lOld];
-              }
-            }
+            nextNodes = handleGenericContainerMove(targetParentId, node, nextNodes, oldParentId, absPos, get);
           }
         } else {
           nextNodes = nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);

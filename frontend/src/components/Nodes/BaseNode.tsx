@@ -8,6 +8,8 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
 import { useNodeRename } from '../../hooks/useNodeEditor';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
+import { useNodeStatus, useNodeContainerStyles } from '../../hooks/useNodeStatusStyles';
+import { NodePodBadges } from './NodePodBadges';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -86,45 +88,17 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(id, data.label, data.onRename);
 
-  const effectiveStatus = statusOverride || data.status;
-  const isPending = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'pending';
-  const isReady = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'ready';
-  const isCrashing = effectiveStatus === 'crashing';
+  const { effectiveStatus, isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
+    useNodeStatus(data, statusOverride, color, colorMode);
+
+  const { containerClasses, progressEmptyBgClass } =
+    useNodeContainerStyles(selected, isReady, isPending, isCrashing, color, colorMode);
 
   const replicas = data.replicas || 1;
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || (replicas > 1 && !data.parentId));
 
-  // Extract status-based colors
-  const getStatusColor = (mode: 'icon' | 'text') => {
-    if (isCrashing) return "text-red-600";
-    if (isPending) return "text-red-500";
-    if (isReady) return "text-emerald-500";
-    if (colorMode === 'dark') return `text-${color}-400`;
-    return mode === 'icon' ? `text-${color}-500` : `text-${color}-600`;
-  };
-
-  const statusIconColor = getStatusColor('icon');
-  const statusTextColor = getStatusColor('text');
-
-  const statusDotColor = isCrashing ? "bg-red-600 animate-ping" :
-    (isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]");
-
-  const containerBaseClasses = colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
-  const selectionClasses = selected
-    ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg")
-    : `hover:border-${color}-500/50`;
-
-  const readyClasses = isReady ? (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30") : "";
-  const progressEmptyBgClass = colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200";
-
   return (
-    <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0",
-      transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200",
-      containerBaseClasses, selectionClasses, readyClasses,
-      isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
-      isCrashing && "border-red-600 ring-8 ring-red-600/30 animate-crash-blink shadow-[0_0_30px_rgba(220,38,38,0.6)]"
-    )}>
+    <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200")}>
       {replicas > 1 && (
         <div className={cn("absolute -right-1.5 -top-1.5 w-full h-full border-2 rounded-lg -z-10", colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300")} />
       )}
@@ -166,17 +140,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           />
 
           <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} />
-
-          {data.type === 'Pod' && (
-            <div className="flex flex-wrap items-center gap-1 min-w-0 max-w-full overflow-hidden">
-              {data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none' && (
-                <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 uppercase font-bold whitespace-nowrap">{data.runtime}</span>
-              )}
-              {data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none' && (
-                <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold whitespace-nowrap">{data.webserver}</span>
-              )}
-            </div>
-          )}
+          <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
       </div>
