@@ -1,6 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sNodeData } from '../../types';
+import { parseCPU, parseMemory } from '../../lib/utils';
 
 // Centralize side-effect handlers
 const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
@@ -75,7 +76,7 @@ export const checkEmergencyStop = (params: {
 };
 
 /**
- * Validates HPA targets for required resource limits.
+ * Validates HPA targets for required resource limits and ensure limit >= request.
  */
 export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
     const hpaNodes = nodes.filter(n => n.type === 'HPA');
@@ -87,7 +88,18 @@ export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
         return targets.some(target => {
             const data = target.data as K8sNodeData;
             const isWorkload = target.type === 'Deployment' || (target.type === 'Pod' && !target.parentId);
-            return isWorkload && (!data.cpuLimit || !data.memoryLimit);
+            if (!isWorkload) return false;
+
+            // HPA requires limits to be set
+            if (!data.cpuLimit || !data.memoryLimit) return true;
+
+            // Limit must be >= request
+            const cpuReq = parseCPU(data.cpuRequest);
+            const cpuLim = parseCPU(data.cpuLimit);
+            const memReq = parseMemory(data.memoryRequest);
+            const memLim = parseMemory(data.memoryLimit);
+
+            return cpuLim < cpuReq || memLim < memReq;
         });
     });
 };
