@@ -1,9 +1,8 @@
 import { Node } from '@xyflow/react';
 import { 
-  getPodMinimumSize, 
-  POD_MIN_DIMENSIONS,
   layoutPodsInDeployment
 } from '../../helpers';
+import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../../../lib/podSizing';
 import { FlowState } from '../../types';
 
 /**

@@ -5,10 +5,9 @@ import {
   getNodeData, 
   syncPodsInDeployment, 
   layoutPodsInDeployment, 
-  getPodMinimumSize, 
-  POD_MIN_DIMENSIONS,
   resolveGlobalCollisions
 } from './helpers';
+import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../lib/podSizing';
 import { syncWorkloadMetadata } from './slices/node-handlers/nodeUtils';
 
 /**
