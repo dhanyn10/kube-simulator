@@ -2,7 +2,6 @@ import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Type } from 'lucide-react';
-import { syncWorkloadMetadata } from '../store/slices/node-handlers/nodeUtils';
 import { ConfigInput, ConfigLabel } from './ConfigUI';
 import { WorkloadConfig } from './WorkloadConfig';
 import { ServiceConfig } from './ServiceConfig';
@@ -12,6 +11,7 @@ import { InternetConfig } from './InternetConfig';
 import { PVCConfig } from './PVCConfig';
 import { ConfigMapConfig } from './ConfigMapConfig';
 import { SecretConfig } from './SecretConfig';
+import { getVisibilityUpdates, getWorkloadUpdates } from '../store/slices/node-handlers/configUtils';
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -25,75 +25,26 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
   const toggleVisibility = (field: string) => {
     const currentSettings = data.displaySettings || {};
-    const isCurrentlyVisible = currentSettings[field] !== false;
-    const nextVisibility = !isCurrentlyVisible;
-    
-    let nextSettings = {
-      ...currentSettings,
-      [field]: nextVisibility
-    };
+    const nextVisibility = currentSettings[field] === false;
+    const additionalUpdates = getVisibilityUpdates(field, nextVisibility, data);
+    const nextSettings = { ...currentSettings, [field]: nextVisibility };
 
-    let additionalUpdates: any = {};
-    
-    // If enabling a feature that is currently empty, set default values
-    if (nextVisibility) {
-      if (field === 'resources' && !data.cpuLimit && !data.memoryLimit) {
-        additionalUpdates.cpuRequest = '100m';
-        additionalUpdates.cpuLimit = '250m';
-        additionalUpdates.memoryRequest = '128Mi';
-        additionalUpdates.memoryLimit = '256Mi';
-      }
-      if (field === 'webserver' && (!data.webserver || data.webserver === 'none')) {
-        additionalUpdates.webserver = 'nginx';
-      }
-      if (field === 'runtime' && (!data.runtime || data.runtime === 'none')) {
-        additionalUpdates.runtime = 'nodejs';
-      }
-    }
+    updateNodeData(selectedNode.id, { ...data, ...additionalUpdates, displaySettings: nextSettings });
 
-    const finalData = {
-      ...data,
-      ...additionalUpdates,
-      displaySettings: nextSettings
-    };
-
-    updateNodeData(selectedNode.id, finalData);
-
-    // Identify which pods should be synced
     const state = useFlowStore.getState();
-    const podsToSync = state.nodes.filter((n: any) => {
-      if (n.type !== 'Pod' || n.id === selectedNode.id) return false;
-      
-      // Case 1: Same parent and same label (Deployment/PodGroup member)
-      if (selectedNode.parentId && n.parentId === selectedNode.parentId) {
-        return n.data.label === data.label;
+    state.nodes.forEach((n: any) => {
+      const isPeerPod = n.type === 'Pod' && n.id !== selectedNode.id && (
+        (selectedNode.parentId && n.parentId === selectedNode.parentId && n.data.label === data.label) ||
+        (!selectedNode.parentId && !n.parentId && n.data.label === data.label)
+      );
+      if (isPeerPod) {
+        updateNodeData(n.id, { ...additionalUpdates, displaySettings: nextSettings });
       }
-      
-      // Case 2: No parent but same label (Standalone pods)
-      if (!selectedNode.parentId && !n.parentId) {
-        return n.data.label === data.label;
-      }
-      
-      return false;
     });
 
-    // Update the other pods in the group
-    podsToSync.forEach((p: any) => {
-      updateNodeData(p.id, {
-        ...additionalUpdates,
-        displaySettings: nextSettings
-      });
-    });
-
-    // Also update parent if applicable
     if (selectedNode.parentId) {
-      const parentDeployment = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-      if (parentDeployment) {
-        updateNodeData(parentDeployment.id, {
-          ...additionalUpdates,
-          displaySettings: nextSettings
-        });
-      }
+      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+      if (parent) updateNodeData(parent.id, { ...additionalUpdates, displaySettings: nextSettings });
     }
   };
 
@@ -101,47 +52,21 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     let nextData = { ...data, ...updates };
 
     if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
-        nextData = { ...nextData, ...syncWorkloadMetadata(selectedNode.type, nextData) };
-
-        if (nextData.status === 'ready' && nextData.isAutoNamed) {
-            let newLabel = '';
-            if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
-                newLabel = `${nextData.webserver}-${nextData.runtime}`;
-            } else {
-                newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
-            }
-            nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
-        } else if (nextData.status === 'pending') {
-            nextData.image = undefined;
-        }
-    }
-
-    if (selectedNode.type === 'Pod' && selectedNode.parentId && !('replicas' in updates)) {
-      delete nextData.replicas;
-      delete nextData.parentReplicas;
+      nextData = getWorkloadUpdates(selectedNode.type, data, updates);
     }
 
     updateNodeData(selectedNode.id, nextData);
 
-    // Sync to parent deployment if it's a pod in one
     if (selectedNode.type === 'Pod' && selectedNode.parentId) {
-        const state = useFlowStore.getState();
-        const parentDeployment = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-        if (parentDeployment) {
-            // Pick only the data that should be synced to deployment template
-            const syncData: any = {};
-            if ('cpuLimit' in updates) syncData.cpuLimit = updates.cpuLimit;
-            if ('memoryLimit' in updates) syncData.memoryLimit = updates.memoryLimit;
-            if ('label' in updates) syncData.label = updates.label;
-            if ('image' in updates) syncData.image = updates.image;
-            if ('status' in updates) syncData.status = updates.status;
-            if ('webserver' in updates) syncData.webserver = updates.webserver;
-            if ('runtime' in updates) syncData.runtime = updates.runtime;
-
-            if (Object.keys(syncData).length > 0) {
-                updateNodeData(parentDeployment.id, syncData);
-            }
-        }
+      const state = useFlowStore.getState();
+      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+      if (parent) {
+        const syncData: any = {};
+        ['cpuLimit', 'memoryLimit', 'label', 'image', 'status', 'webserver', 'runtime'].forEach(key => {
+          if (key in updates) syncData[key] = updates[key];
+        });
+        if (Object.keys(syncData).length > 0) updateNodeData(parent.id, syncData);
+      }
     }
   };
 
