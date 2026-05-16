@@ -54,7 +54,29 @@ export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode 
     >
       <Minus size={10} />
     </button>
-    <span className="flex-1 text-center font-mono text-[10px]">{value}</span>
+    <input
+      type="number"
+      value={value}
+      min={min}
+      max={max}
+      onChange={(e) => {
+        const val = parseInt(e.target.value, 10);
+        if (e.target.value === '') {
+          onChange(0);
+          return;
+        }
+        if (!isNaN(val)) {
+          onChange(Math.max(0, Math.min(max, val)));
+        }
+      }}
+      className={cn(
+        "flex-1 w-12 text-center font-mono text-[10px] py-1 rounded border outline-none transition-all",
+        "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+        colorMode === 'dark' 
+          ? "bg-slate-900/50 border-slate-700/50 text-slate-200 focus:border-blue-500/50" 
+          : "bg-white border-slate-300 text-slate-800 focus:border-blue-500"
+      )}
+    />
     <button
       onClick={() => onChange(Math.min(max, value + 1))}
       disabled={value >= max}

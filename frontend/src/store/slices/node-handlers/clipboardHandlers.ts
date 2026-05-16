@@ -1,9 +1,28 @@
 import { Node } from '@xyflow/react';
-import { sortNodes } from '../../helpers';
+import { sortNodes, getNodeData } from '../../helpers';
 import { hydrateNodes } from '../../nodeHelpers';
 import { FlowState } from '../../types';
 import { randomId } from '../../../lib/utils';
-import { findLogicalPodMatch, updateReplicaDelta } from './clipboardUtils';
+
+const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNodeData: any): boolean => {
+  const clipboardPod = clipboardNodes.find((n: Node) => n.type === 'Pod');
+  const selectedPod = nodes.find(n => n.selected && n.type === 'Pod');
+  if (!clipboardPod || !selectedPod) return false;
+
+  const isMatch = selectedPod.id === clipboardPod.id || selectedPod.data?.label === clipboardPod.data?.label;
+  if (!isMatch) return false;
+
+  const parent = nodes.find(n => n.id === selectedPod.parentId);
+  const isController = parent && (parent.type === 'Deployment' || parent.type === 'PodGroup');
+  const targetId = isController ? selectedPod.parentId! : selectedPod.id;
+  const targetNode = nodes.find(n => n.id === targetId);
+
+  if (!targetNode) return false;
+
+  const currentReplicas = getNodeData(targetNode).replicas || (targetNode.type === 'Pod' ? 1 : 0);
+  updateNodeData(targetId, { replicas: currentReplicas + 1 });
+  return true;
+};
 
 export const clipboardHandlers = (set: any, get: () => FlowState) => ({
   copyNodes: () => {
@@ -19,28 +38,27 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
       }
     });
 
-    const nodesToCopy = nodes.filter(n => nodeIdsToCopy.has(n.id));
-    const edgesToCopy = edges.filter(e => nodeIdsToCopy.has(e.source) && nodeIdsToCopy.has(e.target));
+    const nodesToCopy = nodes.filter(n => nodeIdsToCopy.has(n.id)).map(n => ({
+      ...n,
+      data: { ...n.data }
+    }));
+    
+    const edgesToCopy = edges.filter(e => nodeIdsToCopy.has(e.source) && nodeIdsToCopy.has(e.target)).map(e => ({
+      ...e
+    }));
 
-    set({ clipboard: { nodes: structuredClone(nodesToCopy), edges: structuredClone(edgesToCopy) } });
+    set({ clipboard: { nodes: nodesToCopy, edges: edgesToCopy } });
   },
 
   pasteNodes: () => {
-    const { clipboard, nodes, edges } = get();
-    if (!clipboard) return;
+    const { clipboard, nodes, updateNodeData } = get();
+    if (!clipboard || clipboard.nodes.length === 0) return;
 
-    if (clipboard.nodes.length === 1 && clipboard.nodes[0].type === 'Pod') {
-      const target = findLogicalPodMatch(clipboard.nodes[0], nodes);
-      if (target) {
-        updateReplicaDelta(target, 1, nodes, get().updateNodeData);
-        return;
-      }
-    }
+    if (tryIncrementPodReplicas(nodes, clipboard.nodes, updateNodeData)) return;
 
     const idMap: Record<string, string> = {};
     const offset = 40;
 
-    const updatedExistingNodes = [...nodes];
     const pastedNodes = clipboard.nodes.map((n: Node) => {
       const newId = randomId(n.type?.toLowerCase());
       idMap[n.id] = newId;
@@ -48,16 +66,12 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
       const newNode = {
         ...n,
         id: newId,
-        position: { x: n.position.x + offset, y: n.position.y + offset },
+        position: { x: (n.position?.x || 0) + offset, y: (n.position?.y || 0) + offset },
         selected: true,
       };
 
-      // Ensure pasted Pods always start with 1 replica, regardless of source count
       if (n.type === 'Pod' && newNode.data) {
-        newNode.data = {
-          ...newNode.data,
-          replicas: 1
-        };
+        newNode.data = { ...newNode.data, replicas: 1 };
       }
 
       return newNode;
@@ -74,8 +88,8 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
     const hydratedPastedNodes = hydrateNodes(pastedNodes, get);
 
     set({
-      nodes: sortNodes([...updatedExistingNodes.map(n => ({ ...n, selected: false })), ...hydratedPastedNodes]),
-      edges: [...edges.map(e => ({ ...e, selected: false })), ...pastedEdges],
+      nodes: sortNodes([...nodes.map(n => ({ ...n, selected: false })), ...hydratedPastedNodes]),
+      edges: [...get().edges.map(e => ({ ...e, selected: false })), ...pastedEdges],
       lastActionId: `paste-${Date.now()}`,
       lastActionName: 'Paste Elements'
     });
