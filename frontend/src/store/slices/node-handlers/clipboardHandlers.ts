@@ -4,6 +4,26 @@ import { hydrateNodes } from '../../nodeHelpers';
 import { FlowState } from '../../types';
 import { randomId } from '../../../lib/utils';
 
+const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNodeData: any): boolean => {
+  const clipboardPod = clipboardNodes.find((n: Node) => n.type === 'Pod');
+  const selectedPod = nodes.find(n => n.selected && n.type === 'Pod');
+  if (!clipboardPod || !selectedPod) return false;
+
+  const isMatch = selectedPod.id === clipboardPod.id || selectedPod.data?.label === clipboardPod.data?.label;
+  if (!isMatch) return false;
+
+  const parent = nodes.find(n => n.id === selectedPod.parentId);
+  const isController = parent && (parent.type === 'Deployment' || parent.type === 'PodGroup');
+  const targetId = isController ? selectedPod.parentId! : selectedPod.id;
+  const targetNode = nodes.find(n => n.id === targetId);
+
+  if (!targetNode) return false;
+
+  const currentReplicas = getNodeData(targetNode).replicas || (targetNode.type === 'Pod' ? 1 : 0);
+  updateNodeData(targetId, { replicas: currentReplicas + 1 });
+  return true;
+};
+
 export const clipboardHandlers = (set: any, get: () => FlowState) => ({
   copyNodes: () => {
     const { nodes, edges } = get();
@@ -18,10 +38,9 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
       }
     });
 
-    // Use a safer cloning method that handles functions/handlers
     const nodesToCopy = nodes.filter(n => nodeIdsToCopy.has(n.id)).map(n => ({
       ...n,
-      data: { ...n.data } // Shallow copy data to preserve top-level properties
+      data: { ...n.data }
     }));
     
     const edgesToCopy = edges.filter(e => nodeIdsToCopy.has(e.source) && nodeIdsToCopy.has(e.target)).map(e => ({
@@ -32,36 +51,11 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
   },
 
   pasteNodes: () => {
-    const { clipboard, nodes } = get();
+    const { clipboard, nodes, updateNodeData } = get();
     if (!clipboard || clipboard.nodes.length === 0) return;
 
-    // USER LOGIC: If a Pod is SELECTED and matches the clipboard, increment its replicas
-    const clipboardPod = clipboard.nodes.find((n: Node) => n.type === 'Pod');
-    const selectedPod = nodes.find(n => n.selected && n.type === 'Pod');
+    if (tryIncrementPodReplicas(nodes, clipboard.nodes, updateNodeData)) return;
 
-    if (clipboardPod && selectedPod) {
-      const isSameLabel = selectedPod.data?.label === clipboardPod.data?.label;
-      const isSameId = selectedPod.id === clipboardPod.id;
-
-      if (isSameId || isSameLabel) {
-        // Find if this pod has a controller parent (Deployment/PodGroup)
-        const parent = nodes.find(n => n.id === selectedPod.parentId);
-        const isController = parent && (parent.type === 'Deployment' || parent.type === 'PodGroup');
-        
-        // Target ID for replica update: either the parent controller or the pod itself
-        const targetId = isController ? selectedPod.parentId! : selectedPod.id;
-        const targetNode = nodes.find(n => n.id === targetId);
-        
-        if (targetNode) {
-          const currentReplicas = getNodeData(targetNode).replicas || (targetNode.type === 'Pod' ? 1 : 0);
-          // Call updateNodeData via get() to ensure absolute synchronization
-          get().updateNodeData(targetId, { replicas: currentReplicas + 1 });
-          return;
-        }
-      }
-    }
-
-    // Fallback: Standard copy-paste logic (creating new nodes)
     const idMap: Record<string, string> = {};
     const offset = 40;
 
