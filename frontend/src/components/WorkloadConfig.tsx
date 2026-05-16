@@ -31,8 +31,9 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
     : data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
 
   const updateReplicas = (replicas: number) => {
-    const parentId = selectedNode.parentId;
-    const targetId = (selectedNode.type === 'Pod' && parentId) ? parentId : selectedNode.id;
+    const parent = nodes.find(n => n.id === selectedNode.parentId);
+    const isController = parent?.type === 'Deployment' || parent?.type === 'PodGroup';
+    const targetId = (selectedNode.type === 'Pod' && isController) ? selectedNode.parentId! : selectedNode.id;
     updateNodeData(targetId, { replicas });
   };
 

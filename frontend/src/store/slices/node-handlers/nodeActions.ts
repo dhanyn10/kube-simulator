@@ -63,11 +63,17 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
 const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, target: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
   if (updatedNode.type === 'Pod') {
-    if (!updatedNode.parentId && (updatedData.replicas || 0) > 3) {
+    const parent = nodes.find(n => n.id === updatedNode.parentId);
+    const isStandaloneContext = !updatedNode.parentId || parent?.type === 'Namespace';
+    
+    if (isStandaloneContext && (updatedData.replicas || 0) > 3) {
       return handlePodGroupTransform(nodeId, updatedNode, updatedData, nodes, get);
     }
     if (updatedNode.parentId) {
-      return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
+      const parent = nodes.find(n => n.id === updatedNode.parentId);
+      if (parent?.type === 'Deployment' || parent?.type === 'PodGroup') {
+        return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
+      }
     }
   }
   if (updatedNode.type === 'Deployment' || updatedNode.type === 'PodGroup') {
