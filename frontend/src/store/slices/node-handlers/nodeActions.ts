@@ -38,7 +38,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
 
   const targetData = target.data as K8sNodeData;
 
-  if (parent.type === 'PodGroup' && (Number(updatedNode.data.replicas) || 0) <= 3) {
+  if (parent.type === 'PodGroup' && (Number(updatedNode.data.replicas) || 0) === 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
     return sortNodes([...others, { ...updatedNode, parentId: undefined, position: groupPos, extent: undefined }]);
@@ -66,7 +66,7 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
     const parent = nodes.find(n => n.id === updatedNode.parentId);
     const isStandaloneContext = !updatedNode.parentId || parent?.type === 'Namespace';
     
-    if (isStandaloneContext && (updatedData.replicas || 0) > 3) {
+    if (isStandaloneContext && (updatedData.replicas || 0) > 1) {
       return handlePodGroupTransform(nodeId, updatedNode, updatedData, nodes, get);
     }
     if (updatedNode.parentId) {
