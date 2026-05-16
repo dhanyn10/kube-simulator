@@ -5,15 +5,16 @@ import { FlowState } from '../../types';
 import {
   getNodeData,
   sortNodes,
-  getAbsPos
+  getAbsPos,
+  resolveGlobalCollisions
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import {
   getInitialData,
-  evaluateStatus,
   sanitizeResourceLimits,
   applyAutoImageLogic,
-  createNodeHandlers
+  createNodeHandlers,
+  syncWorkloadMetadata
 } from './nodeUtils';
 import { safeRandom } from '../../../lib/utils';
 
@@ -117,7 +118,8 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   };
 
   const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
-  set({ nodes: nextNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
+  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, id);
+  set({ nodes: collisionResolvedNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
 
 const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodesToDelete: Node[]) => {
@@ -149,8 +151,8 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
     sanitizedData.isAutoImage = false;
   }
 
-  const updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
-  updatedData.status = evaluateStatus(target.type || '', updatedData);
+  let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
+  updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
   const updatedNode: Node = {
     ...target,
@@ -161,7 +163,8 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   };
 
   const nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
-  set({ nodes: nextNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
+  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
+  set({ nodes: collisionResolvedNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
 };
 
 // -- MAIN EXPORT --

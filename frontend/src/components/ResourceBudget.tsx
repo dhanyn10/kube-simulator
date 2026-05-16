@@ -3,6 +3,7 @@ import { useFlowStore } from '../store';
 import { K8sNodeData } from '../types';
 import { parseCPU, parseMemory, formatCPU, formatMemory } from '../lib/utils';
 import { cn } from '../lib/utils';
+import { MultiProgressBar } from './MultiProgressBar';
 import { Cpu, Database, AlertCircle } from 'lucide-react';
 
 export const ResourceBudget = () => {
@@ -83,26 +84,14 @@ export const ResourceBudget = () => {
               {Math.round(totalCpuPercent + k8sCpuReqPercent)}% Total
             </span>
           </div>
-          <div className={cn("h-2.5 rounded-full overflow-hidden flex relative", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-            {/* 1. Current System Usage (External) */}
-            <div 
-              className="h-full bg-slate-500/40 transition-all duration-500"
-              style={{ width: `${totalCpuPercent}%` }}
-              title="Current System Load"
-            />
-            {/* 2. K8s Predicted Usage (Requests) */}
-            <div 
-              className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-500"
-              style={{ width: `${k8sCpuReqPercent}%` }}
-              title={`Predicted K8s: ${formatCPU(totals.cpuReq)}`}
-            />
-            {/* 3. K8s Risk (Limits) */}
-            <div 
-              className="h-full bg-red-500/30 border-l border-red-500/20 transition-all duration-500"
-              style={{ width: `${Math.max(0, k8sCpuLimPercent - k8sCpuReqPercent)}%` }}
-              title="Potential Overhead (Limits)"
-            />
-          </div>
+          <MultiProgressBar
+            colorMode={colorMode as any}
+            segments={[
+              { value: totalCpuPercent, color: "bg-slate-500/40", title: "Current System Load" },
+              { value: k8sCpuReqPercent, color: "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]", title: `Predicted K8s: ${formatCPU(totals.cpuReq)}` },
+              { value: Math.max(0, k8sCpuLimPercent - k8sCpuReqPercent), color: "bg-red-500/30 border-l border-red-500/20", title: "Potential Overhead (Limits)" }
+            ]}
+          />
           <div className="flex justify-between text-[8px] text-slate-500 font-mono pt-0.5">
             <span>System: {totalCpuPercent}%</span>
             <span>+ K8s: {formatCPU(totals.cpuReq)}</span>
@@ -120,26 +109,14 @@ export const ResourceBudget = () => {
               {systemResources.freeMemoryGB.toFixed(1)} GB Free
             </span>
           </div>
-          <div className={cn("h-2.5 rounded-full overflow-hidden flex relative", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-            {/* 1. Current System Usage (External) */}
-            <div 
-              className="h-full bg-slate-500/40 transition-all duration-500"
-              style={{ width: `${totalMemPercent}%` }}
-              title="Current RAM Used by OS"
-            />
-            {/* 2. K8s Predicted Usage (Requests) */}
-            <div 
-              className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-500"
-              style={{ width: `${k8sMemReqPercent}%` }}
-              title={`Predicted K8s: ${formatMemory(totals.memReq)}`}
-            />
-            {/* 3. K8s Risk (Limits) */}
-            <div 
-              className="h-full bg-red-500/30 border-l border-red-500/20 transition-all duration-500"
-              style={{ width: `${Math.max(0, k8sMemLimPercent - k8sMemReqPercent)}%` }}
-              title="Potential Overhead (Limits)"
-            />
-          </div>
+          <MultiProgressBar
+            colorMode={colorMode as any}
+            segments={[
+              { value: totalMemPercent, color: "bg-slate-500/40", title: "Current RAM Used by OS" },
+              { value: k8sMemReqPercent, color: "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]", title: `Predicted K8s: ${formatMemory(totals.memReq)}` },
+              { value: Math.max(0, k8sMemLimPercent - k8sMemReqPercent), color: "bg-red-500/30 border-l border-red-500/20", title: "Potential Overhead (Limits)" }
+            ]}
+          />
           <div className="flex justify-between text-[8px] text-slate-500 font-mono pt-0.5">
             <span>System: {Math.round(totalMemPercent)}%</span>
             <span>+ K8s: {formatMemory(totals.memReq)}</span>

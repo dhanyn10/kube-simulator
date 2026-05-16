@@ -5,6 +5,9 @@ import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { QuickConnectArrows } from './QuickConnectArrows';
+import { useNodeStyles } from '../../hooks/useNodeStyles';
+import { useNodeRename } from '../../hooks/useNodeEditor';
+import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 
 export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex, id, type, hideSettings, statusOverride }: {
   children?: React.ReactNode;
@@ -19,48 +22,16 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   hideSettings?: boolean;
   statusOverride?: 'pending' | 'ready' | 'crashing';
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(data.label);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const onNodeResize = useFlowStore((state) => state.onNodeResize);
-  const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const { transitionClasses } = useNodeStyles(id);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setEditValue(data.label);
-    }
-  }, [data.label, isEditing]);
+  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
+    useNodeRename(id, data.label, data.onRename);
 
   const effectiveStatus = statusOverride || data.status;
   const isPending = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'pending';
   const isReady = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'ready';
   const isCrashing = effectiveStatus === 'crashing';
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleRename = () => {
-    setIsEditing(false);
-    if (editValue.trim() && editValue !== data.label) {
-      data.onRename?.(editValue.trim());
-    } else {
-      setEditValue(data.label);
-    }
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRename();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditValue(data.label);
-    }
-  };
 
   const replicas = data.replicas || 1;
   const totalDeploymentReplicas = data.parentReplicas || 0;
@@ -124,7 +95,9 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
   return (
     <div className={cn(
-      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto transition-all flex flex-col min-w-0",
+      "group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0",
+      transitionClasses,
+      "transition-[border-color,background-color,box-shadow] duration-200",
       containerBaseClasses,
       selectionClasses,
       isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
@@ -185,64 +158,30 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <div className="flex items-center gap-1 shrink-0">
           {isPending && <AlertCircle size={10} className="text-red-500" />}
           {isReady && <CheckCircle2 size={10} className="text-emerald-500" />}
-          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-            {!hideSettings && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  useFlowStore.getState().setConfiguringNodeId(id);
-                }}
-                className={cn(
-                  "p-1 rounded transition-all",
-                  colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
-                )}
-              >
-                <Settings size={12} />
-              </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                data.onDelete?.();
-              }}
-              className={cn(
-                "p-1 rounded transition-all",
-                colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-              )}
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
+          <NodeActionButtons
+            id={id}
+            onDelete={data.onDelete}
+            colorMode={colorMode}
+            hideSettings={hideSettings}
+          />
         </div>
       </div>
 
       {/* Content Area */}
       <div className="flex-1 flex flex-col gap-2 min-h-0 min-w-0">
         <div className="flex flex-col gap-1.5 min-w-0">
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-              onBlur={handleRename}
-              onKeyDown={onKeyDown}
-              className={cn(
-                "w-full min-w-0 max-w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
-                colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400"
-              )}
-            />
-          ) : (
-            <div
-              className={cn(
-                "w-full min-w-0 max-w-full text-xs font-mono font-bold truncate cursor-text",
-                colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
-              )}
-              onDoubleClick={() => setIsEditing(true)}
-              title={data.label}
-            >
-              {data.label}
-            </div>
-          )}
+          <NodeRenameInput
+            isEditing={isEditing}
+            setIsEditing={setIsEditing}
+            editValue={editValue}
+            setEditValue={setEditValue}
+            inputRef={inputRef}
+            handleRename={handleRename}
+            onKeyDown={onKeyDown}
+            colorMode={colorMode}
+            label={data.label}
+            className="w-full min-w-0 max-w-full"
+          />
 
           {showDashedProgress && (
             <div className={cn(

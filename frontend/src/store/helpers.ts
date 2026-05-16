@@ -24,63 +24,36 @@ export const POD_MIN_DIMENSIONS = {
   height: 92,
 };
 
-export const getPodMinimumSize = (data: any = {}) => {
-  const label = String(data.label || '');
-  const image = String(data.image || '');
-  const badges = [data.runtime, data.webserver]
-    .filter(value => value && value !== 'none')
-    .map(String);
-  const replicas = data.replicas || 1;
-  const showsReplicaBadge = replicas > 1;
-  const totalDeploymentReplicas = data.parentReplicas || 0;
-  // Match visibility logic with BaseNode
-  const showDashedProgress = data.type === 'Pod' && (totalDeploymentReplicas > 3 || (replicas > 1 && !data.parentId));
-
+const calculatePodWidth = (data: any, badges: string[]) => {
   const horizontalPadding = 24;
-  const contentPadding = 16;
-  const headerToolsWidth = 44;
-  const headerContentWidth = 36 + (showsReplicaBadge ? String(replicas).length * 5 + 18 : 0);
-  const labelWidth = label.length * 7 + contentPadding;
-  const badgeWidth = badges.length > 0
-    ? badges.reduce((total, badge) => total + badge.length * 5 + 14, 0) + Math.max(0, badges.length - 1) * 4
-    : 0;
-  const readableImageWidth = image.length > 0
-    ? Math.min(320, Math.max(148, image.length * 5.5 + contentPadding))
-    : 0;
-
   const isMegaPod = data.replicas === 100;
   const baseWidth = isMegaPod ? POD_MIN_DIMENSIONS.width * 2 : POD_MIN_DIMENSIONS.width;
-  const baseHeight = isMegaPod ? POD_MIN_DIMENSIONS.height * 2 : POD_MIN_DIMENSIONS.height;
+  const headerContentWidth = 36 + (data.replicas > 1 ? String(data.replicas).length * 5 + 18 : 0);
+  const labelWidth = String(data.label || '').length * 7 + 16;
+  const badgeWidth = badges.length > 0 ? badges.reduce((t, b) => t + b.length * 5 + 14, 0) + (badges.length - 1) * 4 : 0;
+  const readableImageWidth = String(data.image || '').length > 0 ? Math.min(320, Math.max(148, String(data.image || '').length * 5.5 + 16)) : 0;
+  return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding));
+};
 
-  const width = Math.ceil(Math.max(
-    baseWidth,
-    headerContentWidth + headerToolsWidth + horizontalPadding,
-    labelWidth + horizontalPadding,
-    badgeWidth + horizontalPadding,
-    readableImageWidth + horizontalPadding
-  ));
-
-  // Dynamic height calculation
-  // Base height: Header(24) + Gap(8) + Label(16) + Padding(24) = ~72
+const calculatePodHeight = (data: any, width: number, badges: string[], isMegaPod: boolean) => {
+  const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || ((data.replicas || 1) > 1 && !data.parentId));
   let height = 72;
-
-  if (showDashedProgress) height += isMegaPod ? 120 : 14; // More space for circles in mega pod
-  
-  // Resources block
-  if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) {
-    height += 38; 
+  if (showDashedProgress) height += isMegaPod ? 120 : 14;
+  if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) height += 38;
+  if (badges.length > 0) height += 20;
+  if (data.image && data.displaySettings?.image !== false) {
+    const charsPerLine = Math.max(10, Math.floor((width - 24) / 5.5));
+    height += Math.ceil(String(data.image).length / charsPerLine) * 12 + 8;
   }
+  const baseHeight = isMegaPod ? POD_MIN_DIMENSIONS.height * 2 : POD_MIN_DIMENSIONS.height;
+  return Math.max(baseHeight, Math.ceil(height));
+};
 
-  if (badges.length > 0) height += 20; // Badges + gap
-
-  if (image && data.displaySettings?.image !== false) {
-    const imageContainerWidth = width - horizontalPadding;
-    const charsPerLine = Math.max(10, Math.floor(imageContainerWidth / 5.5));
-    const lines = Math.ceil(image.length / charsPerLine);
-    height += lines * 12 + 8; 
-  }
-
-  return { width, height: Math.max(baseHeight, Math.ceil(height)) };
+export const getPodMinimumSize = (data: any = {}) => {
+  const badges = [data.runtime, data.webserver].filter(v => v && v !== 'none').map(String);
+  const width = calculatePodWidth(data, badges);
+  const height = calculatePodHeight(data, width, badges, data.replicas === 100);
+  return { width, height };
 };
 
 export const sortNodes = (nodes: Node[]): Node[] => {
@@ -417,64 +390,77 @@ export const calculateAlignmentGuides = (
   return { verticalGuides: vGuides, horizontalGuides: hGuides, vSnap, hSnap };
 };
 
-export const resolveCollisions = (
-  draggedNode: Node,
-  nodes: Node[],
-  draggedAbsPos: { x: number, y: number }
-): { x: number, y: number } => {
-  const padding = 24; 
-  
-  const getEffectiveSize = (node: Node) => {
-    if (node.type === 'Pod') {
-      const minSize = getPodMinimumSize(node.data);
-      return {
-        width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
-        height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
-      };
-    }
+const getEffectiveSize = (node: Node) => {
+  if (node.type === 'Pod') {
+    const minSize = getPodMinimumSize(node.data);
     return {
-      width: node.width || node.measured?.width || (node.type === 'Deployment' ? 320 : 160),
-      height: node.height || node.measured?.height || (node.type === 'Deployment' ? 160 : 80)
+      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
+      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
     };
-  };
-
-  const dSize = getEffectiveSize(draggedNode);
-  const dW = dSize.width;
-  const dH = dSize.height;
-
-  let resolvedX = draggedAbsPos.x;
-  let resolvedY = draggedAbsPos.y;
-
-  const otherNodes = nodes.filter(n => n.id !== draggedNode.id && !n.parentId && n.type !== 'Namespace');
-
-  for (const other of otherNodes) {
-    const oAbs = getAbsPos(other.id, nodes);
-    const oSize = getEffectiveSize(other);
-    const oW = oSize.width;
-    const oH = oSize.height;
-
-    // Check if rectangles overlap (AABB)
-    const isColliding = 
-      resolvedX < oAbs.x + oW + padding &&
-      resolvedX + dW + padding > oAbs.x &&
-      resolvedY < oAbs.y + oH + padding &&
-      resolvedY + dH + padding > oAbs.y;
-
-    if (isColliding) {
-       // Simple resolution: Snap to the nearest edge
-       const distLeft = Math.abs(resolvedX - (oAbs.x - dW - padding));
-       const distRight = Math.abs(resolvedX - (oAbs.x + oW + padding));
-       const distTop = Math.abs(resolvedY - (oAbs.y - dH - padding));
-       const distBottom = Math.abs(resolvedY - (oAbs.y + oH + padding));
-
-       const minDist = Math.min(distLeft, distRight, distTop, distBottom);
-
-       if (minDist === distLeft) resolvedX = oAbs.x - dW - padding;
-       else if (minDist === distRight) resolvedX = oAbs.x + oW + padding;
-       else if (minDist === distTop) resolvedY = oAbs.y - dH - padding;
-       else resolvedY = oAbs.y + oH + padding;
-    }
   }
+  const defaultW = node.type === 'Deployment' ? 320 : (node.type === 'Namespace' ? 600 : 160);
+  const defaultH = node.type === 'Deployment' ? 160 : (node.type === 'Namespace' ? 400 : 80);
+  return {
+    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
+    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
+  };
+};
 
-  return { x: resolvedX, y: resolvedY };
+const resolvePairOverlap = (nodeA: Node, nodeB: Node, fixedNodeId?: string, padding = 32): boolean => {
+  const sizeA = getEffectiveSize(nodeA);
+  const sizeB = getEffectiveSize(nodeB);
+
+  const bA = { x: nodeA.position.x, y: nodeA.position.y, w: sizeA.width, h: sizeA.height, centerX: nodeA.position.x + sizeA.width / 2, centerY: nodeA.position.y + sizeA.height / 2 };
+  const bB = { x: nodeB.position.x, y: nodeB.position.y, w: sizeB.width, h: sizeB.height, centerX: nodeB.position.x + sizeB.width / 2, centerY: nodeB.position.y + sizeB.height / 2 };
+
+  const isOverlapping = bA.x < bB.x + bB.w + padding && bA.x + bA.w + padding > bB.x && bA.y < bB.y + bB.h + padding && bA.y + bA.h + padding > bB.y;
+  if (!isOverlapping) return false;
+
+  const dx = bB.centerX - bA.centerX;
+  const dy = bB.centerY - bA.centerY;
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  if (absDx > absDy) {
+    const totalW = (bA.w + bB.w) / 2 + padding;
+    const overlapDist = totalW - absDx;
+    const dir = dx >= 0 ? 1 : -1;
+    if (nodeA.id === fixedNodeId) { nodeB.position.x += overlapDist * dir; nodeB.position.y = bA.centerY - bB.h / 2; }
+    else if (nodeB.id === fixedNodeId) { nodeA.position.x -= overlapDist * dir; nodeA.position.y = bB.centerY - bA.h / 2; }
+    else { nodeA.position.x -= (overlapDist / 2) * dir; nodeB.position.x += (overlapDist / 2) * dir; const midY = (bA.centerY + bB.centerY) / 2; nodeA.position.y = midY - bA.h / 2; nodeB.position.y = midY - bB.h / 2; }
+  } else {
+    const totalH = (bA.h + bB.h) / 2 + padding;
+    const overlapDist = totalH - absDy;
+    const dir = dy >= 0 ? 1 : -1;
+    if (nodeA.id === fixedNodeId) { nodeB.position.y += overlapDist * dir; nodeB.position.x = bA.centerX - bB.w / 2; }
+    else if (nodeB.id === fixedNodeId) { nodeA.position.y -= overlapDist * dir; nodeA.position.x = bB.centerX - bA.w / 2; }
+    else { nodeA.position.y -= (overlapDist / 2) * dir; nodeB.position.y += (overlapDist / 2) * dir; const midX = (bA.centerX + bB.centerX) / 2; nodeA.position.x = midX - bA.w / 2; nodeB.position.x = midX - bB.w / 2; }
+  }
+  return true;
+};
+
+export const resolveGlobalCollisions = (nodes: Node[], fixedNodeId?: string, iterations = 3): Node[] => {
+  let nextNodes = nodes.map(n => ({ ...n, position: { ...n.position } }));
+  const PADDING = 32;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    let collisionDetected = false;
+    const groups = new Map<string | undefined, string[]>();
+    nextNodes.forEach(n => { const p = n.parentId; if (!groups.has(p)) groups.set(p, []); groups.get(p)!.push(n.id); });
+
+    for (const [parentId, siblingIds] of groups.entries()) {
+      const parentNode = parentId ? nextNodes.find(n => n.id === parentId) : null;
+      if (parentNode?.type === 'Deployment' || parentNode?.type === 'PodGroup') continue;
+
+      for (let i = 0; i < siblingIds.length; i++) {
+        for (let j = i + 1; j < siblingIds.length; j++) {
+          const nodeA = nextNodes.find(n => n.id === siblingIds[i])!;
+          const nodeB = nextNodes.find(n => n.id === siblingIds[j])!;
+          if (resolvePairOverlap(nodeA, nodeB, fixedNodeId, PADDING)) collisionDetected = true;
+        }
+      }
+    }
+    if (!collisionDetected) break;
+  }
+  return nextNodes;
 };

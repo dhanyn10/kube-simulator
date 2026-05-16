@@ -49,31 +49,24 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
             </h3>
 
             <div className="flex flex-col gap-5">
-              <div className="flex gap-3">
-                <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold', colorMode === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')}>1</div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={cn('text-[10px] font-bold uppercase', colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700')}>Copy Manifest</span>
-                  <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>Use the button below to copy the YAML content to your clipboard.</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold', colorMode === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')}>2</div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={cn('text-[10px] font-bold uppercase', colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700')}>Save to File</span>
-                  <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>Create a new file named <code className="bg-slate-800 px-1 rounded text-blue-400">infra.yaml</code> and paste the content.</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold', colorMode === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')}>3</div>
-                <div className="flex flex-col gap-1.5">
-                  <span className={cn('text-[10px] font-bold uppercase', colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700')}>Apply to Cluster</span>
+              {[
+                { step: 1, title: 'Copy Manifest', desc: 'Use the button below to copy the YAML content to your clipboard.' },
+                { step: 2, title: 'Save to File', desc: <>Create a new file named <code className="bg-slate-800 px-1 rounded text-blue-400">infra.yaml</code> and paste the content.</> },
+                { step: 3, title: 'Apply to Cluster', custom: (
                   <div className={cn('p-2 rounded font-mono text-[9px] mt-1', colorMode === 'dark' ? 'bg-slate-950 text-slate-400' : 'bg-slate-200 text-slate-700')}>
                     kubectl apply -f infra.yaml
                   </div>
+                )}
+              ].map((s) => (
+                <div key={s.step} className="flex gap-3">
+                  <div className={cn('w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold', colorMode === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600')}>{s.step}</div>
+                  <div className="flex flex-col gap-1.5">
+                    <span className={cn('text-[10px] font-bold uppercase', colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700')}>{s.title}</span>
+                    {s.desc && <p className={cn('text-[10px] leading-relaxed', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>{s.desc}</p>}
+                    {s.custom}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
 
             <div className={cn('mt-auto p-3 rounded border border-dashed flex flex-col gap-2', colorMode === 'dark' ? 'bg-blue-500/5 border-blue-500/20' : 'bg-blue-50 border-blue-200')}>

@@ -5,6 +5,7 @@ import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
+import { ProgressBar } from '../ProgressBar';
 
 export const HPANode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);
@@ -53,18 +54,14 @@ export const HPANode = memo((props: NodeProps) => {
       )}
 
       {data.displaySettings?.targetMemory !== false && (
-        <div className={cn("mt-1 pt-1", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")}>
-          <span className={cn("text-[8px] uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>Target Mem</span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <div className={cn("flex-1 h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-                <div
-                    className="h-full bg-purple-500 transition-all duration-500"
-                    style={{ width: `${data.targetMemory || 50}%` }}
-                />
-            </div>
-            <span className="text-[9px] font-mono text-purple-500 font-bold">{data.targetMemory || 50}%</span>
-          </div>
-        </div>
+        <ProgressBar
+          label="Target Mem"
+          value={data.targetMemory || 50}
+          color="bg-purple-500"
+          subLabel={`${data.targetMemory || 50}%`}
+          colorMode={colorMode as any}
+          className="mt-1 pt-1"
+        />
       )}
 
       {data.displaySettings?.targetCPU !== false && (
@@ -75,26 +72,22 @@ export const HPANode = memo((props: NodeProps) => {
                {data.currentCPU || 0}%
              </span>
           </div>
-          <div className={cn("w-full h-1.5 rounded-full overflow-hidden mb-3", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-              <div
-                  className={cn(
-                    "h-full transition-all duration-1000",
-                    (data.currentCPU || 0) > (data.targetCPU || 50) ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "bg-emerald-500"
-                  )}
-                  style={{ width: `${Math.min(100, data.currentCPU || 0)}%` }}
-              />
-          </div>
+          <ProgressBar
+            value={data.currentCPU || 0}
+            height="h-1.5"
+            color={(data.currentCPU || 0) > (data.targetCPU || 50) ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : "bg-emerald-500"}
+            colorMode={colorMode as any}
+            barClassName="mb-3"
+          />
 
-          <span className="text-[8px] uppercase font-bold text-slate-500">Target CPU Threshold</span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <div className={cn("flex-1 h-1 rounded-full overflow-hidden", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")}>
-                <div
-                    className="h-full bg-fuchsia-500 transition-all duration-500"
-                    style={{ width: `${data.targetCPU || 50}%` }}
-                />
-            </div>
-            <span className="text-[9px] font-mono text-fuchsia-500 font-bold">{data.targetCPU || 50}%</span>
-          </div>
+          <ProgressBar
+            label="Target CPU Threshold"
+            value={data.targetCPU || 50}
+            color="bg-fuchsia-500"
+            subLabel={`${data.targetCPU || 50}%`}
+            colorMode={colorMode as any}
+            className="mt-0.5"
+          />
         </div>
       )}
 

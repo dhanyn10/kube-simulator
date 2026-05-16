@@ -2,6 +2,8 @@ import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Type } from 'lucide-react';
+import { syncWorkloadMetadata } from '../store/slices/node-handlers/nodeUtils';
+import { ConfigInput, ConfigLabel } from './ConfigUI';
 import { WorkloadConfig } from './WorkloadConfig';
 import { ServiceConfig } from './ServiceConfig';
 import { IngressConfig } from './IngressConfig';
@@ -96,29 +98,20 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   };
 
   const performUpdate = (updates: any) => {
-    const nextData = { ...data, ...updates };
+    let nextData = { ...data, ...updates };
 
     if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
-        const hasRuntime = nextData.runtime && nextData.runtime !== 'none';
-        const hasWebserver = nextData.webserver && nextData.webserver !== 'none';
+        nextData = { ...nextData, ...syncWorkloadMetadata(selectedNode.type, nextData) };
 
-        if (hasRuntime || hasWebserver) {
-            nextData.status = 'ready';
-            const runtimePart = nextData.runtime !== 'none' ? nextData.runtime : '';
-            const serverPart = nextData.webserver !== 'none' ? nextData.webserver : '';
-            nextData.image = `k8s-app-${runtimePart}${serverPart ? '-' + serverPart : ''}:latest`.replace('--', '-').toLowerCase();
-
-            if (nextData.isAutoNamed) {
-                let newLabel = '';
-                if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
-                    newLabel = `${nextData.webserver}-${nextData.runtime}`;
-                } else {
-                    newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
-                }
-                nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
+        if (nextData.status === 'ready' && nextData.isAutoNamed) {
+            let newLabel = '';
+            if (nextData.webserver !== 'none' && nextData.runtime !== 'none') {
+                newLabel = `${nextData.webserver}-${nextData.runtime}`;
+            } else {
+                newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
             }
-        } else {
-            nextData.status = 'pending';
+            nextData.label = newLabel.toLowerCase().replace(/\s+/g, '-');
+        } else if (nextData.status === 'pending') {
             nextData.image = undefined;
         }
     }
@@ -185,20 +178,17 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     <div className="space-y-4">
       {/* Basic Node Configuration */}
       <div className="space-y-1.5">
-        <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+        <ConfigLabel>
           <Type size={10} /> Name
-        </label>
-        <input
-          type="text"
+        </ConfigLabel>
+        <ConfigInput
           value={data.label || ''}
-          onChange={(e) => updateNodeData(selectedNode.id, {
+          onChange={(e: any) => updateNodeData(selectedNode.id, {
             label: e.target.value.toLowerCase().replace(/\s+/g, '-')
           })}
           placeholder="node-name"
-          className={cn(
-            "w-full text-[10px] p-2 rounded border outline-none font-mono",
-            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-          )}
+          colorMode={colorMode}
+          className="font-mono"
         />
       </div>
 

@@ -23,7 +23,7 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
     case 'Pod':
       return { ...base, replicas: 1, image: 'nginx:latest', isAutoImage: true, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
     case 'Deployment':
-      return { ...base, replicas: 0 };
+      return { ...base, replicas: 0, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
     case 'Ingress':
       return { ...base, ingressHost: 'example.local', ingressPath: '/', displaySettings: { host: true, path: true } };
     case 'HPA':
@@ -35,13 +35,6 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
   }
 };
 
-export const evaluateStatus = (type: string, data: K8sNodeData): 'pending' | 'ready' | 'crashing' => {
-  if (['Pod', 'Deployment', 'PodGroup'].includes(type)) {
-    const hasWebOrRun = (data.webserver && data.webserver !== 'none') || (data.runtime && data.runtime !== 'none');
-    return hasWebOrRun ? 'ready' : 'pending';
-  }
-  return data.status || 'ready';
-};
 
 export const sanitizeResourceLimits = (data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   const res = { ...data };
@@ -75,4 +68,24 @@ export const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNo
     return { ...data, image: resolveAutoImage(rt, ws), isAutoImage: true };
   }
   return data;
+};
+
+export const syncWorkloadMetadata = (type: string, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
+  if (!['Pod', 'Deployment', 'PodGroup'].includes(type)) return data;
+
+  const hasRuntime = data.runtime && data.runtime !== 'none';
+  const hasWebserver = data.webserver && data.webserver !== 'none';
+
+  const nextData = { ...data };
+  if (hasRuntime || hasWebserver) {
+    nextData.status = 'ready';
+    if (data.isAutoImage !== false) {
+      nextData.image = resolveAutoImage(data.runtime || 'none', data.webserver || 'none');
+      nextData.isAutoImage = true;
+    }
+  } else {
+    nextData.status = 'pending';
+  }
+
+  return nextData;
 };

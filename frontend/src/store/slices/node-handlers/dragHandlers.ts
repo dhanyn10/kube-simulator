@@ -5,7 +5,7 @@ import {
   calculateAlignmentGuides, 
   getNodeData, 
   sortNodes,
-  resolveCollisions
+  resolveGlobalCollisions
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import { FlowState } from '../../types';
@@ -162,13 +162,12 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
           }
       }
 
-      // 2. Collision Detection (Prevent Overlap) - Only for top-level nodes for now
-      if (!finalNode.parentId && !hoveredDeploymentId) {
-        const resolved = resolveCollisions(finalNode, nextNodes, finalNode.position);
-        finalNode.position = resolved;
-      }
-      
+      // 2. Collision Detection (Prevent Overlap)
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
+      if (!hoveredDeploymentId) {
+        nextNodes = resolveGlobalCollisions(nextNodes, node.id);
+        finalNode = nextNodes.find(n => n.id === node.id) || finalNode;
+      }
 
       const targetParentId = hoveredDeploymentId;
       const targetParent = targetParentId ? nextNodes.find(n => n.id === targetParentId) : null;

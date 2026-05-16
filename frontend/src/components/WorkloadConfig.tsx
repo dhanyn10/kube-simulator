@@ -1,8 +1,10 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Box, Code, Layers, Minus, Plus, Server, Eye, EyeOff } from 'lucide-react';
+import { Box, Code, Layers, Server, Eye, EyeOff } from 'lucide-react';
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
+import { SelectorGroup } from './SelectorGroup';
+import { ConfigInput, ConfigSection, ConfigLabel, NumberStepper } from './ConfigUI';
 
 interface WorkloadConfigProps {
   selectedNode: any;
@@ -29,17 +31,9 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
     : data.replicas || (selectedNode.type === 'Pod' ? 1 : 0);
 
   const updateReplicas = (replicas: number) => {
-    if (selectedNode.type === 'Pod' && selectedNode.parentId) {
-      const state = useFlowStore.getState();
-      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-      if (parent?.type === 'Deployment' || parent?.type === 'PodGroup') {
-        updateNodeData(selectedNode.parentId, { replicas });
-      } else {
-        updateNodeData(selectedNode.id, { replicas });
-      }
-    } else {
-      updateNodeData(selectedNode.id, { replicas });
-    }
+    const parentId = selectedNode.parentId;
+    const targetId = (selectedNode.type === 'Pod' && parentId) ? parentId : selectedNode.id;
+    updateNodeData(targetId, { replicas });
   };
 
   const edges = useFlowStore((state) => state.edges);
@@ -49,54 +43,13 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
   return (
     <div className="space-y-4">
       {/* Replicas */}
-      <div className="space-y-1.5">
-        <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-          <Layers size={10} /> Replicas
-        </label>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => updateReplicas(Math.max(1, replicaValue - 1))}
-            disabled={replicaValue <= 1}
-            className={cn(
-              "p-2 rounded border outline-none transition-colors hover:bg-opacity-80 disabled:opacity-30",
-              colorMode === 'dark'
-                ? "bg-slate-800 border-slate-700 hover:bg-slate-700"
-                : "bg-slate-100 border-slate-300 hover:bg-slate-200"
-            )}
-          >
-            <Minus size={12} />
-          </button>
-          <input
-            type="number"
-            min="1"
-            max="1000"
-            value={replicaValue}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === '' || /^\d+$/.test(value)) {
-                const num = Number.parseInt(value) || 1;
-                updateReplicas(Math.min(1000, num));
-              }
-            }}
-            className={cn(
-              "flex-1 text-[10px] p-2 rounded border outline-none text-center",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
-            )}
-          />
-          <button
-            onClick={() => updateReplicas(Math.min(1000, replicaValue + 1))}
-            disabled={replicaValue >= 1000}
-            className={cn(
-              "p-2 rounded border outline-none transition-colors hover:bg-opacity-80 disabled:opacity-30",
-              colorMode === 'dark'
-                ? "bg-slate-800 border-slate-700 hover:bg-slate-700"
-                : "bg-slate-100 border-slate-300 hover:bg-slate-200"
-            )}
-          >
-            <Plus size={12} />
-          </button>
-        </div>
-      </div>
+      <ConfigSection title="Replicas" icon={Layers}>
+        <NumberStepper
+          value={replicaValue}
+          onChange={updateReplicas}
+          colorMode={colorMode}
+        />
+      </ConfigSection>
 
       {/* Resource Requests & Limits */}
       <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
@@ -113,199 +66,106 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
           </div>
         )}
 
-        {/* CPU Requests */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Layers size={10} className="text-emerald-500" /> CPU Request
-          </label>
-          <div className="flex flex-wrap gap-1">
-            {CPU_OPTIONS.map((cpu) => (
-              <button
-                key={cpu.value}
-                onClick={() => performUpdate({ cpuRequest: cpu.value })}
-                className={cn(
-                  "text-[8px] px-2 py-0.5 rounded border transition-all",
-                  data.cpuRequest === cpu.value
-                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
-                )}
-              >
-                {cpu.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* CPU Limits */}
-        <div className="space-y-1.5 opacity-80">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Layers size={10} className="text-violet-500" /> CPU Limit
-          </label>
-          <div className="flex flex-wrap gap-1">
-            {CPU_OPTIONS.map((cpu) => (
-              <button
-                key={cpu.value}
-                onClick={() => performUpdate({ cpuLimit: cpu.value })}
-                className={cn(
-                  "text-[8px] px-2 py-0.5 rounded border transition-all",
-                  data.cpuLimit === cpu.value
-                    ? "bg-violet-600 border-violet-600 text-white"
-                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
-                )}
-              >
-                {cpu.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="h-px bg-slate-700/30 my-2" />
-
-        {/* Memory Requests */}
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Layers size={10} className="text-emerald-500" /> Memory Request
-          </label>
-          <div className="flex flex-wrap gap-1">
-            {MEMORY_OPTIONS.map((mem) => (
-              <button
-                key={mem.value}
-                onClick={() => performUpdate({ memoryRequest: mem.value })}
-                className={cn(
-                  "text-[8px] px-2 py-0.5 rounded border transition-all",
-                  data.memoryRequest === mem.value
-                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
-                )}
-              >
-                {mem.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Memory Limits */}
-        <div className="space-y-1.5 opacity-80">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Layers size={10} className="text-violet-500" /> Memory Limit
-          </label>
-          <div className="flex flex-wrap gap-1">
-            {MEMORY_OPTIONS.map((mem) => (
-              <button
-                key={mem.value}
-                onClick={() => performUpdate({ memoryLimit: mem.value })}
-                className={cn(
-                  "text-[8px] px-2 py-0.5 rounded border transition-all",
-                  data.memoryLimit === mem.value
-                    ? "bg-violet-600 border-violet-600 text-white"
-                    : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
-                )}
-              >
-                {mem.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Resource Mapping */}
+        {[
+          { field: 'cpuRequest', label: 'CPU Request', options: CPU_OPTIONS, iconColor: 'text-emerald-500', activeColor: 'bg-emerald-600 border-emerald-600', shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' },
+          { field: 'cpuLimit', label: 'CPU Limit', options: CPU_OPTIONS, iconColor: 'text-violet-500', activeColor: 'bg-violet-600 border-violet-600' },
+          { type: 'separator' },
+          { field: 'memoryRequest', label: 'Memory Request', options: MEMORY_OPTIONS, iconColor: 'text-emerald-500', activeColor: 'bg-emerald-600 border-emerald-600', shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' },
+          { field: 'memoryLimit', label: 'Memory Limit', options: MEMORY_OPTIONS, iconColor: 'text-violet-500', activeColor: 'bg-violet-600 border-violet-600' }
+        ].map((item, idx) => (
+          item.type === 'separator' ? (
+            <div key={`sep-${idx}`} className="h-px bg-slate-700/30 my-2" />
+          ) : (
+            <div key={item.field} className={cn("space-y-1.5", item.field.includes('Limit') && "opacity-80")}>
+              <ConfigLabel>
+                <Layers size={10} className={item.iconColor} /> {item.label}
+              </ConfigLabel>
+              <SelectorGroup
+                options={item.options}
+                currentValue={data[item.field]}
+                onSelect={(val) => performUpdate({ [item.field]: val })}
+                colorMode={colorMode}
+                activeColorClass={item.activeColor}
+                activeShadowClass={item.shadow}
+              />
+            </div>
+          )
+        ))}
       </div>
 
       {/* Container Image */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5 px-0.5">
-            <Box size={10} /> Container Image
-          </label>
-          <button onClick={() => toggleVisibility('image')} className="text-slate-500 hover:text-blue-500 transition-colors">
-            {(data.displaySettings?.image !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
-          </button>
-        </div>
-        <div className="animate-in fade-in slide-in-from-top-1">
-          <input
-            type="text"
-            placeholder="e.g. nginx:latest"
-            value={data.image || ''}
-            onChange={(e) => performUpdate({ image: e.target.value })}
-            className={cn(
-              "w-full text-[10px] p-2 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
-            )}
-          />
-        </div>
-      </div>
+      <ConfigSection
+        title="Container Image"
+        icon={Box}
+        isVisible={data.displaySettings?.image}
+        onToggle={() => toggleVisibility('image')}
+      >
+        <ConfigInput
+          placeholder="e.g. nginx:latest"
+          value={data.image || ''}
+          onChange={(e: any) => performUpdate({ image: e.target.value })}
+          colorMode={colorMode}
+        />
+      </ConfigSection>
 
       {/* Web Server */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Server size={10} /> Web Server
-          </label>
-          <button onClick={() => toggleVisibility('webserver')} className="text-slate-500 hover:text-blue-500 transition-colors">
-            {(data.displaySettings?.webserver !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-1">
-          {WEBSERVERS.map((ws) => (
-            <button
-              key={ws.id}
-              onClick={() => performUpdate({ webserver: ws.id })}
-              className={cn(
-                "text-[9px] py-1 rounded border transition-all",
-                data.webserver === ws.id
-                  ? "bg-blue-600 border-blue-600 text-white"
-                  : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
-              )}
-            >
-              {ws.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ConfigSection
+        title="Web Server"
+        icon={Server}
+        isVisible={data.displaySettings?.webserver}
+        onToggle={() => toggleVisibility('webserver')}
+      >
+        <SelectorGroup
+          options={WEBSERVERS}
+          currentValue={data.webserver}
+          onSelect={(val) => performUpdate({ webserver: val })}
+          colorMode={colorMode}
+        />
+      </ConfigSection>
 
       {/* Runtime */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Code size={10} /> App Runtime
-          </label>
-          <button onClick={() => toggleVisibility('runtime')} className="text-slate-500 hover:text-blue-500 transition-colors">
-            {(data.displaySettings?.runtime !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
-          </button>
-        </div>
+      <ConfigSection
+        title="App Runtime"
+        icon={Code}
+        isVisible={data.displaySettings?.runtime}
+        onToggle={() => toggleVisibility('runtime')}
+      >
         <select
           value={data.runtime || 'none'}
           onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
           className={cn(
             "w-full text-[10px] p-2 rounded border outline-none",
-            colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-200"
+            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
           )}
         >
           {Object.entries(RUNTIMES).map(([id, rt]) => (
             <option key={id} value={id}>{rt.label}</option>
           ))}
         </select>
-      </div>
+      </ConfigSection>
 
       {/* Framework */}
       {data.runtime && data.runtime !== 'none' && (
-        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Box size={10} /> Framework
-          </label>
-          <div className="flex flex-wrap gap-1">
-            {RUNTIMES[data.runtime as keyof typeof RUNTIMES]?.frameworks.map((fw) => (
-              <button
-                key={fw}
-                onClick={() => performUpdate({ framework: fw })}
-                className={cn(
-                  "text-[8px] px-2 py-1 rounded-full border transition-all",
-                  data.framework === fw
-                    ? "bg-emerald-600 border-emerald-600 text-white"
-                    : (colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:border-slate-700" : "bg-white border-slate-200 hover:border-slate-300")
-                )}
-              >
-                {fw}
-              </button>
-            ))}
-          </div>
+        <div className="animate-in fade-in slide-in-from-top-1">
+          <ConfigSection title="Framework" icon={Box}>
+            <div className="flex flex-wrap gap-1">
+              {RUNTIMES[data.runtime as keyof typeof RUNTIMES]?.frameworks.map((fw) => (
+                <button
+                  key={fw}
+                  onClick={() => performUpdate({ framework: fw })}
+                  className={cn(
+                    "text-[8px] px-2 py-1 rounded-full border transition-all",
+                    data.framework === fw
+                      ? "bg-emerald-600 border-emerald-600 text-white"
+                      : (colorMode === 'dark' ? "bg-slate-950 border-slate-800 hover:border-slate-700" : "bg-white border-slate-200 hover:border-slate-300")
+                  )}
+                >
+                  {fw}
+                </button>
+              ))}
+            </div>
+          </ConfigSection>
         </div>
       )}
     </div>

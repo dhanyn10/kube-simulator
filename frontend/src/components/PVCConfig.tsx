@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
 import { Database, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { SelectorGroup } from './SelectorGroup';
 
 interface PVCConfigProps {
   selectedNode: any;
@@ -28,24 +29,18 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility }: PVC
             <Database size={10} /> Kapasitas (Storage)
           </label>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          {['1Gi', '5Gi', '10Gi'].map((size) => (
-            <button
-              key={size}
-              onClick={() => performUpdate({ storageCapacity: size })}
-              className={cn(
-                "py-1.5 text-[10px] font-bold rounded border transition-all",
-                data.storageCapacity === size
-                  ? "bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20"
-                  : (colorMode === 'dark'
-                      ? "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500"
-                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-300")
-              )}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
+        <SelectorGroup
+          options={[
+            { label: '1Gi', value: '1Gi' },
+            { label: '5Gi', value: '5Gi' },
+            { label: '10Gi', value: '10Gi' }
+          ]}
+          currentValue={data.storageCapacity}
+          onSelect={(size) => performUpdate({ storageCapacity: size })}
+          colorMode={colorMode}
+          activeColorClass="bg-orange-500 border-orange-500"
+          activeShadowClass="shadow-lg shadow-orange-500/20"
+        />
         <input
           type="text"
           value={data.storageCapacity || '1Gi'}

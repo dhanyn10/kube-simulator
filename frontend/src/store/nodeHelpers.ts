@@ -6,8 +6,10 @@ import {
   syncPodsInDeployment, 
   layoutPodsInDeployment, 
   getPodMinimumSize, 
-  POD_MIN_DIMENSIONS 
+  POD_MIN_DIMENSIONS,
+  resolveGlobalCollisions
 } from './helpers';
+import { syncWorkloadMetadata } from './slices/node-handlers/nodeUtils';
 
 /**
  * Attaches standard event handlers (onDelete, onRename) to a node data object.
@@ -29,18 +31,13 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
 export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   let nextNodes = nodes.map(node => {
     const handlers = attachHandlers(node.id, get);
-    const data = node.data;
-
-    const isWorkload = node.type === 'Pod' || node.type === 'Deployment';
-    const hasRuntime = data.runtime && data.runtime !== 'none' || data.webserver && data.webserver !== 'none';
-    const status = data.status || (isWorkload ? (hasRuntime ? 'ready' : 'pending') : 'ready');
+    const data = syncWorkloadMetadata(node.type, node.data);
 
     return {
       ...node,
       data: {
         ...data,
         ...handlers,
-        status,
         type: node.type,
       }
     };
@@ -54,7 +51,7 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
     nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
   });
 
-  return nextNodes;
+  return resolveGlobalCollisions(nextNodes);
 };
 
 /**
