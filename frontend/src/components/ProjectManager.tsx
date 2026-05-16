@@ -7,7 +7,6 @@ import { hydrateNodes } from '../store/nodeHelpers';
 import { Modal } from './Modal';
 
 // @ts-ignore
-import * as App from '@wailsjs/go/main/App.js';
 
 interface Project {
   id: number;

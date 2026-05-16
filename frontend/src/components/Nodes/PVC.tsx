@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { NodeProps, Handle, Position } from '@xyflow/react';
+import { NodeProps } from '@xyflow/react';
 import { Database } from 'lucide-react';
 import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '../../types';

@@ -36,7 +36,7 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
             max="12"
             step="1"
             value={edgeWidth}
-            onChange={(e) => updateEdgeData({ width: parseInt(e.target.value) })}
+            onChange={(e) => updateEdgeData({ width: Number.parseInt(e.target.value, 10) })}
             className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
           />
           <span className="text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">

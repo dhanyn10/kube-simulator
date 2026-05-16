@@ -2,7 +2,6 @@ import { StateCreator } from 'zustand';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sResourceType } from '../../types';
 import { processWorkloadSimulation, calculateReachability, SimulationContext } from '../../lib/simulation';
-import { Node } from '@xyflow/react';
 import {
   stopSimulation,
   broadcastMetrics,

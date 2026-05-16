@@ -1,5 +1,4 @@
 import React from 'react';
-import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
 import { Box, Network } from 'lucide-react';
 import { ConfigInput, ConfigSection } from './ConfigUI';
@@ -25,7 +24,7 @@ export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility }:
         <ConfigInput
           type="number"
           value={data.port || 80}
-          onChange={(e: any) => performUpdate({ port: Number.parseInt(e.target.value) || 80 })}
+          onChange={(e: any) => performUpdate({ port: Number.parseInt(e.target.value, 10) || 80 })}
           colorMode={colorMode}
         />
       </ConfigSection>
@@ -39,7 +38,7 @@ export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility }:
         <ConfigInput
           type="number"
           value={data.targetPort || 80}
-          onChange={(e: any) => performUpdate({ targetPort: Number.parseInt(e.target.value) || 80 })}
+          onChange={(e: any) => performUpdate({ targetPort: Number.parseInt(e.target.value, 10) || 80 })}
           colorMode={colorMode}
         />
       </ConfigSection>

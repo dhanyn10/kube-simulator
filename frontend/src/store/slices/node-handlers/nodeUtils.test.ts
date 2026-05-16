@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { syncWorkloadMetadata, resolveAutoImage, sanitizeResourceLimits } from './nodeUtils';
-import { K8sNodeData } from '../../../types';
 
 describe('nodeUtils', () => {
   describe('syncWorkloadMetadata', () => {

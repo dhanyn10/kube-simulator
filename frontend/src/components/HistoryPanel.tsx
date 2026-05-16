@@ -52,7 +52,7 @@ export function HistoryPanel({ colorMode }: HistoryPanelProps) {
             ) : (
               historyLogs.map((log) => (
                 <button
-                  key={log.index}
+                  key={`${log.timestamp}-${log.index}`}
                   onClick={() => { handleJumpToHistory(log.index); setIsOpen(false); }}
                   className={cn(
                     'w-full text-left px-5 py-3 text-[10px] flex flex-col gap-1 transition-all border-l-2 border-transparent hover:border-violet-500',

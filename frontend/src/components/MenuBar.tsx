@@ -159,7 +159,7 @@ export const MenuBar = ({
               )}>
                   {menu.items.map((item, idx) => (
                     item.type === 'separator' ? (
-                      <div key={`sep-${idx}`} className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
+                      <div key={`sep-${menu.label}-${idx}`} className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
                     ) : (
                       <button
                         key={item.label}
