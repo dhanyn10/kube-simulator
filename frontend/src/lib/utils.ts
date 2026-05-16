@@ -68,6 +68,25 @@ export function formatMemory(mib: number): string {
   return `${Math.round(mib)} Mi`;
 }
 
+/**
+ * Validates that resource limits are greater than or equal to requests.
+ */
+export function validateResourceLimits(data: any) {
+  const cpuReq = parseCPU(data.cpuRequest);
+  const cpuLim = parseCPU(data.cpuLimit);
+  const memReq = parseMemory(data.memoryRequest);
+  const memLim = parseMemory(data.memoryLimit);
+
+  const isCpuError = !!data.cpuLimit && cpuLim < cpuReq;
+  const isMemError = !!data.memoryLimit && memLim < memReq;
+
+  return {
+    isCpuError,
+    isMemError,
+    hasError: isCpuError || isMemError
+  };
+}
+
 export function generateYaml(nodes: any[], edges: any[]): string {
 
   const manifests: any[] = nodes.map((node) => {

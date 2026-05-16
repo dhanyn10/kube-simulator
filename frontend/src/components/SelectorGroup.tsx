@@ -10,6 +10,7 @@ interface SelectorGroupProps {
   activeShadowClass?: string;
   className?: string;
   layout?: 'wrap' | 'grid' | 'column';
+  validateOption?: (value: string) => boolean;
 }
 
 export const SelectorGroup = ({
@@ -20,7 +21,8 @@ export const SelectorGroup = ({
   activeColorClass = "bg-blue-600 border-blue-600 text-white",
   activeShadowClass = "",
   className = "",
-  layout = 'wrap'
+  layout = 'wrap',
+  validateOption
 }: SelectorGroupProps) => {
   const containerClasses = cn(
     layout === 'wrap' && "flex flex-wrap gap-1",
@@ -34,6 +36,7 @@ export const SelectorGroup = ({
       {options.map((opt: any) => {
         const val = opt.value ?? opt.id;
         const isActive = currentValue === val;
+        const isInvalid = validateOption?.(val);
 
         return (
           <button
@@ -44,7 +47,8 @@ export const SelectorGroup = ({
               layout === 'column' ? "flex flex-col items-start p-2 rounded text-left" : "text-[8px] px-2 py-0.5 rounded",
               isActive
                 ? `${activeColorClass} ${activeShadowClass}`
-                : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300")
+                : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300"),
+              !isActive && isInvalid && (colorMode === 'dark' ? "border-red-900/50 text-red-400/70" : "border-red-200 text-red-400")
             )}
           >
             <span className={cn("font-bold", layout !== 'column' && "text-[8px]")}>{opt.label}</span>

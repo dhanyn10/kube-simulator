@@ -1,8 +1,9 @@
 import { Node } from '@xyflow/react';
-import { getNodeData, sortNodes } from '../../helpers';
+import { sortNodes } from '../../helpers';
 import { hydrateNodes } from '../../nodeHelpers';
 import { FlowState } from '../../types';
 import { randomId } from '../../../lib/utils';
+import { findLogicalPodMatch, updateReplicaDelta } from './clipboardUtils';
 
 export const clipboardHandlers = (set: any, get: () => FlowState) => ({
   copyNodes: () => {
@@ -29,41 +30,11 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
     if (!clipboard) return;
 
     if (clipboard.nodes.length === 1 && clipboard.nodes[0].type === 'Pod') {
-      const pastedPod = clipboard.nodes[0];
-      const pastedLabel = pastedPod.data.label;
-      
-      // 1. Try to find a logical match by Label and Context
-      const target = nodes.find(n => {
-        // Match if it's the exact same Pod
-        if (n.id === pastedPod.id) return true;
-        
-        // Match if it's a Pod with the same label in the same parent context
-        if (n.type === 'Pod' && n.data.label === pastedLabel && n.parentId === pastedPod.parentId) return true;
-        
-        // Match PodGroup that was created from this Pod (it will have the same label)
-        if (n.type === 'PodGroup' && n.data.label === pastedLabel && (!pastedPod.parentId || n.id === pastedPod.parentId)) return true;
-        
-        return false;
-      });
-
-        if (target) {
-          const delta = 1;
-          // Identify the parent container ID
-          const parentId = (target.type === 'PodGroup' || target.type === 'Deployment') ? target.id : target.parentId;
-          
-          if (parentId) {
-            const parent = nodes.find(n => n.id === parentId);
-            const parentData = parent ? getNodeData(parent) : null;
-            const currentTotal = parentData?.replicas || 0;
-            get().updateNodeData(parentId, { replicas: currentTotal + delta });
-          } else {
-            // It's a standalone pod with no parent
-            const targetData = getNodeData(target);
-            const currentTotal = targetData.replicas || 1;
-            get().updateNodeData(target.id, { replicas: currentTotal + delta });
-          }
-          return;
-        }
+      const target = findLogicalPodMatch(clipboard.nodes[0], nodes);
+      if (target) {
+        updateReplicaDelta(target, 1, nodes, get().updateNodeData);
+        return;
+      }
     }
 
     const idMap: Record<string, string> = {};

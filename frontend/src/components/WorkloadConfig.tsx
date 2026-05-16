@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
-import { cn } from '../lib/utils';
-import { Box, Code, Layers, Server, Eye, EyeOff } from 'lucide-react';
+import { cn, parseCPU, parseMemory, validateResourceLimits } from '../lib/utils';
+import { Box, Code, Layers, Server, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
 import { SelectorGroup } from './SelectorGroup';
 import { ConfigInput, ConfigSection, ConfigLabel, NumberStepper } from './ConfigUI';
@@ -39,6 +39,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const edges = useFlowStore((state) => state.edges);
   const isTargetedByHPA = edges.some(e => e.target === selectedNode.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
   const hasRequests = data.cpuRequest && data.memoryRequest;
+  const { isCpuError, isMemError } = validateResourceLimits(data);
 
   return (
     <div className="space-y-4">
@@ -68,19 +69,62 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
         {/* Resource Mapping */}
         {[
-          { field: 'cpuRequest', label: 'CPU Request', options: CPU_OPTIONS, iconColor: 'text-emerald-500', activeColor: 'bg-emerald-600 border-emerald-600', shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' },
-          { field: 'cpuLimit', label: 'CPU Limit', options: CPU_OPTIONS, iconColor: 'text-violet-500', activeColor: 'bg-violet-600 border-violet-600' },
+          {
+            field: 'cpuRequest',
+            label: 'CPU Request',
+            options: CPU_OPTIONS,
+            iconColor: 'text-emerald-500',
+            activeColor: 'bg-emerald-600 border-emerald-600',
+            shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+          },
+          {
+            field: 'cpuLimit',
+            label: 'CPU Limit',
+            options: CPU_OPTIONS,
+            iconColor: 'text-violet-500',
+            activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
+            hasError: isCpuError,
+            validate: (val: string) => parseCPU(val) < parseCPU(data.cpuRequest)
+          },
           { type: 'separator' },
-          { field: 'memoryRequest', label: 'Memory Request', options: MEMORY_OPTIONS, iconColor: 'text-emerald-500', activeColor: 'bg-emerald-600 border-emerald-600', shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' },
-          { field: 'memoryLimit', label: 'Memory Limit', options: MEMORY_OPTIONS, iconColor: 'text-violet-500', activeColor: 'bg-violet-600 border-violet-600' }
-        ].map((item, idx) => (
+          {
+            field: 'memoryRequest',
+            label: 'Memory Request',
+            options: MEMORY_OPTIONS,
+            iconColor: 'text-emerald-500',
+            activeColor: 'bg-emerald-600 border-emerald-600',
+            shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+          },
+          {
+            field: 'memoryLimit',
+            label: 'Memory Limit',
+            options: MEMORY_OPTIONS,
+            iconColor: 'text-violet-500',
+            activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
+            hasError: isMemError,
+            validate: (val: string) => parseMemory(val) < parseMemory(data.memoryRequest)
+          }
+        ].map((item: any, idx) => (
           item.type === 'separator' ? (
             <div key={`sep-${idx}`} className="h-px bg-slate-700/30 my-2" />
           ) : (
             <div key={item.field} className={cn("space-y-1.5", item.field.includes('Limit') && "opacity-80")}>
-              <ConfigLabel>
-                <Layers size={10} className={item.iconColor} /> {item.label}
-              </ConfigLabel>
+              <div className="flex items-center justify-between">
+                <ConfigLabel>
+                  <Layers size={10} className={item.iconColor} /> {item.label}
+                </ConfigLabel>
+                {item.hasError && (
+                  <div className="group relative flex items-center">
+                    <AlertCircle size={12} className="text-red-500 cursor-help workload-resource-warning" />
+                    <div className={cn(
+                      "absolute right-full mr-2 px-2 py-1 rounded text-[8px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50",
+                      colorMode === 'dark' ? "bg-red-950 text-red-200 border border-red-900" : "bg-red-100 text-red-800 border border-red-200"
+                    )}>
+                      Limit must be greater than or equal to Request
+                    </div>
+                  </div>
+                )}
+              </div>
               <SelectorGroup
                 options={item.options}
                 currentValue={data[item.field]}
@@ -88,6 +132,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
                 colorMode={colorMode}
                 activeColorClass={item.activeColor}
                 activeShadowClass={item.shadow}
+                validateOption={item.validate}
               />
             </div>
           )
