@@ -272,8 +272,9 @@ export const calculateAlignmentGuides = (
       const nodePointsX = [{ pos: nodeAbs.x, type: 'edge' }, { pos: nodeAbs.x + nodeWidth / 2, type: 'center' }, { pos: nodeAbs.x + nodeWidth, type: 'edge' }];
       const nodePointsY = [{ pos: nodeAbs.y, type: 'edge' }, { pos: nodeAbs.y + nodeHeight / 2, type: 'center' }, { pos: nodeAbs.y + nodeHeight, type: 'edge' }];
 
-      nodePointsX.forEach(nP => checkXAlignment(nP, otherPointsX, otherNode, verticalGuides, vSnap, SNAP_THRESHOLD, SNAP_TOLERANCE, nodeAbs, otherAbs, nodeHeight, otherH));
-      nodePointsY.forEach(nP => checkYAlignment(nP, otherPointsY, otherNode, horizontalGuides, hSnap, SNAP_THRESHOLD, SNAP_TOLERANCE, nodeAbs, otherAbs, nodeWidth, otherW));
+      const config = { threshold: SNAP_THRESHOLD, tolerance: SNAP_TOLERANCE };
+      nodePointsX.forEach(nP => checkXAlignment({ nP, otherPoints: otherPointsX, otherNode, guides: verticalGuides, snap: vSnap, config, nodeAbs, otherAbs, size: { node: nodeHeight, other: otherH } }));
+      nodePointsY.forEach(nP => checkYAlignment({ nP, otherPoints: otherPointsY, otherNode, guides: horizontalGuides, snap: hSnap, config, nodeAbs, otherAbs, size: { node: nodeWidth, other: otherW } }));
     }
   }
 

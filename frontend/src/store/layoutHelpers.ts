@@ -1,8 +1,19 @@
 import { Node } from '@xyflow/react';
 
-const checkAlignment = (nP: any, otherPoints: number[], otherNode: Node, guides: Map<number, any>, snap: Map<number, boolean>, threshold: number, tolerance: number, bounds: { min: number, max: number }, axis: 'x' | 'y') => {
+interface AlignmentParams {
+  nP: { pos: number; type: string };
+  otherPoints: number[];
+  otherNode: Node;
+  guides: Map<number, any>;
+  snap: Map<number, boolean>;
+  config: { threshold: number; tolerance: number };
+  bounds: { min: number; max: number };
+  axis: 'x' | 'y';
+}
+
+const checkAlignment = ({ nP, otherPoints, otherNode, guides, snap, config, bounds, axis }: AlignmentParams) => {
   for (const oP of otherPoints) {
-    if (Math.abs(nP.pos - oP) < threshold) {
+    if (Math.abs(nP.pos - oP) < config.threshold) {
       const guideData = {
         position: oP,
         targetNodeId: otherNode.id,
@@ -10,19 +21,31 @@ const checkAlignment = (nP: any, otherPoints: number[], otherNode: Node, guides:
         ...(axis === 'x' ? { minY: bounds.min, maxY: bounds.max } : { minX: bounds.min, maxX: bounds.max })
       };
       guides.set(oP, guideData);
-      if (Math.abs(nP.pos - oP) < tolerance) snap.set(oP, true);
+      if (Math.abs(nP.pos - oP) < config.tolerance) snap.set(oP, true);
     }
   }
 };
 
-export const checkXAlignment = (nP: any, otherPointsX: number[], otherNode: Node, verticalGuides: Map<number, any>, vSnap: Map<number, boolean>, SNAP_THRESHOLD: number, SNAP_TOLERANCE: number, nodeAbs: any, otherAbs: any, nodeHeight: number, otherHeight: number) => {
-  const bounds = { min: Math.min(nodeAbs.y, otherAbs.y), max: Math.max(nodeAbs.y + nodeHeight, otherAbs.y + otherHeight) };
-  checkAlignment(nP, otherPointsX, otherNode, verticalGuides, vSnap, SNAP_THRESHOLD, SNAP_TOLERANCE, bounds, 'x');
+interface AxisAlignmentParams {
+  nP: { pos: number; type: string };
+  otherPoints: number[];
+  otherNode: Node;
+  guides: Map<number, any>;
+  snap: Map<number, boolean>;
+  config: { threshold: number; tolerance: number };
+  nodeAbs: { x: number; y: number };
+  otherAbs: { x: number; y: number };
+  size: { node: number; other: number };
+}
+
+export const checkXAlignment = ({ nP, otherPoints, otherNode, guides, snap, config, nodeAbs, otherAbs, size }: AxisAlignmentParams) => {
+  const bounds = { min: Math.min(nodeAbs.y, otherAbs.y), max: Math.max(nodeAbs.y + size.node, otherAbs.y + size.other) };
+  checkAlignment({ nP, otherPoints, otherNode, guides, snap, config, bounds, axis: 'x' });
 };
 
-export const checkYAlignment = (nP: any, otherPointsY: number[], otherNode: Node, horizontalGuides: Map<number, any>, hSnap: Map<number, boolean>, SNAP_THRESHOLD: number, SNAP_TOLERANCE: number, nodeAbs: any, otherAbs: any, nodeWidth: number, otherWidth: number) => {
-  const bounds = { min: Math.min(nodeAbs.x, otherAbs.x), max: Math.max(nodeAbs.x + nodeWidth, otherAbs.x + otherWidth) };
-  checkAlignment(nP, otherPointsY, otherNode, horizontalGuides, hSnap, SNAP_THRESHOLD, SNAP_TOLERANCE, bounds, 'y');
+export const checkYAlignment = ({ nP, otherPoints, otherNode, guides, snap, config, nodeAbs, otherAbs, size }: AxisAlignmentParams) => {
+  const bounds = { min: Math.min(nodeAbs.x, otherAbs.x), max: Math.max(nodeAbs.x + size.node, otherAbs.x + size.other) };
+  checkAlignment({ nP, otherPoints, otherNode, guides, snap, config, bounds, axis: 'y' });
 };
 
 export const getPodSpacing = (isMegaPod: boolean) => isMegaPod ? 56 : 20;
