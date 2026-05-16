@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, X as CloseIcon, CheckSquare, Play, Activity, ExternalLink } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, X as CloseIcon, CheckSquare, Square, Play, Activity, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { WindowControls } from './WindowControls';

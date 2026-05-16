@@ -23,7 +23,7 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
     case 'Pod':
       return { ...base, replicas: 1, image: 'nginx:latest', isAutoImage: true, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
     case 'Deployment':
-      return { ...base, replicas: 0 };
+      return { ...base, replicas: 0, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
     case 'Ingress':
       return { ...base, ingressHost: 'example.local', ingressPath: '/', displaySettings: { host: true, path: true } };
     case 'HPA':

@@ -277,8 +277,6 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
               )}
             </div>
           </div>
-        </div>
-
       </div>
     </Modal>
   );

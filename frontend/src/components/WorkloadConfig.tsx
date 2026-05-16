@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Box, Code, Layers, Server } from 'lucide-react';
+import { Box, Code, Layers, Server, Eye, EyeOff } from 'lucide-react';
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
 import { SelectorGroup } from './SelectorGroup';
 import { ConfigInput, ConfigSection, ConfigLabel, NumberStepper } from './ConfigUI';
