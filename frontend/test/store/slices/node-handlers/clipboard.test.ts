@@ -12,11 +12,23 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
       lastActionId: 'init'
     });
     
-    // Mock crypto.randomUUID for consistent IDs if needed
-    if (!global.crypto) {
-      (global as any).crypto = {
-        randomUUID: () => 'test-uuid-' + Math.random().toString(36).substring(2, 9)
+    // Mock crypto for environments that lack it (e.g. JSDOM or older Node)
+    if (!global.crypto || !global.crypto.randomUUID) {
+      const cryptoMock = {
+        randomUUID: () => `test-uuid-${Math.random().toString(36).slice(2, 11)}`,
+        getRandomValues: (arr: any) => {
+          for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
+          return arr;
+        }
       };
+      
+      if (!global.crypto) {
+        (global as any).crypto = cryptoMock;
+      } else {
+        // Polyfill missing methods on existing crypto object
+        if (!global.crypto.randomUUID) (global as any).crypto.randomUUID = cryptoMock.randomUUID;
+        if (!global.crypto.getRandomValues) (global as any).crypto.getRandomValues = cryptoMock.getRandomValues;
+      }
     }
   });
 
