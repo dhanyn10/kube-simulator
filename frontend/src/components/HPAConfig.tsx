@@ -27,27 +27,38 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility }: HPA
     ? (targetDeployment.data as K8sNodeData).cpuRequest && (targetDeployment.data as K8sNodeData).memoryRequest
     : false;
 
+  const getStatusInfo = () => {
+    if (!connectedEdge) {
+      return {
+        container: "bg-slate-500/10 border-slate-500/30 text-slate-500",
+        dot: "bg-slate-500",
+        text: "NOT CONNECTED"
+      };
+    }
+    if (hasRequests) {
+      const label = (targetDeployment?.data as K8sNodeData).label.toUpperCase();
+      return {
+        container: "bg-emerald-500/10 border-emerald-500/30 text-emerald-500",
+        dot: "bg-emerald-500",
+        text: `LINKED TO ${label}`
+      };
+    }
+    return {
+      container: "bg-amber-500/10 border-amber-500/30 text-amber-500",
+      dot: "bg-amber-500",
+      text: "MISSING RESOURCE REQUESTS"
+    };
+  };
+
+  const status = getStatusInfo();
+
   return (
     <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
       {/* Validation Status */}
-      <div className={cn(
-        "p-2 rounded border mb-2 flex items-center gap-2",
-        !connectedEdge 
-          ? "bg-slate-500/10 border-slate-500/30 text-slate-500" 
-          : hasRequests 
-            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-            : "bg-amber-500/10 border-amber-500/30 text-amber-500"
-      )}>
-        <div className={cn(
-          "w-2 h-2 rounded-full animate-pulse",
-          !connectedEdge ? "bg-slate-500" : hasRequests ? "bg-emerald-500" : "bg-amber-500"
-        )} />
+      <div className={cn("p-2 rounded border mb-2 flex items-center gap-2", status.container)}>
+        <div className={cn("w-2 h-2 rounded-full animate-pulse", status.dot)} />
         <span className="text-[10px] font-bold">
-          {!connectedEdge 
-            ? "NOT CONNECTED" 
-            : hasRequests 
-              ? `LINKED TO ${(targetDeployment?.data as K8sNodeData).label.toUpperCase()}` 
-              : "MISSING RESOURCE REQUESTS"}
+          {status.text}
         </span>
       </div>
 

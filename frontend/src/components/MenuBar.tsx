@@ -45,6 +45,11 @@ export const MenuBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getMonitoringLabel = () => {
+    if (isMonitoringDetached) return 'Monitoring: Detached';
+    return isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard';
+  };
+
   const menuItems = [
     {
       label: 'File',
@@ -86,7 +91,7 @@ export const MenuBar = ({
       label: 'View',
       items: [
         {
-          label: isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Dashboard' : 'Open Dashboard'),
+          label: getMonitoringLabel(),
           icon: isMonitoringDetached ? ExternalLink : Activity,
           onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
         },

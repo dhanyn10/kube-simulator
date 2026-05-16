@@ -398,8 +398,13 @@ const getEffectiveSize = (node: Node) => {
       height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
     };
   }
-  const defaultW = node.type === 'Deployment' ? 320 : (node.type === 'Namespace' ? 600 : 160);
-  const defaultH = node.type === 'Deployment' ? 160 : (node.type === 'Namespace' ? 400 : 80);
+  const getDefaultSize = (type: string | undefined) => {
+    if (type === 'Deployment') return { w: 320, h: 160 };
+    if (type === 'Namespace') return { w: 600, h: 400 };
+    return { w: 160, h: 80 };
+  };
+
+  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
   return {
     width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
     height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
