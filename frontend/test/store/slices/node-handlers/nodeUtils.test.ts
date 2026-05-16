@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { syncWorkloadMetadata, resolveAutoImage, sanitizeResourceLimits } from './nodeUtils';
+import { syncWorkloadMetadata, resolveAutoImage, sanitizeResourceLimits } from '@/store/slices/node-handlers/nodeUtils';
 
 describe('nodeUtils', () => {
   describe('syncWorkloadMetadata', () => {

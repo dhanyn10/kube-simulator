@@ -1,9 +1,9 @@
 name: Playwright E2E Tests
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main ]
 jobs:
   test:
     timeout-minutes: 60
@@ -14,7 +14,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
 
     - name: Enable Corepack
       run: corepack enable pnpm
@@ -22,7 +22,7 @@ jobs:
     - name: Set up pnpm cache
       uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: 24
         cache: 'pnpm'
         cache-dependency-path: frontend/pnpm-lock.yaml
 
