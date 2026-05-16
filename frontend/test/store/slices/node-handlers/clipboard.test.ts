@@ -13,11 +13,14 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     });
     
     // Mock crypto for environments that lack it (e.g. JSDOM or older Node)
-    if (!global.crypto || !global.crypto.randomUUID) {
+    // IMPORTANT: randomUUID must have a random first segment because production code uses split('-')[0]
+    if (!global.crypto || !global.crypto.randomUUID || !global.crypto.getRandomValues) {
       const cryptoMock = {
-        randomUUID: () => `test-uuid-${Math.random().toString(36).slice(2, 11)}`,
-        getRandomValues: (arr: any) => {
-          for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
+        randomUUID: () => `${Math.random().toString(36).slice(2, 11)}-${Math.random().toString(36).slice(2, 11)}`,
+        getRandomValues: <T extends ArrayBufferView | null>(arr: T): T => {
+          if (!arr) return arr;
+          const view = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
+          for (let i = 0; i < view.length; i++) view[i] = Math.floor(Math.random() * 256);
           return arr;
         }
       };
