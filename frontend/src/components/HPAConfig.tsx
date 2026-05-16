@@ -90,53 +90,35 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility }: HPA
         />
       </ConfigSection>
 
-      <ConfigSection
-        title="Target CPU (%)"
-        icon={Activity}
-        isVisible={data.displaySettings?.targetCPU}
-        onToggle={() => toggleVisibility('targetCPU')}
-      >
-        <SelectorGroup
-          options={[
-            { label: '20%', value: '20' },
-            { label: '50%', value: '50' },
-            { label: '80%', value: '80' }
-          ]}
-          currentValue={String(data.targetCPU)}
-          onSelect={(val) => performUpdate({ targetCPU: Number(val) })}
-          colorMode={colorMode}
-          activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
-        />
-        <RangeInput
-          value={data.targetCPU || 50}
-          onChange={(val: number) => performUpdate({ targetCPU: val })}
-          min={10} max={90} step={5}
-        />
-      </ConfigSection>
-
-      <ConfigSection
-        title="Target Mem (%)"
-        icon={Activity}
-        isVisible={data.displaySettings?.targetMemory}
-        onToggle={() => toggleVisibility('targetMemory')}
-      >
-        <SelectorGroup
-          options={[
-            { label: '20%', value: '20' },
-            { label: '50%', value: '50' },
-            { label: '80%', value: '80' }
-          ]}
-          currentValue={String(data.targetMemory)}
-          onSelect={(val) => performUpdate({ targetMemory: Number(val) })}
-          colorMode={colorMode}
-          activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
-        />
-        <RangeInput
-          value={data.targetMemory || 50}
-          onChange={(val: number) => performUpdate({ targetMemory: val })}
-          min={10} max={90} step={5}
-        />
-      </ConfigSection>
+      {[
+        { field: 'targetCPU', label: 'Target CPU (%)', icon: Activity },
+        { field: 'targetMemory', label: 'Target Mem (%)', icon: Activity }
+      ].map((item) => (
+        <ConfigSection
+          key={item.field}
+          title={item.label}
+          icon={item.icon}
+          isVisible={data.displaySettings?.[item.field]}
+          onToggle={() => toggleVisibility(item.field)}
+        >
+          <SelectorGroup
+            options={[
+              { label: '20%', value: '20' },
+              { label: '50%', value: '50' },
+              { label: '80%', value: '80' }
+            ]}
+            currentValue={String(data[item.field as keyof K8sNodeData])}
+            onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
+            colorMode={colorMode}
+            activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
+          />
+          <RangeInput
+            value={data[item.field as keyof K8sNodeData] || 50}
+            onChange={(val: number) => performUpdate({ [item.field]: val })}
+            min={10} max={90} step={5}
+          />
+        </ConfigSection>
+      ))}
     </div>
   );
 };

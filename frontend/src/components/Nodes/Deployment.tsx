@@ -1,12 +1,12 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, Settings } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
+import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 
 export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
@@ -54,70 +54,31 @@ export const DeploymentNode = memo((props: NodeProps) => {
           DEPLOYMENT
         </span>
 
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-            onBlur={handleRename}
-            onKeyDown={onKeyDown}
-            className={cn(
-              "relative text-xs font-mono font-bold tracking-tight px-1 py-0.5 rounded border outline-none z-[100]",
-              colorMode === 'dark' ? "bg-slate-900 text-violet-300 border-violet-500" : "bg-white text-violet-700 border-violet-400"
-            )}
-          />
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              "relative text-xs font-mono font-bold tracking-tight cursor-text z-[100] border-none bg-transparent p-0 outline-none focus:ring-2 focus:ring-violet-500/50 rounded",
-              colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
-            )}
-            onDoubleClick={() => setIsEditing(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setIsEditing(true);
-              }
-            }}
-            title={`Double click to rename deployment: ${data.label}`}
-            aria-label={`Rename deployment ${data.label}`}
-          >
-            {data.label}
-          </button>
-        )}
+        {NodeRenameInput({
+          isEditing,
+          setIsEditing,
+          editValue,
+          setEditValue,
+          inputRef,
+          handleRename,
+          onKeyDown,
+          colorMode,
+          label: data.label,
+          inputClassName: colorMode === 'dark' ? "text-violet-300 border-violet-500" : "text-violet-700 border-violet-400",
+          buttonClassName: colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
+        })}
       </div>
 
       <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
         replicas: {data.replicas || 0}
       </div>
 
-      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all absolute top-2 right-2" style={{ zIndex: 10 }}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            useFlowStore.getState().setConfiguringNodeId(props.id);
-          }}
-          className={cn(
-            "p-1 rounded transition-all",
-            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
-          )}
-        >
-          <Settings size={12} />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            data.onDelete?.();
-          }}
-          className={cn(
-            "p-1 rounded transition-all",
-            colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-          )}
-        >
-          <Trash2 size={12} />
-        </button>
-      </div>
+      <NodeActionButtons
+        id={props.id}
+        onDelete={data.onDelete}
+        colorMode={colorMode}
+        className="absolute top-2 right-2 z-10"
+      />
 
       {showHPAWarning && (
         <div className="absolute -top-10 left-0 right-0 animate-pulse flex justify-center z-[100]">

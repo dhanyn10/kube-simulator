@@ -66,65 +66,32 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
           </div>
         )}
 
-        {/* CPU Requests */}
-        <div className="space-y-1.5">
-          <ConfigLabel>
-            <Layers size={10} className="text-emerald-500" /> CPU Request
-          </ConfigLabel>
-          <SelectorGroup
-            options={CPU_OPTIONS}
-            currentValue={data.cpuRequest}
-            onSelect={(val) => performUpdate({ cpuRequest: val })}
-            colorMode={colorMode}
-            activeColorClass="bg-emerald-600 border-emerald-600"
-            activeShadowClass="shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-          />
-        </div>
-
-        {/* CPU Limits */}
-        <div className="space-y-1.5 opacity-80">
-          <ConfigLabel>
-            <Layers size={10} className="text-violet-500" /> CPU Limit
-          </ConfigLabel>
-          <SelectorGroup
-            options={CPU_OPTIONS}
-            currentValue={data.cpuLimit}
-            onSelect={(val) => performUpdate({ cpuLimit: val })}
-            colorMode={colorMode}
-            activeColorClass="bg-violet-600 border-violet-600"
-          />
-        </div>
-
-        <div className="h-px bg-slate-700/30 my-2" />
-
-        {/* Memory Requests */}
-        <div className="space-y-1.5">
-          <ConfigLabel>
-            <Layers size={10} className="text-emerald-500" /> Memory Request
-          </ConfigLabel>
-          <SelectorGroup
-            options={MEMORY_OPTIONS}
-            currentValue={data.memoryRequest}
-            onSelect={(val) => performUpdate({ memoryRequest: val })}
-            colorMode={colorMode}
-            activeColorClass="bg-emerald-600 border-emerald-600"
-            activeShadowClass="shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-          />
-        </div>
-
-        {/* Memory Limits */}
-        <div className="space-y-1.5 opacity-80">
-          <ConfigLabel>
-            <Layers size={10} className="text-violet-500" /> Memory Limit
-          </ConfigLabel>
-          <SelectorGroup
-            options={MEMORY_OPTIONS}
-            currentValue={data.memoryLimit}
-            onSelect={(val) => performUpdate({ memoryLimit: val })}
-            colorMode={colorMode}
-            activeColorClass="bg-violet-600 border-violet-600"
-          />
-        </div>
+        {/* Resource Mapping */}
+        {[
+          { field: 'cpuRequest', label: 'CPU Request', options: CPU_OPTIONS, iconColor: 'text-emerald-500', activeColor: 'bg-emerald-600 border-emerald-600', shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' },
+          { field: 'cpuLimit', label: 'CPU Limit', options: CPU_OPTIONS, iconColor: 'text-violet-500', activeColor: 'bg-violet-600 border-violet-600' },
+          { type: 'separator' },
+          { field: 'memoryRequest', label: 'Memory Request', options: MEMORY_OPTIONS, iconColor: 'text-emerald-500', activeColor: 'bg-emerald-600 border-emerald-600', shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]' },
+          { field: 'memoryLimit', label: 'Memory Limit', options: MEMORY_OPTIONS, iconColor: 'text-violet-500', activeColor: 'bg-violet-600 border-violet-600' }
+        ].map((item, idx) => (
+          item.type === 'separator' ? (
+            <div key={`sep-${idx}`} className="h-px bg-slate-700/30 my-2" />
+          ) : (
+            <div key={item.field} className={cn("space-y-1.5", item.field.includes('Limit') && "opacity-80")}>
+              <ConfigLabel>
+                <Layers size={10} className={item.iconColor} /> {item.label}
+              </ConfigLabel>
+              <SelectorGroup
+                options={item.options}
+                currentValue={data[item.field]}
+                onSelect={(val) => performUpdate({ [item.field]: val })}
+                colorMode={colorMode}
+                activeColorClass={item.activeColor}
+                activeShadowClass={item.shadow}
+              />
+            </div>
+          )
+        ))}
       </div>
 
       {/* Container Image */}

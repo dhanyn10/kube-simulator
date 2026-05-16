@@ -1,11 +1,12 @@
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Trash2, Settings, Anchor } from 'lucide-react';
+import { Anchor } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
+import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
@@ -46,66 +47,28 @@ export const NamespaceNode = memo((props: NodeProps) => {
           NAMESPACE
         </div>
 
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-            onBlur={handleRename}
-            onKeyDown={onKeyDown}
-            className={cn(
-              "relative text-sm font-mono font-bold tracking-tight px-2 py-0.5 rounded border-2 outline-none shadow-sm z-[100]",
-              colorMode === 'dark' ? "bg-slate-900 text-emerald-300 border-emerald-500" : "bg-white text-emerald-700 border-emerald-400"
-            )}
-          />
-        ) : (
-          <button
-            type="button"
-            className={cn(
-              "relative text-sm font-mono font-bold tracking-tight cursor-text drop-shadow-sm z-[100] border-none bg-transparent p-0 outline-none focus:ring-2 focus:ring-emerald-500/50 rounded",
-              colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700"
-            )}
-            onDoubleClick={() => setIsEditing(true)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setIsEditing(true);
-              }
-            }}
-            title={`Double click to rename namespace: ${data.label}`}
-            aria-label={`Rename namespace ${data.label}`}
-          >
-            {data.label}
-          </button>
-        )}
+        {NodeRenameInput({
+          isEditing,
+          setIsEditing,
+          editValue,
+          setEditValue,
+          inputRef,
+          handleRename,
+          onKeyDown,
+          colorMode,
+          label: data.label,
+          inputClassName: colorMode === 'dark' ? "text-emerald-300 border-emerald-500" : "text-emerald-700 border-emerald-400",
+          buttonClassName: colorMode === 'dark' ? "text-emerald-300" : "text-emerald-700",
+          className: "text-sm"
+        })}
       </div>
 
-      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all absolute top-3 right-3" style={{ zIndex: 10 }}>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            useFlowStore.getState().setConfiguringNodeId(props.id);
-          }}
-          className={cn(
-            "p-1.5 rounded-lg transition-all shadow-sm",
-            colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-blue-400" : "bg-white hover:bg-slate-50 text-slate-400 hover:text-blue-500"
-          )}
-        >
-          <Settings size={14} />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            data.onDelete?.();
-          }}
-          className={cn(
-            "p-1.5 rounded-lg transition-all shadow-sm",
-            colorMode === 'dark' ? "bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400" : "bg-white hover:bg-red-50 text-slate-400 hover:text-red-500"
-          )}
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
+      <NodeActionButtons
+        id={props.id}
+        onDelete={data.onDelete}
+        colorMode={colorMode}
+        className="absolute top-3 right-3 z-10"
+      />
 
       <div className={cn(
         "pointer-events-none mt-auto text-[10px] uppercase tracking-[0.3em] font-black text-center italic opacity-20 pb-4 select-none",

@@ -7,6 +7,7 @@ import { useFlowStore } from '../../store';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
 import { useNodeRename } from '../../hooks/useNodeEditor';
+import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 
 export const BaseNode = memo(({ children, data, selected, title, icon: Icon, color, colorHex, id, type, hideSettings, statusOverride }: {
   children?: React.ReactNode;
@@ -157,72 +158,30 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <div className="flex items-center gap-1 shrink-0">
           {isPending && <AlertCircle size={10} className="text-red-500" />}
           {isReady && <CheckCircle2 size={10} className="text-emerald-500" />}
-          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all">
-            {!hideSettings && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  useFlowStore.getState().setConfiguringNodeId(id);
-                }}
-                className={cn(
-                  "p-1 rounded transition-all",
-                  colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-blue-400" : "hover:bg-slate-100 text-slate-400 hover:text-blue-500"
-                )}
-              >
-                <Settings size={12} />
-              </button>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                data.onDelete?.();
-              }}
-              className={cn(
-                "p-1 rounded transition-all",
-                colorMode === 'dark' ? "hover:bg-slate-700 text-slate-500 hover:text-red-400" : "hover:bg-slate-100 text-slate-400 hover:text-red-500"
-              )}
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
+          <NodeActionButtons
+            id={id}
+            onDelete={data.onDelete}
+            colorMode={colorMode}
+            hideSettings={hideSettings}
+          />
         </div>
       </div>
 
       {/* Content Area */}
       <div className="flex-1 flex flex-col gap-2 min-h-0 min-w-0">
         <div className="flex flex-col gap-1.5 min-w-0">
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-              onBlur={handleRename}
-              onKeyDown={onKeyDown}
-              className={cn(
-                "w-full min-w-0 max-w-full text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
-                colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400"
-              )}
-            />
-          ) : (
-            <button
-              type="button"
-              className={cn(
-                "w-full min-w-0 max-w-full text-xs font-mono font-bold truncate cursor-text text-left border-none bg-transparent p-0 outline-none focus:ring-1 focus:ring-blue-500/50 rounded",
-                colorMode === 'dark' ? "text-slate-100" : "text-slate-900"
-              )}
-              onDoubleClick={() => setIsEditing(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  setIsEditing(true);
-                }
-              }}
-              title={`Double click to rename: ${data.label}`}
-              aria-label={`Rename ${data.label}`}
-            >
-              {data.label}
-            </button>
-          )}
+          <NodeRenameInput
+            isEditing={isEditing}
+            setIsEditing={setIsEditing}
+            editValue={editValue}
+            setEditValue={setEditValue}
+            inputRef={inputRef}
+            handleRename={handleRename}
+            onKeyDown={onKeyDown}
+            colorMode={colorMode}
+            label={data.label}
+            className="w-full min-w-0 max-w-full"
+          />
 
           {showDashedProgress && (
             <div className={cn(
