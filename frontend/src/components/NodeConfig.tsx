@@ -11,7 +11,7 @@ import { InternetConfig } from './InternetConfig';
 import { PVCConfig } from './PVCConfig';
 import { ConfigMapConfig } from './ConfigMapConfig';
 import { SecretConfig } from './SecretConfig';
-import { getVisibilityUpdates, getWorkloadUpdates } from '../store/slices/node-handlers/configUtils';
+import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../store/slices/node-handlers/configUtils';
 
 interface NodeConfigProps {
   selectedNode: any;
@@ -33,11 +33,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
     const state = useFlowStore.getState();
     state.nodes.forEach((n: any) => {
-      const isPeerPod = n.type === 'Pod' && n.id !== selectedNode.id && (
-        (selectedNode.parentId && n.parentId === selectedNode.parentId && n.data.label === data.label) ||
-        (!selectedNode.parentId && !n.parentId && n.data.label === data.label)
-      );
-      if (isPeerPod) {
+      if (isPeerPod(n, selectedNode, data.label)) {
         updateNodeData(n.id, { ...additionalUpdates, displaySettings: nextSettings });
       }
     });

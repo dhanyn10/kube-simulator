@@ -1,6 +1,23 @@
 import { syncWorkloadMetadata } from './nodeUtils';
 
 /**
+ * Checks if a node is a peer pod of the selected node.
+ */
+export const isPeerPod = (node: any, selectedNode: any, selectedNodeLabel: string) => {
+  if (node.type !== 'Pod' || node.id === selectedNode.id) return false;
+
+  if (selectedNode.parentId && node.parentId === selectedNode.parentId) {
+    return node.data.label === selectedNodeLabel;
+  }
+
+  if (!selectedNode.parentId && !node.parentId) {
+    return node.data.label === selectedNodeLabel;
+  }
+
+  return false;
+};
+
+/**
  * Calculates additional updates based on visibility toggles.
  * If enabling a feature that is currently empty, set default values.
  */

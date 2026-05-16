@@ -5,6 +5,7 @@ import { cn, parseCPU, parseMemory } from '../lib/utils';
 import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
+import { validateHpaTargets } from '../store/slices/simulationManager';
 
 interface MenuBarProps {
   onExportYaml: () => void;
@@ -114,31 +115,7 @@ export const MenuBar = ({
 
   const hasInternet = useMemo(() => nodes.some((n: any) => n.type === 'Internet'), [nodes]);
 
-  const hasHpaValidationError = useMemo(() => {
-    const hpaNodes = nodes.filter((n: any) => n.type === 'HPA');
-    if (hpaNodes.length === 0) return false;
-
-    return hpaNodes.some((hpa: any) => {
-      const outgoingEdges = edges.filter((e: any) => e.source === hpa.id);
-      const targets = nodes.filter((n: any) => outgoingEdges.some((e: any) => e.target === n.id));
-      return targets.some((target: any) => {
-        const data = target.data;
-        const isWorkload = target.type === 'Deployment' || (target.type === 'Pod' && !target.parentId);
-        if (!isWorkload) return false;
-
-        // HPA requires limits
-        if (!data.cpuLimit || !data.memoryLimit) return true;
-
-        // Limit must be >= request
-        const cpuReq = parseCPU(data.cpuRequest);
-        const cpuLim = parseCPU(data.cpuLimit);
-        const memReq = parseMemory(data.memoryRequest);
-        const memLim = parseMemory(data.memoryLimit);
-
-        return cpuLim < cpuReq || memLim < memReq;
-      });
-    });
-  }, [nodes, edges]);
+  const hasHpaValidationError = useMemo(() => !validateHpaTargets(nodes, edges), [nodes, edges]);
 
   return (
     <div

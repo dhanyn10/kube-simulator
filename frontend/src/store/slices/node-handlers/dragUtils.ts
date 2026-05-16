@@ -26,6 +26,19 @@ export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, node
 };
 
 /**
+ * Syncs old parent deployment when a pod is removed from it.
+ */
+const syncOldParentDeployment = (parentId: string, currentNodes: Node[], movingReplicas: number, get: () => FlowState) => {
+  const oldParent = currentNodes.find(n => n.id === parentId);
+  if (oldParent?.type === 'Deployment') {
+    const { updatedDeployment, laidOut } = syncDeployment(oldParent, currentNodes, -movingReplicas, get);
+    const result = currentNodes.filter(n => n.parentId !== parentId || n.type !== 'Pod');
+    return [...result.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
+  }
+  return currentNodes;
+};
+
+/**
  * Handles the logic when a pod is moved into a deployment.
  */
 export const handlePodMoveToDeployment = (targetParentId: string, targetParent: Node, node: Node, nextNodes: Node[], oldParentId: string | undefined, get: () => FlowState, finalNode: Node) => {
@@ -35,15 +48,7 @@ export const handlePodMoveToDeployment = (targetParentId: string, targetParent: 
   let resultNodes = nextNodes.filter(n => (n.parentId !== targetParentId || n.type !== 'Pod') && n.id !== node.id);
   resultNodes = [...resultNodes.map(n => n.id === targetParentId ? updatedDeployment : n), ...laidOut];
 
-  if (oldParentId) {
-    const oldParent = resultNodes.find(n => n.id === oldParentId);
-    if (oldParent?.type === 'Deployment') {
-      const { updatedDeployment: uOld, laidOut: lOld } = syncDeployment(oldParent, resultNodes, -movingReplicas, get);
-      resultNodes = resultNodes.filter(n => n.parentId !== oldParentId || n.type !== 'Pod');
-      resultNodes = [...resultNodes.map(n => n.id === oldParentId ? uOld : n), ...lOld];
-    }
-  }
-  return resultNodes;
+  return oldParentId ? syncOldParentDeployment(oldParentId, resultNodes, movingReplicas, get) : resultNodes;
 };
 
 /**
@@ -60,14 +65,9 @@ export const handleGenericContainerMove = (targetParentId: string, node: Node, n
 
   resultNodes = syncContainerSize(targetParentId, resultNodes);
 
-  if (oldParentId) {
-    const oldParent = resultNodes.find(n => n.id === oldParentId);
-    if (oldParent?.type === 'Deployment' && node.type === 'Pod') {
-       const movingReplicas = getNodeData(node).replicas || 1;
-       const { updatedDeployment: uOld, laidOut: lOld } = syncDeployment(oldParent, resultNodes, -movingReplicas, get);
-       resultNodes = resultNodes.filter(n => n.parentId !== oldParentId || n.type !== 'Pod');
-       resultNodes = [...resultNodes.map(n => n.id === oldParentId ? uOld : n), ...lOld];
-    }
+  if (oldParentId && node.type === 'Pod') {
+    const movingReplicas = getNodeData(node).replicas || 1;
+    resultNodes = syncOldParentDeployment(oldParentId, resultNodes, movingReplicas, get);
   }
   return resultNodes;
 };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFlowStore } from '../store';
-import { cn, parseCPU, parseMemory } from '../lib/utils';
+import { cn, parseCPU, parseMemory, validateResourceLimits } from '../lib/utils';
 import { Box, Code, Layers, Server, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
 import { SelectorGroup } from './SelectorGroup';
@@ -39,14 +39,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const edges = useFlowStore((state) => state.edges);
   const isTargetedByHPA = edges.some(e => e.target === selectedNode.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
   const hasRequests = data.cpuRequest && data.memoryRequest;
-
-  const cpuReqVal = parseCPU(data.cpuRequest);
-  const cpuLimVal = parseCPU(data.cpuLimit);
-  const memReqVal = parseMemory(data.memoryRequest);
-  const memLimVal = parseMemory(data.memoryLimit);
-
-  const isCpuError = data.cpuLimit && cpuLimVal < cpuReqVal;
-  const isMemError = data.memoryLimit && memLimVal < memReqVal;
+  const { isCpuError, isMemError } = validateResourceLimits(data);
 
   return (
     <div className="space-y-4">
@@ -91,7 +84,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
             iconColor: 'text-violet-500',
             activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
             hasError: isCpuError,
-            validate: (val: string) => parseCPU(val) < cpuReqVal
+            validate: (val: string) => parseCPU(val) < parseCPU(data.cpuRequest)
           },
           { type: 'separator' },
           {
@@ -109,7 +102,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility }
             iconColor: 'text-violet-500',
             activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
             hasError: isMemError,
-            validate: (val: string) => parseMemory(val) < memReqVal
+            validate: (val: string) => parseMemory(val) < parseMemory(data.memoryRequest)
           }
         ].map((item: any, idx) => (
           item.type === 'separator' ? (

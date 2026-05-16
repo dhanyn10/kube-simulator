@@ -1,7 +1,7 @@
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sNodeData } from '../../types';
-import { parseCPU, parseMemory } from '../../lib/utils';
+import { validateResourceLimits } from '../../lib/utils';
 
 // Centralize side-effect handlers
 const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
@@ -93,13 +93,7 @@ export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
             // HPA requires limits to be set
             if (!data.cpuLimit || !data.memoryLimit) return true;
 
-            // Limit must be >= request
-            const cpuReq = parseCPU(data.cpuRequest);
-            const cpuLim = parseCPU(data.cpuLimit);
-            const memReq = parseMemory(data.memoryRequest);
-            const memLim = parseMemory(data.memoryLimit);
-
-            return cpuLim < cpuReq || memLim < memReq;
+            return validateResourceLimits(data).hasError;
         });
     });
 };
