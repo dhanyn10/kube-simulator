@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../store';
-import { POD_MIN_DIMENSIONS } from '../store/helpers';
+import { POD_MIN_DIMENSIONS } from '../lib/podSizing';
 import { K8sResourceType } from '../types';
 
 const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {

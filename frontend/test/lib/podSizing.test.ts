@@ -42,14 +42,14 @@ describe('podSizing utils', () => {
 
   describe('calculatePodHeight', () => {
     it('returns base height for simple pod', () => {
-      const data = { type: 'Pod' };
+      const data = { type: 'Pod' as any };
       const height = calculatePodHeight(data, 168, [], false);
       expect(height).toBeGreaterThanOrEqual(POD_MIN_DIMENSIONS.height);
     });
 
     it('increases height for resource limits', () => {
-      const data1 = { type: 'Pod' };
-      const data2 = { type: 'Pod', cpuLimit: '100m', memoryLimit: '128Mi' };
+      const data1 = { type: 'Pod' as any };
+      const data2 = { type: 'Pod' as any, cpuLimit: '100m', memoryLimit: '128Mi' };
       const h1 = calculatePodHeight(data1, 168, [], false);
       const h2 = calculatePodHeight(data2, 168, [], false);
       expect(h2).toBeGreaterThan(h1);

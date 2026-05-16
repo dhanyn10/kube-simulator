@@ -1,4 +1,4 @@
-import { K8sNodeData } from '../../types';
+import { K8sNodeData } from '../types';
 
 /**
  * Hook to calculate status-related colors and flags for nodes.
