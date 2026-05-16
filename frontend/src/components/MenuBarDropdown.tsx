@@ -28,18 +28,22 @@ export const MenuBarDropdown = ({
   colorMode
 }: MenuBarDropdownProps) => {
   const isOpen = activeMenu === menu.label;
+  const isDark = colorMode === 'dark';
+
+  const activeClasses = isDark ? "bg-slate-800 text-white" : "bg-slate-200 text-slate-900";
+  const inactiveClasses = isDark ? "hover:bg-slate-800" : "hover:bg-slate-200";
+
+  const buttonClasses = cn(
+    "px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1",
+    isOpen ? activeClasses : inactiveClasses
+  );
 
   return (
     <div className="relative" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
       <button
         onClick={() => setActiveMenu(isOpen ? null : menu.label)}
         onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
-        className={cn(
-          "px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1",
-          isOpen
-            ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-slate-200 text-slate-900")
-            : (colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-200")
-        )}
+        className={buttonClasses}
       >
         {menu.label}
       </button>
@@ -61,16 +65,14 @@ export const MenuBarDropdown = ({
                 }}
                 className={cn(
                   "w-full px-4 py-1.5 text-xs flex items-center justify-between transition-colors group",
-                  colorMode === 'dark' ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                          isDark ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
                 )}
               >
                 <div className="flex items-center gap-2">
                   {typeof item.checked === 'boolean' && (
                     <div className={cn(
                       "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
-                      item.checked
-                        ? "bg-blue-500 border-blue-500 text-white"
-                        : (colorMode === 'dark' ? "border-slate-700" : "border-slate-300")
+                              item.checked ? "bg-blue-500 border-blue-500 text-white" : (isDark ? "border-slate-700" : "border-slate-300")
                     )}>
                       {item.checked && <CloseIcon size={10} className="rotate-45" />}
                     </div>
