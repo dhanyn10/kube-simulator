@@ -1,4 +1,4 @@
-import { Node, Edge } from '@xyflow/react';
+import { Node } from '@xyflow/react';
 import { K8sNodeData } from '../types';
 import { FlowState } from './types';
 import { 

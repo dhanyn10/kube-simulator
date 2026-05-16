@@ -66,6 +66,12 @@ export default function CustomEdge({
   };
 
   const isTargetError = checkErrorState();
+
+  const getStrokeColor = () => {
+    if (isTargetError) return '#ef4444';
+    if (isSimulating) return '#3b82f6';
+    return edgeColor;
+  };
   
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -99,7 +105,7 @@ export default function CustomEdge({
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
-          stroke: isTargetError ? '#ef4444' : (isSimulating ? '#3b82f6' : edgeColor),
+          stroke: getStrokeColor(),
           transition: 'stroke 0.2s, stroke-width 0.2s',
         }} 
       />

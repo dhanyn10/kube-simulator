@@ -27,7 +27,14 @@ export const ConfigPanel = () => {
 
   const isEdge = !!selectedEdge;
   const title = isEdge ? 'Edge Configuration' : `${selectedNode?.type} Configuration`;
-  const IconColor = isEdge ? "text-blue-500" : (selectedNode?.type === 'Deployment' ? "text-violet-500" : "text-blue-500");
+
+  const getIconColor = () => {
+    if (isEdge) return "text-blue-500";
+    if (selectedNode?.type === 'Deployment') return "text-violet-500";
+    return "text-blue-500";
+  };
+
+  const IconColor = getIconColor();
 
   return (
     <div className={cn(

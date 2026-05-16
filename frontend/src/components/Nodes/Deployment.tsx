@@ -25,6 +25,12 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
+  const getBadgeColor = () => {
+    if (data.isHovered) return "bg-violet-400";
+    if (data.isDetaching) return "bg-red-500";
+    return "bg-violet-600";
+  };
+
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full flex flex-col min-h-[140px]",
@@ -49,7 +55,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       <div className="absolute -top-3 left-6 flex items-center gap-2">
         <span className={cn(
           "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
-          data.isHovered ? "bg-violet-400" : data.isDetaching ? "bg-red-500" : "bg-violet-600"
+          getBadgeColor()
         )}>
           DEPLOYMENT
         </span>

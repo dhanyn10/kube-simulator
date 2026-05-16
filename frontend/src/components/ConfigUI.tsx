@@ -76,7 +76,7 @@ export const RangeInput = ({ value, onChange, min, max, step = 1, unit = "%" }: 
       max={max}
       step={step}
       value={value}
-      onChange={(e) => onChange(parseInt(e.target.value))}
+      onChange={(e) => onChange(Number.parseInt(e.target.value, 10))}
       className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
     />
     <div className="flex justify-between text-[8px] font-mono text-slate-500">

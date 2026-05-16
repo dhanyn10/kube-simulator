@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { NodeProps, NodeResizer, Handle, Position, Node } from '@xyflow/react';
+import { NodeProps, NodeResizer, Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { K8sNodeData } from '../../types';

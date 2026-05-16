@@ -30,7 +30,7 @@ export const MultiProgressBar = ({
     )}>
       {segments.map((segment, idx) => (
         <div
-          key={idx}
+          key={`${segment.title || 'segment'}-${idx}`}
           className={cn("h-full transition-all duration-500", segment.color, segment.className)}
           style={{ width: `${segment.value}%` }}
           title={segment.title}
