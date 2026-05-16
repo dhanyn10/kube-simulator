@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { webcrypto } from 'node:crypto';
 import { useFlowStore } from '@/store/useFlowStore';
 
 describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
@@ -12,27 +13,8 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
       lastActionId: 'init'
     });
     
-    // Mock crypto for environments that lack it (e.g. JSDOM or older Node)
-    // IMPORTANT: randomUUID must have a random first segment because production code uses split('-')[0]
-    if (!global.crypto || !global.crypto.randomUUID || !global.crypto.getRandomValues) {
-      const cryptoMock = {
-        randomUUID: () => `${Math.random().toString(36).slice(2, 11)}-${Math.random().toString(36).slice(2, 11)}`,
-        getRandomValues: <T extends ArrayBufferView | null>(arr: T): T => {
-          if (!arr) return arr;
-          const view = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength);
-          for (let i = 0; i < view.length; i++) view[i] = Math.floor(Math.random() * 256);
-          return arr;
-        }
-      };
-      
-      if (!global.crypto) {
-        (global as any).crypto = cryptoMock;
-      } else {
-        // Polyfill missing methods on existing crypto object
-        if (!global.crypto.randomUUID) (global as any).crypto.randomUUID = cryptoMock.randomUUID;
-        if (!global.crypto.getRandomValues) (global as any).crypto.getRandomValues = cryptoMock.getRandomValues;
-      }
-    }
+    // Ensure crypto is available for ID generation and random values (Node/JSDOM)
+    if (!global.crypto) (global as any).crypto = webcrypto;
   });
 
   it('increments Deployment replicas when a child Pod is copy-pasted', () => {
