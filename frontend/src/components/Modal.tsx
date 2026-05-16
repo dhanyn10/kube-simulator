@@ -29,6 +29,16 @@ export const Modal = ({
   maxHeightClass = "max-h-[85vh]"
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -38,6 +48,10 @@ export const Modal = ({
       role="dialog"
       aria-modal="true"
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+      tabIndex={-1}
     >
       <div
         className={cn(
@@ -47,6 +61,7 @@ export const Modal = ({
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
         )}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-6 border-b flex items-center justify-between shrink-0">

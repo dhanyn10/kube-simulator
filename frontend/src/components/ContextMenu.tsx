@@ -30,6 +30,9 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
       className="fixed inset-0 z-[2000]"
       role="presentation"
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         onClose();
@@ -42,6 +45,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
         )}
         style={{ left: x, top: y }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Inspect */}
         <button
