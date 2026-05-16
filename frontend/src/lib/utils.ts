@@ -87,51 +87,44 @@ export function validateResourceLimits(data: any) {
   };
 }
 
-export function generateYaml(nodes: any[], edges: any[]): string {
+const generatorMap: Record<string, (data: K8sNodeData, name: string, nodes: any[], edges: any[], namespace?: string) => any> = {
+  Namespace: (data, name) => generateNamespaceYaml(data, name),
+  Pod: (data, name, nodes, edges, namespace) => generatePodYaml(data, name, nodes, edges, namespace),
+  Deployment: (data, name, nodes, edges, namespace) => generateDeploymentYaml(data, name, nodes, edges, namespace),
+  Service: (data, name, nodes, edges, namespace) => generateServiceYaml(data, name, nodes, edges, namespace),
+  Ingress: (data, name, nodes, edges, namespace) => generateIngressYaml(data, name, nodes, edges, namespace),
+  HPA: (data, name, nodes, edges, namespace) => generateHPAYaml(data, name, nodes, edges, namespace),
+  PVC: (data, name, _nodes, _edges, namespace) => generatePVCYaml(data, name, namespace),
+  ConfigMap: (data, name, _nodes, _edges, namespace) => generateConfigMapYaml(data, name, namespace),
+  Secret: (data, name, _nodes, _edges, namespace) => generateSecretYaml(data, name, namespace),
+};
 
-  const manifests: any[] = nodes.map((node) => {
+export function generateYaml(nodes: any[], edges: any[]): string {
+  const manifests = nodes.map((node) => {
     try {
       const data: K8sNodeData = { ...node.data, id: node.id };
-      if (!data.label) return null;
-      const name = data.label.toLowerCase().replace(/\s+/g, '-');
+      if (!data.label || !node.type) return null;
 
-      // Determine namespace if node is child of a Namespace node
-      let namespace: string | undefined;
-      if (node.parentId) {
+      // Skip nodes that don't produce YAML directly
+      if (['Internet', 'PodGroup'].includes(node.type)) return null;
+
+      // Special check for nested pods (only top-level or Namespace-child pods are generated)
+      if (node.type === 'Pod' && node.parentId) {
         const parent = nodes.find(n => n.id === node.parentId);
-        if (parent?.type === 'Namespace') {
-          namespace = parent.data.label.toLowerCase().replace(/\s+/g, '-');
-        }
+        if (parent?.type !== 'Namespace') return null;
       }
 
-      switch (node.type) {
-        case 'Namespace':
-          return generateNamespaceYaml(data, name);
-        case 'Internet':
-          return null;
-        case 'Pod':
-          if (node.parentId && nodes.find(n => n.id === node.parentId)?.type !== 'Namespace') return null;
-          return generatePodYaml(data, name, nodes, edges, namespace);
-        case 'Deployment':
-          return generateDeploymentYaml(data, name, nodes, edges, namespace);
-        case 'Service':
-          return generateServiceYaml(data, name, nodes, edges, namespace);
-        case 'Ingress':
-          return generateIngressYaml(data, name, nodes, edges, namespace);
-        case 'HPA':
-          return generateHPAYaml(data, name, nodes, edges, namespace);
-        case 'PVC':
-          return generatePVCYaml(data, name, namespace);
-        case 'ConfigMap':
-          return generateConfigMapYaml(data, name, namespace);
-        case 'Secret':
-          return generateSecretYaml(data, name, namespace);
-        case 'PodGroup':
-          return null;
-        default:
-          console.warn('Unknown node type for YAML generation:', node.type);
-          return null;
+      const name = data.label.toLowerCase().replace(/\s+/g, '-');
+      const parent = node.parentId ? nodes.find(n => n.id === node.parentId) : null;
+      const namespace = parent?.type === 'Namespace' ? parent.data.label.toLowerCase().replace(/\s+/g, '-') : undefined;
+
+      const generator = generatorMap[node.type];
+      if (generator) {
+        return generator(data, name, nodes, edges, namespace);
       }
+
+      console.warn('Unknown node type for YAML generation:', node.type);
+      return null;
     } catch (err) {
       console.error('Error generating YAML for node', node.id, err);
       return null;

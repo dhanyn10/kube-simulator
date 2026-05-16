@@ -39,7 +39,7 @@ export const calculateReachability = (startNodes: Node[], edges: Edge[], activeS
 /**
  * Handles PVC readiness logic. Pods remain pending if their connected PVCs are not Bound.
  */
-const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
+export const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
   const childPods = dep.type === 'Pod' ? [dep] : ctx.nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
 
@@ -58,7 +58,7 @@ const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
   return { hasChanges: false, isBlocked: false };
 };
 
-const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
+export const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
   const idx = ctx.updatedNodes.findIndex(un => un.id === id);
   if (idx !== -1) {
     ctx.updatedNodes[idx] = {
@@ -70,7 +70,7 @@ const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
   return false;
 };
 
-const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx: SimulationContext) => {
+export const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx: SimulationContext) => {
   let hasChanges = false;
 
   connectedPVCs.forEach(pvc => {
@@ -88,7 +88,7 @@ const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx: Simula
   return { hasChanges, isBlocked: true };
 };
 
-const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
+export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   let hasChanges = false;
   childPods.forEach(pod => {
     const pData = pod.data as K8sNodeData;
@@ -103,7 +103,7 @@ const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
 /**
  * Calculates incoming traffic for a workload based on 'Internet' nodes.
  */
-const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
+export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
   let hasChanges = false;
   const traffic = ctx.nodes
     .filter(n => n.type === 'Internet')
@@ -142,7 +142,7 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
 /**
  * Computes resource usage metrics (CPU, Memory) based on incoming traffic.
  */
-const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
+export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
   const dData = dep.data as K8sNodeData;
   const replicas = (dData.replicas as number) || 1;
   const cpuLimitMilli = parseCPU(dData.cpuLimit);
@@ -170,7 +170,7 @@ const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: Simul
 /**
  * Simulates pod crashes due to OOM (Out Of Memory) conditions.
  */
-const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
+export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
   if (!isOOM || safeRandom() <= 0.5) return false;
 
   const childPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
@@ -184,7 +184,7 @@ const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => 
   return changed;
 };
 
-const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
+export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
   setTimeout(() => {
     const currentState = ctx.get();
     const nodeToRecover = currentState.nodes.find(n => n.id === podId);
@@ -206,7 +206,7 @@ const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
 /**
  * Handles Horizontal Pod Autoscaler (HPA) scaling logic.
  */
-const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext) => {
+export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext) => {
   const connectedHPA = ctx.nodes.find(n => n.type === 'HPA' && ctx.edges.some(e => e.source === n.id && e.target === dep.id));
   if (!connectedHPA) return false;
 
