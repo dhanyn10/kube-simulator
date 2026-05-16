@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 import { Plus, Trash2, Key } from 'lucide-react';
+import { ConfigLabel, ConfigInput } from './ConfigUI';
 
 interface KeyValueConfigProps {
   title: string;
@@ -66,9 +67,9 @@ export const KeyValueConfig = ({
     <div className="space-y-4">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+          <ConfigLabel>
             {titleIcon} {title}
-          </label>
+          </ConfigLabel>
           <button
             onClick={addData}
             className={cn(
@@ -101,15 +102,12 @@ export const KeyValueConfig = ({
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   <Key size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
-                  <input
-                    type="text"
+                  <ConfigInput
                     placeholder="KEY"
                     value={item.key}
-                    onChange={(e) => updateData(idx, e.target.value, item.value)}
-                    className={cn(
-                      "w-full pl-6 pr-2 py-1.5 text-[10px] rounded border outline-none font-mono uppercase",
-                      colorMode === 'dark' ? `bg-slate-800 border-slate-700 text-slate-200 ${activeColors.focus}` : `bg-slate-50 border-slate-200 text-slate-800 ${activeColors.focusLight}`
-                    )}
+                    onChange={(e: any) => updateData(idx, e.target.value, item.value)}
+                    colorMode={colorMode}
+                    className={cn("pl-6 font-mono uppercase", colorMode === 'dark' ? activeColors.focus : activeColors.focusLight)}
                   />
                 </div>
                 <button
@@ -123,15 +121,13 @@ export const KeyValueConfig = ({
                 <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500">
                   {valueIcon}
                 </div>
-                <input
+                <ConfigInput
                   type={inputType}
                   placeholder={valuePlaceholder}
                   value={item.value}
-                  onChange={(e) => updateData(idx, item.key, e.target.value)}
-                  className={cn(
-                    "w-full pl-6 pr-2 py-1.5 text-[10px] rounded border outline-none",
-                    colorMode === 'dark' ? `bg-slate-800 border-slate-700 text-slate-200 ${activeColors.focus}` : `bg-slate-50 border-slate-200 text-slate-800 ${activeColors.focusLight}`
-                  )}
+                  onChange={(e: any) => updateData(idx, item.key, e.target.value)}
+                  colorMode={colorMode}
+                  className={cn("pl-6", colorMode === 'dark' ? activeColors.focus : activeColors.focusLight)}
                 />
               </div>
             </div>

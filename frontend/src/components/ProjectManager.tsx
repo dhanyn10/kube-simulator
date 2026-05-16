@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, FolderOpen, Trash2, X, Plus } from 'lucide-react';
+import { Save, FolderOpen, Trash2, Plus } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { hydrateNodes } from '../store/nodeHelpers';
+import { Modal } from './Modal';
 
 // @ts-ignore
 import * as App from '@wailsjs/go/main/App.js';
@@ -144,30 +145,20 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Project Manager"
+      icon={FolderOpen}
+      widthClass="w-[520px]"
+      maxHeightClass="max-h-[80vh]"
+      footer={
+        <p className="text-[10px] text-center text-slate-500 font-medium">
+          Projects are stored locally in your SQLite database.
+        </p>
+      }
     >
-      <div 
-        className={cn(
-          "w-[520px] max-h-[80vh] rounded-2xl border shadow-2xl flex flex-col",
-          colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
-        )}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FolderOpen className="text-blue-500" size={20} />
-            <h2 className="text-lg font-bold">Project Manager</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-500/10 rounded-full">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+      <div className="space-y-6">
           {/* New Project */}
           <div className="space-y-3">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Save As New Project</label>
@@ -288,12 +279,7 @@ export const ProjectManager = ({ isOpen, onClose }: ProjectManagerProps) => {
           </div>
         </div>
 
-        <div className="p-6 border-t bg-slate-500/5">
-          <p className="text-[10px] text-center text-slate-500 font-medium">
-            Projects are stored locally in your SQLite database.
-          </p>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 };

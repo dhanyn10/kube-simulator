@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, HelpCircle, Info, Bug, ChevronDown, Minus, Square, X as CloseIcon, CheckSquare, Play, Globe, Activity, ExternalLink } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, X as CloseIcon, CheckSquare, Play, Activity, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
+import { WindowControls } from './WindowControls';
 
 interface MenuBarProps {
   onExportYaml: () => void;
@@ -239,32 +240,7 @@ export const MenuBar = ({
         </h1>
       </div>
 
-      <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <button
-          onClick={() => (globalThis as any).go?.main?.App?.MinimizeWindow?.()}
-          className={cn(
-            "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
-            colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
-          )}
-        >
-          <Minus size={16} />
-        </button>
-        <button
-          onClick={() => (globalThis as any).go?.main?.App?.MaximizeWindow?.()}
-          className={cn(
-            "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
-            colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
-          )}
-        >
-          <Square size={12} />
-        </button>
-        <button
-          onClick={() => (globalThis as any).go?.main?.App?.CloseWindow?.()}
-          className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"
-        >
-          <CloseIcon size={18} />
-        </button>
-      </div>
+      <WindowControls colorMode={colorMode} />
     </div>
   );
 };
