@@ -1,15 +1,16 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { Globe, Code } from 'lucide-react';
-import { ConfigInput, ConfigSection } from './ConfigUI';
+import { ConfigInput, ConfigSection, AdvancedSection } from './ConfigUI';
 
 interface IngressConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
+  toggleYaml: (field: string) => void;
 }
 
-export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility }: IngressConfigProps) => {
+export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: IngressConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
 
@@ -29,19 +30,23 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility }:
         />
       </ConfigSection>
 
-      <ConfigSection
-        title="Path"
-        icon={Code}
-        isVisible={data.displaySettings?.path}
-        onToggle={() => toggleVisibility('path')}
-      >
-        <ConfigInput
-          value={data.ingressPath || ''}
-          onChange={(e: any) => performUpdate({ ingressPath: e.target.value })}
-          placeholder="/"
-          colorMode={colorMode}
-        />
-      </ConfigSection>
+      <AdvancedSection colorMode={colorMode}>
+        <ConfigSection
+          title="Path"
+          icon={Code}
+          isVisible={data.displaySettings?.path}
+          onToggle={() => toggleVisibility('path')}
+          isYamlEnabled={data.yamlSettings?.path}
+          onYamlToggle={() => toggleYaml('path')}
+        >
+          <ConfigInput
+            value={data.ingressPath || ''}
+            onChange={(e: any) => performUpdate({ ingressPath: e.target.value })}
+            placeholder="/"
+            colorMode={colorMode}
+          />
+        </ConfigSection>
+      </AdvancedSection>
     </div>
   );
 };

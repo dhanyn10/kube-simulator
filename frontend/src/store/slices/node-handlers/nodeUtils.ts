@@ -15,21 +15,77 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
 
 export const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState): K8sNodeData => {
   const handlers = createNodeHandlers(id, get);
-  const base: K8sNodeData = { label: `new-${type.toLowerCase()}`, type, image: '', status: 'pending', ...handlers };
+  const base: K8sNodeData = {
+    label: `new-${type.toLowerCase()}`,
+    type,
+    image: '',
+    status: 'pending',
+    ...handlers,
+    displaySettings: {},
+    yamlSettings: {}
+  };
 
   switch (type) {
     case 'Service':
-      return { ...base, port: 80, targetPort: 80, selector: 'app-label', displaySettings: { port: true, targetPort: true, selector: true } };
+      return {
+        ...base,
+        port: 80,
+        targetPort: 80,
+        selector: 'app-label',
+        displaySettings: { port: true, targetPort: false, selector: false },
+        yamlSettings: { targetPort: true, selector: true }
+      };
     case 'Pod':
-      return { ...base, replicas: 1, image: 'nginx:latest', isAutoImage: true, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
+      return {
+        ...base,
+        replicas: 1,
+        image: 'nginx:latest',
+        isAutoImage: true,
+        displaySettings: { runtime: false, webserver: false, image: false, resources: false },
+        yamlSettings: { image: true, resources: true }
+      };
     case 'Deployment':
-      return { ...base, replicas: 0, displaySettings: { runtime: true, webserver: true, image: true, resources: true } };
+      return {
+        ...base,
+        replicas: 0,
+        displaySettings: { runtime: false, webserver: false, image: false, resources: false },
+        yamlSettings: { image: true, resources: true }
+      };
     case 'Ingress':
-      return { ...base, ingressHost: 'example.local', ingressPath: '/', displaySettings: { host: true, path: true } };
+      return {
+        ...base,
+        ingressHost: 'example.local',
+        ingressPath: '/',
+        displaySettings: { host: true, path: false },
+        yamlSettings: { path: true }
+      };
     case 'HPA':
-      return { ...base, minReplicas: 1, maxReplicas: 10, targetCPU: 50, displaySettings: { replicas: true, targetCPU: true } };
+      return {
+        ...base,
+        minReplicas: 1,
+        maxReplicas: 10,
+        targetCPU: 50,
+        displaySettings: { replicas: false, targetCPU: false, targetMemory: false },
+        yamlSettings: { replicas: true, targetCPU: true, targetMemory: true }
+      };
     case 'Internet':
-      return { ...base, displaySettings: { traffic: true, duration: true } };
+      return {
+        ...base,
+        displaySettings: { traffic: false, duration: false }
+      };
+    case 'PVC':
+      return {
+        ...base,
+        displaySettings: { storageClass: false },
+        yamlSettings: { storageClass: true }
+      };
+    case 'ConfigMap':
+    case 'Secret':
+      return {
+        ...base,
+        displaySettings: { data: false },
+        yamlSettings: { data: true }
+      };
     default:
       return base;
   }

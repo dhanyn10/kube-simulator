@@ -21,6 +21,8 @@ const getVolumeConfig = (sourceIds: string | string[], nodes: any[], edges: any[
 };
 
 const getResourceConfig = (data: K8sNodeData) => {
+  if (data.yamlSettings?.resources === false) return undefined;
+
   const hasRequests = data.cpuRequest || data.memoryRequest;
   const hasLimits = data.cpuLimit || data.memoryLimit;
   
@@ -82,7 +84,7 @@ const createPodSpec = (data: K8sNodeData, nodes: any[], edges: any[]) => {
   return {
     containers: [{
       name: data.label?.toLowerCase().replace(/\s+/g, '-') || 'main',
-      image: data.image || 'nginx:latest',
+      image: (data.yamlSettings?.image !== false) ? (data.image || 'nginx:latest') : 'nginx:latest',
       imagePullPolicy: 'IfNotPresent',
       ports: data.port ? [{ containerPort: data.port }] : undefined,
       env: env.length > 0 ? env : undefined,
@@ -126,30 +128,34 @@ export const generatePodYaml = (data: K8sNodeData, name: string, nodes: any[] = 
 
 export const generateConfigMapYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   const configData: Record<string, string> = {};
-  (data.configData || []).forEach(item => {
-    if (item.key) configData[item.key] = item.value;
-  });
+  if (data.yamlSettings?.data !== false) {
+    (data.configData || []).forEach(item => {
+      if (item.key) configData[item.key] = item.value;
+    });
+  }
 
   return {
     apiVersion: 'v1',
     kind: 'ConfigMap',
     metadata: { name, namespace },
-    data: configData
+    data: Object.keys(configData).length > 0 ? configData : undefined
   };
 };
 
 export const generateSecretYaml = (data: K8sNodeData, name: string, namespace?: string) => {
   const secretData: Record<string, string> = {};
-  (data.configData || []).forEach(item => {
-    if (item.key) secretData[item.key] = item.value;
-  });
+  if (data.yamlSettings?.data !== false) {
+    (data.configData || []).forEach(item => {
+      if (item.key) secretData[item.key] = item.value;
+    });
+  }
 
   return {
     apiVersion: 'v1',
     kind: 'Secret',
     metadata: { name, namespace },
     type: 'Opaque',
-    stringData: secretData
+    stringData: Object.keys(secretData).length > 0 ? secretData : undefined
   };
 };
 
@@ -160,7 +166,7 @@ export const generatePVCYaml = (data: K8sNodeData, name: string, namespace?: str
     metadata: { name, namespace },
     spec: {
       accessModes: [data.accessMode || 'ReadWriteOnce'],
-      storageClassName: data.storageClass || 'standard',
+      storageClassName: (data.yamlSettings?.storageClass !== false) ? (data.storageClass || 'standard') : undefined,
       resources: {
         requests: {
           storage: data.storageCapacity || '1Gi'
@@ -219,13 +225,16 @@ export const generateServiceYaml = (data: K8sNodeData, name: string, nodes: any[
   const targetWorkload = nodes.find(n => (n.type === 'Deployment' || n.type === 'Pod') && outgoingEdges.some(e => e.target === n.id));
   const selectorLabel = targetWorkload ? targetWorkload.data.label.toLowerCase().replace(/\s+/g, '-') : (data.selector || 'app-label');
 
+  const targetPort = (data.yamlSettings?.targetPort !== false) ? (data.targetPort || 80) : undefined;
+  const selector = (data.yamlSettings?.selector !== false) ? { app: selectorLabel } : undefined;
+
   return {
     apiVersion: 'v1',
     kind: 'Service',
     metadata: { name, namespace },
     spec: {
-      selector: { app: selectorLabel },
-      ports: [{ protocol: 'TCP', port: data.port || 80, targetPort: data.targetPort || 80 }]
+      selector,
+      ports: [{ protocol: 'TCP', port: data.port || 80, targetPort }]
     }
   };
 };
@@ -234,6 +243,8 @@ export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[
   const outgoingEdges = edges.filter(e => e.source === data.id);
   const targetService = nodes.find(n => n.type === 'Service' && outgoingEdges.some(e => e.target === n.id));
   const serviceName = targetService ? targetService.data.label.toLowerCase().replace(/\s+/g, '-') : 'tbd-service';
+
+  const path = (data.yamlSettings?.path !== false) ? (data.ingressPath || '/') : '/';
 
   return {
     apiVersion: 'networking.k8s.io/v1',
@@ -252,7 +263,7 @@ export const generateIngressYaml = (data: K8sNodeData, name: string, nodes: any[
         host: data.ingressHost || 'example.local',
         http: {
           paths: [{
-            path: data.ingressPath || '/',
+            path,
             pathType: 'Prefix',
             backend: {
               service: {
@@ -274,31 +285,38 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
 
   const metrics: any[] = [];
 
-  if (data.targetCPU || !data.targetMemory) {
-    metrics.push({
-      type: 'Resource',
-      resource: {
-        name: 'cpu',
-        target: {
-          type: 'Utilization',
-          averageUtilization: data.targetCPU || 50
+  if (data.yamlSettings?.targetCPU !== false) {
+    if (data.targetCPU || !data.targetMemory) {
+      metrics.push({
+        type: 'Resource',
+        resource: {
+          name: 'cpu',
+          target: {
+            type: 'Utilization',
+            averageUtilization: data.targetCPU || 50
+          }
         }
-      }
-    });
+      });
+    }
   }
 
-  if (data.targetMemory) {
-    metrics.push({
-      type: 'Resource',
-      resource: {
-        name: 'memory',
-        target: {
-          type: 'Utilization',
-          averageUtilization: data.targetMemory
+  if (data.yamlSettings?.targetMemory !== false) {
+    if (data.targetMemory) {
+      metrics.push({
+        type: 'Resource',
+        resource: {
+          name: 'memory',
+          target: {
+            type: 'Utilization',
+            averageUtilization: data.targetMemory
+          }
         }
-      }
-    });
+      });
+    }
   }
+
+  const minReplicas = (data.yamlSettings?.replicas !== false) ? (data.minReplicas || 1) : 1;
+  const maxReplicas = (data.yamlSettings?.replicas !== false) ? (data.maxReplicas || 10) : 10;
 
   return {
     apiVersion: 'autoscaling/v2',
@@ -310,9 +328,9 @@ export const generateHPAYaml = (data: K8sNodeData, name: string, nodes: any[], e
         kind: 'Deployment',
         name: deploymentName
       },
-      minReplicas: data.minReplicas || 1,
-      maxReplicas: data.maxReplicas || 10,
-      metrics
+      minReplicas,
+      maxReplicas,
+      metrics: metrics.length > 0 ? metrics : undefined
     }
   };
 };

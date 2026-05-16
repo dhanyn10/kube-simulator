@@ -7,9 +7,10 @@ interface SecretConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
+  toggleYaml: (field: string) => void;
 }
 
-export const SecretConfig = ({ selectedNode, performUpdate }: SecretConfigProps) => {
+export const SecretConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: SecretConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
   const configData = data.configData || [];
@@ -27,6 +28,10 @@ export const SecretConfig = ({ selectedNode, performUpdate }: SecretConfigProps)
       accentColor="indigo"
       inputType="password"
       valuePlaceholder="Secret Value"
+      isVisible={data.displaySettings?.data}
+      onToggle={() => toggleVisibility('data')}
+      isYamlEnabled={data.yamlSettings?.data}
+      onYamlToggle={() => toggleYaml('data')}
     />
   );
 };

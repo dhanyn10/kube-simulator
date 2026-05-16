@@ -1,15 +1,16 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { Box, Network } from 'lucide-react';
-import { ConfigInput, ConfigSection } from './ConfigUI';
+import { ConfigInput, ConfigSection, AdvancedSection } from './ConfigUI';
 
 interface ServiceConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
+  toggleYaml: (field: string) => void;
 }
 
-export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility }: ServiceConfigProps) => {
+export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: ServiceConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
 
@@ -29,33 +30,39 @@ export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility }:
         />
       </ConfigSection>
 
-      <ConfigSection
-        title="Target Port"
-        icon={Network}
-        isVisible={data.displaySettings?.targetPort}
-        onToggle={() => toggleVisibility('targetPort')}
-      >
-        <ConfigInput
-          type="number"
-          value={data.targetPort || 80}
-          onChange={(e: any) => performUpdate({ targetPort: Number.parseInt(e.target.value, 10) || 80 })}
-          colorMode={colorMode}
-        />
-      </ConfigSection>
+      <AdvancedSection colorMode={colorMode}>
+        <ConfigSection
+          title="Target Port"
+          icon={Network}
+          isVisible={data.displaySettings?.targetPort}
+          onToggle={() => toggleVisibility('targetPort')}
+          isYamlEnabled={data.yamlSettings?.targetPort}
+          onYamlToggle={() => toggleYaml('targetPort')}
+        >
+          <ConfigInput
+            type="number"
+            value={data.targetPort || 80}
+            onChange={(e: any) => performUpdate({ targetPort: Number.parseInt(e.target.value, 10) || 80 })}
+            colorMode={colorMode}
+          />
+        </ConfigSection>
 
-      <ConfigSection
-        title="Selector (app)"
-        icon={Box}
-        isVisible={data.displaySettings?.selector}
-        onToggle={() => toggleVisibility('selector')}
-      >
-        <ConfigInput
-          value={data.selector || ''}
-          onChange={(e: any) => performUpdate({ selector: e.target.value })}
-          placeholder="app-label"
-          colorMode={colorMode}
-        />
-      </ConfigSection>
+        <ConfigSection
+          title="Selector (app)"
+          icon={Box}
+          isVisible={data.displaySettings?.selector}
+          onToggle={() => toggleVisibility('selector')}
+          isYamlEnabled={data.yamlSettings?.selector}
+          onYamlToggle={() => toggleYaml('selector')}
+        >
+          <ConfigInput
+            value={data.selector || ''}
+            onChange={(e: any) => performUpdate({ selector: e.target.value })}
+            placeholder="app-label"
+            colorMode={colorMode}
+          />
+        </ConfigSection>
+      </AdvancedSection>
     </div>
   );
 };

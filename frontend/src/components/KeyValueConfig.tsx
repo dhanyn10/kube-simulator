@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 import { Plus, Trash2, Key } from 'lucide-react';
-import { ConfigLabel, ConfigInput } from './ConfigUI';
+import { ConfigLabel, ConfigInput, VisibilityToggle, YamlToggle } from './ConfigUI';
 
 interface KeyValueConfigProps {
   title: string;
@@ -15,6 +15,10 @@ interface KeyValueConfigProps {
   inputType?: 'text' | 'password';
   accentColor: 'teal' | 'indigo';
   valuePlaceholder?: string;
+  isVisible?: boolean;
+  onToggle?: () => void;
+  isYamlEnabled?: boolean;
+  onYamlToggle?: () => void;
 }
 
 export const KeyValueConfig = ({
@@ -28,7 +32,11 @@ export const KeyValueConfig = ({
   emptyText,
   inputType = 'text',
   accentColor,
-  valuePlaceholder = 'Value'
+  valuePlaceholder = 'Value',
+  isVisible,
+  onToggle,
+  isYamlEnabled,
+  onYamlToggle
 }: KeyValueConfigProps) => {
   const addData = () => {
     const newData = [...configData, { id: crypto.randomUUID(), key: '', value: '' }];
@@ -67,9 +75,15 @@ export const KeyValueConfig = ({
     <div className="space-y-4">
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <ConfigLabel>
-            {titleIcon} {title}
-          </ConfigLabel>
+          <div className="flex items-center gap-2">
+            <ConfigLabel>
+              {titleIcon} {title}
+            </ConfigLabel>
+            <div className="flex items-center gap-1.5 ml-1">
+              {onToggle && <VisibilityToggle isVisible={isVisible !== false} onToggle={onToggle} />}
+              {onYamlToggle && <YamlToggle isEnabled={isYamlEnabled !== false} onToggle={onYamlToggle} />}
+            </div>
+          </div>
           <button
             onClick={addData}
             className={cn(

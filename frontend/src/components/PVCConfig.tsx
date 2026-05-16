@@ -1,16 +1,18 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
-import { Database, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Database, Eye, EyeOff, FileCode, FileX, ShieldCheck } from 'lucide-react';
 import { SelectorGroup } from './SelectorGroup';
+import { AdvancedSection } from './ConfigUI';
 
 interface PVCConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
+  toggleYaml: (field: string) => void;
 }
 
-export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility }: PVCConfigProps) => {
+export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: PVCConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
 
@@ -86,30 +88,37 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility }: PVC
         </div>
       </div>
 
-      {/* Storage Class */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Database size={10} /> Storage Class
-          </label>
-          <button onClick={() => toggleVisibility('storageClass')} className="text-slate-500 hover:text-blue-500 transition-colors">
-            {(data.displaySettings?.storageClass !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
-          </button>
+      <AdvancedSection colorMode={colorMode}>
+        {/* Storage Class */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Database size={10} /> Storage Class
+            </label>
+            <div className="flex items-center gap-2">
+              <button onClick={() => toggleVisibility('storageClass')} className={cn("transition-colors", data.displaySettings?.storageClass !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400")}>
+                {(data.displaySettings?.storageClass !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              </button>
+              <button onClick={() => toggleYaml('storageClass')} className={cn("transition-colors", data.yamlSettings?.storageClass !== false ? "text-emerald-500" : "text-slate-500 hover:text-emerald-400")}>
+                {(data.yamlSettings?.storageClass !== false) ? <FileCode size={10} /> : <FileX size={10} />}
+              </button>
+            </div>
+          </div>
+          <select
+            value={data.storageClass || 'standard'}
+            onChange={(e) => performUpdate({ storageClass: e.target.value })}
+            className={cn(
+              "w-full text-[10px] p-2 rounded border outline-none",
+              colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+            )}
+          >
+            <option value="standard">Standard (HDD)</option>
+            <option value="ssd">Fast (SSD)</option>
+            <option value="cloud-nfs">Cloud Storage (NFS)</option>
+            <option value="local-storage">Local Storage</option>
+          </select>
         </div>
-        <select
-          value={data.storageClass || 'standard'}
-          onChange={(e) => performUpdate({ storageClass: e.target.value })}
-          className={cn(
-            "w-full text-[10px] p-2 rounded border outline-none",
-            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-          )}
-        >
-          <option value="standard">Standard (HDD)</option>
-          <option value="ssd">Fast (SSD)</option>
-          <option value="cloud-nfs">Cloud Storage (NFS)</option>
-          <option value="local-storage">Local Storage</option>
-        </select>
-      </div>
+      </AdvancedSection>
     </div>
   );
 };
