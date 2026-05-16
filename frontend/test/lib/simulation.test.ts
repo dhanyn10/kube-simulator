@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateReachability, updateInternetTraffic, SimulationContext } from './simulation';
-import { safeRandom } from './utils';
+import { calculateReachability, updateInternetTraffic, SimulationContext } from '@/lib/simulation';
+import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulation utils', () => {
@@ -12,9 +12,9 @@ describe('simulation utils', () => {
 
   it('calculateReachability identifies reachable nodes', () => {
     const nodes: Node[] = [
-      { id: '1', data: {}, position: { x: 0, y: 0 } },
-      { id: '2', data: {}, position: { x: 0, y: 0 } },
-      { id: '3', data: {}, position: { x: 0, y: 0 } },
+      { id: '1', data: {}, position: { x: 0, y: 0 } } as Node,
+      { id: '2', data: {}, position: { x: 0, y: 0 } } as Node,
+      { id: '3', data: {}, position: { x: 0, y: 0 } } as Node,
     ];
     const edges: Edge[] = [
       { id: 'e1-2', source: '1', target: '2' },
@@ -30,8 +30,8 @@ describe('simulation utils', () => {
 
   it('calculateReachability respects active edges', () => {
      const nodes: Node[] = [
-      { id: '1', data: {}, position: { x: 0, y: 0 } },
-      { id: '2', data: {}, position: { x: 0, y: 0 } },
+      { id: '1', data: {}, position: { x: 0, y: 0 } } as Node,
+      { id: '2', data: {}, position: { x: 0, y: 0 } } as Node,
     ];
     const edges: Edge[] = [
       { id: 'e1-2', source: '1', target: '2' },
@@ -56,7 +56,7 @@ describe('simulation utils', () => {
     });
 
     it('handles missing traffic and currentTraffic', () => {
-      const internetNode: Node = { id: 'i1', data: {}, position: { x: 0, y: 0 } };
+      const internetNode: Node = { id: 'i1', data: {}, position: { x: 0, y: 0 } } as Node;
       const updatedNodes: Node[] = [structuredClone(internetNode)];
       const ctx = mockCtx(updatedNodes);
 
@@ -68,7 +68,7 @@ describe('simulation utils', () => {
     });
 
     it('maintains traffic when target reached', () => {
-      const internetNode: Node = { id: 'i1', data: { traffic: 2000, currentTraffic: 2000 }, position: { x: 0, y: 0 } };
+      const internetNode: Node = { id: 'i1', data: { traffic: 2000, currentTraffic: 2000 }, position: { x: 0, y: 0 } } as Node;
       const updatedNodes: Node[] = [structuredClone(internetNode)];
       const ctx = mockCtx(updatedNodes);
 

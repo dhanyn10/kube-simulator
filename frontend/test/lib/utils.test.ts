@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCPU, parseMemory, formatCPU, formatMemory } from './utils';
+import { parseCPU, parseMemory, formatCPU, formatMemory } from '@/lib/utils';
 
 describe('resource utils', () => {
   describe('parseCPU', () => {
