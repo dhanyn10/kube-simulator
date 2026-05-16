@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../store';
-import { cn, parseCPU, parseMemory } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';

@@ -1,4 +1,4 @@
-import React from 'react';
+import { type MouseEvent } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { K8sResourceType, K8sNodeData } from '../../../types';
 import { FlowState } from '../../types';
@@ -179,7 +179,7 @@ export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () =>
   addNode: addNodeImpl(set, get),
   deleteNodes: deleteNodesImpl(set, get),
   updateNodeData: updateNodeDataImpl(set, get),
-  onNodeClick: (_event: React.MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
+  onNodeClick: (_event: MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
   onPaneClick: () => set({ activeDeploymentId: null }),
   groupNodes: (ids: string[]) => set({
     nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
