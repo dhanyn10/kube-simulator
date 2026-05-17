@@ -64,9 +64,9 @@ export const MenuBar = ({
         ]
       },
       {
-        label: 'Project',
+        label: 'Resource',
         items: [
-          { label: 'Manager', icon: FolderOpen, onClick: onOpenProjects },
+          { label: 'Resource Manager', icon: FolderOpen, onClick: onOpenProjects },
           { label: 'Scenarios', icon: BookOpen, onClick: onOpenScenarios },
           {
             label: 'Save',
@@ -77,7 +77,7 @@ export const MenuBar = ({
                 const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
                 if (success) {
                   useFlowStore.setState({ lastSavedSnapshot: content });
-                  alert("Project saved successfully!");
+                  alert("Resource architecture saved successfully!");
                 }
               } else {
                 onOpenProjects(); // Open manager to save as new

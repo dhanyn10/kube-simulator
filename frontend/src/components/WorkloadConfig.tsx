@@ -5,6 +5,7 @@ import { Box, Code, Layers, Server, Eye, EyeOff, AlertCircle, FileCode, FileX } 
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
 import { SelectorGroup } from './SelectorGroup';
 import { ConfigInput, ConfigSection, ConfigLabel, NumberStepper, AdvancedSection } from './ConfigUI';
+import { ImageDropdown } from './ImageDropdown';
 
 interface WorkloadConfigProps {
   selectedNode: any;
@@ -255,10 +256,9 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
           onYamlToggle={() => toggleYaml('image')}
           disableYamlToggle={!data.image}
         >
-          <ConfigInput
-            placeholder="e.g. nginx:latest"
+          <ImageDropdown
             value={data.image || ''}
-            onChange={(e: any) => performUpdate({ image: e.target.value })}
+            onChange={(val) => performUpdate({ image: val })}
             colorMode={colorMode}
           />
         </ConfigSection>
