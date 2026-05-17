@@ -10,6 +10,13 @@ export function HistoryPanel({ colorMode }: HistoryPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { historyLogs, fetchHistoryLogs, handleJumpToHistory } = useHistory();
 
+  let btnBgClass = 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-600';
+  if (isOpen) {
+    btnBgClass = 'bg-violet-600 text-white scale-110';
+  } else if (colorMode === 'dark') {
+    btnBgClass = 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400';
+  }
+
   useEffect(() => {
     if (isOpen) fetchHistoryLogs();
   }, [isOpen, fetchHistoryLogs]);
@@ -20,11 +27,7 @@ export function HistoryPanel({ colorMode }: HistoryPanelProps) {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'p-2 rounded-md transition-all duration-300 shadow-xl z-30',
-          isOpen
-            ? 'bg-violet-600 text-white scale-110'
-            : colorMode === 'dark'
-            ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400'
-            : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-600'
+          btnBgClass
         )}
         title="Activity Log (BadgerDB)"
       >
