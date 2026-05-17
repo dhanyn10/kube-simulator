@@ -71,6 +71,9 @@ export const KeyValueConfig = ({
 
   const activeColors = colors[accentColor];
 
+  const hasData = configData.length > 0 && configData.some(item => item.key);
+  const showYaml = isYamlEnabled !== false && hasData;
+
   return (
     <div className="space-y-4">
       <div className="space-y-3">
@@ -81,7 +84,7 @@ export const KeyValueConfig = ({
             </ConfigLabel>
             <div className="flex items-center gap-1.5 ml-1">
               {onToggle && <VisibilityToggle isVisible={isVisible !== false} onToggle={onToggle} />}
-              {onYamlToggle && <YamlToggle isEnabled={isYamlEnabled !== false} onToggle={onYamlToggle} />}
+              {onYamlToggle && <YamlToggle isEnabled={showYaml} onToggle={onYamlToggle} disabled={!hasData} />}
             </div>
           </div>
           <button
@@ -95,7 +98,7 @@ export const KeyValueConfig = ({
           </button>
         </div>
 
-        <div className="space-y-2">
+        <fieldset disabled={isYamlEnabled === false} className="w-full space-y-2 disabled:opacity-60 disabled:pointer-events-none transition-opacity">
           {configData.length === 0 && (
             <div className={cn(
               "text-center py-6 rounded-lg border border-dashed",
@@ -146,7 +149,7 @@ export const KeyValueConfig = ({
               </div>
             </div>
           ))}
-        </div>
+        </fieldset>
       </div>
     </div>
   );

@@ -14,9 +14,21 @@ export const VisibilityToggle = ({ isVisible, onToggle }: { isVisible: boolean, 
   </button>
 );
 
-export const YamlToggle = ({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: () => void }) => (
-  <button onClick={onToggle} className={cn("transition-colors", isEnabled ? "text-emerald-500" : "text-slate-500 hover:text-emerald-400")} title="Include in YAML">
-    {isEnabled ? <FileCode size={10} /> : <FileX size={10} />}
+export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boolean, onToggle: () => void, disabled?: boolean }) => (
+  <button
+    onClick={onToggle}
+    disabled={disabled}
+    className={cn(
+      "transition-colors",
+      disabled
+        ? "text-slate-600/40 cursor-not-allowed pointer-events-none"
+        : isEnabled
+          ? "text-emerald-500 hover:text-emerald-400"
+          : "text-slate-500 hover:text-emerald-400"
+    )}
+    title={disabled ? "No YAML configuration available for this empty setting" : "Include in YAML"}
+  >
+    {disabled ? <FileX size={10} /> : isEnabled ? <FileCode size={10} /> : <FileX size={10} />}
   </button>
 );
 
@@ -36,8 +48,9 @@ export const ConfigInput = ({ value, onChange, placeholder, colorMode, className
   />
 );
 
-export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, children }: any) => {
+export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, disableYamlToggle, children }: any) => {
   const showContent = isVisible !== false;
+  const showYaml = isYamlEnabled !== false && !disableYamlToggle;
   
   return (
     <div className="space-y-1.5">
@@ -47,7 +60,7 @@ export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEn
         </ConfigLabel>
         <div className="flex items-center gap-2">
           {onToggle && <VisibilityToggle isVisible={showContent} onToggle={onToggle} />}
-          {onYamlToggle && <YamlToggle isEnabled={isYamlEnabled !== false} onToggle={onYamlToggle} />}
+          {onYamlToggle && <YamlToggle isEnabled={showYaml} onToggle={onYamlToggle} disabled={disableYamlToggle} />}
         </div>
       </div>
       {children}

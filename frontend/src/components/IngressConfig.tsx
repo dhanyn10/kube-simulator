@@ -38,6 +38,7 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
           onToggle={() => toggleVisibility('path')}
           isYamlEnabled={data.yamlSettings?.path}
           onYamlToggle={() => toggleYaml('path')}
+          disableYamlToggle={!data.ingressPath}
         >
           <ConfigInput
             value={data.ingressPath || ''}

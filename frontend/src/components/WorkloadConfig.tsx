@@ -42,6 +42,8 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
   const isTargetedByHPA = edges.some(e => e.target === selectedNode.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
   const hasRequests = data.cpuRequest && data.memoryRequest;
   const { isCpuError, isMemError } = validateResourceLimits(data);
+  const hasResources = !!(data.cpuRequest || data.memoryRequest || data.cpuLimit || data.memoryLimit);
+  const isYamlResources = data.yamlSettings?.resources !== false && hasResources;
 
   return (
     <div className="space-y-4">
@@ -65,88 +67,100 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
               <button onClick={() => toggleVisibility('resources')} className={cn("transition-colors", data.displaySettings?.resources !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400")}>
                 {(data.displaySettings?.resources !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
               </button>
-              <button onClick={() => toggleYaml('resources')} className={cn("transition-colors", data.yamlSettings?.resources !== false ? "text-emerald-500" : "text-slate-500 hover:text-emerald-400")}>
-                {(data.yamlSettings?.resources !== false) ? <FileCode size={10} /> : <FileX size={10} />}
+              <button
+                onClick={() => toggleYaml('resources')}
+                disabled={!hasResources}
+                className={cn(
+                  "transition-colors",
+                  !hasResources
+                    ? "text-slate-600/40 cursor-not-allowed pointer-events-none"
+                    : isYamlResources
+                      ? "text-emerald-500"
+                      : "text-slate-500 hover:text-emerald-400"
+                )}
+                title={!hasResources ? "No YAML configuration available for empty resources" : "Include in YAML"}
+              >
+                {!hasResources ? <FileX size={10} /> : isYamlResources ? <FileCode size={10} /> : <FileX size={10} />}
               </button>
             </div>
           </div>
 
-          {isTargetedByHPA && !hasRequests && (
-            <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[8px] text-amber-500 leading-tight mb-2">
-              ⚠️ HPA detected. CPU/Memory <strong>Requests</strong> are required for autoscaling to function.
-            </div>
-          )}
-
-          {/* Resource Mapping */}
-          {[
-            {
-              field: 'cpuRequest',
-              label: 'CPU Request',
-              options: CPU_OPTIONS,
-              iconColor: 'text-emerald-500',
-              activeColor: 'bg-emerald-600 border-emerald-600',
-              shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-            },
-            {
-              field: 'cpuLimit',
-              label: 'CPU Limit',
-              options: CPU_OPTIONS,
-              iconColor: 'text-violet-500',
-              activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
-              hasError: isCpuError,
-              validate: (val: string) => parseCPU(val) < parseCPU(data.cpuRequest)
-            },
-            { type: 'separator' },
-            {
-              field: 'memoryRequest',
-              label: 'Memory Request',
-              options: MEMORY_OPTIONS,
-              iconColor: 'text-emerald-500',
-              activeColor: 'bg-emerald-600 border-emerald-600',
-              shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
-            },
-            {
-              field: 'memoryLimit',
-              label: 'Memory Limit',
-              options: MEMORY_OPTIONS,
-              iconColor: 'text-violet-500',
-              activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
-              hasError: isMemError,
-              validate: (val: string) => parseMemory(val) < parseMemory(data.memoryRequest)
-            }
-          ].map((item: any, idx) => (
-            item.type === 'separator' ? (
-              <div key={`sep-${idx}`} className="h-px bg-slate-700/30 my-2" />
-            ) : (
-              <div key={item.field} className={cn("space-y-1.5", item.field.includes('Limit') && "opacity-80")}>
-                <div className="flex items-center justify-between">
-                  <ConfigLabel>
-                    <Layers size={10} className={item.iconColor} /> {item.label}
-                  </ConfigLabel>
-                  {item.hasError && (
-                    <div className="group relative flex items-center">
-                      <AlertCircle size={12} className="text-red-500 cursor-help workload-resource-warning" />
-                      <div className={cn(
-                        "absolute right-full mr-2 px-2 py-1 rounded text-[8px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50",
-                        colorMode === 'dark' ? "bg-red-950 text-red-200 border border-red-900" : "bg-red-100 text-red-800 border border-red-200"
-                      )}>
-                        Limit must be greater than or equal to Request
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <SelectorGroup
-                  options={item.options}
-                  currentValue={data[item.field]}
-                  onSelect={(val) => performUpdate({ [item.field]: val })}
-                  colorMode={colorMode}
-                  activeColorClass={item.activeColor}
-                  activeShadowClass={item.shadow}
-                  validateOption={item.validate}
-                />
+            {isTargetedByHPA && !hasRequests && (
+              <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[8px] text-amber-500 leading-tight mb-2">
+                ⚠️ HPA detected. CPU/Memory <strong>Requests</strong> are required for autoscaling to function.
               </div>
-            )
-          ))}
+            )}
+
+            {/* Resource Mapping */}
+            {[
+              {
+                field: 'cpuRequest',
+                label: 'CPU Request',
+                options: CPU_OPTIONS,
+                iconColor: 'text-emerald-500',
+                activeColor: 'bg-emerald-600 border-emerald-600',
+                shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+              },
+              {
+                field: 'cpuLimit',
+                label: 'CPU Limit',
+                options: CPU_OPTIONS,
+                iconColor: 'text-violet-500',
+                activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
+                hasError: isCpuError,
+                validate: (val: string) => parseCPU(val) < parseCPU(data.cpuRequest)
+              },
+              { type: 'separator' },
+              {
+                field: 'memoryRequest',
+                label: 'Memory Request',
+                options: MEMORY_OPTIONS,
+                iconColor: 'text-emerald-500',
+                activeColor: 'bg-emerald-600 border-emerald-600',
+                shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+              },
+              {
+                field: 'memoryLimit',
+                label: 'Memory Limit',
+                options: MEMORY_OPTIONS,
+                iconColor: 'text-violet-500',
+                activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
+                hasError: isMemError,
+                validate: (val: string) => parseMemory(val) < parseMemory(data.memoryRequest)
+              }
+            ].map((item: any, idx) => (
+              item.type === 'separator' ? (
+                <div key={`sep-${idx}`} className="h-px bg-slate-700/30 my-2" />
+              ) : (
+                <div key={item.field} className={cn("space-y-1.5", item.field.includes('Limit') && "opacity-80")}>
+                  <div className="flex items-center justify-between">
+                    <ConfigLabel>
+                      <Layers size={10} className={item.iconColor} /> {item.label}
+                    </ConfigLabel>
+                    {item.hasError && (
+                      <div className="group relative flex items-center">
+                        <AlertCircle size={12} className="text-red-500 cursor-help workload-resource-warning" />
+                        <div className={cn(
+                          "absolute right-full mr-2 px-2 py-1 rounded text-[8px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50",
+                          colorMode === 'dark' ? "bg-red-950 text-red-200 border border-red-900" : "bg-red-100 text-red-800 border border-red-200"
+                        )}>
+                          Limit must be greater than or equal to Request
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <SelectorGroup
+                    options={item.options}
+                    currentValue={data[item.field]}
+                    onSelect={(val) => performUpdate({ [item.field]: val })}
+                    colorMode={colorMode}
+                    activeColorClass={item.activeColor}
+                    activeShadowClass={item.shadow}
+                    validateOption={item.validate}
+                  />
+                </div>
+              )
+            ))}
         </div>
 
         {/* Container Image */}
@@ -157,6 +171,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
           onToggle={() => toggleVisibility('image')}
           isYamlEnabled={data.yamlSettings?.image}
           onYamlToggle={() => toggleYaml('image')}
+          disableYamlToggle={!data.image}
         >
           <ConfigInput
             placeholder="e.g. nginx:latest"
@@ -174,6 +189,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
           onToggle={() => toggleVisibility('webserver')}
           isYamlEnabled={data.yamlSettings?.webserver}
           onYamlToggle={() => toggleYaml('webserver')}
+          disableYamlToggle={!data.webserver || data.webserver === 'none'}
         >
           <SelectorGroup
             options={WEBSERVERS}
@@ -191,6 +207,7 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
           onToggle={() => toggleVisibility('runtime')}
           isYamlEnabled={data.yamlSettings?.runtime}
           onYamlToggle={() => toggleYaml('runtime')}
+          disableYamlToggle={!data.runtime || data.runtime === 'none'}
         >
           <select
             value={data.runtime || 'none'}
