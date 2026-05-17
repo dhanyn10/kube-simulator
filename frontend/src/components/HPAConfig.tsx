@@ -117,6 +117,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             onToggle={() => toggleVisibility(item.field)}
             isYamlEnabled={data.yamlSettings?.[item.field]}
             onYamlToggle={() => toggleYaml(item.field)}
+            disableYamlToggle={!data[item.field as keyof K8sNodeData]}
           >
             <SelectorGroup
               options={[

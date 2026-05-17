@@ -53,10 +53,24 @@ export const MenuBarDropdown = ({
           "absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg border py-1 z-[100]",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}>
-          {menu.items.map((item, idx) => (
-            item.type === 'separator' ? (
-              <div key={`sep-${menu.label}-${idx}`} className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
-            ) : (
+          {menu.items.map((item, idx) => {
+            const isSeparator = item.type === 'separator';
+            if (isSeparator) {
+              const sepClass = colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200";
+              return (
+                <div 
+                  key={`sep-${menu.label}-${item.label || idx}`} 
+                  className={cn("h-px my-1", sepClass)} 
+                />
+              );
+            }
+
+            let checkboxClass = isDark ? "border-slate-700" : "border-slate-300";
+            if (item.checked) {
+              checkboxClass = "bg-blue-500 border-blue-500 text-white";
+            }
+
+            return (
               <button
                 key={item.label}
                 onClick={() => {
@@ -65,14 +79,14 @@ export const MenuBarDropdown = ({
                 }}
                 className={cn(
                   "w-full px-4 py-1.5 text-xs flex items-center justify-between transition-colors group",
-                          isDark ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+                  isDark ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
                 )}
               >
                 <div className="flex items-center gap-2">
                   {typeof item.checked === 'boolean' && (
                     <div className={cn(
                       "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
-                              item.checked ? "bg-blue-500 border-blue-500 text-white" : (isDark ? "border-slate-700" : "border-slate-300")
+                      checkboxClass
                     )}>
                       {item.checked && <CloseIcon size={10} className="rotate-45" />}
                     </div>
@@ -84,8 +98,8 @@ export const MenuBarDropdown = ({
                   <span className="text-[10px] opacity-50 font-mono ml-4 group-hover:opacity-100">{item.shortcut}</span>
                 )}
               </button>
-            )
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

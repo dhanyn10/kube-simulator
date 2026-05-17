@@ -41,25 +41,37 @@ export const sortNodes = (nodes: Node[]): Node[] => {
   });
 };
 
+const selectValue = <T>(templateVal: T | undefined, deployVal: T | undefined, fallbackVal?: T): T | undefined => {
+  if (templateVal !== undefined && templateVal !== null) {
+    return templateVal;
+  }
+  if (deployVal !== undefined && deployVal !== null) {
+    return deployVal;
+  }
+  return fallbackVal;
+};
+
 // Helper to extract common pod data from deployment or template
 const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: Node) => {
   const templatePod = dataTemplate || currentPods[0];
   const d = deployment.data as unknown as K8sNodeData;
   const t = templatePod?.data as unknown as K8sNodeData | undefined;
 
+  const displaySettings = dataTemplate ? dataTemplate.data.displaySettings : (d.displaySettings || t?.displaySettings);
+
   return {
-    image: t?.image ?? d.image,
-    webserver: t?.webserver ?? d.webserver ?? 'none',
-    runtime: t?.runtime ?? d.runtime ?? 'none',
-    framework: t?.framework ?? d.framework,
-    status: t?.status ?? d.status ?? 'pending',
-    label: t?.label ?? d.label ?? 'new-app-pod',
-    isAutoNamed: t?.isAutoNamed ?? d.isAutoNamed ?? true,
-    cpuLimit: t?.cpuLimit ?? d.cpuLimit,
-    memoryLimit: t?.memoryLimit ?? d.memoryLimit,
-    cpuRequest: t?.cpuRequest ?? d.cpuRequest,
-    memoryRequest: t?.memoryRequest ?? d.memoryRequest,
-    displaySettings: dataTemplate ? dataTemplate.data.displaySettings : (d.displaySettings || t?.displaySettings),
+    image: selectValue(t?.image, d.image),
+    webserver: selectValue(t?.webserver, d.webserver, 'none'),
+    runtime: selectValue(t?.runtime, d.runtime, 'none'),
+    framework: selectValue(t?.framework, d.framework),
+    status: selectValue(t?.status, d.status, 'pending'),
+    label: selectValue(t?.label, d.label, 'new-app-pod'),
+    isAutoNamed: selectValue(t?.isAutoNamed, d.isAutoNamed, true),
+    cpuLimit: selectValue(t?.cpuLimit, d.cpuLimit),
+    memoryLimit: selectValue(t?.memoryLimit, d.memoryLimit),
+    cpuRequest: selectValue(t?.cpuRequest, d.cpuRequest),
+    memoryRequest: selectValue(t?.memoryRequest, d.memoryRequest),
+    displaySettings,
   };
 };
 
