@@ -47,11 +47,11 @@ export const MenuBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   const menuItems = useMemo(() => {
-    let monitoringLabel = 'Open Dashboard';
+    let monitoringLabel = 'Simulation';
     if (isMonitoringDetached) {
       monitoringLabel = 'Monitoring: Detached';
     } else if (isMonitoringOpen) {
-      monitoringLabel = 'Close Dashboard';
+      monitoringLabel = 'Close Monitoring Simulation';
     }
 
     return [
@@ -153,7 +153,7 @@ export const MenuBar = ({
       </div>
 
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <h1 
+        <h1
           data-testid="app-title"
           className={cn(
             "text-[11px] font-bold uppercase tracking-[0.3em]",
