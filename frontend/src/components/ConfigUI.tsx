@@ -36,43 +36,42 @@ export const ConfigInput = ({ value, onChange, placeholder, colorMode, className
   />
 );
 
-export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, children }: any) => (
-  <div className="space-y-1.5">
-    <div className="flex items-center justify-between">
-      <ConfigLabel>
-        {Icon && <Icon size={10} />} {title}
-      </ConfigLabel>
-      <div className="flex items-center gap-2">
-        {onToggle && <VisibilityToggle isVisible={isVisible !== false} onToggle={onToggle} />}
-        {onYamlToggle && <YamlToggle isEnabled={isYamlEnabled !== false} onToggle={onYamlToggle} />}
+export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, children }: any) => {
+  const showContent = isVisible !== false;
+  
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <ConfigLabel>
+          {Icon && <Icon size={10} />} {title}
+        </ConfigLabel>
+        <div className="flex items-center gap-2">
+          {onToggle && <VisibilityToggle isVisible={showContent} onToggle={onToggle} />}
+          {onYamlToggle && <YamlToggle isEnabled={isYamlEnabled !== false} onToggle={onYamlToggle} />}
+        </div>
       </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 export const AdvancedSection = ({ children, colorMode }: { children: React.ReactNode, colorMode: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className={cn(
-      "mt-4 rounded-lg border overflow-hidden transition-all",
-      colorMode === 'dark' ? "border-slate-800 bg-slate-900/30" : "border-slate-200 bg-slate-50/50"
-    )}>
+    <div className="mt-4">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-full flex items-center justify-between px-3 py-2 text-[9px] font-bold uppercase tracking-wider transition-colors",
-          colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-500"
+          "flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors w-full mb-3",
+          colorMode === 'dark' ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"
         )}
       >
-        <span className="flex items-center gap-2">
-          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          Advanced Options
-        </span>
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        Advanced Options
       </button>
       {isOpen && (
-        <div className="p-3 pt-0 space-y-4 animate-in slide-in-from-top-1 duration-200">
+        <div className="space-y-4 animate-in slide-in-from-top-1 duration-200">
           {children}
         </div>
       )}

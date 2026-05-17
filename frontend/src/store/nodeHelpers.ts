@@ -8,7 +8,7 @@ import {
   resolveGlobalCollisions
 } from './helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../lib/podSizing';
-import { syncWorkloadMetadata } from './slices/node-handlers/nodeUtils';
+import { syncWorkloadMetadata, getInitialData } from './slices/node-handlers/nodeUtils';
 
 /**
  * Attaches standard event handlers (onDelete, onRename) to a node data object.
@@ -30,7 +30,24 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
 export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   let nextNodes = nodes.map(node => {
     const handlers = attachHandlers(node.id, get);
-    const data = syncWorkloadMetadata(node.type, node.data);
+    
+    // Ensure displaySettings and yamlSettings are hydrated with defaults
+    const defaultInitialData = getInitialData(node.type, node.id, get);
+    const displaySettings = {
+      ...defaultInitialData.displaySettings,
+      ...node.data.displaySettings
+    };
+    const yamlSettings = {
+      ...defaultInitialData.yamlSettings,
+      ...node.data.yamlSettings
+    };
+
+    const data = syncWorkloadMetadata(node.type, {
+      ...defaultInitialData,
+      ...node.data,
+      displaySettings,
+      yamlSettings
+    });
 
     return {
       ...node,

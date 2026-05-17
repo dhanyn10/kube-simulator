@@ -8,7 +8,6 @@ test.describe('Workload Resource Validation', () => {
 
   test('shows red button and warning icon when limit < request', async ({ page }) => {
     // Add a Deployment node
-    await page.getByRole('button', { name: 'Workloads' }).click();
     await page.getByRole('button', { name: 'Deployment' }).first().click();
 
     const deploymentNode = page.locator('.react-flow__node-Deployment');
@@ -17,6 +16,9 @@ test.describe('Workload Resource Validation', () => {
     // Open Config Panel
     await deploymentNode.hover();
     await deploymentNode.locator('button:has(svg.lucide-settings)').click();
+
+    // Open Advanced Options to reveal Resource Settings
+    await page.getByText('Advanced Options').click();
 
     // Set Request to 500m
     await page.getByRole('button', { name: '500m' }).first().click();

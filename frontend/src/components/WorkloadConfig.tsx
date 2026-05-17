@@ -56,9 +56,11 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
 
       <AdvancedSection colorMode={colorMode}>
         {/* Resource Requests & Limits */}
-        <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+        <div className="space-y-3 rounded-lg border border-dashed p-3 border-slate-700/50 bg-slate-500/5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] font-bold text-slate-500 uppercase">Resource Settings</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+              <Layers size={10} /> Resource Settings
+            </span>
             <div className="flex items-center gap-2">
               <button onClick={() => toggleVisibility('resources')} className={cn("transition-colors", data.displaySettings?.resources !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400")}>
                 {(data.displaySettings?.resources !== false) ? <Eye size={10} /> : <EyeOff size={10} />}

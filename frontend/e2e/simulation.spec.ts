@@ -41,7 +41,13 @@ test.describe('Traffic Simulation', () => {
 
     // 3. Configure Deployment
     const deployment = page.locator('.react-flow__node-Deployment').first();
-    await deployment.locator('button:has(svg.lucide-settings)').click({ force: true });
+    await expect(deployment).toBeVisible();
+    await deployment.hover();
+    await deployment.locator('button:has(svg.lucide-settings)').click();
+
+    // Open Advanced Options to reveal Web Server settings
+    await page.getByText('Advanced Options').click();
+
     await page.getByRole('button', { name: 'nginx' }).click();
     await page.locator('.fixed.right-4 button:has(svg.lucide-x)').click();
 
