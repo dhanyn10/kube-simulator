@@ -89,7 +89,7 @@ export const MonitoringDashboard = () => {
 
   const workloads = nodes.filter(n =>
     n.type === 'Deployment' ||
-    n.type === 'PodGroup' ||
+    n.type === 'ReplicaSet' ||
     (n.type === 'Pod' && !n.parentId)
   );
 

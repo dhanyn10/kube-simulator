@@ -176,6 +176,44 @@ export const generatePVCYaml = (data: K8sNodeData, name: string, namespace?: str
   };
 };
 
+export const generateReplicaSetYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[] = [], namespace?: string) => {
+  const childPods = nodes.filter(n => n.parentId === data.id && n.type === 'Pod');
+  const mainPod = childPods[0];
+  const podData = mainPod ? mainPod.data : data;
+
+  const targetIds = [data.id || ''];
+  if (mainPod?.id) targetIds.push(mainPod.id);
+
+  const { volumes, volumeMounts } = getVolumeConfig(targetIds, nodes, edges);
+  const env = getEnvFromConnections(targetIds, nodes, edges);
+  const resources = getResourceConfig(podData);
+
+  return {
+    apiVersion: 'apps/v1',
+    kind: 'ReplicaSet',
+    metadata: { name, namespace },
+    spec: {
+      replicas: data.replicas || 1,
+      selector: { matchLabels: { app: name } },
+      template: {
+        metadata: { labels: { app: name } },
+        spec: {
+          containers: [{
+            name: podData.label?.toLowerCase().replace(/\s+/g, '-') || 'main',
+            image: podData.image || 'nginx:latest',
+            imagePullPolicy: 'IfNotPresent',
+            ports: podData.port ? [{ containerPort: podData.port }] : undefined,
+            env: env.length > 0 ? env : undefined,
+            resources,
+            volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
+          }],
+          volumes: volumes.length > 0 ? volumes : undefined
+        }
+      }
+    }
+  };
+};
+
 export const generateDeploymentYaml = (data: K8sNodeData, name: string, nodes: any[], edges: any[] = [], namespace?: string) => {
   const childPods = nodes.filter(n => n.parentId === data.id && n.type === 'Pod');
   const mainPod = childPods[0];

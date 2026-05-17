@@ -4,7 +4,7 @@ import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { K8sNodeData } from '../../types';
 
-export const PodGroupNode = memo(({ id, selected, data }: NodeProps<Node<K8sNodeData>>) => {
+export const ReplicaSetNode = memo(({ id, selected, data }: NodeProps<Node<K8sNodeData>>) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
   return (
@@ -30,7 +30,7 @@ export const PodGroupNode = memo(({ id, selected, data }: NodeProps<Node<K8sNode
             ? "bg-slate-900/80 text-emerald-400 border-emerald-500/30" 
             : "bg-white/80 text-emerald-600 border-emerald-500/20"
         )}>
-          Pod Group: {data.label}
+          ReplicaSet: {data.label}
         </span>
         {data.replicas > 1 && (
           <span className="text-[10px] font-bold text-emerald-500">

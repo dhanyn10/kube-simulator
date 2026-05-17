@@ -20,7 +20,7 @@ export const findLogicalPodMatch = (pastedPod: Node, nodes: Node[]) => {
  * Updates replica count for a target's parent.
  */
 export const updateReplicaDelta = (target: Node, delta: number, nodes: Node[], updateNodeData: Function) => {
-  const parentId = (target.type === 'Deployment' || target.type === 'PodGroup') ? target.id : target.parentId;
+  const parentId = (target.type === 'Deployment' || target.type === 'ReplicaSet') ? target.id : target.parentId;
   if (!parentId) return;
 
   const parent = nodes.find(n => n.id === parentId);

@@ -13,7 +13,7 @@ const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNo
   if (!isMatch) return false;
 
   const parent = nodes.find(n => n.id === selectedPod.parentId);
-  const isController = parent && (parent.type === 'Deployment' || parent.type === 'PodGroup');
+  const isController = parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet');
   const targetId = isController ? selectedPod.parentId! : selectedPod.id;
   const targetNode = nodes.find(n => n.id === targetId);
 

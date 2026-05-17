@@ -51,7 +51,7 @@ const runSimulationTick = (params: {
   const updatedNodes = [...currentNodes];
   let hasOverallChanges = false;
 
-  const workloads = currentNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
+  const workloads = currentNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId));
 
   const ctx: SimulationContext = {
     nodes: currentNodes,
@@ -73,7 +73,7 @@ const runSimulationTick = (params: {
 
   const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set, simulationInterval: simulationIntervalObj };
   if (!checkEmergencyStop(stopParams)) {
-    broadcastMetrics(newMetrics, updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId)));
+    broadcastMetrics(newMetrics, updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)));
   }
 };
 
@@ -93,7 +93,7 @@ const startSimulation = (
           return;
       }
 
-      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'PodGroup' || (n.type === 'Pod' && !n.parentId));
+      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId));
       broadcastMetrics(simulationMetrics, workloads);
 
       const metricsChannel = getMetricsChannel();

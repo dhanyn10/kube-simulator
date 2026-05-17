@@ -127,7 +127,7 @@ export const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNo
 };
 
 export const syncWorkloadMetadata = (type: string, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
-  if (!['Pod', 'Deployment', 'PodGroup'].includes(type)) return data;
+  if (!['Pod', 'Deployment', 'ReplicaSet'].includes(type)) return data;
 
   const hasRuntime = data.runtime && data.runtime !== 'none';
   const hasWebserver = data.webserver && data.webserver !== 'none';

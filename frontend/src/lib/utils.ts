@@ -6,6 +6,7 @@ import {
   generateNamespaceYaml,
   generatePodYaml,
   generateDeploymentYaml,
+  generateReplicaSetYaml,
   generateServiceYaml,
   generateIngressYaml,
   generateHPAYaml,
@@ -91,6 +92,7 @@ const generatorMap: Record<string, (data: K8sNodeData, name: string, nodes: any[
   Namespace: (data, name) => generateNamespaceYaml(data, name),
   Pod: (data, name, nodes, edges, namespace) => generatePodYaml(data, name, nodes, edges, namespace),
   Deployment: (data, name, nodes, edges, namespace) => generateDeploymentYaml(data, name, nodes, edges, namespace),
+  ReplicaSet: (data, name, nodes, edges, namespace) => generateReplicaSetYaml(data, name, nodes, edges, namespace),
   Service: (data, name, nodes, edges, namespace) => generateServiceYaml(data, name, nodes, edges, namespace),
   Ingress: (data, name, nodes, edges, namespace) => generateIngressYaml(data, name, nodes, edges, namespace),
   HPA: (data, name, nodes, edges, namespace) => generateHPAYaml(data, name, nodes, edges, namespace),
@@ -106,7 +108,7 @@ export function generateYaml(nodes: any[], edges: any[]): string {
       if (!data.label || !node.type) return null;
 
       // Skip nodes that don't produce YAML directly
-      if (['Internet', 'PodGroup'].includes(node.type)) return null;
+      if (['Internet'].includes(node.type)) return null;
 
       // Special check for nested pods (only top-level or Namespace-child pods are generated)
       if (node.type === 'Pod' && node.parentId) {
