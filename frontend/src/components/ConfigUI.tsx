@@ -117,12 +117,12 @@ export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode 
       min={min}
       max={max}
       onChange={(e) => {
-        const val = parseInt(e.target.value, 10);
+        const val = Number.parseInt(e.target.value, 10);
         if (e.target.value === '') {
           onChange(0);
           return;
         }
-        if (!isNaN(val)) {
+        if (!Number.isNaN(val)) {
           onChange(Math.max(0, Math.min(max, val)));
         }
       }}
