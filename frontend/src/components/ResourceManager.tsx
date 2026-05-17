@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box, Server, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
@@ -19,6 +19,168 @@ interface ResourceManagerProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+interface ArchitectureRowProps {
+  p: Project;
+  isActive: boolean;
+  hasChanges: boolean;
+  isCanvasEmpty: boolean;
+  currentContent: string;
+  confirmOverwriteId: number | null;
+  setConfirmOverwriteId: (id: number | null) => void;
+  onOverwrite: (id: number) => void;
+  onUpdate: () => void;
+  onLoad: (id: number, name: string) => void;
+  onDelete: (id: number) => void;
+  colorMode: 'dark' | 'light';
+}
+
+const ArchitectureRow = ({
+  p,
+  isActive,
+  hasChanges,
+  isCanvasEmpty,
+  currentContent,
+  confirmOverwriteId,
+  setConfirmOverwriteId,
+  onOverwrite,
+  onUpdate,
+  onLoad,
+  onDelete,
+  colorMode
+}: ArchitectureRowProps) => {
+  const isConfirming = confirmOverwriteId === p.id;
+  
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md",
+        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
+        isActive && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
+      )}
+    >
+      <div className="min-w-0 pr-3">
+        <div className="font-semibold text-xs truncate flex items-center gap-1.5">
+          <span>{p.name}</span>
+          {isActive && (
+            <span className="text-[9px] bg-blue-500 text-white px-1 py-0.2 rounded uppercase tracking-wider font-bold">Active</span>
+          )}
+        </div>
+        <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+          {new Date(p.updatedAt * 1000).toLocaleString()}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        {isConfirming ? (
+          <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+            <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
+            <button onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
+            <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
+          </div>
+        ) : (
+          <>
+            {isActive ? (
+              hasChanges && (
+                <button
+                  onClick={onUpdate}
+                  className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
+                >
+                  <Save size={12} /> Update
+                </button>
+              )
+            ) : (
+              <>
+                {!isCanvasEmpty && p.content !== currentContent && (
+                  <button
+                    onClick={() => setConfirmOverwriteId(p.id)}
+                    className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
+                  >
+                    Overwrite
+                  </button>
+                )}
+                <button
+                  onClick={() => onLoad(p.id, p.name)}
+                  className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
+                >
+                  Open
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => onDelete(p.id)}
+              className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+              title="Delete project"
+            >
+              <Trash2 size={13} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface DockerImageCardProps {
+  img: { name: string; desc: string };
+  colorMode: 'dark' | 'light';
+}
+
+const DockerImageCard = ({ img, colorMode }: DockerImageCardProps) => {
+  return (
+    <div
+      className={cn(
+        "p-3 rounded-lg border flex flex-col justify-between transition-all select-none hover:shadow",
+        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80" : "bg-slate-50 border-slate-200"
+      )}
+    >
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Globe size={11} className="text-blue-500" />
+          <span className="font-semibold text-xs font-mono">{img.name}</span>
+        </div>
+        <p className="text-[9px] text-slate-500 leading-tight line-clamp-2">{img.desc}</p>
+      </div>
+      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5">
+        <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">PUBLIC REGISTRY</span>
+        <span className="text-[8px] text-slate-600 font-bold">READY TO USE</span>
+      </div>
+    </div>
+  );
+};
+
+interface LocalImageRowProps {
+  img: string;
+  onDelete: (img: string) => void;
+  colorMode: 'dark' | 'light';
+}
+
+const LocalImageRow = ({ img, onDelete, colorMode }: LocalImageRowProps) => {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150",
+        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Box size={12} className="text-emerald-500" />
+        <span className="font-semibold text-xs font-mono">{img}</span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">LOCAL CACHE</span>
+        <button
+          onClick={() => onDelete(img)}
+          className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+          title="Delete image option"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const { fitView } = useReactFlow();
@@ -292,73 +454,21 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
                   </div>
                 ) : (
                   projects.map((p) => (
-                    <div
+                    <ArchitectureRow
                       key={p.id}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md",
-                        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
-                        currentProject?.id === p.id && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
-                      )}
-                    >
-                      <div className="min-w-0 pr-3">
-                        <div className="font-semibold text-xs truncate flex items-center gap-1.5">
-                          <span>{p.name}</span>
-                          {currentProject?.id === p.id && (
-                            <span className="text-[9px] bg-blue-500 text-white px-1 py-0.2 rounded uppercase tracking-wider font-bold">Active</span>
-                          )}
-                        </div>
-                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                          {new Date(p.updatedAt * 1000).toLocaleString()}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        {confirmOverwriteId === p.id ? (
-                          <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
-                            <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
-                            <button onClick={() => handleOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
-                            <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
-                          </div>
-                        ) : (
-                          <>
-                            {currentProject?.id === p.id ? (
-                              hasChanges && (
-                                <button
-                                  onClick={handleUpdate}
-                                  className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
-                                >
-                                  <Save size={12} /> Update
-                                </button>
-                              )
-                            ) : (
-                              <>
-                                {!isCanvasEmpty && p.content !== currentContent && (
-                                  <button
-                                    onClick={() => setConfirmOverwriteId(p.id)}
-                                    className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
-                                  >
-                                    Overwrite
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleLoad(p.id, p.name)}
-                                  className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
-                                >
-                                  Open
-                                </button>
-                              </>
-                            )}
-                            <button
-                              onClick={() => handleDelete(p.id)}
-                              className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                              title="Delete project"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                      p={p}
+                      isActive={currentProject?.id === p.id}
+                      hasChanges={hasChanges}
+                      isCanvasEmpty={isCanvasEmpty}
+                      currentContent={currentContent}
+                      confirmOverwriteId={confirmOverwriteId}
+                      setConfirmOverwriteId={setConfirmOverwriteId}
+                      onOverwrite={handleOverwrite}
+                      onUpdate={handleUpdate}
+                      onLoad={handleLoad}
+                      onDelete={handleDelete}
+                      colorMode={colorMode}
+                    />
                   ))
                 )}
               </div>
@@ -395,25 +505,11 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
                   <div className="col-span-2 text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
                 ) : (
                   filteredDockerImages.map((img) => (
-                    <div
+                    <DockerImageCard
                       key={img.name}
-                      className={cn(
-                        "p-3 rounded-lg border flex flex-col justify-between transition-all select-none hover:shadow",
-                        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80" : "bg-slate-50 border-slate-200"
-                      )}
-                    >
-                      <div>
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <Globe size={11} className="text-blue-500" />
-                          <span className="font-semibold text-xs font-mono">{img.name}</span>
-                        </div>
-                        <p className="text-[9px] text-slate-500 leading-tight line-clamp-2">{img.desc}</p>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5">
-                        <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">PUBLIC REGISTRY</span>
-                        <span className="text-[8px] text-slate-600 font-bold">READY TO USE</span>
-                      </div>
-                    </div>
+                      img={img}
+                      colorMode={colorMode}
+                    />
                   ))
                 )}
               </div>
@@ -462,29 +558,12 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
                   </div>
                 ) : (
                   customImages.map((img) => (
-                    <div
+                    <LocalImageRow
                       key={img}
-                      className={cn(
-                        "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150",
-                        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Box size={12} className="text-emerald-500" />
-                        <span className="font-semibold text-xs font-mono">{img}</span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">LOCAL CACHE</span>
-                        <button
-                          onClick={() => deleteCustomImage(img)}
-                          className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                          title="Delete image option"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
+                      img={img}
+                      onDelete={deleteCustomImage}
+                      colorMode={colorMode}
+                    />
                   ))
                 )}
               </div>
