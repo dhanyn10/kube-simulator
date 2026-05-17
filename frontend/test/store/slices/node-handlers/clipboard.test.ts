@@ -55,7 +55,7 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     expect(updatedNodes.filter(n => n.type === 'Pod').length).toBe(2);
   });
 
-  it('transforms standalone Pod into PodGroup and increments replicas on copy-paste', () => {
+  it('transforms standalone Pod into ReplicaSet and increments replicas on copy-paste', () => {
     const { addNode, copyNodes, pasteNodes } = useFlowStore.getState();
 
     // 1. Create a standalone Pod
@@ -74,9 +74,9 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     // 3. Paste it (While it's still selected)
     pasteNodes();
 
-    // 4. Verify: Pod should have transformed into a PodGroup
+    // 4. Verify: Pod should have transformed into a ReplicaSet
     const finalNodes = useFlowStore.getState().nodes;
-    const group = finalNodes.find(n => n.type === 'PodGroup')!;
+    const group = finalNodes.find(n => n.type === 'ReplicaSet')!;
     const childPods = finalNodes.filter(n => n.type === 'Pod' && n.parentId === group.id);
 
     expect(group).toBeDefined();
@@ -111,6 +111,6 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     const standalonePods = finalNodes.filter(n => n.type === 'Pod' && !n.parentId);
     
     expect(standalonePods.length).toBe(2);
-    expect(finalNodes.find(n => n.type === 'PodGroup')).toBeUndefined();
+    expect(finalNodes.find(n => n.type === 'ReplicaSet')).toBeUndefined();
   });
 });
