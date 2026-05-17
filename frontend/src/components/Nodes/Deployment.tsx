@@ -31,13 +31,20 @@ export const DeploymentNode = memo((props: NodeProps) => {
     return "bg-violet-600";
   };
 
+  let borderClass = "hover:border-slate-700";
+  if (props.selected) {
+    borderClass = colorMode === 'dark'
+      ? "border-violet-500 ring-4 ring-violet-500/10"
+      : "border-violet-400 ring-4 ring-violet-400/10";
+  }
+
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full flex flex-col min-h-[140px]",
       transitionClasses,
       "transition-colors duration-200",
       colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
-      props.selected ? (colorMode === 'dark' ? "border-violet-500 ring-4 ring-violet-500/10" : "border-violet-400 ring-4 ring-violet-400/10") : "hover:border-slate-700",
+      borderClass,
       data.isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
       data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
     )}>

@@ -9,8 +9,14 @@ import { cn } from '../../lib/utils';
 export const PVCNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
-
   const isBound = data.pvcStatus === 'Bound';
+
+  let accessText = 'RWO';
+  if (data.accessMode === 'ReadOnlyMany') {
+    accessText = 'ROX';
+  } else if (data.accessMode === 'ReadWriteMany') {
+    accessText = 'RWX';
+  }
 
   return (
     <BaseNode {...props} data={data} title="PVC" icon={Database} color="orange" id={props.id} type={props.type}>
@@ -32,9 +38,7 @@ export const PVCNode = memo((props: NodeProps) => {
         <div className="flex justify-between items-center text-[9px] font-mono">
           <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>access:</span>
           <span className="text-orange-500 font-bold" title={data.accessMode || 'ReadWriteOnce'}>
-            {data.accessMode === 'ReadWriteOnce' ? 'RWO' :
-             data.accessMode === 'ReadOnlyMany' ? 'ROX' :
-             data.accessMode === 'ReadWriteMany' ? 'RWX' : 'RWO'}
+            {accessText}
           </span>
         </div>
       </div>
