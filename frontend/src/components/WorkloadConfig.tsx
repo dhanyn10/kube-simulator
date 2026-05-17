@@ -62,7 +62,7 @@ const ResourceSettingsList = ({ data, colorMode, isCpuError, isMemError, perform
       hasError: isCpuError,
       validate: (val: string) => parseCPU(val) < parseCPU(data.cpuRequest)
     },
-    { type: 'separator' },
+    { type: 'separator', field: 'separator-cpu-mem' },
     {
       field: 'memoryRequest',
       label: 'Memory Request',
@@ -84,9 +84,9 @@ const ResourceSettingsList = ({ data, colorMode, isCpuError, isMemError, perform
 
   return (
     <>
-      {items.map((item: any, idx) => {
+      {items.map((item: any) => {
         if (item.type === 'separator') {
-          return <div key={`sep-${idx}`} className="h-px bg-slate-700/30 my-2" />;
+          return <div key={item.field} className="h-px bg-slate-700/30 my-2" />;
         }
         return (
           <div key={item.field} className={cn("space-y-1.5", item.field.includes('Limit') && "opacity-80")}>
