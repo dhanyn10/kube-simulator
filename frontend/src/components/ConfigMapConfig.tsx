@@ -7,9 +7,10 @@ interface ConfigMapConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
+  toggleYaml: (field: string) => void;
 }
 
-export const ConfigMapConfig = ({ selectedNode, performUpdate }: ConfigMapConfigProps) => {
+export const ConfigMapConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: ConfigMapConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
   const configData = data.configData || [];
@@ -26,6 +27,10 @@ export const ConfigMapConfig = ({ selectedNode, performUpdate }: ConfigMapConfig
       emptyText="Belum ada data konfigurasi"
       accentColor="teal"
       valuePlaceholder="Value"
+      isVisible={data.displaySettings?.data}
+      onToggle={() => toggleVisibility('data')}
+      isYamlEnabled={data.yamlSettings?.data}
+      onYamlToggle={() => toggleYaml('data')}
     />
   );
 };

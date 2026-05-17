@@ -8,7 +8,6 @@ test.describe('Persistence & Projects', () => {
 
   test('Save and Load Project', async ({ page }) => {
     // 1. Add node
-    await page.getByRole('button', { name: 'Workloads' }).click();
     await page.getByRole('button', { name: 'Pod Atomic unit of K8s' }).click();
     await expect(page.locator('.react-flow__node-Pod')).toBeVisible();
 

@@ -94,13 +94,15 @@ export const DeploymentNode = memo((props: NodeProps) => {
         </div>
       )}
 
-      <div className={cn(
-        "pointer-events-none mt-auto text-[9px] font-mono flex flex-col gap-0.5 opacity-60",
-        colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
-      )}>
-        {data.cpuRequest && <div>cpu: {data.cpuRequest}</div>}
-        {data.memoryRequest && <div>mem: {data.memoryRequest}</div>}
-      </div>
+      {data.displaySettings?.resources !== false && (data.cpuRequest || data.memoryRequest) && (
+        <div className={cn(
+          "pointer-events-none mt-auto text-[9px] font-mono flex flex-col gap-0.5 opacity-60",
+          colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
+        )}>
+          {data.cpuRequest && <div>cpu: {data.cpuRequest}</div>}
+          {data.memoryRequest && <div>mem: {data.memoryRequest}</div>}
+        </div>
+      )}
 
       <div className={cn(
         "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2 mt-2",

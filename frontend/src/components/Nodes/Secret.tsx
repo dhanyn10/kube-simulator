@@ -9,7 +9,7 @@ export const SecretNode = memo((props: NodeProps) => {
 
   return (
     <BaseNode {...props} data={data} title="Secret" icon={Lock} color="indigo" id={props.id} type={props.type}>
-      {!!data.configData?.length && (
+      {data.displaySettings?.data !== false && !!data.configData?.length && (
         <div className="mt-2 pt-1 border-t border-slate-700/30">
           <div className="text-[8px] font-bold text-indigo-500 uppercase tracking-tighter mb-1">
             Secrets ({data.configData.length})

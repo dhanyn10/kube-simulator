@@ -25,6 +25,9 @@ test.describe('ConfigMap and Secret', () => {
     await page.getByPlaceholder('KEY').first().fill('TEST_KEY');
     await page.getByPlaceholder('Value').first().fill('TEST_VALUE');
 
+    // Toggle visibility to show on card (it's hidden by default now)
+    await page.getByTitle('Show/Hide on Card').click();
+
     await expect(configMapNode).toContainText('TEST_KEY');
     await expect(configMapNode).toContainText('TEST_VALUE');
   });
@@ -42,6 +45,9 @@ test.describe('ConfigMap and Secret', () => {
     await page.locator('button:has-text("Add Item")').click();
     await page.getByPlaceholder('KEY').first().fill('SECRET_KEY');
     await page.getByPlaceholder('Secret Value').first().fill('SECRET_VALUE');
+
+    // Toggle visibility to show on card (it's hidden by default now)
+    await page.getByTitle('Show/Hide on Card').click();
 
     await expect(secretNode).toContainText('SECRET_KEY');
     await expect(secretNode).not.toContainText('SECRET_VALUE');

@@ -44,6 +44,7 @@ export interface K8sNodeData {
   durationUnit?: 'second' | 'minute' | 'hour';
   parentReplicas?: number;
   displaySettings?: Record<string, boolean>;
+  yamlSettings?: Record<string, boolean>;
 
   // PVC specific fields
   storageCapacity?: string;

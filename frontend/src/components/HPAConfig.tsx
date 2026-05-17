@@ -3,16 +3,17 @@ import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
 import { Layers, Activity } from 'lucide-react';
 import { K8sNodeData } from '../types';
-import { ConfigSection, ConfigLabel, NumberStepper, RangeInput } from './ConfigUI';
+import { ConfigSection, ConfigLabel, NumberStepper, RangeInput, AdvancedSection } from './ConfigUI';
 import { SelectorGroup } from './SelectorGroup';
 
 interface HPAConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
+  toggleYaml: (field: string) => void;
 }
 
-export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility }: HPAConfigProps) => {
+export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: HPAConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
@@ -81,55 +82,61 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility }: HPA
         </div>
       )}
 
-      <ConfigSection
-        title="Replicas Range"
-        icon={Layers}
-        isVisible={data.displaySettings?.replicas}
-        onToggle={() => toggleVisibility('replicas')}
-      >
-        <ConfigLabel className="text-[8px] font-normal">Min Replicas</ConfigLabel>
-        <NumberStepper
-          value={data.minReplicas || 1}
-          onChange={(val: number) => performUpdate({ minReplicas: val })}
-          colorMode={colorMode}
-        />
-        <ConfigLabel className="text-[8px] font-normal mt-2">Max Replicas</ConfigLabel>
-        <NumberStepper
-          value={data.maxReplicas || 1}
-          onChange={(val: number) => performUpdate({ maxReplicas: val })}
-          colorMode={colorMode}
-        />
-      </ConfigSection>
-
-      {[
-        { field: 'targetCPU', label: 'Target CPU (%)', icon: Activity },
-        { field: 'targetMemory', label: 'Target Mem (%)', icon: Activity }
-      ].map((item) => (
+      <AdvancedSection colorMode={colorMode}>
         <ConfigSection
-          key={item.field}
-          title={item.label}
-          icon={item.icon}
-          isVisible={data.displaySettings?.[item.field]}
-          onToggle={() => toggleVisibility(item.field)}
+          title="Replicas Range"
+          icon={Layers}
+          isVisible={data.displaySettings?.replicas}
+          onToggle={() => toggleVisibility('replicas')}
+          isYamlEnabled={data.yamlSettings?.replicas}
+          onYamlToggle={() => toggleYaml('replicas')}
         >
-          <SelectorGroup
-            options={[
-              { label: '20%', value: '20' },
-              { label: '50%', value: '50' },
-              { label: '80%', value: '80' }
-            ]}
-            currentValue={String(data[item.field as keyof K8sNodeData])}
-            onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
+          <ConfigLabel className="text-[8px] font-normal">Min Replicas</ConfigLabel>
+          <NumberStepper
+            value={data.minReplicas || 1}
+            onChange={(val: number) => performUpdate({ minReplicas: val })}
             colorMode={colorMode}
-            activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
           />
-          <RangeInput
-            value={data[item.field as keyof K8sNodeData] || 50}
-            onChange={(val: number) => performUpdate({ [item.field]: val })}
-            min={10} max={90} step={5}
+          <ConfigLabel className="text-[8px] font-normal mt-2">Max Replicas</ConfigLabel>
+          <NumberStepper
+            value={data.maxReplicas || 1}
+            onChange={(val: number) => performUpdate({ maxReplicas: val })}
+            colorMode={colorMode}
           />
         </ConfigSection>
-      ))}
+
+        {[
+          { field: 'targetCPU', label: 'Target CPU (%)', icon: Activity },
+          { field: 'targetMemory', label: 'Target Mem (%)', icon: Activity }
+        ].map((item) => (
+          <ConfigSection
+            key={item.field}
+            title={item.label}
+            icon={item.icon}
+            isVisible={data.displaySettings?.[item.field]}
+            onToggle={() => toggleVisibility(item.field)}
+            isYamlEnabled={data.yamlSettings?.[item.field]}
+            onYamlToggle={() => toggleYaml(item.field)}
+          >
+            <SelectorGroup
+              options={[
+                { label: '20%', value: '20' },
+                { label: '50%', value: '50' },
+                { label: '80%', value: '80' }
+              ]}
+              currentValue={String(data[item.field as keyof K8sNodeData])}
+              onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
+              colorMode={colorMode}
+              activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
+            />
+            <RangeInput
+              value={data[item.field as keyof K8sNodeData] || 50}
+              onChange={(val: number) => performUpdate({ [item.field]: val })}
+              min={10} max={90} step={5}
+            />
+          </ConfigSection>
+        ))}
+      </AdvancedSection>
     </div>
   );
 };

@@ -44,6 +44,26 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     }
   };
 
+  const toggleYaml = (field: string) => {
+    const currentSettings = data.yamlSettings || {};
+    const nextYaml = currentSettings[field] === false;
+    const nextSettings = { ...currentSettings, [field]: nextYaml };
+
+    updateNodeData(selectedNode.id, { ...data, yamlSettings: nextSettings });
+
+    const state = useFlowStore.getState();
+    state.nodes.forEach((n: any) => {
+      if (isPeerPod(n, selectedNode, data.label)) {
+        updateNodeData(n.id, { ...data, yamlSettings: nextSettings });
+      }
+    });
+
+    if (selectedNode.parentId) {
+      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+      if (parent) updateNodeData(parent.id, { ...data, yamlSettings: nextSettings });
+    }
+  };
+
   const performUpdate = (updates: any) => {
     let nextData = { ...data, ...updates };
 
@@ -67,7 +87,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   };
 
   const renderConfig = () => {
-    const props = { selectedNode, performUpdate, toggleVisibility };
+    const props = { selectedNode, performUpdate, toggleVisibility, toggleYaml };
 
     switch (selectedNode.type) {
       case 'Pod':

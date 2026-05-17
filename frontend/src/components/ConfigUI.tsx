@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '../lib/utils';
-import { Eye, EyeOff, Minus, Plus } from 'lucide-react';
+import { Eye, EyeOff, FileCode, FileX, Minus, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 
 export const ConfigLabel = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
   <label className={cn("text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5", className)}>
@@ -9,8 +9,14 @@ export const ConfigLabel = ({ children, className = "" }: { children: React.Reac
 );
 
 export const VisibilityToggle = ({ isVisible, onToggle }: { isVisible: boolean, onToggle: () => void }) => (
-  <button onClick={onToggle} className="text-slate-500 hover:text-blue-500 transition-colors">
+  <button onClick={onToggle} className={cn("transition-colors", isVisible ? "text-blue-500" : "text-slate-500 hover:text-blue-400")} title="Show/Hide on Card">
     {isVisible ? <Eye size={10} /> : <EyeOff size={10} />}
+  </button>
+);
+
+export const YamlToggle = ({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: () => void }) => (
+  <button onClick={onToggle} className={cn("transition-colors", isEnabled ? "text-emerald-500" : "text-slate-500 hover:text-emerald-400")} title="Include in YAML">
+    {isEnabled ? <FileCode size={10} /> : <FileX size={10} />}
   </button>
 );
 
@@ -30,17 +36,48 @@ export const ConfigInput = ({ value, onChange, placeholder, colorMode, className
   />
 );
 
-export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, children }: any) => (
-  <div className="space-y-1.5">
-    <div className="flex items-center justify-between">
-      <ConfigLabel>
-        {Icon && <Icon size={10} />} {title}
-      </ConfigLabel>
-      {onToggle && <VisibilityToggle isVisible={isVisible !== false} onToggle={onToggle} />}
+export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, children }: any) => {
+  const showContent = isVisible !== false;
+  
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <ConfigLabel>
+          {Icon && <Icon size={10} />} {title}
+        </ConfigLabel>
+        <div className="flex items-center gap-2">
+          {onToggle && <VisibilityToggle isVisible={showContent} onToggle={onToggle} />}
+          {onYamlToggle && <YamlToggle isEnabled={isYamlEnabled !== false} onToggle={onYamlToggle} />}
+        </div>
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
+
+export const AdvancedSection = ({ children, colorMode }: { children: React.ReactNode, colorMode: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mt-4">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors w-full mb-3",
+          colorMode === 'dark' ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-700"
+        )}
+      >
+        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        Advanced Options
+      </button>
+      {isOpen && (
+        <div className="space-y-4 animate-in slide-in-from-top-1 duration-200">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode }: any) => (
   <div className="flex items-center gap-2">

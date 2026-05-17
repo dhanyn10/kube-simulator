@@ -69,9 +69,10 @@ export const NodeRenameInput = ({
         onBlur={handleRename}
         onKeyDown={onKeyDown}
         className={cn(
-          "text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none",
+          "text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none w-full",
           colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400",
-          inputClassName
+          inputClassName,
+          className
         )}
       />
     );
@@ -81,9 +82,10 @@ export const NodeRenameInput = ({
     <button
       type="button"
       className={cn(
-        "text-xs font-mono font-bold truncate cursor-text text-left border-none bg-transparent p-0 outline-none focus:ring-1 focus:ring-blue-500/50 rounded",
+        "text-xs font-mono font-bold truncate cursor-text text-left border-none bg-transparent p-0 outline-none focus:ring-1 focus:ring-blue-500/50 rounded w-full",
         colorMode === 'dark' ? "text-slate-100" : "text-slate-900",
-        buttonClassName
+        buttonClassName,
+        className
       )}
       onDoubleClick={() => setIsEditing(true)}
       onKeyDown={(e) => {
