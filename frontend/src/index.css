@@ -1,11 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-slate-950: #020617;
-  --color-slate-900: #0f172a;
-  --color-slate-800: #1e293b;
-  --color-slate-700: #334155;
-  --color-slate-600: #475569;
+  /* JetBrains New UI Dark Theme */
+  --color-slate-950: #1e1f22;
+  --color-slate-900: #2b2d30;
+  --color-slate-800: #393b40;
+  --color-slate-700: #4b4d51;
+  --color-slate-600: #5a5d61;
   
   --font-sans: "Inter", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Courier New", ui-monospace, SFMono-Regular, monospace;

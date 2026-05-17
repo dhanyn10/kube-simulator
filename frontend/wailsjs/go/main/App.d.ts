@@ -14,6 +14,8 @@ export function GetProjects():Promise<Array<db.Project>>;
 
 export function GetSetting(arg1:string):Promise<string>;
 
+export function GetSystemInfo():Promise<Record<string, string>>;
+
 export function GetSystemResources():Promise<Record<string, any>>;
 
 export function Greet(arg1:string):Promise<string>;

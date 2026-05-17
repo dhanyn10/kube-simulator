@@ -26,6 +26,10 @@ export function GetSetting(arg1) {
   return window['go']['main']['App']['GetSetting'](arg1);
 }
 
+export function GetSystemInfo() {
+  return window['go']['main']['App']['GetSystemInfo']();
+}
+
 export function GetSystemResources() {
   return window['go']['main']['App']['GetSystemResources']();
 }

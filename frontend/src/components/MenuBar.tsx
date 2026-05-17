@@ -13,6 +13,7 @@ interface MenuBarProps {
   onSaveFile: () => void;
   onOpenProjects: () => void;
   onOpenScenarios: () => void;
+  onOpenAbout: () => void;
 }
 
 export const MenuBar = ({
@@ -20,7 +21,8 @@ export const MenuBar = ({
   onImportFile,
   onSaveFile,
   onOpenProjects,
-  onOpenScenarios
+  onOpenScenarios,
+  onOpenAbout
 }: MenuBarProps) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const isAutosaveEnabled = useFlowStore((state: any) => state.isAutosaveEnabled);
@@ -106,12 +108,12 @@ export const MenuBar = ({
       {
         label: 'Help',
         items: [
-          { label: 'About', icon: Info, onClick: () => alert('Kube Simulator v1.0.0') },
+          { label: 'About', icon: Info, onClick: onOpenAbout },
           { label: 'Report Issue', icon: Bug, onClick: () => globalThis.open('https://github.com', '_blank') },
         ]
       }
     ];
-  }, [onSaveFile, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, currentProject, nodes, edges, isAutosaveEnabled, toggleAutosave, isMonitoringDetached, isMonitoringOpen, setMonitoringOpen]);
+  }, [onSaveFile, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, currentProject, nodes, edges, isAutosaveEnabled, toggleAutosave, isMonitoringDetached, isMonitoringOpen, setMonitoringOpen]);
 
   const hasInternet = useMemo(() => nodes.some((n: any) => n.type === 'Internet'), [nodes]);
 
