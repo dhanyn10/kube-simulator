@@ -142,25 +142,6 @@ export default function App() {
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
   const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);
 
-  useKeyboardShortcuts({
-    onUndo: handleUndo,
-    onRedo: handleRedo,
-    onCopy: copyNodes,
-    onPaste: pasteNodes,
-    onGroup: () => {
-      const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
-      if (selectedIds.length > 1) groupNodes(selectedIds);
-    },
-    onUngroup: () => {
-      const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
-      if (selectedIds.length > 0) ungroupNodes(selectedIds);
-    }
-  });
-
-  if (isDetachedMode) {
-    return <DetachedMonitoring />;
-  }
-
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
   const onNodeContextMenu = useCallback(
@@ -189,6 +170,25 @@ export default function App() {
     setYamlContent(generateYaml(nodes, edges));
     setIsYamlOpen(true);
   }, [nodes, edges]);
+
+  useKeyboardShortcuts({
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onCopy: copyNodes,
+    onPaste: pasteNodes,
+    onGroup: () => {
+      const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
+      if (selectedIds.length > 1) groupNodes(selectedIds);
+    },
+    onUngroup: () => {
+      const selectedIds = nodes.filter(n => n.selected).map(n => n.id);
+      if (selectedIds.length > 0) ungroupNodes(selectedIds);
+    }
+  });
+
+  if (isDetachedMode) {
+    return <DetachedMonitoring />;
+  }
 
   const btnClass = cn(
     'p-2 rounded-md transition-colors shadow-xl',
