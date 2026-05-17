@@ -14,23 +14,30 @@ export const VisibilityToggle = ({ isVisible, onToggle }: { isVisible: boolean, 
   </button>
 );
 
-export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boolean, onToggle: () => void, disabled?: boolean }) => (
-  <button
-    onClick={onToggle}
-    disabled={disabled}
-    className={cn(
-      "transition-colors",
-      disabled
-        ? "text-slate-600/40 cursor-not-allowed pointer-events-none"
-        : isEnabled
-          ? "text-emerald-500 hover:text-emerald-400"
-          : "text-slate-500 hover:text-emerald-400"
-    )}
-    title={disabled ? "No YAML configuration available for this empty setting" : "Include in YAML"}
-  >
-    {disabled ? <FileX size={10} /> : isEnabled ? <FileCode size={10} /> : <FileX size={10} />}
-  </button>
-);
+export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boolean, onToggle: () => void, disabled?: boolean }) => {
+  let btnClass = "text-slate-500 hover:text-emerald-400";
+  if (disabled) {
+    btnClass = "text-slate-600/40 cursor-not-allowed pointer-events-none";
+  } else if (isEnabled) {
+    btnClass = "text-emerald-500 hover:text-emerald-400";
+  }
+
+  let icon = <FileX size={10} />;
+  if (!disabled && isEnabled) {
+    icon = <FileCode size={10} />;
+  }
+
+  return (
+    <button
+      onClick={onToggle}
+      disabled={disabled}
+      className={cn("transition-colors", btnClass)}
+      title={disabled ? "No YAML configuration available for this empty setting" : "Include in YAML"}
+    >
+      {icon}
+    </button>
+  );
+};
 
 export const ConfigInput = ({ value, onChange, placeholder, colorMode, className = "", type = "text", min, max }: any) => (
   <input
