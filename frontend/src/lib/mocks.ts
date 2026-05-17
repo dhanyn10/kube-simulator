@@ -3,6 +3,26 @@ export const initWailsMocks = () => {
 
     console.log('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
 
+    (globalThis as any).runtime = {
+        EventsOnMultiple: (eventName: string, callback: any, maxCallbacks: number) => {
+            console.log(`[Mocks] EventsOnMultiple called for: ${eventName}`);
+            return () => {};
+        },
+        EventsOn: (eventName: string, callback: any) => {
+            console.log(`[Mocks] EventsOn called for: ${eventName}`);
+            return () => {};
+        },
+        EventsOff: () => {},
+        EventsEmit: () => {},
+        LogPrint: (msg: string) => console.log(msg),
+        LogTrace: (msg: string) => console.log(msg),
+        LogDebug: (msg: string) => console.debug(msg),
+        LogInfo: (msg: string) => console.info(msg),
+        LogWarning: (msg: string) => console.warn(msg),
+        LogError: (msg: string) => console.error(msg),
+        LogFatal: (msg: string) => console.error(msg)
+    };
+
     (globalThis as any).go = {
         main: {
             App: {
@@ -62,6 +82,11 @@ export const initWailsMocks = () => {
                     cpuUsage: 25,
                     totalMemoryGB: 16,
                     freeMemoryGB: 12
+                }),
+                GetSystemInfo: async () => ({
+                    os: 'windows',
+                    arch: 'amd64',
+                    goVersion: 'go1.25.0'
                 }),
                 MinimizeWindow: async () => console.log('Minimize Window'),
                 MaximizeWindow: async () => console.log('Maximize Window'),
