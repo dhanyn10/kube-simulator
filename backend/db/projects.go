@@ -62,7 +62,7 @@ func (p *ProjectManager) Close() {
 	}
 }
 
-func (p *ProjectManager) SaveProject(name string, content string) (int64, error) {
+func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 	project := Project{
 		Name:    name,
 		Content: content,
@@ -97,7 +97,7 @@ func (p *ProjectManager) DeleteProject(id int64) error {
 	return p.db.Delete(&Project{}, id).Error
 }
 
-func (p *ProjectManager) SaveSetting(key string, value string) error {
+func (p *ProjectManager) SaveSetting(key, value string) error {
 	setting := Setting{Key: key, Value: value}
 	return p.db.Save(&setting).Error
 }

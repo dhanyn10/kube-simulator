@@ -144,10 +144,6 @@ export default function App() {
     }
   });
 
-  if (isDetachedMode) {
-    return <DetachedMonitoring />;
-  }
-
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
   const onNodeContextMenu = useCallback(
@@ -176,6 +172,10 @@ export default function App() {
     setYamlContent(generateYaml(nodes, edges));
     setIsYamlOpen(true);
   }, [nodes, edges]);
+
+  if (isDetachedMode) {
+    return <DetachedMonitoring />;
+  }
 
   const btnClass = cn(
     'p-2 rounded-md transition-colors shadow-xl',
