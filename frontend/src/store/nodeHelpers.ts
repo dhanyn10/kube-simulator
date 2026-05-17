@@ -131,11 +131,11 @@ export const syncDeployment = (
  */
 const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const data = deployment.data as K8sNodeData;
-  const isPodGroup = deployment.type === 'PodGroup';
+  const isReplicaSet = deployment.type === 'ReplicaSet';
   const paddingX = 20;
-  const headerHeight = isPodGroup ? 30 : 40;
-  const minWidth = isPodGroup ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
-  const minHeight = isPodGroup ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + 20);
+  const headerHeight = isReplicaSet ? 30 : 40;
+  const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
+  const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + 20);
 
   const maxPodX = Math.max(0, ...laidOut.map(p => {
     const minSize = getPodMinimumSize(p.data);
@@ -226,7 +226,7 @@ export const syncContainerSize = (containerId: string | undefined, currentNodes:
 
 const getChildMinSize = (child: Node) => {
     if (child.type === 'Pod') return getPodMinimumSize(child.data);
-    if (['Deployment', 'Namespace', 'PodGroup'].includes(child.type || '')) {
+    if (['Deployment', 'Namespace', 'ReplicaSet'].includes(child.type || '')) {
         return { width: child.width || 320, height: child.height || 160 };
     }
     return { width: 160, height: 80 };

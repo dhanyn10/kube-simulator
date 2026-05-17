@@ -13,12 +13,12 @@ export const ResourceBudget = () => {
 
   const totals = useMemo(() => {
     return nodes.reduce((acc, node) => {
-      if (!['Deployment', 'Pod', 'PodGroup'].includes(node.type || '')) return acc;
+      if (!['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) return acc;
       
       const data = node.data as K8sNodeData;
       const replicas = data.replicas || 1;
       
-      if (node.parentId && ['Deployment', 'PodGroup'].includes(nodes.find(n => n.id === node.parentId)?.type ?? '')) {
+      if (node.parentId && ['Deployment', 'ReplicaSet'].includes(nodes.find(n => n.id === node.parentId)?.type ?? '')) {
           return acc;
       }
 

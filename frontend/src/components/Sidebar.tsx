@@ -3,7 +3,7 @@ import { Box, Layers, Network, Anchor, Sun, Moon, Search, Globe, ChevronDown, Ch
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
-import { ProjectManager } from './ProjectManager';
+import { ResourceManager } from './ResourceManager';
 
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
@@ -213,7 +213,7 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
         )}
       </div>
 
-      <ProjectManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
+      <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
     </div>
   );
 };

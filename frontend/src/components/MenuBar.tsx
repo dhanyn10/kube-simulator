@@ -46,13 +46,9 @@ export const MenuBar = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
   const menuItems = useMemo(() => {
-    let monitoringLabel = 'Open Dashboard';
-    if (isMonitoringDetached) {
-      monitoringLabel = 'Monitoring: Detached';
-    } else if (isMonitoringOpen) {
-      monitoringLabel = 'Close Dashboard';
-    }
+    const monitoringLabel = isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Simulation' : 'Simulation');
 
     return [
       {
@@ -64,9 +60,9 @@ export const MenuBar = ({
         ]
       },
       {
-        label: 'Project',
+        label: 'Resource',
         items: [
-          { label: 'Manager', icon: FolderOpen, onClick: onOpenProjects },
+          { label: 'Resource Manager', icon: FolderOpen, onClick: onOpenProjects },
           { label: 'Scenarios', icon: BookOpen, onClick: onOpenScenarios },
           {
             label: 'Save',
@@ -77,7 +73,7 @@ export const MenuBar = ({
                 const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
                 if (success) {
                   useFlowStore.setState({ lastSavedSnapshot: content });
-                  alert("Project saved successfully!");
+                  alert("Resource architecture saved successfully!");
                 }
               } else {
                 onOpenProjects(); // Open manager to save as new
@@ -153,7 +149,7 @@ export const MenuBar = ({
       </div>
 
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <h1 
+        <h1
           data-testid="app-title"
           className={cn(
             "text-[11px] font-bold uppercase tracking-[0.3em]",

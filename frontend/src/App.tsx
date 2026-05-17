@@ -28,7 +28,7 @@ import { NamespaceNode } from './components/Nodes/Namespace';
 import { IngressNode } from './components/Nodes/Ingress';
 import { HPANode } from './components/Nodes/HPA';
 import { PVCNode } from './components/Nodes/PVC';
-import { PodGroupNode } from './components/Nodes/PodGroup';
+import { ReplicaSetNode } from './components/Nodes/ReplicaSet';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
 import { ContextMenu } from './components/ContextMenu';
@@ -55,7 +55,7 @@ const nodeTypes = {
   PVC: PVCNode,
   ConfigMap: ConfigMapNode,
   Secret: SecretNode,
-  PodGroup: PodGroupNode,
+  ReplicaSet: ReplicaSetNode,
 };
 
 const edgeTypes = {

@@ -20,11 +20,11 @@ import { safeRandom } from '../../../lib/utils';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
-const handlePodGroupTransform = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, nodes: Node[], get: () => FlowState) => {
+const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, nodes: Node[], get: () => FlowState) => {
   const podPos = getAbsPos(nodeId, nodes);
-  const groupId = `podgroup-${crypto.randomUUID().split('-')[0]}`;
+  const groupId = `replicaset-${crypto.randomUUID().split('-')[0]}`;
   const newGroup: Node = {
-    id: groupId, type: 'PodGroup', position: { x: podPos.x - 20, y: podPos.y - 40 },
+    id: groupId, type: 'ReplicaSet', position: { x: podPos.x - 20, y: podPos.y - 40 },
     data: { ...updatedData, label: updatedData.label, ...createNodeHandlers(groupId, get) }
   };
   const tempPod = { ...updatedNode, parentId: groupId, position: { x: 20, y: 40 } };
@@ -38,7 +38,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
 
   const targetData = target.data as K8sNodeData;
 
-  if (parent.type === 'PodGroup' && (Number(updatedNode.data.replicas) || 0) === 1) {
+  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data.replicas) || 0) === 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
     return sortNodes([...others, { ...updatedNode, parentId: undefined, position: groupPos, extent: undefined }]);
@@ -67,16 +67,16 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
     const isStandaloneContext = !updatedNode.parentId || parent?.type === 'Namespace';
     
     if (isStandaloneContext && (updatedData.replicas || 0) > 1) {
-      return handlePodGroupTransform(nodeId, updatedNode, updatedData, nodes, get);
+      return handleReplicaSetTransform(nodeId, updatedNode, updatedData, nodes, get);
     }
     if (updatedNode.parentId) {
       const parent = nodes.find(n => n.id === updatedNode.parentId);
-      if (parent?.type === 'Deployment' || parent?.type === 'PodGroup') {
+      if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
         return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
       }
     }
   }
-  if (updatedNode.type === 'Deployment' || updatedNode.type === 'PodGroup') {
+  if (updatedNode.type === 'Deployment' || updatedNode.type === 'ReplicaSet') {
     return handleContainerSync(updatedNode, nextNodes, get);
   }
   return nextNodes;

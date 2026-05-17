@@ -54,25 +54,39 @@ export const CanvasConfigModal = () => {
 
         {/* Content */}
         <div className="p-6 space-y-3">
-          {widgets.map((widget) => (
-            <button
-              key={widget.id}
-              onClick={() => toggleWidget(widget.id)}
-              className={cn(
-                "w-full p-3 rounded-xl border flex items-start gap-4 transition-all text-left group",
-                visibleWidgets.includes(widget.id)
-                  ? (colorMode === 'dark' ? "bg-blue-500/10 border-blue-500/50" : "bg-blue-50 border-blue-200")
-                  : (colorMode === 'dark' ? "bg-slate-800/20 border-slate-800 hover:border-slate-700" : "bg-slate-50 border-slate-100 hover:border-slate-200")
-              )}
-            >
-              <div className={cn(
-                "p-2.5 rounded-lg transition-colors",
-                visibleWidgets.includes(widget.id)
-                  ? "bg-blue-500 text-white shadow-lg shadow-blue-500/20"
-                  : (colorMode === 'dark' ? "bg-slate-800 text-slate-500" : "bg-slate-200 text-slate-500")
-              )}>
-                <widget.icon size={18} />
-              </div>
+          {widgets.map((widget) => {
+            const isVisible = visibleWidgets.includes(widget.id);
+            const isDark = colorMode === 'dark';
+
+            let btnClass = "";
+            if (isVisible) {
+              btnClass = isDark ? "bg-blue-500/10 border-blue-500/50" : "bg-blue-50 border-blue-200";
+            } else {
+              btnClass = isDark ? "bg-slate-800/20 border-slate-800 hover:border-slate-700" : "bg-slate-50 border-slate-100 hover:border-slate-200";
+            }
+
+            let iconWrapperClass = "";
+            if (isVisible) {
+              iconWrapperClass = "bg-blue-500 text-white shadow-lg shadow-blue-500/20";
+            } else {
+              iconWrapperClass = isDark ? "bg-slate-800 text-slate-500" : "bg-slate-200 text-slate-500";
+            }
+
+            return (
+              <button
+                key={widget.id}
+                onClick={() => toggleWidget(widget.id)}
+                className={cn(
+                  "w-full p-3 rounded-xl border flex items-start gap-4 transition-all text-left group",
+                  btnClass
+                )}
+              >
+                <div className={cn(
+                  "p-2.5 rounded-lg transition-colors",
+                  iconWrapperClass
+                )}>
+                  <widget.icon size={18} />
+                </div>
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
@@ -94,7 +108,8 @@ export const CanvasConfigModal = () => {
                 </p>
               </div>
             </button>
-          ))}
+          );
+        })}
         </div>
 
         {/* Footer */}

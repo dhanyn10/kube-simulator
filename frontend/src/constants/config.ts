@@ -31,3 +31,15 @@ export const MEMORY_OPTIONS = [
 
 export type RuntimeType = keyof typeof RUNTIMES;
 export type WebserverType = typeof WEBSERVERS[number]['id'];
+
+export const DEFAULT_REGISTRY_IMAGES = [
+  { name: 'nginx:latest', desc: 'Official high-performance HTTP server & reverse proxy' },
+  { name: 'redis:alpine', desc: 'In-memory data structure store, alpine edition' },
+  { name: 'postgres:15-alpine', desc: 'Powerful, open-source object-relational database' },
+  { name: 'node:18-alpine', desc: 'JavaScript runtime built on Chrome\'s V8 engine' },
+  { name: 'python:3.11-slim', desc: 'Python programming language runtime environment' },
+  { name: 'mysql:8.0', desc: 'Widely used open-source relational database management system' },
+  { name: 'golang:1.21-alpine', desc: 'Go programming language compiler and runtime' },
+  { name: 'openjdk:17-jdk-slim', desc: 'Java Development Kit runtime environment' },
+  { name: 'nginx:alpine', desc: 'Nginx web server on lightweight Alpine Linux' }
+] as const;

@@ -26,7 +26,7 @@ export const sortNodes = (nodes: Node[]): Node[] => {
   const priority: Record<string, number> = {
     Namespace: 0,
     Deployment: 1,
-    PodGroup: 1,
+    ReplicaSet: 1,
     Pod: 2,
     Service: 3,
     Internet: 3,

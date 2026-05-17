@@ -62,6 +62,9 @@ export interface FlowState {
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
   visibleWidgets: string[];
   isCanvasConfigOpen: boolean;
+  customImages: string[];
+  addCustomImage: (image: string) => void;
+  deleteCustomImage: (image: string) => void;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;

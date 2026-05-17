@@ -5,6 +5,7 @@ import { Box, Code, Layers, Server, Eye, EyeOff, AlertCircle, FileCode, FileX } 
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
 import { SelectorGroup } from './SelectorGroup';
 import { ConfigInput, ConfigSection, ConfigLabel, NumberStepper, AdvancedSection } from './ConfigUI';
+import { ImageDropdown } from './ImageDropdown';
 
 interface WorkloadConfigProps {
   selectedNode: any;
@@ -50,17 +51,16 @@ const ResourceSettingsList = ({ data, colorMode, isCpuError, isMemError, perform
       label: 'CPU Request',
       options: CPU_OPTIONS,
       iconColor: 'text-emerald-500',
-      activeColor: 'bg-emerald-600 border-emerald-600',
-      shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+      activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-emerald-600 border-emerald-600',
+      shadow: isCpuError ? 'shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
+      hasError: isCpuError,
     },
     {
       field: 'cpuLimit',
       label: 'CPU Limit',
       options: CPU_OPTIONS,
       iconColor: 'text-violet-500',
-      activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
-      hasError: isCpuError,
-      validate: (val: string) => parseCPU(val) < parseCPU(data.cpuRequest)
+      activeColor: 'bg-violet-600 border-violet-600',
     },
     { type: 'separator', field: 'separator-cpu-mem' },
     {
@@ -68,17 +68,16 @@ const ResourceSettingsList = ({ data, colorMode, isCpuError, isMemError, perform
       label: 'Memory Request',
       options: MEMORY_OPTIONS,
       iconColor: 'text-emerald-500',
-      activeColor: 'bg-emerald-600 border-emerald-600',
-      shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+      activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-emerald-600 border-emerald-600',
+      shadow: isMemError ? 'shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
+      hasError: isMemError,
     },
     {
       field: 'memoryLimit',
       label: 'Memory Limit',
       options: MEMORY_OPTIONS,
       iconColor: 'text-violet-500',
-      activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-violet-600 border-violet-600',
-      hasError: isMemError,
-      validate: (val: string) => parseMemory(val) < parseMemory(data.memoryRequest)
+      activeColor: 'bg-violet-600 border-violet-600',
     }
   ];
 
@@ -210,110 +209,113 @@ export const WorkloadConfig = ({ selectedNode, performUpdate, toggleVisibility, 
         />
       </ConfigSection>
 
-      <AdvancedSection colorMode={colorMode}>
-        {/* Resource Requests & Limits */}
-        <div className="space-y-3 rounded-lg border border-dashed p-3 border-slate-700/50 bg-slate-500/5">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Layers size={10} /> Resource Settings
-            </span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => toggleVisibility('resources')} className={cn("transition-colors", data.displaySettings?.resources !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400")}>
-                {(data.displaySettings?.resources !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
-              </button>
-              <button
-                onClick={() => toggleYaml('resources')}
-                disabled={!hasResources}
-                className={cn("transition-colors", yamlButtonClass)}
-                title={!hasResources ? "No YAML configuration available for empty resources" : "Include in YAML"}
+      {selectedNode.type === 'Pod' && (
+        <AdvancedSection colorMode={colorMode}>
+          <div className="space-y-4">
+            {/* Resource Requests & Limits */}
+            <div className="space-y-3 rounded-lg border border-dashed p-3 border-slate-700/50 bg-slate-500/5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+                  <Layers size={10} /> Resource Settings
+                </span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => toggleVisibility('resources')} className={cn("transition-colors", data.displaySettings?.resources !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400")}>
+                    {(data.displaySettings?.resources !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+                  </button>
+                  <button
+                    onClick={() => toggleYaml('resources')}
+                    disabled={!hasResources}
+                    className={cn("transition-colors", yamlButtonClass)}
+                    title={!hasResources ? "No YAML configuration available for empty resources" : "Include in YAML"}
+                  >
+                    {yamlButtonIcon}
+                  </button>
+                </div>
+              </div>
+
+              {isTargetedByHPA && !hasRequests && (
+                <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[8px] text-amber-500 leading-tight mb-2">
+                  ⚠️ HPA detected. CPU/Memory <strong>Requests</strong> are required for autoscaling to function.
+                </div>
+              )}
+
+              <ResourceSettingsList
+                data={data}
+                colorMode={colorMode}
+                isCpuError={isCpuError}
+                isMemError={isMemError}
+                performUpdate={performUpdate}
+              />
+            </div>
+
+            {/* Container Image */}
+            <ConfigSection
+              title="Container Image"
+              icon={Box}
+              isVisible={data.displaySettings?.image}
+              onToggle={() => toggleVisibility('image')}
+              isYamlEnabled={data.yamlSettings?.image}
+              onYamlToggle={() => toggleYaml('image')}
+              disableYamlToggle={!data.image}
+            >
+              <ImageDropdown
+                value={data.image || ''}
+                onChange={(val) => performUpdate({ image: val })}
+                colorMode={colorMode}
+              />
+            </ConfigSection>
+
+            {/* Web Server */}
+            <ConfigSection
+              title="Web Server"
+              icon={Server}
+              isVisible={data.displaySettings?.webserver}
+              onToggle={() => toggleVisibility('webserver')}
+              isYamlEnabled={data.yamlSettings?.webserver}
+              onYamlToggle={() => toggleYaml('webserver')}
+              disableYamlToggle={!data.webserver || data.webserver === 'none'}
+            >
+              <SelectorGroup
+                options={WEBSERVERS}
+                currentValue={data.webserver}
+                onSelect={(val) => performUpdate({ webserver: val })}
+                colorMode={colorMode}
+              />
+            </ConfigSection>
+
+            {/* Runtime */}
+            <ConfigSection
+              title="App Runtime"
+              icon={Code}
+              isVisible={data.displaySettings?.runtime}
+              onToggle={() => toggleVisibility('runtime')}
+              isYamlEnabled={data.yamlSettings?.runtime}
+              onYamlToggle={() => toggleYaml('runtime')}
+              disableYamlToggle={!data.runtime || data.runtime === 'none'}
+            >
+              <select
+                value={data.runtime || 'none'}
+                onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
+                className={cn(
+                  "w-full text-[10px] p-2 rounded border outline-none",
+                  colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+                )}
               >
-                {yamlButtonIcon}
-              </button>
-            </div>
+                {Object.entries(RUNTIMES).map(([id, rt]) => (
+                  <option key={id} value={id}>{rt.label}</option>
+                ))}
+              </select>
+            </ConfigSection>
+
+            <FrameworkSelector
+              runtime={data.runtime}
+              framework={data.framework}
+              colorMode={colorMode}
+              performUpdate={performUpdate}
+            />
           </div>
-
-          {isTargetedByHPA && !hasRequests && (
-            <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[8px] text-amber-500 leading-tight mb-2">
-              ⚠️ HPA detected. CPU/Memory <strong>Requests</strong> are required for autoscaling to function.
-            </div>
-          )}
-
-          <ResourceSettingsList
-            data={data}
-            colorMode={colorMode}
-            isCpuError={isCpuError}
-            isMemError={isMemError}
-            performUpdate={performUpdate}
-          />
-        </div>
-
-        {/* Container Image */}
-        <ConfigSection
-          title="Container Image"
-          icon={Box}
-          isVisible={data.displaySettings?.image}
-          onToggle={() => toggleVisibility('image')}
-          isYamlEnabled={data.yamlSettings?.image}
-          onYamlToggle={() => toggleYaml('image')}
-          disableYamlToggle={!data.image}
-        >
-          <ConfigInput
-            placeholder="e.g. nginx:latest"
-            value={data.image || ''}
-            onChange={(e: any) => performUpdate({ image: e.target.value })}
-            colorMode={colorMode}
-          />
-        </ConfigSection>
-
-        {/* Web Server */}
-        <ConfigSection
-          title="Web Server"
-          icon={Server}
-          isVisible={data.displaySettings?.webserver}
-          onToggle={() => toggleVisibility('webserver')}
-          isYamlEnabled={data.yamlSettings?.webserver}
-          onYamlToggle={() => toggleYaml('webserver')}
-          disableYamlToggle={!data.webserver || data.webserver === 'none'}
-        >
-          <SelectorGroup
-            options={WEBSERVERS}
-            currentValue={data.webserver}
-            onSelect={(val) => performUpdate({ webserver: val })}
-            colorMode={colorMode}
-          />
-        </ConfigSection>
-
-        {/* Runtime */}
-        <ConfigSection
-          title="App Runtime"
-          icon={Code}
-          isVisible={data.displaySettings?.runtime}
-          onToggle={() => toggleVisibility('runtime')}
-          isYamlEnabled={data.yamlSettings?.runtime}
-          onYamlToggle={() => toggleYaml('runtime')}
-          disableYamlToggle={!data.runtime || data.runtime === 'none'}
-        >
-          <select
-            value={data.runtime || 'none'}
-            onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
-            className={cn(
-              "w-full text-[10px] p-2 rounded border outline-none",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-            )}
-          >
-            {Object.entries(RUNTIMES).map(([id, rt]) => (
-              <option key={id} value={id}>{rt.label}</option>
-            ))}
-          </select>
-        </ConfigSection>
-
-        <FrameworkSelector
-          runtime={data.runtime}
-          framework={data.framework}
-          colorMode={colorMode}
-          performUpdate={performUpdate}
-        />
-      </AdvancedSection>
+        </AdvancedSection>
+      )}
     </div>
   );
 };

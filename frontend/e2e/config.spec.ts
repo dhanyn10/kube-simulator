@@ -55,7 +55,7 @@ test.describe('ConfigMap and Secret', () => {
   });
 
   test('generates correct YAML with environment variables', async ({ page }) => {
-    await page.getByText('Project').first().click();
+    await page.getByRole('button', { name: 'Resource' }).click();
     await page.getByText('Scenarios').first().click();
     await page.getByText('Configured Application').click();
 

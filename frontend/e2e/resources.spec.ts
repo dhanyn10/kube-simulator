@@ -7,15 +7,15 @@ test.describe('Workload Resource Validation', () => {
   });
 
   test('shows red button and warning icon when limit < request', async ({ page }) => {
-    // Add a Deployment node
-    await page.getByRole('button', { name: 'Deployment' }).first().click();
+    // Add a Pod node
+    await page.getByRole('button', { name: 'Pod', exact: false }).first().click();
 
-    const deploymentNode = page.locator('.react-flow__node-Deployment');
-    await expect(deploymentNode).toBeVisible();
+    const podNode = page.locator('.react-flow__node-Pod');
+    await expect(podNode).toBeVisible();
 
     // Open Config Panel
-    await deploymentNode.hover();
-    await deploymentNode.locator('button:has(svg.lucide-settings)').click();
+    await podNode.hover();
+    await podNode.locator('button:has(svg.lucide-settings)').click();
 
     // Open Advanced Options to reveal Resource Settings
     await page.getByText('Advanced Options').click();
@@ -29,7 +29,7 @@ test.describe('Workload Resource Validation', () => {
     // Check for red button (bg-red-600)
     const redButton = page.locator('button.bg-red-600');
     await expect(redButton).toBeVisible();
-    await expect(redButton).toContainText('250m');
+    await expect(redButton).toContainText('500m');
 
     // Check for warning icon
     const warningIcon = page.locator('.workload-resource-warning');
@@ -42,9 +42,9 @@ test.describe('Workload Resource Validation', () => {
     // Fix the error: Set Limit to 1 Core
     await page.getByRole('button', { name: '1 Core' }).last().click();
 
-    // Red button should be gone, replaced by violet button
+    // Red button should be gone, replaced by emerald button
     await expect(page.locator('button.bg-red-600')).not.toBeVisible();
-    await expect(page.locator('button.bg-violet-600')).toBeVisible();
+    await expect(page.locator('button.bg-emerald-600')).toBeVisible();
     await expect(warningIcon).not.toBeVisible();
   });
 });
