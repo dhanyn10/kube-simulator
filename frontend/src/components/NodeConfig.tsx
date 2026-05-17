@@ -113,7 +113,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   };
 
   const isReady = data.status === 'ready' ||
-    ['Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret'].includes(selectedNode.type);
+    ['Deployment', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret'].includes(selectedNode.type);
 
   return (
     <div className="space-y-4">

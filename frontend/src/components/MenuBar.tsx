@@ -46,13 +46,9 @@ export const MenuBar = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
   const menuItems = useMemo(() => {
-    let monitoringLabel = 'Simulation';
-    if (isMonitoringDetached) {
-      monitoringLabel = 'Monitoring: Detached';
-    } else if (isMonitoringOpen) {
-      monitoringLabel = 'Close Monitoring Simulation';
-    }
+    const monitoringLabel = isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Simulation' : 'Simulation');
 
     return [
       {

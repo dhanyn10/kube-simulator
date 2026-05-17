@@ -7,15 +7,15 @@ test.describe('Workload Resource Validation', () => {
   });
 
   test('shows red button and warning icon when limit < request', async ({ page }) => {
-    // Add a Deployment node
-    await page.getByRole('button', { name: 'Deployment' }).first().click();
+    // Add a Pod node
+    await page.getByRole('button', { name: 'Pod', exact: false }).first().click();
 
-    const deploymentNode = page.locator('.react-flow__node-Deployment');
-    await expect(deploymentNode).toBeVisible();
+    const podNode = page.locator('.react-flow__node-Pod');
+    await expect(podNode).toBeVisible();
 
     // Open Config Panel
-    await deploymentNode.hover();
-    await deploymentNode.locator('button:has(svg.lucide-settings)').click();
+    await podNode.hover();
+    await podNode.locator('button:has(svg.lucide-settings)').click();
 
     // Open Advanced Options to reveal Resource Settings
     await page.getByText('Advanced Options').click();

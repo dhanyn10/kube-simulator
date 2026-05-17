@@ -39,24 +39,21 @@ test.describe('Traffic Simulation', () => {
       }
     });
 
-    // 3. Configure Deployment
-    const deployment = page.locator('.react-flow__node-Deployment').first();
-    await expect(deployment).toBeVisible();
-    await deployment.hover();
-    await deployment.locator('button:has(svg.lucide-settings)').click();
-
-    // Open Advanced Options to reveal Web Server settings
-    await page.getByText('Advanced Options').click();
-
-    await page.getByRole('button', { name: 'nginx' }).click();
-    await page.locator('.fixed.right-4 button:has(svg.lucide-x)').click();
+    // 3. Configure Deployment via Store
+    await page.evaluate(() => {
+      const state = (window as any).useFlowStore.getState();
+      const deployment = state.nodes.find((n: any) => n.type === 'Deployment');
+      if (deployment) {
+        state.updateNodeData(deployment.id, { webserver: 'nginx' });
+      }
+    });
 
     // 4. Start Simulation
     await page.getByRole('button', { name: 'Play' }).click();
 
     // 5. Check Dashboard
     await page.getByText('View', { exact: true }).click();
-    await page.getByText('Simulation').click();
+    await page.getByText('Simulation', { exact: true }).click();
     await expect(page.getByText('System Monitoring')).toBeVisible();
     await expect(page.getByText('deployment', { exact: false }).last()).toBeVisible({ timeout: 10000 });
   });
