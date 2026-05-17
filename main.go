@@ -9,6 +9,9 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/menu"
+	"github.com/wailsapp/wails/v2/pkg/menu/keys"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime" // Import wailsRuntime
 )
 
 //go:embed all:frontend/dist
@@ -31,6 +34,19 @@ func main() {
 		}
 	}
 
+	// Create a new menu
+	AppMenu := menu.NewMenu()
+
+	// Create a Help menu
+	HelpMenu := AppMenu.AddSubmenu("Help")
+	HelpMenu.AddSeparator()
+	HelpMenu.AddText("About", keys.CmdOrCtrl("A"), func(_ *menu.CallbackData) {
+		// Emit an event when "About" is clicked
+		if app.ctx != nil {
+			wailsRuntime.EventsEmit(app.ctx, "openAboutDialog") // Corrected: wailsRuntime.EventsEmit
+		}
+	})
+
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:  "build-wails",
@@ -46,6 +62,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
+		Menu: AppMenu,
 	})
 
 	if err != nil {

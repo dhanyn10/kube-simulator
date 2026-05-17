@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"time"
 
 	"build-wails/backend/db"
@@ -260,4 +261,13 @@ func (a *App) CloseWindow() {
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
+}
+
+// GetSystemInfo returns basic system information
+func (a *App) GetSystemInfo() map[string]string {
+	return map[string]string{
+		"os":        runtime.GOOS,
+		"arch":      runtime.GOARCH,
+		"goVersion": runtime.Version(),
+	}
 }

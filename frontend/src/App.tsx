@@ -10,6 +10,7 @@ import {
   Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 
 import { Sidebar } from './components/Sidebar';
 import { MenuBar } from './components/MenuBar';
@@ -43,6 +44,7 @@ import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useFileSystem } from './hooks/useFileSystem';
+import AboutDialog from './components/AboutDialog'; // Import AboutDialog
 
 const nodeTypes = {
   Pod: PodNode,
@@ -100,6 +102,12 @@ export default function App() {
   const setSystemResources = useFlowStore((state) => state.setSystemResources);
   const systemResources = useFlowStore((state) => state.systemResources);
 
+  const [isYamlOpen, setIsYamlOpen] = useState(false);
+  const [isProjectOpen, setIsProjectOpen] = useState(false);
+  const [isScenarioOpen, setIsScenarioOpen] = useState(false);
+  const [yamlContent, setYamlContent] = useState('');
+  const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false); // State for About dialog
+
   useEffect(() => {
     if (!isDetachedMode) {
       const fetchResources = () => {
@@ -119,10 +127,15 @@ export default function App() {
     }
   }, [isDetachedMode, setSystemResources]);
 
-  const [isYamlOpen, setIsYamlOpen] = useState(false);
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
-  const [isScenarioOpen, setIsScenarioOpen] = useState(false);
-  const [yamlContent, setYamlContent] = useState('');
+  // Effect to listen for the 'openAboutDialog' event
+  useEffect(() => {
+    const unsubscribe = EventsOn('openAboutDialog', () => {
+      setIsAboutDialogOpen(true);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const { zoomIn, zoomOut, fitView, screenToFlowPosition } = useReactFlow();
   const { handleUndo, handleRedo } = useHistory();
@@ -195,6 +208,7 @@ export default function App() {
         onSaveFile={handleExportFile}
         onOpenProjects={() => setIsProjectOpen(true)}
         onOpenScenarios={() => setIsScenarioOpen(true)}
+        onOpenAbout={() => setIsAboutDialogOpen(true)}
       />
 
       <CanvasConfigModal />
@@ -278,7 +292,7 @@ export default function App() {
             {visibleWidgets.includes('hardware-budget') && (
               <div className="relative group/widget">
                 <ResourceBudget />
-                <button 
+                <button
                   onClick={() => toggleWidget('hardware-budget')}
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
                 >
@@ -286,13 +300,13 @@ export default function App() {
                 </button>
               </div>
             )}
-            
+
             {visibleWidgets.includes('object-stats') && (
               <div className="flex gap-2 relative group/widget">
                 <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-slate-200 border border-slate-300 text-slate-700')}>
                   objects: {nodes.length}
                 </span>
-                <button 
+                <button
                   onClick={() => toggleWidget('object-stats')}
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
                 >
@@ -300,7 +314,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            
+
             {visibleWidgets.includes('inspector-btn') && (
               <div className="relative group/widget">
                 <button
@@ -310,7 +324,7 @@ export default function App() {
                   <FileCode size={12} className={colorMode === 'dark' ? 'text-blue-400' : 'text-blue-600'} />
                   Inspector
                 </button>
-                <button 
+                <button
                   onClick={() => toggleWidget('inspector-btn')}
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
                 >
@@ -318,7 +332,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            
+
             {visibleWidgets.includes('target-indicator') && activeDeploymentId && (
               <div className="relative group/widget">
                 <div className={cn('mt-1 px-3 py-1.5 border rounded-md flex items-center gap-2 animate-pulse', colorMode === 'dark' ? 'bg-violet-500/10 border-violet-500/50' : 'bg-violet-200/30 border-violet-400/50')}>
@@ -327,7 +341,7 @@ export default function App() {
                     Target: {nodes.find((n) => n.id === activeDeploymentId)?.data.label as string}
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={() => toggleWidget('target-indicator')}
                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
                 >
@@ -352,7 +366,7 @@ export default function App() {
           />
 
           <MonitoringDashboard />
-          
+
           {contextMenu && (
             <ContextMenu
               x={contextMenu.x}
@@ -362,10 +376,11 @@ export default function App() {
               onDelete={() => deleteNodes(nodes.filter(n => n.selected))}
             />
           )}
+
+          {/* Render the AboutDialog */}
+          <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
         </main>
       </div>
-
-
     </div>
   );
 }
