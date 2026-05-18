@@ -44,7 +44,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
     return sortNodes([...others, { ...updatedNode, parentId: undefined, position: groupPos, extent: undefined }]);
   }
 
-  const replicasChange = (parent.type === 'Deployment' && newData.replicas !== undefined)
+  const replicasChange = ((parent.type === 'Deployment' || parent.type === 'ReplicaSet') && newData.replicas !== undefined)
     ? (newData.replicas || 0) - (Number(targetData.replicas) || 0) : 0;
 
   const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
@@ -87,7 +87,7 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
   if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
   if (node.type === 'Pod' && node.parentId) {
     const parent = nextNodes.find(n => n.id === node.parentId);
-    if (parent?.type === 'Deployment') {
+    if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
       const nodeData = getNodeData(node);
       const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(nodeData.replicas || 1), get);
       const others = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');
@@ -100,7 +100,7 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
 const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) => {
   if (newNode.parentId && newNode.type === 'Pod') {
     const parent = nodes.find(n => n.id === newNode.parentId);
-    if (parent?.type === 'Deployment') {
+    if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
       const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, 1, get, newNode);
       const others = nodes.filter(n => (n.parentId !== newNode.parentId || n.type !== 'Pod') && n.id !== newNode.id);
       return sortNodes([...others.map(n => n.id === newNode.parentId ? updatedDeployment : n), ...laidOut]);

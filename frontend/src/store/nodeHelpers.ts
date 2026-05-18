@@ -59,9 +59,9 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
     };
   });
 
-  // Sync Deployments after all handlers are attached
-  const deployments = nextNodes.filter(n => n.type === 'Deployment');
-  deployments.forEach(dept => {
+  // Sync Deployments and ReplicaSets after all handlers are attached
+  const workloads = nextNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet');
+  workloads.forEach(dept => {
     const { updatedDeployment, laidOut } = syncDeployment(dept, nextNodes, 0, get);
     nextNodes = nextNodes.filter(n => n.parentId !== dept.id || n.type !== 'Pod');
     nextNodes = [...nextNodes.map(n => n.id === dept.id ? updatedDeployment : n), ...laidOut];
