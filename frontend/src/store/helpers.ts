@@ -142,6 +142,69 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
   });
 };
 
+interface PodLayoutState {
+  currentX: number;
+  currentY: number;
+  rowMaxHeight: number;
+  prevPodSpacing: number;
+}
+
+const getPodDimensions = (pod: Node) => {
+  const minSize = getPodMinimumSize(pod.data);
+  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
+  const podH = Math.max(
+    pod.height || 0,
+    pod.measured?.height || 0,
+    Number((pod.style as any)?.minHeight) || 0,
+    minSize.height
+  );
+  return { podW, podH, minHeight: minSize.height };
+};
+
+const getUpdatedLayoutPosition = (
+  idx: number,
+  paddingX: number,
+  deployableWidth: number,
+  podW: number,
+  podH: number,
+  mySpacing: number,
+  state: PodLayoutState
+): { pos: { x: number; y: number }; nextState: PodLayoutState } => {
+  let { currentX, currentY, rowMaxHeight, prevPodSpacing } = state;
+
+  // Apply horizontal spacing adjustment if we're continuing on the same row
+  if (idx > 0 && currentX > paddingX) {
+    const gapRequired = Math.max(prevPodSpacing, mySpacing);
+    if (gapRequired > prevPodSpacing) {
+      currentX += (gapRequired - prevPodSpacing);
+    }
+  }
+
+  // Wrap to the next row if the current pod exceeds deployment width limits
+  const isExceedingWidth = currentX + podW > deployableWidth + paddingX;
+  if (isExceedingWidth && currentX > paddingX) {
+    currentX = paddingX;
+    currentY += rowMaxHeight + Math.max(prevPodSpacing, mySpacing);
+    rowMaxHeight = 0;
+  }
+
+  rowMaxHeight = Math.max(rowMaxHeight, podH);
+  const pos = { x: currentX, y: currentY };
+
+  // Advance layout cursor for the next pod
+  currentX += podW + mySpacing;
+
+  return {
+    pos,
+    nextState: {
+      currentX,
+      currentY,
+      rowMaxHeight,
+      prevPodSpacing: mySpacing,
+    },
+  };
+};
+
 // Helper function to layout pods within a deployment
 export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
   const paddingX = 24;
@@ -149,38 +212,37 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   const deploymentWidth = deployment.width || deployment.measured?.width || 320;
   const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
 
-  let currentX = paddingX;
-  let currentY = paddingY;
-  let rowMaxHeight = 0;
-  let prevPodSpacing = 20;
+  let state: PodLayoutState = {
+    currentX: paddingX,
+    currentY: paddingY,
+    rowMaxHeight: 0,
+    prevPodSpacing: 20,
+  };
 
   return pods.map((pod, idx) => {
     const isMegaPod = pod.data?.replicas === 100;
     const mySpacing = getPodSpacing(isMegaPod);
-    const minSize = getPodMinimumSize(pod.data);
-    const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
-    const podH = Math.max(pod.height || 0, pod.measured?.height || 0, Number((pod.style as any)?.minHeight) || 0, minSize.height);
+    const { podW, podH, minHeight } = getPodDimensions(pod);
 
-    if (idx > 0 && currentX > paddingX) {
-      const gapRequired = Math.max(prevPodSpacing, mySpacing);
-      if (gapRequired > prevPodSpacing) currentX += (gapRequired - prevPodSpacing);
-    }
-
-    if (currentX + podW > deployableWidth + paddingX && currentX > paddingX) {
-      currentX = paddingX;
-      currentY += rowMaxHeight + Math.max(prevPodSpacing, mySpacing);
-      rowMaxHeight = 0;
-    }
-
-    rowMaxHeight = Math.max(rowMaxHeight, podH);
-    const pos = { x: currentX, y: currentY };
-    currentX += podW + mySpacing; 
-    prevPodSpacing = mySpacing;
+    const { pos, nextState } = getUpdatedLayoutPosition(
+      idx,
+      paddingX,
+      deployableWidth,
+      podW,
+      podH,
+      mySpacing,
+      state
+    );
+    state = nextState;
 
     return {
       ...pod,
       width: podW,
-      style: { ...(pod.style || {}), width: podW, minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minSize.height) },
+      style: {
+        ...(pod.style || {}),
+        width: podW,
+        minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minHeight),
+      },
       position: pos,
     };
   });
@@ -316,6 +378,12 @@ const getBoundingBox = (node: Node) => {
   };
 };
 
+const getCrossAxisProps = (axis: 'x' | 'y') => {
+  return axis === 'x'
+    ? { cross: 'y' as const, centerKey: 'centerY' as const, sizeKey: 'h' as const }
+    : { cross: 'x' as const, centerKey: 'centerX' as const, sizeKey: 'w' as const };
+};
+
 // Helper to apply overlap resolution for a specific axis
 const applyOverlapResolution = (
   nodeA: Node, nodeB: Node, 
@@ -331,18 +399,20 @@ const applyOverlapResolution = (
   const overlapDist = (sizeA + sizeB) / 2 + padding - Math.abs(dist);
   const dir = dist >= 0 ? 1 : -1;
 
+  const { cross, centerKey, sizeKey } = getCrossAxisProps(axis);
+
   if (nodeA.id === fixedNodeId) {
     nodeB.position[axis] += overlapDist * dir;
-    nodeB.position[isX ? 'y' : 'x'] = isX ? bA.centerY - bB.h / 2 : bA.centerX - bB.w / 2;
+    nodeB.position[cross] = bA[centerKey] - bB[sizeKey] / 2;
   } else if (nodeB.id === fixedNodeId) {
     nodeA.position[axis] -= overlapDist * dir;
-    nodeA.position[isX ? 'y' : 'x'] = isX ? bB.centerY - bA.h / 2 : bB.centerX - bA.w / 2;
+    nodeA.position[cross] = bB[centerKey] - bA[sizeKey] / 2;
   } else {
     nodeA.position[axis] -= (overlapDist / 2) * dir;
     nodeB.position[axis] += (overlapDist / 2) * dir;
-    const midCross = isX ? (bA.centerY + bB.centerY) / 2 : (bA.centerX + bB.centerX) / 2;
-    nodeA.position[isX ? 'y' : 'x'] = isX ? midCross - bA.h / 2 : midCross - bA.w / 2;
-    nodeB.position[isX ? 'y' : 'x'] = isX ? midCross - bB.h / 2 : midCross - bB.w / 2;
+    const midCross = (bA[centerKey] + bB[centerKey]) / 2;
+    nodeA.position[cross] = midCross - bA[sizeKey] / 2;
+    nodeB.position[cross] = midCross - bB[sizeKey] / 2;
   }
 };
 

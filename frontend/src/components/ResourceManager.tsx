@@ -182,6 +182,31 @@ const LocalImageRow = ({ img, onDelete, colorMode }: LocalImageRowProps) => {
   );
 };
 
+const mapProjectNodes = (nodes: any[]): any[] => {
+  return (nodes || []).map((n: any) => ({ 
+    ...n, 
+    id: String(n.id), 
+    parentId: n.parentId ? String(n.parentId) : undefined 
+  }));
+};
+
+const mapProjectEdges = (edges: any[]): any[] => {
+  return (edges || []).map((e: any) => ({ 
+    ...e, 
+    id: String(e.id), 
+    source: String(e.source), 
+    target: String(e.target), 
+    type: 'custom' 
+  }));
+};
+
+const generateTimestampedProjectName = (): string => {
+  const d = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  return `Project-${dmyhis}`;
+};
+
 export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const { fitView } = useReactFlow();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -214,16 +239,15 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   };
 
   useEffect(() => {
-    if (isOpen) {
-      loadProjects();
-      if (!isCanvasEmpty && (!currentProject || currentProject.id === -1)) {
-        const d = new Date();
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-        setProjectName(`Project-${dmyhis}`);
-      } else {
-        setProjectName('');
-      }
+    if (!isOpen) return;
+
+    loadProjects();
+
+    const needsDefaultName = !isCanvasEmpty && (!currentProject || currentProject.id === -1);
+    if (needsDefaultName) {
+      setProjectName(generateTimestampedProjectName());
+    } else {
+      setProjectName('');
     }
   }, [isOpen, isCanvasEmpty, currentProject]);
 
@@ -269,40 +293,29 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
 
   const handleLoad = async (id: number, name: string) => {
     const res = await globalThis.go?.main?.App?.LoadProject(id);
-    if (res?.content) {
-        const data = JSON.parse(res.content);
-        const nodesWithStrings = (data.nodes || []).map((n: any) => ({ 
-          ...n, 
-          id: String(n.id), 
-          parentId: n.parentId ? String(n.parentId) : undefined 
-        })) as any[];
-        
-        const edgesWithStrings = (data.edges || []).map((e: any) => ({ 
-          ...e, 
-          id: String(e.id), 
-          source: String(e.source), 
-          target: String(e.target), 
-          type: 'custom' 
-        }));
-        
-        const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
-        useFlowStore.setState({
-          nodes: hydratedNodes,
-          edges: edgesWithStrings,
-          currentProject: { id, name },
-          lastSavedSnapshot: res.content,
-          isSimulating: false,
-          activeSimulationEdges: [],
-          simulationMetrics: {},
-          lastActionId: `load-${Date.now()}`,
-          lastActionName: 'Load Project'
-        });
-        onClose();
-        
-        setTimeout(() => {
-          fitView({ padding: 0.2, duration: 800 });
-        }, 50);
-    }
+    if (!res?.content) return;
+
+    const data = JSON.parse(res.content);
+    const nodesWithStrings = mapProjectNodes(data.nodes);
+    const edgesWithStrings = mapProjectEdges(data.edges);
+    const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
+
+    useFlowStore.setState({
+      nodes: hydratedNodes,
+      edges: edgesWithStrings,
+      currentProject: { id, name },
+      lastSavedSnapshot: res.content,
+      isSimulating: false,
+      activeSimulationEdges: [],
+      simulationMetrics: {},
+      lastActionId: `load-${Date.now()}`,
+      lastActionName: 'Load Project'
+    });
+    
+    onClose();
+    setTimeout(() => {
+      fitView({ padding: 0.2, duration: 800 });
+    }, 50);
   };
 
   const handleDelete = async (id: number) => {
