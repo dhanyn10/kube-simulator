@@ -32,7 +32,7 @@ const getUpdateReplicasTargetId = (selectedNode: any, nodes: any[]): string => {
     return selectedNode.id;
   }
   const parent = nodes.find((n) => n.id === selectedNode.parentId);
-  const isController = parent?.type === 'Deployment' || parent?.type === 'PodGroup';
+  const isController = parent?.type === 'Deployment' || parent?.type === 'ReplicaSet' || parent?.type === 'PodGroup';
   return isController ? selectedNode.parentId! : selectedNode.id;
 };
 

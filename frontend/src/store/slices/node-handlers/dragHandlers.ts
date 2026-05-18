@@ -84,7 +84,7 @@ const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos
  */
 const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, absPos: { x: number, y: number }, get: () => FlowState) => {
   const parent = nextNodes.find(n => n.id === oldParentId);
-  if (parent?.type === 'Deployment' && node.type === 'Pod') {
+  if ((parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
     const movingReplicas = getNodeData(node).replicas || 1;
     const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -movingReplicas, get);
     const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
@@ -104,7 +104,7 @@ const applyInternalMove = (node: Node, finalNode: Node, nextNodes: Node[], oldPa
   const parent = nextNodes.find(n => n.id === oldParentId);
   let resultNodes = [...nextNodes];
   
-  if (parent?.type === 'Deployment' && node.type === 'Pod') {
+  if ((parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
     const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, finalNode);
     const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
     resultNodes = [...filtered.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];

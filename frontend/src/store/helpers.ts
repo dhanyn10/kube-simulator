@@ -399,7 +399,7 @@ const performCollisionIteration = (nextNodes: Node[], padding: number, fixedNode
   for (const [parentId, siblingIds] of groups.entries()) {
     const parentNode = parentId ? nextNodes.find(n => n.id === parentId) : null;
     // Skip containers that manage their own internal layout (Pods in Deployments)
-    if (parentNode?.type === 'Deployment' || parentNode?.type === 'PodGroup') continue;
+    if (parentNode?.type === 'Deployment' || parentNode?.type === 'ReplicaSet' || parentNode?.type === 'PodGroup') continue;
 
     if (resolveCollisionsInGroup(siblingIds, nextNodes, padding, fixedNodeId)) {
       anyCollision = true;

@@ -113,4 +113,112 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     expect(standalonePods.length).toBe(2);
     expect(finalNodes.find(n => n.type === 'ReplicaSet')).toBeUndefined();
   });
+
+  it('increments ReplicaSet replicas when a child Pod in ReplicaSet is copy-pasted', () => {
+    const { addNode, copyNodes, pasteNodes } = useFlowStore.getState();
+
+    // 1. Create a standalone Pod
+    addNode('Pod', { x: 0, y: 0 });
+    let nodes = useFlowStore.getState().nodes;
+    const pod = nodes.find(n => n.type === 'Pod' && !n.parentId)!;
+
+    // 2. Select the Pod and copy-paste it to transform into a ReplicaSet
+    useFlowStore.setState({
+      nodes: useFlowStore.getState().nodes.map(n => n.id === pod.id ? { ...n, selected: true } : n)
+    });
+    copyNodes();
+    pasteNodes();
+
+    // 3. Verify it is now a ReplicaSet with 2 replicas
+    let currentNodes = useFlowStore.getState().nodes;
+    const replicaSet = currentNodes.find(n => n.type === 'ReplicaSet')!;
+    expect(replicaSet.data.replicas).toBe(2);
+
+    // 4. Select one of the child Pods inside the ReplicaSet
+    const childPod = currentNodes.find(n => n.type === 'Pod' && n.parentId === replicaSet.id)!;
+    useFlowStore.setState({
+      nodes: useFlowStore.getState().nodes.map(n => n.id === childPod.id ? { ...n, selected: true } : { ...n, selected: false })
+    });
+
+    // 5. Copy and paste again!
+    copyNodes();
+    pasteNodes();
+
+    // 6. Verify: ReplicaSet replicas should now be 3, and there should be 3 Pod nodes
+    const finalNodes = useFlowStore.getState().nodes;
+    const finalReplicaSet = finalNodes.find(n => n.type === 'ReplicaSet')!;
+    const podCount = finalNodes.filter(n => n.type === 'Pod' && n.parentId === finalReplicaSet.id).length;
+
+    expect(finalReplicaSet.data.replicas).toBe(3);
+    expect(podCount).toBe(3);
+  });
+
+  it('correctly scales ReplicaSet replicas up to 1000 via updateNodeData', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+
+    // 1. Create a standalone Pod
+    addNode('Pod', { x: 0, y: 0 });
+    let nodes = useFlowStore.getState().nodes;
+    const pod = nodes.find(n => n.type === 'Pod' && !n.parentId)!;
+
+    // 2. Scale standalone Pod to 5 replicas
+    updateNodeData(pod.id, { replicas: 5 });
+
+    // 3. Verify it transformed into a ReplicaSet with 5 replicas
+    let currentNodes = useFlowStore.getState().nodes;
+    const replicaSet = currentNodes.find(n => n.type === 'ReplicaSet')!;
+    expect(replicaSet).toBeDefined();
+    expect(replicaSet.data.replicas).toBe(5);
+
+    // 4. Update the replica count of the ReplicaSet to 1000
+    updateNodeData(replicaSet.id, { replicas: 1000 });
+
+    // 5. Verify: ReplicaSet has 1000 replicas
+    const finalNodes = useFlowStore.getState().nodes;
+    const finalReplicaSet = finalNodes.find(n => n.type === 'ReplicaSet')!;
+    expect(finalReplicaSet.data.replicas).toBe(1000);
+  });
+
+  it('correctly updates replicas when updating through the Pod configuration logic', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+
+    // 1. Create a standalone Pod
+    addNode('Pod', { x: 0, y: 0 });
+    let nodes = useFlowStore.getState().nodes;
+    const pod = nodes.find(n => n.type === 'Pod' && !n.parentId)!;
+
+    // 2. Simulating Pod Configuration sidebar: user increases replica of standalone Pod to 2.
+    // The target ID for standalone Pod (no parentId) is the Pod's ID.
+    updateNodeData(pod.id, { replicas: 2 });
+
+    // 3. Verify it is now a ReplicaSet with 2 replicas
+    let currentNodes = useFlowStore.getState().nodes;
+    const replicaSet = currentNodes.find(n => n.type === 'ReplicaSet')!;
+    expect(replicaSet).toBeDefined();
+    expect(replicaSet.data.replicas).toBe(2);
+
+    // 4. Now, the user selects one of the child Pods in the ReplicaSet.
+    // We simulate the Sidebar logic (getUpdateReplicasTargetId):
+    const childPod = currentNodes.find(n => n.type === 'Pod' && n.parentId === replicaSet.id)!;
+    const parent = currentNodes.find(n => n.id === childPod.parentId)!;
+    
+    // Ensure that it is correctly recognized as a controller (ReplicaSet)
+    const isController = parent.type === 'Deployment' || parent.type === 'ReplicaSet' || parent.type === 'PodGroup';
+    expect(isController).toBe(true);
+
+    const targetId = isController ? childPod.parentId! : childPod.id;
+    expect(targetId).toBe(replicaSet.id); // Must target the ReplicaSet ID!
+
+    // 5. The UI calls updateNodeData with the ReplicaSet ID and the new replica count (e.g., 3)
+    updateNodeData(targetId, { replicas: 3 });
+
+    // 6. Verify: ReplicaSet replicas is now 3, and there are 3 Pods
+    const finalNodes = useFlowStore.getState().nodes;
+    const finalReplicaSet = finalNodes.find(n => n.type === 'ReplicaSet')!;
+    const podCount = finalNodes.filter(n => n.type === 'Pod' && n.parentId === finalReplicaSet.id).length;
+
+    expect(finalReplicaSet.data.replicas).toBe(3);
+    expect(podCount).toBe(3);
+  });
 });
+

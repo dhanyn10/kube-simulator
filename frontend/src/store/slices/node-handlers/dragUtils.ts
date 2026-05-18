@@ -30,7 +30,7 @@ export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, node
  */
 const syncOldParentDeployment = (parentId: string, currentNodes: Node[], movingReplicas: number, get: () => FlowState) => {
   const oldParent = currentNodes.find(n => n.id === parentId);
-  if (oldParent?.type === 'Deployment') {
+  if (oldParent?.type === 'Deployment' || oldParent?.type === 'ReplicaSet') {
     const { updatedDeployment, laidOut } = syncDeployment(oldParent, currentNodes, -movingReplicas, get);
     const result = currentNodes.filter(n => n.parentId !== parentId || n.type !== 'Pod');
     return [...result.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
