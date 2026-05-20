@@ -14,6 +14,7 @@
 # OS generated files
 .DS_Store
 Thumbs.db
+build-wails.exe
 
 # Environment variables
 .env

@@ -43,6 +43,17 @@ func (a *App) startup(ctx context.Context) {
 		log.Fatalf("Failed to initialize project manager: %v", err)
 	}
 
+	// Adjust window size to 90% of screen height on startup
+	screens, err := wailsRuntime.ScreenGetAll(ctx)
+	if err == nil {
+		if height, ok := a.GetTargetScreenHeight(screens); ok {
+			newHeight := a.CalculateAppHeight(height)
+			currWidth, _ := wailsRuntime.WindowGetSize(ctx)
+			wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
+			wailsRuntime.WindowCenter(ctx)
+		}
+	}
+
 	// If a file was passed via CLI, read it and emit to frontend after a short delay
 	if a.initialFilePath != "" {
 		go func() {
@@ -53,6 +64,24 @@ func (a *App) startup(ctx context.Context) {
 			}
 		}()
 	}
+}
+
+// GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
+func (a *App) GetTargetScreenHeight(screens []wailsRuntime.Screen) (int, bool) {
+	if len(screens) == 0 {
+		return 0, false
+	}
+	for _, s := range screens {
+		if s.IsPrimary {
+			return s.Height, true
+		}
+	}
+	return screens[0].Height, true
+}
+
+// CalculateAppHeight returns 90% of the given screen height.
+func (a *App) CalculateAppHeight(screenHeight int) int {
+	return int(float64(screenHeight) * 0.9)
 }
 
 func (a *App) shutdown(ctx context.Context) {
