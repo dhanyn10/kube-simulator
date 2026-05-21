@@ -61,7 +61,6 @@ export interface FlowState {
   isMonitoringDetached: boolean;
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
   visibleWidgets: string[];
-  isCanvasConfigOpen: boolean;
   customImages: string[];
   addCustomImage: (image: string) => void;
   deleteCustomImage: (image: string) => void;
@@ -108,5 +107,4 @@ export interface FlowState {
   autoLayout: (direction?: 'LR' | 'TB') => void;
   setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
   toggleWidget: (widgetId: string) => void;
-  setCanvasConfigOpen: (open: boolean) => void;
 }

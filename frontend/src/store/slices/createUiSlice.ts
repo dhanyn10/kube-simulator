@@ -21,7 +21,6 @@ export interface UiSlice {
   isMonitoringDetached: boolean;
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
   visibleWidgets: string[];
-  isCanvasConfigOpen: boolean;
   customImages: string[];
   toggleColorMode: () => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
@@ -31,7 +30,6 @@ export interface UiSlice {
   setMonitoringDetached: (detached: boolean) => void;
   setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
   toggleWidget: (widgetId: string) => void;
-  setCanvasConfigOpen: (open: boolean) => void;
   addCustomImage: (image: string) => void;
   deleteCustomImage: (image: string) => void;
 }
@@ -136,7 +134,6 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isMonitoringDetached: false,
   systemResources: null,
   visibleWidgets: ['object-stats', 'inspector-btn', 'target-indicator'],
-  isCanvasConfigOpen: false,
   customImages: ['my-web-app:v1.0', 'backend-api:latest'],
   toggleColorMode: () => {
     const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
@@ -160,7 +157,6 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       ? state.visibleWidgets.filter(w => w !== widgetId)
       : [...state.visibleWidgets, widgetId]
   })),
-  setCanvasConfigOpen: (open) => set({ isCanvasConfigOpen: open }),
   addCustomImage: (image) => set((state: FlowState) => {
     if (state.customImages.includes(image)) return {};
     return { customImages: [...state.customImages, image] };

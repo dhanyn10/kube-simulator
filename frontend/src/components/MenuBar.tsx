@@ -101,7 +101,9 @@ export const MenuBar = ({
           {
             label: 'Canvas Settings...',
             icon: Activity,
-            onClick: () => useFlowStore.getState().setCanvasConfigOpen(true)
+            onClick: () => {
+              // Focus RightSidebar if needed or just let it stay there
+            }
           },
         ]
       },

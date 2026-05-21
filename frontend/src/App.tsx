@@ -13,8 +13,8 @@ import '@xyflow/react/dist/style.css';
 import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 
 import { Sidebar } from './components/Sidebar';
+import { RightSidebar } from './components/RightSidebar';
 import { MenuBar } from './components/MenuBar';
-import { ConfigPanel } from './components/ConfigPanel';
 import { AlignmentGuides } from './components/AlignmentGuides';
 import { HistoryPanel } from './components/HistoryPanel';
 import { YamlModal } from './components/YamlModal';
@@ -211,15 +211,12 @@ export default function App() {
         onOpenAbout={() => setIsAboutDialogOpen(true)}
       />
 
-      <CanvasConfigModal />
-
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
           onAddNode={addNode}
           isProjectOpen={isProjectOpen}
           setIsProjectOpen={setIsProjectOpen}
         />
-        <ConfigPanel />
 
         <main className="flex-1 relative canvas-grid">
         <ReactFlow
@@ -287,52 +284,8 @@ export default function App() {
             <HistoryPanel colorMode={colorMode} />
           </Panel>
 
-          {/* Right Info Panel */}
+          {/* Right Info Panel (Floating widgets moved to RightSidebar) */}
           <Panel position="top-right" className="p-4 flex flex-col gap-3 items-end">
-            {visibleWidgets.includes('hardware-budget') && (
-              <div className="relative group/widget">
-                <ResourceBudget />
-                <button
-                  onClick={() => toggleWidget('hardware-budget')}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
-                >
-                  <CloseIcon size={10} />
-                </button>
-              </div>
-            )}
-
-            {visibleWidgets.includes('object-stats') && (
-              <div className="flex gap-2 relative group/widget">
-                <span className={cn('px-2.5 py-1 rounded text-[10px] font-mono shadow-xl', colorMode === 'dark' ? 'bg-slate-800 border border-slate-700' : 'bg-slate-200 border border-slate-300 text-slate-700')}>
-                  objects: {nodes.length}
-                </span>
-                <button
-                  onClick={() => toggleWidget('object-stats')}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
-                >
-                  <CloseIcon size={10} />
-                </button>
-              </div>
-            )}
-
-            {visibleWidgets.includes('inspector-btn') && (
-              <div className="relative group/widget">
-                <button
-                  onClick={handleExport}
-                  className={cn('px-4 py-1.5 rounded text-[10px] uppercase font-bold flex items-center gap-2 transition-all shadow-2xl', colorMode === 'dark' ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700' : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-700')}
-                >
-                  <FileCode size={12} className={colorMode === 'dark' ? 'text-blue-400' : 'text-blue-600'} />
-                  Inspector
-                </button>
-                <button
-                  onClick={() => toggleWidget('inspector-btn')}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
-                >
-                  <CloseIcon size={10} />
-                </button>
-              </div>
-            )}
-
             {visibleWidgets.includes('target-indicator') && activeDeploymentId && (
               <div className="relative group/widget">
                 <div className={cn('mt-1 px-3 py-1.5 border rounded-md flex items-center gap-2 animate-pulse', colorMode === 'dark' ? 'bg-violet-500/10 border-violet-500/50' : 'bg-violet-200/30 border-violet-400/50')}>
@@ -380,6 +333,8 @@ export default function App() {
           {/* Render the AboutDialog */}
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
         </main>
+
+        <RightSidebar onExportYaml={handleExport} />
       </div>
     </div>
   );
