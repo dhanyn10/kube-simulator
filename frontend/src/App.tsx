@@ -285,24 +285,7 @@ export default function App() {
           </Panel>
 
           {/* Right Info Panel (Floating widgets moved to RightSidebar) */}
-          <Panel position="top-right" className="p-4 flex flex-col gap-3 items-end">
-            {visibleWidgets.includes('target-indicator') && activeDeploymentId && (
-              <div className="relative group/widget">
-                <div className={cn('mt-1 px-3 py-1.5 border rounded-md flex items-center gap-2 animate-pulse', colorMode === 'dark' ? 'bg-violet-500/10 border-violet-500/50' : 'bg-violet-200/30 border-violet-400/50')}>
-                  <div className={cn('w-1.5 h-1.5 rounded-full', colorMode === 'dark' ? 'bg-violet-500' : 'bg-violet-600')} />
-                  <span className={cn('text-[9px] font-bold uppercase tracking-wider', colorMode === 'dark' ? 'text-violet-400' : 'text-violet-700')}>
-                    Target: {nodes.find((n) => n.id === activeDeploymentId)?.data.label as string}
-                  </span>
-                </div>
-                <button
-                  onClick={() => toggleWidget('target-indicator')}
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/widget:opacity-100 transition-opacity shadow-lg z-30"
-                >
-                  <CloseIcon size={10} />
-                </button>
-              </div>
-            )}
-          </Panel>
+          <Panel position="top-right" className="p-4 flex flex-col gap-3 items-end" />
         </ReactFlow>
 
           {isYamlOpen && (

@@ -98,13 +98,6 @@ export const MenuBar = ({
             onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
           },
           { type: 'separator' },
-          {
-            label: 'Canvas Settings...',
-            icon: Activity,
-            onClick: () => {
-              // Focus RightSidebar if needed or just let it stay there
-            }
-          },
         ]
       },
       {

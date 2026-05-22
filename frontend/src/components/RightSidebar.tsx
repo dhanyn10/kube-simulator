@@ -103,6 +103,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
   const selectedNode = nodes.find(n => n.id === configuringNodeId);
   const selectedEdge = edges.find(e => e.id === configuringEdgeId);
+  const activeDeploymentId = useFlowStore((state) => state.activeDeploymentId);
   const isElementSelected = !!selectedNode || !!selectedEdge;
 
   const canvasWidgets = [
@@ -178,6 +179,53 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain custom-scrollbar">
+        {/* Active Widgets Panel */}
+        {(visibleWidgets.includes('object-stats') || visibleWidgets.includes('inspector-btn') || (visibleWidgets.includes('target-indicator') && activeDeploymentId)) && (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {visibleWidgets.includes('object-stats') && (
+                <div className={cn(
+                  "px-2 py-1 rounded-md text-[9px] font-mono border flex items-center gap-1.5",
+                  colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600"
+                )}>
+                  <Info size={10} className="text-blue-500" />
+                  OBJECTS: {nodes.length}
+                </div>
+              )}
+
+              {visibleWidgets.includes('inspector-btn') && (
+                <button
+                  onClick={onExportYaml}
+                  className={cn(
+                    "px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1.5 transition-colors",
+                    colorMode === 'dark'
+                      ? "bg-slate-800 border-slate-700 text-blue-400 hover:bg-slate-700"
+                      : "bg-slate-100 border-slate-200 text-blue-600 hover:bg-slate-200"
+                  )}
+                >
+                  <FileCode size={10} />
+                  Live YAML
+                </button>
+              )}
+            </div>
+
+            {visibleWidgets.includes('target-indicator') && activeDeploymentId && (
+              <div className={cn(
+                "px-3 py-1.5 border rounded-lg flex items-center gap-2 animate-pulse",
+                colorMode === 'dark' ? "bg-violet-500/10 border-violet-500/30" : "bg-violet-50 border-violet-200"
+              )}>
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                <span className={cn(
+                  "text-[9px] font-bold uppercase tracking-wider truncate",
+                  colorMode === 'dark' ? "text-violet-400" : "text-violet-700"
+                )}>
+                  Target: {nodes.find(n => n.id === activeDeploymentId)?.data.label}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {!isElementSelected ? (
           <div className="h-full flex flex-col items-center justify-center">
             <div className={cn(
