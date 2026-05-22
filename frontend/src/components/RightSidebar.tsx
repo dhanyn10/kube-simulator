@@ -109,7 +109,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const canvasWidgets = [
     { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
     { id: 'object-stats', label: 'Object Statistics', icon: Info },
-    { id: 'inspector-btn', label: 'YAML Inspector', icon: FileCode },
     { id: 'target-indicator', label: 'Target Indicator', icon: Maximize },
   ];
 
@@ -180,7 +179,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain custom-scrollbar">
         {/* Active Widgets Panel */}
-        {(visibleWidgets.includes('object-stats') || visibleWidgets.includes('inspector-btn') || (visibleWidgets.includes('target-indicator') && activeDeploymentId)) && (
+        {(visibleWidgets.includes('object-stats') || (visibleWidgets.includes('target-indicator') && activeDeploymentId)) && (
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap gap-2">
               {visibleWidgets.includes('object-stats') && (
@@ -191,21 +190,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
                   <Info size={10} className="text-blue-500" />
                   OBJECTS: {nodes.length}
                 </div>
-              )}
-
-              {visibleWidgets.includes('inspector-btn') && (
-                <button
-                  onClick={onExportYaml}
-                  className={cn(
-                    "px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1.5 transition-colors",
-                    colorMode === 'dark'
-                      ? "bg-slate-800 border-slate-700 text-blue-400 hover:bg-slate-700"
-                      : "bg-slate-100 border-slate-200 text-blue-600 hover:bg-slate-200"
-                  )}
-                >
-                  <FileCode size={10} />
-                  Live YAML
-                </button>
               )}
             </div>
 
@@ -256,7 +240,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
             </div>
 
             <div className={cn(
-              "p-4 rounded-xl border",
+              "p-4 rounded-xl border min-h-[300px] resize-y overflow-auto custom-scrollbar",
               colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/30 border-slate-100"
             )}>
               {selectedEdge ? (
