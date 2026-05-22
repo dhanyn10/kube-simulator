@@ -178,6 +178,15 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain custom-scrollbar">
+        {visibleWidgets.includes('hardware-budget') && (
+          <div className={cn(
+            "p-4 rounded-xl border animate-in fade-in slide-in-from-top-4 duration-300",
+            colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/30 border-slate-100"
+          )}>
+            <ResourceBudget />
+          </div>
+        )}
+
         {/* Active Widgets Panel */}
         {(visibleWidgets.includes('object-stats') || (visibleWidgets.includes('target-indicator') && activeDeploymentId)) && (
           <div className="flex flex-col gap-2">
@@ -210,19 +219,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           </div>
         )}
 
-        {!isElementSelected ? (
-          <div className="h-full flex flex-col items-center justify-center">
-            <div className={cn(
-              "p-10 border-2 border-dashed rounded-2xl text-center max-w-[200px]",
-              colorMode === 'dark' ? "border-slate-800 text-slate-700" : "border-slate-100 text-slate-300"
-            )}>
-              <MousePointer2 size={32} className="mx-auto mb-4 opacity-50" />
-              <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
-                Select an element to configure
-              </p>
-            </div>
-          </div>
-        ) : (
+        {isElementSelected && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
               <div className={cn(
@@ -253,11 +250,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
         )}
       </div>
 
-      {visibleWidgets.includes('hardware-budget') && (
-        <div className={cn("p-4 border-t shrink-0", colorMode === 'dark' ? "border-slate-950 bg-slate-950/20" : "border-slate-100 bg-slate-50/50")}>
-          <ResourceBudget />
-        </div>
-      )}
     </div>
   );
 };

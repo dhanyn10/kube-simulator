@@ -133,7 +133,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isMonitoringOpen: false,
   isMonitoringDetached: false,
   systemResources: null,
-  visibleWidgets: ['object-stats', 'target-indicator'],
+  visibleWidgets: ['hardware-budget', 'object-stats', 'target-indicator'],
   customImages: ['my-web-app:v1.0', 'backend-api:latest'],
   toggleColorMode: () => {
     const newMode = get().colorMode === 'dark' ? 'light' : 'dark';
