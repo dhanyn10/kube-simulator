@@ -96,7 +96,8 @@ test.describe('ConfigMap and Secret', () => {
     // Wait for state update
     await page.waitForTimeout(500);
 
-    await page.getByRole('button', { name: 'Inspector' }).click();
+    await page.getByText('Inspector', { exact: true }).click();
+    await page.getByText('Open YAML Inspector').click();
 
     const pre = page.locator('pre');
     await expect(pre).toContainText('kind: ConfigMap');
