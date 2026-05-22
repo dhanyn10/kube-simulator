@@ -1,21 +1,94 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Eye,
   FileCode,
-  ChevronDown,
-  ChevronRight,
   Check,
   Activity,
   Info,
   Maximize,
-  MousePointer2
+  MousePointer2,
+  ChevronDown,
+  Layout
 } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { NodeConfig } from './NodeConfig';
 import { EdgeConfig } from './EdgeConfig';
 import { ResourceBudget } from './ResourceBudget';
+
+interface SidebarDropdownProps {
+  label: string;
+  icon: any;
+  items: { label: string; icon?: any; checked?: boolean; onClick: () => void }[];
+  colorMode: 'dark' | 'light';
+  align?: 'left' | 'right';
+}
+
+const SidebarDropdown = ({ label, icon: Icon, items, colorMode, align = 'left' }: SidebarDropdownProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors",
+          colorMode === 'dark'
+            ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            : "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
+          isOpen && (colorMode === 'dark' ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700")
+        )}
+      >
+        <Icon size={12} />
+        {label}
+        <ChevronDown size={10} className={cn("transition-transform", isOpen && "rotate-180")} />
+      </button>
+
+      {isOpen && (
+        <div className={cn(
+          "absolute top-full mt-1 w-48 rounded-lg shadow-xl border py-1 z-[100] animate-in fade-in zoom-in-95 duration-100",
+          align === 'right' ? "right-0" : "left-0",
+          colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+        )}>
+          {items.map((item, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                item.onClick();
+                // Don't close if it's a toggle
+                if (typeof item.checked !== 'boolean') setIsOpen(false);
+              }}
+              className={cn(
+                "w-full px-3 py-1.5 text-[10px] flex items-center justify-between transition-colors text-left",
+                colorMode === 'dark'
+                  ? "hover:bg-slate-800 text-slate-300 hover:text-white"
+                  : "hover:bg-slate-50 text-slate-700 hover:text-blue-700"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {item.icon && <item.icon size={12} className="opacity-70" />}
+                <span className="font-medium">{item.label}</span>
+              </div>
+              {item.checked && <Check size={12} className="text-blue-500" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -24,180 +97,138 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
   const configuringEdgeId = useFlowStore((state) => state.configuringEdgeId);
-  const setConfiguringNodeId = useFlowStore((state) => state.setConfiguringNodeId);
-  const setConfiguringEdgeId = useFlowStore((state) => state.setConfiguringEdgeId);
 
   const visibleWidgets = useFlowStore((state) => state.visibleWidgets);
   const toggleWidget = useFlowStore((state) => state.toggleWidget);
-
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    config: true,
-    view: true,
-    inspector: false,
-  });
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
 
   const selectedNode = nodes.find(n => n.id === configuringNodeId);
   const selectedEdge = edges.find(e => e.id === configuringEdgeId);
   const isElementSelected = !!selectedNode || !!selectedEdge;
 
-  const widgets = [
+  const canvasWidgets = [
     { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
     { id: 'object-stats', label: 'Object Statistics', icon: Info },
     { id: 'inspector-btn', label: 'YAML Inspector', icon: FileCode },
     { id: 'target-indicator', label: 'Target Indicator', icon: Maximize },
   ];
 
+  const getElementSettings = () => {
+    if (!selectedNode) return [];
+
+    const settings: { label: string; checked: boolean; onClick: () => void }[] = [];
+    const data = selectedNode.data;
+    const displaySettings = data.displaySettings || {};
+
+    if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
+        const toggle = (field: string) => {
+            const current = displaySettings[field] !== false;
+            const updateNodeData = useFlowStore.getState().updateNodeData;
+            updateNodeData(selectedNode.id, {
+                displaySettings: { ...displaySettings, [field]: !current }
+            });
+        };
+
+        settings.push({ label: 'Show Resources', checked: displaySettings.resources !== false, onClick: () => toggle('resources') });
+        settings.push({ label: 'Show Image', checked: displaySettings.image !== false, onClick: () => toggle('image') });
+        settings.push({ label: 'Show Web Server', checked: displaySettings.webserver !== false, onClick: () => toggle('webserver') });
+        settings.push({ label: 'Show Runtime', checked: displaySettings.runtime !== false, onClick: () => toggle('runtime') });
+    }
+
+    return settings;
+  };
+
   return (
     <div className={cn(
-      "w-64 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden",
+      "w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden",
       colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
     )}>
-      {/* Header */}
-      <div className={cn("p-5 border-b", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
-        <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
-          Inspector & Config
-        </p>
+      {/* Top Menu Bar */}
+      <div className={cn(
+        "h-10 border-b flex items-center px-3 justify-between shrink-0",
+        colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50/50 border-slate-200"
+      )}>
+        <div className="flex items-center gap-1">
+          <SidebarDropdown
+            label="Canvas"
+            icon={Eye}
+            colorMode={colorMode}
+            align="left"
+            items={canvasWidgets.map(w => ({
+              label: w.label,
+              icon: w.icon,
+              checked: visibleWidgets.includes(w.id),
+              onClick: () => toggleWidget(w.id)
+            }))}
+          />
+          <SidebarDropdown
+            label="Inspector"
+            icon={FileCode}
+            colorMode={colorMode}
+            align="left"
+            items={[
+              { label: 'Open YAML Inspector', icon: FileCode, onClick: onExportYaml }
+            ]}
+          />
+        </div>
+
+        {isElementSelected && getElementSettings().length > 0 && (
+          <SidebarDropdown
+            label="Settings"
+            icon={Layout}
+            colorMode={colorMode}
+            align="right"
+            items={getElementSettings()}
+          />
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-4 overscroll-contain custom-scrollbar">
-
-        {/* Element Configuration Section */}
-        <section>
-          <button
-            onClick={() => toggleSection('config')}
-            className={cn(
-              "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
-              colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <Settings size={12} />
-              Configuration
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain custom-scrollbar">
+        {!isElementSelected ? (
+          <div className="h-full flex flex-col items-center justify-center">
+            <div className={cn(
+              "p-10 border-2 border-dashed rounded-2xl text-center max-w-[200px]",
+              colorMode === 'dark' ? "border-slate-800 text-slate-700" : "border-slate-100 text-slate-300"
+            )}>
+              <MousePointer2 size={32} className="mx-auto mb-4 opacity-50" />
+              <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                Select an element to configure
+              </p>
             </div>
-            {expandedSections.config ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </button>
-
-          <div className={cn(
-            "mt-2 overflow-hidden transition-all",
-            expandedSections.config ? "max-h-[2000px] opacity-100 visible" : "max-h-0 opacity-0 invisible"
-          )}>
-            {!isElementSelected ? (
-              <div className={cn(
-                "p-8 border-2 border-dashed rounded-xl text-center",
-                colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-100 text-slate-400"
-              )}>
-                <MousePointer2 size={24} className="mx-auto mb-2 opacity-20" />
-                <p className="text-[10px] font-medium">Select an element to configure</p>
-              </div>
-            ) : (
-              <div className={cn(
-                "p-3 rounded-xl border",
-                colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50/50 border-slate-100"
-              )}>
-                {selectedEdge ? (
-                  <EdgeConfig selectedEdge={selectedEdge} />
-                ) : (
-                  <NodeConfig selectedNode={selectedNode} />
-                )}
-              </div>
-            )}
           </div>
-        </section>
-
-        {/* View Settings Section */}
-        <section>
-          <button
-            onClick={() => toggleSection('view')}
-            className={cn(
-              "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
-              colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <Eye size={12} />
-              Canvas View
-            </div>
-            {expandedSections.view ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </button>
-
-          <div className={cn(
-            "mt-2 space-y-1 overflow-hidden transition-all",
-            expandedSections.view ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible"
-          )}>
-            {widgets.map((widget) => (
-              <button
-                key={widget.id}
-                onClick={() => toggleWidget(widget.id)}
-                className={cn(
-                  "w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors group",
-                  colorMode === 'dark' ? "hover:bg-slate-800 text-slate-300" : "hover:bg-slate-50 text-slate-600"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "p-1.5 rounded transition-colors",
-                    visibleWidgets.includes(widget.id)
-                      ? "bg-blue-500 text-white"
-                      : (colorMode === 'dark' ? "bg-slate-800 text-slate-500" : "bg-slate-100 text-slate-400")
-                  )}>
-                    <widget.icon size={14} />
-                  </div>
-                  <span className="text-xs font-medium">{widget.label}</span>
-                </div>
-                {visibleWidgets.includes(widget.id) && <Check size={14} className="text-blue-500" />}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Inspector Section */}
-        <section>
-          <button
-            onClick={() => toggleSection('inspector')}
-            className={cn(
-              "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
-              colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <FileCode size={12} />
-              Inspector
-            </div>
-            {expandedSections.inspector ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </button>
-
-          <div className={cn(
-            "mt-2 overflow-hidden transition-all",
-            expandedSections.inspector ? "max-h-[500px] opacity-100 visible" : "max-h-0 opacity-0 invisible"
-          )}>
-            <button
-              onClick={onExportYaml}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
-                colorMode === 'dark'
-                  ? "bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200"
-                  : "bg-white border-slate-200 hover:bg-slate-50 text-slate-800"
-              )}
-            >
-              <div className="p-2 rounded-lg bg-blue-500 text-white shadow-lg shadow-blue-500/20">
-                <FileCode size={16} />
+        ) : (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
+              <div className={cn(
+                "p-2 rounded-lg",
+                colorMode === 'dark' ? "bg-slate-800 text-blue-400" : "bg-slate-100 text-blue-600"
+              )}>
+                <Settings size={16} />
               </div>
               <div>
-                <div className="text-xs font-bold">Open YAML Inspector</div>
-                <p className="text-[10px] text-slate-500">View live export for selected nodes</p>
+                <h3 className="text-xs font-bold uppercase tracking-wider">
+                  {selectedEdge ? 'Edge' : selectedNode?.type} Config
+                </h3>
+                <p className="text-[9px] text-slate-500 font-medium">Modify element properties</p>
               </div>
-            </button>
-          </div>
-        </section>
+            </div>
 
+            <div className={cn(
+              "p-4 rounded-xl border",
+              colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/30 border-slate-100"
+            )}>
+              {selectedEdge ? (
+                <EdgeConfig selectedEdge={selectedEdge} />
+              ) : (
+                <NodeConfig selectedNode={selectedNode} />
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {visibleWidgets.includes('hardware-budget') && (
-        <div className={cn("p-4 border-t shrink-0", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
+        <div className={cn("p-4 border-t shrink-0", colorMode === 'dark' ? "border-slate-950 bg-slate-950/20" : "border-slate-100 bg-slate-50/50")}>
           <ResourceBudget />
         </div>
       )}
