@@ -96,7 +96,7 @@ test.describe('ConfigMap and Secret', () => {
     // Wait for state update
     await page.waitForTimeout(500);
 
-    await page.getByText('Inspector', { exact: true }).click();
+    await page.getByText('Canvas', { exact: true }).click();
     await page.getByText('Open YAML Inspector').click();
 
     const pre = page.locator('pre');

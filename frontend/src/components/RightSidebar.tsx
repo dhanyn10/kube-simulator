@@ -153,19 +153,13 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
             icon={Eye}
             colorMode={colorMode}
             align="left"
-            items={canvasWidgets.map(w => ({
-              label: w.label,
-              icon: w.icon,
-              checked: visibleWidgets.includes(w.id),
-              onClick: () => toggleWidget(w.id)
-            }))}
-          />
-          <SidebarDropdown
-            label="Inspector"
-            icon={FileCode}
-            colorMode={colorMode}
-            align="left"
             items={[
+              ...canvasWidgets.map(w => ({
+                label: w.label,
+                icon: w.icon,
+                checked: visibleWidgets.includes(w.id),
+                onClick: () => toggleWidget(w.id)
+              })),
               { label: 'Open YAML Inspector', icon: FileCode, onClick: onExportYaml }
             ]}
           />
