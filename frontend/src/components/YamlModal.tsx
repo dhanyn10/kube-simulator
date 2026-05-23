@@ -43,12 +43,12 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
 
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Main YAML Viewer */}
-          <div className={cn('flex-1 p-6 font-mono text-[11px] leading-relaxed overflow-auto select-all', colorMode === 'dark' ? 'bg-slate-950 text-emerald-500/90' : 'bg-slate-50 text-emerald-700/90')}>
+          <div className={cn('flex-1 p-6 font-mono text-[11px] leading-relaxed overflow-auto select-all custom-scrollbar', colorMode === 'dark' ? 'bg-slate-950 text-emerald-500/90' : 'bg-slate-50 text-emerald-700/90')}>
             <pre>{content || '# No resources generated yet.'}</pre>
           </div>
 
           {/* Guidance Section */}
-          <div className={cn('w-full md:w-64 border-l p-4 flex flex-col gap-4 overflow-auto', colorMode === 'dark' ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50/50 border-slate-200')}>
+          <div className={cn('w-full md:w-64 border-l p-4 flex flex-col gap-4 overflow-auto custom-scrollbar', colorMode === 'dark' ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50/50 border-slate-200')}>
             <h3 className={cn('text-[10px] font-bold uppercase tracking-wider flex items-center gap-2', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>
               <CheckCircle2 size={12} className="text-emerald-500" />
               Deployment Guide
