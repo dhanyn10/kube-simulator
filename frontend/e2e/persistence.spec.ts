@@ -19,7 +19,7 @@ test.describe('Persistence & Projects', () => {
     await page.getByPlaceholder('Enter new architecture name...').fill(projectName);
     await page.getByRole('button', { name: 'Save New' }).click();
     await expect(page.getByText(projectName)).toBeVisible();
-    await expect(page.getByText('Active')).toBeVisible();
+    await expect(page.locator('span').filter({ hasText: /^Active$/ })).toBeVisible();
 
     // 3. Reload and Load
     // Try to close any open panels (Manager or Config)

@@ -13,9 +13,11 @@ test.describe('Workload Resource Validation', () => {
     const podNode = page.locator('.react-flow__node-Pod');
     await expect(podNode).toBeVisible();
 
-    // Open Config Panel
-    await podNode.hover();
-    await podNode.locator('button:has(svg.lucide-settings)').click();
+    // Open Config Panel by clicking the node
+    await podNode.click();
+
+    // Verify RightSidebar has the config
+    await expect(page.locator('h3').filter({ hasText: /POD CONFIG/i })).toBeVisible();
 
     // Open Advanced Options to reveal Resource Settings
     await page.getByText('Advanced Options').click();

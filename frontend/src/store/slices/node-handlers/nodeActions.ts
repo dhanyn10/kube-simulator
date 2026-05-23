@@ -179,8 +179,12 @@ export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () =>
   addNode: addNodeImpl(set, get),
   deleteNodes: deleteNodesImpl(set, get),
   updateNodeData: updateNodeDataImpl(set, get),
-  onNodeClick: (_event: MouseEvent, node: Node) => set({ activeDeploymentId: node.type === 'Deployment' ? node.id : null }),
-  onPaneClick: () => set({ activeDeploymentId: null }),
+  onNodeClick: (_event: MouseEvent, node: Node) => set({
+    activeDeploymentId: node.type === 'Deployment' ? node.id : null,
+    configuringNodeId: node.id,
+    configuringEdgeId: null
+  }),
+  onPaneClick: () => set({ activeDeploymentId: null, configuringNodeId: null, configuringEdgeId: null }),
   groupNodes: (ids: string[]) => set({
     nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
     lastActionId: `group-${Date.now()}`, lastActionName: 'Group Elements'

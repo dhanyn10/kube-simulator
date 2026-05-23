@@ -13,10 +13,10 @@ test.describe('ConfigMap and Secret', () => {
     const configMapNode = page.locator('.react-flow__node-ConfigMap');
     await expect(configMapNode).toBeVisible();
 
-    await configMapNode.hover();
-    const settingsBtn = configMapNode.locator('button:has(svg.lucide-settings)');
-    await expect(settingsBtn).toBeVisible();
-    await settingsBtn.click();
+    await configMapNode.click();
+
+    // Verify RightSidebar has the config
+    await expect(page.locator('h3').filter({ hasText: /CONFIGMAP CONFIG/i })).toBeVisible();
 
     const addItemBtn = page.locator('button:has-text("Add Item")');
     await expect(addItemBtn).toBeVisible();
@@ -39,8 +39,10 @@ test.describe('ConfigMap and Secret', () => {
     const secretNode = page.locator('.react-flow__node-Secret');
     await expect(secretNode).toBeVisible();
 
-    await secretNode.hover();
-    await secretNode.locator('button:has(svg.lucide-settings)').click();
+    await secretNode.click();
+
+    // Verify RightSidebar has the config
+    await expect(page.locator('h3').filter({ hasText: /SECRET CONFIG/i })).toBeVisible();
 
     await page.locator('button:has-text("Add Item")').click();
     await page.getByPlaceholder('KEY').first().fill('SECRET_KEY');
@@ -96,7 +98,7 @@ test.describe('ConfigMap and Secret', () => {
     // Wait for state update
     await page.waitForTimeout(500);
 
-    await page.getByText('Canvas', { exact: true }).click();
+    await page.locator('button').filter({ hasText: /CANVAS/i }).click();
     await page.getByText('Open YAML Inspector').click();
 
     const pre = page.locator('pre');
