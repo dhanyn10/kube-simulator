@@ -20,78 +20,6 @@ import { ConfigSection } from './ConfigUI';
 
 type TabType = 'canvas' | 'settings';
 
-interface DisplaySettingsSectionProps {
-  selectedNode: any;
-  colorMode: 'dark' | 'light';
-}
-
-export const DisplaySettingsSection = ({ selectedNode, colorMode }: DisplaySettingsSectionProps) => {
-  if (!selectedNode) return null;
-
-  const data = selectedNode.data as any;
-  const displaySettings = data.displaySettings || {};
-
-  if (selectedNode.type !== 'Pod' && selectedNode.type !== 'Deployment') {
-    return null;
-  }
-
-  const toggle = (field: string) => {
-    const current = displaySettings[field] !== false;
-    const updateNodeData = useFlowStore.getState().updateNodeData;
-    updateNodeData(selectedNode.id, {
-      displaySettings: { ...displaySettings, [field]: !current }
-    });
-  };
-
-  const options = [
-    { key: 'resources', label: 'Show Resources' },
-    { key: 'image', label: 'Show Image' },
-    { key: 'webserver', label: 'Show Web Server' },
-    { key: 'runtime', label: 'Show Runtime' },
-  ];
-
-  const getOptionClassName = (optKey: string) => {
-    const isActive = displaySettings[optKey] !== false;
-    const isDark = colorMode === 'dark';
-
-    if (isActive) {
-      return isDark
-        ? "bg-blue-500/10 border-blue-500/50 text-blue-400"
-        : "bg-blue-50 border-blue-200 text-blue-600";
-    }
-
-    return isDark
-      ? "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
-      : "bg-white border-slate-200 text-slate-400 hover:border-slate-300";
-  };
-
-  return (
-    <ConfigSection
-      title="Display Settings"
-      icon={Monitor}
-    >
-      <div className="space-y-2 mt-2">
-        {options.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => toggle(opt.key)}
-            className={cn(
-              "w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider flex items-center justify-between transition-all",
-              getOptionClassName(opt.key)
-            )}
-          >
-            {opt.label}
-            <div className={cn(
-              "w-2 h-2 rounded-full transition-colors",
-              displaySettings[opt.key] !== false ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" : "bg-slate-700"
-            )} />
-          </button>
-        ))}
-      </div>
-    </ConfigSection>
-  );
-};
-
 interface CanvasWidgetsPanelProps {
   nodes: any[];
   colorMode: 'dark' | 'light';
@@ -209,8 +137,6 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
             )}
           </div>
 
-          {/* Display Settings */}
-          <DisplaySettingsSection selectedNode={selectedNode} colorMode={colorMode} />
         </>
       ) : (
         <div className="h-full flex flex-col items-center justify-center text-center space-y-4 pt-12 opacity-50">
@@ -231,11 +157,15 @@ interface SidebarTabBarProps {
   isCanvasDropdownOpen: boolean;
   setIsCanvasDropdownOpen: (open: boolean) => void;
   canvasDropdownRef: React.RefObject<HTMLDivElement | null>;
+  isSettingsDropdownOpen: boolean;
+  setIsSettingsDropdownOpen: (open: boolean) => void;
+  settingsDropdownRef: React.RefObject<HTMLDivElement | null>;
   canvasWidgets: any[];
   visibleWidgets: string[];
   toggleWidget: (id: string) => void;
   onExportYaml: () => void;
   colorMode: 'dark' | 'light';
+  selectedNode: any;
 }
 
 export const SidebarTabBar = ({
@@ -244,11 +174,15 @@ export const SidebarTabBar = ({
   isCanvasDropdownOpen,
   setIsCanvasDropdownOpen,
   canvasDropdownRef,
+  isSettingsDropdownOpen,
+  setIsSettingsDropdownOpen,
+  settingsDropdownRef,
   canvasWidgets,
   visibleWidgets,
   toggleWidget,
   onExportYaml,
-  colorMode
+  colorMode,
+  selectedNode
 }: SidebarTabBarProps) => {
   const getCanvasTabClassName = () => {
     const isCanvas = activeTab === 'canvas';
@@ -279,6 +213,34 @@ export const SidebarTabBar = ({
     }
     return isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600";
   };
+
+  const getSettingsDropdownToggleClassName = () => {
+    const isSettings = activeTab === 'settings';
+    const isDark = colorMode === 'dark';
+
+    if (isSettings) {
+      return isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-100 shadow-sm text-slate-900";
+    }
+    return isDark ? "text-slate-500 hover:text-slate-300 border-transparent" : "text-slate-400 hover:text-slate-600 border-transparent";
+  };
+
+  const isWorkload = selectedNode?.type === 'Pod' || selectedNode?.type === 'Deployment';
+  const displaySettings = selectedNode?.data?.displaySettings || {};
+
+  const toggleDisplaySetting = (field: string) => {
+    const current = displaySettings[field] !== false;
+    const updateNodeData = useFlowStore.getState().updateNodeData;
+    updateNodeData(selectedNode.id, {
+      displaySettings: { ...displaySettings, [field]: !current }
+    });
+  };
+
+  const displayOptions = [
+    { key: 'resources', label: 'Show Resources' },
+    { key: 'image', label: 'Show Image' },
+    { key: 'webserver', label: 'Show Web Server' },
+    { key: 'runtime', label: 'Show Runtime' },
+  ];
 
   return (
     <div className={cn(
@@ -351,16 +313,57 @@ export const SidebarTabBar = ({
         )}
       </div>
 
-      <button
-        onClick={() => setActiveTab('settings')}
-        className={cn(
-          "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-          getSettingsTabClassName()
+      <div className="flex-1 flex h-8 mx-1 relative" ref={settingsDropdownRef}>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 rounded-l-md text-[10px] font-bold uppercase tracking-wider transition-all",
+            getSettingsTabClassName(),
+            !isWorkload && "rounded-r-md"
+          )}
+        >
+          <Layout size={14} />
+          Settings
+        </button>
+        {isWorkload && (
+          <button
+            data-testid="settings-dropdown-toggle"
+            onClick={() => setIsSettingsDropdownOpen(!isSettingsDropdownOpen)}
+            className={cn(
+              "px-1.5 flex items-center justify-center border-l rounded-r-md transition-all",
+              getSettingsDropdownToggleClassName()
+            )}
+          >
+            <ChevronDown size={12} className={cn("transition-transform", isSettingsDropdownOpen && "rotate-180")} />
+          </button>
         )}
-      >
-        <Layout size={14} />
-        Settings
-      </button>
+
+        {isSettingsDropdownOpen && isWorkload && (
+          <div className={cn(
+            "absolute top-full right-0 mt-1 w-56 rounded-lg shadow-xl border py-1 z-[100] animate-in fade-in zoom-in-95 duration-100",
+            colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+          )}>
+            {displayOptions.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => toggleDisplaySetting(opt.key)}
+                className={cn(
+                  "w-full px-3 py-1.5 text-[10px] flex items-center justify-between transition-colors text-left",
+                  colorMode === 'dark'
+                    ? "hover:bg-slate-800 text-slate-300 hover:text-white"
+                    : "hover:bg-slate-50 text-slate-700 hover:text-blue-700"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Monitor size={12} className="opacity-70" />
+                  <span className="font-medium uppercase tracking-wider">{opt.label}</span>
+                </div>
+                {displaySettings[opt.key] !== false && <Check size={12} className="text-blue-500" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -382,7 +385,9 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
   const [activeTab, setActiveTab] = useState<TabType>('canvas');
   const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
+  const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false);
   const canvasDropdownRef = useRef<HTMLDivElement>(null);
+  const settingsDropdownRef = useRef<HTMLDivElement>(null);
 
   // Switch to settings tab when a new element is selected
   useEffect(() => {
@@ -391,11 +396,14 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
     }
   }, [isElementSelected, configuringNodeId, configuringEdgeId]);
 
-  // Handle click outside for canvas dropdown
+  // Handle click outside for dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (canvasDropdownRef.current && !canvasDropdownRef.current.contains(event.target as Node)) {
         setIsCanvasDropdownOpen(false);
+      }
+      if (settingsDropdownRef.current && !settingsDropdownRef.current.contains(event.target as Node)) {
+        setIsSettingsDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -418,11 +426,15 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
         isCanvasDropdownOpen={isCanvasDropdownOpen}
         setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
         canvasDropdownRef={canvasDropdownRef}
+        isSettingsDropdownOpen={isSettingsDropdownOpen}
+        setIsSettingsDropdownOpen={setIsSettingsDropdownOpen}
+        settingsDropdownRef={settingsDropdownRef}
         canvasWidgets={canvasWidgets}
         visibleWidgets={visibleWidgets}
         toggleWidget={toggleWidget}
         onExportYaml={onExportYaml}
         colorMode={colorMode}
+        selectedNode={selectedNode}
       />
 
       {/* Content Area */}
