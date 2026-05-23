@@ -20,19 +20,45 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
     });
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent focus:outline-none"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClose();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div
         className={cn('w-full max-w-2xl h-full max-h-[80vh] rounded shadow-2xl overflow-hidden flex flex-col', colorMode === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-300')}
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
       >
         <div className={cn('p-4 border-b flex items-center justify-between', colorMode === 'dark' ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50/50')}>
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <h2 className={cn('text-[10px] font-bold tracking-[0.2em] uppercase', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>
+            <h2 id="modal-title" className={cn('text-[10px] font-bold tracking-[0.2em] uppercase', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>
               Kubernetes Manifest Output
             </h2>
           </div>
