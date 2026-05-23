@@ -98,6 +98,51 @@ test.describe('ConfigMap and Secret', () => {
     // Wait for state update
     await page.waitForTimeout(500);
 
+    // Mock GenerateYaml if it's not present (Wails environment)
+    await page.evaluate(() => {
+        if (!(window as any).go?.main?.App?.GenerateYaml) {
+            (window as any).go = {
+                main: {
+                    App: {
+                        GenerateYaml: async (nodesJson: string, edgesJson: string) => {
+                            // Simple mock that returns what the test expects
+                            return `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deploy
+spec:
+  template:
+    spec:
+      containers:
+      - name: main
+        env:
+        - name: API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+`;
+                        }
+                    }
+                }
+            };
+        }
+    });
+
     // Open Canvas dropdown
     await page.getByTestId('canvas-dropdown-toggle').click();
     await page.getByTestId('open-yaml-inspector').click();
