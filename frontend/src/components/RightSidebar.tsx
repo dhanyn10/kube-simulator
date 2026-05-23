@@ -140,6 +140,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
             Canvas
           </button>
           <button
+            data-testid="canvas-dropdown-toggle"
             onClick={() => setIsCanvasDropdownOpen(!isCanvasDropdownOpen)}
             className={cn(
               "px-1.5 flex items-center justify-center border-l rounded-r-md transition-all",
@@ -176,6 +177,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
               ))}
               <div className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")} />
               <button
+                data-testid="open-yaml-inspector"
                 onClick={() => {
                   onExportYaml();
                   setIsCanvasDropdownOpen(false);
