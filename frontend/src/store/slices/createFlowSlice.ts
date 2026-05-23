@@ -84,17 +84,17 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const extraChanges: NodeChange[] = [];
 
     // Coordinating movement for grouped nodes
-    changes.forEach(change => {
-      if (change.type !== 'position' || !change.position) return;
+    for (const change of changes) {
+      if (change.type !== 'position' || !change.position) continue;
 
       const node = nodes.find(n => n.id === change.id);
-      if (!node?.data?.groupId) return;
+      if (!node?.data?.groupId) continue;
 
       const groupId = node.data.groupId;
       const dx = change.position.x - node.position.x;
       const dy = change.position.y - node.position.y;
 
-      if (dx === 0 && dy === 0) return;
+      if (dx === 0 && dy === 0) continue;
 
       // Find other group members not already in the change set
       const others = nodes.filter(n =>
@@ -103,7 +103,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
         !changes.some(c => c.type === 'position' && c.id === n.id)
       );
 
-      others.forEach(other => {
+      for (const other of others) {
         extraChanges.push({
           id: other.id,
           type: 'position',
@@ -112,8 +112,8 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
             y: other.position.y + dy
           }
         });
-      });
-    });
+      }
+    }
 
     set((state) => ({
       nodes: applyNodeChanges([...changes, ...extraChanges], state.nodes),
