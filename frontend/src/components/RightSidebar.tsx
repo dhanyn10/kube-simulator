@@ -224,7 +224,10 @@ export const SidebarTabBar = ({
         </button>
         <button
           data-testid="canvas-dropdown-toggle"
-          onClick={() => setIsCanvasDropdownOpen(!isCanvasDropdownOpen)}
+          onClick={() => {
+            setIsCanvasDropdownOpen(!isCanvasDropdownOpen);
+            setActiveTab('canvas');
+          }}
           className={cn(
             "px-1.5 flex items-center justify-center border-l rounded-r-md transition-all",
             getDropdownToggleClassName()
