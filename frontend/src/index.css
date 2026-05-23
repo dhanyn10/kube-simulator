@@ -41,7 +41,11 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 2px;
+  }
+
+  .light .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -49,15 +53,15 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-slate-700/50 hover:bg-slate-600 transition-colors;
+    @apply rounded-full transition-colors;
   }
 
   .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-700/50 hover:bg-slate-600;
+    @apply bg-slate-700/80 hover:bg-slate-500/80;
   }
 
   .light .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 hover:bg-slate-400;
+    @apply bg-slate-400 hover:bg-slate-500;
   }
 
   .traffic-line {
