@@ -65,7 +65,7 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
 
     // Give React Flow a moment to render and measure the new nodes
     setTimeout(() => {
-      fitView({ padding: 0.15, duration: 800 });
+      fitView({ padding: 0.1, duration: 800 });
     }, 150);
   };
 

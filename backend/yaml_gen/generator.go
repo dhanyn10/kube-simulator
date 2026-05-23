@@ -98,9 +98,9 @@ func sanitizeName(label string) string {
 }
 
 func findNodeByID(id string, nodes []k8s.FrontendNode) *k8s.FrontendNode {
-	for _, n := range nodes {
-		if n.ID == id {
-			return &n
+	for i := range nodes {
+		if nodes[i].ID == id {
+			return &nodes[i]
 		}
 	}
 	return nil

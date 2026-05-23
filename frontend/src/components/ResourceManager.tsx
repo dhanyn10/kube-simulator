@@ -542,7 +542,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     
     onClose();
     setTimeout(() => {
-      fitView({ padding: 0.2, duration: 800 });
+      fitView({ padding: 0.1, duration: 800 });
     }, 50);
   };
 

@@ -290,7 +290,7 @@ export default function App() {
             <button onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
               <Minus size={16} />
             </button>
-            <button onClick={() => fitView({ padding: 0.2, duration: 800 })} className={btnClass} title="Fit View">
+            <button onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
               <Maximize size={16} />
             </button>
             <HistoryPanel colorMode={colorMode} />

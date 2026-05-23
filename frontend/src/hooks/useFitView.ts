@@ -10,7 +10,7 @@ interface FitViewOptions {
 export const useFitView = () => {
   const { getNodes, getViewport, setViewport, fitView: rfFitView } = useReactFlow();
 
-  const customFitView = useCallback(({ padding = 0.1, duration = 800, maxZoom = 1.2 }: FitViewOptions = {}) => {
+  const customFitView = useCallback(({ padding = 0.05, duration = 800, maxZoom = 1.2 }: FitViewOptions = {}) => {
     const nodes = getNodes();
     if (nodes.length === 0) return;
 
