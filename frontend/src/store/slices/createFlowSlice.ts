@@ -81,38 +81,38 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onNodesChange: (changes: NodeChange[]) => {
     const { nodes } = get();
-    let extraChanges: NodeChange[] = [];
+    const extraChanges: NodeChange[] = [];
 
     // Coordinating movement for grouped nodes
     changes.forEach(change => {
-      if (change.type === 'position' && change.position) {
-        const node = nodes.find(n => n.id === change.id);
-        if (node?.data?.groupId) {
-          const groupId = node.data.groupId;
-          const dx = change.position.x - node.position.x;
-          const dy = change.position.y - node.position.y;
+      if (change.type !== 'position' || !change.position) return;
 
-          if (dx !== 0 || dy !== 0) {
-            // Find other group members not already in the change set
-            const others = nodes.filter(n => 
-              n.data?.groupId === groupId && 
-              n.id !== node.id && 
-              !changes.some(c => c.type === 'position' && c.id === n.id)
-            );
+      const node = nodes.find(n => n.id === change.id);
+      if (!node?.data?.groupId) return;
 
-            others.forEach(other => {
-              extraChanges.push({
-                id: other.id,
-                type: 'position',
-                position: {
-                  x: other.position.x + dx,
-                  y: other.position.y + dy
-                }
-              });
-            });
+      const groupId = node.data.groupId;
+      const dx = change.position.x - node.position.x;
+      const dy = change.position.y - node.position.y;
+
+      if (dx === 0 && dy === 0) return;
+
+      // Find other group members not already in the change set
+      const others = nodes.filter(n =>
+        n.data?.groupId === groupId &&
+        n.id !== node.id &&
+        !changes.some(c => c.type === 'position' && c.id === n.id)
+      );
+
+      others.forEach(other => {
+        extraChanges.push({
+          id: other.id,
+          type: 'position',
+          position: {
+            x: other.position.x + dx,
+            y: other.position.y + dy
           }
-        }
-      }
+        });
+      });
     });
 
     set((state) => ({

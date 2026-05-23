@@ -26,14 +26,14 @@ export const AlignmentGuides = () => {
       vertical: vertical.map((guide: any) => {
         const screenX = (guide.position ?? 0) * viewport.zoom + viewport.x;
         // If minY/maxY are provided, use them for segmented lines
-        const screenTop = guide.minY !== undefined ? guide.minY * viewport.zoom + viewport.y : 0;
-        const screenBottom = guide.maxY !== undefined ? guide.maxY * viewport.zoom + viewport.y : 10000;
+        const screenTop = typeof guide.minY === 'number' ? guide.minY * viewport.zoom + viewport.y : 0;
+        const screenBottom = typeof guide.maxY === 'number' ? guide.maxY * viewport.zoom + viewport.y : 10000;
         return { ...guide, screenX, screenTop, screenBottom };
       }),
       horizontal: horizontal.map((guide: any) => {
         const screenY = (guide.position ?? 0) * viewport.zoom + viewport.y;
-        const screenLeft = guide.minX !== undefined ? guide.minX * viewport.zoom + viewport.x : 0;
-        const screenRight = guide.maxX !== undefined ? guide.maxX * viewport.zoom + viewport.x : 10000;
+        const screenLeft = typeof guide.minX === 'number' ? guide.minX * viewport.zoom + viewport.x : 0;
+        const screenRight = typeof guide.maxX === 'number' ? guide.maxX * viewport.zoom + viewport.x : 10000;
         return { ...guide, screenY, screenLeft, screenRight };
       }),
     };

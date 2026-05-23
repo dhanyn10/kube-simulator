@@ -101,41 +101,7 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
       }
     >
       <div className="space-y-4">
-        {!showConfirm ? (
-          <div className="grid gap-3">
-            {scenarios.map((scenario) => (
-              <button
-                key={scenario.id}
-                onClick={() => handleSelectScenario(scenario)}
-                className={cn(
-                  "flex flex-col p-4 rounded-xl border transition-all text-left group relative",
-                  colorMode === 'dark'
-                    ? "bg-slate-800/40 border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60"
-                    : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
-                )}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {getLevelIcon(scenario.level)}
-                    <span className="font-bold text-sm uppercase tracking-tight">{scenario.name}</span>
-                  </div>
-                  <span className={cn(
-                    "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest",
-                    getLevelBg(scenario.level)
-                  )}>
-                    {scenario.level}
-                  </span>
-                </div>
-                <p className={cn(
-                  "text-xs leading-relaxed",
-                  colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
-                )}>
-                  {scenario.description}
-                </p>
-              </button>
-            ))}
-          </div>
-        ) : (
+        {showConfirm ? (
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
             <div className="p-4 bg-amber-500/10 rounded-full">
               <AlertCircle size={48} className="text-amber-500" />
@@ -168,6 +134,40 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
                 Confirm & Load
               </button>
             </div>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {scenarios.map((scenario) => (
+              <button
+                key={scenario.id}
+                onClick={() => handleSelectScenario(scenario)}
+                className={cn(
+                  "flex flex-col p-4 rounded-xl border transition-all text-left group relative",
+                  colorMode === 'dark'
+                    ? "bg-slate-800/40 border-slate-700 hover:border-blue-500/50 hover:bg-slate-800/60"
+                    : "bg-slate-50 border-slate-200 hover:border-blue-400 hover:bg-white"
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {getLevelIcon(scenario.level)}
+                    <span className="font-bold text-sm uppercase tracking-tight">{scenario.name}</span>
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-black px-2 py-0.5 rounded border uppercase tracking-widest",
+                    getLevelBg(scenario.level)
+                  )}>
+                    {scenario.level}
+                  </span>
+                </div>
+                <p className={cn(
+                  "text-xs leading-relaxed",
+                  colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
+                )}>
+                  {scenario.description}
+                </p>
+              </button>
+            ))}
           </div>
         )}
       </div>
