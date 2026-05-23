@@ -35,6 +35,10 @@ export const MenuBar = ({
   const isMonitoringOpen = useFlowStore((state: any) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state: any) => state.setMonitoringOpen);
   const isMonitoringDetached = useFlowStore((state: any) => state.isMonitoringDetached);
+  const isSidebarVisible = useFlowStore((state: any) => state.isSidebarVisible);
+  const isRightSidebarVisible = useFlowStore((state: any) => state.isRightSidebarVisible);
+  const setSidebarVisible = useFlowStore((state: any) => state.setSidebarVisible);
+  const setRightSidebarVisible = useFlowStore((state: any) => state.setRightSidebarVisible);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -102,7 +106,16 @@ export const MenuBar = ({
             icon: isMonitoringDetached ? ExternalLink : Activity,
             onClick: () => !isMonitoringDetached && setMonitoringOpen(!isMonitoringOpen)
           },
-          { type: 'separator' },
+          {
+            label: 'Components',
+            checked: isSidebarVisible,
+            onClick: () => setSidebarVisible(!isSidebarVisible)
+          },
+          {
+            label: 'Utilities',
+            checked: isRightSidebarVisible,
+            onClick: () => setRightSidebarVisible(!isRightSidebarVisible)
+          }
         ]
       },
       {
