@@ -626,18 +626,14 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
               const Icon = item.icon;
               let itemClasses = "";
 
-              if (isActive) {
-                if (colorMode === 'dark') {
-                  itemClasses = "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]";
-                } else {
-                  itemClasses = "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
-                }
+              if (isActive && colorMode === 'dark') {
+                itemClasses = "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]";
+              } else if (isActive) {
+                itemClasses = "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
+              } else if (colorMode === 'dark') {
+                itemClasses = "text-slate-400 hover:bg-slate-800 hover:text-slate-200";
               } else {
-                if (colorMode === 'dark') {
-                  itemClasses = "text-slate-400 hover:bg-slate-800 hover:text-slate-200";
-                } else {
-                  itemClasses = "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
-                }
+                itemClasses = "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
               }
 
               return (
