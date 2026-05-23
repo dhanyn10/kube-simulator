@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Activity,
@@ -7,7 +7,8 @@ import {
   Layers,
   FileCode,
   Monitor,
-  Check
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
@@ -34,6 +35,8 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const isElementSelected = !!selectedNode || !!selectedEdge;
 
   const [activeTab, setActiveTab] = useState<TabType>('canvas');
+  const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
+  const canvasDropdownRef = useRef<HTMLDivElement>(null);
 
   // Switch to settings tab when a new element is selected
   useEffect(() => {
@@ -43,6 +46,17 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       setActiveTab('canvas');
     }
   }, [isElementSelected, configuringNodeId, configuringEdgeId]);
+
+  // Handle click outside for canvas dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (canvasDropdownRef.current && !canvasDropdownRef.current.contains(event.target as Node)) {
+        setIsCanvasDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const canvasWidgets = [
     { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
@@ -113,18 +127,74 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
         "h-10 border-b flex items-center px-1 shrink-0",
         colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50/50 border-slate-200"
       )}>
-        <button
-          onClick={() => setActiveTab('canvas')}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-            activeTab === 'canvas'
-              ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
-              : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+        <div className="flex-1 flex h-8 mx-1 relative" ref={canvasDropdownRef}>
+          <button
+            onClick={() => setActiveTab('canvas')}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 rounded-l-md text-[10px] font-bold uppercase tracking-wider transition-all",
+              activeTab === 'canvas'
+                ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
+                : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+            )}
+          >
+            <Layers size={14} />
+            Canvas
+          </button>
+          <button
+            onClick={() => setIsCanvasDropdownOpen(!isCanvasDropdownOpen)}
+            className={cn(
+              "px-1.5 flex items-center justify-center border-l rounded-r-md transition-all",
+              activeTab === 'canvas'
+                ? (colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-100 shadow-sm text-slate-900")
+                : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300 border-transparent" : "text-slate-400 hover:text-slate-600 border-transparent")
+            )}
+          >
+            <ChevronDown size={12} className={cn("transition-transform", isCanvasDropdownOpen && "rotate-180")} />
+          </button>
+
+          {isCanvasDropdownOpen && (
+            <div className={cn(
+              "absolute top-full left-0 mt-1 w-56 rounded-lg shadow-xl border py-1 z-[100] animate-in fade-in zoom-in-95 duration-100",
+              colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+            )}>
+              {canvasWidgets.map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => toggleWidget(w.id)}
+                  className={cn(
+                    "w-full px-3 py-1.5 text-[10px] flex items-center justify-between transition-colors text-left",
+                    colorMode === 'dark'
+                      ? "hover:bg-slate-800 text-slate-300 hover:text-white"
+                      : "hover:bg-slate-50 text-slate-700 hover:text-blue-700"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <w.icon size={12} className="opacity-70" />
+                    <span className="font-medium uppercase tracking-wider">{w.label}</span>
+                  </div>
+                  {visibleWidgets.includes(w.id) && <Check size={12} className="text-blue-500" />}
+                </button>
+              ))}
+              <div className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")} />
+              <button
+                onClick={() => {
+                  onExportYaml();
+                  setIsCanvasDropdownOpen(false);
+                }}
+                className={cn(
+                  "w-full px-3 py-1.5 text-[10px] flex items-center gap-2 transition-colors text-left",
+                  colorMode === 'dark'
+                    ? "hover:bg-slate-800 text-slate-300 hover:text-white"
+                    : "hover:bg-slate-50 text-slate-700 hover:text-blue-700"
+                )}
+              >
+                <FileCode size={12} className="opacity-70" />
+                <span className="font-medium uppercase tracking-wider">Open YAML Inspector</span>
+              </button>
+            </div>
           )}
-        >
-          <Layers size={14} />
-          Canvas
-        </button>
+        </div>
+
         {isElementSelected && (
           <button
             onClick={() => setActiveTab('settings')}
@@ -145,64 +215,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       <div className="flex-1 overflow-y-auto p-4 space-y-8 overscroll-contain custom-scrollbar">
         {activeTab === 'canvas' ? (
           <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Inspector Button */}
-            <button
-              onClick={onExportYaml}
-              className={cn(
-                "w-full p-4 rounded-xl border flex items-center gap-3 transition-all group",
-                colorMode === 'dark'
-                  ? "bg-slate-950/30 border-slate-800/50 hover:border-blue-500/50 hover:bg-blue-500/5"
-                  : "bg-slate-50/50 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50"
-              )}
-            >
-              <div className={cn(
-                "p-2 rounded-lg transition-colors",
-                colorMode === 'dark' ? "bg-slate-800 text-blue-400 group-hover:bg-blue-500/20" : "bg-white text-blue-600 group-hover:bg-blue-100"
-              )}>
-                <FileCode size={18} />
-              </div>
-              <div className="text-left">
-                <h3 className="text-xs font-bold uppercase tracking-wider">YAML Inspector</h3>
-                <p className="text-[9px] text-slate-500 font-medium">Export resource definitions</p>
-              </div>
-            </button>
-
-            {/* Widget Toggles */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
-                <div className={cn(
-                  "p-2 rounded-lg",
-                  colorMode === 'dark' ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-600"
-                )}>
-                  <Monitor size={16} />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider">Widgets</h3>
-                  <p className="text-[9px] text-slate-500 font-medium">Toggle canvas elements</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                {canvasWidgets.map(w => (
-                  <button
-                    key={w.id}
-                    onClick={() => toggleWidget(w.id)}
-                    className={cn(
-                      "flex items-center justify-between px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all",
-                      visibleWidgets.includes(w.id)
-                        ? (colorMode === 'dark' ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")
-                        : (colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50 text-slate-500 hover:border-slate-700" : "bg-slate-50/50 border-slate-100 text-slate-400 hover:border-slate-200")
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <w.icon size={14} />
-                      {w.label}
-                    </div>
-                    {visibleWidgets.includes(w.id) && <Check size={12} />}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Hardware Budget Widget */}
             {visibleWidgets.includes('hardware-budget') && (
               <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
@@ -254,6 +266,16 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
                   )}>
                     {nodes.length}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {!visibleWidgets.length && (
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 pt-12 opacity-50">
+                <Monitor size={48} className="text-slate-500" />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Canvas Info</p>
+                  <p className="text-[9px] text-slate-500 max-w-[180px]">Enable widgets from the dropdown menu to see hardware and status info.</p>
                 </div>
               </div>
             )}
