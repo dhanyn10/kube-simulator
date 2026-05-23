@@ -50,7 +50,12 @@ export const MenuBar = ({
   }, []);
 
   const menuItems = useMemo(() => {
-    const monitoringLabel = isMonitoringDetached ? 'Monitoring: Detached' : (isMonitoringOpen ? 'Close Simulation' : 'Simulation');
+    let monitoringLabel = 'Simulation';
+    if (isMonitoringDetached) {
+      monitoringLabel = 'Monitoring: Detached';
+    } else if (isMonitoringOpen) {
+      monitoringLabel = 'Close Simulation';
+    }
 
     return [
       {

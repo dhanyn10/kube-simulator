@@ -396,15 +396,24 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
             {filteredSidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               const Icon = item.icon;
+              let itemClasses = "";
+              if (isActive) {
+                itemClasses = colorMode === 'dark'
+                  ? "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]"
+                  : "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
+              } else {
+                itemClasses = colorMode === 'dark'
+                  ? "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+              }
+
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={cn(
                     "w-full flex items-center gap-2.5 px-3 py-1.5 rounded text-[11px] font-semibold text-left transition-all duration-150 group",
-                    isActive
-                      ? (colorMode === 'dark' ? "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]" : "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]")
-                      : (colorMode === 'dark' ? "text-slate-400 hover:bg-slate-800 hover:text-slate-200" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900")
+                    itemClasses
                   )}
                 >
                   <Icon size={13} className={cn("transition-colors", isActive ? "text-blue-500" : "text-slate-500 group-hover:text-slate-400")} />
