@@ -98,8 +98,9 @@ test.describe('ConfigMap and Secret', () => {
     // Wait for state update
     await page.waitForTimeout(500);
 
-    await page.locator('button').filter({ hasText: /CANVAS/i }).click();
-    await page.getByText('Open YAML Inspector').click();
+    // Open Canvas dropdown
+    await page.getByTestId('canvas-dropdown-toggle').click();
+    await page.getByTestId('open-yaml-inspector').click();
 
     const pre = page.locator('pre');
     await expect(pre).toContainText('kind: ConfigMap');

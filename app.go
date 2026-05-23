@@ -171,7 +171,7 @@ func (a *App) GetHistoryLogs() []db.HistoryLog {
 
 // Project actions
 
-func (a *App) SaveProject(name string, content string) int64 {
+func (a *App) SaveProject(name, content string) int64 {
 	id, err := a.projects.SaveProject(name, content)
 	if err != nil {
 		log.Printf("Error saving project: %v", err)
@@ -194,7 +194,7 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
-func (a *App) ExportProjectFile(name string, canvasContent string, yamlContent string) bool {
+func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	filePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
 		DefaultFilename: fmt.Sprintf("%s.infra", name),
 		Title:           "Export Infrastructure Project",
@@ -272,7 +272,7 @@ func (a *App) DeleteProject(id int64) bool {
 	return true
 }
 
-func (a *App) SaveSetting(key string, value string) bool {
+func (a *App) SaveSetting(key, value string) bool {
 	err := a.projects.SaveSetting(key, value)
 	if err != nil {
 		log.Printf("Error saving setting: %v", err)
