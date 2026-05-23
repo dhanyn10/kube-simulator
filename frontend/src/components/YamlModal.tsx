@@ -21,7 +21,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
   };
 
   return (
-    <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-sm', colorMode === 'dark' ? 'bg-slate-950/80' : 'bg-white/80')}>
+    <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-6', colorMode === 'dark' ? 'bg-slate-950/80' : 'bg-white/80')}>
       <div className={cn('w-full max-w-2xl h-full max-h-[80vh] rounded shadow-2xl overflow-hidden flex flex-col', colorMode === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-300')}>
         <div className={cn('p-4 border-b flex items-center justify-between', colorMode === 'dark' ? 'border-slate-800 bg-slate-950/50' : 'border-slate-200 bg-slate-50/50')}>
           <div className="flex items-center gap-3">

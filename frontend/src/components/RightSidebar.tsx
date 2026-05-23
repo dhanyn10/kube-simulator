@@ -109,7 +109,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const canvasWidgets = [
     { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
     { id: 'object-stats', label: 'Object Statistics', icon: Info },
-    { id: 'target-indicator', label: 'Target Indicator', icon: Maximize },
   ];
 
   const getElementSettings = () => {
@@ -231,8 +230,8 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           </div>
         )}
 
-        {/* Status Indicators (Objects, Targets) */}
-        {(visibleWidgets.includes('object-stats') || (visibleWidgets.includes('target-indicator') && activeDeploymentId)) && (
+        {/* Status Indicators (Objects) */}
+        {visibleWidgets.includes('object-stats') && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
               <div className={cn(
@@ -248,35 +247,18 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
             </div>
 
             <div className="space-y-2">
-              {visibleWidgets.includes('object-stats') && (
+              <div className={cn(
+                "p-3 rounded-xl border flex items-center justify-between",
+                colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
+              )}>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Active Objects</span>
                 <div className={cn(
-                  "p-3 rounded-xl border flex items-center justify-between",
-                  colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
+                  "px-2 py-0.5 rounded text-[10px] font-mono font-bold",
+                  colorMode === 'dark' ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600"
                 )}>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Active Objects</span>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded text-[10px] font-mono font-bold",
-                    colorMode === 'dark' ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600"
-                  )}>
-                    {nodes.length}
-                  </div>
+                  {nodes.length}
                 </div>
-              )}
-
-              {visibleWidgets.includes('target-indicator') && activeDeploymentId && (
-                <div className={cn(
-                  "p-3 rounded-xl border flex items-center justify-between animate-pulse",
-                  colorMode === 'dark' ? "bg-violet-500/5 border-violet-500/20" : "bg-violet-50/50 border-violet-100"
-                )}>
-                  <span className="text-[10px] font-bold text-violet-500/70 uppercase tracking-tight">Focus Target</span>
-                  <div className={cn(
-                    "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider truncate max-w-[120px]",
-                    colorMode === 'dark' ? "bg-violet-500/20 text-violet-400" : "bg-violet-100 text-violet-700"
-                  )}>
-                    {nodes.find(n => n.id === activeDeploymentId)?.data.label}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         )}
