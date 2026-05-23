@@ -14,7 +14,7 @@ import { NodePodBadges } from './NodePodBadges';
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
  */
-const NodeStatusIndicator = ({ type, effectiveStatus, statusDotColor }: { type: string, effectiveStatus: string, statusDotColor: string }) => {
+const NodeStatusIndicator = ({ type, statusDotColor }: { type: string, statusDotColor: string }) => {
   if (type === 'Internet' || type === 'PVC') return null;
   return <div className={cn("w-1.5 h-1.5 rounded-full", statusDotColor)}></div>;
 };
@@ -86,7 +86,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const colorMode = useFlowStore((state) => state.colorMode);
   const { transitionClasses } = useNodeStyles(id);
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(id, data.label, data.onRename);
+    useNodeRename(data.label, data.onRename);
 
   const { effectiveStatus, isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
     useNodeStatus(data, statusOverride, color, colorMode);
@@ -117,7 +117,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           <span className={cn("text-[8px] font-bold tracking-widest uppercase shrink-0", statusTextColor)}>
             {isCrashing ? 'Crashing' : title || data.type}
           </span>
-          <NodeStatusIndicator type={data.type} effectiveStatus={effectiveStatus || ''} statusDotColor={statusDotColor} />
+          <NodeStatusIndicator type={data.type} statusDotColor={statusDotColor} />
           {replicas > 1 && (
             <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0", colorMode === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-500 text-white")}>
               x{replicas}

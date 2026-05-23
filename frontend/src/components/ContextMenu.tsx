@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Boxes, Box, FileCode, Trash2, Copy, Clipboard } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';

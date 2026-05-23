@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import  { memo, useCallback } from 'react';
 import { NodeProps, Handle, Position } from '@xyflow/react';
 import { Activity } from 'lucide-react';
 import { BaseNode } from './BaseNode';

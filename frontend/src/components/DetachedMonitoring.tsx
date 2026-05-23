@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Activity, Cpu, Database, AlertTriangle, ZapOff } from 'lucide-react';
 import { cn, formatCPU, formatMemory } from '../lib/utils';
 

@@ -21,6 +21,8 @@ export function GetSystemInfo():Promise<Record<string, string>>;
 
 export function GetSystemResources():Promise<Record<string, any>>;
 
+export function GetTargetScreen(arg1:Array<frontend.Screen>):Promise<frontend.Screen|boolean>;
+
 export function GetTargetScreenHeight(arg1:Array<frontend.Screen>):Promise<number|boolean>;
 
 export function Greet(arg1:string):Promise<string>;

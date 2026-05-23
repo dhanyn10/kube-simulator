@@ -138,7 +138,7 @@ const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hov
 };
 
 export const dragHandlers = (set: any, get: () => FlowState) => ({
-  onNodeDragStart: (event: any, node: Node) => {
+  onNodeDragStart: (_event: any, node: Node) => {
     get().setDraggedNodeId(node.id);
     if (node.type === 'Deployment') {
       get().setActiveDeploymentId(node.id);
@@ -153,7 +153,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     }
   },
 
-  onNodeDrag: (event: any, node: Node) => {
+  onNodeDrag: (_event: any, node: Node) => {
     const { nodes } = get();
     get().setDraggedNodeId(node.id);
     
@@ -183,8 +183,8 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     });
   },
 
-  onNodeDragStop: (event: any, node: Node) => {
-    const { nodes, detachingDeploymentId, hoveredDeploymentId } = get();
+  onNodeDragStop: (_event: any, node: Node) => {
+    const { detachingDeploymentId, hoveredDeploymentId } = get();
 
     set((state: FlowState) => {
       let nextNodes = [...state.nodes];

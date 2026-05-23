@@ -1,10 +1,10 @@
-import React from 'react';
+
 import { useFlowStore } from '../store';
-import { cn, parseCPU, parseMemory, validateResourceLimits } from '../lib/utils';
+import { cn, validateResourceLimits } from '../lib/utils';
 import { Box, Code, Layers, Server, Eye, EyeOff, AlertCircle, FileCode, FileX } from 'lucide-react';
 import { RUNTIMES, WEBSERVERS, CPU_OPTIONS, MEMORY_OPTIONS } from '../constants/config';
 import { SelectorGroup } from './SelectorGroup';
-import { ConfigInput, ConfigSection, ConfigLabel, NumberStepper, AdvancedSection } from './ConfigUI';
+import { ConfigSection, ConfigLabel, NumberStepper, AdvancedSection } from './ConfigUI';
 import { ImageDropdown } from './ImageDropdown';
 
 interface WorkloadConfigProps {

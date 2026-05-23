@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import { useFlowStore } from '@/store/useFlowStore';
 
 describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
   beforeEach(() => {
     // Reset store before each test
-    const state = useFlowStore.getState();
     useFlowStore.setState({
       nodes: [],
       edges: [],

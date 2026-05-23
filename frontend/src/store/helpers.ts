@@ -274,7 +274,7 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
 
 // Helper to check alignment between two nodes
 const updatePairAlignment = (
-  node: Node, 
+  _node: Node, 
   otherNode: Node, 
   nodes: Node[], 
   nodeAbs: { x: number, y: number },

@@ -125,7 +125,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     }));
   },
   onConnect: (connection: Connection) => {
-    const { nodes, edges, updateNodeData } = get();
+    const { nodes, updateNodeData } = get();
     const sourceNode = nodes.find(n => n.id === connection.source);
     const targetNode = nodes.find(n => n.id === connection.target);
 

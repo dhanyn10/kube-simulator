@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import  { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { Settings } from 'lucide-react';
 import { BaseNode } from './BaseNode';
@@ -15,7 +15,7 @@ export const ConfigMapNode = memo((props: NodeProps) => {
             Data ({data.configData.length})
           </div>
           <div className="space-y-0.5">
-            {data.configData.slice(0, 3).map((item, idx) => (
+            {data.configData.slice(0, 3).map((item) => (
               <div key={item.key} className="text-[9px] font-mono truncate text-slate-400">
                 <span className="text-teal-500/80">{item.key}:</span> {item.value}
               </div>
