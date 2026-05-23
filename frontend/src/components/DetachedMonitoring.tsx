@@ -26,11 +26,11 @@ const LineChart = ({
         <div className="flex items-center gap-2">
            {valueFormatter && data.length > 0 && (
              <span className="text-[8px] font-mono text-slate-500">
-               {valueFormatter(data[data.length - 1])} / {valueFormatter(limitValue || 0)}
+               {valueFormatter(data.at(-1)!)} / {valueFormatter(limitValue || 0)}
              </span>
            )}
            <span className={cn("text-[10px] font-mono font-bold", color === 'blue' ? "text-blue-500" : "text-purple-500")}>
-             {data.length > 0 ? Math.round(data[data.length - 1]) : 0}%
+             {data.length > 0 ? Math.round(data.at(-1)!) : 0}%
            </span>
         </div>
       </div>
@@ -154,7 +154,7 @@ export const DetachedMonitoring = () => {
         ) : (
           deployments.map(dep => {
             const points = metrics[dep.id] || [];
-            const lastPoint = points[points.length - 1];
+            const lastPoint = points.at(-1);
 
             const cpuData = points.map((p: any) => p.cpuPercent);
             const memData = points.map((p: any) => p.memoryPercent);

@@ -26,9 +26,9 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    globalThis.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      globalThis.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
 

@@ -14,8 +14,8 @@ export const isAllowed = (parentType: string, childType: string): boolean => {
 };
 
 export const getAbsPos = (nodeId: string, currentNodes: Node[], draggedNode?: Node): { x: number, y: number } => {
-  const n = (draggedNode && nodeId === draggedNode.id) ? draggedNode : currentNodes.find(i => i.id === nodeId);
-  if (!n || !n.position) return { x: 0, y: 0 };
+  const n = (draggedNode?.id === nodeId) ? draggedNode : currentNodes.find(i => i.id === nodeId);
+  if (!n?.position) return { x: 0, y: 0 };
   if (!n.parentId) return n.position;
   const pAbs = getAbsPos(n.parentId, currentNodes, draggedNode);
   return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
@@ -57,7 +57,7 @@ const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: 
   const d = deployment.data as unknown as K8sNodeData;
   const t = templatePod?.data as unknown as K8sNodeData | undefined;
 
-  const displaySettings = dataTemplate ? dataTemplate.data.displaySettings : (d.displaySettings || t?.displaySettings);
+  const displaySettings = dataTemplate ? dataTemplate.data.displaySettings : (d?.displaySettings ?? t?.displaySettings);
 
   return {
     image: selectValue(t?.image, d.image),
@@ -272,19 +272,22 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   };
 };
 
+interface AlignmentContext {
+  nodes: Node[];
+  nodeAbs: { x: number; y: number };
+  nodeSize: { width: number; height: number };
+  verticalGuides: Map<number, any>;
+  horizontalGuides: Map<number, any>;
+  vSnap: Map<number, boolean>;
+  hSnap: Map<number, boolean>;
+}
+
 // Helper to check alignment between two nodes
 const updatePairAlignment = (
-  _node: Node, 
-  otherNode: Node, 
-  nodes: Node[], 
-  nodeAbs: { x: number, y: number },
-  nodeSize: { width: number, height: number },
-  verticalGuides: Map<number, any>, 
-  horizontalGuides: Map<number, any>, 
-  vSnap: Map<number, boolean>, 
-  hSnap: Map<number, boolean>
+  otherNode: Node,
+  ctx: AlignmentContext
 ) => {
-  const otherAbs = getAbsPos(otherNode.id, nodes);
+  const otherAbs = getAbsPos(otherNode.id, ctx.nodes);
   const otherW = otherNode.width || otherNode.measured?.width || 160;
   const otherH = otherNode.height || otherNode.measured?.height || 80;
 
@@ -292,19 +295,19 @@ const updatePairAlignment = (
   const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
 
   const nodePointsX = [
-    { pos: nodeAbs.x, type: 'edge' }, 
-    { pos: nodeAbs.x + nodeSize.width / 2, type: 'center' }, 
-    { pos: nodeAbs.x + nodeSize.width, type: 'edge' }
+    { pos: ctx.nodeAbs.x, type: 'edge' },
+    { pos: ctx.nodeAbs.x + ctx.nodeSize.width / 2, type: 'center' },
+    { pos: ctx.nodeAbs.x + ctx.nodeSize.width, type: 'edge' }
   ];
   const nodePointsY = [
-    { pos: nodeAbs.y, type: 'edge' }, 
-    { pos: nodeAbs.y + nodeSize.height / 2, type: 'center' }, 
-    { pos: nodeAbs.y + nodeSize.height, type: 'edge' }
+    { pos: ctx.nodeAbs.y, type: 'edge' },
+    { pos: ctx.nodeAbs.y + ctx.nodeSize.height / 2, type: 'center' },
+    { pos: ctx.nodeAbs.y + ctx.nodeSize.height, type: 'edge' }
   ];
 
   const config = { threshold: 8, tolerance: 4 };
-  nodePointsX.forEach(nP => checkXAlignment({ nP, otherPoints: otherPointsX, otherNode, guides: verticalGuides, snap: vSnap, config, nodeAbs, otherAbs, size: { node: nodeSize.height, other: otherH } }));
-  nodePointsY.forEach(nP => checkYAlignment({ nP, otherPoints: otherPointsY, otherNode, guides: horizontalGuides, snap: hSnap, config, nodeAbs, otherAbs, size: { node: nodeSize.width, other: otherW } }));
+  nodePointsX.forEach(nP => checkXAlignment({ nP, otherPoints: otherPointsX, otherNode, guides: ctx.verticalGuides, snap: ctx.vSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.height, other: otherH } }));
+  nodePointsY.forEach(nP => checkYAlignment({ nP, otherPoints: otherPointsY, otherNode, guides: ctx.horizontalGuides, snap: ctx.hSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.width, other: otherW } }));
 };
 
 export const calculateAlignmentGuides = (
@@ -327,13 +330,20 @@ export const calculateAlignmentGuides = (
   const nodeWidth = node.width || node.measured?.width || 160;
   const nodeHeight = node.height || node.measured?.height || 80;
 
+  const ctx: AlignmentContext = {
+    nodes,
+    nodeAbs,
+    nodeSize: { width: nodeWidth, height: nodeHeight },
+    verticalGuides,
+    horizontalGuides,
+    vSnap,
+    hSnap
+  };
+
   nodes
     .filter(n => n.id !== node.id)
     .forEach(otherNode => {
-      updatePairAlignment(
-        node, otherNode, nodes, nodeAbs, { width: nodeWidth, height: nodeHeight },
-        verticalGuides, horizontalGuides, vSnap, hSnap
-      );
+      updatePairAlignment(otherNode, ctx);
     });
 
   return {

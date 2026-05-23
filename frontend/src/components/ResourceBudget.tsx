@@ -1,8 +1,7 @@
 import  { useMemo } from 'react';
 import { useFlowStore } from '../store';
 import { K8sNodeData } from '../types';
-import { parseCPU, parseMemory, formatCPU, formatMemory } from '../lib/utils';
-import { cn } from '../lib/utils';
+import { parseCPU, parseMemory, formatCPU, formatMemory, cn } from '../lib/utils';
 import { MultiProgressBar } from './MultiProgressBar';
 import { Cpu, Database, AlertCircle } from 'lucide-react';
 

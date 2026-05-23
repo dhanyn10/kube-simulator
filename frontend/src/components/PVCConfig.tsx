@@ -104,11 +104,11 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
               <Database size={10} /> Storage Class
             </label>
             <div className="flex items-center gap-2">
-              <button onClick={() => toggleVisibility('storageClass')} className={cn("transition-colors", data.displaySettings?.storageClass !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400")}>
-                {(data.displaySettings?.storageClass !== false) ? <Eye size={10} /> : <EyeOff size={10} />}
+              <button onClick={() => toggleVisibility('storageClass')} className={cn("transition-colors", data.displaySettings?.storageClass === false ? "text-slate-500 hover:text-blue-400" : "text-blue-500")}>
+                {(data.displaySettings?.storageClass === false) ? <EyeOff size={10} /> : <Eye size={10} />}
               </button>
-              <button onClick={() => toggleYaml('storageClass')} className={cn("transition-colors", data.yamlSettings?.storageClass !== false ? "text-emerald-500" : "text-slate-500 hover:text-emerald-400")}>
-                {(data.yamlSettings?.storageClass !== false) ? <FileCode size={10} /> : <FileX size={10} />}
+              <button onClick={() => toggleYaml('storageClass')} className={cn("transition-colors", data.yamlSettings?.storageClass === false ? "text-slate-500 hover:text-emerald-400" : "text-emerald-500")}>
+                {(data.yamlSettings?.storageClass === false) ? <FileX size={10} /> : <FileCode size={10} />}
               </button>
             </div>
           </div>
