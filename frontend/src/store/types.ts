@@ -38,6 +38,8 @@ export interface FlowState {
   draggingSidebarItem: K8sResourceType | null;
   colorMode: 'dark' | 'light';
   isAutosaveEnabled: boolean;
+  isSidebarVisible: boolean;
+  isRightSidebarVisible: boolean;
   clipboard: { nodes: Node[], edges: Edge[] } | null;
   alignmentGuides: {
     vertical: AlignmentGuide[];
@@ -102,6 +104,8 @@ export interface FlowState {
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
+  setSidebarVisible: (visible: boolean) => void;
+  setRightSidebarVisible: (visible: boolean) => void;
   groupNodes: (nodeIds: string[]) => void;
   ungroupNodes: (nodeIds: string[]) => void;
   autoLayout: (direction?: 'LR' | 'TB') => void;

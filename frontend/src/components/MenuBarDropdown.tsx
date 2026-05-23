@@ -1,5 +1,5 @@
 import React from 'react';
-import { X as CloseIcon } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface MenuItem {
@@ -75,7 +75,7 @@ export const MenuBarDropdown = ({
                 key={item.label}
                 onClick={() => {
                   item.onClick();
-                  if (!item.checked) setActiveMenu(null);
+                  if (typeof item.checked !== 'boolean') setActiveMenu(null);
                 }}
                 className={cn(
                   "w-full px-4 py-1.5 text-xs flex items-center justify-between transition-colors group",
@@ -83,20 +83,22 @@ export const MenuBarDropdown = ({
                 )}
               >
                 <div className="flex items-center gap-2">
+                  {item.icon && <item.icon size={12} className="opacity-70" />}
+                  <span>{item.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {item.shortcut && (
+                    <span className="text-[10px] opacity-50 font-mono group-hover:opacity-100">{item.shortcut}</span>
+                  )}
                   {typeof item.checked === 'boolean' && (
                     <div className={cn(
                       "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
                       checkboxClass
                     )}>
-                      {item.checked && <CloseIcon size={10} className="rotate-45" />}
+                      {item.checked && <Check size={10} />}
                     </div>
                   )}
-                  {item.icon && <item.icon size={12} className="opacity-70" />}
-                  <span>{item.label}</span>
                 </div>
-                {item.shortcut && (
-                  <span className="text-[10px] opacity-50 font-mono ml-4 group-hover:opacity-100">{item.shortcut}</span>
-                )}
               </button>
             );
           })}

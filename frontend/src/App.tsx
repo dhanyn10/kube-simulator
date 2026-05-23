@@ -90,6 +90,10 @@ export default function App() {
   const onNodeDrag = useFlowStore((state) => state.onNodeDrag);
   const onNodeDragStop = useFlowStore((state) => state.onNodeDragStop);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const isSidebarVisible = useFlowStore((state) => state.isSidebarVisible);
+  const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
+  const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
+  const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const copyNodes = useFlowStore((state) => state.copyNodes);
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
   const groupNodes = useFlowStore((state) => state.groupNodes);
@@ -104,6 +108,16 @@ export default function App() {
 
   useEffect(() => {
     if (!isDetachedMode) {
+      // Load sidebar settings
+      if (globalThis.go?.main?.App?.GetSetting) {
+        globalThis.go.main.App.GetSetting('isSidebarVisible').then((val: string) => {
+          if (val !== "") setSidebarVisible(val === 'true');
+        });
+        globalThis.go.main.App.GetSetting('isRightSidebarVisible').then((val: string) => {
+          if (val !== "") setRightSidebarVisible(val === 'true');
+        });
+      }
+
       const fetchResources = () => {
         // Safety check for Wails binding
         if (typeof GetSystemResources === 'function') {
@@ -206,11 +220,13 @@ export default function App() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          onAddNode={addNode}
-          isProjectOpen={isProjectOpen}
-          setIsProjectOpen={setIsProjectOpen}
-        />
+        {isSidebarVisible && (
+          <Sidebar
+            onAddNode={addNode}
+            isProjectOpen={isProjectOpen}
+            setIsProjectOpen={setIsProjectOpen}
+          />
+        )}
 
         <main className="flex-1 relative canvas-grid">
         <ReactFlow
@@ -311,7 +327,9 @@ export default function App() {
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
         </main>
 
-        <RightSidebar onExportYaml={handleExport} />
+        {isRightSidebarVisible && (
+          <RightSidebar onExportYaml={handleExport} />
+        )}
       </div>
     </div>
   );
