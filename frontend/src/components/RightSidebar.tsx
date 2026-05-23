@@ -1,92 +1,22 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings,
-  Eye,
-  FileCode,
-  Check,
   Activity,
   Info,
-  ChevronDown,
-  Layout
+  Layout,
+  Layers,
+  FileCode,
+  Monitor,
+  Check
 } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { NodeConfig } from './NodeConfig';
 import { EdgeConfig } from './EdgeConfig';
 import { ResourceBudget } from './ResourceBudget';
+import { ConfigSection } from './ConfigUI';
 
-interface SidebarDropdownProps {
-  label: string;
-  icon: any;
-  items: { label: string; icon?: any; checked?: boolean; onClick: () => void }[];
-  colorMode: 'dark' | 'light';
-  align?: 'left' | 'right';
-}
-
-const SidebarDropdown = ({ label, icon: Icon, items, colorMode, align = 'left' }: SidebarDropdownProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors",
-          colorMode === 'dark'
-            ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-            : "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
-          isOpen && (colorMode === 'dark' ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700")
-        )}
-      >
-        <Icon size={12} />
-        {label}
-        <ChevronDown size={10} className={cn("transition-transform", isOpen && "rotate-180")} />
-      </button>
-
-      {isOpen && (
-        <div className={cn(
-          "absolute top-full mt-1 w-48 rounded-lg shadow-xl border py-1 z-[100] animate-in fade-in zoom-in-95 duration-100",
-          align === 'right' ? "right-0" : "left-0",
-          colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-        )}>
-          {items.map((item, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                item.onClick();
-                // Don't close if it's a toggle
-                if (typeof item.checked !== 'boolean') setIsOpen(false);
-              }}
-              className={cn(
-                "w-full px-3 py-1.5 text-[10px] flex items-center justify-between transition-colors text-left",
-                colorMode === 'dark'
-                  ? "hover:bg-slate-800 text-slate-300 hover:text-white"
-                  : "hover:bg-slate-50 text-slate-700 hover:text-blue-700"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                {item.icon && <item.icon size={12} className="opacity-70" />}
-                <span className="font-medium">{item.label}</span>
-              </div>
-              {item.checked && <Check size={12} className="text-blue-500" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+type TabType = 'canvas' | 'settings';
 
 export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -103,34 +33,74 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const selectedEdge = edges.find(e => e.id === configuringEdgeId);
   const isElementSelected = !!selectedNode || !!selectedEdge;
 
+  const [activeTab, setActiveTab] = useState<TabType>('canvas');
+
+  // Switch to settings tab when a new element is selected
+  useEffect(() => {
+    if (isElementSelected) {
+      setActiveTab('settings');
+    } else {
+      setActiveTab('canvas');
+    }
+  }, [isElementSelected, configuringNodeId, configuringEdgeId]);
+
   const canvasWidgets = [
     { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
     { id: 'object-stats', label: 'Object Statistics', icon: Info },
   ];
 
-  const getElementSettings = () => {
-    if (!selectedNode) return [];
+  const getDisplaySettings = () => {
+    if (!selectedNode) return null;
 
-    const settings: { label: string; checked: boolean; onClick: () => void }[] = [];
     const data = selectedNode.data as any;
     const displaySettings = data.displaySettings || {};
 
-    if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {
-        const toggle = (field: string) => {
-            const current = displaySettings[field] !== false;
-            const updateNodeData = useFlowStore.getState().updateNodeData;
-            updateNodeData(selectedNode.id, {
-                displaySettings: { ...displaySettings, [field]: !current }
-            });
-        };
-
-        settings.push({ label: 'Show Resources', checked: displaySettings.resources !== false, onClick: () => toggle('resources') });
-        settings.push({ label: 'Show Image', checked: displaySettings.image !== false, onClick: () => toggle('image') });
-        settings.push({ label: 'Show Web Server', checked: displaySettings.webserver !== false, onClick: () => toggle('webserver') });
-        settings.push({ label: 'Show Runtime', checked: displaySettings.runtime !== false, onClick: () => toggle('runtime') });
+    if (selectedNode.type !== 'Pod' && selectedNode.type !== 'Deployment') {
+      return null;
     }
 
-    return settings;
+    const toggle = (field: string) => {
+      const current = displaySettings[field] !== false;
+      const updateNodeData = useFlowStore.getState().updateNodeData;
+      updateNodeData(selectedNode.id, {
+        displaySettings: { ...displaySettings, [field]: !current }
+      });
+    };
+
+    const options = [
+      { key: 'resources', label: 'Show Resources' },
+      { key: 'image', label: 'Show Image' },
+      { key: 'webserver', label: 'Show Web Server' },
+      { key: 'runtime', label: 'Show Runtime' },
+    ];
+
+    return (
+      <ConfigSection
+        title="Display Settings"
+        icon={Monitor}
+      >
+        <div className="space-y-2 mt-2">
+          {options.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => toggle(opt.key)}
+              className={cn(
+                "w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider flex items-center justify-between transition-all",
+                displaySettings[opt.key] !== false
+                  ? (colorMode === 'dark' ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")
+                  : (colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300")
+              )}
+            >
+              {opt.label}
+              <div className={cn(
+                "w-2 h-2 rounded-full transition-colors",
+                displaySettings[opt.key] !== false ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" : "bg-slate-700"
+              )} />
+            </button>
+          ))}
+        </div>
+      </ConfigSection>
+    );
   };
 
   return (
@@ -138,44 +108,159 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       "w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden",
       colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
     )}>
-      {/* Top Menu Bar */}
+      {/* Tab Bar */}
       <div className={cn(
-        "h-10 border-b flex items-center px-3 justify-between shrink-0",
+        "h-10 border-b flex items-center px-1 shrink-0",
         colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50/50 border-slate-200"
       )}>
-        <div className="flex items-center gap-1">
-          <SidebarDropdown
-            label="Canvas"
-            icon={Eye}
-            colorMode={colorMode}
-            align="left"
-            items={[
-              ...canvasWidgets.map(w => ({
-                label: w.label,
-                icon: w.icon,
-                checked: visibleWidgets.includes(w.id),
-                onClick: () => toggleWidget(w.id)
-              })),
-              { label: 'Open YAML Inspector', icon: FileCode, onClick: onExportYaml }
-            ]}
-          />
-        </div>
-
-        {isElementSelected && getElementSettings().length > 0 && (
-          <SidebarDropdown
-            label="Settings"
-            icon={Layout}
-            colorMode={colorMode}
-            align="right"
-            items={getElementSettings()}
-          />
+        <button
+          onClick={() => setActiveTab('canvas')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+            activeTab === 'canvas'
+              ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
+              : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+          )}
+        >
+          <Layers size={14} />
+          Canvas
+        </button>
+        {isElementSelected && (
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+              activeTab === 'settings'
+                ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
+                : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+            )}
+          >
+            <Layout size={14} />
+            Settings
+          </button>
         )}
       </div>
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-8 overscroll-contain custom-scrollbar">
-        {isElementSelected && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+        {activeTab === 'canvas' ? (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Inspector Button */}
+            <button
+              onClick={onExportYaml}
+              className={cn(
+                "w-full p-4 rounded-xl border flex items-center gap-3 transition-all group",
+                colorMode === 'dark'
+                  ? "bg-slate-950/30 border-slate-800/50 hover:border-blue-500/50 hover:bg-blue-500/5"
+                  : "bg-slate-50/50 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50"
+              )}
+            >
+              <div className={cn(
+                "p-2 rounded-lg transition-colors",
+                colorMode === 'dark' ? "bg-slate-800 text-blue-400 group-hover:bg-blue-500/20" : "bg-white text-blue-600 group-hover:bg-blue-100"
+              )}>
+                <FileCode size={18} />
+              </div>
+              <div className="text-left">
+                <h3 className="text-xs font-bold uppercase tracking-wider">YAML Inspector</h3>
+                <p className="text-[9px] text-slate-500 font-medium">Export resource definitions</p>
+              </div>
+            </button>
+
+            {/* Widget Toggles */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  colorMode === 'dark' ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-600"
+                )}>
+                  <Monitor size={16} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider">Widgets</h3>
+                  <p className="text-[9px] text-slate-500 font-medium">Toggle canvas elements</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {canvasWidgets.map(w => (
+                  <button
+                    key={w.id}
+                    onClick={() => toggleWidget(w.id)}
+                    className={cn(
+                      "flex items-center justify-between px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all",
+                      visibleWidgets.includes(w.id)
+                        ? (colorMode === 'dark' ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")
+                        : (colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50 text-slate-500 hover:border-slate-700" : "bg-slate-50/50 border-slate-100 text-slate-400 hover:border-slate-200")
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <w.icon size={14} />
+                      {w.label}
+                    </div>
+                    {visibleWidgets.includes(w.id) && <Check size={12} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hardware Budget Widget */}
+            {visibleWidgets.includes('hardware-budget') && (
+              <div className="space-y-4 animate-in slide-in-from-top-4 duration-300">
+                <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    colorMode === 'dark' ? "bg-slate-800 text-emerald-400" : "bg-slate-100 text-emerald-600"
+                  )}>
+                    <Activity size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider">Hardware Budget</h3>
+                    <p className="text-[9px] text-slate-500 font-medium">Host resource tracking</p>
+                  </div>
+                </div>
+                <div className={cn(
+                  "p-4 rounded-xl border",
+                  colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
+                )}>
+                  <ResourceBudget />
+                </div>
+              </div>
+            )}
+
+            {/* Statistics Widget */}
+            {visibleWidgets.includes('object-stats') && (
+              <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+                <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    colorMode === 'dark' ? "bg-slate-800 text-violet-400" : "bg-slate-100 text-violet-600"
+                  )}>
+                    <Info size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider">Object Statistics</h3>
+                    <p className="text-[9px] text-slate-500 font-medium">Visual status tracking</p>
+                  </div>
+                </div>
+
+                <div className={cn(
+                  "p-3 rounded-xl border flex items-center justify-between",
+                  colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
+                )}>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Active Objects</span>
+                  <div className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-mono font-bold",
+                    colorMode === 'dark' ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600"
+                  )}>
+                    {nodes.length}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+            {/* Element Header */}
             <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
               <div className={cn(
                 "p-2 rounded-lg",
@@ -191,8 +276,9 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
               </div>
             </div>
 
+            {/* Main Config Panel */}
             <div className={cn(
-              "p-4 rounded-xl border min-h-[300px] resize-y overflow-auto custom-scrollbar",
+              "p-4 rounded-xl border min-h-[300px] overflow-visible",
               colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
             )}>
               {selectedEdge ? (
@@ -201,66 +287,12 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
                 <NodeConfig selectedNode={selectedNode} />
               )}
             </div>
-          </div>
-        )}
 
-        {visibleWidgets.includes('hardware-budget') && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
-              <div className={cn(
-                "p-2 rounded-lg",
-                colorMode === 'dark' ? "bg-slate-800 text-emerald-400" : "bg-slate-100 text-emerald-600"
-              )}>
-                <Activity size={16} />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider">Hardware Budget</h3>
-                <p className="text-[9px] text-slate-500 font-medium">Host resource tracking</p>
-              </div>
-            </div>
-            <div className={cn(
-              "p-4 rounded-xl border",
-              colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
-            )}>
-              <ResourceBudget />
-            </div>
-          </div>
-        )}
-
-        {/* Status Indicators (Objects) */}
-        {visibleWidgets.includes('object-stats') && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
-              <div className={cn(
-                "p-2 rounded-lg",
-                colorMode === 'dark' ? "bg-slate-800 text-violet-400" : "bg-slate-100 text-violet-600"
-              )}>
-                <Info size={16} />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider">Indicators</h3>
-                <p className="text-[9px] text-slate-500 font-medium">Visual status tracking</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className={cn(
-                "p-3 rounded-xl border flex items-center justify-between",
-                colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
-              )}>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Active Objects</span>
-                <div className={cn(
-                  "px-2 py-0.5 rounded text-[10px] font-mono font-bold",
-                  colorMode === 'dark' ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-600"
-                )}>
-                  {nodes.length}
-                </div>
-              </div>
-            </div>
+            {/* Display Settings */}
+            {getDisplaySettings()}
           </div>
         )}
       </div>
-
     </div>
   );
 };
