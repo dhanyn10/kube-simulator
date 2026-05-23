@@ -173,8 +173,9 @@ export default function App() {
     [setContextMenu]
   );
 
-  const handleExport = useCallback(() => {
-    setYamlContent(generateYaml(nodes, edges));
+  const handleExport = useCallback(async () => {
+    const content = await generateYaml(nodes, edges);
+    setYamlContent(content);
     setIsYamlOpen(true);
   }, [nodes, edges]);
 
