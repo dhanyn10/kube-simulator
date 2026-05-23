@@ -8,7 +8,8 @@ import {
   FileCode,
   Monitor,
   Check,
-  ChevronDown
+  ChevronDown,
+  MousePointer2
 } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
@@ -42,8 +43,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   useEffect(() => {
     if (isElementSelected) {
       setActiveTab('settings');
-    } else {
-      setActiveTab('canvas');
     }
   }, [isElementSelected, configuringNodeId, configuringEdgeId]);
 
@@ -195,20 +194,18 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           )}
         </div>
 
-        {isElementSelected && (
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-              activeTab === 'settings'
-                ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
-                : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
-            )}
-          >
-            <Layout size={14} />
-            Settings
-          </button>
-        )}
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+            activeTab === 'settings'
+              ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
+              : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+          )}
+        >
+          <Layout size={14} />
+          Settings
+        </button>
       </div>
 
       {/* Content Area */}
@@ -282,36 +279,48 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           </div>
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-            {/* Element Header */}
-            <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
-              <div className={cn(
-                "p-2 rounded-lg",
-                colorMode === 'dark' ? "bg-slate-800 text-blue-400" : "bg-slate-100 text-blue-600"
-              )}>
-                <Settings size={16} />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider">
-                  {selectedEdge ? 'Edge' : selectedNode?.type} Config
-                </h3>
-                <p className="text-[9px] text-slate-500 font-medium">Modify element properties</p>
-              </div>
-            </div>
+            {isElementSelected ? (
+              <>
+                {/* Element Header */}
+                <div className="flex items-center gap-3 pb-2 border-b border-slate-800/50">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    colorMode === 'dark' ? "bg-slate-800 text-blue-400" : "bg-slate-100 text-blue-600"
+                  )}>
+                    <Settings size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider">
+                      {selectedEdge ? 'Edge' : selectedNode?.type} Config
+                    </h3>
+                    <p className="text-[9px] text-slate-500 font-medium">Modify element properties</p>
+                  </div>
+                </div>
 
-            {/* Main Config Panel */}
-            <div className={cn(
-              "p-4 rounded-xl border min-h-[300px] overflow-visible",
-              colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
-            )}>
-              {selectedEdge ? (
-                <EdgeConfig selectedEdge={selectedEdge} />
-              ) : (
-                <NodeConfig selectedNode={selectedNode} />
-              )}
-            </div>
+                {/* Main Config Panel */}
+                <div className={cn(
+                  "p-4 rounded-xl border min-h-[300px] overflow-visible",
+                  colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
+                )}>
+                  {selectedEdge ? (
+                    <EdgeConfig selectedEdge={selectedEdge} />
+                  ) : (
+                    <NodeConfig selectedNode={selectedNode} />
+                  )}
+                </div>
 
-            {/* Display Settings */}
-            {getDisplaySettings()}
+                {/* Display Settings */}
+                {getDisplaySettings()}
+              </>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 pt-12 opacity-50">
+                <MousePointer2 size={48} className="text-slate-500" />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Settings</p>
+                  <p className="text-[9px] text-slate-500 max-w-[180px]">Select an element on the canvas to view and modify its properties.</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
