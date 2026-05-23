@@ -50,6 +50,66 @@ const ArchitectureRow = ({
   colorMode
 }: ArchitectureRowProps) => {
   const isConfirming = confirmOverwriteId === p.id;
+
+  const renderActions = () => {
+    if (isConfirming) {
+      return (
+        <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+          <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
+          <button onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
+          <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
+        </div>
+      );
+    }
+
+    const deleteButton = (
+      <button
+        onClick={() => onDelete(p.id)}
+        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+        title="Delete project"
+      >
+        <Trash2 size={13} />
+      </button>
+    );
+
+    if (isActive) {
+      return (
+        <>
+          {hasChanges && (
+            <button
+              onClick={onUpdate}
+              className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
+            >
+              <Save size={12} /> Update
+            </button>
+          )}
+          {deleteButton}
+        </>
+      );
+    }
+
+    const showOverwrite = !isCanvasEmpty && p.content !== currentContent;
+
+    return (
+      <>
+        {showOverwrite && (
+          <button
+            onClick={() => setConfirmOverwriteId(p.id)}
+            className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
+          >
+            Overwrite
+          </button>
+        )}
+        <button
+          onClick={() => onLoad(p.id, p.name)}
+          className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
+        >
+          Open
+        </button>
+        {deleteButton}
+      </>
+    );
+  };
   
   return (
     <div
@@ -72,50 +132,7 @@ const ArchitectureRow = ({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {isConfirming ? (
-          <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
-            <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
-            <button onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
-            <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
-          </div>
-        ) : (
-          <>
-            {isActive ? (
-              hasChanges && (
-                <button
-                  onClick={onUpdate}
-                  className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
-                >
-                  <Save size={12} /> Update
-                </button>
-              )
-            ) : (
-              <>
-                {!isCanvasEmpty && p.content !== currentContent && (
-                  <button
-                    onClick={() => setConfirmOverwriteId(p.id)}
-                    className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
-                  >
-                    Overwrite
-                  </button>
-                )}
-                <button
-                  onClick={() => onLoad(p.id, p.name)}
-                  className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
-                >
-                  Open
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => onDelete(p.id)}
-              className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
-              title="Delete project"
-            >
-              <Trash2 size={13} />
-            </button>
-          </>
-        )}
+        {renderActions()}
       </div>
     </div>
   );
@@ -608,14 +625,19 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
               const isActive = activeTab === item.id;
               const Icon = item.icon;
               let itemClasses = "";
+
               if (isActive) {
-                itemClasses = colorMode === 'dark'
-                  ? "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]"
-                  : "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
+                if (colorMode === 'dark') {
+                  itemClasses = "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]";
+                } else {
+                  itemClasses = "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
+                }
               } else {
-                itemClasses = colorMode === 'dark'
-                  ? "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+                if (colorMode === 'dark') {
+                  itemClasses = "text-slate-400 hover:bg-slate-800 hover:text-slate-200";
+                } else {
+                  itemClasses = "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+                }
               }
 
               return (

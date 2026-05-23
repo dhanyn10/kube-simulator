@@ -69,9 +69,11 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             if (isActive) {
               modeClasses = "bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20";
             } else {
-              modeClasses = colorMode === 'dark'
-                ? "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500"
-                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300";
+              if (colorMode === 'dark') {
+                modeClasses = "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500";
+              } else {
+                modeClasses = "bg-white border-slate-200 text-slate-600 hover:border-slate-300";
+              }
             }
 
             return (

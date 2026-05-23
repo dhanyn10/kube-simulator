@@ -119,13 +119,27 @@ export const MenuBar = ({
 
   const hasHpaValidationError = useMemo(() => !validateHpaTargets(nodes, edges), [nodes, edges]);
 
+  let themeClasses = "";
+  if (colorMode === 'dark') {
+    themeClasses = "bg-slate-900 border-slate-800 text-slate-300";
+  } else {
+    themeClasses = "bg-slate-50 border-slate-200 text-slate-700";
+  }
+
+  let titleColorClass = "";
+  if (colorMode === 'dark') {
+    titleColorClass = "text-blue-400";
+  } else {
+    titleColorClass = "text-blue-600";
+  }
+
   return (
     <div
       ref={menuRef}
       style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
       className={cn(
         "h-10 border-b flex items-center px-4 justify-between z-50 select-none relative",
-        colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"
+        themeClasses
       )}
     >
       <div className="flex items-center gap-1">
@@ -155,7 +169,7 @@ export const MenuBar = ({
           data-testid="app-title"
           className={cn(
             "text-[11px] font-bold uppercase tracking-[0.3em]",
-            colorMode === 'dark' ? "text-blue-400" : "text-blue-600"
+            titleColorClass
           )}
         >
           Kube Simulator

@@ -14,7 +14,11 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
     if (isPending) return "text-red-500";
     if (isReady) return "text-emerald-500";
     if (colorMode === 'dark') return `text-${color}-400`;
-    return mode === 'icon' ? `text-${color}-500` : `text-${color}-600`;
+
+    if (mode === 'icon') {
+      return `text-${color}-500`;
+    }
+    return `text-${color}-600`;
   };
 
   let statusDotColor = "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]";

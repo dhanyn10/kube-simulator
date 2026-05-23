@@ -73,9 +73,16 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
   const getOptionClasses = (imgName: string) => {
     const isSelected = value === imgName;
     if (isSelected) {
-      return colorMode === 'dark' ? "bg-slate-900 text-blue-400" : "bg-blue-50/50 text-blue-600";
+      if (colorMode === 'dark') {
+        return "bg-slate-900 text-blue-400";
+      }
+      return "bg-blue-50/50 text-blue-600";
     }
-    return colorMode === 'dark' ? "hover:bg-slate-900 text-slate-300" : "hover:bg-slate-50 text-slate-700";
+
+    if (colorMode === 'dark') {
+      return "hover:bg-slate-900 text-slate-300";
+    }
+    return "hover:bg-slate-50 text-slate-700";
   };
 
   return (
