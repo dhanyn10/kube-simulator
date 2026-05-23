@@ -194,7 +194,7 @@ export default function App() {
   return (
     <div className={cn(
       'flex flex-col h-screen w-screen overflow-hidden font-sans antialiased',
-      colorMode === 'dark' ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-800'
+      colorMode === 'dark' ? 'bg-slate-950 text-slate-200 dark' : 'bg-white text-slate-800 light'
     )}>
       <MenuBar
         onExportYaml={handleExport}

@@ -20,78 +20,6 @@ import { ConfigSection } from './ConfigUI';
 
 type TabType = 'canvas' | 'settings';
 
-interface DisplaySettingsSectionProps {
-  selectedNode: any;
-  colorMode: 'dark' | 'light';
-}
-
-export const DisplaySettingsSection = ({ selectedNode, colorMode }: DisplaySettingsSectionProps) => {
-  if (!selectedNode) return null;
-
-  const data = selectedNode.data as any;
-  const displaySettings = data.displaySettings || {};
-
-  if (selectedNode.type !== 'Pod' && selectedNode.type !== 'Deployment') {
-    return null;
-  }
-
-  const toggle = (field: string) => {
-    const current = displaySettings[field] !== false;
-    const updateNodeData = useFlowStore.getState().updateNodeData;
-    updateNodeData(selectedNode.id, {
-      displaySettings: { ...displaySettings, [field]: !current }
-    });
-  };
-
-  const options = [
-    { key: 'resources', label: 'Show Resources' },
-    { key: 'image', label: 'Show Image' },
-    { key: 'webserver', label: 'Show Web Server' },
-    { key: 'runtime', label: 'Show Runtime' },
-  ];
-
-  const getOptionClassName = (optKey: string) => {
-    const isActive = displaySettings[optKey] !== false;
-    const isDark = colorMode === 'dark';
-
-    if (isActive) {
-      return isDark
-        ? "bg-blue-500/10 border-blue-500/50 text-blue-400"
-        : "bg-blue-50 border-blue-200 text-blue-600";
-    }
-
-    return isDark
-      ? "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
-      : "bg-white border-slate-200 text-slate-400 hover:border-slate-300";
-  };
-
-  return (
-    <ConfigSection
-      title="Display Settings"
-      icon={Monitor}
-    >
-      <div className="space-y-2 mt-2">
-        {options.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => toggle(opt.key)}
-            className={cn(
-              "w-full px-3 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider flex items-center justify-between transition-all",
-              getOptionClassName(opt.key)
-            )}
-          >
-            {opt.label}
-            <div className={cn(
-              "w-2 h-2 rounded-full transition-colors",
-              displaySettings[opt.key] !== false ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" : "bg-slate-700"
-            )} />
-          </button>
-        ))}
-      </div>
-    </ConfigSection>
-  );
-};
-
 interface CanvasWidgetsPanelProps {
   nodes: any[];
   colorMode: 'dark' | 'light';
@@ -209,8 +137,6 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
             )}
           </div>
 
-          {/* Display Settings */}
-          <DisplaySettingsSection selectedNode={selectedNode} colorMode={colorMode} />
         </>
       ) : (
         <div className="h-full flex flex-col items-center justify-center text-center space-y-4 pt-12 opacity-50">
@@ -298,7 +224,10 @@ export const SidebarTabBar = ({
         </button>
         <button
           data-testid="canvas-dropdown-toggle"
-          onClick={() => setIsCanvasDropdownOpen(!isCanvasDropdownOpen)}
+          onClick={() => {
+            setIsCanvasDropdownOpen(!isCanvasDropdownOpen);
+            setActiveTab('canvas');
+          }}
           className={cn(
             "px-1.5 flex items-center justify-center border-l rounded-r-md transition-all",
             getDropdownToggleClassName()
