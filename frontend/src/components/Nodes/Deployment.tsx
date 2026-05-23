@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import  { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';

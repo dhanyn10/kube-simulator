@@ -46,13 +46,27 @@ func (a *App) startup(ctx context.Context) {
 	// Adjust window size to 90% of screen height on startup
 	screens, err := wailsRuntime.ScreenGetAll(ctx)
 	if err == nil {
-		if height, ok := a.GetTargetScreenHeight(screens); ok {
-			newHeight := a.CalculateAppHeight(height)
+		if targetScreen, ok := a.GetTargetScreen(screens); ok {
+			screenW := targetScreen.Size.Width
+			screenH := targetScreen.Size.Height
+			if screenW == 0 {
+				screenW = targetScreen.Width
+				screenH = targetScreen.Height
+			}
+			newHeight := a.CalculateAppHeight(screenH)
 			currWidth, _ := wailsRuntime.WindowGetSize(ctx)
+
+			// Center horizontally; pin Y=0 so the menu bar is never clipped above the screen
+			x := (screenW - currWidth) / 2
+			if x < 0 {
+				x = 0
+			}
+
 			wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
-			wailsRuntime.WindowCenter(ctx)
+			wailsRuntime.WindowSetPosition(ctx, x, 0)
 		}
 	}
+	wailsRuntime.WindowShow(ctx)
 
 	// If a file was passed via CLI, read it and emit to frontend after a short delay
 	if a.initialFilePath != "" {
@@ -66,17 +80,23 @@ func (a *App) startup(ctx context.Context) {
 	}
 }
 
-// GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
-func (a *App) GetTargetScreenHeight(screens []wailsRuntime.Screen) (int, bool) {
+// GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
+func (a *App) GetTargetScreen(screens []wailsRuntime.Screen) (wailsRuntime.Screen, bool) {
 	if len(screens) == 0 {
-		return 0, false
+		return wailsRuntime.Screen{}, false
 	}
 	for _, s := range screens {
 		if s.IsPrimary {
-			return s.Height, true
+			return s, true
 		}
 	}
-	return screens[0].Height, true
+	return screens[0], true
+}
+
+// GetTargetScreenHeight selects the target screen's height: either the primary screen or the first fallback screen.
+func (a *App) GetTargetScreenHeight(screens []wailsRuntime.Screen) (int, bool) {
+	s, ok := a.GetTargetScreen(screens)
+	return s.Height, ok
 }
 
 // CalculateAppHeight returns 90% of the given screen height.

@@ -37,7 +37,7 @@ const syncContainerSizeToBounds = (nodes: Node[], containerId: string, bounds: {
 /**
  * Handles logic for when a Pod is resized.
  */
-const applyPodResize = (nodes: Node[], resizedNode: Node, get: () => FlowState) => {
+const applyPodResize = (nodes: Node[], resizedNode: Node) => {
   const parentId = resizedNode.parentId;
   if (!parentId) return nodes;
 
@@ -82,7 +82,7 @@ const applyDeploymentResize = (nodes: Node[], resizedNode: Node) => {
 };
 
 export const resizeHandlers = (set: any, get: () => FlowState) => ({
-  onNodeResize: (event: any, node: Node) => {
+  onNodeResize: (_event: any, node: Node) => {
     set((state: FlowState) => {
       const currentNode = state.nodes.find((n: Node) => n.id === node.id);
       if (!currentNode) return state;
@@ -104,7 +104,7 @@ export const resizeHandlers = (set: any, get: () => FlowState) => ({
       const resized = nextNodes.find(n => n.id === node.id)!;
       
       if (resized.type === 'Pod') {
-        nextNodes = applyPodResize(nextNodes, resized, get);
+        nextNodes = applyPodResize(nextNodes, resized);
       } else if (resized.type === 'Deployment') {
         nextNodes = applyDeploymentResize(nextNodes, resized);
       }
@@ -113,7 +113,7 @@ export const resizeHandlers = (set: any, get: () => FlowState) => ({
     });
   },
 
-  onNodeResizeStop: (event: any, node: Node) => {
+  onNodeResizeStop: (_event: any, _node: Node) => {
     set({
       lastActionId: `resize-${Date.now()}`,
       lastActionName: 'Resize Element'

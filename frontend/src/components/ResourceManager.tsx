@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';

@@ -38,6 +38,10 @@ export function GetSystemResources() {
   return window['go']['main']['App']['GetSystemResources']();
 }
 
+export function GetTargetScreen(arg1) {
+  return window['go']['main']['App']['GetTargetScreen'](arg1);
+}
+
 export function GetTargetScreenHeight(arg1) {
   return window['go']['main']['App']['GetTargetScreenHeight'](arg1);
 }

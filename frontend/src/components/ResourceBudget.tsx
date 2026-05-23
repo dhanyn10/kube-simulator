@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import  { useMemo } from 'react';
 import { useFlowStore } from '../store';
 import { K8sNodeData } from '../types';
 import { parseCPU, parseMemory, formatCPU, formatMemory } from '../lib/utils';

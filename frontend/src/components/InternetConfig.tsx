@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useFlowStore } from '../store';
 import { Network, Layers } from 'lucide-react';
 import { ConfigSection, AdvancedSection } from './ConfigUI';
@@ -8,10 +8,10 @@ interface InternetConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
-  toggleYaml: (field: string) => void;
+  toggleYaml?: (field: string) => void;
 }
 
-export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: InternetConfigProps) => {
+export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }: InternetConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
 

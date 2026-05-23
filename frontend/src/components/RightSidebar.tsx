@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Eye,
@@ -6,8 +6,6 @@ import {
   Check,
   Activity,
   Info,
-  Maximize,
-  MousePointer2,
   ChevronDown,
   Layout
 } from 'lucide-react';
@@ -103,7 +101,6 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
   const selectedNode = nodes.find(n => n.id === configuringNodeId);
   const selectedEdge = edges.find(e => e.id === configuringEdgeId);
-  const activeDeploymentId = useFlowStore((state) => state.activeDeploymentId);
   const isElementSelected = !!selectedNode || !!selectedEdge;
 
   const canvasWidgets = [
@@ -115,7 +112,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
     if (!selectedNode) return [];
 
     const settings: { label: string; checked: boolean; onClick: () => void }[] = [];
-    const data = selectedNode.data;
+    const data = selectedNode.data as any;
     const displaySettings = data.displaySettings || {};
 
     if (selectedNode.type === 'Pod' || selectedNode.type === 'Deployment') {

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useFlowStore } from '../store';
 import { Settings, Type } from 'lucide-react';
 import { KeyValueConfig } from './KeyValueConfig';

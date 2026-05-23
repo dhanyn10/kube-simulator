@@ -3,12 +3,7 @@ import {
   calculateReachability,
   updateInternetTraffic,
   SimulationContext,
-  calculateResourceMetrics,
-  checkPvcReadiness,
-  handleUnboundPvcs,
-  handleBoundPvcs,
-  handleOomCrashes,
-  handleHpaScaling
+  calculateResourceMetrics
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';

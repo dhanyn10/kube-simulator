@@ -1,10 +1,10 @@
-import React, { memo } from 'react';
+import  { memo } from 'react';
 import { NodeProps, NodeResizer, Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { K8sNodeData } from '../../types';
 
-export const ReplicaSetNode = memo(({ id, selected, data }: NodeProps<Node<K8sNodeData>>) => {
+export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeData>>) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
   return (

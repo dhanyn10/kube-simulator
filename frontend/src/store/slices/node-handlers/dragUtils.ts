@@ -1,5 +1,5 @@
 import { Node } from '@xyflow/react';
-import { getAbsPos, isAllowed, getNodeData } from '../../helpers';
+import { getAbsPos, getNodeData } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import { FlowState } from '../../types';
 

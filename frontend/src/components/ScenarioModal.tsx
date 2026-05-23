@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import  { useState } from 'react';
 import { BookOpen, GraduationCap, Zap, AlertCircle } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Type } from 'lucide-react';

@@ -68,7 +68,7 @@ const getEnvFromConnections = (targetIds: string | string[], nodes: any[], edges
   return env;
 };
 
-export const generateNamespaceYaml = (data: K8sNodeData, name: string) => {
+export const generateNamespaceYaml = (_data: K8sNodeData, name: string) => {
   return {
     apiVersion: 'v1',
     kind: 'Namespace',

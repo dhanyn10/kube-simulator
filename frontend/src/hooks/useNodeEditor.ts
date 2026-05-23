@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFlowStore } from '../store';
 
-export const useNodeRename = (id: string, initialLabel: string, onRename?: (newName: string) => void) => {
+export const useNodeRename = (initialLabel: string, onRename?: (newName: string) => void) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(initialLabel);
   const inputRef = useRef<HTMLInputElement>(null);
