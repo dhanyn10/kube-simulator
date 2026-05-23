@@ -41,6 +41,7 @@ import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useFileSystem } from './hooks/useFileSystem';
+import { useFitView } from './hooks/useFitView';
 import AboutDialog from './components/AboutDialog'; // Import AboutDialog
 
 const nodeTypes = {
@@ -144,7 +145,8 @@ export default function App() {
     };
   }, []);
 
-  const { zoomIn, zoomOut, fitView, screenToFlowPosition } = useReactFlow();
+  const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+  const fitView = useFitView();
   const { handleUndo, handleRedo } = useHistory();
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
   const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);

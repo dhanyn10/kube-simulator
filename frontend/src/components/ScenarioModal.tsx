@@ -1,11 +1,11 @@
 import  { useState } from 'react';
 import { BookOpen, GraduationCap, Zap, AlertCircle } from 'lucide-react';
-import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { scenarios, Scenario } from '../scenarios';
 import { hydrateNodes } from '../store/nodeHelpers';
 import { Modal } from './Modal';
+import { useFitView } from '../hooks/useFitView';
 
 interface ScenarioModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface ScenarioModalProps {
 }
 
 export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
-  const { fitView } = useReactFlow();
+  const fitView = useFitView();
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -65,8 +65,8 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
 
     // Give React Flow a moment to render and measure the new nodes
     setTimeout(() => {
-      fitView({ padding: 0.2, duration: 800 });
-    }, 50);
+      fitView({ padding: 0.15, duration: 800 });
+    }, 150);
   };
 
   const getLevelIcon = (level: string) => {
