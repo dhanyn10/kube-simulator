@@ -70,6 +70,21 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
     handleSelectOption(img);
   };
 
+  const getOptionClasses = (imgName: string) => {
+    const isSelected = value === imgName;
+    if (isSelected) {
+      if (colorMode === 'dark') {
+        return "bg-slate-900 text-blue-400";
+      }
+      return "bg-blue-50/50 text-blue-600";
+    }
+
+    if (colorMode === 'dark') {
+      return "hover:bg-slate-900 text-slate-300";
+    }
+    return "hover:bg-slate-50 text-slate-700";
+  };
+
   return (
     <div ref={dropdownRef} className="relative w-full">
       {/* Clickable Trigger Button */}
@@ -148,9 +163,7 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
                       onClick={() => handleSelectOption(opt.name)}
                       className={cn(
                         "w-full flex items-center justify-between p-2 rounded-lg text-left text-[11px] font-mono transition-colors",
-                        value === opt.name
-                          ? (colorMode === 'dark' ? "bg-slate-900 text-blue-400" : "bg-blue-50/50 text-blue-600")
-                          : (colorMode === 'dark' ? "hover:bg-slate-900 text-slate-300" : "hover:bg-slate-50 text-slate-700")
+                        getOptionClasses(opt.name)
                       )}
                     >
                       <span className="flex items-center gap-2 truncate">
@@ -178,9 +191,7 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
                       onClick={() => handleSelectOption(opt.name)}
                       className={cn(
                         "w-full flex items-center justify-between p-2 rounded-lg text-left text-[11px] font-mono transition-colors",
-                        value === opt.name
-                          ? (colorMode === 'dark' ? "bg-slate-900 text-blue-400" : "bg-blue-50/50 text-blue-600")
-                          : (colorMode === 'dark' ? "hover:bg-slate-900 text-slate-300" : "hover:bg-slate-50 text-slate-700")
+                        getOptionClasses(opt.name)
                       )}
                     >
                       <span className="flex items-center gap-2 truncate">

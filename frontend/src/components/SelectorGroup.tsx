@@ -38,6 +38,25 @@ export const SelectorGroup = ({
         const isActive = currentValue === val;
         const isInvalid = validateOption?.(val);
 
+        let stateClasses = "";
+        if (isActive) {
+          stateClasses = `${activeColorClass} ${activeShadowClass}`;
+        } else {
+          if (colorMode === 'dark') {
+            stateClasses = "bg-slate-800 border-slate-700 hover:border-slate-600";
+          } else {
+            stateClasses = "bg-slate-50 border-slate-200 hover:border-slate-300";
+          }
+
+          if (isInvalid) {
+            if (colorMode === 'dark') {
+              stateClasses += " border-red-900/50 text-red-400/70";
+            } else {
+              stateClasses += " border-red-200 text-red-400";
+            }
+          }
+        }
+
         return (
           <button
             key={val}
@@ -45,10 +64,7 @@ export const SelectorGroup = ({
             className={cn(
               "transition-all border",
               layout === 'column' ? "flex flex-col items-start p-2 rounded text-left" : "text-[8px] px-2 py-0.5 rounded",
-              isActive
-                ? `${activeColorClass} ${activeShadowClass}`
-                : (colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300"),
-              !isActive && isInvalid && (colorMode === 'dark' ? "border-red-900/50 text-red-400/70" : "border-red-200 text-red-400")
+              stateClasses
             )}
           >
             <span className={cn("font-bold", layout !== 'column' && "text-[8px]")}>{opt.label}</span>

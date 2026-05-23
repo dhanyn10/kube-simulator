@@ -14,11 +14,19 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
     if (isPending) return "text-red-500";
     if (isReady) return "text-emerald-500";
     if (colorMode === 'dark') return `text-${color}-400`;
-    return mode === 'icon' ? `text-${color}-500` : `text-${color}-600`;
+
+    if (mode === 'icon') {
+      return `text-${color}-500`;
+    }
+    return `text-${color}-600`;
   };
 
-  const statusDotColor = isCrashing ? "bg-red-600 animate-ping" :
-    (isPending ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]");
+  let statusDotColor = "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]";
+  if (isCrashing) {
+    statusDotColor = "bg-red-600 animate-ping";
+  } else if (isPending) {
+    statusDotColor = "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]";
+  }
 
   return {
     effectiveStatus,
@@ -36,11 +44,19 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
  */
 export const useNodeContainerStyles = (selected: boolean | undefined, isReady: boolean, isPending: boolean, isCrashing: boolean, color: string, colorMode: 'dark' | 'light') => {
   const containerBaseClasses = colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
-  const selectionClasses = selected
-    ? (colorMode === 'dark' ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]" : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg")
-    : `hover:border-${color}-500/50`;
+  let selectionClasses = `hover:border-${color}-500/50`;
+  if (selected) {
+    selectionClasses = colorMode === 'dark'
+      ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+      : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg";
+  }
 
-  const readyClasses = isReady ? (colorMode === 'dark' ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/30") : "";
+  let readyClasses = "";
+  if (isReady) {
+    readyClasses = colorMode === 'dark'
+      ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+      : "border-emerald-500/30";
+  }
 
   const statusClasses = [
     isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",

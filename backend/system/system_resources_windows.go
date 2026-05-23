@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package system
 
 import (
 	"os"
@@ -14,7 +14,7 @@ import (
 var wmicPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "wbem", "wmic.exe")
 
 // GetSystemResources returns the local CPU cores and total/available memory in GB using WMIC
-func (a *App) GetSystemResources() map[string]interface{} {
+func GetSystemResources() map[string]interface{} {
 	cores := runtime.NumCPU()
 
 	// Get Total Memory

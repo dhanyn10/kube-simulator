@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"build-wails/backend/db"
+	"build-wails/backend/system"
 	"github.com/dgraph-io/badger/v4"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -319,4 +320,8 @@ func (a *App) GetSystemInfo() map[string]string {
 		"arch":      runtime.GOARCH,
 		"goVersion": runtime.Version(),
 	}
+}
+
+func (a *App) GetSystemResources() map[string]interface{} {
+	return system.GetSystemResources()
 }

@@ -50,6 +50,66 @@ const ArchitectureRow = ({
   colorMode
 }: ArchitectureRowProps) => {
   const isConfirming = confirmOverwriteId === p.id;
+
+  const renderActions = () => {
+    if (isConfirming) {
+      return (
+        <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+          <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
+          <button onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
+          <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
+        </div>
+      );
+    }
+
+    const deleteButton = (
+      <button
+        onClick={() => onDelete(p.id)}
+        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+        title="Delete project"
+      >
+        <Trash2 size={13} />
+      </button>
+    );
+
+    if (isActive) {
+      return (
+        <>
+          {hasChanges && (
+            <button
+              onClick={onUpdate}
+              className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
+            >
+              <Save size={12} /> Update
+            </button>
+          )}
+          {deleteButton}
+        </>
+      );
+    }
+
+    const showOverwrite = !isCanvasEmpty && p.content !== currentContent;
+
+    return (
+      <>
+        {showOverwrite && (
+          <button
+            onClick={() => setConfirmOverwriteId(p.id)}
+            className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
+          >
+            Overwrite
+          </button>
+        )}
+        <button
+          onClick={() => onLoad(p.id, p.name)}
+          className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
+        >
+          Open
+        </button>
+        {deleteButton}
+      </>
+    );
+  };
   
   return (
     <div
@@ -72,50 +132,7 @@ const ArchitectureRow = ({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {isConfirming ? (
-          <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
-            <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
-            <button onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
-            <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
-          </div>
-        ) : (
-          <>
-            {isActive ? (
-              hasChanges && (
-                <button
-                  onClick={onUpdate}
-                  className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
-                >
-                  <Save size={12} /> Update
-                </button>
-              )
-            ) : (
-              <>
-                {!isCanvasEmpty && p.content !== currentContent && (
-                  <button
-                    onClick={() => setConfirmOverwriteId(p.id)}
-                    className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
-                  >
-                    Overwrite
-                  </button>
-                )}
-                <button
-                  onClick={() => onLoad(p.id, p.name)}
-                  className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
-                >
-                  Open
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => onDelete(p.id)}
-              className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
-              title="Delete project"
-            >
-              <Trash2 size={13} />
-            </button>
-          </>
-        )}
+        {renderActions()}
       </div>
     </div>
   );
@@ -206,6 +223,217 @@ const generateTimestampedProjectName = (): string => {
   const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
   return `Project-${dmyhis}`;
 };
+
+interface ProjectsTabProps {
+  projectName: string;
+  setProjectName: (name: string) => void;
+  handleSave: () => void;
+  projects: Project[];
+  currentProject: { id: number; name: string } | null;
+  hasChanges: boolean;
+  isCanvasEmpty: boolean;
+  currentContent: string;
+  confirmOverwriteId: number | null;
+  setConfirmOverwriteId: (id: number | null) => void;
+  handleOverwrite: (id: number) => void;
+  handleUpdate: () => void;
+  handleLoad: (id: number, name: string) => void;
+  handleDelete: (id: number) => void;
+  colorMode: 'dark' | 'light';
+}
+
+const ProjectsTab = ({
+  projectName,
+  setProjectName,
+  handleSave,
+  projects,
+  currentProject,
+  hasChanges,
+  isCanvasEmpty,
+  currentContent,
+  confirmOverwriteId,
+  setConfirmOverwriteId,
+  handleOverwrite,
+  handleUpdate,
+  handleLoad,
+  handleDelete,
+  colorMode
+}: ProjectsTabProps) => (
+  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+    <div>
+      <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Architecture Archives</h3>
+      <p className="text-[10px] text-slate-500 leading-tight">Create, update, restore, or manage local Kubernetes system architectures.</p>
+    </div>
+
+    <div className={cn(
+      "p-3 rounded-lg border flex gap-3 items-center",
+      colorMode === 'dark' ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"
+    )}>
+      <div className="flex-1">
+        <input
+          type="text"
+          placeholder="Enter new architecture name..."
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+          className={cn(
+            "w-full px-3 py-1.5 text-xs outline-none rounded border focus:ring-1 focus:ring-blue-500/50",
+            colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200"
+          )}
+        />
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={!projectName.trim()}
+        className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
+      >
+        <Plus size={14} /> Save New
+      </button>
+    </div>
+
+    <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+      {projects.length === 0 ? (
+        <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
+          No saved architectures found
+        </div>
+      ) : (
+        projects.map((p) => (
+          <ArchitectureRow
+            key={p.id}
+            p={p}
+            isActive={currentProject?.id === p.id}
+            hasChanges={hasChanges}
+            isCanvasEmpty={isCanvasEmpty}
+            currentContent={currentContent}
+            confirmOverwriteId={confirmOverwriteId}
+            setConfirmOverwriteId={setConfirmOverwriteId}
+            onOverwrite={handleOverwrite}
+            onUpdate={handleUpdate}
+            onLoad={handleLoad}
+            onDelete={handleDelete}
+            colorMode={colorMode}
+          />
+        ))
+      )}
+    </div>
+  </div>
+);
+
+interface DockerRegistryTabProps {
+  dockerSearch: string;
+  setDockerSearch: (val: string) => void;
+  filteredDockerImages: { name: string; desc: string }[];
+  colorMode: 'dark' | 'light';
+}
+
+const DockerRegistryTab = ({
+  dockerSearch,
+  setDockerSearch,
+  filteredDockerImages,
+  colorMode
+}: DockerRegistryTabProps) => (
+  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Docker Hub Official Images</h3>
+        <p className="text-[10px] text-slate-500 leading-tight">Registry images readily available as options for Container Images.</p>
+      </div>
+      <div className="relative w-44">
+        <Search size={10} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")} />
+        <input
+          type="text"
+          placeholder="Search images..."
+          value={dockerSearch}
+          onChange={(e) => setDockerSearch(e.target.value)}
+          className={cn(
+            "w-full pl-6 pr-2 py-0.8 text-[10px] outline-none rounded border",
+            colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200"
+          )}
+        />
+      </div>
+    </div>
+
+    <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-2 gap-3 self-stretch align-content-start">
+      {filteredDockerImages.length === 0 ? (
+        <div className="col-span-2 text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
+      ) : (
+        filteredDockerImages.map((img) => (
+          <DockerImageCard
+            key={img.name}
+            img={img}
+            colorMode={colorMode}
+          />
+        ))
+      )}
+    </div>
+  </div>
+);
+
+interface LocalImagesTabProps {
+  newCustomImage: string;
+  setNewCustomImage: (val: string) => void;
+  handleAddCustomImageSubmit: () => void;
+  customImages: string[];
+  deleteCustomImage: (img: string) => void;
+  colorMode: 'dark' | 'light';
+}
+
+const LocalImagesTab = ({
+  newCustomImage,
+  setNewCustomImage,
+  handleAddCustomImageSubmit,
+  customImages,
+  deleteCustomImage,
+  colorMode
+}: LocalImagesTabProps) => (
+  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+    <div>
+      <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Local & Private Images</h3>
+      <p className="text-[10px] text-slate-500 leading-tight">Add your custom docker repositories, private enterprise images, or local builds.</p>
+    </div>
+
+    <div className={cn(
+      "p-3 rounded-lg border flex gap-3 items-center",
+      colorMode === 'dark' ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"
+    )}>
+      <div className="flex-1">
+        <input
+          type="text"
+          placeholder="e.g. my-app:v1.0.0 or gcr.io/company/api:latest..."
+          value={newCustomImage}
+          onChange={(e) => setNewCustomImage(e.target.value)}
+          className={cn(
+            "w-full px-3 py-1.5 text-xs outline-none rounded border focus:ring-1 focus:ring-blue-500/50",
+            colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200"
+          )}
+        />
+      </div>
+      <button
+        onClick={handleAddCustomImageSubmit}
+        disabled={!newCustomImage.trim()}
+        className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
+      >
+        <Plus size={14} /> Add Image
+      </button>
+    </div>
+
+    <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+      {customImages.length === 0 ? (
+        <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
+          No custom local images registered yet. Add one above!
+        </div>
+      ) : (
+        customImages.map((img) => (
+          <LocalImageRow
+            key={img}
+            img={img}
+            onDelete={deleteCustomImage}
+            colorMode={colorMode}
+          />
+        ))
+      )}
+    </div>
+  </div>
+);
 
 export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const { fitView } = useReactFlow();
@@ -396,15 +624,25 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
             {filteredSidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               const Icon = item.icon;
+              let itemClasses = "";
+
+              if (isActive && colorMode === 'dark') {
+                itemClasses = "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]";
+              } else if (isActive) {
+                itemClasses = "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
+              } else if (colorMode === 'dark') {
+                itemClasses = "text-slate-400 hover:bg-slate-800 hover:text-slate-200";
+              } else {
+                itemClasses = "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+              }
+
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={cn(
                     "w-full flex items-center gap-2.5 px-3 py-1.5 rounded text-[11px] font-semibold text-left transition-all duration-150 group",
-                    isActive
-                      ? (colorMode === 'dark' ? "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]" : "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]")
-                      : (colorMode === 'dark' ? "text-slate-400 hover:bg-slate-800 hover:text-slate-200" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900")
+                    itemClasses
                   )}
                 >
                   <Icon size={13} className={cn("transition-colors", isActive ? "text-blue-500" : "text-slate-500 group-hover:text-slate-400")} />
@@ -425,162 +663,44 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
           colorMode === 'dark' ? "bg-slate-900/10" : "bg-white"
         )}>
           
-          {/* TAB 1: SAVED ARCHITECTURES */}
           {activeTab === 'projects' && (
-            <div className="flex-1 flex flex-col overflow-hidden space-y-4">
-              <div>
-                <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Architecture Archives</h3>
-                <p className="text-[10px] text-slate-500 leading-tight">Create, update, restore, or manage local Kubernetes system architectures.</p>
-              </div>
-
-              {/* Save As Form */}
-              <div className={cn(
-                "p-3 rounded-lg border flex gap-3 items-center",
-                colorMode === 'dark' ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"
-              )}>
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Enter new architecture name..."
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    className={cn(
-                      "w-full px-3 py-1.5 text-xs outline-none rounded border focus:ring-1 focus:ring-blue-500/50",
-                      colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200"
-                    )}
-                  />
-                </div>
-                <button
-                  onClick={handleSave}
-                  disabled={!projectName.trim()}
-                  className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
-                >
-                  <Plus size={14} /> Save New
-                </button>
-              </div>
-
-              {/* Saved Architectures List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                {projects.length === 0 ? (
-                  <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
-                    No saved architectures found
-                  </div>
-                ) : (
-                  projects.map((p) => (
-                    <ArchitectureRow
-                      key={p.id}
-                      p={p}
-                      isActive={currentProject?.id === p.id}
-                      hasChanges={hasChanges}
-                      isCanvasEmpty={isCanvasEmpty}
-                      currentContent={currentContent}
-                      confirmOverwriteId={confirmOverwriteId}
-                      setConfirmOverwriteId={setConfirmOverwriteId}
-                      onOverwrite={handleOverwrite}
-                      onUpdate={handleUpdate}
-                      onLoad={handleLoad}
-                      onDelete={handleDelete}
-                      colorMode={colorMode}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+            <ProjectsTab
+              projectName={projectName}
+              setProjectName={setProjectName}
+              handleSave={handleSave}
+              projects={projects}
+              currentProject={currentProject}
+              hasChanges={hasChanges}
+              isCanvasEmpty={isCanvasEmpty}
+              currentContent={currentContent}
+              confirmOverwriteId={confirmOverwriteId}
+              setConfirmOverwriteId={setConfirmOverwriteId}
+              handleOverwrite={handleOverwrite}
+              handleUpdate={handleUpdate}
+              handleLoad={handleLoad}
+              handleDelete={handleDelete}
+              colorMode={colorMode}
+            />
           )}
 
-          {/* TAB 2: DOCKER HUB REGISTRY */}
           {activeTab === 'docker' && (
-            <div className="flex-1 flex flex-col overflow-hidden space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Docker Hub Official Images</h3>
-                  <p className="text-[10px] text-slate-500 leading-tight">Registry images readily available as options for Container Images.</p>
-                </div>
-                {/* Internal Search bar */}
-                <div className="relative w-44">
-                  <Search size={10} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")} />
-                  <input
-                    type="text"
-                    placeholder="Search images..."
-                    value={dockerSearch}
-                    onChange={(e) => setDockerSearch(e.target.value)}
-                    className={cn(
-                      "w-full pl-6 pr-2 py-0.8 text-[10px] outline-none rounded border",
-                      colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200"
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Grid of Public Images */}
-              <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-2 gap-3 self-stretch align-content-start">
-                {filteredDockerImages.length === 0 ? (
-                  <div className="col-span-2 text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
-                ) : (
-                  filteredDockerImages.map((img) => (
-                    <DockerImageCard
-                      key={img.name}
-                      img={img}
-                      colorMode={colorMode}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+            <DockerRegistryTab
+              dockerSearch={dockerSearch}
+              setDockerSearch={setDockerSearch}
+              filteredDockerImages={filteredDockerImages}
+              colorMode={colorMode}
+            />
           )}
 
-          {/* TAB 3: LOCAL & CUSTOM IMAGES */}
           {activeTab === 'local' && (
-            <div className="flex-1 flex flex-col overflow-hidden space-y-4">
-              <div>
-                <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Local & Private Images</h3>
-                <p className="text-[10px] text-slate-500 leading-tight">Add your custom docker repositories, private enterprise images, or local builds.</p>
-              </div>
-
-              {/* Mini Custom Image Form */}
-              <div className={cn(
-                "p-3 rounded-lg border flex gap-3 items-center",
-                colorMode === 'dark' ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"
-              )}>
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="e.g. my-app:v1.0.0 or gcr.io/company/api:latest..."
-                    value={newCustomImage}
-                    onChange={(e) => setNewCustomImage(e.target.value)}
-                    className={cn(
-                      "w-full px-3 py-1.5 text-xs outline-none rounded border focus:ring-1 focus:ring-blue-500/50",
-                      colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200"
-                    )}
-                  />
-                </div>
-                <button
-                  onClick={handleAddCustomImageSubmit}
-                  disabled={!newCustomImage.trim()}
-                  className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
-                >
-                  <Plus size={14} /> Add Image
-                </button>
-              </div>
-
-              {/* Custom Image List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2">
-                {customImages.length === 0 ? (
-                  <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
-                    No custom local images registered yet. Add one above!
-                  </div>
-                ) : (
-                  customImages.map((img) => (
-                    <LocalImageRow
-                      key={img}
-                      img={img}
-                      onDelete={deleteCustomImage}
-                      colorMode={colorMode}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+            <LocalImagesTab
+              newCustomImage={newCustomImage}
+              setNewCustomImage={setNewCustomImage}
+              handleAddCustomImageSubmit={handleAddCustomImageSubmit}
+              customImages={customImages}
+              deleteCustomImage={deleteCustomImage}
+              colorMode={colorMode}
+            />
           )}
 
         </div>

@@ -63,28 +63,36 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
           </label>
         </div>
         <div className="flex flex-col gap-2">
-          {accessModes.map((mode) => (
-            <button
-              key={mode.value}
-              onClick={() => performUpdate({ accessMode: mode.value })}
-              className={cn(
-                "flex flex-col items-start p-2 rounded border text-left transition-all",
-                data.accessMode === mode.value
-                  ? "bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20"
-                  : (colorMode === 'dark'
-                      ? "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500"
-                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-300")
-              )}
-            >
-              <span className="text-[10px] font-bold">{mode.label}</span>
-              <span className={cn(
-                "text-[8px] leading-tight mt-0.5",
-                data.accessMode === mode.value ? "text-orange-100" : "text-slate-500"
-              )}>
-                {mode.desc}
-              </span>
-            </button>
-          ))}
+          {accessModes.map((mode) => {
+            const isActive = data.accessMode === mode.value;
+            let modeClasses = "";
+            if (isActive) {
+              modeClasses = "bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/20";
+            } else if (colorMode === 'dark') {
+              modeClasses = "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500";
+            } else {
+              modeClasses = "bg-white border-slate-200 text-slate-600 hover:border-slate-300";
+            }
+
+            return (
+              <button
+                key={mode.value}
+                onClick={() => performUpdate({ accessMode: mode.value })}
+                className={cn(
+                  "flex flex-col items-start p-2 rounded border text-left transition-all",
+                  modeClasses
+                )}
+              >
+                <span className="text-[10px] font-bold">{mode.label}</span>
+                <span className={cn(
+                  "text-[8px] leading-tight mt-0.5",
+                  data.accessMode === mode.value ? "text-orange-100" : "text-slate-500"
+                )}>
+                  {mode.desc}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
