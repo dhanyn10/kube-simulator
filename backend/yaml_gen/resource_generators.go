@@ -43,7 +43,7 @@ func createPodSpec(data k8s.K8sNodeData, nodes []k8s.FrontendNode, edges []k8s.F
 	}
 }
 
-func generatePodOrDeployment(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge, namespace string) interface{} {
+func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
 	podSpec := createPodSpec(data, nodes, edges)
 	replicas := 1
 	if data.Replicas != nil {
@@ -103,7 +103,7 @@ func extractConfigData(data k8s.K8sNodeData) map[string]string {
 	return configData
 }
 
-func generateConfigMap(data k8s.K8sNodeData, name string, namespace string) interface{} {
+func generateConfigMap(data k8s.K8sNodeData, name, namespace string) interface{} {
 	configData := extractConfigData(data)
 	cm := k8s.ConfigMap{
 		ApiVersion: "v1",
@@ -116,7 +116,7 @@ func generateConfigMap(data k8s.K8sNodeData, name string, namespace string) inte
 	return cm
 }
 
-func generateSecret(data k8s.K8sNodeData, name string, namespace string) interface{} {
+func generateSecret(data k8s.K8sNodeData, name, namespace string) interface{} {
 	secretData := extractConfigData(data)
 	s := k8s.Secret{
 		ApiVersion: "v1",
@@ -130,7 +130,7 @@ func generateSecret(data k8s.K8sNodeData, name string, namespace string) interfa
 	return s
 }
 
-func generatePVC(data k8s.K8sNodeData, name string, namespace string) interface{} {
+func generatePVC(data k8s.K8sNodeData, name, namespace string) interface{} {
 	accessMode := "ReadWriteOnce"
 	if data.AccessMode != "" {
 		accessMode = data.AccessMode
@@ -223,7 +223,7 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, nodes []k8s.Fronten
 	}
 }
 
-func generateDeployment(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge, namespace string) interface{} {
+func generateDeployment(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
@@ -253,7 +253,7 @@ func generateDeployment(data k8s.K8sNodeData, name string, nodes []k8s.FrontendN
 	}
 }
 
-func generateReplicaSet(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge, namespace string) interface{} {
+func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
@@ -288,7 +288,7 @@ func findTargetWorkload(serviceID string, nodes []k8s.FrontendNode, edges []k8s.
 	return nil
 }
 
-func generateService(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge, namespace string) interface{} {
+func generateService(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
 	targetWorkload := findTargetWorkload(data.ID, nodes, edges)
 
 	selectorLabel := "app-label"
@@ -345,7 +345,7 @@ func findTargetService(ingressID string, nodes []k8s.FrontendNode, edges []k8s.F
 	return nil
 }
 
-func generateIngress(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge, namespace string) interface{} {
+func generateIngress(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
 	targetService := findTargetService(data.ID, nodes, edges)
 
 	serviceName := "tbd-service"
@@ -454,7 +454,7 @@ func buildHPAMetrics(data k8s.K8sNodeData) []k8s.HPAMetric {
 	return metrics
 }
 
-func generateHPA(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge, namespace string) interface{} {
+func generateHPA(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
 	targetDeployment := findTargetDeployment(data.ID, nodes, edges)
 	deploymentName := "tbd-deployment"
 	if targetDeployment != nil {

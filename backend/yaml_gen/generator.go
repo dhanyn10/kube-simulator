@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Generate(nodesJson string, edgesJson string) string {
+func Generate(nodesJson, edgesJson string) string {
 	var nodes []k8s.FrontendNode
 	var edges []k8s.FrontendEdge
 
@@ -60,17 +60,17 @@ func generateNodeYaml(node k8s.FrontendNode, nodes []k8s.FrontendNode, edges []k
 	case "Namespace":
 		obj = generateNamespace(data, name)
 	case "Pod":
-		obj = generatePodOrDeployment(data, name, nodes, edges, namespace)
+		obj = generatePodOrDeployment(data, name, namespace, nodes, edges)
 	case "Deployment":
-		obj = generateDeployment(data, name, nodes, edges, namespace)
+		obj = generateDeployment(data, name, namespace, nodes, edges)
 	case "ReplicaSet":
-		obj = generateReplicaSet(data, name, nodes, edges, namespace)
+		obj = generateReplicaSet(data, name, namespace, nodes, edges)
 	case "Service":
-		obj = generateService(data, name, nodes, edges, namespace)
+		obj = generateService(data, name, namespace, nodes, edges)
 	case "Ingress":
-		obj = generateIngress(data, name, nodes, edges, namespace)
+		obj = generateIngress(data, name, namespace, nodes, edges)
 	case "HPA":
-		obj = generateHPA(data, name, nodes, edges, namespace)
+		obj = generateHPA(data, name, namespace, nodes, edges)
 	case "PVC":
 		obj = generatePVC(data, name, namespace)
 	case "ConfigMap":
