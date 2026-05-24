@@ -6,10 +6,10 @@ import (
 
 const appsApiVersion = "apps/v1"
 
-func createPodSpec(data k8s.K8sNodeData, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) k8s.PodSpec {
+func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	targetIDs := []string{data.ID}
-	volumes, volumeMounts := getVolumeConfig(targetIDs, nodes, edges)
-	env := getEnvFromConnections(targetIDs, nodes, edges)
+	volumes, volumeMounts := getVolumeConfig(targetIDs, ctx)
+	env := getEnvFromConnections(targetIDs, ctx)
 	resources := getResourceConfig(data)
 
 	containerName := "main"
@@ -43,8 +43,8 @@ func createPodSpec(data k8s.K8sNodeData, nodes []k8s.FrontendNode, edges []k8s.F
 	}
 }
 
-func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
-	podSpec := createPodSpec(data, nodes, edges)
+func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	podSpec := createPodSpec(data, ctx)
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
@@ -172,9 +172,9 @@ func generatePVC(data k8s.K8sNodeData, name, namespace string) interface{} {
 	return pvc
 }
 
-func getPodDataAndIDs(data k8s.K8sNodeData, nodes []k8s.FrontendNode) (k8s.K8sNodeData, []string) {
+func getPodDataAndIDs(data k8s.K8sNodeData, ctx *GenContext) (k8s.K8sNodeData, []string) {
 	targetIDs := []string{data.ID}
-	for _, n := range nodes {
+	for _, n := range ctx.nodes {
 		if n.ParentID == data.ID && n.Type == "Pod" {
 			return n.Data, append(targetIDs, n.ID)
 		}
@@ -182,11 +182,11 @@ func getPodDataAndIDs(data k8s.K8sNodeData, nodes []k8s.FrontendNode) (k8s.K8sNo
 	return data, targetIDs
 }
 
-func buildPodTemplateSpec(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) k8s.PodTemplate {
-	podData, targetIDs := getPodDataAndIDs(data, nodes)
+func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8s.PodTemplate {
+	podData, targetIDs := getPodDataAndIDs(data, ctx)
 
-	volumes, volumeMounts := getVolumeConfig(targetIDs, nodes, edges)
-	env := getEnvFromConnections(targetIDs, nodes, edges)
+	volumes, volumeMounts := getVolumeConfig(targetIDs, ctx)
+	env := getEnvFromConnections(targetIDs, ctx)
 	resources := getResourceConfig(podData)
 
 	containerName := "main"
@@ -223,7 +223,7 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, nodes []k8s.Fronten
 	}
 }
 
-func generateDeployment(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
+func generateDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
@@ -248,12 +248,12 @@ func generateDeployment(data k8s.K8sNodeData, name, namespace string, nodes []k8
 					MaxUnavailable: "25%",
 				},
 			},
-			Template: buildPodTemplateSpec(data, name, nodes, edges),
+			Template: buildPodTemplateSpec(data, name, ctx),
 		},
 	}
 }
 
-func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
+func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
@@ -271,25 +271,23 @@ func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, nodes []k8
 			Selector: k8s.LabelSelector{
 				MatchLabels: map[string]string{"app": name},
 			},
-			Template: buildPodTemplateSpec(data, name, nodes, edges),
+			Template: buildPodTemplateSpec(data, name, ctx),
 		},
 	}
 }
 
-func findTargetWorkload(serviceID string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) *k8s.FrontendNode {
-	for _, e := range edges {
-		if e.Source == serviceID {
-			target := findNodeByID(e.Target, nodes)
-			if target != nil && (target.Type == "Deployment" || target.Type == "Pod") {
-				return target
-			}
+func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
+	for _, e := range ctx.edgeMap[serviceID] {
+		target := ctx.nodeMap[e.Target]
+		if target != nil && (target.Type == "Deployment" || target.Type == "Pod") {
+			return target
 		}
 	}
 	return nil
 }
 
-func generateService(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
-	targetWorkload := findTargetWorkload(data.ID, nodes, edges)
+func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	targetWorkload := findTargetWorkload(data.ID, ctx)
 
 	selectorLabel := "app-label"
 	if data.Selector != "" {
@@ -333,20 +331,18 @@ func generateService(data k8s.K8sNodeData, name, namespace string, nodes []k8s.F
 	return svc
 }
 
-func findTargetService(ingressID string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) *k8s.FrontendNode {
-	for _, e := range edges {
-		if e.Source == ingressID {
-			target := findNodeByID(e.Target, nodes)
-			if target != nil && target.Type == "Service" {
-				return target
-			}
+func findTargetService(ingressID string, ctx *GenContext) *k8s.FrontendNode {
+	for _, e := range ctx.edgeMap[ingressID] {
+		target := ctx.nodeMap[e.Target]
+		if target != nil && target.Type == "Service" {
+			return target
 		}
 	}
 	return nil
 }
 
-func generateIngress(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
-	targetService := findTargetService(data.ID, nodes, edges)
+func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	targetService := findTargetService(data.ID, ctx)
 
 	serviceName := "tbd-service"
 	servicePort := 80
@@ -407,13 +403,11 @@ func generateIngress(data k8s.K8sNodeData, name, namespace string, nodes []k8s.F
 	}
 }
 
-func findTargetDeployment(hpaID string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) *k8s.FrontendNode {
-	for _, e := range edges {
-		if e.Source == hpaID {
-			target := findNodeByID(e.Target, nodes)
-			if target != nil && target.Type == "Deployment" {
-				return target
-			}
+func findTargetDeployment(hpaID string, ctx *GenContext) *k8s.FrontendNode {
+	for _, e := range ctx.edgeMap[hpaID] {
+		target := ctx.nodeMap[e.Target]
+		if target != nil && target.Type == "Deployment" {
+			return target
 		}
 	}
 	return nil
@@ -454,8 +448,8 @@ func buildHPAMetrics(data k8s.K8sNodeData) []k8s.HPAMetric {
 	return metrics
 }
 
-func generateHPA(data k8s.K8sNodeData, name, namespace string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) interface{} {
-	targetDeployment := findTargetDeployment(data.ID, nodes, edges)
+func generateHPA(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	targetDeployment := findTargetDeployment(data.ID, ctx)
 	deploymentName := "tbd-deployment"
 	if targetDeployment != nil {
 		deploymentName = sanitizeName(targetDeployment.Data.Label)

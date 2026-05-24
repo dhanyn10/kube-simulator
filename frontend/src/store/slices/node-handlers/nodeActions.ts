@@ -150,6 +150,11 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   if (!target) return;
 
   const targetData = target.data as K8sNodeData;
+
+  // Skip if data hasn't actually changed to avoid unnecessary re-renders
+  const hasChanges = Object.entries(newData).some(([key, value]) => (targetData as any)[key] !== value);
+  if (!hasChanges) return;
+
   let sanitizedData = sanitizeResourceLimits(newData);
   sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
 

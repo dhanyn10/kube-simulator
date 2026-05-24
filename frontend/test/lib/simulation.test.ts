@@ -27,7 +27,11 @@ describe('simulation utils', () => {
     ];
     const activeEdges = ['e1-2', 'e2-3'];
 
-    const reachable = calculateReachability([nodes[0]], edges, activeEdges);
+    const edgeMap = new Map<string, Edge[]>();
+    edgeMap.set('1', [edges[0]]);
+    edgeMap.set('2', [edges[1]]);
+
+    const reachable = calculateReachability([nodes[0]], edgeMap, activeEdges);
     expect(reachable.has('1')).toBe(true);
     expect(reachable.has('2')).toBe(true);
     expect(reachable.has('3')).toBe(true);
@@ -43,7 +47,10 @@ describe('simulation utils', () => {
     ];
     const activeEdges: string[] = [];
 
-    const reachable = calculateReachability([nodes[0]], edges, activeEdges);
+    const edgeMap = new Map<string, Edge[]>();
+    edgeMap.set('1', [edges[0]]);
+
+    const reachable = calculateReachability([nodes[0]], edgeMap, activeEdges);
     expect(reachable.has('1')).toBe(true);
     expect(reachable.has('2')).toBe(false);
   });

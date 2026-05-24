@@ -82,36 +82,36 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   onNodesChange: (changes: NodeChange[]) => {
     const { nodes } = get();
     const extraChanges: NodeChange[] = [];
+    const processedGroupIds = new Set<string>();
 
     // Coordinating movement for grouped nodes
     for (const change of changes) {
       if (change.type !== 'position' || !change.position) continue;
 
       const node = nodes.find(n => n.id === change.id);
-      if (!node?.data?.groupId) continue;
+      const groupId = node?.data?.groupId;
+      if (!groupId || processedGroupIds.has(groupId)) continue;
 
-      const groupId = node.data.groupId;
       const dx = change.position.x - node.position.x;
       const dy = change.position.y - node.position.y;
-
       if (dx === 0 && dy === 0) continue;
 
-      // Find other group members not already in the change set
-      const others = nodes.filter(n =>
-        n.data?.groupId === groupId &&
-        n.id !== node.id &&
-        !changes.some(c => c.type === 'position' && c.id === n.id)
-      );
+      processedGroupIds.add(groupId);
 
-      for (const other of others) {
-        extraChanges.push({
-          id: other.id,
-          type: 'position',
-          position: {
-            x: other.position.x + dx,
-            y: other.position.y + dy
-          }
-        });
+      // Find other group members not already in the change set
+      const changeIds = new Set(changes.filter(c => c.type === 'position').map(c => c.id));
+
+      for (const other of nodes) {
+        if (other.data?.groupId === groupId && other.id !== node.id && !changeIds.has(other.id)) {
+          extraChanges.push({
+            id: other.id,
+            type: 'position',
+            position: {
+              x: other.position.x + dx,
+              y: other.position.y + dy
+            }
+          });
+        }
       }
     }
 
