@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func getEnvFromConnections(targetIDs []string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) []k8s.EnvVar {
+func getEnvFromConnections(targetIDs []string, ctx *GenContext) []k8s.EnvVar {
 	var env []k8s.EnvVar
 
 	targets := make(map[string]bool)
@@ -13,9 +13,9 @@ func getEnvFromConnections(targetIDs []string, nodes []k8s.FrontendNode, edges [
 		targets[id] = true
 	}
 
-	for _, e := range edges {
+	for _, e := range ctx.edges {
 		if targets[e.Target] {
-			sourceNode := findNodeByID(e.Source, nodes)
+			sourceNode := ctx.nodeMap[e.Source]
 			env = append(env, getEnvFromNode(sourceNode)...)
 		}
 	}
@@ -60,19 +60,14 @@ func getEnvFromNode(node *k8s.FrontendNode) []k8s.EnvVar {
 	return env
 }
 
-func getVolumeConfig(sourceIDs []string, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) ([]k8s.Volume, []k8s.VolumeMount) {
+func getVolumeConfig(sourceIDs []string, ctx *GenContext) ([]k8s.Volume, []k8s.VolumeMount) {
 	var volumes []k8s.Volume
 	var volumeMounts []k8s.VolumeMount
 
-	sources := make(map[string]bool)
-	for _, id := range sourceIDs {
-		sources[id] = true
-	}
-
 	pvcEdges := []k8s.FrontendEdge{}
-	for _, e := range edges {
-		if sources[e.Source] {
-			targetNode := findNodeByID(e.Target, nodes)
+	for _, id := range sourceIDs {
+		for _, e := range ctx.edgeMap[id] {
+			targetNode := ctx.nodeMap[e.Target]
 			if targetNode != nil && targetNode.Type == "PVC" {
 				pvcEdges = append(pvcEdges, e)
 			}
@@ -80,7 +75,7 @@ func getVolumeConfig(sourceIDs []string, nodes []k8s.FrontendNode, edges []k8s.F
 	}
 
 	for i, e := range pvcEdges {
-		pvcNode := findNodeByID(e.Target, nodes)
+		pvcNode := ctx.nodeMap[e.Target]
 		pvcName := "pvc-storage"
 		if pvcNode != nil && pvcNode.Data.Label != "" {
 			pvcName = sanitizeName(pvcNode.Data.Label)

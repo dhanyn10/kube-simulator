@@ -13,22 +13,41 @@ export interface SimulationContext {
   ticks: number;
   get: () => FlowState;
   set: (state: Partial<FlowState>) => void;
+  // Memoized lookups for performance
+  edgeMap?: Map<string, Edge[]>;
+  targetEdgeMap?: Map<string, Edge[]>;
+  nodeMap?: Map<string, Node>;
+  childPodMap?: Map<string, Node[]>;
+  internetNodes?: Node[];
+  internetReachableMap?: Map<string, Set<string>>;
+  nodeIndexMap?: Map<string, number>;
 }
 
 /**
  * Calculates which nodes are reachable from a set of starting nodes given active edges.
+ * Uses a pre-computed edge map for O(1) adjacency lookup.
  */
-export const calculateReachability = (startNodes: Node[], edges: Edge[], activeSimulationEdges: string[]): Set<string> => {
+export const calculateReachability = (
+  startNodes: Node[],
+  edgeMap: Map<string, Edge[]>,
+  activeSimulationEdges: string[] | Set<string>
+): Set<string> => {
   const reachableNodes = new Set<string>();
   const queue = startNodes.map(n => n.id);
+  const activeEdgesSet = activeSimulationEdges instanceof Set
+    ? activeSimulationEdges
+    : new Set(activeSimulationEdges);
 
   while (queue.length > 0) {
     const currId = queue.shift()!;
     if (reachableNodes.has(currId)) continue;
     reachableNodes.add(currId);
 
-    for (const e of edges) {
-      if (activeSimulationEdges.includes(String(e.id)) && String(e.source) === currId) {
+    const outgoing = edgeMap.get(currId);
+    if (!outgoing) continue;
+
+    for (const e of outgoing) {
+      if (activeEdgesSet.has(String(e.id))) {
         queue.push(String(e.target));
       }
     }
@@ -40,12 +59,21 @@ export const calculateReachability = (startNodes: Node[], edges: Edge[], activeS
  * Handles PVC readiness logic. Pods remain pending if their connected PVCs are not Bound.
  */
 export const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
-  const childPods = dep.type === 'Pod' ? [dep] : ctx.nodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
 
-  const connectedPVCs = ctx.nodes.filter(n =>
-    n.type === 'PVC' && ctx.edges.some(e => String(e.target) === n.id && workloadIds.includes(String(e.source)))
-  );
+  const connectedPVCs: Node[] = [];
+  for (const wId of workloadIds) {
+    const outgoing = ctx.edgeMap?.get(wId);
+    if (!outgoing) continue;
+
+    for (const edge of outgoing) {
+      const targetNode = ctx.nodeMap?.get(String(edge.target));
+      if (targetNode?.type === 'PVC') {
+        connectedPVCs.push(targetNode);
+      }
+    }
+  }
 
   const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
 
@@ -59,8 +87,13 @@ export const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
 };
 
 export const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
-  const idx = ctx.updatedNodes.findIndex(un => un.id === id);
-  if (idx !== -1) {
+  let idx = ctx.nodeIndexMap?.get(id);
+  if (idx === undefined) {
+    idx = ctx.updatedNodes.findIndex(un => un.id === id);
+    if (idx !== -1) ctx.nodeIndexMap?.set(id, idx);
+  }
+
+  if (idx !== undefined && idx !== -1) {
     ctx.updatedNodes[idx] = {
       ...ctx.updatedNodes[idx],
       data: { ...ctx.updatedNodes[idx].data, ...newData }
@@ -104,20 +137,33 @@ export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
  * Calculates incoming traffic for a workload based on 'Internet' nodes.
  */
 export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
-  let hasChanges = false;
-  const traffic = ctx.nodes
-    .filter(n => n.type === 'Internet')
-    .reduce((total, internet) => {
-      const { traffic: internetTraffic, hasChanges: internetChanges } = updateInternetTraffic(internet, ctx);
-      if (internetChanges) hasChanges = true;
+  let totalTraffic = 0;
 
-      const reachableNodes = calculateReachability([internet], ctx.edges, ctx.activeSimulationEdges);
-      const canReach = reachableNodes.has(dep.id) || ctx.nodes.some(n => n.parentId === dep.id && reachableNodes.has(n.id));
+  if (!ctx.internetNodes || !ctx.internetReachableMap) return { traffic: 0, hasChanges: false };
 
-      return total + (canReach ? internetTraffic : 0);
-    }, 0);
+  for (const node of ctx.internetNodes) {
+    const reachableNodes = ctx.internetReachableMap.get(node.id);
+    if (!reachableNodes) continue;
 
-  return { traffic, hasChanges };
+    const internetTraffic = (node.data as K8sNodeData).currentTraffic || 0;
+
+    let canReach = reachableNodes.has(dep.id);
+    if (!canReach) {
+      const children = ctx.childPodMap?.get(dep.id) || [];
+      for (const child of children) {
+        if (reachableNodes.has(child.id)) {
+          canReach = true;
+          break;
+        }
+      }
+    }
+
+    if (canReach) {
+      totalTraffic += internetTraffic;
+    }
+  }
+
+  return { traffic: totalTraffic, hasChanges: false };
 };
 
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
@@ -173,7 +219,7 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
 export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
   if (!isOOM || safeRandom() <= 0.5) return false;
 
-  const childPods = dep.type === 'Pod' ? [dep] : ctx.updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   if (childPods.length === 0) return false;
 
   const podToCrash = childPods[Math.floor(safeRandom() * childPods.length)];
@@ -207,7 +253,19 @@ export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContex
  * Handles Horizontal Pod Autoscaler (HPA) scaling logic.
  */
 export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext) => {
-  const connectedHPA = ctx.nodes.find(n => n.type === 'HPA' && ctx.edges.some(e => e.source === n.id && e.target === dep.id));
+  // Use targetEdgeMap for faster HPA lookup
+  let connectedHPA: Node | undefined;
+  const incoming = ctx.targetEdgeMap?.get(dep.id);
+  if (incoming) {
+    for (const edge of incoming) {
+      const sourceNode = ctx.nodeMap?.get(String(edge.source));
+      if (sourceNode?.type === 'HPA') {
+        connectedHPA = sourceNode;
+        break;
+      }
+    }
+  }
+
   if (!connectedHPA) return false;
 
   let hasChanges = false;
@@ -225,12 +283,17 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   if (desiredReplicas < replicas && safeRandom() < 0.7) desiredReplicas = replicas;
 
   if (desiredReplicas !== replicas) {
-    const nodeIndex = ctx.updatedNodes.findIndex(n => n.id === dep.id);
+    const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(n => n.id === dep.id);
     if (nodeIndex !== -1) {
       const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, desiredReplicas - replicas, ctx.get);
+
+      // Rebuild the updatedNodes array to include new pods and remove old ones
       const filteredNodes = ctx.updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
       ctx.updatedNodes.length = 0;
       ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
+
+      // Invalidate index map as the array was rebuilt
+      ctx.nodeIndexMap?.clear();
       hasChanges = true;
     }
   }
@@ -255,5 +318,5 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, ctx);
   const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx);
 
-  return { hasChanges: pvcResult.hasChanges || trafficResult.hasChanges || oomChanged || hpaChanged };
+  return { hasChanges: pvcResult.hasChanges || oomChanged || hpaChanged };
 };

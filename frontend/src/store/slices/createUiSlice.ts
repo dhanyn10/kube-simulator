@@ -1,7 +1,12 @@
 import { StateCreator } from 'zustand';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sResourceType } from '../../types';
-import { processWorkloadSimulation, calculateReachability, SimulationContext } from '../../lib/simulation';
+import {
+  processWorkloadSimulation,
+  calculateReachability,
+  SimulationContext,
+  updateInternetTraffic
+} from '../../lib/simulation';
 import {
   stopSimulation,
   broadcastMetrics,
@@ -53,7 +58,42 @@ const runSimulationTick = (params: {
   const updatedNodes = [...currentNodes];
   let hasOverallChanges = false;
 
-  const workloads = currentNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId));
+  const workloads: Node[] = [];
+  const internetNodes: Node[] = [];
+  const nodeMap = new Map<string, Node>();
+  const edgeMap = new Map<string, Edge[]>();
+  const targetEdgeMap = new Map<string, Edge[]>();
+  const childPodMap = new Map<string, Node[]>();
+  const nodeIndexMap = new Map<string, number>();
+
+  for (let i = 0; i < currentNodes.length; i++) {
+    const node = currentNodes[i];
+    nodeMap.set(node.id, node);
+    nodeIndexMap.set(node.id, i);
+    if (node.type === 'Deployment' || node.type === 'ReplicaSet' || (node.type === 'Pod' && !node.parentId)) {
+      workloads.push(node);
+    }
+    if (node.type === 'Internet') {
+      internetNodes.push(node);
+    }
+    if (node.parentId) {
+      const children = childPodMap.get(node.parentId) || [];
+      children.push(node);
+      childPodMap.set(node.parentId, children);
+    }
+  }
+
+  for (const edge of currentEdges) {
+    const source = String(edge.source);
+    const existingSource = edgeMap.get(source) || [];
+    existingSource.push(edge);
+    edgeMap.set(source, existingSource);
+
+    const target = String(edge.target);
+    const existingTarget = targetEdgeMap.get(target) || [];
+    existingTarget.push(edge);
+    targetEdgeMap.set(target, existingTarget);
+  }
 
   const ctx: SimulationContext = {
     nodes: currentNodes,
@@ -63,9 +103,30 @@ const runSimulationTick = (params: {
     newMetrics,
     ticks,
     get,
-    set
+    set,
+    nodeMap,
+    edgeMap,
+    targetEdgeMap,
+    childPodMap,
+    internetNodes,
+    nodeIndexMap,
+    internetReachableMap: new Map()
   };
 
+  // 1. Update internet traffic first
+  for (const node of internetNodes) {
+    const { hasChanges } = updateInternetTraffic(node, ctx);
+    if (hasChanges) hasOverallChanges = true;
+  }
+
+  // 2. Pre-calculate reachability for internet nodes
+  const activeEdgesSet = new Set(ctx.activeSimulationEdges);
+  for (const node of internetNodes) {
+    const reachable = calculateReachability([node], edgeMap, activeEdgesSet);
+    ctx.internetReachableMap?.set(node.id, reachable);
+  }
+
+  // 3. Process workloads
   workloads.forEach(dep => {
     const { hasChanges } = processWorkloadSimulation(dep, ctx);
     if (hasChanges) hasOverallChanges = true;
@@ -103,10 +164,18 @@ const startSimulation = (
         metricsChannel.postMessage({ type: 'THEME_SYNC', colorMode });
       }
 
+      const edgeMap = new Map<string, Edge[]>();
+      for (const edge of edges) {
+        const source = String(edge.source);
+        const existing = edgeMap.get(source) || [];
+        existing.push(edge);
+        edgeMap.set(source, existing);
+      }
+
       const startNodes = internetNodeIds ? nodes.filter(n => internetNodeIds.includes(n.id)) : nodes.filter(n => n.type === 'Internet');
       if (startNodes.length === 0) return;
 
-      const reachableNodes = calculateReachability(startNodes, edges, edges.map(e => String(e.id)));
+      const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)));
       const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
 
       set({ isSimulating: true, activeSimulationEdges: activeEdges, simulationMetrics: {} });

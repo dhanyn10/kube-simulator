@@ -9,6 +9,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type GenContext struct {
+	nodes    []k8s.FrontendNode
+	edges    []k8s.FrontendEdge
+	nodeMap  map[string]*k8s.FrontendNode
+	edgeMap  map[string][]k8s.FrontendEdge
+	nsMap    map[string]string // nodeId -> namespaceName
+}
+
 func Generate(nodesJson, edgesJson string) string {
 	var nodes []k8s.FrontendNode
 	var edges []k8s.FrontendEdge
@@ -20,10 +28,24 @@ func Generate(nodesJson, edgesJson string) string {
 		return fmt.Sprintf("Error parsing edges: %v", err)
 	}
 
-	var manifests []string
+	ctx := &GenContext{
+		nodes:   nodes,
+		edges:   edges,
+		nodeMap: make(map[string]*k8s.FrontendNode),
+		edgeMap: make(map[string][]k8s.FrontendEdge),
+		nsMap:   make(map[string]string),
+	}
 
+	for i := range nodes {
+		ctx.nodeMap[nodes[i].ID] = &nodes[i]
+	}
+	for _, e := range edges {
+		ctx.edgeMap[e.Source] = append(ctx.edgeMap[e.Source], e)
+	}
+
+	var manifests []string
 	for _, node := range nodes {
-		manifest := generateNodeYaml(node, nodes, edges)
+		manifest := generateNodeYaml(node, ctx)
 		if manifest != "" {
 			manifests = append(manifests, manifest)
 		}
@@ -32,7 +54,7 @@ func Generate(nodesJson, edgesJson string) string {
 	return strings.Join(manifests, "---\n")
 }
 
-func generateNodeYaml(node k8s.FrontendNode, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) string {
+func generateNodeYaml(node k8s.FrontendNode, ctx *GenContext) string {
 	data := node.Data
 	if data.Label == "" || node.Type == "" {
 		return ""
@@ -45,14 +67,14 @@ func generateNodeYaml(node k8s.FrontendNode, nodes []k8s.FrontendNode, edges []k
 
 	// Special check for nested pods (only top-level or Namespace-child pods are generated)
 	if node.Type == "Pod" && node.ParentID != "" {
-		parent := findNodeByID(node.ParentID, nodes)
+		parent := ctx.nodeMap[node.ParentID]
 		if parent == nil || parent.Type != "Namespace" {
 			return ""
 		}
 	}
 
 	name := sanitizeName(data.Label)
-	namespace := getNamespace(node, nodes)
+	namespace := getNamespace(node, ctx)
 
 	var obj interface{}
 
@@ -60,17 +82,17 @@ func generateNodeYaml(node k8s.FrontendNode, nodes []k8s.FrontendNode, edges []k
 	case "Namespace":
 		obj = generateNamespace(data, name)
 	case "Pod":
-		obj = generatePodOrDeployment(data, name, namespace, nodes, edges)
+		obj = generatePodOrDeployment(data, name, namespace, ctx)
 	case "Deployment":
-		obj = generateDeployment(data, name, namespace, nodes, edges)
+		obj = generateDeployment(data, name, namespace, ctx)
 	case "ReplicaSet":
-		obj = generateReplicaSet(data, name, namespace, nodes, edges)
+		obj = generateReplicaSet(data, name, namespace, ctx)
 	case "Service":
-		obj = generateService(data, name, namespace, nodes, edges)
+		obj = generateService(data, name, namespace, ctx)
 	case "Ingress":
-		obj = generateIngress(data, name, namespace, nodes, edges)
+		obj = generateIngress(data, name, namespace, ctx)
 	case "HPA":
-		obj = generateHPA(data, name, namespace, nodes, edges)
+		obj = generateHPA(data, name, namespace, ctx)
 	case "PVC":
 		obj = generatePVC(data, name, namespace)
 	case "ConfigMap":
@@ -106,13 +128,18 @@ func findNodeByID(id string, nodes []k8s.FrontendNode) *k8s.FrontendNode {
 	return nil
 }
 
-func getNamespace(node k8s.FrontendNode, nodes []k8s.FrontendNode) string {
+func getNamespace(node k8s.FrontendNode, ctx *GenContext) string {
 	if node.ParentID == "" {
 		return ""
 	}
-	parent := findNodeByID(node.ParentID, nodes)
+	if ns, ok := ctx.nsMap[node.ID]; ok {
+		return ns
+	}
+	parent := ctx.nodeMap[node.ParentID]
 	if parent != nil && parent.Type == "Namespace" {
-		return sanitizeName(parent.Data.Label)
+		ns := sanitizeName(parent.Data.Label)
+		ctx.nsMap[node.ID] = ns
+		return ns
 	}
 	return ""
 }
