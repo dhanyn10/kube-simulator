@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box } from 'lucide-react';
-import { useReactFlow } from '@xyflow/react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { hydrateNodes } from '../store/nodeHelpers';
 import { Modal } from './Modal';
 import { DEFAULT_REGISTRY_IMAGES } from '../constants/config';
+import { useFitView } from '../hooks/useFitView';
 
 interface Project {
   id: number;
@@ -436,7 +436,7 @@ const LocalImagesTab = ({
 );
 
 export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
-  const { fitView } = useReactFlow();
+  const fitView = useFitView();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectName, setProjectName] = useState('');
   const [newCustomImage, setNewCustomImage] = useState('');
@@ -542,7 +542,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     
     onClose();
     setTimeout(() => {
-      fitView({ padding: 0.2, duration: 800 });
+      fitView({ padding: 0.1, duration: 800 });
     }, 50);
   };
 

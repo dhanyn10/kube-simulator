@@ -11,6 +11,8 @@ import (
 
 	"build-wails/backend/db"
 	"build-wails/backend/system"
+	"build-wails/backend/yaml_gen"
+
 	"github.com/dgraph-io/badger/v4"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -324,4 +326,8 @@ func (a *App) GetSystemInfo() map[string]string {
 
 func (a *App) GetSystemResources() map[string]interface{} {
 	return system.GetSystemResources()
+}
+
+func (a *App) GenerateYaml(nodesJson, edgesJson string) string {
+	return yaml_gen.Generate(nodesJson, edgesJson)
 }

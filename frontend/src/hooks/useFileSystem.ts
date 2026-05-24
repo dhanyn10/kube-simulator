@@ -49,7 +49,7 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
     const currentProject = useFlowStore.getState().currentProject;
     if (globalThis.go?.main?.App?.ExportProjectFile) {
       const canvasContent = JSON.stringify({ nodes, edges });
-      const yamlContent = generateYaml(nodes, edges);
+      const yamlContent = await generateYaml(nodes, edges);
       await globalThis.go.main.App.ExportProjectFile(
         currentProject?.name || "unnamed-project",
         canvasContent,

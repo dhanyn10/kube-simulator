@@ -41,6 +41,7 @@ import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useFileSystem } from './hooks/useFileSystem';
+import { useFitView } from './hooks/useFitView';
 import AboutDialog from './components/AboutDialog'; // Import AboutDialog
 
 const nodeTypes = {
@@ -144,7 +145,8 @@ export default function App() {
     };
   }, []);
 
-  const { zoomIn, zoomOut, fitView, screenToFlowPosition } = useReactFlow();
+  const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+  const fitView = useFitView();
   const { handleUndo, handleRedo } = useHistory();
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
   const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);
@@ -173,8 +175,9 @@ export default function App() {
     [setContextMenu]
   );
 
-  const handleExport = useCallback(() => {
-    setYamlContent(generateYaml(nodes, edges));
+  const handleExport = useCallback(async () => {
+    const content = await generateYaml(nodes, edges);
+    setYamlContent(content);
     setIsYamlOpen(true);
   }, [nodes, edges]);
 
@@ -287,7 +290,7 @@ export default function App() {
             <button onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
               <Minus size={16} />
             </button>
-            <button onClick={() => fitView({ padding: 0.2, duration: 800 })} className={btnClass} title="Fit View">
+            <button onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
               <Maximize size={16} />
             </button>
             <HistoryPanel colorMode={colorMode} />
