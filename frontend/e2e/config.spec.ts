@@ -62,9 +62,9 @@ test.describe('ConfigMap and Secret', () => {
     await page.getByText('Configured Application').click();
 
     // Establishing the connection manually to trigger env injection logic
-    // We use evaluate to access window.useFlowStore directly
+    // We use evaluate to access globalThis.useFlowStore directly
     await page.evaluate(() => {
-        const store = (window as any).useFlowStore.getState();
+        const store = (globalThis as any).useFlowStore.getState();
         const nodes = store.nodes;
         const cm = nodes.find((n: any) => n.type === 'ConfigMap');
         const sec = nodes.find((n: any) => n.type === 'Secret');
@@ -100,8 +100,8 @@ test.describe('ConfigMap and Secret', () => {
 
     // Mock GenerateYaml if it's not present (Wails environment)
     await page.evaluate(() => {
-        if (!(window as any).go?.main?.App?.GenerateYaml) {
-            (window as any).go = {
+        if (!(globalThis as any).go?.main?.App?.GenerateYaml) {
+            (globalThis as any).go = {
                 main: {
                     App: {
                         GenerateYaml: async (nodesJson: string, edgesJson: string) => {

@@ -328,6 +328,6 @@ func (a *App) GetSystemResources() map[string]interface{} {
 	return system.GetSystemResources()
 }
 
-func (a *App) GenerateYaml(nodesJson string, edgesJson string) string {
+func (a *App) GenerateYaml(nodesJson, edgesJson string) string {
 	return yaml_gen.Generate(nodesJson, edgesJson)
 }

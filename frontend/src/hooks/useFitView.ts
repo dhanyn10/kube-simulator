@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useReactFlow, Node } from '@xyflow/react';
+import { useReactFlow } from '@xyflow/react';
 
 interface FitViewOptions {
   padding?: number;
@@ -8,7 +8,7 @@ interface FitViewOptions {
 }
 
 export const useFitView = () => {
-  const { getNodes, getViewport, setViewport, fitView: rfFitView } = useReactFlow();
+  const { getNodes, setViewport, fitView: rfFitView } = useReactFlow();
 
   const customFitView = useCallback(({ padding = 0.05, duration = 800, maxZoom = 1.2 }: FitViewOptions = {}) => {
     const nodes = getNodes();

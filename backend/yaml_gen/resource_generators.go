@@ -4,6 +4,8 @@ import (
 	"build-wails/backend/k8s"
 )
 
+const appsApiVersion = "apps/v1"
+
 func createPodSpec(data k8s.K8sNodeData, nodes []k8s.FrontendNode, edges []k8s.FrontendEdge) k8s.PodSpec {
 	targetIDs := []string{data.ID}
 	volumes, volumeMounts := getVolumeConfig(targetIDs, nodes, edges)
@@ -50,7 +52,7 @@ func generatePodOrDeployment(data k8s.K8sNodeData, name string, nodes []k8s.Fron
 
 	if replicas > 1 {
 		return k8s.Deployment{
-			ApiVersion: "apps/v1",
+			ApiVersion: appsApiVersion,
 			Kind:       "Deployment",
 			Metadata: k8s.ObjectMeta{
 				Name:      name,
@@ -228,7 +230,7 @@ func generateDeployment(data k8s.K8sNodeData, name string, nodes []k8s.FrontendN
 	}
 
 	return k8s.Deployment{
-		ApiVersion: "apps/v1",
+		ApiVersion: appsApiVersion,
 		Kind:       "Deployment",
 		Metadata: k8s.ObjectMeta{
 			Name:      name,
@@ -258,7 +260,7 @@ func generateReplicaSet(data k8s.K8sNodeData, name string, nodes []k8s.FrontendN
 	}
 
 	return k8s.ReplicaSet{
-		ApiVersion: "apps/v1",
+		ApiVersion: appsApiVersion,
 		Kind:       "ReplicaSet",
 		Metadata: k8s.ObjectMeta{
 			Name:      name,
@@ -479,7 +481,7 @@ func generateHPA(data k8s.K8sNodeData, name string, nodes []k8s.FrontendNode, ed
 		Metadata: k8s.ObjectMeta{Name: name, Namespace: namespace},
 		Spec: k8s.HPASpec{
 			ScaleTargetRef: k8s.CrossVersionObjectReference{
-				ApiVersion: "apps/v1",
+				ApiVersion: appsApiVersion,
 				Kind:       "Deployment",
 				Name:       deploymentName,
 			},
