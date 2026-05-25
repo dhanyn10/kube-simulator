@@ -11,6 +11,11 @@ interface InternetConfigProps {
   toggleYaml?: (field: string) => void;
 }
 
+/**
+ * Configuration component for Internet/External Traffic resources.
+ *
+ * @param props - Component properties for handling updates and UI toggles.
+ */
 export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }: InternetConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;

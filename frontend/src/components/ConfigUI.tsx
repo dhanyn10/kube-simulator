@@ -2,18 +2,27 @@ import React, { useState } from 'react';
 import { cn } from '../lib/utils';
 import { Eye, EyeOff, FileCode, FileX, Minus, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 
+/**
+ * Standardized label for configuration fields.
+ */
 export const ConfigLabel = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
   <label className={cn("text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5", className)}>
     {children}
   </label>
 );
 
+/**
+ * Toggle button for controlling field visibility on the canvas node.
+ */
 export const VisibilityToggle = ({ isVisible, onToggle }: { isVisible: boolean, onToggle: () => void }) => (
   <button onClick={onToggle} className={cn("transition-colors", isVisible ? "text-blue-500" : "text-slate-500 hover:text-blue-400")} title="Show/Hide on Card">
     {isVisible ? <Eye size={10} /> : <EyeOff size={10} />}
   </button>
 );
 
+/**
+ * Toggle button for including/excluding a field in the generated YAML.
+ */
 export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boolean, onToggle: () => void, disabled?: boolean }) => {
   let btnClass = "text-slate-500 hover:text-emerald-400";
   if (disabled) {
@@ -39,6 +48,9 @@ export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boole
   );
 };
 
+/**
+ * Standardized input field for configuration values.
+ */
 export const ConfigInput = ({ value, onChange, placeholder, colorMode, className = "", type = "text", min, max }: any) => (
   <input
     type={type}
@@ -55,9 +67,12 @@ export const ConfigInput = ({ value, onChange, placeholder, colorMode, className
   />
 );
 
+/**
+ * A container for configuration sections that includes a title, icon, and optional toggles.
+ */
 export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, disableYamlToggle, children }: any) => {
-  const showContent = isVisible !== false;
-  const showYaml = isYamlEnabled !== false && !disableYamlToggle;
+  const showContent = isVisible ?? true;
+  const showYaml = (isYamlEnabled ?? true) && !disableYamlToggle;
   
   return (
     <div className="space-y-1.5">
@@ -75,6 +90,9 @@ export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEn
   );
 };
 
+/**
+ * A collapsible section for advanced configuration options.
+ */
 export const AdvancedSection = ({ children, colorMode }: { children: React.ReactNode, colorMode: string }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -99,6 +117,9 @@ export const AdvancedSection = ({ children, colorMode }: { children: React.React
   );
 };
 
+/**
+ * A numeric input component with increment and decrement buttons.
+ */
 export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode }: any) => (
   <div className="flex items-center gap-2">
     <button

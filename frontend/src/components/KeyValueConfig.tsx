@@ -21,6 +21,11 @@ interface KeyValueConfigProps {
   onYamlToggle?: () => void;
 }
 
+/**
+ * A reusable component for managing key-value pairs, used by ConfigMaps and Secrets.
+ *
+ * @param props - Component properties for layout, data, and updates.
+ */
 export const KeyValueConfig = ({
   title,
   titleIcon,

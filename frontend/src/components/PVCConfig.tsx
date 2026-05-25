@@ -1,9 +1,8 @@
-
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
-import { Database, Eye, EyeOff, FileCode, FileX, ShieldCheck } from 'lucide-react';
+import { Database, ShieldCheck } from 'lucide-react';
 import { SelectorGroup } from './SelectorGroup';
-import { AdvancedSection } from './ConfigUI';
+import { AdvancedSection, ConfigSection, ConfigInput } from './ConfigUI';
 
 interface PVCConfigProps {
   selectedNode: any;
@@ -12,7 +11,17 @@ interface PVCConfigProps {
   toggleYaml: (field: string) => void;
 }
 
-export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: PVCConfigProps) => {
+/**
+ * Configuration component for PersistentVolumeClaim (PVC) resources.
+ *
+ * @param props - Component properties for handling updates and UI toggles.
+ */
+export const PVCConfig = ({
+  selectedNode,
+  performUpdate,
+  toggleVisibility,
+  toggleYaml
+}: PVCConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
 
@@ -24,44 +33,32 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
 
   return (
     <div className="space-y-4">
-      {/* Capacity */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <Database size={10} /> Kapasitas (Storage)
-          </label>
+      {/* Storage Capacity Section */}
+      <ConfigSection title="Kapasitas (Storage)" icon={Database}>
+        <div className="space-y-2">
+          <SelectorGroup
+            options={[
+              { label: '1Gi', value: '1Gi' },
+              { label: '5Gi', value: '5Gi' },
+              { label: '10Gi', value: '10Gi' }
+            ]}
+            currentValue={data.storageCapacity}
+            onSelect={(size) => performUpdate({ storageCapacity: size })}
+            colorMode={colorMode}
+            activeColorClass="bg-orange-500 border-orange-500"
+            activeShadowClass="shadow-lg shadow-orange-500/20"
+          />
+          <ConfigInput
+            value={data.storageCapacity || '1Gi'}
+            onChange={(e: any) => performUpdate({ storageCapacity: e.target.value })}
+            placeholder="Custom (misal: 20Gi)"
+            colorMode={colorMode}
+          />
         </div>
-        <SelectorGroup
-          options={[
-            { label: '1Gi', value: '1Gi' },
-            { label: '5Gi', value: '5Gi' },
-            { label: '10Gi', value: '10Gi' }
-          ]}
-          currentValue={data.storageCapacity}
-          onSelect={(size) => performUpdate({ storageCapacity: size })}
-          colorMode={colorMode}
-          activeColorClass="bg-orange-500 border-orange-500"
-          activeShadowClass="shadow-lg shadow-orange-500/20"
-        />
-        <input
-          type="text"
-          value={data.storageCapacity || '1Gi'}
-          onChange={(e) => performUpdate({ storageCapacity: e.target.value })}
-          placeholder="Custom (misal: 20Gi)"
-          className={cn(
-            "w-full text-[10px] p-2 rounded border outline-none",
-            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-          )}
-        />
-      </div>
+      </ConfigSection>
 
-      {/* Access Mode */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-            <ShieldCheck size={10} /> Mode Akses
-          </label>
-        </div>
+      {/* Access Mode Selection */}
+      <ConfigSection title="Mode Akses" icon={ShieldCheck}>
         <div className="flex flex-col gap-2">
           {accessModes.map((mode) => {
             const isActive = data.accessMode === mode.value;
@@ -94,24 +91,18 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             );
           })}
         </div>
-      </div>
+      </ConfigSection>
 
+      {/* Advanced PVC Settings */}
       <AdvancedSection colorMode={colorMode}>
-        {/* Storage Class */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-              <Database size={10} /> Storage Class
-            </label>
-            <div className="flex items-center gap-2">
-              <button onClick={() => toggleVisibility('storageClass')} className={cn("transition-colors", data.displaySettings?.storageClass === false ? "text-slate-500 hover:text-blue-400" : "text-blue-500")}>
-                {(data.displaySettings?.storageClass === false) ? <EyeOff size={10} /> : <Eye size={10} />}
-              </button>
-              <button onClick={() => toggleYaml('storageClass')} className={cn("transition-colors", data.yamlSettings?.storageClass === false ? "text-slate-500 hover:text-emerald-400" : "text-emerald-500")}>
-                {(data.yamlSettings?.storageClass === false) ? <FileX size={10} /> : <FileCode size={10} />}
-              </button>
-            </div>
-          </div>
+        <ConfigSection
+          title="Storage Class"
+          icon={Database}
+          isVisible={data.displaySettings?.storageClass}
+          onToggle={() => toggleVisibility('storageClass')}
+          isYamlEnabled={data.yamlSettings?.storageClass}
+          onYamlToggle={() => toggleYaml('storageClass')}
+        >
           <select
             value={data.storageClass || 'standard'}
             onChange={(e) => performUpdate({ storageClass: e.target.value })}
@@ -125,7 +116,7 @@ export const PVCConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             <option value="cloud-nfs">Cloud Storage (NFS)</option>
             <option value="local-storage">Local Storage</option>
           </select>
-        </div>
+        </ConfigSection>
       </AdvancedSection>
     </div>
   );
