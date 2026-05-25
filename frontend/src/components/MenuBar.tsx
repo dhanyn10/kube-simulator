@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -25,6 +25,7 @@ export const MenuBar = ({
   onOpenAbout
 }: MenuBarProps) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
+  const toggleColorMode = useFlowStore((state: any) => state.toggleColorMode);
   const isAutosaveEnabled = useFlowStore((state: any) => state.isAutosaveEnabled);
   const toggleAutosave = useFlowStore((state: any) => state.toggleAutosave);
   const currentProject = useFlowStore((state: any) => state.currentProject);
@@ -167,6 +168,18 @@ export const MenuBar = ({
         ))}
 
         <div className="mx-2 h-4 w-px bg-slate-700/30" />
+
+        <button
+          onClick={toggleColorMode}
+          style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}
+          className={cn(
+            "p-1.5 rounded-md transition-colors mr-1",
+            colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-200 text-slate-500"
+          )}
+          title="Toggle Theme"
+        >
+          {colorMode === 'dark' ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-600" />}
+        </button>
 
         <SimulationControls
           isSimulating={isSimulating}
