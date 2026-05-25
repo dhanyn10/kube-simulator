@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 type GenContext struct {
@@ -43,33 +41,38 @@ func Generate(nodesJson, edgesJson string) string {
 		ctx.edgeMap[e.Source] = append(ctx.edgeMap[e.Source], e)
 	}
 
-	var manifests []string
+	var manifests []interface{}
 	for _, node := range nodes {
-		manifest := generateNodeYaml(node, ctx)
-		if manifest != "" {
-			manifests = append(manifests, manifest)
+		obj := generateNodeObject(node, ctx)
+		if obj != nil {
+			manifests = append(manifests, obj)
 		}
 	}
 
-	return strings.Join(manifests, "---\n")
+	jsonData, err := json.Marshal(manifests)
+	if err != nil {
+		return fmt.Sprintf("Error generating JSON: %v", err)
+	}
+
+	return string(jsonData)
 }
 
-func generateNodeYaml(node k8s.FrontendNode, ctx *GenContext) string {
+func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 	data := node.Data
 	if data.Label == "" || node.Type == "" {
-		return ""
+		return nil
 	}
 
 	// Skip nodes that don't produce YAML directly
 	if node.Type == "Internet" {
-		return ""
+		return nil
 	}
 
 	// Special check for nested pods (only top-level or Namespace-child pods are generated)
 	if node.Type == "Pod" && node.ParentID != "" {
 		parent := ctx.nodeMap[node.ParentID]
 		if parent == nil || parent.Type != "Namespace" {
-			return ""
+			return nil
 		}
 	}
 
@@ -100,19 +103,10 @@ func generateNodeYaml(node k8s.FrontendNode, ctx *GenContext) string {
 	case "Secret":
 		obj = generateSecret(data, name, namespace)
 	default:
-		return ""
+		return nil
 	}
 
-	if obj == nil {
-		return ""
-	}
-
-	yamlData, err := yaml.Marshal(obj)
-	if err != nil {
-		return fmt.Sprintf("Error generating YAML for %s: %v", name, err)
-	}
-
-	return string(yamlData)
+	return obj
 }
 
 func sanitizeName(label string) string {
