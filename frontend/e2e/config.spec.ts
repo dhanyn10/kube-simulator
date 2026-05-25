@@ -105,37 +105,49 @@ test.describe('ConfigMap and Secret', () => {
                 main: {
                     App: {
                         GenerateYaml: async (nodesJson: string, edgesJson: string) => {
-                            // Simple mock that returns what the test expects
-                            return `
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-config
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: app-secret
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: app-deploy
-spec:
-  template:
-    spec:
-      containers:
-      - name: main
-        env:
-        - name: API_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: app-secret
-`;
+                            // Mock returning minified JSON array as backend now does
+                            return JSON.stringify([
+                                {
+                                    apiVersion: 'v1',
+                                    kind: 'ConfigMap',
+                                    metadata: { name: 'app-config' }
+                                },
+                                {
+                                    apiVersion: 'v1',
+                                    kind: 'Secret',
+                                    metadata: { name: 'app-secret' }
+                                },
+                                {
+                                    apiVersion: 'apps/v1',
+                                    kind: 'Deployment',
+                                    metadata: { name: 'app-deploy' },
+                                    spec: {
+                                        template: {
+                                            spec: {
+                                                containers: [
+                                                    {
+                                                        name: 'main',
+                                                        env: [
+                                                            {
+                                                                name: 'API_URL',
+                                                                valueFrom: {
+                                                                    configMapKeyRef: { name: 'app-config' }
+                                                                }
+                                                            },
+                                                            {
+                                                                name: 'DB_PASSWORD',
+                                                                valueFrom: {
+                                                                    secretKeyRef: { name: 'app-secret' }
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            ]);
                         }
                     }
                 }
