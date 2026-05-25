@@ -1,6 +1,5 @@
-
 import { useFlowStore } from '../store';
-import { Box, Network } from 'lucide-react';
+import { Network, Box } from 'lucide-react';
 import { ConfigInput, ConfigSection, AdvancedSection } from './ConfigUI';
 
 interface ServiceConfigProps {
@@ -10,12 +9,23 @@ interface ServiceConfigProps {
   toggleYaml: (field: string) => void;
 }
 
-export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: ServiceConfigProps) => {
+/**
+ * Configuration component for Kubernetes Service resources.
+ *
+ * @param props - Component properties including update and toggle handlers.
+ */
+export const ServiceConfig = ({
+  selectedNode,
+  performUpdate,
+  toggleVisibility,
+  toggleYaml
+}: ServiceConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
 
   return (
     <div className="space-y-4">
+      {/* Primary Port Configuration */}
       <ConfigSection
         title="Port"
         icon={Network}
@@ -30,6 +40,7 @@ export const ServiceConfig = ({ selectedNode, performUpdate, toggleVisibility, t
         />
       </ConfigSection>
 
+      {/* Advanced Service Settings */}
       <AdvancedSection colorMode={colorMode}>
         <ConfigSection
           title="Target Port"

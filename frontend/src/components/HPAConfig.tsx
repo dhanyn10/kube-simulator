@@ -13,6 +13,11 @@ interface HPAConfigProps {
   toggleYaml: (field: string) => void;
 }
 
+/**
+ * Configuration component for HorizontalPodAutoscaler (HPA) resources.
+ *
+ * @param props - Component properties for handling updates and UI toggles.
+ */
 export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: HPAConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
