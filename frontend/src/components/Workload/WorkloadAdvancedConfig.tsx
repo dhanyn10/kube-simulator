@@ -65,10 +65,10 @@ export const WorkloadAdvancedConfig = ({
                 onClick={() => toggleVisibility('resources')}
                 className={cn(
                   "transition-colors",
-                  data.displaySettings?.resources !== false ? "text-blue-500" : "text-slate-500 hover:text-blue-400"
+                  data.displaySettings?.resources === false ? "text-slate-500 hover:text-blue-400" : "text-blue-500"
                 )}
               >
-                {data.displaySettings?.resources !== false ? <Eye size={10} /> : <EyeOff size={10} />}
+                {data.displaySettings?.resources === false ? <EyeOff size={10} /> : <Eye size={10} />}
               </button>
               <button
                 onClick={() => toggleYaml('resources')}
