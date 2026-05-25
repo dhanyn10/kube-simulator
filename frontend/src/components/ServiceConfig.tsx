@@ -49,7 +49,7 @@ export const ServiceConfig = ({
           onToggle={() => toggleVisibility('targetPort')}
           isYamlEnabled={data.yamlSettings?.targetPort}
           onYamlToggle={() => toggleYaml('targetPort')}
-          disableYamlToggle={!data.targetPort}
+          disableYamlToggle={Boolean(data.targetPort) === false}
         >
           <ConfigInput
             type="number"
@@ -66,7 +66,7 @@ export const ServiceConfig = ({
           onToggle={() => toggleVisibility('selector')}
           isYamlEnabled={data.yamlSettings?.selector}
           onYamlToggle={() => toggleYaml('selector')}
-          disableYamlToggle={!data.selector}
+          disableYamlToggle={Boolean(data.selector) === false}
         >
           <ConfigInput
             value={data.selector || ''}

@@ -37,13 +37,15 @@ export const WorkloadAdvancedConfig = ({
   const hasRequests = data.cpuRequest && data.memoryRequest;
   const { isCpuError, isMemError } = validateResourceLimits(data);
   const hasResources = !!(data.cpuRequest || data.memoryRequest || data.cpuLimit || data.memoryLimit);
-  const isYamlResources = data.yamlSettings?.resources !== false && hasResources;
+  const isYamlResources = (data.yamlSettings?.resources ?? true) && hasResources;
 
   let yamlButtonClass = "text-slate-500 hover:text-emerald-400";
-  if (!hasResources) {
+  if (hasResources) {
+    if (isYamlResources) {
+      yamlButtonClass = "text-emerald-500";
+    }
+  } else {
     yamlButtonClass = "text-slate-600/40 cursor-not-allowed pointer-events-none";
-  } else if (isYamlResources) {
-    yamlButtonClass = "text-emerald-500";
   }
 
   let yamlButtonIcon = <FileX size={10} />;
@@ -72,16 +74,16 @@ export const WorkloadAdvancedConfig = ({
               </button>
               <button
                 onClick={() => toggleYaml('resources')}
-                disabled={!hasResources}
+                disabled={hasResources === false}
                 className={cn("transition-colors", yamlButtonClass)}
-                title={!hasResources ? "No YAML configuration available for empty resources" : "Include in YAML"}
+                title={hasResources === false ? "No YAML configuration available for empty resources" : "Include in YAML"}
               >
                 {yamlButtonIcon}
               </button>
             </div>
           </div>
 
-          {isTargetedByHPA && !hasRequests && (
+          {isTargetedByHPA && hasRequests === false && (
             <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[8px] text-amber-500 leading-tight mb-2">
               ⚠️ HPA detected. CPU/Memory <strong>Requests</strong> are required for autoscaling to function.
             </div>
@@ -104,7 +106,7 @@ export const WorkloadAdvancedConfig = ({
           onToggle={() => toggleVisibility('image')}
           isYamlEnabled={data.yamlSettings?.image}
           onYamlToggle={() => toggleYaml('image')}
-          disableYamlToggle={!data.image}
+          disableYamlToggle={Boolean(data.image) === false}
         >
           <ImageDropdown
             value={data.image || ''}
@@ -121,7 +123,7 @@ export const WorkloadAdvancedConfig = ({
           onToggle={() => toggleVisibility('webserver')}
           isYamlEnabled={data.yamlSettings?.webserver}
           onYamlToggle={() => toggleYaml('webserver')}
-          disableYamlToggle={!data.webserver || data.webserver === 'none'}
+          disableYamlToggle={Boolean(data.webserver) === false || data.webserver === 'none'}
         >
           <SelectorGroup
             options={WEBSERVERS}
@@ -139,7 +141,7 @@ export const WorkloadAdvancedConfig = ({
           onToggle={() => toggleVisibility('runtime')}
           isYamlEnabled={data.yamlSettings?.runtime}
           onYamlToggle={() => toggleYaml('runtime')}
-          disableYamlToggle={!data.runtime || data.runtime === 'none'}
+          disableYamlToggle={Boolean(data.runtime) === false || data.runtime === 'none'}
         >
           <select
             value={data.runtime || 'none'}

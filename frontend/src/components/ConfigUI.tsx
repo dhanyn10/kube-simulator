@@ -71,8 +71,8 @@ export const ConfigInput = ({ value, onChange, placeholder, colorMode, className
  * A container for configuration sections that includes a title, icon, and optional toggles.
  */
 export const ConfigSection = ({ title, icon: Icon, isVisible, onToggle, isYamlEnabled, onYamlToggle, disableYamlToggle, children }: any) => {
-  const showContent = isVisible !== false;
-  const showYaml = isYamlEnabled !== false && !disableYamlToggle;
+  const showContent = isVisible ?? true;
+  const showYaml = (isYamlEnabled ?? true) && !disableYamlToggle;
   
   return (
     <div className="space-y-1.5">

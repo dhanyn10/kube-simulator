@@ -20,10 +20,10 @@ export const FrameworkSelector = ({
   colorMode,
   performUpdate
 }: FrameworkSelectorProps) => {
-  if (!runtime || runtime === 'none') return null;
+  if (Boolean(runtime) === false || runtime === 'none') return null;
 
   const frameworks = RUNTIMES[runtime as keyof typeof RUNTIMES]?.frameworks;
-  if (!frameworks) return null;
+  if (Boolean(frameworks) === false) return null;
 
   return (
     <div className="animate-in fade-in slide-in-from-top-1">
