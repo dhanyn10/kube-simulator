@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import yaml from 'js-yaml';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -74,12 +75,20 @@ export function validateResourceLimits(data: any) {
   };
 }
 
-export function generateYaml(nodes: any[], edges: any[]): string | Promise<string> {
+export async function generateYaml(nodes: any[], edges: any[]): Promise<string> {
   if ((globalThis as any).go?.main?.App?.GenerateYaml) {
-    return (globalThis as any).go.main.App.GenerateYaml(
+    const jsonStr = await (globalThis as any).go.main.App.GenerateYaml(
       JSON.stringify(nodes),
       JSON.stringify(edges)
     );
+    if (!jsonStr) return "";
+    try {
+      const objects = JSON.parse(jsonStr);
+      if (!Array.isArray(objects)) return jsonStr;
+      return objects.map(obj => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
+    } catch (e) {
+      return jsonStr;
+    }
   }
   return "";
 }

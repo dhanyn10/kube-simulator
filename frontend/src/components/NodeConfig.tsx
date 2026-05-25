@@ -9,8 +9,7 @@ import { IngressConfig } from './IngressConfig';
 import { HPAConfig } from './HPAConfig';
 import { InternetConfig } from './InternetConfig';
 import { PVCConfig } from './PVCConfig';
-import { ConfigMapConfig } from './ConfigMapConfig';
-import { SecretConfig } from './SecretConfig';
+import { ResourceConfig } from './ResourceConfig';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../store/slices/node-handlers/configUtils';
 
 interface NodeConfigProps {
@@ -104,9 +103,8 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
       case 'PVC':
         return <PVCConfig {...props} />;
       case 'ConfigMap':
-        return <ConfigMapConfig {...props} />;
       case 'Secret':
-        return <SecretConfig {...props} />;
+        return <ResourceConfig {...props} />;
       default:
         return null;
     }
