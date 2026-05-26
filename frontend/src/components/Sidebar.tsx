@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Sun, Moon, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock } from 'lucide-react';
 import { K8sResourceType } from '../types';
 import { cn } from '../lib/utils';
 import { useFlowStore } from '../store';
@@ -111,7 +111,6 @@ const SidebarSection = ({
 
 export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -167,13 +166,6 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
             Components
           </p>
-          <button
-            onClick={toggleColorMode}
-            className={cn("p-1.5 rounded-md transition-colors", colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-200 text-slate-500")}
-            title="Toggle Theme"
-          >
-            {colorMode === 'dark' ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-600" />}
-          </button>
         </div>
         <div className="relative">
           <Search className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} size={12} />
