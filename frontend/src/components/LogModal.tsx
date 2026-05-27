@@ -19,6 +19,7 @@ export const LogModal: React.FC = () => {
     <Modal
       isOpen={isOpen}
       onClose={() => setOpen(false)}
+      showBlur={false}
       title="Error Report"
       subtitle={`${logs.length} events captured`}
       icon={Terminal}
