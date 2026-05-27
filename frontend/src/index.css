@@ -24,11 +24,6 @@
 }
 
 @layer utilities {
-  .canvas-grid {
-    background-image: radial-gradient(circle, #334155 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
   /* Hide default number input spinners */
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {

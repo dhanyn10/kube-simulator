@@ -230,7 +230,7 @@ export default function App() {
           />
         )}
 
-        <main className="flex-1 relative canvas-grid">
+        <main className="flex-1 relative">
         <ReactFlow
           nodes={nodes}
           edges={edges}
