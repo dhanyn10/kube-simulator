@@ -12,9 +12,11 @@ export interface DeploymentSlice {
   setDetachingDeploymentId: (id: string | null) => void;
   setConfiguringNodeId: (id: string | null) => void;
   setConfiguringEdgeId: (id: string | null) => void;
+  toggleNodeSettings: (id: string) => void;
+  toggleEdgeSettings: (id: string) => void;
 }
 
-export const createDeploymentSlice: StateCreator<FlowState, [], [], DeploymentSlice> = (set) => ({
+export const createDeploymentSlice: StateCreator<FlowState, [], [], DeploymentSlice> = (set, get) => ({
   activeDeploymentId: null,
   hoveredDeploymentId: null,
   detachingDeploymentId: null,
@@ -25,4 +27,30 @@ export const createDeploymentSlice: StateCreator<FlowState, [], [], DeploymentSl
   setDetachingDeploymentId: (id: string | null) => set({ detachingDeploymentId: id }),
   setConfiguringNodeId: (id: string | null) => set({ configuringNodeId: id, configuringEdgeId: null }),
   setConfiguringEdgeId: (id: string | null) => set({ configuringEdgeId: id, configuringNodeId: null }),
+  toggleNodeSettings: (id: string) => {
+    const state = get();
+    const isSameNode = state.configuringNodeId === id;
+    const isVisible = state.isRightSidebarVisible;
+
+    if (isSameNode && isVisible) {
+      state.setRightSidebarVisible(false);
+      set({ configuringNodeId: null, configuringEdgeId: null });
+    } else {
+      if (!isVisible) state.setRightSidebarVisible(true);
+      set({ configuringNodeId: id, configuringEdgeId: null });
+    }
+  },
+  toggleEdgeSettings: (id: string) => {
+    const state = get();
+    const isSameEdge = state.configuringEdgeId === id;
+    const isVisible = state.isRightSidebarVisible;
+
+    if (isSameEdge && isVisible) {
+      state.setRightSidebarVisible(false);
+      set({ configuringEdgeId: null, configuringNodeId: null });
+    } else {
+      if (!isVisible) state.setRightSidebarVisible(true);
+      set({ configuringEdgeId: id, configuringNodeId: null });
+    }
+  },
 });
