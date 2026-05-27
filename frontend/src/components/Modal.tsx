@@ -15,6 +15,7 @@ interface ModalProps {
   widthClass?: string;
   maxHeightClass?: string;
   showBlur?: boolean;
+  showOverlay?: boolean;
 }
 
 export const Modal = ({
@@ -28,7 +29,8 @@ export const Modal = ({
   footer,
   widthClass = "w-[600px]",
   maxHeightClass = "max-h-[85vh]",
-  showBlur = true
+  showBlur = true,
+  showOverlay = true
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
@@ -47,7 +49,8 @@ export const Modal = ({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4",
+        "fixed inset-0 z-[110] flex items-center justify-center p-4",
+        showOverlay ? "bg-black/60" : "bg-transparent pointer-events-none",
         showBlur && "backdrop-blur-sm"
       )}
       role="dialog"
@@ -60,7 +63,7 @@ export const Modal = ({
     >
       <div
         className={cn(
-          "rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200",
+          "rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
           widthClass,
           maxHeightClass,
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
