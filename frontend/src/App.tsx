@@ -33,6 +33,8 @@ import { ReplicaSetNode } from './components/Nodes/ReplicaSet';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
 import { ContextMenu } from './components/ContextMenu';
+import { LogToast } from './components/LogToast';
+import { LogModal } from './components/LogModal';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml, cn } from './lib/utils';
 import { Plus, Minus, Maximize } from 'lucide-react';
@@ -327,6 +329,9 @@ export default function App() {
 
           {/* Render the AboutDialog */}
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
+
+          <LogToast />
+          <LogModal />
         </main>
 
         {isRightSidebarVisible && (

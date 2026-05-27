@@ -20,7 +20,10 @@ export const initWailsMocks = () => {
         LogInfo: (msg: string) => console.info(msg),
         LogWarning: (msg: string) => console.warn(msg),
         LogError: (msg: string) => console.error(msg),
-        LogFatal: (msg: string) => console.error(msg)
+        LogFatal: (msg: string) => {
+            console.error(`[FATAL] ${msg}`);
+            // Explicitly handle fatal if needed, but console.error interceptor will catch it
+        }
     };
 
     (globalThis as any).go = {

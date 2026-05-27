@@ -6,6 +6,7 @@ import { createDeploymentSlice } from './slices/createDeploymentSlice';
 import { createNodeSlice } from './slices/createNodeSlice';
 import { createUiSlice } from './slices/createUiSlice';
 import { createAlignmentSlice } from './slices/createAlignmentSlice';
+import { createLogSlice } from './slices/createLogSlice';
 
 const flowStore = createStore<FlowState>()(
   (...a) => ({
@@ -22,6 +23,7 @@ const flowStore = createStore<FlowState>()(
     ...createNodeSlice(...a),
     ...createUiSlice(...a),
     ...createAlignmentSlice(...a),
+    ...createLogSlice(...a),
   })
 );
 
