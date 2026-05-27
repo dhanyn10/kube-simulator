@@ -6,6 +6,7 @@ import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
 import { validateHpaTargets } from '../store/slices/simulationManager';
+import logo from '../assets/logo.svg';
 
 interface MenuBarProps {
   onExportYaml: () => void;
@@ -140,23 +141,17 @@ export const MenuBar = ({
     themeClasses = "bg-slate-50 border-slate-200 text-slate-700";
   }
 
-  let titleColorClass = "";
-  if (colorMode === 'dark') {
-    titleColorClass = "text-blue-400";
-  } else {
-    titleColorClass = "text-blue-600";
-  }
-
   return (
     <div
       ref={menuRef}
       style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
       className={cn(
-        "h-10 border-b flex items-center px-4 justify-between z-50 select-none relative",
+        "h-10 border-b flex items-center px-3 justify-between z-50 select-none relative",
         themeClasses
       )}
     >
       <div className="flex items-center gap-1">
+        <img src={logo} alt="Logo" data-testid="app-title" className="w-4 h-4 mx-1" />
         {menuItems.map((menu) => (
           <MenuBarDropdown
             key={menu.label}
@@ -190,17 +185,6 @@ export const MenuBar = ({
         />
       </div>
 
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
-        <h1
-          data-testid="app-title"
-          className={cn(
-            "text-[11px] font-bold uppercase tracking-[0.3em]",
-            titleColorClass
-          )}
-        >
-          Kube Simulator
-        </h1>
-      </div>
 
       <WindowControls colorMode={colorMode} />
     </div>
