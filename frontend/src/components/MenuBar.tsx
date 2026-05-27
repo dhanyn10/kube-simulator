@@ -6,6 +6,7 @@ import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
 import { validateHpaTargets } from '../store/slices/simulationManager';
+import { BrowserOpenURL } from '@wailsjs/runtime/runtime';
 
 interface MenuBarProps {
   onExportYaml: () => void;
@@ -123,7 +124,7 @@ export const MenuBar = ({
         label: 'Help',
         items: [
           { label: 'About', icon: Info, onClick: onOpenAbout },
-          { label: 'Report Issue', icon: Bug, onClick: () => globalThis.open('https://github.com', '_blank') },
+          { label: 'Report Issue', icon: Bug, onClick: () => BrowserOpenURL('https://github.com/dhanyn10/kube-simulator/issues') },
         ]
       }
     ];
