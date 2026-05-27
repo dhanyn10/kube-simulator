@@ -41,31 +41,35 @@ const saveLogsToStorage = (logs: LogEntry[]) => {
   }
 };
 
-export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, get) => ({
-  logs: loadLogsFromStorage(),
-  isLogToastVisible: false,
-  isLogModalOpen: false,
-  addLog: (level, message) => {
-    const newLog: LogEntry = {
-      id: crypto.randomUUID(),
-      level,
-      message,
-      timestamp: Date.now(),
-    };
+export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, get) => {
+  const initialLogs = loadLogsFromStorage();
 
-    const currentLogs = get().logs;
-    const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
+  return {
+    logs: initialLogs,
+    isLogToastVisible: initialLogs.length > 0, // Show toast on load if logs exist
+    isLogModalOpen: false,
+    addLog: (level, message) => {
+      const newLog: LogEntry = {
+        id: crypto.randomUUID(),
+        level,
+        message,
+        timestamp: Date.now(),
+      };
 
-    set({
-      logs: updatedLogs,
-      isLogToastVisible: true // Always show/update toast when new log arrives
-    });
-    saveLogsToStorage(updatedLogs);
-  },
-  clearLogs: () => {
-    set({ logs: [], isLogToastVisible: false });
-    saveLogsToStorage([]);
-  },
-  setLogToastVisible: (visible) => set({ isLogToastVisible: visible }),
-  setLogModalOpen: (open) => set({ isLogModalOpen: open }),
-});
+      const currentLogs = get().logs;
+      const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
+
+      set({
+        logs: updatedLogs,
+        isLogToastVisible: true
+      });
+      saveLogsToStorage(updatedLogs);
+    },
+    clearLogs: () => {
+      set({ logs: [], isLogToastVisible: false });
+      saveLogsToStorage([]);
+    },
+    setLogToastVisible: (visible) => set({ isLogToastVisible: visible }),
+    setLogModalOpen: (open) => set({ isLogModalOpen: open }),
+  };
+};
