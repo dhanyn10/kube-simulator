@@ -31,4 +31,11 @@ test.describe('Sidebar UX and Style Polish', () => {
     const sidebarContent = page.locator('.custom-scrollbar');
     await expect(sidebarContent).toBeVisible();
   });
+
+  test('main canvas container should not have static grid class', async ({ page }) => {
+    // Verify that the main container does not have the 'canvas-grid' class
+    // which was causing static background issues in light theme.
+    const mainContainer = page.locator('main');
+    await expect(mainContainer).not.toHaveClass(/canvas-grid/);
+  });
 });
