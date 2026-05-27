@@ -3,7 +3,6 @@ import { useFlowStore } from '../../../src/store';
 
 describe('UI Toggle Handlers (Gear Settings)', () => {
   beforeEach(() => {
-    const store = useFlowStore.getState();
     // Reset state
     useFlowStore.setState({
       nodes: [],
