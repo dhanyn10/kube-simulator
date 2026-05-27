@@ -11,6 +11,8 @@ export function DeleteProject(arg1:number):Promise<boolean>;
 
 export function ExportProjectFile(arg1:string,arg2:string,arg3:string):Promise<boolean>;
 
+export function GenerateYaml(arg1:string,arg2:string):Promise<string>;
+
 export function GetHistoryLogs():Promise<Array<db.HistoryLog>>;
 
 export function GetProjects():Promise<Array<db.Project>>;
