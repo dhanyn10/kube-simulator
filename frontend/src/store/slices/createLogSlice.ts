@@ -58,7 +58,7 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
 
     set({
       logs: updatedLogs,
-      isLogToastVisible: !get().isLogModalOpen // Don't show toast if modal is already open
+      isLogToastVisible: true // Always show/update toast when new log arrives
     });
     saveLogsToStorage(updatedLogs);
   },

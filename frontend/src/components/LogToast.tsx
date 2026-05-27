@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFlowStore } from '../store';
-import { AlertCircle, AlertTriangle, X, ExternalLink } from 'lucide-react';
+import { AlertCircle, AlertTriangle, X, Terminal } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const LogToast: React.FC = () => {
@@ -18,44 +18,48 @@ export const LogToast: React.FC = () => {
   return (
     <div
       className={cn(
-        'fixed bottom-6 left-6 z-[9999] flex items-center gap-4 px-4 py-3 rounded-lg shadow-2xl border animate-in slide-in-from-left-4 duration-300',
+        'fixed bottom-6 left-6 z-[9999] flex items-center gap-4 pl-4 pr-2 py-2 rounded-lg shadow-2xl border animate-in slide-in-from-left-4 duration-300',
         colorMode === 'dark'
-          ? 'bg-slate-900 border-slate-700 text-slate-200'
-          : 'bg-white border-slate-200 text-slate-800'
+          ? 'bg-slate-900/90 backdrop-blur-md border-slate-700 text-slate-200'
+          : 'bg-white/90 backdrop-blur-md border-slate-200 text-slate-800'
       )}
     >
-      <div className="flex items-center gap-3 pr-2 border-r border-slate-700/50">
-        {errorCount > 0 && (
-          <div className="flex items-center gap-1.5 text-red-500 font-medium">
-            <AlertCircle size={16} />
-            <span>{errorCount}</span>
-          </div>
-        )}
-        {warnCount > 0 && (
-          <div className="flex items-center gap-1.5 text-amber-500 font-medium">
-            <AlertTriangle size={16} />
-            <span>{warnCount}</span>
-          </div>
-        )}
+      <div className="flex items-center gap-3 pr-3 border-r border-slate-700/30">
+        <div className="flex items-center gap-2">
+            <Terminal size={14} className="text-slate-500" />
+            <span className="text-xs font-bold uppercase tracking-tight opacity-50">Logs</span>
+        </div>
+        <div className="flex items-center gap-3">
+            {errorCount > 0 && (
+            <div className="flex items-center gap-1.5 text-red-500 font-semibold tabular-nums">
+                <AlertCircle size={14} />
+                <span className="text-sm">{errorCount}</span>
+            </div>
+            )}
+            {warnCount > 0 && (
+            <div className="flex items-center gap-1.5 text-amber-500 font-semibold tabular-nums">
+                <AlertTriangle size={14} />
+                <span className="text-sm">{warnCount}</span>
+            </div>
+            )}
+        </div>
       </div>
 
       <button
-        onClick={() => {
-          setModalOpen(true);
-          setVisible(false);
-        }}
+        onClick={() => setModalOpen(true)}
         className={cn(
-          'flex items-center gap-2 text-sm font-medium hover:underline transition-colors',
-          colorMode === 'dark' ? 'text-blue-400' : 'text-blue-600'
+          'px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 active:scale-95',
+          colorMode === 'dark'
+            ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20'
+            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
         )}
       >
-        Open Logs
-        <ExternalLink size={14} />
+        Open
       </button>
 
       <button
         onClick={() => setVisible(false)}
-        className="ml-2 p-1 rounded-full hover:bg-slate-500/20 transition-colors"
+        className="p-1.5 rounded-md hover:bg-slate-500/20 transition-colors opacity-50 hover:opacity-100"
       >
         <X size={14} />
       </button>
