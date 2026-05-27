@@ -79,6 +79,8 @@ export interface FlowState {
   setDetachingDeploymentId: (id: string | null) => void;
   setConfiguringNodeId: (id: string | null) => void;
   setConfiguringEdgeId: (id: string | null) => void;
+  toggleNodeSettings: (id: string) => void;
+  toggleEdgeSettings: (id: string) => void;
   setAlignmentGuides: (guides: { vertical: AlignmentGuide[], horizontal: AlignmentGuide[] }) => void;
   clearAlignmentGuides: () => void;
   setSnapGuides: (guides: { vertical: SnapGuide[], horizontal: SnapGuide[] }) => void;

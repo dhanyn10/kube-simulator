@@ -19,7 +19,7 @@ export default function CustomEdge({
   target,
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
-  const setConfiguringEdgeId = useFlowStore((state: any) => state.setConfiguringEdgeId);
+  const toggleEdgeSettings = useFlowStore((state: any) => state.toggleEdgeSettings);
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
   const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
   const nodes = useFlowStore((state: any) => state.nodes);
@@ -93,7 +93,7 @@ export default function CustomEdge({
 
   const onSettings = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setConfiguringEdgeId(isConfiguring ? null : id);
+    toggleEdgeSettings(id);
   };
 
   return (

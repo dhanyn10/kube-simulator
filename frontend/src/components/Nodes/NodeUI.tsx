@@ -21,7 +21,7 @@ export const NodeActionButtons = ({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          useFlowStore.getState().setConfiguringNodeId(id);
+          useFlowStore.getState().toggleNodeSettings(id);
         }}
         className={cn(
           "p-1 rounded transition-all",
