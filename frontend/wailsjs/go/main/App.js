@@ -18,6 +18,10 @@ export function ExportProjectFile(arg1, arg2, arg3) {
   return window['go']['main']['App']['ExportProjectFile'](arg1, arg2, arg3);
 }
 
+export function GenerateYaml(arg1, arg2) {
+  return window['go']['main']['App']['GenerateYaml'](arg1, arg2);
+}
+
 export function GetHistoryLogs() {
   return window['go']['main']['App']['GetHistoryLogs']();
 }

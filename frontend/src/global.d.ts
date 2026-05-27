@@ -5,6 +5,11 @@ declare module '*.css' {
   export default content;
 }
 
+declare module '*.svg' {
+  const content: string;
+  export default content;
+}
+
 interface WailsApp {
   Greet(name: string): Promise<string>;
   PushHistory(state: string): Promise<void>;
