@@ -1,3 +1,4 @@
+import { logger } from './lib/logger';
 import React, { useCallback, useState, useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import {
@@ -72,7 +73,7 @@ export default function App() {
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
-  console.log('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
+  logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
 
   // Expose store for e2e testing
   // @ts-ignore
@@ -126,7 +127,7 @@ export default function App() {
           GetSystemResources().then((resources: any) => {
             setSystemResources(resources);
           }).catch(err => {
-            console.error('[App] Failed to fetch system resources:', err);
+            logger.error('[App] Failed to fetch system resources:', err);
           });
         }
       };

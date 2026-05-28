@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { GetSystemInfo } from '../../wailsjs/go/main/App';
@@ -30,7 +31,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
         const info = await GetSystemInfo() as unknown as SystemInfo;
         setSystemInfo(info);
       } catch (error) {
-        console.error("Failed to fetch system info:", error);
+        logger.error("Failed to fetch system info:", error);
       }
     }
 
@@ -51,7 +52,7 @@ ${appCopyright}`;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy", err);
+      logger.error("Failed to copy", err);
     }
   };
 

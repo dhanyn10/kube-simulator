@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import yaml from 'js-yaml';
@@ -87,7 +88,7 @@ export async function generateYaml(nodes: any[], edges: any[]): Promise<string> 
       if (!Array.isArray(objects)) return jsonStr;
       return objects.map(obj => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
     } catch (e) {
-      console.error('Failed to parse objects for YAML generation:', e);
+      logger.error('Failed to parse objects for YAML generation:', e);
       return jsonStr;
     }
   }

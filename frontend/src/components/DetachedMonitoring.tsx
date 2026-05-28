@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { useState, useEffect } from 'react';
 import { Activity, Cpu, Database, AlertTriangle, ZapOff } from 'lucide-react';
 import { cn, formatCPU, formatMemory } from '../lib/utils';
@@ -73,7 +74,7 @@ export const DetachedMonitoring = () => {
   const [colorMode, setColorMode] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    console.log('[DetachedMonitoring] Initializing sync...');
+    logger.info('[DetachedMonitoring] Initializing sync...');
     const channel = new BroadcastChannel('monitoring-data');
 
     // @ts-ignore

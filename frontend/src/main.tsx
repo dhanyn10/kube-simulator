@@ -6,17 +6,6 @@ import './index.css';
 import { initWailsMocks } from './lib/mocks.ts';
 import { useFlowStore } from './store';
 
-// Initialize mocks for browser/test environments
-initWailsMocks();
-
-// Intercept console errors and warnings
-const originalError = console.error;
-const originalWarn = console.warn;
-const originalLog = console.log;
-
-// Expose original error for internal use to avoid recursion
-(globalThis as any)._originalConsoleError = originalError;
-
 const formatLogMessage = (args: any[]) => {
   return args.map(arg => {
     if (arg instanceof Error) {
@@ -33,22 +22,35 @@ const formatLogMessage = (args: any[]) => {
   }).join(' ');
 };
 
+// Global interception to capture third-party logs or unhandled errors
+const originalLog = console.log.bind(console);
+const originalWarn = console.warn.bind(console);
+const originalError = console.error.bind(console);
+
+// Attach to globalThis so other modules can use them before/after this file runs
+(globalThis as any)._originalConsoleLog = originalLog;
+(globalThis as any)._originalConsoleWarn = originalWarn;
+(globalThis as any)._originalConsoleError = originalError;
+
+// Initialize mocks for browser/test environments after original console methods are captured
+initWailsMocks();
+
 console.error = (...args: any[]) => {
   const message = formatLogMessage(args);
   useFlowStore.getState().addLog('error', message);
-  originalError.apply(console, args);
+  originalError(...args);
 };
 
 console.warn = (...args: any[]) => {
   const message = formatLogMessage(args);
   useFlowStore.getState().addLog('warn', message);
-  originalWarn.apply(console, args);
+  originalWarn(...args);
 };
 
 console.log = (...args: any[]) => {
   const message = formatLogMessage(args);
   useFlowStore.getState().addLog('info', message);
-  originalLog.apply(console, args);
+  originalLog(...args);
 };
 
 createRoot(document.getElementById('root')!).render(

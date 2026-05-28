@@ -17,9 +17,11 @@ const MAX_LOGS = 500; // Increased because we are capturing all logs now
 // Internal logging to avoid infinite recursion if storage fails
 const internalError = (...args: any[]) => {
   if ((globalThis as any)._originalConsoleError) {
-    (globalThis as any)._originalConsoleError(...args);
+    (globalThis as any)._originalConsoleError.apply(console, args);
   } else {
-    console.error(...args);
+    // Fallback if not initialized yet
+    const originalError = (globalThis as any)._originalConsoleError || console.error;
+    originalError.apply(console, args);
   }
 };
 

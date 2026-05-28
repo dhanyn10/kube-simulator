@@ -1,28 +1,28 @@
 export const initWailsMocks = () => {
     if (typeof globalThis === 'undefined' || (globalThis as any).go) return;
 
-    console.log('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
+    (globalThis as any)._originalConsoleLog('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
 
     (globalThis as any).runtime = {
         EventsOnMultiple: (eventName: string, _callback: any, _maxCallbacks: number) => {
-            console.log(`[Mocks] EventsOnMultiple called for: ${eventName}`);
+            (globalThis as any)._originalConsoleLog(`[Mocks] EventsOnMultiple called for: ${eventName}`);
             return () => {};
         },
         EventsOn: (eventName: string, _callback: any) => {
-            console.log(`[Mocks] EventsOn called for: ${eventName}`);
+            (globalThis as any)._originalConsoleLog(`[Mocks] EventsOn called for: ${eventName}`);
             return () => {};
         },
         EventsOff: () => {},
         EventsEmit: () => {},
-        LogPrint: (msg: string) => console.log(msg),
-        LogTrace: (msg: string) => console.log(msg),
-        LogDebug: (msg: string) => console.debug(msg),
-        LogInfo: (msg: string) => console.info(msg),
-        LogWarning: (msg: string) => console.warn(msg),
-        LogError: (msg: string) => console.error(msg),
+        LogPrint: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
+        LogTrace: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
+        LogDebug: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
+        LogInfo: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
+        LogWarning: (msg: string) => (globalThis as any)._originalConsoleWarn(msg),
+        LogError: (msg: string) => (globalThis as any)._originalConsoleError(msg),
         LogFatal: (msg: string) => {
-            console.error(`[FATAL] ${msg}`);
-            // Explicitly handle fatal if needed, but console.error interceptor will catch it
+            (globalThis as any)._originalConsoleError(`[FATAL] ${msg}`);
+            // Explicitly handle fatal if needed, but (globalThis as any)._originalConsoleError interceptor will catch it
         }
     };
 
@@ -91,9 +91,9 @@ export const initWailsMocks = () => {
                     arch: 'amd64',
                     goVersion: 'go1.25.0'
                 }),
-                MinimizeWindow: async () => console.log('Minimize Window'),
-                MaximizeWindow: async () => console.log('Maximize Window'),
-                CloseWindow: async () => console.log('Close Window'),
+                MinimizeWindow: async () => (globalThis as any)._originalConsoleLog('Minimize Window'),
+                MaximizeWindow: async () => (globalThis as any)._originalConsoleLog('Maximize Window'),
+                CloseWindow: async () => (globalThis as any)._originalConsoleLog('Close Window'),
                 GetSetting: async () => "",
                 SaveSetting: async () => true
             }

@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import React from 'react';
 import { X, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -16,7 +17,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch((err) => {
-      console.error('Failed to copy text: ', err);
+      logger.error('Failed to copy text: ', err);
     });
   };
 
