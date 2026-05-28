@@ -49,7 +49,7 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
   return {
     logs: initialLogs,
     // Only show toast on load if there are actual errors/warnings
-    isLogToastVisible: initialLogs.some(l => l.level !== 'info'),
+    isLogToastVisible: initialLogs.some(l => l.level === 'error' || l.level === 'fatal' || l.level === 'warn'),
     isLogModalOpen: false,
     addLog: (level, message) => {
       const newLog: LogEntry = {

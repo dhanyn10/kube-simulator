@@ -19,7 +19,7 @@ describe('createLogSlice', () => {
     // Create a fresh store for each test
     store = createStore<FlowState>()((...a) => ({
       ...createLogSlice(...a),
-    } as any));
+    }));
   });
 
   it('should initialize with empty logs if nothing in storage', () => {

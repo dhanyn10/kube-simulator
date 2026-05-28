@@ -15,7 +15,11 @@ const formatLogMessage = (args: any[]) => {
       try {
         return JSON.stringify(arg);
       } catch (e) {
-        return '[Circular Object]';
+        // Handle serialization error by logging to original console and returning placeholder
+        if ((globalThis as any)._originalConsoleError) {
+          (globalThis as any)._originalConsoleError('Log serialization failed:', e);
+        }
+        return '[Unserializable Object]';
       }
     }
     return String(arg);

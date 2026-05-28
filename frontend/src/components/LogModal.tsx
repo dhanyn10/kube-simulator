@@ -15,27 +15,38 @@ interface TabProps {
   colorMode: 'dark' | 'light';
 }
 
-const Tab = ({ type, label, count, activeFilter, setActiveFilter, colorMode }: TabProps) => (
-  <button
-    onClick={() => setActiveFilter(type)}
-    className={cn(
-      "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
-      activeFilter === type
-        ? (colorMode === 'dark' ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-900")
-        : "text-slate-500 hover:bg-slate-500/10"
-    )}
-  >
-    {label}
-    <span className={cn(
-      "px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums",
-      activeFilter === type
-          ? (colorMode === 'dark' ? "bg-slate-600" : "bg-slate-300")
-          : (colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")
-    )}>
-      {count}
-    </span>
-  </button>
-);
+const Tab = ({ type, label, count, activeFilter, setActiveFilter, colorMode }: TabProps) => {
+  const isActive = activeFilter === type;
+  const isDark = colorMode === 'dark';
+
+  let buttonClass = "text-slate-500 hover:bg-slate-500/10";
+  if (isActive) {
+    buttonClass = isDark ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-900";
+  }
+
+  let badgeClass = isDark ? "bg-slate-800" : "bg-slate-100";
+  if (isActive) {
+    badgeClass = isDark ? "bg-slate-600" : "bg-slate-300";
+  }
+
+  return (
+    <button
+      onClick={() => setActiveFilter(type)}
+      className={cn(
+        "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
+        buttonClass
+      )}
+    >
+      {label}
+      <span className={cn(
+        "px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums",
+        badgeClass
+      )}>
+        {count}
+      </span>
+    </button>
+  );
+};
 
 export const LogModal: React.FC = () => {
   const logs = useFlowStore((state) => state.logs);
@@ -133,7 +144,9 @@ export const LogModal: React.FC = () => {
           ) : (
             filteredLogs.map((log) => {
                 let badgeClass = 'bg-blue-400/10 text-blue-400';
-                if (log.level === 'error' || log.level === 'fatal') {
+                const isError = log.level === 'error' || log.level === 'fatal';
+
+                if (isError) {
                     badgeClass = 'bg-red-500/10 text-red-500';
                 } else if (log.level === 'warn') {
                     badgeClass = 'bg-amber-500/10 text-amber-500';
