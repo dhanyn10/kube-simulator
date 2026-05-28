@@ -30,7 +30,7 @@ export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set,
   // Initialize handlers with set/get
   const actions = nodeActions(set, get);
   const drag = dragHandlers(set, get);
-  const resize = resizeHandlers(set, get);
+  const resize = resizeHandlers(set);
   const clipboard = clipboardHandlers(set, get);
 
   return {

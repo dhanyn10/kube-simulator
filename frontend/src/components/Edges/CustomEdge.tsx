@@ -1,4 +1,3 @@
-import React from 'react';
 import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath, useReactFlow } from '@xyflow/react';
 import { Settings, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -20,6 +19,7 @@ export default function CustomEdge({
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
   const toggleEdgeSettings = useFlowStore((state: any) => state.toggleEdgeSettings);
+  const setConfiguringEdgeId = useFlowStore((state: any) => state.setConfiguringEdgeId);
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
   const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
   const nodes = useFlowStore((state: any) => state.nodes);

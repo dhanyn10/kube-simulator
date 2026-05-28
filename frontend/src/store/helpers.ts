@@ -390,22 +390,23 @@ const getBoundingBox = (node: Node) => {
 
 const getCrossAxisProps = (axis: 'x' | 'y') => {
   return axis === 'x'
-    ? { cross: 'y' as const, centerKey: 'centerY' as const, sizeKey: 'h' as const }
-    : { cross: 'x' as const, centerKey: 'centerX' as const, sizeKey: 'w' as const };
+    ? ({ cross: 'y', centerKey: 'centerY', sizeKey: 'h' } as const)
+    : ({ cross: 'x', centerKey: 'centerX', sizeKey: 'w' } as const);
 };
 
 // Helper to apply overlap resolution for a specific axis
 const applyOverlapResolution = (
-  nodeA: Node, nodeB: Node, 
-  bA: any, bB: any, 
-  axis: 'x' | 'y', 
-  dist: number, 
-  fixedNodeId?: string, 
+  nodeA: Node,
+  nodeB: Node,
+  bounds: { a: any; b: any },
+  axis: 'x' | 'y',
+  dist: number,
+  fixedNodeId?: string,
   padding = 32
 ) => {
   const isX = axis === 'x';
-  const sizeA = isX ? bA.w : bA.h;
-  const sizeB = isX ? bB.w : bB.h;
+  const sizeA = isX ? bounds.a.w : bounds.a.h;
+  const sizeB = isX ? bounds.b.w : bounds.b.h;
   const overlapDist = (sizeA + sizeB) / 2 + padding - Math.abs(dist);
   const dir = dist >= 0 ? 1 : -1;
 
@@ -413,16 +414,16 @@ const applyOverlapResolution = (
 
   if (nodeA.id === fixedNodeId) {
     nodeB.position[axis] += overlapDist * dir;
-    nodeB.position[cross] = bA[centerKey] - bB[sizeKey] / 2;
+    nodeB.position[cross] = bounds.a[centerKey] - bounds.b[sizeKey] / 2;
   } else if (nodeB.id === fixedNodeId) {
     nodeA.position[axis] -= overlapDist * dir;
-    nodeA.position[cross] = bB[centerKey] - bA[sizeKey] / 2;
+    nodeA.position[cross] = bounds.b[centerKey] - bounds.a[sizeKey] / 2;
   } else {
     nodeA.position[axis] -= (overlapDist / 2) * dir;
     nodeB.position[axis] += (overlapDist / 2) * dir;
-    const midCross = (bA[centerKey] + bB[centerKey]) / 2;
-    nodeA.position[cross] = midCross - bA[sizeKey] / 2;
-    nodeB.position[cross] = midCross - bB[sizeKey] / 2;
+    const midCross = (bounds.a[centerKey] + bounds.b[centerKey]) / 2;
+    nodeA.position[cross] = midCross - bounds.a[sizeKey] / 2;
+    nodeB.position[cross] = midCross - bounds.b[sizeKey] / 2;
   }
 };
 
@@ -438,9 +439,9 @@ const resolvePairOverlap = (nodeA: Node, nodeB: Node, fixedNodeId?: string, padd
   const dy = bB.centerY - bA.centerY;
 
   if (Math.abs(dx) > Math.abs(dy)) {
-    applyOverlapResolution(nodeA, nodeB, bA, bB, 'x', dx, fixedNodeId, padding);
+    applyOverlapResolution(nodeA, nodeB, { a: bA, b: bB }, 'x', dx, fixedNodeId, padding);
   } else {
-    applyOverlapResolution(nodeA, nodeB, bA, bB, 'y', dy, fixedNodeId, padding);
+    applyOverlapResolution(nodeA, nodeB, { a: bA, b: bB }, 'y', dy, fixedNodeId, padding);
   }
   return true;
 };

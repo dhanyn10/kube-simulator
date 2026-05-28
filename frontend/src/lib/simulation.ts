@@ -173,9 +173,9 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   let nextTraffic = currentTraffic;
 
   if (currentTraffic < targetTraffic) {
-    nextTraffic = Math.min(targetTraffic as number, currentTraffic + 1000);
+    nextTraffic = Math.min(targetTraffic, currentTraffic + 1000);
   } else if (currentTraffic > targetTraffic) {
-    nextTraffic = Math.max(targetTraffic as number, currentTraffic - 2000);
+    nextTraffic = Math.max(targetTraffic, currentTraffic - 2000);
   }
 
   let hasChanges = false;

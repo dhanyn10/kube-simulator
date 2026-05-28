@@ -88,7 +88,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
 
-  const { effectiveStatus, isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
+  const { isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
     useNodeStatus(data, statusOverride, color, colorMode);
 
   const { containerClasses, progressEmptyBgClass } =
