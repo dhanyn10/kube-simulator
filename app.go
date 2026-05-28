@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"build-wails/backend/db"
+	"build-wails/backend/logger"
 	"build-wails/backend/system"
 	"build-wails/backend/yaml_gen"
 
@@ -36,13 +37,18 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	appCtx = ctx
+	logger.Init(ctx)
+
+	// Redirect standard log to our wails logger
+	log.SetOutput(&logger.WailsWriter{Level: "info"})
+	log.SetFlags(0) // Remove timestamps as they are handled by frontend
 
 	if err := a.history.Init(); err != nil {
-		log.Fatalf("Failed to initialize history manager: %v", err)
+		logger.Fatal("Failed to initialize history manager: %v", err)
 	}
 
 	if err := a.projects.Init(); err != nil {
-		log.Fatalf("Failed to initialize project manager: %v", err)
+		logger.Fatal("Failed to initialize project manager: %v", err)
 	}
 
 	// Adjust window size to 90% of screen height on startup
@@ -176,7 +182,7 @@ func (a *App) GetHistoryLogs() []db.HistoryLog {
 func (a *App) SaveProject(name, content string) int64 {
 	id, err := a.projects.SaveProject(name, content)
 	if err != nil {
-		log.Printf("Error saving project: %v", err)
+		logger.Error("Error saving project: %v", err)
 		return -1
 	}
 	if appCtx != nil {
@@ -192,7 +198,7 @@ func (a *App) SetInitialFile(path string) {
 func (a *App) UpdateProject(id int64, content string) bool {
 	err := a.projects.UpdateProject(id, content)
 	if err != nil {
-		log.Printf("Error updating project: %v", err)
+		logger.Error("Error updating project: %v", err)
 		return false
 	}
 	return true
@@ -223,7 +229,7 @@ func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	fileData, _ := json.MarshalIndent(data, "", "  ")
 	err = os.WriteFile(filePath, fileData, 0644)
 	if err != nil {
-		log.Printf("Error writing file: %v", err)
+		logger.Error("Error writing file: %v", err)
 		return false
 	}
 
@@ -247,7 +253,7 @@ func (a *App) ImportProjectFile() string {
 
 	fileData, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Printf("Error reading file: %v", err)
+		logger.Error("Error reading file: %v", err)
 		return ""
 	}
 
@@ -257,7 +263,7 @@ func (a *App) ImportProjectFile() string {
 func (a *App) GetProjects() []db.Project {
 	projects, err := a.projects.GetProjects()
 	if err != nil {
-		log.Printf("Error getting projects: %v", err)
+		logger.Error("Error getting projects: %v", err)
 		return []db.Project{}
 	}
 	return projects
@@ -266,7 +272,7 @@ func (a *App) GetProjects() []db.Project {
 func (a *App) LoadProject(id int64) *db.Project {
 	proj, err := a.projects.LoadProject(id)
 	if err != nil {
-		log.Printf("Error loading project: %v", err)
+		logger.Error("Error loading project: %v", err)
 		return nil
 	}
 	if appCtx != nil {
@@ -278,7 +284,7 @@ func (a *App) LoadProject(id int64) *db.Project {
 func (a *App) DeleteProject(id int64) bool {
 	err := a.projects.DeleteProject(id)
 	if err != nil {
-		log.Printf("Error deleting project: %v", err)
+		logger.Error("Error deleting project: %v", err)
 		return false
 	}
 	return true
@@ -287,7 +293,7 @@ func (a *App) DeleteProject(id int64) bool {
 func (a *App) SaveSetting(key, value string) bool {
 	err := a.projects.SaveSetting(key, value)
 	if err != nil {
-		log.Printf("Error saving setting: %v", err)
+		logger.Error("Error saving setting: %v", err)
 		return false
 	}
 	return true

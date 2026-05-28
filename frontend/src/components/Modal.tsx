@@ -17,6 +17,7 @@ interface ModalProps {
   showBlur?: boolean;
   showOverlay?: boolean;
   alignClass?: string;
+  disableScroll?: boolean;
 }
 
 export const Modal = ({
@@ -32,7 +33,8 @@ export const Modal = ({
   maxHeightClass = "max-h-[85vh]",
   showBlur = true,
   showOverlay = true,
-  alignClass = "items-center"
+  alignClass = "items-center",
+  disableScroll = false
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
@@ -95,7 +97,10 @@ export const Modal = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar">
+        <div className={cn(
+          "flex-1 p-6 min-h-0",
+          !disableScroll && "overflow-y-auto custom-scrollbar"
+        )}>
           {children}
         </div>
 

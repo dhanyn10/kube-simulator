@@ -6,6 +6,7 @@ import App from './App.tsx';
 import './index.css';
 import { initWailsMocks } from './lib/mocks.ts';
 import { useFlowStore } from './store';
+import { EventsOn } from '../wailsjs/runtime';
 
 const originalLog = (globalThis as any)._originalConsoleLog;
 const originalWarn = (globalThis as any)._originalConsoleWarn;
@@ -33,6 +34,15 @@ const formatLogMessage = (args: any[]) => {
 
 // Initialize mocks for browser/test environments after original console methods are captured
 initWailsMocks();
+
+// Listen for backend logs
+EventsOn('backend-log', (data: { level: string, message: string }) => {
+  const { level, message } = data;
+  const store = useFlowStore.getState();
+  // Map backend levels to frontend levels if necessary
+  const logType = level === 'fatal' ? 'error' : (level as any);
+  store.addLog(logType, `[Backend] ${message}`);
+});
 
 console.error = (...args: any[]) => {
   try {

@@ -1,8 +1,8 @@
 package db
 
 import (
+	"build-wails/backend/logger"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -65,7 +65,7 @@ func (h *HistoryManager) Push(state string) {
 	})
 
 	if err != nil {
-		log.Printf("Error saving history: %v", err)
+		logger.Error("Error saving history: %v", err)
 	}
 }
 
