@@ -151,9 +151,9 @@ export const LogModal: React.FC = () => {
     <Modal
       isOpen={isOpen}
       onClose={() => setOpen(false)}
-      showBlur={false}
-      showOverlay={false}
-      alignClass="items-start pt-20"
+      showBlur={true}
+      showOverlay={true}
+      alignClass="items-center"
       title="Console Logs"
       subtitle="History of application events"
       icon={Bell}
@@ -173,9 +173,9 @@ export const LogModal: React.FC = () => {
         </div>
       }
     >
-      <div className="flex flex-col gap-4 h-full">
+      <div className="flex flex-col gap-4">
         {/* Header toolbar */}
-        <div className="flex items-center justify-between border-b border-slate-700/30 pb-4 gap-4 sticky top-0 bg-inherit z-10">
+        <div className="flex items-center justify-between border-b border-slate-700/30 pb-3 gap-4">
           <div className="flex items-center gap-1">
             <div className="flex items-center" ref={selectMenuRef}>
                 <button
@@ -257,7 +257,7 @@ export const LogModal: React.FC = () => {
         </div>
 
         {/* Log list */}
-        <div className="space-y-0.5 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[500px]">
+        <div className="space-y-0.5 overflow-y-auto pr-2 custom-scrollbar max-h-[50vh]">
           {filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
               <Bell size={48} strokeWidth={1} />
