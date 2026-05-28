@@ -14,18 +14,46 @@ export interface LogSlice {
 const LOG_STORAGE_KEY = 'k8s_sim_logs';
 const MAX_LOGS = 500;
 
-// Cleanup legacy persistent logs
-try {
-  if (typeof localStorage !== 'undefined') localStorage.removeItem(LOG_STORAGE_KEY);
-  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(LOG_STORAGE_KEY);
-} catch (e) {
-  // Ignore storage errors during cleanup
-}
+// Internal logging to avoid infinite recursion if storage fails
+const internalError = (...args: any[]) => {
+  const originalError = (globalThis as any)._originalConsoleError;
+  if (originalError) {
+    originalError.apply(console, args);
+  } else {
+    // Last resort - if even originalError is missing (should not happen with init-console.ts)
+    // We don't call console.error here to avoid recursion
+  }
+};
+
+const loadLogsFromStorage = (): LogEntry[] => {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(LOG_STORAGE_KEY)) {
+      localStorage.removeItem(LOG_STORAGE_KEY);
+    }
+    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(LOG_STORAGE_KEY) : null;
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    internalError('Failed to load logs from storage:', e);
+    return [];
+  }
+};
+
+const saveLogsToStorage = (logs: LogEntry[]) => {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+    }
+  } catch (e) {
+    internalError('Failed to save logs to storage:', e);
+  }
+};
 
 export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, get) => {
+  const initialLogs = loadLogsFromStorage();
+
   return {
-    logs: [],
-    isLogToastVisible: false,
+    logs: initialLogs,
+    isLogToastVisible: initialLogs.some(l => l.level === 'error' || l.level === 'fatal' || l.level === 'warn'),
     isLogModalOpen: false,
     addLog: (level, message) => {
       const newLog: LogEntry = {
@@ -40,12 +68,13 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
 
       set({
         logs: updatedLogs,
-        // Only trigger toast for error/warn/fatal
         ...(level !== 'info' ? { isLogToastVisible: true } : {})
       });
+      saveLogsToStorage(updatedLogs);
     },
     clearLogs: () => {
       set({ logs: [], isLogToastVisible: false });
+      saveLogsToStorage([]);
     },
     setLogToastVisible: (visible) => set({ isLogToastVisible: visible }),
     setLogModalOpen: (open) => set({ isLogModalOpen: open }),

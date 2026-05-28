@@ -22,7 +22,7 @@ describe('createLogSlice', () => {
     }));
   });
 
-  it('should initialize with empty logs', () => {
+  it('should initialize with empty logs if nothing in storage', () => {
     expect(store.getState().logs).toEqual([]);
     expect(store.getState().isLogToastVisible).toBe(false);
   });
@@ -37,11 +37,12 @@ describe('createLogSlice', () => {
     expect(state.isLogToastVisible).toBe(true);
   });
 
-  it('should NOT persist logs to any storage', () => {
+  it('should persist logs to sessionStorage', () => {
     store.getState().addLog('warn', 'Persistence test');
 
-    expect(localStorage.getItem('k8s_sim_logs')).toBeNull();
-    expect(sessionStorage.getItem('k8s_sim_logs')).toBeNull();
+    const stored = JSON.parse(sessionStorage.getItem('k8s_sim_logs') || '[]');
+    expect(stored.length).toBe(1);
+    expect(stored[0].message).toBe('Persistence test');
   });
 
   it('should respect MAX_LOGS limit', () => {
@@ -62,6 +63,7 @@ describe('createLogSlice', () => {
 
     expect(store.getState().logs).toEqual([]);
     expect(store.getState().isLogToastVisible).toBe(false);
+    expect(sessionStorage.getItem('k8s_sim_logs')).toBe('[]');
   });
 
   it('should set toast visibility', () => {
