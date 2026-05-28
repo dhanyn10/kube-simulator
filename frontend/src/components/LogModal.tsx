@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFlowStore } from '../store';
 import { Modal } from './Modal';
-import { Bell, Trash2, AlertCircle, AlertTriangle, Clock, Info, Search, CheckSquare, Square, ChevronDown, MinusSquare } from 'lucide-react';
+import { Bell, Trash2, AlertCircle, AlertTriangle, Clock, Info, Search, CheckSquare, Square, ChevronDown, MinusSquare, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 type FilterType = 'all' | 'error' | 'warn' | 'info';
@@ -60,6 +60,7 @@ export const LogModal: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [isSelectMenuOpen, setIsSelectMenuOpen] = useState(false);
   const selectMenuRef = useRef<HTMLDivElement>(null);
 
@@ -108,6 +109,13 @@ export const LogModal: React.FC = () => {
     setSelectedIds(next);
   };
 
+  const toggleExpand = (id: string) => {
+    const next = new Set(expandedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpandedIds(next);
+  };
+
   const handleSelectAll = () => {
     if (selectedIds.size === filteredLogs.length && filteredLogs.length > 0) {
       setSelectedIds(new Set());
@@ -151,6 +159,7 @@ export const LogModal: React.FC = () => {
       icon={Bell}
       iconColorClass="text-slate-500"
       widthClass="w-[900px]"
+      disableScroll={true}
       footer={
         <div className="flex justify-between items-center w-full">
           <p className="text-xs text-slate-500">Logs are kept in-memory for the current session (last 500 entries).</p>
@@ -248,7 +257,7 @@ export const LogModal: React.FC = () => {
         </div>
 
         {/* Log list */}
-        <div className="space-y-1 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[500px]">
+        <div className="space-y-0.5 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[500px]">
           {filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
               <Bell size={48} strokeWidth={1} />
@@ -259,6 +268,7 @@ export const LogModal: React.FC = () => {
                 let badgeClass = 'bg-blue-400/10 text-blue-400';
                 const isError = log.level === 'error' || log.level === 'fatal';
                 const isSelected = selectedIds.has(log.id);
+                const isExpanded = expandedIds.has(log.id);
 
                 if (isError) {
                     badgeClass = 'bg-red-500/10 text-red-500';
@@ -269,67 +279,61 @@ export const LogModal: React.FC = () => {
                 return (
                     <div
                         key={log.id}
-                        onClick={() => toggleSelection(log.id)}
+                        onClick={() => toggleExpand(log.id)}
                         className={cn(
-                        'group p-2 rounded-lg border flex items-start gap-3 transition-all cursor-pointer select-none',
+                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all cursor-pointer select-none border-b',
                         isSelected
-                            ? (colorMode === 'dark' ? 'bg-blue-500/10 border-blue-500/40 shadow-sm' : 'bg-blue-50 border-blue-200 shadow-sm')
-                            : (colorMode === 'dark' ? 'bg-slate-800/20 border-transparent hover:bg-slate-800/40 hover:border-slate-700/50' : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-200/50')
+                            ? (colorMode === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200')
+                            : (colorMode === 'dark' ? 'bg-transparent border-slate-800/50 hover:bg-slate-800/40' : 'bg-transparent border-slate-100 hover:bg-slate-50')
                         )}
                     >
                         <div
                             className={cn(
-                                "mt-1 p-1 rounded transition-colors",
+                                "mt-0.5 p-1 rounded transition-colors shrink-0",
                                 isSelected ? "text-blue-500" : "text-slate-600 opacity-30 group-hover:opacity-100"
                             )}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSelection(log.id);
+                            }}
                         >
                             {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                         </div>
 
-                        <div className="flex-1 flex flex-col gap-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    {isError && (
-                                    <AlertCircle size={14} className="text-red-500" />
-                                    )}
-                                    {log.level === 'warn' && (
-                                    <AlertTriangle size={14} className="text-amber-500" />
-                                    )}
-                                    {log.level === 'info' && (
-                                    <Info size={14} className="text-blue-400" />
-                                    )}
-                                    <span
-                                    className={cn(
-                                        'text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded',
-                                        badgeClass
-                                    )}
-                                    >
-                                    {log.level}
-                                    </span>
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0 pt-0.5">
+                                    <pre className={cn(
+                                        "text-xs font-mono leading-relaxed break-all whitespace-pre-wrap",
+                                        !isExpanded && "line-clamp-1",
+                                        colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
+                                    )}>
+                                        <span className="inline-flex items-center gap-1 mr-2 align-baseline translate-y-[1px]">
+                                            {isError && <AlertCircle size={10} className="text-red-500" />}
+                                            {log.level === 'warn' && <AlertTriangle size={10} className="text-amber-500" />}
+                                            {log.level === 'info' && <Info size={10} className="text-blue-400" />}
+                                            <span className={cn('text-[8px] font-bold uppercase px-1 rounded leading-tight', badgeClass)}>
+                                                {log.level}
+                                            </span>
+                                        </span>
+                                        {log.message}
+                                    </pre>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1.5 text-slate-500">
-                                        <Clock size={12} />
-                                        <span className="text-[11px] tabular-nums font-medium">{formatTime(log.timestamp)}</span>
-                                    </div>
+
+                                <div className="flex items-center gap-3 shrink-0 pt-0.5">
+                                    <span className="text-[10px] tabular-nums text-slate-500 font-medium">{formatTime(log.timestamp)}</span>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             deleteLog(log.id);
                                         }}
-                                        className="p-1.5 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded opacity-0 group-hover:opacity-100 transition-all"
+                                        className="p-1 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-red-500/10"
                                         title="Delete log"
                                     >
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
                             </div>
-                            <pre className={cn(
-                                "text-xs font-mono whitespace-pre-wrap break-all leading-relaxed",
-                                colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
-                            )}>
-                                {log.message}
-                            </pre>
                         </div>
                     </div>
                 );
