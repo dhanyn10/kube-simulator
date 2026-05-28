@@ -14,7 +14,7 @@ export const NamespaceNode = memo((props: NodeProps) => {
   const { transitionClasses } = useNodeStyles(props.id);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(props.id, data.label, data.onRename);
+    useNodeRename(data.label, data.onRename);
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 

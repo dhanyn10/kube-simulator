@@ -81,7 +81,7 @@ const applyDeploymentResize = (nodes: Node[], resizedNode: Node) => {
   return syncContainerSizeToBounds(nextNodes, resizedNode.id, calculateMinContainerBounds(laidOut));
 };
 
-export const resizeHandlers = (set: any, get: () => FlowState) => ({
+export const resizeHandlers = (set: any) => ({
   onNodeResize: (_event: any, node: Node) => {
     set((state: FlowState) => {
       const currentNode = state.nodes.find((n: Node) => n.id === node.id);

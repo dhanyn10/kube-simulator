@@ -35,7 +35,7 @@ export const DataResourceConfig = ({
     emptyText: isSecret ? "Belum ada data secret" : "Belum ada data konfigurasi",
     inputType: isSecret ? "password" : "text",
     valuePlaceholder: isSecret ? "Secret Value" : "Value"
-  };
+  } as const;
 
   return (
     <KeyValueConfig

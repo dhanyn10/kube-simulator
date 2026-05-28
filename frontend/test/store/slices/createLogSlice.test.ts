@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createStore } from 'zustand';
 import { createLogSlice } from '../../../src/store/slices/createLogSlice';
-import { FlowState } from '../../../src/store/types';
 import { webcrypto } from 'node:crypto';
 
 // Mock crypto.randomUUID using node:crypto for better safety/randomness in tests
@@ -17,7 +16,7 @@ describe('createLogSlice', () => {
     vi.clearAllMocks();
 
     // Create a fresh store for each test
-    store = createStore<FlowState>()((...a) => ({
+    store = createStore<any>()((...a) => ({
       ...createLogSlice(...a),
     }));
   });

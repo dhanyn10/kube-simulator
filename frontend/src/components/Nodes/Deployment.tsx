@@ -21,7 +21,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const showHPAWarning = isTargetedByHPA && !hasRequests;
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(props.id, data.label, data.onRename);
+    useNodeRename(data.label, data.onRename);
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 

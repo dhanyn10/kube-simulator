@@ -53,11 +53,11 @@ export const useNodeResize = (id: string, type: string) => {
   const onNodeResizeStop = useFlowStore((state) => state.onNodeResizeStop);
 
   const handleNodeResize = useCallback((event: any, params: any) => {
-    onNodeResize(event, { id, type, ...params } as any);
+    onNodeResize(event, { id, type, ...params });
   }, [id, type, onNodeResize]);
 
   const handleNodeResizeStop = useCallback((event: any, params: any) => {
-    onNodeResizeStop(event, { id, ...params } as any);
+    onNodeResizeStop(event, { id, ...params });
   }, [id, onNodeResizeStop]);
 
   return {

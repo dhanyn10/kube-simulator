@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { RUNTIMES } from '../../constants/config';

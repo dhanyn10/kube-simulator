@@ -1,4 +1,3 @@
-import React from 'react';
 import { useFlowStore } from '../../store';
 import { cn, validateResourceLimits } from '../../lib/utils';
 import { Box, Code, Layers, Server, Eye, EyeOff, FileCode, FileX } from 'lucide-react';

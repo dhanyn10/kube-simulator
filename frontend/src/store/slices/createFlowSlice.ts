@@ -89,11 +89,11 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       if (change.type !== 'position' || !change.position) continue;
 
       const node = nodes.find(n => n.id === change.id);
-      const groupId = node?.data?.groupId;
+      const groupId = node?.data?.groupId as string;
       if (!groupId || processedGroupIds.has(groupId)) continue;
 
-      const dx = change.position.x - node.position.x;
-      const dy = change.position.y - node.position.y;
+      const dx = change.position.x - node!.position.x;
+      const dy = change.position.y - node!.position.y;
       if (dx === 0 && dy === 0) continue;
 
       processedGroupIds.add(groupId);

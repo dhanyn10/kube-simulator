@@ -16,7 +16,6 @@ import { cn } from '../lib/utils';
 import { NodeConfig } from './NodeConfig';
 import { EdgeConfig } from './EdgeConfig';
 import { ResourceBudget } from './ResourceBudget';
-import { ConfigSection } from './ConfigUI';
 
 type TabType = 'canvas' | 'settings';
 

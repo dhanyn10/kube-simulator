@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { validateHpaTargets } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
