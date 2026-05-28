@@ -2,7 +2,7 @@ import { useFlowStore } from '../store';
 
 /**
  * Centralized logger that sends logs to the internal application log store.
- * These logs are displayed in the Log Modal and persistent in localStorage.
+ * These logs are displayed in the Log Modal and persistent in sessionStorage.
  */
 export const logger = {
   info: (message: string, ...args: any[]) => {

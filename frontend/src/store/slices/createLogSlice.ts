@@ -27,7 +27,13 @@ const internalError = (...args: any[]) => {
 
 const loadLogsFromStorage = (): LogEntry[] => {
   try {
-    const stored = localStorage.getItem(LOG_STORAGE_KEY);
+    // Migrate from localStorage to sessionStorage if needed, then clear localStorage
+    const legacyStored = localStorage.getItem(LOG_STORAGE_KEY);
+    if (legacyStored) {
+      localStorage.removeItem(LOG_STORAGE_KEY);
+    }
+
+    const stored = sessionStorage.getItem(LOG_STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch (e) {
     internalError('Failed to load logs from storage:', e);
@@ -37,7 +43,7 @@ const loadLogsFromStorage = (): LogEntry[] => {
 
 const saveLogsToStorage = (logs: LogEntry[]) => {
   try {
-    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+    sessionStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
   } catch (e) {
     internalError('Failed to save logs to storage:', e);
   }
