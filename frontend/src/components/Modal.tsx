@@ -14,6 +14,9 @@ interface ModalProps {
   footer?: React.ReactNode;
   widthClass?: string;
   maxHeightClass?: string;
+  showBlur?: boolean;
+  showOverlay?: boolean;
+  alignClass?: string;
 }
 
 export const Modal = ({
@@ -26,7 +29,10 @@ export const Modal = ({
   children,
   footer,
   widthClass = "w-[600px]",
-  maxHeightClass = "max-h-[85vh]"
+  maxHeightClass = "max-h-[85vh]",
+  showBlur = true,
+  showOverlay = true,
+  alignClass = "items-center"
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
@@ -44,7 +50,12 @@ export const Modal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className={cn(
+        "fixed inset-0 z-[110] flex justify-center p-4",
+        alignClass,
+        showOverlay ? "bg-black/60" : "bg-transparent",
+        showBlur && "backdrop-blur-sm"
+      )}
       role="dialog"
       aria-modal="true"
       onClick={onClose}
@@ -55,7 +66,7 @@ export const Modal = ({
     >
       <div
         className={cn(
-          "rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200",
+          "rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
           widthClass,
           maxHeightClass,
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"

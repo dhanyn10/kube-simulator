@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import { createStore } from 'zustand';
 import { useStore } from 'zustand';
 import { FlowState } from './types';
@@ -6,6 +7,7 @@ import { createDeploymentSlice } from './slices/createDeploymentSlice';
 import { createNodeSlice } from './slices/createNodeSlice';
 import { createUiSlice } from './slices/createUiSlice';
 import { createAlignmentSlice } from './slices/createAlignmentSlice';
+import { createLogSlice } from './slices/createLogSlice';
 
 const flowStore = createStore<FlowState>()(
   (...a) => ({
@@ -22,6 +24,7 @@ const flowStore = createStore<FlowState>()(
     ...createNodeSlice(...a),
     ...createUiSlice(...a),
     ...createAlignmentSlice(...a),
+    ...createLogSlice(...a),
   })
 );
 
@@ -39,7 +42,7 @@ setTimeout(() => {
   });
   if (globalThis.go?.main?.App?.PushHistory) {
     globalThis.go.main.App.PushHistory(snapshot);
-    console.log('[History] Initial state recorded to Go database');
+    logger.info('[History] Initial state recorded to Go database');
   }
 }, 500);
 
@@ -55,7 +58,7 @@ flowStore.subscribe((state, prevState) => {
       timestamp: Date.now()
     });
 
-    console.log(`[History] Recording event: ${state.lastActionName} (${state.lastActionId})`);
+    logger.info(`[History] Recording event: ${state.lastActionName} (${state.lastActionId})`);
     
     // Push to Go Backend "Database"
     if (globalThis.go?.main?.App?.PushHistory) {
@@ -66,7 +69,7 @@ flowStore.subscribe((state, prevState) => {
     if (state.isAutosaveEnabled && state.currentProject && state.currentProject.id !== -1) {
       const content = JSON.stringify({ nodes: state.nodes, edges: state.edges });
       if (globalThis.go?.main?.App?.UpdateProject) {
-        console.log(`[Autosave] Saving project ${state.currentProject.name}...`);
+        logger.info(`[Autosave] Saving project ${state.currentProject.name}...`);
         globalThis.go.main.App.UpdateProject(state.currentProject.id, content).then((success) => {
           if (success) {
             flowStore.setState({ lastSavedSnapshot: content });
@@ -89,9 +92,9 @@ export const applyHistoryState = (json: string) => {
       lastActionName: `Applied: ${data.actionName}`
     });
     isApplyingHistory = false;
-    console.log(`[History] Applied state from log: ${data.actionName}`);
+    logger.info(`[History] Applied state from log: ${data.actionName}`);
   } catch (e) {
-    console.error('[History] Failed to apply state:', e);
+    logger.error('[History] Failed to apply state:', e);
     isApplyingHistory = false;
   }
 };

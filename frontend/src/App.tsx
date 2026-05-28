@@ -1,3 +1,4 @@
+import { logger } from './lib/logger';
 import React, { useCallback, useState, useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import {
@@ -33,6 +34,8 @@ import { ReplicaSetNode } from './components/Nodes/ReplicaSet';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
 import { DetachedMonitoring } from './components/DetachedMonitoring';
 import { ContextMenu } from './components/ContextMenu';
+import { LogToast } from './components/LogToast';
+import { LogModal } from './components/LogModal';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml, cn } from './lib/utils';
 import { Plus, Minus, Maximize } from 'lucide-react';
@@ -70,7 +73,7 @@ export default function App() {
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
-  console.log('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
+  logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
 
   // Expose store for e2e testing
   // @ts-ignore
@@ -124,7 +127,7 @@ export default function App() {
           GetSystemResources().then((resources: any) => {
             setSystemResources(resources);
           }).catch(err => {
-            console.error('[App] Failed to fetch system resources:', err);
+            logger.error('[App] Failed to fetch system resources:', err);
           });
         }
       };
@@ -327,6 +330,9 @@ export default function App() {
 
           {/* Render the AboutDialog */}
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
+
+          <LogToast />
+          <LogModal />
         </main>
 
         {isRightSidebarVisible && (

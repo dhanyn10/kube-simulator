@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { StateCreator } from 'zustand';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sResourceType } from '../../types';
@@ -148,7 +149,7 @@ const startSimulation = (
       const { nodes, edges, colorMode, simulationMetrics } = get();
 
       if (!validateHpaTargets(nodes, edges)) {
-          console.error('[Simulation] ERROR: HPA requires resource limits on target workloads.');
+          logger.error('[Simulation] ERROR: HPA requires resource limits on target workloads.');
           set({ isSimulating: true, activeSimulationEdges: [], simulationMetrics: {} });
           setTimeout(() => {
             stopSimulation(set, get, simulationIntervalObj);

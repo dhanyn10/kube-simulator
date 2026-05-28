@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sNodeData } from '../../types';
@@ -57,7 +58,7 @@ export const checkEmergencyStop = (params: {
   const readyPods = allPods.filter(p => (p.data as K8sNodeData).status === 'ready');
 
   if (allPods.length > 0 && readyPods.length === 0) {
-    console.error('[Simulation] CRITICAL: All pods are in pending state. Emergency shutdown.');
+    logger.error('[Simulation] CRITICAL: All pods are in pending state. Emergency shutdown.');
     if (simulationInterval.current) {
         clearInterval(simulationInterval.current);
         simulationInterval.current = null;

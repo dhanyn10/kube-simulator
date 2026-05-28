@@ -7,6 +7,14 @@ import {
 } from '@xyflow/react';
 import { K8sResourceType, K8sNodeData } from '../types';
 
+export type LogLevel = 'error' | 'warn' | 'fatal' | 'info';
+export interface LogEntry {
+  id: string;
+  level: LogLevel;
+  message: string;
+  timestamp: number;
+}
+
 export interface AlignmentGuide {
   position: number;
 }
@@ -62,6 +70,16 @@ export interface FlowState {
   isMonitoringOpen: boolean;
   isMonitoringDetached: boolean;
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
+
+  // Log state
+  logs: LogEntry[];
+  isLogToastVisible: boolean;
+  isLogModalOpen: boolean;
+  addLog: (level: LogLevel, message: string) => void;
+  clearLogs: () => void;
+  setLogToastVisible: (visible: boolean) => void;
+  setLogModalOpen: (open: boolean) => void;
+
   visibleWidgets: string[];
   customImages: string[];
   addCustomImage: (image: string) => void;

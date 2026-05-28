@@ -1,3 +1,4 @@
+import { logger } from '../lib/logger';
 import React, { useCallback } from 'react';
 import { useFlowStore } from '../store';
 import { generateYaml } from '../lib/utils';
@@ -35,7 +36,7 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
               lastSavedSnapshot: data.canvas
             });
           } catch (e) {
-            console.error("Failed to open external file", e);
+            logger.error("Failed to open external file", e);
           }
         }
       });
@@ -87,7 +88,7 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
             lastSavedSnapshot: data.canvas
           });
         } catch (e) {
-          console.error("Failed to import file", e);
+          logger.error("Failed to import file", e);
         }
       }
     }
