@@ -6,7 +6,10 @@ test.describe('Error Reporting Feature', () => {
     await page.goto('http://127.0.0.1:3000/');
     await page.waitForSelector('[data-testid="app-title"]');
     // Clear logs from previous runs
-    await page.evaluate(() => localStorage.removeItem('k8s_sim_logs'));
+    await page.evaluate(() => {
+        localStorage.removeItem('k8s_sim_logs');
+        sessionStorage.removeItem('k8s_sim_logs');
+    });
     await page.reload();
   });
 
@@ -69,7 +72,7 @@ test.describe('Error Reporting Feature', () => {
     await page.reload();
     await page.waitForSelector('[data-testid="app-title"]');
 
-    // Toast should re-appear after reload because logs are in localStorage
+    // Toast should re-appear after reload because logs are in sessionStorage
     await expect(page.locator('button:has-text("Open")').first()).toBeVisible();
 
     await page.locator('button:has-text("Open")').first().click();

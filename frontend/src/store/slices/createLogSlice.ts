@@ -12,23 +12,34 @@ export interface LogSlice {
 }
 
 const LOG_STORAGE_KEY = 'k8s_sim_logs';
-const MAX_LOGS = 500; // Increased because we are capturing all logs now
+const MAX_LOGS = 500;
 
 // Internal logging to avoid infinite recursion if storage fails
 const internalError = (...args: any[]) => {
-  if ((globalThis as any)._originalConsoleError) {
-    (globalThis as any)._originalConsoleError.apply(console, args);
-  } else {
-    // Fallback if not initialized yet
-    const originalError = (globalThis as any)._originalConsoleError || console.error;
+  const originalError = (globalThis as any)._originalConsoleError;
+  if (originalError) {
     originalError.apply(console, args);
   }
 };
 
 const loadLogsFromStorage = (): LogEntry[] => {
   try {
-    const stored = localStorage.getItem(LOG_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (typeof localStorage === 'object') {
+        const legacy = localStorage.getItem(LOG_STORAGE_KEY);
+        if (legacy) {
+            localStorage.removeItem(LOG_STORAGE_KEY);
+        }
+    }
+
+    let stored = null;
+    if (typeof sessionStorage === 'object') {
+        stored = sessionStorage.getItem(LOG_STORAGE_KEY);
+    }
+
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    return [];
   } catch (e) {
     internalError('Failed to load logs from storage:', e);
     return [];
@@ -37,7 +48,9 @@ const loadLogsFromStorage = (): LogEntry[] => {
 
 const saveLogsToStorage = (logs: LogEntry[]) => {
   try {
-    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+    if (typeof sessionStorage === 'object') {
+      sessionStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
+    }
   } catch (e) {
     internalError('Failed to save logs to storage:', e);
   }
@@ -48,7 +61,6 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
 
   return {
     logs: initialLogs,
-    // Only show toast on load if there are actual errors/warnings
     isLogToastVisible: initialLogs.some(l => l.level === 'error' || l.level === 'fatal' || l.level === 'warn'),
     isLogModalOpen: false,
     addLog: (level, message) => {
@@ -62,11 +74,16 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
       const currentLogs = get().logs;
       const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
 
-      set({
+      const isImportant = level === 'error' || level === 'fatal' || level === 'warn';
+      const newState: Partial<LogSlice> = {
         logs: updatedLogs,
-        // Only trigger toast for error/warn/fatal
-        ...(level !== 'info' ? { isLogToastVisible: true } : {})
-      });
+      };
+
+      if (isImportant) {
+        newState.isLogToastVisible = true;
+      }
+
+      set(newState as any);
       saveLogsToStorage(updatedLogs);
     },
     clearLogs: () => {
