@@ -63,10 +63,8 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   const dividerClass = cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100");
 
   return (
-    <button
+    <div
       className="fixed inset-0 z-[2000] cursor-default bg-transparent text-left"
-      type="button"
-      aria-label="Close context menu"
       onClick={onClose}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       onTouchStart={onClose}
@@ -75,7 +73,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
       <div
         ref={menuRef}
         role="menu"
-        tabIndex={-1}
+        tabIndex={0}
         aria-label="Canvas context menu"
         className={cn(
           "absolute min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100",
@@ -190,6 +188,6 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           </div>
         </button>
       </div>
-    </button>
+    </div>
   );
 };

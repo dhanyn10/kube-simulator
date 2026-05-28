@@ -19,7 +19,6 @@ import (
 
 // App struct
 type App struct {
-	ctx             context.Context
 	history         *db.HistoryManager
 	projects        *db.ProjectManager
 	initialFilePath string
@@ -36,7 +35,7 @@ func NewApp() *App {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+	appCtx = ctx
 
 	if err := a.history.Init(); err != nil {
 		log.Fatalf("Failed to initialize history manager: %v", err)
@@ -77,7 +76,7 @@ func (a *App) startup(ctx context.Context) {
 			time.Sleep(1 * time.Second) // Wait for frontend to be ready
 			fileData, err := os.ReadFile(a.initialFilePath)
 			if err == nil {
-				wailsRuntime.EventsEmit(a.ctx, "open-infra-file", string(fileData))
+				wailsRuntime.EventsEmit(ctx, "open-infra-file", string(fileData))
 			}
 		}()
 	}
@@ -174,13 +173,13 @@ func (a *App) GetHistoryLogs() []db.HistoryLog {
 
 // Project actions
 
-func (a *App) SaveProject(name, content string) int64 {
+func (a *App) SaveProject(ctx context.Context, name, content string) int64 {
 	id, err := a.projects.SaveProject(name, content)
 	if err != nil {
 		log.Printf("Error saving project: %v", err)
 		return -1
 	}
-	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("Kube Simulator - %s", name))
+	wailsRuntime.WindowSetTitle(ctx, fmt.Sprintf("Kube Simulator - %s", name))
 	return id
 }
 
@@ -197,8 +196,8 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
-func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
-	filePath, err := wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+func (a *App) ExportProjectFile(ctx context.Context, name, canvasContent, yamlContent string) bool {
+	filePath, err := wailsRuntime.SaveFileDialog(ctx, wailsRuntime.SaveDialogOptions{
 		DefaultFilename: fmt.Sprintf("%s.infra", name),
 		Title:           "Export Infrastructure Project",
 		Filters: []wailsRuntime.FileFilter{
@@ -226,8 +225,8 @@ func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	return true
 }
 
-func (a *App) ImportProjectFile() string {
-	filePath, err := wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+func (a *App) ImportProjectFile(ctx context.Context) string {
+	filePath, err := wailsRuntime.OpenFileDialog(ctx, wailsRuntime.OpenDialogOptions{
 		Title: "Import Infrastructure Project",
 		Filters: []wailsRuntime.FileFilter{
 			{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
@@ -256,13 +255,13 @@ func (a *App) GetProjects() []db.Project {
 	return projects
 }
 
-func (a *App) LoadProject(id int64) *db.Project {
+func (a *App) LoadProject(ctx context.Context, id int64) *db.Project {
 	proj, err := a.projects.LoadProject(id)
 	if err != nil {
 		log.Printf("Error loading project: %v", err)
 		return nil
 	}
-	wailsRuntime.WindowSetTitle(a.ctx, fmt.Sprintf("Kube Simulator - %s", proj.Name))
+	wailsRuntime.WindowSetTitle(ctx, fmt.Sprintf("Kube Simulator - %s", proj.Name))
 	return proj
 }
 
@@ -294,20 +293,20 @@ func (a *App) GetSetting(key string) string {
 
 // Window Control Actions
 
-func (a *App) MinimizeWindow() {
-	wailsRuntime.WindowMinimise(a.ctx)
+func (a *App) MinimizeWindow(ctx context.Context) {
+	wailsRuntime.WindowMinimise(ctx)
 }
 
-func (a *App) MaximizeWindow() {
-	if wailsRuntime.WindowIsMaximised(a.ctx) {
-		wailsRuntime.WindowUnmaximise(a.ctx)
+func (a *App) MaximizeWindow(ctx context.Context) {
+	if wailsRuntime.WindowIsMaximised(ctx) {
+		wailsRuntime.WindowUnmaximise(ctx)
 	} else {
-		wailsRuntime.WindowMaximise(a.ctx)
+		wailsRuntime.WindowMaximise(ctx)
 	}
 }
 
-func (a *App) CloseWindow() {
-	wailsRuntime.Quit(a.ctx)
+func (a *App) CloseWindow(ctx context.Context) {
+	wailsRuntime.Quit(ctx)
 }
 
 // Greet returns a greeting for the given name

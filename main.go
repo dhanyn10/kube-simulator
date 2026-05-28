@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"os"
 	"path/filepath"
@@ -16,6 +17,8 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+var appCtx context.Context
 
 func main() {
 	// Create an instance of the app structure
@@ -42,8 +45,8 @@ func main() {
 	HelpMenu.AddSeparator()
 	HelpMenu.AddText("About", keys.CmdOrCtrl("A"), func(_ *menu.CallbackData) {
 		// Emit an event when "About" is clicked
-		if app.ctx != nil {
-			wailsRuntime.EventsEmit(app.ctx, "openAboutDialog") // Corrected: wailsRuntime.EventsEmit
+		if appCtx != nil {
+			wailsRuntime.EventsEmit(appCtx, "openAboutDialog") // Corrected: wailsRuntime.EventsEmit
 		}
 	})
 
