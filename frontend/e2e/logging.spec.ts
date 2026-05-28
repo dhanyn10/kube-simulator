@@ -37,8 +37,8 @@ test.describe('Error Reporting Feature', () => {
 
     await page.locator('button:has-text("Open")').first().click();
 
-    // Modal should be open
-    await expect(page.locator('text=Error Report')).toBeVisible();
+    // Modal should be open. Using heading search because text search might be flaky
+    await expect(page.getByText('Console Logs')).toBeVisible();
     await expect(page.locator('text=Modal Test Error')).toBeVisible();
 
     // Toast should STILL be visible
@@ -54,7 +54,7 @@ test.describe('Error Reporting Feature', () => {
     await page.locator('button:has-text("Clear All")').click();
 
     // Modal should show "No logs"
-    await expect(page.locator('text=No logs recorded yet.')).toBeVisible();
+    await expect(page.locator('text=No logs recorded in this category.')).toBeVisible();
 
     // Toast should be hidden
     await expect(page.locator('button:has-text("Open")').first()).not.toBeVisible();

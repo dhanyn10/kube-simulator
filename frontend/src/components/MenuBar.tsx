@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell } from 'lucide-react';
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -41,6 +41,7 @@ export const MenuBar = ({
   const isRightSidebarVisible = useFlowStore((state: any) => state.isRightSidebarVisible);
   const setSidebarVisible = useFlowStore((state: any) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state: any) => state.setRightSidebarVisible);
+  const setLogModalOpen = useFlowStore((state: any) => state.setLogModalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -117,6 +118,11 @@ export const MenuBar = ({
             label: 'Utilities',
             checked: isRightSidebarVisible,
             onClick: () => setRightSidebarVisible(!isRightSidebarVisible)
+          },
+          {
+            label: 'Logs',
+            icon: Bell,
+            onClick: () => setLogModalOpen(true)
           }
         ]
       },

@@ -12,6 +12,7 @@ initWailsMocks();
 // Intercept console errors and warnings
 const originalError = console.error;
 const originalWarn = console.warn;
+const originalLog = console.log;
 
 // Expose original error for internal use to avoid recursion
 (globalThis as any)._originalConsoleError = originalError;
@@ -42,6 +43,12 @@ console.warn = (...args: any[]) => {
   const message = formatLogMessage(args);
   useFlowStore.getState().addLog('warn', message);
   originalWarn.apply(console, args);
+};
+
+console.log = (...args: any[]) => {
+  const message = formatLogMessage(args);
+  useFlowStore.getState().addLog('info', message);
+  originalLog.apply(console, args);
 };
 
 createRoot(document.getElementById('root')!).render(

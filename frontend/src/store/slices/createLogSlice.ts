@@ -12,7 +12,7 @@ export interface LogSlice {
 }
 
 const LOG_STORAGE_KEY = 'k8s_sim_logs';
-const MAX_LOGS = 200;
+const MAX_LOGS = 500; // Increased because we are capturing all logs now
 
 // Internal logging to avoid infinite recursion if storage fails
 const internalError = (...args: any[]) => {
@@ -46,7 +46,8 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
 
   return {
     logs: initialLogs,
-    isLogToastVisible: initialLogs.length > 0, // Show toast on load if logs exist
+    // Only show toast on load if there are actual errors/warnings
+    isLogToastVisible: initialLogs.some(l => l.level !== 'info'),
     isLogModalOpen: false,
     addLog: (level, message) => {
       const newLog: LogEntry = {
@@ -61,7 +62,8 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
 
       set({
         logs: updatedLogs,
-        isLogToastVisible: true
+        // Only trigger toast for error/warn/fatal
+        ...(level !== 'info' ? { isLogToastVisible: true } : {})
       });
       saveLogsToStorage(updatedLogs);
     },

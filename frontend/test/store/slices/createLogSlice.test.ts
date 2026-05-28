@@ -46,15 +46,15 @@ describe('createLogSlice', () => {
   });
 
   it('should respect MAX_LOGS limit', () => {
-    // Add 205 logs
-    for (let i = 0; i < 205; i++) {
+    // Add 505 logs (MAX_LOGS is now 500)
+    for (let i = 0; i < 505; i++) {
       store.getState().addLog('error', `Error ${i}`);
     }
 
-    expect(store.getState().logs.length).toBe(200);
-    // Should contain the LAST 200 logs
+    expect(store.getState().logs.length).toBe(500);
+    // Should contain the LAST 500 logs
     expect(store.getState().logs[0].message).toBe('Error 5');
-    expect(store.getState().logs[199].message).toBe('Error 204');
+    expect(store.getState().logs[499].message).toBe('Error 504');
   });
 
   it('should clear logs', () => {
