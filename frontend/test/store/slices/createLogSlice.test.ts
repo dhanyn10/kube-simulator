@@ -22,7 +22,7 @@ describe('createLogSlice', () => {
     }));
   });
 
-  it('should initialize with empty logs if nothing in storage', () => {
+  it('should initialize with empty logs', () => {
     expect(store.getState().logs).toEqual([]);
     expect(store.getState().isLogToastVisible).toBe(false);
   });
@@ -37,29 +37,15 @@ describe('createLogSlice', () => {
     expect(state.isLogToastVisible).toBe(true);
   });
 
-  it('should persist logs to sessionStorage', () => {
+  it('should NOT persist logs to any storage', () => {
     store.getState().addLog('warn', 'Persistence test');
 
-    const stored = JSON.parse(sessionStorage.getItem('k8s_sim_logs') || '[]');
-    expect(stored.length).toBe(1);
-    expect(stored[0].message).toBe('Persistence test');
-  });
-
-  it('should migrate from localStorage to sessionStorage and clear localStorage', () => {
-    const legacyLogs = [{ id: '1', level: 'error', message: 'Legacy', timestamp: Date.now() }];
-    localStorage.setItem('k8s_sim_logs', JSON.stringify(legacyLogs));
-
-    // Re-initialize store to trigger migration
-    const newStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
-
-    expect(newStore.getState().logs.length).toBe(0); // It doesn't migrate the data, just clears localStorage
     expect(localStorage.getItem('k8s_sim_logs')).toBeNull();
+    expect(sessionStorage.getItem('k8s_sim_logs')).toBeNull();
   });
 
   it('should respect MAX_LOGS limit', () => {
-    // Add 505 logs (MAX_LOGS is now 500)
+    // Add 505 logs (MAX_LOGS is 500)
     for (let i = 0; i < 505; i++) {
       store.getState().addLog('error', `Error ${i}`);
     }
@@ -76,7 +62,6 @@ describe('createLogSlice', () => {
 
     expect(store.getState().logs).toEqual([]);
     expect(store.getState().isLogToastVisible).toBe(false);
-    expect(sessionStorage.getItem('k8s_sim_logs')).toBe('[]');
   });
 
   it('should set toast visibility', () => {

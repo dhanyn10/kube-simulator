@@ -40,20 +40,32 @@ const originalError = console.error.bind(console);
 initWailsMocks();
 
 console.error = (...args: any[]) => {
-  const message = formatLogMessage(args);
-  useFlowStore.getState().addLog('error', message);
+  try {
+    const message = formatLogMessage(args);
+    useFlowStore.getState().addLog('error', message);
+  } catch (e) {
+    originalError('Failed to capture error log:', e);
+  }
   originalError(...args);
 };
 
 console.warn = (...args: any[]) => {
-  const message = formatLogMessage(args);
-  useFlowStore.getState().addLog('warn', message);
+  try {
+    const message = formatLogMessage(args);
+    useFlowStore.getState().addLog('warn', message);
+  } catch (e) {
+    originalError('Failed to capture warn log:', e);
+  }
   originalWarn(...args);
 };
 
 console.log = (...args: any[]) => {
-  const message = formatLogMessage(args);
-  useFlowStore.getState().addLog('info', message);
+  try {
+    const message = formatLogMessage(args);
+    useFlowStore.getState().addLog('info', message);
+  } catch (e) {
+    originalError('Failed to capture info log:', e);
+  }
   originalLog(...args);
 };
 

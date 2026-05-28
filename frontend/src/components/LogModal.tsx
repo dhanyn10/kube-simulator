@@ -100,7 +100,7 @@ export const LogModal: React.FC = () => {
       widthClass="w-[900px]"
       footer={
         <div className="flex justify-between items-center w-full">
-          <p className="text-xs text-slate-500">Logs are persisted in local storage (last 500 entries).</p>
+          <p className="text-xs text-slate-500">Logs are kept in-memory for the current session (last 500 entries).</p>
           <button
             onClick={clearLogs}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
