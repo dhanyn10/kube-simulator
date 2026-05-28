@@ -19,21 +19,27 @@ const internalError = (...args: any[]) => {
   const originalError = (globalThis as any)._originalConsoleError;
   if (originalError) {
     originalError.apply(console, args);
-  } else {
-    // Last resort - if even originalError is missing (should not happen with init-console.ts)
-    // We don't call console.error here to avoid recursion
   }
 };
 
 const loadLogsFromStorage = (): LogEntry[] => {
   try {
     if (typeof localStorage === 'object') {
-        if (localStorage.getItem(LOG_STORAGE_KEY)) {
+        const legacy = localStorage.getItem(LOG_STORAGE_KEY);
+        if (legacy) {
             localStorage.removeItem(LOG_STORAGE_KEY);
         }
     }
-    const stored = typeof sessionStorage === 'object' ? sessionStorage.getItem(LOG_STORAGE_KEY) : null;
-    return stored ? JSON.parse(stored) : [];
+
+    let stored = null;
+    if (typeof sessionStorage === 'object') {
+        stored = sessionStorage.getItem(LOG_STORAGE_KEY);
+    }
+
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    return [];
   } catch (e) {
     internalError('Failed to load logs from storage:', e);
     return [];
@@ -69,10 +75,15 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
       const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
 
       const isImportant = level === 'error' || level === 'fatal' || level === 'warn';
-      set({
+      const newState: Partial<LogSlice> = {
         logs: updatedLogs,
-        ...(isImportant ? { isLogToastVisible: true } : {})
-      });
+      };
+
+      if (isImportant) {
+        newState.isLogToastVisible = true;
+      }
+
+      set(newState as any);
       saveLogsToStorage(updatedLogs);
     },
     clearLogs: () => {
