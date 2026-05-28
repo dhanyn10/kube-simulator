@@ -166,6 +166,7 @@ export const LogModal: React.FC = () => {
           <button
             onClick={clearLogs}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+            data-testid="log-clear-all"
           >
             <Trash2 size={16} />
             Clear All
@@ -185,6 +186,7 @@ export const LogModal: React.FC = () => {
                         selectedIds.size > 0 ? "text-blue-500" : "text-slate-500"
                     )}
                     title="Select all"
+                    data-testid="log-master-checkbox"
                 >
                     {isAllSelected ? <CheckSquare size={18} /> : isSomeSelected ? <MinusSquare size={18} /> : <Square size={18} />}
                 </button>
@@ -194,6 +196,7 @@ export const LogModal: React.FC = () => {
                         "p-1 rounded hover:bg-slate-500/10 transition-colors",
                         isSelectMenuOpen ? "text-slate-200" : "text-slate-500"
                     )}
+                    data-testid="log-select-dropdown"
                 >
                     <ChevronDown size={14} />
                 </button>
@@ -211,6 +214,7 @@ export const LogModal: React.FC = () => {
                                     "w-full px-3 py-1.5 text-left text-xs capitalize hover:bg-blue-500/10 transition-colors",
                                     colorMode === 'dark' ? "text-slate-300 hover:text-blue-400" : "text-slate-600 hover:text-blue-600"
                                 )}
+                                data-testid={`log-select-${type}`}
                             >
                                 {type}
                             </button>
@@ -226,10 +230,11 @@ export const LogModal: React.FC = () => {
                         onClick={handleBulkDelete}
                         className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
                         title="Delete selected"
+                        data-testid="log-bulk-delete"
                     >
                         <Trash2 size={18} />
                     </button>
-                    <span className="text-xs font-medium text-blue-500 ml-2">{selectedIds.size} selected</span>
+                    <span className="text-xs font-medium text-blue-500 ml-2" data-testid="log-selection-count">{selectedIds.size} selected</span>
                 </>
             ) : (
                 <div className="flex items-center gap-1 bg-slate-500/5 p-1 rounded-lg ml-2">
@@ -296,6 +301,7 @@ export const LogModal: React.FC = () => {
                                 e.stopPropagation();
                                 toggleSelection(log.id);
                             }}
+                            data-testid="log-checkbox"
                         >
                             {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                         </div>
