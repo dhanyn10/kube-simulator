@@ -76,9 +76,9 @@ test.describe('Traffic Simulation', () => {
       const hpa = state.nodes.find((n: any) => n.type === 'HPA');
 
       if (internet && deployment && hpa) {
-        // Set low CPU limit and target
+        // Set low CPU limit and target to trigger scaling reliably
         state.updateNodeData(deployment.id, { webserver: 'nginx', cpuLimit: '100m', memoryLimit: '128Mi' });
-        state.updateNodeData(hpa.id, { targetCPU: 10, minReplicas: 1, maxReplicas: 5 });
+        state.updateNodeData(hpa.id, { targetCPU: 5, minReplicas: 1, maxReplicas: 5 });
 
         // Connect
         state.onConnect({ source: internet.id, target: deployment.id, sourceHandle: 'right-s', targetHandle: 'left-t' });
