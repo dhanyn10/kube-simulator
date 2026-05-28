@@ -285,8 +285,17 @@ export const LogModal: React.FC = () => {
                     <div
                         key={log.id}
                         onClick={() => toggleExpand(log.id)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                toggleExpand(log.id);
+                            }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-expanded={isExpanded}
                         className={cn(
-                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all cursor-pointer select-none border-b',
+                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all cursor-pointer select-none border-b outline-none focus-visible:ring-1 focus-visible:ring-blue-500',
                         isSelected
                             ? (colorMode === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200')
                             : (colorMode === 'dark' ? 'bg-transparent border-slate-800/50 hover:bg-slate-800/40' : 'bg-transparent border-slate-100 hover:bg-slate-50')
@@ -294,13 +303,23 @@ export const LogModal: React.FC = () => {
                     >
                         <div
                             className={cn(
-                                "mt-0.5 p-1 rounded transition-colors shrink-0",
+                                "mt-0.5 p-1 rounded transition-colors shrink-0 outline-none focus-visible:ring-1 focus-visible:ring-blue-500",
                                 isSelected ? "text-blue-500" : "text-slate-600 opacity-30 group-hover:opacity-100"
                             )}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 toggleSelection(log.id);
                             }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    toggleSelection(log.id);
+                                }
+                            }}
+                            tabIndex={0}
+                            role="checkbox"
+                            aria-checked={isSelected}
                             data-testid="log-checkbox"
                         >
                             {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
