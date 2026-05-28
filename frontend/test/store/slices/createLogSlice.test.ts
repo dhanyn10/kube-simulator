@@ -57,6 +57,25 @@ describe('createLogSlice', () => {
     expect(store.getState().logs[499].message).toBe('Error 504');
   });
 
+  it('should delete a single log', () => {
+    store.getState().addLog('info', 'Log to delete');
+    const id = store.getState().logs[0].id;
+    store.getState().deleteLog(id);
+    expect(store.getState().logs.length).toBe(0);
+  });
+
+  it('should delete multiple logs', () => {
+    store.getState().addLog('info', 'L1');
+    store.getState().addLog('error', 'L2');
+    store.getState().addLog('warn', 'L3');
+
+    const ids = [store.getState().logs[0].id, store.getState().logs[2].id];
+    store.getState().deleteLogs(ids);
+
+    expect(store.getState().logs.length).toBe(1);
+    expect(store.getState().logs[0].message).toBe('L2');
+  });
+
   it('should clear logs', () => {
     store.getState().addLog('error', 'To be cleared');
     store.getState().clearLogs();

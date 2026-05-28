@@ -76,6 +76,8 @@ export interface FlowState {
   isLogToastVisible: boolean;
   isLogModalOpen: boolean;
   addLog: (level: LogLevel, message: string) => void;
+  deleteLog: (id: string) => void;
+  deleteLogs: (ids: string[]) => void;
   clearLogs: () => void;
   setLogToastVisible: (visible: boolean) => void;
   setLogModalOpen: (open: boolean) => void;

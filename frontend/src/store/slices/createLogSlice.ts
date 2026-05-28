@@ -6,6 +6,8 @@ export interface LogSlice {
   isLogToastVisible: boolean;
   isLogModalOpen: boolean;
   addLog: (level: LogLevel, message: string) => void;
+  deleteLog: (id: string) => void;
+  deleteLogs: (ids: string[]) => void;
   clearLogs: () => void;
   setLogToastVisible: (visible: boolean) => void;
   setLogModalOpen: (open: boolean) => void;
@@ -84,6 +86,17 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
       }
 
       set(newState as any);
+      saveLogsToStorage(updatedLogs);
+    },
+    deleteLog: (id) => {
+      const updatedLogs = get().logs.filter(l => l.id !== id);
+      set({ logs: updatedLogs });
+      saveLogsToStorage(updatedLogs);
+    },
+    deleteLogs: (ids) => {
+      const idSet = new Set(ids);
+      const updatedLogs = get().logs.filter(l => !idSet.has(l.id));
+      set({ logs: updatedLogs });
       saveLogsToStorage(updatedLogs);
     },
     clearLogs: () => {
