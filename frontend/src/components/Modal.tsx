@@ -16,6 +16,7 @@ interface ModalProps {
   maxHeightClass?: string;
   showBlur?: boolean;
   showOverlay?: boolean;
+  alignClass?: string;
 }
 
 export const Modal = ({
@@ -30,7 +31,8 @@ export const Modal = ({
   widthClass = "w-[600px]",
   maxHeightClass = "max-h-[85vh]",
   showBlur = true,
-  showOverlay = true
+  showOverlay = true,
+  alignClass = "items-center"
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
@@ -49,7 +51,8 @@ export const Modal = ({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[110] flex items-center justify-center p-4",
+        "fixed inset-0 z-[110] flex justify-center p-4",
+        alignClass,
         showOverlay ? "bg-black/60" : "bg-transparent pointer-events-none",
         showBlur && "backdrop-blur-sm"
       )}
