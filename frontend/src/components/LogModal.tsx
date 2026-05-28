@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../store';
 import { Modal } from './Modal';
-import { Terminal, Trash2, AlertCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Bell, Trash2, AlertCircle, AlertTriangle, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const LogModal: React.FC = () => {
@@ -23,7 +23,7 @@ export const LogModal: React.FC = () => {
       showOverlay={false}
       title="Error Report"
       subtitle={`${logs.length} events captured`}
-      icon={Terminal}
+      icon={Bell}
       iconColorClass="text-slate-500"
       widthClass="w-[800px]"
       footer={
@@ -42,7 +42,7 @@ export const LogModal: React.FC = () => {
       <div className="space-y-2">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
-            <Terminal size={48} strokeWidth={1} />
+            <Bell size={48} strokeWidth={1} />
             <p>No logs recorded yet.</p>
           </div>
         ) : (

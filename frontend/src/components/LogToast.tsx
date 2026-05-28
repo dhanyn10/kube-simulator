@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFlowStore } from '../store';
-import { AlertCircle, AlertTriangle, X, Terminal } from 'lucide-react';
+import { AlertCircle, AlertTriangle, X, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const LogToast: React.FC = () => {
@@ -26,8 +26,7 @@ export const LogToast: React.FC = () => {
     >
       <div className="flex items-center gap-3 pr-3 border-r border-slate-700/30">
         <div className="flex items-center gap-2">
-            <Terminal size={14} className="text-slate-500" />
-            <span className="text-xs font-bold uppercase tracking-tight opacity-50">Logs</span>
+            <Bell size={14} className="text-slate-500" />
         </div>
         <div className="flex items-center gap-3">
             {errorCount > 0 && (

@@ -18,12 +18,12 @@ test.describe('Error Reporting Feature', () => {
       console.warn('Test Warning 1');
     });
 
-    const toast = page.locator('div:has-text("LOGS")').first();
-    await expect(toast).toBeVisible();
+    // Toast should be visible (contains counts)
+    const errorCount = page.locator('text=2').first();
+    await expect(errorCount).toBeVisible();
 
-    // Check counts (2 errors, 1 warning)
-    await expect(page.locator('text=2').first()).toBeVisible();
-    await expect(page.locator('text=1').first()).toBeVisible();
+    const warnCount = page.locator('text=1').first();
+    await expect(warnCount).toBeVisible();
 
     // Check for "Open" button
     const openButton = page.locator('button:has-text("Open")').first();
