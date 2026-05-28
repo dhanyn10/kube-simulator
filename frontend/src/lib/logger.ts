@@ -29,7 +29,7 @@ const formatMessage = (message: string, args: any[]) => {
     if (typeof arg === 'object') {
       try {
         return JSON.stringify(arg);
-      } catch (e) {
+      } catch {
         return '[Circular Object]';
       }
     }
