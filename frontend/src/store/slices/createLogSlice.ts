@@ -27,10 +27,12 @@ const internalError = (...args: any[]) => {
 
 const loadLogsFromStorage = (): LogEntry[] => {
   try {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem(LOG_STORAGE_KEY)) {
-      localStorage.removeItem(LOG_STORAGE_KEY);
+    if (typeof localStorage === 'object') {
+        if (localStorage.getItem(LOG_STORAGE_KEY)) {
+            localStorage.removeItem(LOG_STORAGE_KEY);
+        }
     }
-    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(LOG_STORAGE_KEY) : null;
+    const stored = typeof sessionStorage === 'object' ? sessionStorage.getItem(LOG_STORAGE_KEY) : null;
     return stored ? JSON.parse(stored) : [];
   } catch (e) {
     internalError('Failed to load logs from storage:', e);
@@ -40,7 +42,7 @@ const loadLogsFromStorage = (): LogEntry[] => {
 
 const saveLogsToStorage = (logs: LogEntry[]) => {
   try {
-    if (typeof sessionStorage !== 'undefined') {
+    if (typeof sessionStorage === 'object') {
       sessionStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(logs));
     }
   } catch (e) {
