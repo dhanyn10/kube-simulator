@@ -66,9 +66,10 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
       const currentLogs = get().logs;
       const updatedLogs = [...currentLogs, newLog].slice(-MAX_LOGS);
 
+      const isImportant = level === 'error' || level === 'fatal' || level === 'warn';
       set({
         logs: updatedLogs,
-        ...(level !== 'info' ? { isLogToastVisible: true } : {})
+        ...(isImportant ? { isLogToastVisible: true } : {})
       });
       saveLogsToStorage(updatedLogs);
     },
