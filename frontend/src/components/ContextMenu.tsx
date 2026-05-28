@@ -63,20 +63,23 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   const dividerClass = cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100");
 
   return (
-    <div
-      className="fixed inset-0 z-[2000] cursor-default bg-transparent text-left"
-      onClick={onClose}
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
-      onTouchStart={onClose}
-      onContextMenu={(e) => { e.preventDefault(); onClose(); }}
-    >
+    <>
+      <button
+        type="button"
+        className="fixed inset-0 z-[2000] cursor-default bg-transparent"
+        aria-label="Close context menu"
+        onClick={onClose}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
+        onTouchStart={onClose}
+        onContextMenu={(e) => { e.preventDefault(); onClose(); }}
+      />
       <div
         ref={menuRef}
         role="menu"
         tabIndex={0}
         aria-label="Canvas context menu"
         className={cn(
-          "absolute min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100",
+          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001]",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}
         style={{ left: x, top: y }}
@@ -188,6 +191,6 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           </div>
         </button>
       </div>
-    </div>
+    </>
   );
 };
