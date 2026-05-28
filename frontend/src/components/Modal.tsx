@@ -53,7 +53,7 @@ export const Modal = ({
       className={cn(
         "fixed inset-0 z-[110] flex justify-center p-4",
         alignClass,
-        showOverlay ? "bg-black/60" : "bg-transparent pointer-events-none",
+        showOverlay ? "bg-black/60" : "bg-transparent",
         showBlur && "backdrop-blur-sm"
       )}
       role="dialog"
