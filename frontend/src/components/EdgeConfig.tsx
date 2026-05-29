@@ -1,6 +1,5 @@
 
 import { useFlowStore } from '../store';
-import { cn } from '../lib/utils';
 import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { ColorPalette } from './ColorPalette';
 
