@@ -21,6 +21,7 @@ export interface UiSlice {
   colorMode: 'dark' | 'light';
   draggingSidebarItem: K8sResourceType | null;
   isAutosaveEnabled: boolean;
+  isAutofocusEnabled: boolean;
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
   isSimulating: boolean;
@@ -34,6 +35,7 @@ export interface UiSlice {
   toggleColorMode: () => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleAutosave: () => void;
+  toggleAutofocus: () => void;
   setSidebarVisible: (visible: boolean) => void;
   setRightSidebarVisible: (visible: boolean) => void;
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
@@ -202,6 +204,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   colorMode: 'dark',
   draggingSidebarItem: null,
   isAutosaveEnabled: false,
+  isAutofocusEnabled: false,
   isSidebarVisible: true,
   isRightSidebarVisible: true,
   isSimulating: false,
@@ -226,6 +229,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
   toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
+  toggleAutofocus: () => set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled })),
   setSidebarVisible: (visible) => {
     set({ isSidebarVisible: visible });
     if (globalThis.go?.main?.App?.SaveSetting) {

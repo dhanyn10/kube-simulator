@@ -7,6 +7,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const getAbsPos = (nodeId: string, currentNodes: any[]): { x: number, y: number } => {
+  const n = currentNodes.find(i => i.id === nodeId);
+  if (!n?.position) return { x: 0, y: 0 };
+  if (!n.parentId) return n.position;
+  const pAbs = getAbsPos(n.parentId, currentNodes);
+  return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
+};
+
 /**
  * Utility to generate a cryptographically safe random number between 0 and 1.
  */

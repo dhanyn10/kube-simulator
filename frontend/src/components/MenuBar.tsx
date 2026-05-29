@@ -39,8 +39,10 @@ export const MenuBar = ({
   const isMonitoringDetached = useFlowStore((state: any) => state.isMonitoringDetached);
   const isSidebarVisible = useFlowStore((state: any) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state: any) => state.isRightSidebarVisible);
+  const isAutofocusEnabled = useFlowStore((state: any) => state.isAutofocusEnabled);
   const setSidebarVisible = useFlowStore((state: any) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state: any) => state.setRightSidebarVisible);
+  const toggleAutofocus = useFlowStore((state: any) => state.toggleAutofocus);
   const setLogModalOpen = useFlowStore((state: any) => state.setLogModalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -118,6 +120,11 @@ export const MenuBar = ({
             label: 'Utilities',
             checked: isRightSidebarVisible,
             onClick: () => setRightSidebarVisible(!isRightSidebarVisible)
+          },
+          {
+            label: 'Autofocus',
+            checked: isAutofocusEnabled,
+            onClick: toggleAutofocus
           },
           {
             label: 'Logs',
