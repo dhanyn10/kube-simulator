@@ -2,13 +2,14 @@
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
 import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ColorPalette } from './ColorPalette';
 
 interface EdgeConfigProps {
   selectedEdge: any;
 }
 
-const DEFAULT_RUNNING_COLOR = '#1d4ed8';
-const DEFAULT_ERROR_COLOR = '#ef4444';
+const DEFAULT_RUNNING_COLOR = 'var(--color-mat-indigo)';
+const DEFAULT_ERROR_COLOR = 'var(--color-mat-red)';
 
 export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   const edges = useFlowStore((state) => state.edges);
@@ -28,7 +29,6 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
 
   const handleRunningColorChange = (newColor: string) => {
     if (newColor.toLowerCase() === errorColor.toLowerCase()) {
-      // Swap colors
       updateEdgeData({ color: newColor, errorColor: runningColor });
     } else {
       updateEdgeData({ color: newColor });
@@ -37,7 +37,6 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
 
   const handleErrorColorChange = (newColor: string) => {
     if (newColor.toLowerCase() === runningColor.toLowerCase()) {
-      // Swap colors
       updateEdgeData({ errorColor: newColor, color: errorColor });
     } else {
       updateEdgeData({ errorColor: newColor });
@@ -92,32 +91,26 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
             </button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <div
-                className="w-10 h-10 rounded-lg border-2 border-white dark:border-slate-800 shadow-sm transition-transform group-hover:scale-105"
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+               <div
+                className="w-8 h-8 rounded border border-slate-300 dark:border-slate-700 shadow-sm"
                 style={{ backgroundColor: runningColor }}
               />
-              <input
-                type="color"
-                value={runningColor}
-                onChange={(e) => handleRunningColorChange(e.target.value)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full traffic-line"
-                  style={{
-                    backgroundColor: runningColor,
-                    width: '100%',
-                    boxShadow: `0 0 8px ${runningColor}44`
-                  }}
-                />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full traffic-line"
+                    style={{
+                      backgroundColor: runningColor,
+                      width: '100%',
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{runningColor.replace('var(--color-mat-', '').replace(')', '')}</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{runningColor}</span>
             </div>
+            <ColorPalette selectedColor={runningColor} onSelect={handleRunningColorChange} className="mt-2" />
           </div>
         </div>
 
@@ -137,32 +130,26 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
             </button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="relative group">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-lg border-2 border-white dark:border-slate-800 shadow-sm transition-transform group-hover:scale-105"
+                className="w-8 h-8 rounded border border-slate-300 dark:border-slate-700 shadow-sm"
                 style={{ backgroundColor: errorColor }}
               />
-              <input
-                type="color"
-                value={errorColor}
-                onChange={(e) => handleErrorColorChange(e.target.value)}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              />
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full"
-                  style={{
-                    backgroundColor: errorColor,
-                    width: '100%',
-                    boxShadow: `0 0 8px ${errorColor}44`
-                  }}
-                />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full"
+                    style={{
+                      backgroundColor: errorColor,
+                      width: '100%',
+                    }}
+                  />
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{errorColor.replace('var(--color-mat-', '').replace(')', '')}</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{errorColor}</span>
             </div>
+            <ColorPalette selectedColor={errorColor} onSelect={handleErrorColorChange} className="mt-2" />
           </div>
         </div>
       </div>
