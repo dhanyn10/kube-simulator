@@ -38,7 +38,7 @@ import { LogToast } from './components/LogToast';
 import { LogModal } from './components/LogModal';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml, cn } from './lib/utils';
-import { Plus, Minus, Maximize } from 'lucide-react';
+import { Plus, Minus, Maximize, Target } from 'lucide-react';
 import { useFlowStore } from './store';
 import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
@@ -87,7 +87,7 @@ export default function App() {
   const onReconnect = useFlowStore((state) => state.onReconnect);
   const addNode = useFlowStore((state) => state.addNode);
   const deleteNodes = useFlowStore((state) => state.deleteNodes);
-  const onNodeClick = useFlowStore((state) => state.onNodeClick);
+  const onNodeClickStore = useFlowStore((state) => state.onNodeClick);
   const onPaneClick = useFlowStore((state) => state.onPaneClick);
   const onNodeDragStart = useFlowStore((state) => state.onNodeDragStart);
   const onNodeDrag = useFlowStore((state) => state.onNodeDrag);
@@ -95,6 +95,7 @@ export default function App() {
   const colorMode = useFlowStore((state) => state.colorMode);
   const isSidebarVisible = useFlowStore((state) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
+  const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const copyNodes = useFlowStore((state) => state.copyNodes);
@@ -102,6 +103,7 @@ export default function App() {
   const groupNodes = useFlowStore((state) => state.groupNodes);
   const ungroupNodes = useFlowStore((state) => state.ungroupNodes);
   const setSystemResources = useFlowStore((state) => state.setSystemResources);
+  const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -148,7 +150,7 @@ export default function App() {
     };
   }, []);
 
-  const { zoomIn, zoomOut, screenToFlowPosition } = useReactFlow();
+  const { zoomIn, zoomOut, screenToFlowPosition, setCenter } = useReactFlow();
   const fitView = useFitView();
   const { handleUndo, handleRedo } = useHistory();
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
@@ -176,6 +178,18 @@ export default function App() {
       setContextMenu({ x: event.clientX, y: event.clientY });
     },
     [setContextMenu]
+  );
+
+  const onNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      onNodeClickStore(event, node);
+      if (isAutofocusEnabled) {
+        const x = node.position.x + (node.measured?.width ?? node.width ?? 0) / 2;
+        const y = node.position.y + (node.measured?.height ?? node.height ?? 0) / 2;
+        setCenter(x, y, { zoom: 1.8, duration: 800 });
+      }
+    },
+    [onNodeClickStore, isAutofocusEnabled, setCenter]
   );
 
   const handleExport = useCallback(async () => {
@@ -257,7 +271,7 @@ export default function App() {
           defaultEdgeOptions={defaultEdgeOptions}
           defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
           minZoom={0.5}
-          maxZoom={2}
+          maxZoom={1.8}
           className="bg-transparent"
           colorMode={colorMode}
         >
@@ -295,6 +309,16 @@ export default function App() {
             </button>
             <button onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
               <Maximize size={16} />
+            </button>
+            <button
+              onClick={() => toggleAutofocus()}
+              className={cn(
+                btnClass,
+                isAutofocusEnabled && (colorMode === 'dark' ? 'bg-blue-600/30 text-blue-400 border-blue-500/50' : 'bg-blue-100 text-blue-600 border-blue-300')
+              )}
+              title={isAutofocusEnabled ? "Disable Autofocus" : "Enable Autofocus"}
+            >
+              <Target size={16} />
             </button>
             <HistoryPanel colorMode={colorMode} />
           </Panel>

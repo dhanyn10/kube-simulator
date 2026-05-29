@@ -46,6 +46,7 @@ export interface FlowState {
   draggingSidebarItem: K8sResourceType | null;
   colorMode: 'dark' | 'light';
   isAutosaveEnabled: boolean;
+  isAutofocusEnabled: boolean;
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
   clipboard: { nodes: Node[], edges: Edge[] } | null;
@@ -123,6 +124,7 @@ export interface FlowState {
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleColorMode: () => void;
   toggleAutosave: () => void;
+  toggleAutofocus: () => void;
   setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
