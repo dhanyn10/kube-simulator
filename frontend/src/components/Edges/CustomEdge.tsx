@@ -23,6 +23,8 @@ export default function CustomEdge({
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
   const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
   const nodes = useFlowStore((state: any) => state.nodes);
+  const globalEdgeColor = useFlowStore((state: any) => state.globalEdgeColor);
+  const globalEdgeErrorColor = useFlowStore((state: any) => state.globalEdgeErrorColor);
 
   const isConfiguring = String(configuringEdgeId) === String(id);
   const isSimulating = activeSimulationEdges.some(eid => String(eid) === String(id));
@@ -68,9 +70,8 @@ export default function CustomEdge({
   const isTargetError = checkErrorState();
 
   const getStrokeColor = () => {
-    if (isTargetError) return '#ef4444';
-    if (isSimulating) return '#3b82f6';
-    return edgeColor;
+    if (isTargetError) return globalEdgeErrorColor;
+    return globalEdgeColor;
   };
   
   const [edgePath, labelX, labelY] = getBezierPath({

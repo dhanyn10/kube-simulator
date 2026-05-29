@@ -16,13 +16,13 @@ export const PodNode = memo((props: NodeProps) => {
           {data.cpuLimit && (
             <div className="flex justify-between items-center text-[9px] font-mono">
               <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>cpu:</span>
-              <span className="text-cyan-500 font-bold">{data.cpuLimit}</span>
+              <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.cpuLimit}</span>
             </div>
           )}
           {data.memoryLimit && (
             <div className="flex justify-between items-center text-[9px] font-mono">
               <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>mem:</span>
-              <span className="text-cyan-500 font-bold">{data.memoryLimit}</span>
+              <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.memoryLimit}</span>
             </div>
           )}
         </div>

@@ -45,6 +45,8 @@ export interface FlowState {
   configuringEdgeId: string | null;
   draggingSidebarItem: K8sResourceType | null;
   colorMode: 'dark' | 'light';
+  globalEdgeColor: string;
+  globalEdgeErrorColor: string;
   isAutosaveEnabled: boolean;
   isAutofocusEnabled: boolean;
   isSidebarVisible: boolean;
@@ -121,6 +123,7 @@ export interface FlowState {
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
   copyNodes: () => void;
   pasteNodes: () => void;
+  setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleColorMode: () => void;
   toggleAutosave: () => void;

@@ -15,13 +15,13 @@ export const ServiceNode = memo((props: NodeProps) => {
         {data.displaySettings?.port !== false && (
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
-            <span className="text-amber-500 font-bold">{data.port || 80}</span>
+            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.port || 80}</span>
           </div>
         )}
         {data.displaySettings?.targetPort !== false && (
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
-            <span className="text-amber-500 font-bold">{data.targetPort || 80}</span>
+            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.targetPort || 80}</span>
           </div>
         )}
       </div>
@@ -29,7 +29,7 @@ export const ServiceNode = memo((props: NodeProps) => {
       {data.displaySettings?.selector !== false && (
         <div className="mt-auto pt-2 border-t border-slate-700/30">
           <span className="text-[8px] uppercase font-bold text-slate-500">Selector</span>
-          <div className="text-[9px] font-mono mt-0.5 text-amber-500 break-all">app: {data.selector || 'app-label'}</div>
+          <div className="text-[9px] font-mono mt-0.5 break-all" style={{ color: 'var(--color-mat-amber)' }}>app: {data.selector || 'app-label'}</div>
         </div>
       )}
     </BaseNode>
