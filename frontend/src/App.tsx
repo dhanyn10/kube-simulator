@@ -38,7 +38,7 @@ import { LogToast } from './components/LogToast';
 import { LogModal } from './components/LogModal';
 import CustomEdge from './components/Edges/CustomEdge';
 import { generateYaml, cn } from './lib/utils';
-import { Plus, Minus, Maximize, Target } from 'lucide-react';
+import { Plus, Minus, Maximize, Minimize } from 'lucide-react';
 import { useFlowStore } from './store';
 import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
@@ -318,7 +318,7 @@ export default function App() {
               )}
               title={isAutofocusEnabled ? "Disable Autofocus" : "Enable Autofocus"}
             >
-              <Target size={16} />
+              <Minimize size={16} />
             </button>
             <HistoryPanel colorMode={colorMode} />
           </Panel>
