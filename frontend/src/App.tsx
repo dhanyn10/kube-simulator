@@ -9,6 +9,7 @@ import {
   useReactFlow,
   MiniMap,
   Node,
+  Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
@@ -105,6 +106,7 @@ export default function App() {
   const ungroupNodes = useFlowStore((state) => state.ungroupNodes);
   const setSystemResources = useFlowStore((state) => state.setSystemResources);
   const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
+  const setConfiguringEdgeId = useFlowStore((state) => state.setConfiguringEdgeId);
 
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -164,7 +166,7 @@ export default function App() {
     };
   }, []);
 
-  const { zoomIn, zoomOut, screenToFlowPosition, setCenter } = useReactFlow();
+  const { zoomIn, zoomOut, screenToFlowPosition, setCenter, fitBounds } = useReactFlow();
   const fitView = useFitView();
   const { handleUndo, handleRedo } = useHistory();
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
@@ -201,10 +203,45 @@ export default function App() {
         const absPos = getAbsPos(node.id, nodes);
         const centerX = absPos.x + (node.measured?.width ?? node.width ?? 0) / 2;
         const centerY = absPos.y + (node.measured?.height ?? node.height ?? 0) / 2;
-        setCenter(centerX, centerY, { zoom: 1.8, duration: 800 });
+        setCenter(centerX, centerY, { zoom: 1.6, duration: 800 });
       }
     },
     [onNodeClickStore, isAutofocusEnabled, setCenter, nodes]
+  );
+
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, edge: Edge) => {
+      if (!isRightSidebarVisible) {
+        useFlowStore.getState().setRightSidebarVisible(true);
+      }
+      setConfiguringEdgeId(edge.id);
+      if (isAutofocusEnabled) {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+        if (sourceNode && targetNode) {
+          const sourceAbsPos = getAbsPos(sourceNode.id, nodes);
+          const targetAbsPos = getAbsPos(targetNode.id, nodes);
+
+          const sourceW = sourceNode.measured?.width ?? sourceNode.width ?? 150;
+          const sourceH = sourceNode.measured?.height ?? sourceNode.height ?? 100;
+          const targetW = targetNode.measured?.width ?? targetNode.width ?? 150;
+          const targetH = targetNode.measured?.height ?? targetNode.height ?? 100;
+
+          const minX = Math.min(sourceAbsPos.x, targetAbsPos.x);
+          const minY = Math.min(sourceAbsPos.y, targetAbsPos.y);
+          const maxX = Math.max(sourceAbsPos.x + sourceW, targetAbsPos.x + targetW);
+          const maxY = Math.max(sourceAbsPos.y + sourceH, targetAbsPos.y + targetH);
+
+          fitBounds({
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+          }, { padding: 0.2, duration: 800, maxZoom: 1.6 });
+        }
+      }
+    },
+    [setConfiguringEdgeId, isAutofocusEnabled, nodes, fitBounds, isRightSidebarVisible]
   );
 
   const handleExport = useCallback(async () => {
@@ -274,6 +311,7 @@ export default function App() {
           onNodeDrag={onNodeDrag}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           onNodeContextMenu={onNodeContextMenu}
           onPaneContextMenu={onPaneContextMenu}
