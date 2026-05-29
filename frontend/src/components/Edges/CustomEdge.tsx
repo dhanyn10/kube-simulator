@@ -68,8 +68,8 @@ export default function CustomEdge({
   const isTargetError = checkErrorState();
 
   const getStrokeColor = () => {
-    if (isTargetError) return '#ef4444';
-    if (isSimulating) return '#3b82f6';
+    const errorColor = (data?.errorColor as string) || '#ef4444';
+    if (isTargetError) return errorColor;
     return edgeColor;
   };
   

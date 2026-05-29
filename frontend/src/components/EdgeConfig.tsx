@@ -1,18 +1,22 @@
 
 import { useFlowStore } from '../store';
 import { cn } from '../lib/utils';
-import { Layers, Code } from 'lucide-react';
+import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface EdgeConfigProps {
   selectedEdge: any;
 }
+
+const DEFAULT_RUNNING_COLOR = '#1d4ed8';
+const DEFAULT_ERROR_COLOR = '#ef4444';
 
 export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   const edges = useFlowStore((state) => state.edges);
   const setEdges = useFlowStore((state) => state.setEdges);
 
   const data = selectedEdge.data || {};
-  const edgeColor = data.color || '#1d4ed8';
+  const runningColor = data.color || DEFAULT_RUNNING_COLOR;
+  const errorColor = data.errorColor || DEFAULT_ERROR_COLOR;
   const edgeWidth = data.width || 2;
 
   const updateEdgeData = (newData: any) => {
@@ -21,6 +25,27 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
       data: { ...(e.data || {}), ...newData }
     } : e));
   };
+
+  const handleRunningColorChange = (newColor: string) => {
+    if (newColor.toLowerCase() === errorColor.toLowerCase()) {
+      // Swap colors
+      updateEdgeData({ color: newColor, errorColor: runningColor });
+    } else {
+      updateEdgeData({ color: newColor });
+    }
+  };
+
+  const handleErrorColorChange = (newColor: string) => {
+    if (newColor.toLowerCase() === runningColor.toLowerCase()) {
+      // Swap colors
+      updateEdgeData({ errorColor: newColor, color: errorColor });
+    } else {
+      updateEdgeData({ errorColor: newColor });
+    }
+  };
+
+  const resetRunningColor = () => updateEdgeData({ color: DEFAULT_RUNNING_COLOR });
+  const resetErrorColor = () => updateEdgeData({ errorColor: DEFAULT_ERROR_COLOR });
 
   return (
     <div className="space-y-6">
@@ -45,30 +70,99 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
         </div>
       </div>
 
-      {/* Color Picker */}
-      <div className="space-y-2">
+      {/* Color Palette Sections */}
+      <div className="space-y-4">
         <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-          <Code size={10} /> Color Palette
+          <Palette size={10} /> Connection Colors
         </label>
-        <div className="grid grid-cols-5 gap-2">
-          {['#1d4ed8', '#ef4444', '#10b981', '#f59e0b', '#6366f1'].map((c) => (
+
+        {/* Running Color */}
+        <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={12} className="text-emerald-500" />
+              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Normal / Running</span>
+            </div>
             <button
-              key={c}
-              onClick={() => updateEdgeData({ color: c })}
-              className={cn(
-                "w-6 h-6 rounded-full border-2 transition-all hover:scale-110",
-                edgeColor === c ? "border-slate-400 dark:border-slate-300 scale-110 shadow-md" : "border-transparent"
-              )}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-          <div className="relative w-6 h-6 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 hover:scale-110 transition-transform">
-            <input
-              type="color"
-              value={edgeColor}
-              onChange={(e) => updateEdgeData({ color: e.target.value })}
-              className="absolute -top-1 -left-1 w-10 h-10 cursor-pointer bg-transparent border-none"
-            />
+              onClick={resetRunningColor}
+              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-slate-600"
+              title="Reset to default"
+            >
+              <RefreshCcw size={10} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <div
+                className="w-10 h-10 rounded-lg border-2 border-white dark:border-slate-800 shadow-sm transition-transform group-hover:scale-105"
+                style={{ backgroundColor: runningColor }}
+              />
+              <input
+                type="color"
+                value={runningColor}
+                onChange={(e) => handleRunningColorChange(e.target.value)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full traffic-line"
+                  style={{
+                    backgroundColor: runningColor,
+                    width: '100%',
+                    boxShadow: `0 0 8px ${runningColor}44`
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{runningColor}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Color */}
+        <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={12} className="text-red-500" />
+              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Error State</span>
+            </div>
+            <button
+              onClick={resetErrorColor}
+              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-slate-600"
+              title="Reset to default"
+            >
+              <RefreshCcw size={10} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <div
+                className="w-10 h-10 rounded-lg border-2 border-white dark:border-slate-800 shadow-sm transition-transform group-hover:scale-105"
+                style={{ backgroundColor: errorColor }}
+              />
+              <input
+                type="color"
+                value={errorColor}
+                onChange={(e) => handleErrorColorChange(e.target.value)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full"
+                  style={{
+                    backgroundColor: errorColor,
+                    width: '100%',
+                    boxShadow: `0 0 8px ${errorColor}44`
+                  }}
+                />
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{errorColor}</span>
+            </div>
           </div>
         </div>
       </div>
