@@ -37,7 +37,7 @@ import { ContextMenu } from './components/ContextMenu';
 import { LogToast } from './components/LogToast';
 import { LogModal } from './components/LogModal';
 import CustomEdge from './components/Edges/CustomEdge';
-import { generateYaml, cn } from './lib/utils';
+import { generateYaml, cn, getAbsPos } from './lib/utils';
 import { Plus, Minus, Maximize, Minimize } from 'lucide-react';
 import { useFlowStore } from './store';
 import { useHistory } from './hooks/useHistory';
@@ -184,12 +184,13 @@ export default function App() {
     (event: React.MouseEvent, node: Node) => {
       onNodeClickStore(event, node);
       if (isAutofocusEnabled) {
-        const x = node.position.x + (node.measured?.width ?? node.width ?? 0) / 2;
-        const y = node.position.y + (node.measured?.height ?? node.height ?? 0) / 2;
-        setCenter(x, y, { zoom: 1.8, duration: 800 });
+        const absPos = getAbsPos(node.id, nodes);
+        const centerX = absPos.x + (node.measured?.width ?? node.width ?? 0) / 2;
+        const centerY = absPos.y + (node.measured?.height ?? node.height ?? 0) / 2;
+        setCenter(centerX, centerY, { zoom: 1.8, duration: 800 });
       }
     },
-    [onNodeClickStore, isAutofocusEnabled, setCenter]
+    [onNodeClickStore, isAutofocusEnabled, setCenter, nodes]
   );
 
   const handleExport = useCallback(async () => {
