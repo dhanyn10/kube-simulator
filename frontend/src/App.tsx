@@ -98,6 +98,7 @@ export default function App() {
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
+  const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
   const copyNodes = useFlowStore((state) => state.copyNodes);
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
   const groupNodes = useFlowStore((state) => state.groupNodes);
@@ -120,6 +121,19 @@ export default function App() {
         });
         globalThis.go.main.App.GetSetting('isRightSidebarVisible').then((val: string) => {
           if (val !== "") setRightSidebarVisible(val === 'true');
+        });
+
+        // Load global edge colors
+        Promise.all([
+          globalThis.go.main.App.GetSetting('globalEdgeColor'),
+          globalThis.go.main.App.GetSetting('globalEdgeErrorColor')
+        ]).then(([color, errorColor]: [string, string]) => {
+          if (color !== "" || errorColor !== "") {
+            setGlobalEdgeColors(
+              color || 'var(--color-mat-indigo)',
+              errorColor || 'var(--color-mat-red)'
+            );
+          }
         });
       }
 

@@ -15,9 +15,11 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   const edges = useFlowStore((state) => state.edges);
   const setEdges = useFlowStore((state) => state.setEdges);
 
+  const globalEdgeColor = useFlowStore((state) => state.globalEdgeColor);
+  const globalEdgeErrorColor = useFlowStore((state) => state.globalEdgeErrorColor);
+  const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
+
   const data = selectedEdge.data || {};
-  const runningColor = data.color || DEFAULT_RUNNING_COLOR;
-  const errorColor = data.errorColor || DEFAULT_ERROR_COLOR;
   const edgeWidth = data.width || 2;
 
   const updateEdgeData = (newData: any) => {
@@ -28,23 +30,25 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   };
 
   const handleRunningColorChange = (newColor: string) => {
-    if (newColor.toLowerCase() === errorColor.toLowerCase()) {
-      updateEdgeData({ color: newColor, errorColor: runningColor });
+    if (newColor.toLowerCase() === globalEdgeErrorColor.toLowerCase()) {
+      setGlobalEdgeColors(newColor, globalEdgeColor);
     } else {
-      updateEdgeData({ color: newColor });
+      setGlobalEdgeColors(newColor, globalEdgeErrorColor);
     }
   };
 
   const handleErrorColorChange = (newColor: string) => {
-    if (newColor.toLowerCase() === runningColor.toLowerCase()) {
-      updateEdgeData({ errorColor: newColor, color: errorColor });
+    if (newColor.toLowerCase() === globalEdgeColor.toLowerCase()) {
+      setGlobalEdgeColors(globalEdgeErrorColor, newColor);
     } else {
-      updateEdgeData({ errorColor: newColor });
+      setGlobalEdgeColors(globalEdgeColor, newColor);
     }
   };
 
-  const resetRunningColor = () => updateEdgeData({ color: DEFAULT_RUNNING_COLOR });
-  const resetErrorColor = () => updateEdgeData({ errorColor: DEFAULT_ERROR_COLOR });
+  const resetRunningColor = () => setGlobalEdgeColors(DEFAULT_RUNNING_COLOR, globalEdgeErrorColor);
+  const resetErrorColor = () => setGlobalEdgeColors(globalEdgeColor, DEFAULT_ERROR_COLOR);
+
+  const formatColorName = (color: string) => color.replace('var(--color-mat-', '').replace(')', '');
 
   return (
     <div className="space-y-6">
@@ -69,11 +73,14 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
         </div>
       </div>
 
-      {/* Color Palette Sections */}
+      {/* Global Color Palette Sections */}
       <div className="space-y-4">
-        <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
-          <Palette size={10} /> Connection Colors
-        </label>
+        <div className="flex flex-col gap-1">
+          <label className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
+            <Palette size={10} /> Connection Styles
+          </label>
+          <span className="text-[8px] text-slate-400 italic leading-tight">These colors apply to all connections in the diagram.</span>
+        </div>
 
         {/* Running Color */}
         <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
@@ -95,22 +102,22 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
             <div className="flex items-center gap-3">
                <div
                 className="w-8 h-8 rounded border border-slate-300 dark:border-slate-700 shadow-sm"
-                style={{ backgroundColor: runningColor }}
+                style={{ backgroundColor: globalEdgeColor }}
               />
               <div className="flex-1 space-y-1.5">
                 <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div
                     className="h-full traffic-line"
                     style={{
-                      backgroundColor: runningColor,
+                      backgroundColor: globalEdgeColor,
                       width: '100%',
                     }}
                   />
                 </div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{runningColor.replace('var(--color-mat-', '').replace(')', '')}</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{formatColorName(globalEdgeColor)}</span>
               </div>
             </div>
-            <ColorPalette selectedColor={runningColor} onSelect={handleRunningColorChange} className="mt-2" />
+            <ColorPalette selectedColor={globalEdgeColor} onSelect={handleRunningColorChange} className="mt-2" />
           </div>
         </div>
 
@@ -134,22 +141,22 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
             <div className="flex items-center gap-3">
               <div
                 className="w-8 h-8 rounded border border-slate-300 dark:border-slate-700 shadow-sm"
-                style={{ backgroundColor: errorColor }}
+                style={{ backgroundColor: globalEdgeErrorColor }}
               />
               <div className="flex-1 space-y-1.5">
                 <div className="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div
                     className="h-full"
                     style={{
-                      backgroundColor: errorColor,
+                      backgroundColor: globalEdgeErrorColor,
                       width: '100%',
                     }}
                   />
                 </div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{errorColor.replace('var(--color-mat-', '').replace(')', '')}</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tight">{formatColorName(globalEdgeErrorColor)}</span>
               </div>
             </div>
-            <ColorPalette selectedColor={errorColor} onSelect={handleErrorColorChange} className="mt-2" />
+            <ColorPalette selectedColor={globalEdgeErrorColor} onSelect={handleErrorColorChange} className="mt-2" />
           </div>
         </div>
       </div>

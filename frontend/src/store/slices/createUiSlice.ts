@@ -29,10 +29,13 @@ export interface UiSlice {
   simulationMetrics: Record<string, SimulationMetricPoint[]>;
   isMonitoringOpen: boolean;
   isMonitoringDetached: boolean;
+  globalEdgeColor: string;
+  globalEdgeErrorColor: string;
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
   visibleWidgets: string[];
   customImages: string[];
   toggleColorMode: () => void;
+  setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
   toggleAutosave: () => void;
   toggleAutofocus: () => void;
@@ -202,6 +205,8 @@ const startSimulation = (
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
+  globalEdgeColor: 'var(--color-mat-indigo)',
+  globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,
   isAutosaveEnabled: false,
   isAutofocusEnabled: false,
@@ -226,6 +231,13 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
     const runtime = getRuntime();
     if (runtime) runtime.EventsEmit('theme-sync', newMode);
+  },
+  setGlobalEdgeColors: (color, errorColor) => {
+    set({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('globalEdgeColor', color);
+      globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
+    }
   },
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
   toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
