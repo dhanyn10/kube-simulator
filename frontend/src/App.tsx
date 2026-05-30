@@ -68,6 +68,7 @@ const edgeTypes = {
 
 const defaultEdgeOptions = {
   type: 'custom',
+  interactionWidth: 20,
 };
 
 export default function App() {
