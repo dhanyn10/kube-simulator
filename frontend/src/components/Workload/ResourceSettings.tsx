@@ -1,8 +1,8 @@
 import { Layers, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { CPU_OPTIONS, MEMORY_OPTIONS } from '../../constants/config';
-import { ConfigLabel } from '../ConfigUI';
-import { SelectorGroup } from '../SelectorGroup';
+import { ConfigLabel } from '../UI/ConfigUI';
+import { SelectorGroup } from '../UI/SelectorGroup';
 
 interface ResourceSettingsProps {
   data: any;

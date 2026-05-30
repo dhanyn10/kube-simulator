@@ -2,9 +2,9 @@ import { useFlowStore } from '../../store';
 import { cn, validateResourceLimits } from '../../lib/utils';
 import { Box, Code, Layers, Server, Eye, EyeOff, FileCode, FileX } from 'lucide-react';
 import { RUNTIMES, WEBSERVERS } from '../../constants/config';
-import { SelectorGroup } from '../SelectorGroup';
-import { ConfigSection, AdvancedSection } from '../ConfigUI';
-import { ImageDropdown } from '../ImageDropdown';
+import { SelectorGroup } from '../UI/SelectorGroup';
+import { ConfigSection, AdvancedSection } from '../UI/ConfigUI';
+import { ImageDropdown } from '../UI/ImageDropdown';
 import { ResourceSettingsList } from './ResourceSettings';
 import { FrameworkSelector } from './FrameworkSelector';
 
