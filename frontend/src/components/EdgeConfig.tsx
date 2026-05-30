@@ -1,6 +1,7 @@
 
 import { useFlowStore } from '../store';
 import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { ColorPalette } from './ColorPalette';
 
 interface EdgeConfigProps {
@@ -11,6 +12,7 @@ const DEFAULT_RUNNING_COLOR = 'var(--color-mat-indigo)';
 const DEFAULT_ERROR_COLOR = 'var(--color-mat-red)';
 
 export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
+  const colorMode = useFlowStore((state) => state.colorMode);
   const edges = useFlowStore((state) => state.edges);
   const setEdges = useFlowStore((state) => state.setEdges);
 
@@ -82,7 +84,12 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
         </div>
 
         {/* Running Color */}
-        <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+        <div className={cn(
+          "p-3 rounded-lg border space-y-3 transition-colors",
+          colorMode === 'dark'
+            ? "bg-slate-800/40 border-slate-700/50"
+            : "bg-slate-50/50 border-slate-200"
+        )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={12} className="text-emerald-500" />
@@ -121,7 +128,12 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
         </div>
 
         {/* Error Color */}
-        <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 space-y-3">
+        <div className={cn(
+          "p-3 rounded-lg border space-y-3 transition-colors",
+          colorMode === 'dark'
+            ? "bg-slate-800/40 border-slate-700/50"
+            : "bg-slate-50/50 border-slate-200"
+        )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertCircle size={12} className="text-red-500" />
