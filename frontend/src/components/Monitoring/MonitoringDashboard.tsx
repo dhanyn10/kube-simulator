@@ -98,35 +98,28 @@ export const MonitoringDashboard = () => {
       )}
     >
       {/* Header / Drag Handle */}
-      <div
-        onMouseDown={(e) => {
-          setIsDragging(true);
-          dragStart.current = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y
-          };
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            // Just focus it for accessibility
-          }
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label="Drag to move dashboard"
-        className={cn(
-          "h-10 px-4 flex items-center justify-between cursor-move select-none border-b outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
+      <div className={cn(
+          "h-10 flex items-center justify-between border-b",
           colorMode === 'dark' ? "bg-slate-800/50 border-slate-700/50" : "bg-slate-100 border-slate-200"
-        )}
-      >
-        <div className="flex items-center gap-2">
+        )}>
+        <button
+          onMouseDown={(e) => {
+            setIsDragging(true);
+            dragStart.current = {
+              x: e.clientX - position.x,
+              y: e.clientY - position.y
+            };
+          }}
+          className="flex-1 h-full px-4 flex items-center gap-2 cursor-move select-none outline-none focus-visible:ring-inset focus-visible:ring-2 focus-visible:ring-blue-500/50"
+          aria-label="Drag to move dashboard"
+        >
           <Activity size={14} className="text-blue-500" />
           <span className="text-[11px] font-bold uppercase tracking-widest">System Monitoring</span>
-        </div>
+        </button>
         <button
           onClick={() => setMonitoringOpen(false)}
-          className="p-1 hover:bg-red-500 hover:text-white rounded transition-colors"
+          className="p-1 mr-3 hover:bg-red-500 hover:text-white rounded transition-colors shrink-0"
+          aria-label="Close dashboard"
         >
           <X size={14} />
         </button>

@@ -41,6 +41,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
     const current = document.activeElement as HTMLElement;
     const idx = items.indexOf(current);
 
+    e.stopPropagation();
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       items[(idx + 1) % items.length]?.focus();
@@ -76,16 +77,14 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
       <div
         ref={menuRef}
         role="menu"
-        tabIndex={0}
+        tabIndex={-1}
         aria-label="Canvas context menu"
         className={cn(
-          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001]",
+          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001] outline-none",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}
         style={{ left: x, top: y }}
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { e.stopPropagation(); handleMenuKeyDown(e); }}
+        onKeyDown={handleMenuKeyDown}
       >
         {/* Inspect */}
         <button
