@@ -88,27 +88,34 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
       )}
 
       <AdvancedSection colorMode={colorMode}>
-        <ConfigSection
-          title="Replicas Range"
-          icon={Layers}
-          isVisible={data.displaySettings?.replicas}
-          onToggle={() => toggleVisibility('replicas')}
-          isYamlEnabled={data.yamlSettings?.replicas}
-          onYamlToggle={() => toggleYaml('replicas')}
-        >
-          <ConfigLabel className="text-[8px] font-normal">Min Replicas</ConfigLabel>
-          <NumberStepper
-            value={data.minReplicas || 1}
-            onChange={(val: number) => performUpdate({ minReplicas: val })}
-            colorMode={colorMode}
-          />
-          <ConfigLabel className="text-[8px] font-normal mt-2">Max Replicas</ConfigLabel>
-          <NumberStepper
-            value={data.maxReplicas || 1}
-            onChange={(val: number) => performUpdate({ maxReplicas: val })}
-            colorMode={colorMode}
-          />
-        </ConfigSection>
+        <div className="space-y-6">
+          <ConfigSection
+            title="Replicas Range"
+            icon={Layers}
+            isVisible={data.displaySettings?.replicas}
+            onToggle={() => toggleVisibility('replicas')}
+            isYamlEnabled={data.yamlSettings?.replicas}
+            onYamlToggle={() => toggleYaml('replicas')}
+          >
+            <div className="space-y-4 mt-2">
+              <div className="space-y-1.5">
+                <ConfigLabel className="text-[8px] font-normal opacity-80">Min Replicas</ConfigLabel>
+                <NumberStepper
+                  value={data.minReplicas || 1}
+                  onChange={(val: number) => performUpdate({ minReplicas: val })}
+                  colorMode={colorMode}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <ConfigLabel className="text-[8px] font-normal opacity-80">Max Replicas</ConfigLabel>
+                <NumberStepper
+                  value={data.maxReplicas || 1}
+                  onChange={(val: number) => performUpdate({ maxReplicas: val })}
+                  colorMode={colorMode}
+                />
+              </div>
+            </div>
+          </ConfigSection>
 
         {[
           { field: 'targetCPU', label: 'Target CPU (%)', icon: Activity },
@@ -124,24 +131,27 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             onYamlToggle={() => toggleYaml(item.field)}
             disableYamlToggle={!data[item.field as keyof K8sNodeData]}
           >
-            <SelectorGroup
-              options={[
-                { label: '20%', value: '20' },
-                { label: '50%', value: '50' },
-                { label: '80%', value: '80' }
-              ]}
-              currentValue={String(data[item.field as keyof K8sNodeData])}
-              onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
-              colorMode={colorMode}
-              activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
-            />
-            <RangeInput
-              value={data[item.field as keyof K8sNodeData] || 50}
-              onChange={(val: number) => performUpdate({ [item.field]: val })}
-              min={10} max={90} step={5}
-            />
+            <div className="space-y-4 mt-2">
+              <SelectorGroup
+                options={[
+                  { label: '20%', value: '20' },
+                  { label: '50%', value: '50' },
+                  { label: '80%', value: '80' }
+                ]}
+                currentValue={String(data[item.field as keyof K8sNodeData])}
+                onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
+                colorMode={colorMode}
+                activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
+              />
+              <RangeInput
+                value={data[item.field as keyof K8sNodeData] || 50}
+                onChange={(val: number) => performUpdate({ [item.field]: val })}
+                min={10} max={90} step={5}
+              />
+            </div>
           </ConfigSection>
         ))}
+        </div>
       </AdvancedSection>
     </div>
   );

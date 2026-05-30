@@ -85,7 +85,7 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
         newState.isLogToastVisible = true;
       }
 
-      set(newState as any);
+      set(newState);
       saveLogsToStorage(updatedLogs);
     },
     deleteLog: (id) => {

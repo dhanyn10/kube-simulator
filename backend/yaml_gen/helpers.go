@@ -8,13 +8,8 @@ import (
 func getEnvFromConnections(targetIDs []string, ctx *GenContext) []k8s.EnvVar {
 	var env []k8s.EnvVar
 
-	targets := make(map[string]bool)
 	for _, id := range targetIDs {
-		targets[id] = true
-	}
-
-	for _, e := range ctx.edges {
-		if targets[e.Target] {
+		for _, e := range ctx.targetEdgeMap[id] {
 			sourceNode := ctx.nodeMap[e.Source]
 			env = append(env, getEnvFromNode(sourceNode)...)
 		}
@@ -66,7 +61,7 @@ func getVolumeConfig(sourceIDs []string, ctx *GenContext) ([]k8s.Volume, []k8s.V
 
 	pvcEdges := []k8s.FrontendEdge{}
 	for _, id := range sourceIDs {
-		for _, e := range ctx.edgeMap[id] {
+		for _, e := range ctx.sourceEdgeMap[id] {
 			targetNode := ctx.nodeMap[e.Target]
 			if targetNode != nil && targetNode.Type == "PVC" {
 				pvcEdges = append(pvcEdges, e)
