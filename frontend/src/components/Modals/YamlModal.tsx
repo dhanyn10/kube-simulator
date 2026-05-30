@@ -34,25 +34,18 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent focus:outline-none"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-      role="button"
-      tabIndex={0}
+    <dialog
+      open
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent border-none w-full h-full"
     >
+      <button
+        className="fixed inset-0 w-full h-full cursor-default outline-none bg-black/40 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
       <div
-        className={cn('w-full max-w-2xl h-full max-h-[80vh] rounded shadow-2xl overflow-hidden flex flex-col', colorMode === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-300')}
-        role="dialog"
+        className={cn('relative w-full max-w-2xl h-full max-h-[80vh] rounded shadow-2xl overflow-hidden flex flex-col pointer-events-auto', colorMode === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-300')}
         aria-modal="true"
         aria-labelledby="modal-title"
       >
@@ -128,6 +121,6 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

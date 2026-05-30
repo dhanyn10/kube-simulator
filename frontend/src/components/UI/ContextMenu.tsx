@@ -41,6 +41,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
     const current = document.activeElement as HTMLElement;
     const idx = items.indexOf(current);
 
+    e.stopPropagation();
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       items[(idx + 1) % items.length]?.focus();
@@ -76,16 +77,14 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
       <div
         ref={menuRef}
         role="menu"
-        tabIndex={0}
+        tabIndex={-1}
         aria-label="Canvas context menu"
         className={cn(
-          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001]",
+          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001] outline-none",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}
         style={{ left: x, top: y }}
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onKeyDown={(e) => { e.stopPropagation(); handleMenuKeyDown(e); }}
+        onKeyDown={handleMenuKeyDown}
       >
         {/* Inspect */}
         <button
@@ -152,27 +151,6 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
             <span className="font-medium">Ungroup</span>
             <span className="text-[10px] opacity-50">Ctrl+U</span>
           </div>
-        </button>
-
-        <div className={dividerClass} />
-
-        {/* Arrange Layout */}
-        <button
-          role="menuitem"
-          onClick={() => { useFlowStore.getState().autoLayout('LR'); onClose(); }}
-          className={itemClass}
-        >
-          <Boxes size={14} className="rotate-90 text-blue-400" />
-          <span className="font-medium">Arrange (L → R)</span>
-        </button>
-
-        <button
-          role="menuitem"
-          onClick={() => { useFlowStore.getState().autoLayout('TB'); onClose(); }}
-          className={itemClass}
-        >
-          <Boxes size={14} className="text-blue-400" />
-          <span className="font-medium">Arrange (T → B)</span>
         </button>
 
         <div className={dividerClass} />
