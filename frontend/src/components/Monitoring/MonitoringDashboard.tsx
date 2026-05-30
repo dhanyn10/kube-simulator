@@ -106,8 +106,17 @@ export const MonitoringDashboard = () => {
             y: e.clientY - position.y
           };
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            // Just focus it for accessibility
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label="Drag to move dashboard"
         className={cn(
-          "h-10 px-4 flex items-center justify-between cursor-move select-none border-b",
+          "h-10 px-4 flex items-center justify-between cursor-move select-none border-b outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50",
           colorMode === 'dark' ? "bg-slate-800/50 border-slate-700/50" : "bg-slate-100 border-slate-200"
         )}
       >
