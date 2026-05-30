@@ -204,7 +204,7 @@ export default function App() {
         const absPos = getAbsPos(node.id, nodes);
         const centerX = absPos.x + (node.measured?.width ?? node.width ?? 0) / 2;
         const centerY = absPos.y + (node.measured?.height ?? node.height ?? 0) / 2;
-        setCenter(centerX, centerY, { zoom: 1.6, duration: 800 });
+        setCenter(centerX, centerY, { zoom: 1.4, duration: 800 });
       }
     },
     [onNodeClickStore, isAutofocusEnabled, setCenter, nodes]
@@ -238,7 +238,7 @@ export default function App() {
             y: minY,
             width: maxX - minX,
             height: maxY - minY
-          }, { padding: 0.2, duration: 800, maxZoom: 1.6 });
+          }, { padding: 0.2, duration: 800, maxZoom: 1.4 });
         }
       }
     },
@@ -325,7 +325,7 @@ export default function App() {
           defaultEdgeOptions={defaultEdgeOptions}
           defaultViewport={{ x: 0, y: 0, zoom: 1.0 }}
           minZoom={0.5}
-          maxZoom={1.8}
+          maxZoom={1.6}
           className="bg-transparent"
           colorMode={colorMode}
         >
