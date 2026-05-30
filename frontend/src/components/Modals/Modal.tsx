@@ -51,20 +51,18 @@ export const Modal = ({
   if (!isOpen) return null;
 
   return (
-    <div
+    <dialog
+      open
       className={cn(
-        "fixed inset-0 z-[110] flex justify-center p-4",
+        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden",
         alignClass,
         showOverlay ? "bg-black/60" : "bg-transparent",
         showBlur && "backdrop-blur-sm"
       )}
-      role="dialog"
-      aria-modal="true"
       onClick={onClose}
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose();
       }}
-      tabIndex={-1}
     >
       <div
         className={cn(
@@ -111,6 +109,6 @@ export const Modal = ({
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   );
 };

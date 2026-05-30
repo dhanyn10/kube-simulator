@@ -147,6 +147,13 @@ export const LogModal: React.FC = () => {
   const isAllSelected = filteredLogs.length > 0 && selectedIds.size === filteredLogs.length;
   const isSomeSelected = selectedIds.size > 0 && selectedIds.size < filteredLogs.length;
 
+  let MasterCheckboxIcon = <Square size={18} />;
+  if (isAllSelected) {
+    MasterCheckboxIcon = <CheckSquare size={18} />;
+  } else if (isSomeSelected) {
+    MasterCheckboxIcon = <MinusSquare size={18} />;
+  }
+
   return (
     <Modal
       isOpen={isOpen}
@@ -188,7 +195,7 @@ export const LogModal: React.FC = () => {
                     title="Select all"
                     data-testid="log-master-checkbox"
                 >
-                    {isAllSelected ? <CheckSquare size={18} /> : isSomeSelected ? <MinusSquare size={18} /> : <Square size={18} />}
+                    {MasterCheckboxIcon}
                 </button>
                 <button
                     onClick={() => setIsSelectMenuOpen(!isSelectMenuOpen)}
@@ -281,52 +288,44 @@ export const LogModal: React.FC = () => {
                     badgeClass = 'bg-amber-500/10 text-amber-500';
                 }
 
+                let rowColorClass = "";
+                const isDark = colorMode === 'dark';
+                if (isSelected) {
+                    rowColorClass = isDark ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200';
+                } else {
+                    rowColorClass = isDark ? 'bg-transparent border-slate-800/50 hover:bg-slate-800/40' : 'bg-transparent border-slate-100 hover:bg-slate-50';
+                }
+
                 return (
                     <div
                         key={log.id}
-                        onClick={() => toggleExpand(log.id)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                toggleExpand(log.id);
-                            }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-expanded={isExpanded}
                         className={cn(
-                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all cursor-pointer select-none border-b outline-none focus-visible:ring-1 focus-visible:ring-blue-500',
-                        isSelected
-                            ? (colorMode === 'dark' ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200')
-                            : (colorMode === 'dark' ? 'bg-transparent border-slate-800/50 hover:bg-slate-800/40' : 'bg-transparent border-slate-100 hover:bg-slate-50')
+                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all select-none border-b',
+                        rowColorClass
                         )}
                     >
-                        <div
+                        <label
                             className={cn(
-                                "mt-0.5 p-1 rounded transition-colors shrink-0 outline-none focus-visible:ring-1 focus-visible:ring-blue-500",
+                                "mt-0.5 p-1 rounded transition-colors shrink-0 cursor-pointer outline-none focus-within:ring-1 focus-within:ring-blue-500",
                                 isSelected ? "text-blue-500" : "text-slate-600 opacity-30 group-hover:opacity-100"
                             )}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleSelection(log.id);
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    toggleSelection(log.id);
-                                }
-                            }}
-                            tabIndex={0}
-                            role="checkbox"
-                            aria-checked={isSelected}
-                            data-testid="log-checkbox"
                         >
+                            <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={isSelected}
+                                onChange={() => toggleSelection(log.id)}
+                                data-testid="log-checkbox"
+                            />
                             {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-                        </div>
+                        </label>
 
-                        <div className="flex-1 min-w-0 flex flex-col gap-1">
-                            <div className="flex items-start justify-between gap-4">
+                        <button
+                            onClick={() => toggleExpand(log.id)}
+                            aria-expanded={isExpanded}
+                            className="flex-1 min-w-0 flex flex-col gap-1 text-left outline-none focus-visible:ring-1 focus-visible:ring-blue-500 rounded"
+                        >
+                            <div className="flex items-start justify-between gap-4 w-full">
                                 <div className="flex-1 min-w-0 pt-0.5">
                                     <pre className={cn(
                                         "text-xs font-mono leading-relaxed break-all whitespace-pre-wrap",
@@ -347,19 +346,20 @@ export const LogModal: React.FC = () => {
 
                                 <div className="flex items-center gap-3 shrink-0 pt-0.5">
                                     <span className="text-[10px] tabular-nums text-slate-500 font-medium">{formatTime(log.timestamp)}</span>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            deleteLog(log.id);
-                                        }}
-                                        className="p-1 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-red-500/10"
-                                        title="Delete log"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
                                 </div>
                             </div>
-                        </div>
+                        </button>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                deleteLog(log.id);
+                            }}
+                            className="p-1 mt-0.5 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-red-500/10 shrink-0"
+                            title="Delete log"
+                        >
+                            <Trash2 size={14} />
+                        </button>
                     </div>
                 );
             })
