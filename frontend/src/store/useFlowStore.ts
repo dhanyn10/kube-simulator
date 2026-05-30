@@ -9,7 +9,7 @@ import { createAlignmentSlice } from './slices/createAlignmentSlice';
 import { createLogSlice } from './slices/createLogSlice';
 
 const flowStore = createStore<FlowState>()(
-  (...a) => ({
+  (set, get, store) => ({
     clipboard: null,
     alignmentGuides: { vertical: [], horizontal: [] },
     snapGuides: { vertical: [], horizontal: [] },
@@ -18,12 +18,12 @@ const flowStore = createStore<FlowState>()(
     lastActionName: 'Initialize Store',
     currentProject: null,
     lastSavedSnapshot: null,
-    ...createFlowSlice(...a),
-    ...createDeploymentSlice(...a),
-    ...createNodeSlice(...a),
-    ...createUiSlice(...a),
-    ...createAlignmentSlice(...a),
-    ...createLogSlice(...a),
+    ...createFlowSlice(set, get, store),
+    ...createDeploymentSlice(set, get, store),
+    ...createNodeSlice(set, get, store),
+    ...createUiSlice(set, get, store),
+    ...createAlignmentSlice(set, get, store),
+    ...createLogSlice(set, get, store),
   })
 );
 

@@ -277,7 +277,7 @@ func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, ctx *GenCo
 }
 
 func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
-	for _, e := range ctx.edgeMap[serviceID] {
+	for _, e := range ctx.sourceEdgeMap[serviceID] {
 		target := ctx.nodeMap[e.Target]
 		if target != nil && (target.Type == "Deployment" || target.Type == "Pod") {
 			return target
@@ -332,7 +332,7 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 }
 
 func findTargetService(ingressID string, ctx *GenContext) *k8s.FrontendNode {
-	for _, e := range ctx.edgeMap[ingressID] {
+	for _, e := range ctx.sourceEdgeMap[ingressID] {
 		target := ctx.nodeMap[e.Target]
 		if target != nil && target.Type == "Service" {
 			return target
@@ -404,7 +404,7 @@ func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 }
 
 func findTargetDeployment(hpaID string, ctx *GenContext) *k8s.FrontendNode {
-	for _, e := range ctx.edgeMap[hpaID] {
+	for _, e := range ctx.sourceEdgeMap[hpaID] {
 		target := ctx.nodeMap[e.Target]
 		if target != nil && target.Type == "Deployment" {
 			return target
