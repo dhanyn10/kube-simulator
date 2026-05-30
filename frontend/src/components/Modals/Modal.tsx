@@ -51,30 +51,31 @@ export const Modal = ({
   if (!isOpen) return null;
 
   return (
-    <div
+    <dialog
+      open
       className={cn(
-        "fixed inset-0 z-[110] flex justify-center p-4",
+        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden",
         alignClass,
-        showOverlay ? "bg-black/60" : "bg-transparent",
         showBlur && "backdrop-blur-sm"
       )}
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
-      tabIndex={-1}
     >
+      {/* Backdrop button for accessibility to handle clicks outside */}
+      <button
+        className={cn(
+          "fixed inset-0 w-full h-full cursor-default outline-none",
+          showOverlay ? "bg-black/60" : "bg-transparent"
+        )}
+        onClick={onClose}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
       <div
         className={cn(
-          "rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
+          "relative rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
           widthClass,
           maxHeightClass,
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
         )}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-6 border-b flex items-center justify-between shrink-0">
@@ -111,6 +112,6 @@ export const Modal = ({
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   );
 };
