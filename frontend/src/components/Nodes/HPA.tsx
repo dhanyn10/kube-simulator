@@ -5,7 +5,7 @@ import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
-import { ProgressBar } from '../ProgressBar';
+import { ProgressBar } from '../Monitoring/ProgressBar';
 
 export const HPANode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);

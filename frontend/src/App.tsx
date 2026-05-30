@@ -14,30 +14,24 @@ import {
 import '@xyflow/react/dist/style.css';
 import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 
-import { Sidebar } from './components/Sidebar';
-import { RightSidebar } from './components/RightSidebar';
-import { MenuBar } from './components/MenuBar';
-import { AlignmentGuides } from './components/AlignmentGuides';
-import { HistoryPanel } from './components/HistoryPanel';
-import { YamlModal } from './components/YamlModal';
-import { PodNode } from './components/Nodes/Pod';
-import { ServiceNode } from './components/Nodes/Service';
-import { DeploymentNode } from './components/Nodes/Deployment';
-import { ConfigMapNode } from './components/Nodes/ConfigMap';
-import { SecretNode } from './components/Nodes/Secret';
-import { ScenarioModal } from './components/ScenarioModal';
-import { InternetNode } from './components/Nodes/Internet';
-import { NamespaceNode } from './components/Nodes/Namespace';
-import { IngressNode } from './components/Nodes/Ingress';
-import { HPANode } from './components/Nodes/HPA';
-import { PVCNode } from './components/Nodes/PVC';
-import { ReplicaSetNode } from './components/Nodes/ReplicaSet';
-import { MonitoringDashboard } from './components/MonitoringDashboard';
-import { DetachedMonitoring } from './components/DetachedMonitoring';
-import { ContextMenu } from './components/ContextMenu';
-import { LogToast } from './components/LogToast';
-import { LogModal } from './components/LogModal';
-import CustomEdge from './components/Edges/CustomEdge';
+import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
+import { AlignmentGuides, ContextMenu } from './components/UI';
+import { HistoryPanel, MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
+import { YamlModal, ScenarioModal, LogModal, AboutDialog } from './components/Modals';
+import {
+  PodNode,
+  ServiceNode,
+  DeploymentNode,
+  ConfigMapNode,
+  SecretNode,
+  InternetNode,
+  NamespaceNode,
+  IngressNode,
+  HPANode,
+  PVCNode,
+  ReplicaSetNode,
+} from './components/Nodes';
+import { CustomEdge } from './components/Edges';
 import { generateYaml, cn, getAbsPos } from './lib/utils';
 import { Plus, Minus, Maximize, Minimize } from 'lucide-react';
 import { useFlowStore } from './store';
@@ -46,7 +40,6 @@ import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useFitView } from './hooks/useFitView';
-import AboutDialog from './components/AboutDialog'; // Import AboutDialog
 
 const nodeTypes = {
   Pod: PodNode,
