@@ -102,7 +102,7 @@ const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, abs
  */
 const applyInternalMove = (node: Node, finalNode: Node, nextNodes: Node[], oldParentId: string, get: () => FlowState) => {
   const parent = nextNodes.find(n => n.id === oldParentId);
-  let resultNodes = [...nextNodes];
+  let resultNodes: Node[];
   
   if ((parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
     const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, finalNode);

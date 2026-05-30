@@ -155,27 +155,6 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
 
         <div className={dividerClass} />
 
-        {/* Arrange Layout */}
-        <button
-          role="menuitem"
-          onClick={() => { useFlowStore.getState().autoLayout('LR'); onClose(); }}
-          className={itemClass}
-        >
-          <Boxes size={14} className="rotate-90 text-blue-400" />
-          <span className="font-medium">Arrange (L → R)</span>
-        </button>
-
-        <button
-          role="menuitem"
-          onClick={() => { useFlowStore.getState().autoLayout('TB'); onClose(); }}
-          className={itemClass}
-        >
-          <Boxes size={14} className="text-blue-400" />
-          <span className="font-medium">Arrange (T → B)</span>
-        </button>
-
-        <div className={dividerClass} />
-
         {/* Delete */}
         <button
           role="menuitem"
