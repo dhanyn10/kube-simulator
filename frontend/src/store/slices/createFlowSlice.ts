@@ -84,11 +84,13 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const extraChanges: NodeChange[] = [];
     const processedGroupIds = new Set<string>();
 
-    // Coordinating movement for grouped nodes
+    // Pre-calculate node positions and group membership for efficiency
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
     for (const change of changes) {
       if (change.type !== 'position' || !change.position) continue;
 
-      const node = nodes.find(n => n.id === change.id);
+      const node = nodeMap.get(change.id);
       const groupId = node?.data?.groupId as string;
       if (!groupId || processedGroupIds.has(groupId)) continue;
 
@@ -98,7 +100,6 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
       processedGroupIds.add(groupId);
 
-      // Find other group members not already in the change set
       const changeIds = new Set(changes.filter(c => c.type === 'position').map(c => c.id));
 
       for (const other of nodes) {

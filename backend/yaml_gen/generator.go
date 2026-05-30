@@ -8,11 +8,12 @@ import (
 )
 
 type GenContext struct {
-	nodes    []k8s.FrontendNode
-	edges    []k8s.FrontendEdge
-	nodeMap  map[string]*k8s.FrontendNode
-	edgeMap  map[string][]k8s.FrontendEdge
-	nsMap    map[string]string // nodeId -> namespaceName
+	nodes         []k8s.FrontendNode
+	edges         []k8s.FrontendEdge
+	nodeMap       map[string]*k8s.FrontendNode
+	sourceEdgeMap map[string][]k8s.FrontendEdge
+	targetEdgeMap map[string][]k8s.FrontendEdge
+	nsMap         map[string]string // nodeId -> namespaceName
 }
 
 func Generate(nodesJson, edgesJson string) string {
@@ -27,18 +28,20 @@ func Generate(nodesJson, edgesJson string) string {
 	}
 
 	ctx := &GenContext{
-		nodes:   nodes,
-		edges:   edges,
-		nodeMap: make(map[string]*k8s.FrontendNode),
-		edgeMap: make(map[string][]k8s.FrontendEdge),
-		nsMap:   make(map[string]string),
+		nodes:         nodes,
+		edges:         edges,
+		nodeMap:       make(map[string]*k8s.FrontendNode),
+		sourceEdgeMap: make(map[string][]k8s.FrontendEdge),
+		targetEdgeMap: make(map[string][]k8s.FrontendEdge),
+		nsMap:         make(map[string]string),
 	}
 
 	for i := range nodes {
 		ctx.nodeMap[nodes[i].ID] = &nodes[i]
 	}
 	for _, e := range edges {
-		ctx.edgeMap[e.Source] = append(ctx.edgeMap[e.Source], e)
+		ctx.sourceEdgeMap[e.Source] = append(ctx.sourceEdgeMap[e.Source], e)
+		ctx.targetEdgeMap[e.Target] = append(ctx.targetEdgeMap[e.Target], e)
 	}
 
 	var manifests []interface{}
@@ -110,17 +113,23 @@ func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 }
 
 func sanitizeName(label string) string {
-	return strings.ReplaceAll(strings.ToLower(label), " ", "-")
+	res := strings.ReplaceAll(strings.ToLower(label), " ", "-")
+	// Kubernetes DNS-1123: only alphanumeric and '-'
+	f := func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			return r
+		}
+		return -1
+	}
+	res = strings.Map(f, res)
+	// Ensure it starts and ends with alphanumeric
+	res = strings.Trim(res, "-")
+	if len(res) > 63 {
+		res = res[:63]
+	}
+	return res
 }
 
-func findNodeByID(id string, nodes []k8s.FrontendNode) *k8s.FrontendNode {
-	for i := range nodes {
-		if nodes[i].ID == id {
-			return &nodes[i]
-		}
-	}
-	return nil
-}
 
 func getNamespace(node k8s.FrontendNode, ctx *GenContext) string {
 	if node.ParentID == "" {

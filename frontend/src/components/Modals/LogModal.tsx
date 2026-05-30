@@ -90,12 +90,14 @@ export const LogModal: React.FC = () => {
   }, [logs, activeFilter, searchQuery]);
 
   const counts = useMemo(() => {
-    return {
-      all: logs.length,
-      error: logs.filter(l => l.level === 'error' || l.level === 'fatal').length,
-      warn: logs.filter(l => l.level === 'warn').length,
-      info: logs.filter(l => l.level === 'info').length,
-    };
+    let all = 0, error = 0, warn = 0, info = 0;
+    for (const l of logs) {
+      all++;
+      if (l.level === 'error' || l.level === 'fatal') error++;
+      else if (l.level === 'warn') warn++;
+      else if (l.level === 'info') info++;
+    }
+    return { all, error, warn, info };
   }, [logs]);
 
   const formatTime = (ts: number) => {

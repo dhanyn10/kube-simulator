@@ -85,8 +85,9 @@ export function validateResourceLimits(data: any) {
 }
 
 export async function generateYaml(nodes: any[], edges: any[]): Promise<string> {
-  if ((globalThis as any).go?.main?.App?.GenerateYaml) {
-    const jsonStr = await (globalThis as any).go.main.App.GenerateYaml(
+  const generateYamlFn = (globalThis as any).go?.main?.App?.GenerateYaml;
+  if (generateYamlFn) {
+    const jsonStr = await generateYamlFn(
       JSON.stringify(nodes),
       JSON.stringify(edges)
     );
