@@ -77,7 +77,6 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   title: string;
   icon: any;
   color: string;
-  colorHex?: string;
   id: string;
   type: string;
   hideSettings?: boolean;
