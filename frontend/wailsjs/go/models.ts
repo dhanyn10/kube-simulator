@@ -105,6 +105,7 @@ export namespace system {
 	    latestVersion: string;
 	    updateAvailable: boolean;
 	    releaseUrl: string;
+	    isPrerelease: boolean;
 
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
@@ -116,6 +117,7 @@ export namespace system {
 	        this.latestVersion = source["latestVersion"];
 	        this.updateAvailable = source["updateAvailable"];
 	        this.releaseUrl = source["releaseUrl"];
+	        this.isPrerelease = source["isPrerelease"];
 	    }
 	}
 

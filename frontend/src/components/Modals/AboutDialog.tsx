@@ -23,6 +23,7 @@ interface UpdateInfo {
   latestVersion: string;
   updateAvailable: boolean;
   releaseUrl: string;
+  isPrerelease: boolean;
 }
 
 const UpdateStatus: React.FC<{
@@ -57,7 +58,14 @@ const UpdateStatus: React.FC<{
     return (
       <div className={containerClass}>
         <div className="flex flex-col gap-2">
-          <p className="text-blue-500 font-medium">New version available: v{updateInfo.latestVersion}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-blue-500 font-medium">New version available: v{updateInfo.latestVersion}</p>
+            {updateInfo.isPrerelease && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-500 text-[10px] font-bold uppercase tracking-wider border border-amber-500/30">
+                Pre-release
+              </span>
+            )}
+          </div>
           <a
             href={updateInfo.releaseUrl}
             target="_blank"
@@ -194,13 +202,13 @@ ${appCopyright}`;
                         "text-lg",
                         colorMode === 'dark' ? "text-[#a9a9a9]" : "text-gray-600"
                       )}>
-                        {appVersion}
+                        {appVersion || ""}
                       </span>
                     </div>
 
                     <div className="space-y-1 mb-6">
                       <p>
-                        <span className={cn(colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>Build #KS-</span>{appVersion}
+                        <span className={cn(colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>Build #KS-</span>{appVersion || "Unknown"}
                         <span className={cn(colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>, built on </span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                       </p>
                       <p>
