@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell } from 'lucide-react';
-import { useFlowStore } from '../../store';
+import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
@@ -25,25 +25,25 @@ export const MenuBar = ({
   onOpenScenarios,
   onOpenAbout
 }: MenuBarProps) => {
-  const colorMode = useFlowStore((state: any) => state.colorMode);
-  const toggleColorMode = useFlowStore((state: any) => state.toggleColorMode);
-  const isAutosaveEnabled = useFlowStore((state: any) => state.isAutosaveEnabled);
-  const toggleAutosave = useFlowStore((state: any) => state.toggleAutosave);
-  const currentProject = useFlowStore((state: any) => state.currentProject);
-  const nodes = useFlowStore((state: any) => state.nodes);
-  const edges = useFlowStore((state: any) => state.edges);
-  const isSimulating = useFlowStore((state: any) => state.isSimulating);
-  const setSimulation = useFlowStore((state: any) => state.setSimulation);
-  const isMonitoringOpen = useFlowStore((state: any) => state.isMonitoringOpen);
-  const setMonitoringOpen = useFlowStore((state: any) => state.setMonitoringOpen);
-  const isMonitoringDetached = useFlowStore((state: any) => state.isMonitoringDetached);
-  const isSidebarVisible = useFlowStore((state: any) => state.isSidebarVisible);
-  const isRightSidebarVisible = useFlowStore((state: any) => state.isRightSidebarVisible);
-  const isAutofocusEnabled = useFlowStore((state: any) => state.isAutofocusEnabled);
-  const setSidebarVisible = useFlowStore((state: any) => state.setSidebarVisible);
-  const setRightSidebarVisible = useFlowStore((state: any) => state.setRightSidebarVisible);
-  const toggleAutofocus = useFlowStore((state: any) => state.toggleAutofocus);
-  const setLogModalOpen = useFlowStore((state: any) => state.setLogModalOpen);
+  const colorMode = useFlowStore((state: FlowState) => state.colorMode);
+  const toggleColorMode = useFlowStore((state: FlowState) => state.toggleColorMode);
+  const isAutosaveEnabled = useFlowStore((state: FlowState) => state.isAutosaveEnabled);
+  const toggleAutosave = useFlowStore((state: FlowState) => state.toggleAutosave);
+  const currentProject = useFlowStore((state: FlowState) => state.currentProject);
+  const nodes = useFlowStore((state: FlowState) => state.nodes);
+  const edges = useFlowStore((state: FlowState) => state.edges);
+  const isSimulating = useFlowStore((state: FlowState) => state.isSimulating);
+  const setSimulation = useFlowStore((state: FlowState) => state.setSimulation);
+  const isMonitoringOpen = useFlowStore((state: FlowState) => state.isMonitoringOpen);
+  const setMonitoringOpen = useFlowStore((state: FlowState) => state.setMonitoringOpen);
+  const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
+  const isSidebarVisible = useFlowStore((state: FlowState) => state.isSidebarVisible);
+  const isRightSidebarVisible = useFlowStore((state: FlowState) => state.isRightSidebarVisible);
+  const isAutofocusEnabled = useFlowStore((state: FlowState) => state.isAutofocusEnabled);
+  const setSidebarVisible = useFlowStore((state: FlowState) => state.setSidebarVisible);
+  const setRightSidebarVisible = useFlowStore((state: FlowState) => state.setRightSidebarVisible);
+  const toggleAutofocus = useFlowStore((state: FlowState) => state.toggleAutofocus);
+  const setLogModalOpen = useFlowStore((state: FlowState) => state.setLogModalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -174,7 +174,7 @@ export const MenuBar = ({
         {menuItems.map((menu) => (
           <MenuBarDropdown
             key={menu.label}
-            menu={menu as any}
+            menu={menu}
             activeMenu={activeMenu}
             setActiveMenu={setActiveMenu}
             colorMode={colorMode}
