@@ -25,6 +25,59 @@ interface UpdateInfo {
   releaseUrl: string;
 }
 
+const UpdateStatus: React.FC<{
+  isChecking: boolean;
+  updateInfo: UpdateInfo | null;
+  appVersion: string;
+  colorMode: string;
+}> = ({ isChecking, updateInfo, appVersion, colorMode }) => {
+  const containerClass = cn(
+    "mb-8 p-3 rounded border text-[12px]",
+    colorMode === 'dark' ? "bg-[#1e1f22] border-[#393b40]" : "bg-gray-50 border-gray-200"
+  );
+  const textClass = colorMode === 'dark' ? "text-gray-400" : "text-gray-500";
+
+  if (isChecking) {
+    return (
+      <div className={containerClass}>
+        <p className={textClass}>Checking for updates...</p>
+      </div>
+    );
+  }
+
+  if (!updateInfo) {
+    return (
+      <div className={containerClass}>
+        <p className="text-red-400">Failed to check for updates</p>
+      </div>
+    );
+  }
+
+  if (updateInfo.updateAvailable) {
+    return (
+      <div className={containerClass}>
+        <div className="flex flex-col gap-2">
+          <p className="text-blue-500 font-medium">New version available: v{updateInfo.latestVersion}</p>
+          <a
+            href={updateInfo.releaseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-blue-400 hover:underline"
+          >
+            View on GitHub <ExternalLink size={12} />
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={containerClass}>
+      <p className={textClass}>You are up to date (v{appVersion})</p>
+    </div>
+  );
+};
+
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const [appVersion, setAppVersion] = useState('0.1.0');
@@ -38,14 +91,14 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     async function fetchData() {
       try {
-        const info = await GetSystemInfo() as unknown as SystemInfo;
+        const info = await GetSystemInfo();
         setSystemInfo(info);
         if (info.version) {
           setAppVersion(info.version);
         }
 
         setIsCheckingUpdate(true);
-        const update = await CheckForUpdates(info.version || appVersion) as unknown as UpdateInfo;
+        const update = await CheckForUpdates(info.version || appVersion);
         setUpdateInfo(update);
       } catch (error) {
         logger.error("Failed to fetch info:", error);
@@ -169,32 +222,12 @@ ${appCopyright}`;
                     </p>
 
                     {/* Update Info */}
-                    <div className={cn(
-                      "mb-8 p-3 rounded border text-[12px]",
-                      colorMode === 'dark' ? "bg-[#1e1f22] border-[#393b40]" : "bg-gray-50 border-gray-200"
-                    )}>
-                      {isCheckingUpdate ? (
-                        <p className={colorMode === 'dark' ? "text-gray-400" : "text-gray-500"}>Checking for updates...</p>
-                      ) : updateInfo ? (
-                        updateInfo.updateAvailable ? (
-                          <div className="flex flex-col gap-2">
-                            <p className="text-blue-500 font-medium">New version available: v{updateInfo.latestVersion}</p>
-                            <a
-                              href={updateInfo.releaseUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-blue-400 hover:underline"
-                            >
-                              View on GitHub <ExternalLink size={12} />
-                            </a>
-                          </div>
-                        ) : (
-                          <p className={colorMode === 'dark' ? "text-gray-400" : "text-gray-500"}>You are up to date (v{appVersion})</p>
-                        )
-                      ) : (
-                        <p className="text-red-400">Failed to check for updates</p>
-                      )}
-                    </div>
+                    <UpdateStatus
+                      isChecking={isCheckingUpdate}
+                      updateInfo={updateInfo}
+                      appVersion={appVersion}
+                      colorMode={colorMode}
+                    />
 
                     {/* Actions */}
                     <div className="flex items-center mt-4">
