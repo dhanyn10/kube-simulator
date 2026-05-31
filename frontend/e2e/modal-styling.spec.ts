@@ -1,16 +1,18 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Modal Styling and Behavior', () => {
+  const openModal = async (page: any, name: string) => {
+    await page.getByRole('button', { name: 'Resource', exact: true }).click();
+    await page.locator(`button:has-text("${name}")`).click();
+  };
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('app-title')).toBeVisible({ timeout: 15000 });
   });
 
   test('Modals should not have blur or dim effects', async ({ page }) => {
-    // Open Resource Manager
-    await page.getByRole('button', { name: 'Resource', exact: true }).click();
-    // Wait for dropdown and click Resource Manager
-    await page.locator('button:has-text("Resource Manager")').click();
+    await openModal(page, 'Resource Manager');
 
     const modal = page.locator('dialog[open]');
     await expect(modal).toBeVisible();
@@ -24,9 +26,7 @@ test.describe('Modal Styling and Behavior', () => {
   });
 
   test('Modals should not contain forbidden text', async ({ page }) => {
-    // Open Resource Manager
-    await page.getByRole('button', { name: 'Resource', exact: true }).click();
-    await page.locator('button:has-text("Resource Manager")').click();
+    await openModal(page, 'Resource Manager');
 
     // Verify absence of "JetBrains" and "WebStorm"
     const bodyText = await page.innerText('body');
@@ -35,8 +35,7 @@ test.describe('Modal Styling and Behavior', () => {
   });
 
   test('Modals should close on clicking outside (backdrop)', async ({ page }) => {
-    await page.getByRole('button', { name: 'Resource', exact: true }).click();
-    await page.locator('button:has-text("Resource Manager")').click();
+    await openModal(page, 'Resource Manager');
 
     const modal = page.locator('dialog[open]');
     await expect(modal).toBeVisible();
@@ -49,8 +48,7 @@ test.describe('Modal Styling and Behavior', () => {
   });
 
   test('Scenario Modal should also have clean styling', async ({ page }) => {
-    await page.getByRole('button', { name: 'Resource', exact: true }).click();
-    await page.locator('button:has-text("Scenarios")').click();
+    await openModal(page, 'Scenarios');
 
     const modal = page.locator('dialog[open]');
     await expect(modal).toBeVisible();
