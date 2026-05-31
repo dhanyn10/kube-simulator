@@ -441,7 +441,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const [projectName, setProjectName] = useState('');
   const [newCustomImage, setNewCustomImage] = useState('');
   
-  // Settings Tab selection (WebStorm style)
+  // Settings Tab selection
   const [activeTab, setActiveTab] = useState<'projects' | 'docker' | 'local'>('projects');
   // Left sidebar settings filter search
   const [sidebarSearch, setSidebarSearch] = useState('');
@@ -560,7 +560,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     setNewCustomImage('');
   };
 
-  // JetBrains-style sidebar categories with search filtering
+  // Sidebar categories with search filtering
   const sidebarItems = [
     { id: 'projects', label: 'Saved Architectures', icon: FolderOpen },
     { id: 'docker', label: 'Docker Hub Registry', icon: Database },
@@ -589,12 +589,12 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
       maxHeightClass="max-h-[85vh]"
       footer={
         <div className="flex justify-between items-center w-full px-1 text-[10px] text-slate-500 font-medium font-mono">
-          <span>JetBrains WebStorm 2026 Settings Paradigm</span>
+          <span>Architecture & Resources Management</span>
           <span>SQLite & Zustand Store Synced</span>
         </div>
       }
     >
-      {/* WebStorm-style Settings Pane Layout */}
+      {/* Settings Pane Layout */}
       <div className="flex h-[460px] -mx-5 -my-5 overflow-hidden">
         
         {/* LEFT COLUMN: Sleek Settings Navigation Sidebar */}
@@ -602,7 +602,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
           "w-[220px] flex flex-col border-r h-full p-3 select-none shrink-0",
           colorMode === 'dark' ? "bg-slate-950/40 border-slate-800" : "bg-slate-50 border-slate-200"
         )}>
-          {/* WebStorm Settings Search Input */}
+          {/* Settings Search Input */}
           <div className="relative mb-3">
             <Search size={12} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
             <input

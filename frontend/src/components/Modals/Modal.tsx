@@ -14,8 +14,6 @@ interface ModalProps {
   footer?: React.ReactNode;
   widthClass?: string;
   maxHeightClass?: string;
-  showBlur?: boolean;
-  showOverlay?: boolean;
   alignClass?: string;
   disableScroll?: boolean;
 }
@@ -31,8 +29,6 @@ export const Modal = ({
   footer,
   widthClass = "w-[600px]",
   maxHeightClass = "max-h-[85vh]",
-  showBlur = true,
-  showOverlay = true,
   alignClass = "items-center",
   disableScroll = false
 }: ModalProps) => {
@@ -55,16 +51,12 @@ export const Modal = ({
       open
       className={cn(
         "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden",
-        alignClass,
-        showBlur && "backdrop-blur-sm"
+        alignClass
       )}
     >
       {/* Backdrop button for accessibility to handle clicks outside */}
       <button
-        className={cn(
-          "fixed inset-0 w-full h-full cursor-default outline-none",
-          showOverlay ? "bg-black/60" : "bg-transparent"
-        )}
+        className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent"
         onClick={onClose}
         aria-hidden="true"
         tabIndex={-1}

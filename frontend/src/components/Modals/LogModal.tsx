@@ -160,8 +160,6 @@ export const LogModal: React.FC = () => {
     <Modal
       isOpen={isOpen}
       onClose={() => setOpen(false)}
-      showBlur={false}
-      showOverlay={false}
       alignClass="items-start pt-20"
       title="Console Logs"
       subtitle="History of application events"

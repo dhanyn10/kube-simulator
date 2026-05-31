@@ -39,7 +39,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent border-none w-full h-full"
     >
       <button
-        className="fixed inset-0 w-full h-full cursor-default outline-none bg-black/40 backdrop-blur-[2px]"
+        className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent"
         onClick={onClose}
         aria-hidden="true"
         tabIndex={-1}

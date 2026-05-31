@@ -23,10 +23,14 @@ test.describe('Persistence & Projects', () => {
 
     // 3. Reload and Load
     // Try to close any open panels (Manager or Config)
-    const closeButtons = page.locator('button:has(svg.lucide-x)');
-    if (await closeButtons.count() > 0) {
-        await closeButtons.first().click();
+    // The transparent backdrop might intercept clicks on the X button if not careful
+    // or the test might be hitting the wrong close button.
+    // Let's close the modal specifically.
+    const modalXButton = page.locator('dialog[open] button[aria-label="Close"]');
+    if (await modalXButton.isVisible()) {
+        await modalXButton.click();
     }
+
     await page.reload();
     await expect(page.locator('.react-flow__node-Pod')).not.toBeVisible();
 
