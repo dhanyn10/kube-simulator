@@ -47,7 +47,7 @@ export const calculateReachability = (
     if (!outgoing) continue;
 
     for (const e of outgoing) {
-      if (activeEdgesSet.has(String(e.id))) {
+      if (activeEdgesSet.has(String(e.id)) && !e.data?.validationError) {
         queue.push(String(e.target));
       }
     }

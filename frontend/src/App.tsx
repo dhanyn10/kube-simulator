@@ -62,6 +62,7 @@ const edgeTypes = {
 const defaultEdgeOptions = {
   type: 'custom',
   interactionWidth: 20,
+  reconnectable: 'target' as const,
 };
 
 export default function App() {

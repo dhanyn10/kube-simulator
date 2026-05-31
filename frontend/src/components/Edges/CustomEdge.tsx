@@ -1,5 +1,5 @@
 import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath, useReactFlow } from '@xyflow/react';
-import { Settings, Trash2 } from 'lucide-react';
+import { Settings, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
@@ -32,7 +32,7 @@ export default function CustomEdge({
 
   // Recursive error check to see if this edge leads to a failure
   const checkErrorState = () => {
-    if (!isSimulating) return false;
+    if (!isSimulating || validationError) return false;
 
     const visited = new Set<string>();
     const queue = [target];
@@ -67,9 +67,11 @@ export default function CustomEdge({
     return false;
   };
 
+  const validationError = data?.validationError as string | undefined;
   const isTargetError = checkErrorState();
 
   const getStrokeColor = () => {
+    if (validationError) return globalEdgeErrorColor;
     if (isTargetError) return globalEdgeErrorColor;
     return globalEdgeColor;
   };
@@ -111,17 +113,28 @@ export default function CustomEdge({
         }} 
       />
       
-      {selected && (
-        <EdgeLabelRenderer>
-          <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
-              pointerEvents: 'all',
-              zIndex: 1000,
-            }}
-            className="flex flex-col items-center gap-2"
-          >
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            pointerEvents: 'all',
+            zIndex: 1000,
+          }}
+          className="flex flex-col items-center gap-2"
+        >
+          {validationError && (
+            <div className="group relative flex items-center justify-center">
+              <div className="bg-red-500 text-white p-1 rounded-full shadow-lg animate-pulse cursor-help">
+                <AlertCircle size={16} />
+              </div>
+              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-[1100]">
+                {validationError}
+              </div>
+            </div>
+          )}
+
+          {selected && (
             <div className="flex gap-1 bg-white dark:bg-slate-800 p-1.5 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
               <button
                 className={cn(
@@ -143,9 +156,9 @@ export default function CustomEdge({
                 <Trash2 size={14} />
               </button>
             </div>
-          </div>
-        </EdgeLabelRenderer>
-      )}
+          )}
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }

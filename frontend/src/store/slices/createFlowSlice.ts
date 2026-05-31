@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react';
 import { FlowState } from '../types';
 import { K8sNodeData } from '../../types';
+import { getConnectionError } from '../../constants/connections';
 
 export interface FlowSlice {
   nodes: Node[];
@@ -20,6 +21,7 @@ export interface FlowSlice {
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
   onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
+  validateEdge: (edge: Edge) => Edge;
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
@@ -125,8 +127,24 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       edges: applyEdgeChanges(changes, state.edges),
     }));
   },
+  validateEdge: (edge: Edge) => {
+    const { nodes } = get();
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+
+    if (!sourceNode || !targetNode) return edge;
+
+    const error = getConnectionError(sourceNode.type || '', targetNode.type || '');
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        validationError: error
+      }
+    };
+  },
   onConnect: (connection: Connection) => {
-    const { nodes, updateNodeData } = get();
+    const { nodes, updateNodeData, validateEdge } = get();
     const sourceNode = nodes.find(n => n.id === connection.source);
     const targetNode = nodes.find(n => n.id === connection.target);
 
@@ -141,13 +159,26 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       }
     }
 
+    const newEdge = validateEdge({
+      ...connection,
+      id: `e${connection.source}-${connection.target}-${Date.now()}`,
+      type: 'custom',
+      source: connection.source!,
+      target: connection.target!,
+    } as Edge);
+
     set((state) => ({
-      edges: addEdge({ ...connection, type: 'custom' }, state.edges),
+      edges: addEdge(newEdge, state.edges),
     }));
   },
   onReconnect: (oldEdge: Edge, newConnection: Connection) => {
-    const { edges } = get();
-    const newEdges = edges.map((e) => (e.id === oldEdge.id ? { ...e, ...newConnection } : e));
+    const { edges, validateEdge } = get();
+    const newEdges = edges.map((e) => {
+      if (e.id === oldEdge.id) {
+        return validateEdge({ ...e, ...newConnection });
+      }
+      return e;
+    });
     set({ edges: newEdges });
   },
   setNodes: (nodes: Node[]) => set({ nodes }),
