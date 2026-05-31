@@ -2,8 +2,6 @@
 
 Kube Simulator is a powerful, interactive visual designer for Kubernetes infrastructure. Built with **Wails**, **Go**, and **React**, it allows developers and DevOps engineers to architect complex Kubernetes environments with a drag-and-drop interface and instantly generate valid manifests.
 
-![Kube Simulator Logo](frontend/src/assets/logo.svg)
-
 ---
 
 ## ✨ Features
@@ -45,7 +43,7 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
 
 ### Prerequisites
 - [Go](https://go.dev/) 1.25+
-- [Node.js](https://nodejs.org/) 24+
+- [Node.js](https://nodejs.org/) 22+
 - [pnpm](https://pnpm.io/)
 - [Wails CLI](https://wails.io/docs/gettingstarted/installation)
 
