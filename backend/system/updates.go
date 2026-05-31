@@ -29,13 +29,10 @@ type UpdateInfo struct {
 	IsPrerelease    bool   `json:"isPrerelease"`
 }
 
-func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	// Fetch all recent releases to distinguish between stable and pre-release
+func fetchReleases() ([]GitHubRelease, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases", RepoOwner, RepoName)
+
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
@@ -43,45 +40,38 @@ func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return &UpdateInfo{
-			CurrentVersion: currentVersion,
-		}, fmt.Errorf("failed to fetch releases: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
 	}
 
 	var releases []GitHubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
 		return nil, err
 	}
+	return releases, nil
+}
 
-	if len(releases) == 0 {
-		return &UpdateInfo{
-			CurrentVersion: currentVersion,
-		}, nil
-	}
-
-	// GitHub returns releases sorted by created_at descending.
-	// We want the absolute latest (could be pre-release) or just the latest stable.
-	// For now, let's find the first non-draft release.
-	var latest GitHubRelease
-	found := false
+func findLatestRelease(releases []GitHubRelease) (GitHubRelease, bool) {
 	for _, r := range releases {
 		if !r.Draft {
-			latest = r
-			found = true
-			break
+			return r, true
 		}
 	}
+	return GitHubRelease{}, false
+}
 
+func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
+	releases, err := fetchReleases()
+	if err != nil {
+		return &UpdateInfo{CurrentVersion: currentVersion}, fmt.Errorf("failed to fetch releases: %w", err)
+	}
+
+	latest, found := findLatestRelease(releases)
 	if !found {
-		return &UpdateInfo{
-			CurrentVersion: currentVersion,
-		}, nil
+		return &UpdateInfo{CurrentVersion: currentVersion}, nil
 	}
 
 	latestVersion := strings.TrimPrefix(latest.TagName, "v")
 	cleanCurrent := strings.TrimPrefix(currentVersion, "v")
-
-	// If current version is empty, we definitely should show an update is available
 	updateAvailable := currentVersion == "" || isNewer(latestVersion, cleanCurrent)
 
 	return &UpdateInfo{
@@ -93,48 +83,44 @@ func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
 	}, nil
 }
 
-func isNewer(latest, current string) bool {
-	if current == "" {
-		return latest != ""
-	}
-
-	// Simple semantic versioning comparison (ignoring build metadata for now)
-	// Split by '-' to handle pre-release suffixes like 1.0.0-beta
-	lParts := strings.Split(latest, "-")
-	cParts := strings.Split(current, "-")
-
-	lVer := strings.Split(lParts[0], ".")
-	cVer := strings.Split(cParts[0], ".")
-
-	// Compare numeric segments
+func compareNumericVersions(lVer, cVer []string) (int, bool) {
 	for i := 0; i < len(lVer) || i < len(cVer); i++ {
-		lv := 0
+		lv, cv := 0, 0
 		if i < len(lVer) {
 			lv, _ = strconv.Atoi(lVer[i])
 		}
-		cv := 0
 		if i < len(cVer) {
 			cv, _ = strconv.Atoi(cVer[i])
 		}
 
 		if lv > cv {
-			return true
+			return 1, true
 		}
 		if lv < cv {
-			return false
+			return -1, true
 		}
+	}
+	return 0, false
+}
+
+func isNewer(latest, current string) bool {
+	if current == "" {
+		return latest != ""
+	}
+
+	lParts := strings.Split(latest, "-")
+	cParts := strings.Split(current, "-")
+
+	if res, ok := compareNumericVersions(strings.Split(lParts[0], "."), strings.Split(cParts[0], ".")); ok {
+		return res > 0
 	}
 
 	// If numeric segments are equal, a release without a suffix is newer than one with a suffix
-	// e.g., 1.0.0 is newer than 1.0.0-beta
-	if len(lParts) == 1 && len(cParts) > 1 {
-		return true
-	}
-	if len(lParts) > 1 && len(cParts) == 1 {
-		return false
+	if len(lParts) != len(cParts) {
+		return len(lParts) < len(cParts)
 	}
 
-	// If both have suffixes, compare them lexicographically (simplification)
+	// If both have suffixes, compare them lexicographically
 	if len(lParts) > 1 && len(cParts) > 1 {
 		return lParts[1] > cParts[1]
 	}
