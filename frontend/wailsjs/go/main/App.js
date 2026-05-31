@@ -6,6 +6,10 @@ export function CalculateAppHeight(arg1) {
   return window['go']['main']['App']['CalculateAppHeight'](arg1);
 }
 
+export function CheckForUpdates(arg1) {
+  return window['go']['main']['App']['CheckForUpdates'](arg1);
+}
+
 export function CloseWindow() {
   return window['go']['main']['App']['CloseWindow']();
 }
