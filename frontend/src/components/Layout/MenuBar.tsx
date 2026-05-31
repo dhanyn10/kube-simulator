@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
 import { validateHpaTargets } from '../../store/slices/simulationManager';
+import { startTour } from '../../lib/tour';
 import { BrowserOpenURL } from '@wailsjs/runtime/runtime';
 
 interface MenuBarProps {
@@ -136,6 +137,7 @@ export const MenuBar = ({
       {
         label: 'Help',
         items: [
+          { label: 'Take a Tour', icon: PlayCircle, onClick: () => startTour(colorMode) },
           { label: 'About', icon: Info, onClick: onOpenAbout },
           { label: 'Report Issue', icon: Bug, onClick: () => BrowserOpenURL('https://github.com/dhanyn10/kube-simulator/issues') },
         ]

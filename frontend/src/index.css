@@ -108,3 +108,79 @@
     }
   }
 }
+
+
+/* Shepherd.js Theme Customization */
+.shepherd-element {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  max-width: 400px;
+  border: 1px solid #e2e8f0;
+}
+
+.shepherd-header {
+  background: transparent;
+  padding: 16px 16px 0;
+}
+
+.shepherd-title {
+  color: #1e293b;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.shepherd-text {
+  color: #475569;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  padding: 12px 16px;
+}
+
+.shepherd-footer {
+  padding: 0 16px 16px;
+  gap: 8px;
+}
+
+.shepherd-cancel-icon {
+  color: #94a3b8;
+  font-size: 1.5rem;
+}
+
+.shepherd-cancel-icon:hover {
+  color: #475569;
+}
+
+/* Shepherd Dark Theme */
+.shepherd-theme-dark.shepherd-element {
+  background: #1e293b; /* slate-800 */
+  border-color: #334155; /* slate-700 */
+  color: #f1f5f9;
+}
+
+.shepherd-theme-dark .shepherd-title {
+  color: #f8fafc;
+}
+
+.shepherd-theme-dark .shepherd-text {
+  color: #cbd5e1;
+}
+
+.shepherd-theme-dark .shepherd-cancel-icon {
+  color: #64748b;
+}
+
+.shepherd-theme-dark .shepherd-cancel-icon:hover {
+  color: #94a3b8;
+}
+
+/* Arrow customization */
+.shepherd-arrow:before {
+  background: white;
+}
+
+.shepherd-theme-dark .shepherd-arrow:before {
+  background: #1e293b;
+}
