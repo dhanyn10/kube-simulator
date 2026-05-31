@@ -1,8 +1,8 @@
 import { logger } from '../../lib/logger';
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { GetSystemInfo } from '../../../wailsjs/go/main/App';
-import { X as CloseIcon } from 'lucide-react';
+import { GetSystemInfo, CheckForUpdates } from '../../../wailsjs/go/main/App';
+import { X as CloseIcon, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 
@@ -15,28 +15,49 @@ interface SystemInfo {
   os: string;
   arch: string;
   goVersion: string;
+  version: string;
+}
+
+interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  releaseUrl: string;
 }
 
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
-  const [appVersion] = useState('0.1.0');
+  const [appVersion, setAppVersion] = useState('0.1.0');
   const [appName] = useState('Kube Simulator');
   const [appCopyright] = useState('Copyright 2024');
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    async function fetchSystemInfo() {
+    async function fetchData() {
       try {
         const info = await GetSystemInfo() as unknown as SystemInfo;
         setSystemInfo(info);
+        if (info.version) {
+          setAppVersion(info.version);
+        }
+
+        setIsCheckingUpdate(true);
+        const update = await CheckForUpdates(info.version || appVersion) as unknown as UpdateInfo;
+        setUpdateInfo(update);
       } catch (error) {
-        logger.error("Failed to fetch system info:", error);
+        logger.error("Failed to fetch info:", error);
+      } finally {
+        setIsCheckingUpdate(false);
       }
     }
 
-    fetchSystemInfo();
-  }, []);
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen, appVersion]);
 
   const handleCopy = async () => {
     const textToCopy = `${appName} ${appVersion}
@@ -143,9 +164,37 @@ ${appCopyright}`;
                       </p>
                     </div>
 
-                    <p className={cn("mb-8", colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>
+                    <p className={cn("mb-6", colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>
                       {appCopyright}
                     </p>
+
+                    {/* Update Info */}
+                    <div className={cn(
+                      "mb-8 p-3 rounded border text-[12px]",
+                      colorMode === 'dark' ? "bg-[#1e1f22] border-[#393b40]" : "bg-gray-50 border-gray-200"
+                    )}>
+                      {isCheckingUpdate ? (
+                        <p className={colorMode === 'dark' ? "text-gray-400" : "text-gray-500"}>Checking for updates...</p>
+                      ) : updateInfo ? (
+                        updateInfo.updateAvailable ? (
+                          <div className="flex flex-col gap-2">
+                            <p className="text-blue-500 font-medium">New version available: v{updateInfo.latestVersion}</p>
+                            <a
+                              href={updateInfo.releaseUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-400 hover:underline"
+                            >
+                              View on GitHub <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        ) : (
+                          <p className={colorMode === 'dark' ? "text-gray-400" : "text-gray-500"}>You are up to date (v{appVersion})</p>
+                        )
+                      ) : (
+                        <p className="text-red-400">Failed to check for updates</p>
+                      )}
+                    </div>
 
                     {/* Actions */}
                     <div className="flex items-center mt-4">

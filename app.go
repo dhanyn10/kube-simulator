@@ -342,6 +342,7 @@ func (a *App) GetSystemInfo() map[string]string {
 		"os":        runtime.GOOS,
 		"arch":      runtime.GOARCH,
 		"goVersion": runtime.Version(),
+		"version":   "0.1.0",
 	}
 }
 
@@ -351,4 +352,13 @@ func (a *App) GetSystemResources() map[string]interface{} {
 
 func (a *App) GenerateYaml(nodesJson, edgesJson string) string {
 	return yaml_gen.Generate(nodesJson, edgesJson)
+}
+
+func (a *App) CheckForUpdates(currentVersion string) *system.UpdateInfo {
+	info, err := system.CheckForUpdates(currentVersion)
+	if err != nil {
+		logger.Error("Failed to check for updates: %v", err)
+		return nil
+	}
+	return info
 }
