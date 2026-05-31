@@ -335,10 +335,13 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   ];
 
   return (
-    <div className={cn(
-      "w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden",
-      colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-    )}>
+    <div
+      id="right-sidebar"
+      className={cn(
+        "w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden",
+        colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+      )}
+    >
       <SidebarTabBar
         activeTab={activeTab}
         setActiveTab={setActiveTab}

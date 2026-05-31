@@ -103,6 +103,14 @@ export default function App() {
   const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
   const setConfiguringEdgeId = useFlowStore((state) => state.setConfiguringEdgeId);
 
+  useEffect(() => {
+    if (colorMode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [colorMode]);
+
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
@@ -294,7 +302,7 @@ export default function App() {
           />
         )}
 
-        <main className="flex-1 relative">
+        <main className="flex-1 relative" id="canvas-main">
         <ReactFlow
           nodes={nodes}
           edges={edges}

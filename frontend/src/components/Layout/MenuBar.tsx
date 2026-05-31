@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, HelpCircle } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
+import { startWelcomeTour } from '../../lib/tour';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
@@ -136,6 +137,7 @@ export const MenuBar = ({
       {
         label: 'Help',
         items: [
+          { label: 'Take a Tour', icon: HelpCircle, onClick: startWelcomeTour },
           { label: 'About', icon: Info, onClick: onOpenAbout },
           { label: 'Report Issue', icon: Bug, onClick: () => BrowserOpenURL('https://github.com/dhanyn10/kube-simulator/issues') },
         ]

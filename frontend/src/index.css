@@ -107,4 +107,65 @@
       stroke-dashoffset: 0;
     }
   }
+
+  /* Intro.js Custom Styling */
+  .introjs-tooltip {
+    background-color: #ffffff !important;
+    color: #1e1f22 !important;
+  }
+
+  .introjs-button {
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Dark Mode specific */
+  .dark .introjs-tooltip {
+    background-color: #2b2d30 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #4b4d51 !important;
+  }
+
+  .dark .introjs-tooltiptext,
+  .dark .introjs-tooltip-title {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .introjs-arrow.top {
+    border-bottom-color: #2b2d30 !important;
+  }
+
+  .dark .introjs-arrow.bottom {
+    border-top-color: #2b2d30 !important;
+  }
+
+  .dark .introjs-arrow.left {
+    border-right-color: #2b2d30 !important;
+  }
+
+  .dark .introjs-arrow.right {
+    border-left-color: #2b2d30 !important;
+  }
+
+  .dark .introjs-button {
+    background-color: #393b40 !important;
+    color: #ffffff !important;
+    border: 1px solid #4b4d51 !important;
+  }
+
+  .dark .introjs-button:hover {
+    background-color: #4b4d51 !important;
+  }
+
+  .dark .introjs-skipbutton {
+    color: #94a3b8 !important;
+  }
+
+  .dark .introjs-progress {
+    background-color: #393b40 !important;
+  }
+
+  .dark .introjs-progressbar {
+    background-color: #3b82f6 !important;
+  }
 }
