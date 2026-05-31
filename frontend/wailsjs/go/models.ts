@@ -99,18 +99,18 @@ export namespace frontend {
 }
 
 export namespace system {
-
+	
 	export class UpdateInfo {
 	    currentVersion: string;
 	    latestVersion: string;
 	    updateAvailable: boolean;
 	    releaseUrl: string;
 	    isPrerelease: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdateInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.currentVersion = source["currentVersion"];
@@ -122,3 +122,4 @@ export namespace system {
 	}
 
 }
+

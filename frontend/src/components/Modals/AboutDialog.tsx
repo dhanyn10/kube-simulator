@@ -90,7 +90,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const [appVersion, setAppVersion] = useState('0.1.0');
   const [appName] = useState('Kube Simulator');
-  const [appCopyright] = useState('Copyright 2024');
+  const [appCopyright] = useState('Copyright 2026');
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -100,13 +100,19 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     async function fetchData() {
       try {
         const info = await GetSystemInfo();
-        setSystemInfo(info);
-        if (info.version) {
-          setAppVersion(info.version);
+        const sys: SystemInfo = {
+          os: (info as any).os ?? '',
+          arch: (info as any).arch ?? '',
+          goVersion: (info as any).goVersion ?? '',
+          version: (info as any).version ?? '',
+        };
+        setSystemInfo(sys);
+        if (sys.version) {
+          setAppVersion(sys.version);
         }
 
         setIsCheckingUpdate(true);
-        const update = await CheckForUpdates(info.version || appVersion);
+        const update = await CheckForUpdates(sys.version || appVersion);
         setUpdateInfo(update);
       } catch (error) {
         logger.error("Failed to fetch info:", error);
