@@ -15,7 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 
 import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
-import { AlignmentGuides, ContextMenu } from './components/UI';
+import { AlignmentGuides, ContextMenu, ResourceManager } from './components/UI';
 import { HistoryPanel, MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import { YamlModal, ScenarioModal, LogModal, AboutDialog } from './components/Modals';
 import {
@@ -402,6 +402,8 @@ export default function App() {
 
           {/* Render the AboutDialog */}
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
+
+          <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 
           <LogToast />
           <LogModal />

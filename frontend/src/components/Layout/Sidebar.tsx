@@ -204,8 +204,6 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
           </div>
         )}
       </div>
-
-      <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
     </div>
   );
 };
