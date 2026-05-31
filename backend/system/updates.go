@@ -43,7 +43,9 @@ func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch releases: status %d", resp.StatusCode)
+		return &UpdateInfo{
+			CurrentVersion: currentVersion,
+		}, fmt.Errorf("failed to fetch releases: status %d", resp.StatusCode)
 	}
 
 	var releases []GitHubRelease

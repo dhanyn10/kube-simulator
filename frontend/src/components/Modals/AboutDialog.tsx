@@ -49,12 +49,12 @@ const UpdateStatus: React.FC<{
   if (!updateInfo) {
     return (
       <div className={containerClass}>
-        <p className="text-red-400">Failed to check for updates</p>
+        <p className="text-red-400">Gagal memeriksa pembaruan</p>
       </div>
     );
   }
 
-  if (updateInfo.updateAvailable) {
+  if (updateInfo.updateAvailable && updateInfo.latestVersion) {
     return (
       <div className={containerClass}>
         <div className="flex flex-col gap-2">
@@ -81,7 +81,7 @@ const UpdateStatus: React.FC<{
 
   return (
     <div className={containerClass}>
-      <p className={textClass}>You are up to date (v{appVersion})</p>
+      <p className={textClass}>Versi sudah terbaru (v{appVersion})</p>
     </div>
   );
 };
