@@ -97,7 +97,7 @@ export const AdvancedSection = ({ children, colorMode }: { children: React.React
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="mt-4">
+    <div className="pt-1">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(

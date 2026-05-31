@@ -1,7 +1,7 @@
 
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
-import { Layers, Activity } from 'lucide-react';
+import { Activity, Layers } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { ConfigSection, ConfigLabel, NumberStepper, RangeInput, AdvancedSection } from '../UI/ConfigUI';
 import { SelectorGroup } from '../UI/SelectorGroup';
@@ -59,9 +59,9 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
   const status = getStatusInfo();
 
   return (
-    <div className="space-y-3 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+    <div className="space-y-4 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
       {/* Validation Status */}
-      <div className={cn("p-2 rounded border mb-2 flex items-center gap-2", status.container)}>
+      <div className={cn("p-2 rounded border flex items-center gap-2", status.container)}>
         <div className={cn("w-2 h-2 rounded-full animate-pulse", status.dot)} />
         <span className="text-[10px] font-bold">
           {status.text}
@@ -69,7 +69,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
       </div>
 
       {!hasRequests && connectedEdge && (
-        <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-tight mb-2">
+        <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-tight">
           HPA requires CPU/Memory requests on the target Deployment to function in real-world clusters.
           <button 
             onClick={() => {
@@ -88,7 +88,8 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
       )}
 
       <AdvancedSection colorMode={colorMode}>
-        <div className="space-y-6">
+        <div className="space-y-8 mt-2">
+          {/* Replicas Range */}
           <ConfigSection
             title="Replicas Range"
             icon={Layers}
@@ -97,9 +98,9 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             isYamlEnabled={data.yamlSettings?.replicas}
             onYamlToggle={() => toggleYaml('replicas')}
           >
-            <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4 mt-3">
               <div className="space-y-1.5">
-                <ConfigLabel className="text-[8px] font-normal opacity-80">Min Replicas</ConfigLabel>
+                <ConfigLabel className="text-[8px] font-normal opacity-70 uppercase tracking-wider">Min</ConfigLabel>
                 <NumberStepper
                   value={data.minReplicas || 1}
                   onChange={(val: number) => performUpdate({ minReplicas: val })}
@@ -107,7 +108,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
                 />
               </div>
               <div className="space-y-1.5">
-                <ConfigLabel className="text-[8px] font-normal opacity-80">Max Replicas</ConfigLabel>
+                <ConfigLabel className="text-[8px] font-normal opacity-70 uppercase tracking-wider">Max</ConfigLabel>
                 <NumberStepper
                   value={data.maxReplicas || 1}
                   onChange={(val: number) => performUpdate({ maxReplicas: val })}
@@ -117,40 +118,40 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
             </div>
           </ConfigSection>
 
-        {[
-          { field: 'targetCPU', label: 'Target CPU (%)', icon: Activity },
-          { field: 'targetMemory', label: 'Target Mem (%)', icon: Activity }
-        ].map((item) => (
-          <ConfigSection
-            key={item.field}
-            title={item.label}
-            icon={item.icon}
-            isVisible={data.displaySettings?.[item.field]}
-            onToggle={() => toggleVisibility(item.field)}
-            isYamlEnabled={data.yamlSettings?.[item.field]}
-            onYamlToggle={() => toggleYaml(item.field)}
-            disableYamlToggle={!data[item.field as keyof K8sNodeData]}
-          >
-            <div className="space-y-4 mt-2">
-              <SelectorGroup
-                options={[
-                  { label: '20%', value: '20' },
-                  { label: '50%', value: '50' },
-                  { label: '80%', value: '80' }
-                ]}
-                currentValue={String(data[item.field as keyof K8sNodeData])}
-                onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
-                colorMode={colorMode}
-                activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
-              />
-              <RangeInput
-                value={data[item.field as keyof K8sNodeData] || 50}
-                onChange={(val: number) => performUpdate({ [item.field]: val })}
-                min={10} max={90} step={5}
-              />
-            </div>
-          </ConfigSection>
-        ))}
+          {[
+            { field: 'targetCPU', label: 'Target CPU (%)', icon: Activity },
+            { field: 'targetMemory', label: 'Target Mem (%)', icon: Activity }
+          ].map((item) => (
+            <ConfigSection
+              key={item.field}
+              title={item.label}
+              icon={item.icon}
+              isVisible={data.displaySettings?.[item.field]}
+              onToggle={() => toggleVisibility(item.field)}
+              isYamlEnabled={data.yamlSettings?.[item.field]}
+              onYamlToggle={() => toggleYaml(item.field)}
+              disableYamlToggle={!data[item.field as keyof K8sNodeData]}
+            >
+              <div className="space-y-4 mt-3">
+                <SelectorGroup
+                  options={[
+                    { label: '20%', value: '20' },
+                    { label: '50%', value: '50' },
+                    { label: '80%', value: '80' }
+                  ]}
+                  currentValue={String(data[item.field as keyof K8sNodeData])}
+                  onSelect={(val) => performUpdate({ [item.field]: Number(val) })}
+                  colorMode={colorMode}
+                  activeColorClass="bg-fuchsia-600 border-fuchsia-600 text-white"
+                />
+                <RangeInput
+                  value={data[item.field as keyof K8sNodeData] || 50}
+                  onChange={(val: number) => performUpdate({ [item.field]: val })}
+                  min={10} max={90} step={5}
+                />
+              </div>
+            </ConfigSection>
+          ))}
         </div>
       </AdvancedSection>
     </div>
