@@ -186,3 +186,10 @@
 .dark .shepherd-arrow:before {
   background: var(--color-slate-900) !important;
 }
+
+/* Highlight target element with dashed border */
+.shepherd-target.shepherd-enabled {
+  outline: 2px dashed var(--color-mat-blue) !important;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
