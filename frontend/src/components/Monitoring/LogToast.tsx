@@ -17,6 +17,7 @@ export const LogToast: React.FC = () => {
 
   return (
     <div
+      id="log-toast"
       className={cn(
         'fixed bottom-6 left-6 z-[9999] flex items-center gap-4 pl-4 pr-2 py-2 rounded-lg shadow-2xl border animate-in slide-in-from-left-4 duration-300',
         colorMode === 'dark'

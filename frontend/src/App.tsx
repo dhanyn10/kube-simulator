@@ -40,6 +40,7 @@ import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useFitView } from './hooks/useFitView';
+import { useThemeSync } from './hooks/useThemeSync';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -66,6 +67,7 @@ const defaultEdgeOptions = {
 };
 
 export default function App() {
+  useThemeSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
@@ -294,7 +296,7 @@ export default function App() {
           />
         )}
 
-        <main className="flex-1 relative">
+        <main id="canvas-main" className="flex-1 relative">
         <ReactFlow
           nodes={nodes}
           edges={edges}

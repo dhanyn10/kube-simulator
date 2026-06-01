@@ -156,10 +156,13 @@ export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarP
   const onDragEnd = () => setDraggingSidebarItem(null);
 
   return (
-    <div className={cn(
-      "w-64 border-r flex flex-col h-full shrink-0 z-10 transition-colors",
-      colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-    )}>
+    <div
+      id="sidebar-components"
+      className={cn(
+        "w-64 border-r flex flex-col h-full shrink-0 z-10 transition-colors",
+        colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+      )}
+    >
       <div className={cn("p-5 border-b flex flex-col gap-4", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
         <div className="flex items-center justify-between">
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>

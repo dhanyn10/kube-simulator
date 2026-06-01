@@ -38,10 +38,14 @@ export const SimulationControls = ({
   };
 
   return (
-    <div className={cn(
-      "flex items-center rounded-lg border p-0.5 shadow-sm",
-      colorMode === 'dark' ? "bg-slate-900/50 border-slate-700/50" : "bg-white border-slate-200"
-    )} style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+    <div
+      id="simulation-controls"
+      className={cn(
+        "flex items-center rounded-lg border p-0.5 shadow-sm",
+        colorMode === 'dark' ? "bg-slate-900/50 border-slate-700/50" : "bg-white border-slate-200"
+      )}
+      style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}
+    >
       <button
         onClick={() => setSimulation(!isSimulating)}
         disabled={!hasInternet}
