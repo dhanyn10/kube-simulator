@@ -189,7 +189,21 @@
 
 /* Highlight target element with dashed border */
 .shepherd-target.shepherd-enabled {
-  outline: 2px dashed var(--color-mat-blue) !important;
-  outline-offset: 4px;
-  border-radius: 4px;
+  position: relative !important;
+}
+
+.shepherd-target.shepherd-enabled::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 2px dashed var(--color-mat-blue);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 50; /* Ensure it's above most content but below modals */
+}
+
+/* Specific adjustment for large elements like canvas to make it look like a frame */
+#canvas-main.shepherd-enabled::before {
+  inset: 12px;
+  border-radius: 12px;
 }
