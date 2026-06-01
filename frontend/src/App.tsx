@@ -40,6 +40,7 @@ import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useFitView } from './hooks/useFitView';
+import { useThemeSync } from './hooks/useThemeSync';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -66,6 +67,7 @@ const defaultEdgeOptions = {
 };
 
 export default function App() {
+  useThemeSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 

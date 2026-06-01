@@ -179,9 +179,10 @@
 
 /* Arrow customization */
 .shepherd-arrow:before {
-  background: white;
+  background: white !important;
 }
 
-.shepherd-theme-dark .shepherd-arrow:before {
-  background: var(--color-slate-900);
+.shepherd-theme-dark .shepherd-arrow:before,
+.dark .shepherd-arrow:before {
+  background: var(--color-slate-900) !important;
 }
