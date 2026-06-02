@@ -34,4 +34,46 @@ describe('createFlowSlice', () => {
     const validatedEdge = slice.validateEdge(edge as any);
     expect(validatedEdge.data.validationError).toBe('Internet cannot be connected to Namespace.');
   });
+
+  it('should handle onConnect with HPA and Deployment', () => {
+    const updateNodeData = vi.fn();
+    const validateEdge = vi.fn((e) => e);
+    get.mockReturnValue({
+      nodes: [
+        { id: 'h1', type: 'HPA', data: {} },
+        { id: 'd1', type: 'Deployment', data: {} }
+      ],
+      updateNodeData,
+      validateEdge,
+      edges: []
+    });
+
+    const slice = createFlowSlice(set, get, {} as any);
+    const connection = { source: 'h1', target: 'd1', sourceHandle: 'h-s', targetHandle: 'd-t' };
+
+    slice.onConnect(connection);
+
+    expect(updateNodeData).toHaveBeenCalledWith('d1', {
+      cpuRequest: '100m',
+      memoryRequest: '128Mi'
+    });
+    expect(set).toHaveBeenCalled();
+  });
+
+  it('should handle onReconnect', () => {
+    const validateEdge = vi.fn((e) => e);
+    get.mockReturnValue({
+      edges: [{ id: 'e1', source: 's1', target: 't1' }],
+      validateEdge
+    });
+
+    const slice = createFlowSlice(set, get, {} as any);
+    slice.onReconnect({ id: 'e1' } as any, { source: 's1', target: 't2' } as any);
+
+    expect(set).toHaveBeenCalledWith({
+        edges: expect.arrayContaining([
+            expect.objectContaining({ id: 'e1', target: 't2' })
+        ])
+    });
+  });
 });

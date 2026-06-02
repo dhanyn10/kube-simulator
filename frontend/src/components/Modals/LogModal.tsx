@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFlowStore } from '../../store';
 import { Modal } from './Modal';
-import { Bell, Trash2, AlertCircle, AlertTriangle, Clock, Info, Search, CheckSquare, Square, ChevronDown, MinusSquare, ChevronRight } from 'lucide-react';
+import { Bell, Trash2, AlertCircle, AlertTriangle, Info, Search, CheckSquare, Square, ChevronDown, MinusSquare } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 type FilterType = 'all' | 'error' | 'warn' | 'info';
@@ -273,7 +273,7 @@ export const LogModal: React.FC = () => {
           {filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
               <Bell size={48} strokeWidth={1} />
-              <p>{searchQuery ? "No logs matching your search." : "No logs recorded in this category."}</p>
+              <p data-testid="no-logs-message">{searchQuery ? "No logs matching your search." : "No logs recorded in this category."}</p>
             </div>
           ) : (
             filteredLogs.map((log) => {

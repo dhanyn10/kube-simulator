@@ -49,7 +49,7 @@ test.describe('Error Reporting Feature', () => {
     await clearAll.click({ force: true });
 
     // Use a more flexible search for empty state
-    await expect(page.locator('text=No logs').first()).toBeVisible();
+    await expect(page.getByTestId('no-logs-message')).toBeVisible();
     await expect(page.locator('button:has-text("Open")').first()).not.toBeVisible();
   });
 

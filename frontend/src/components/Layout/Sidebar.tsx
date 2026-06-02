@@ -108,7 +108,7 @@ const SidebarSection = ({
   );
 };
 
-export const Sidebar = ({ onAddNode, isProjectOpen, setIsProjectOpen }: SidebarProps) => {
+export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const [searchTerm, setSearchTerm] = useState('');
