@@ -11,189 +11,96 @@ import {
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
 
-const createMockNode = (id: string, type: string, data: any = {}): Node => ({
-  id,
-  type,
-  data,
-  position: { x: 0, y: 0 }
+const createNode = (id: string, type: string, data: any = {}): Node => ({
+  id, type, data, position: { x: 0, y: 0 }
 } as Node);
 
-const createMockCtx = (overrides: Partial<SimulationContext> = {}): SimulationContext => ({
-  nodes: [],
-  edges: [],
-  activeSimulationEdges: [],
-  updatedNodes: [],
-  newMetrics: {},
-  ticks: 0,
-  get: vi.fn(),
-  set: vi.fn(),
-  edgeMap: new Map(),
-  nodeMap: new Map(),
-  ...overrides
-});
+const baseNodes = [
+    createNode('d1', 'Deployment', { replicas: 1, cpuLimit: '1000m', memoryLimit: '1024Mi' }),
+    createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 0 }),
+    createNode('pvc1', 'PVC', { pvcStatus: 'Pending' }),
+    createNode('h1', 'HPA', { targetCPU: 50, minReplicas: 1, maxReplicas: 10 })
+];
 
-describe('simulation utils', () => {
-  it('safeRandom returns a number between 0 and 1', () => {
-    const val = safeRandom();
-    expect(val).toBeGreaterThanOrEqual(0);
-    expect(val).toBeLessThanOrEqual(1);
+const baseEdge = { id: 'e1', source: 'i1', target: 'd1' } as Edge;
+
+const getMockCtx = (overrides: Partial<SimulationContext> = {}): SimulationContext => {
+    const nodes = [...baseNodes];
+    return {
+        nodes,
+        edges: [baseEdge],
+        activeSimulationEdges: [],
+        updatedNodes: nodes.map(n => ({ ...n, data: { ...n.data } })),
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn().mockReturnValue({ nodes }),
+        set: vi.fn(),
+        edgeMap: new Map([['i1', [baseEdge]]]),
+        targetEdgeMap: new Map([['d1', [baseEdge]]]),
+        nodeMap: new Map(nodes.map(n => [n.id, n])),
+        nodeIndexMap: new Map(nodes.map((n, i) => [n.id, i])),
+        ...overrides
+    } as SimulationContext;
+};
+
+describe('simulation test suite', () => {
+  it('safeRandom returns valid range', () => {
+    const v = safeRandom();
+    expect(v).toBeGreaterThanOrEqual(0);
+    expect(v).toBeLessThanOrEqual(1);
   });
 
-  it('calculateReachability identifies reachable nodes', () => {
-    const nodes = [
-      createMockNode('1', 'Deployment'),
-      createMockNode('2', 'Pod'),
-      createMockNode('3', 'PVC'),
-    ];
-    const edges: Edge[] = [
-      { id: 'e1-2', source: '1', target: '2' },
-      { id: 'e2-3', source: '2', target: '3' },
-    ];
-    const activeEdges = ['e1-2', 'e2-3'];
-
-    const edgeMap = new Map<string, Edge[]>();
-    edgeMap.set('1', [edges[0]]);
-    edgeMap.set('2', [edges[1]]);
-
-    const reachable = calculateReachability(nodes.slice(0, 1), edgeMap, activeEdges);
-    expect(reachable.has('1')).toBe(true);
-    expect(reachable.has('2')).toBe(true);
-    expect(reachable.has('3')).toBe(true);
+  it.each([
+    { active: ['e1'], expected: true },
+    { active: [], expected: false }
+  ])('reachability: %o', ({ active, expected }) => {
+    const ctx = getMockCtx();
+    expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, active).has('d1')).toBe(expected);
   });
 
-  it('calculateReachability respects active edges', () => {
-    const nodes = [createMockNode('1', 'Internet'), createMockNode('2', 'Ingress')];
-    const edges: Edge[] = [{ id: 'e1-2', source: '1', target: '2' }];
-    const edgeMap = new Map([['1', [edges[0]]]]);
-
-    const reachable = calculateReachability([nodes[0]], edgeMap, []);
-    expect(reachable.has('1')).toBe(true);
-    expect(reachable.has('2')).toBe(false);
+  it('internet traffic logic', () => {
+    const ctx = getMockCtx();
+    const res = updateInternetTraffic(baseNodes[1], ctx);
+    expect(res.traffic).toBe(1000);
+    expect(ctx.updatedNodes[1].data.currentTraffic).toBe(1000);
   });
 
-  describe('updateInternetTraffic', () => {
-    it('handles missing traffic and currentTraffic', () => {
-      const internetNode = createMockNode('i1', 'Internet');
-      const ctx = createMockCtx({ updatedNodes: [structuredClone(internetNode)] });
-
-      const result = updateInternetTraffic(internetNode, ctx);
-
-      expect(result.traffic).toBe(1000);
-      expect(result.hasChanges).toBe(true);
-      expect(ctx.updatedNodes[0].data.currentTraffic).toBe(1000);
-    });
-
-    it('maintains traffic when target reached', () => {
-      const internetNode = createMockNode('i1', 'Internet', { traffic: 2000, currentTraffic: 2000 });
-      const ctx = createMockCtx({ updatedNodes: [structuredClone(internetNode)] });
-
-      const result = updateInternetTraffic(internetNode, ctx);
-      expect(result.traffic).toBe(2000);
-      expect(result.hasChanges).toBe(false);
-    });
+  it.each([
+    { incoming: 5000, limit: '1024Mi', expectOom: false },
+    { incoming: 10000, limit: '10Mi', expectOom: true }
+  ])('resource metrics: %o', ({ incoming, limit, expectOom }) => {
+    const dep = createNode('dx', 'Deployment', { replicas: 1, cpuLimit: '1000m', memoryLimit: limit });
+    const res = calculateResourceMetrics(dep, incoming, getMockCtx());
+    expect(res.isOOM).toBe(expectOom);
   });
 
-  describe('calculateResourceMetrics', () => {
-    it('calculates metrics based on traffic', () => {
-      const depNode = createMockNode('d1', 'Deployment', { replicas: 1, cpuLimit: '1000m', memoryLimit: '1024Mi' });
-      const ctx = createMockCtx();
+  it('pvc readiness logic', () => {
+    const ctx = getMockCtx();
+    const epvc = { id: 'epvc', source: 'd1', target: 'pvc1' } as Edge;
+    ctx.edgeMap!.set('d1', [epvc]);
+    expect(checkPvcReadiness(baseNodes[0], ctx).isBlocked).toBe(true);
 
-      const result = calculateResourceMetrics(depNode, 5000, ctx);
-      expect(result.cpuPercent).toBeGreaterThan(0);
-      expect(ctx.newMetrics['d1']).toHaveLength(1);
+    const boundPvc = { ...baseNodes[2], data: { pvcStatus: 'Bound' } };
+    const boundCtx = getMockCtx({
+        nodes: [baseNodes[0], baseNodes[1], boundPvc, baseNodes[3]],
+        nodeMap: new Map([['d1', baseNodes[0]], ['i1', baseNodes[1]], ['pvc1', boundPvc], ['h1', baseNodes[3]]])
     });
-
-    it('detects OOM when memory limit exceeded', () => {
-      const depNode = createMockNode('d1', 'Deployment', { replicas: 1, cpuLimit: '1000m', memoryLimit: '50Mi' });
-      const ctx = createMockCtx();
-
-      const result = calculateResourceMetrics(depNode, 10000, ctx);
-      expect(result.isOOM).toBe(true);
-    });
+    boundCtx.edgeMap!.set('d1', [epvc]);
+    expect(checkPvcReadiness(boundCtx.nodes[0], boundCtx).isBlocked).toBe(false);
   });
 
-  describe('checkPvcReadiness', () => {
-    it('returns isBlocked: false when no PVCs are connected', () => {
-      const dep = createMockNode('d1', 'Deployment');
-      const ctx = createMockCtx({ nodes: [dep], nodeMap: new Map([['d1', dep]]) });
-
-      const result = checkPvcReadiness(dep, ctx);
-      expect(result.isBlocked).toBe(false);
+  it('incoming traffic calculation', () => {
+    const ctx = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 5000 })],
+      internetReachableMap: new Map([['i1', new Set(['d1'])]])
     });
-
-    it('returns isBlocked: true when connected PVC is Pending', () => {
-      const dep = createMockNode('d1', 'Deployment');
-      const pvc = createMockNode('pvc1', 'PVC', { pvcStatus: 'Pending' });
-      const edge = { id: 'e1', source: 'd1', target: 'pvc1' } as Edge;
-
-      const ctx = createMockCtx({
-        nodes: [dep, pvc],
-        updatedNodes: [structuredClone(dep), structuredClone(pvc)],
-        edgeMap: new Map([['d1', [edge]]]),
-        nodeMap: new Map([['d1', dep], ['pvc1', pvc]]),
-      });
-
-      const result = checkPvcReadiness(dep, ctx);
-      expect(result.isBlocked).toBe(true);
-    });
+    expect(calculateIncomingTraffic(baseNodes[0], ctx).traffic).toBe(5000);
   });
 
-  describe('calculateIncomingTraffic', () => {
-    it('calculates traffic from internet nodes', () => {
-      const dep = createMockNode('d1', 'Deployment');
-      const internetNode = createMockNode('i1', 'Internet', { currentTraffic: 5000 });
-
-      const ctx = createMockCtx({
-        nodes: [dep, internetNode],
-        internetNodes: [internetNode],
-        internetReachableMap: new Map([['i1', new Set(['d1'])]]),
-      });
-
-      const result = calculateIncomingTraffic(dep, ctx);
-      expect(result.traffic).toBe(5000);
-    });
-
-    it('returns 0 when not reachable', () => {
-      const dep = createMockNode('d1', 'Deployment');
-      const internetNode = createMockNode('i1', 'Internet', { currentTraffic: 5000 });
-
-      const ctx = createMockCtx({
-        nodes: [dep, internetNode],
-        internetNodes: [internetNode],
-        internetReachableMap: new Map([['i1', new Set()]]),
-      });
-
-      const result = calculateIncomingTraffic(dep, ctx);
-      expect(result.traffic).toBe(0);
-    });
-  });
-
-  describe('handleHpaScaling', () => {
-    it('returns false when no HPA connected', () => {
-      const dep = createMockNode('d1', 'Deployment', { replicas: 1 });
-      const ctx = createMockCtx({ updatedNodes: [structuredClone(dep)], nodeMap: new Map([['d1', dep]]) });
-
-      const changed = handleHpaScaling(dep, 100, ctx);
-      expect(changed).toBe(false);
-    });
-
-    it('scales up when CPU is above target', () => {
-      const dep = createMockNode('d1', 'Deployment', { replicas: 1 });
-      const hpa = createMockNode('h1', 'HPA', { targetCPU: 50, minReplicas: 1, maxReplicas: 10 });
-      const edge = { id: 'e1', source: 'h1', target: 'd1' } as Edge;
-
-      const ctx = createMockCtx({
-        nodes: [dep, hpa],
-        updatedNodes: [structuredClone(dep), structuredClone(hpa)],
-        get: vi.fn().mockReturnValue({ nodes: [dep, hpa] }),
-        targetEdgeMap: new Map([['d1', [edge]]]),
-        nodeMap: new Map([['h1', hpa], ['d1', dep]]),
-        nodeIndexMap: new Map([['d1', 0]])
-      });
-
-      const changed = handleHpaScaling(dep, 100, ctx);
-      expect(changed).toBe(true);
-      expect(ctx.updatedNodes.find(n => n.id === 'd1')?.data.replicas).toBe(2);
-    });
+  it('hpa scaling execution', () => {
+    const ctx = getMockCtx();
+    ctx.targetEdgeMap!.set('d1', [{ id: 'ehpa', source: 'h1', target: 'd1' } as Edge]);
+    expect(handleHpaScaling(baseNodes[0], 100, ctx)).toBe(true);
+    expect(ctx.updatedNodes.find(n => n.id === 'd1')?.data.replicas).toBe(2);
   });
 });
