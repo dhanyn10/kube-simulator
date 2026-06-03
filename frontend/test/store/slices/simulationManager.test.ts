@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { validateHpaTargets, stopSimulation } from '@/store/slices/simulationManager';
+import { validateHpaTargets, stopSimulation, checkEmergencyStop, broadcastMetrics } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
@@ -68,6 +68,51 @@ describe('simulationManager', () => {
           expect.objectContaining({ data: expect.objectContaining({ pvcStatus: 'Pending' }) })
         ])
       }));
+    });
+  });
+
+  describe('checkEmergencyStop', () => {
+    it('returns false if ticks <= 3', () => {
+        const result = checkEmergencyStop({
+          ticks: 2,
+          workloads: [],
+          metrics: {}
+        } as any);
+        expect(result).toBe(false);
+    });
+
+    it('returns true and stops simulation if all pods pending', () => {
+        const set = vi.fn();
+        const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
+        const nodes = [
+            { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
+        ];
+        const metrics = { 'd1': [{ cpuValue: 100 }] };
+        const interval = { current: setInterval(() => {}, 1000) as any };
+
+        const result = checkEmergencyStop({
+            ticks: 5,
+            workloads,
+            nodes,
+            metrics,
+            set,
+            simulationInterval: interval
+        } as any);
+
+        expect(result).toBe(true);
+        expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
+        expect(interval.current).toBeNull();
+    });
+  });
+
+  describe('broadcastMetrics', () => {
+    it('calls runtime and channel', () => {
+        globalThis.go = { main: { App: {} } } as any;
+        const mockEmit = vi.fn();
+        (globalThis as any).runtime = { EventsEmit: mockEmit };
+
+        broadcastMetrics({ 'd1': [] }, [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node]);
+        expect(mockEmit).toHaveBeenCalledWith('metrics-update', expect.any(String));
     });
   });
 });

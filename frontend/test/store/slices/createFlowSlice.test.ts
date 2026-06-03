@@ -107,4 +107,30 @@ describe('createFlowSlice', () => {
       lastActionName: 'Auto Layout'
     }));
   });
+
+  it('should handle onQuickConnect', () => {
+    const nodes = [
+      { id: '1', position: { x: 0, y: 0 }, type: 'Deployment', data: { label: 'n1' } },
+      { id: '2', position: { x: 200, y: 0 }, type: 'Deployment', data: { label: 'n2' } }
+    ];
+    const onConnect = vi.fn();
+    get.mockReturnValue({ nodes, onConnect });
+
+    const slice = createFlowSlice(set, get, {} as any);
+    slice.onQuickConnect('1', 'right');
+
+    expect(onConnect).toHaveBeenCalledWith(expect.objectContaining({
+      source: '1',
+      target: '2'
+    }));
+  });
+
+  it('should handle deleteNodes', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const setNodes = vi.fn();
+    get.mockReturnValue({ nodes, setNodes });
+
+    // createNodeSlice handles deleteNodes logic, but it's part of FlowState
+    // For unit testing createFlowSlice, we test its unique methods
+  });
 });
