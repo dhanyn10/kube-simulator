@@ -234,7 +234,7 @@ export default function App() {
             y: minY,
             width: maxX - minX,
             height: maxY - minY
-          }, { padding: 0.2, duration: 800, maxZoom: 1.4 });
+          }, { padding: 0.2, duration: 800 });
         }
       }
     },

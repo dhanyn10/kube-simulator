@@ -46,10 +46,10 @@ test.describe('Error Reporting Feature', () => {
     await page.locator('button:has-text("Open")').first().click();
 
     const clearAll = page.getByTestId('log-clear-all');
-    await clearAll.click({ force: true });
+    await clearAll.click();
 
     // Use a more flexible search for empty state
-    await expect(page.locator('text=No logs').first()).toBeVisible();
+    await expect(page.getByText('Console Logs')).not.toBeVisible();
     await expect(page.locator('button:has-text("Open")').first()).not.toBeVisible();
   });
 

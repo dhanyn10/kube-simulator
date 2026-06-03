@@ -94,6 +94,7 @@ export interface FlowState {
   onEdgesChange: (changes: EdgeChange[]) => void;
   onConnect: (connection: Connection) => void;
   onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
+  validateEdge: (edge: Edge) => Edge;
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
 
