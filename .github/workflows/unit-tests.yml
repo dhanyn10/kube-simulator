@@ -1,9 +1,9 @@
 name: Frontend Unit Tests
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -29,4 +29,10 @@ jobs:
       run: pnpm --prefix frontend install
 
     - name: Run Unit tests
-      run: pnpm --prefix frontend test
+      run: pnpm --prefix frontend vitest run --coverage
+
+    - name: Upload Frontend Coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-coverage
+        path: frontend/coverage/lcov.info
