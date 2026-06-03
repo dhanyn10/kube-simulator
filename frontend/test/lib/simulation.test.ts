@@ -3,7 +3,10 @@ import {
   calculateReachability,
   updateInternetTraffic,
   SimulationContext,
-  calculateResourceMetrics
+  calculateResourceMetrics,
+  checkPvcReadiness,
+  calculateIncomingTraffic,
+  handleHpaScaling
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
@@ -131,6 +134,144 @@ describe('simulation utils', () => {
       // Traffic 10000 -> memValue ~ ((10000/1000)*128/1) + 100 = 1380 Mi
       const result = calculateResourceMetrics(depNode, 10000, ctx);
       expect(result.isOOM).toBe(true);
+    });
+  });
+
+  describe('checkPvcReadiness', () => {
+    it('returns isBlocked: false when no PVCs are connected', () => {
+      const dep: Node = { id: 'd1', type: 'Deployment', data: {}, position: { x: 0, y: 0 } } as Node;
+      const ctx: SimulationContext = {
+        nodes: [dep],
+        edges: [],
+        activeSimulationEdges: [],
+        updatedNodes: [],
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn(),
+        set: vi.fn(),
+        edgeMap: new Map(),
+        nodeMap: new Map([['d1', dep]])
+      };
+
+      const result = checkPvcReadiness(dep, ctx);
+      expect(result.isBlocked).toBe(false);
+    });
+
+    it('returns isBlocked: true when connected PVC is Pending', () => {
+      const dep: Node = { id: 'd1', type: 'Deployment', data: {}, position: { x: 0, y: 0 } } as Node;
+      const pvc: Node = { id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Pending' }, position: { x: 0, y: 0 } } as Node;
+      const edge: Edge = { id: 'e1', source: 'd1', target: 'pvc1' };
+
+      const ctx: SimulationContext = {
+        nodes: [dep, pvc],
+        edges: [edge],
+        activeSimulationEdges: [],
+        updatedNodes: [structuredClone(dep), structuredClone(pvc)],
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn(),
+        set: vi.fn(),
+        edgeMap: new Map([['d1', [edge]]]),
+        nodeMap: new Map([['d1', dep], ['pvc1', pvc]]),
+        childPodMap: new Map()
+      };
+
+      const result = checkPvcReadiness(dep, ctx);
+      expect(result.isBlocked).toBe(true);
+    });
+  });
+
+  describe('calculateIncomingTraffic', () => {
+    it('calculates traffic from internet nodes', () => {
+      const dep: Node = { id: 'd1', type: 'Deployment', data: {}, position: { x: 0, y: 0 } } as Node;
+      const internetNode: Node = { id: 'i1', type: 'Internet', data: { currentTraffic: 5000 }, position: { x: 0, y: 0 } } as Node;
+
+      const ctx: SimulationContext = {
+        nodes: [dep, internetNode],
+        edges: [],
+        activeSimulationEdges: [],
+        updatedNodes: [],
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn(),
+        set: vi.fn(),
+        internetNodes: [internetNode],
+        internetReachableMap: new Map([['i1', new Set(['d1'])]]),
+        childPodMap: new Map()
+      };
+
+      const result = calculateIncomingTraffic(dep, ctx);
+      expect(result.traffic).toBe(5000);
+    });
+
+    it('returns 0 when not reachable', () => {
+      const dep: Node = { id: 'd1', type: 'Deployment', data: {}, position: { x: 0, y: 0 } } as Node;
+      const internetNode: Node = { id: 'i1', type: 'Internet', data: { currentTraffic: 5000 }, position: { x: 0, y: 0 } } as Node;
+
+      const ctx: SimulationContext = {
+        nodes: [dep, internetNode],
+        edges: [],
+        activeSimulationEdges: [],
+        updatedNodes: [],
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn(),
+        set: vi.fn(),
+        internetNodes: [internetNode],
+        internetReachableMap: new Map([['i1', new Set()]]),
+        childPodMap: new Map()
+      };
+
+      const result = calculateIncomingTraffic(dep, ctx);
+      expect(result.traffic).toBe(0);
+    });
+  });
+
+  describe('handleHpaScaling', () => {
+    it('returns false when no HPA connected', () => {
+      const dep: Node = { id: 'd1', type: 'Deployment', data: { replicas: 1 }, position: { x: 0, y: 0 } } as Node;
+      const ctx: SimulationContext = {
+        nodes: [dep],
+        edges: [],
+        activeSimulationEdges: [],
+        updatedNodes: [structuredClone(dep)],
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn(),
+        set: vi.fn(),
+        targetEdgeMap: new Map(),
+        nodeMap: new Map([['d1', dep]])
+      };
+
+      const changed = handleHpaScaling(dep, 100, ctx);
+      expect(changed).toBe(false);
+    });
+
+    it('scales up when CPU is above target', () => {
+      const dep: Node = { id: 'd1', type: 'Deployment', data: { replicas: 1 }, position: { x: 0, y: 0 } } as Node;
+      const hpa: Node = { id: 'h1', type: 'HPA', data: { targetCPU: 50, minReplicas: 1, maxReplicas: 10 }, position: { x: 0, y: 0 } } as Node;
+      const edge: Edge = { id: 'e1', source: 'h1', target: 'd1' };
+
+      const ctx: SimulationContext = {
+        nodes: [dep, hpa],
+        edges: [edge],
+        activeSimulationEdges: [],
+        updatedNodes: [structuredClone(dep), structuredClone(hpa)],
+        newMetrics: {},
+        ticks: 0,
+        get: vi.fn().mockReturnValue({ nodes: [dep, hpa] }),
+        set: vi.fn(),
+        targetEdgeMap: new Map([['d1', [edge]]]),
+        nodeMap: new Map([['h1', hpa], ['d1', dep]]),
+        nodeIndexMap: new Map([['d1', 0], ['h1', 1]])
+      };
+
+      // cpuPercent = 100, target = 50 -> ratio = 2 -> desired = 2
+      const changed = handleHpaScaling(dep, 100, ctx);
+      expect(changed).toBe(true);
+      // The deployment node in updatedNodes should now have replicas: 2
+      const updatedDep = ctx.updatedNodes.find(n => n.id === 'd1');
+      expect(updatedDep?.data.replicas).toBe(2);
     });
   });
 });

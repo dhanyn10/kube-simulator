@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { validateHpaTargets } from '@/store/slices/simulationManager';
+import { describe, it, expect, vi } from 'vitest';
+import { validateHpaTargets, stopSimulation } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
@@ -48,6 +48,26 @@ describe('simulationManager', () => {
       ];
 
       expect(validateHpaTargets(nodes, edges)).toBe(false);
+    });
+  });
+
+  describe('stopSimulation', () => {
+    it('resets simulation state', () => {
+      const set = vi.fn();
+      const get = vi.fn().mockReturnValue({
+        nodes: [{ id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Bound' } }]
+      });
+      const interval = { current: setInterval(() => {}, 1000) as any };
+
+      stopSimulation(set, get, interval);
+
+      expect(interval.current).toBeNull();
+      expect(set).toHaveBeenCalledWith(expect.objectContaining({
+        isSimulating: false,
+        nodes: expect.arrayContaining([
+          expect.objectContaining({ data: expect.objectContaining({ pvcStatus: 'Pending' }) })
+        ])
+      }));
     });
   });
 });

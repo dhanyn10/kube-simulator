@@ -271,9 +271,9 @@ export const LogModal: React.FC = () => {
         {/* Log list */}
         <div className="space-y-0.5 overflow-y-auto pr-2 custom-scrollbar max-h-[50vh]">
           {filteredLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3">
+            <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3" data-testid="no-logs-container">
               <Bell size={48} strokeWidth={1} />
-              <p data-testid="no-logs-message">{searchQuery ? "No logs matching your search." : "No logs recorded in this category."}</p>
+              <p>{searchQuery ? "No logs matching your search." : "No logs recorded in this category."}</p>
             </div>
           ) : (
             filteredLogs.map((log) => {

@@ -76,4 +76,35 @@ describe('createFlowSlice', () => {
         ])
     });
   });
+
+  it('should handle onNodesChange for position with groupId', () => {
+    const nodes = [
+      { id: '1', position: { x: 10, y: 10 }, data: { groupId: 'g1' } },
+      { id: '2', position: { x: 100, y: 100 }, data: { groupId: 'g1' } }
+    ];
+    get.mockReturnValue({ nodes });
+
+    const slice = createFlowSlice(set, get, {} as any);
+    const changes = [{ id: '1', type: 'position', position: { x: 20, y: 20 } }];
+
+    slice.onNodesChange(changes as any);
+
+    expect(set).toHaveBeenCalled();
+  });
+
+  it('should run autoLayout', () => {
+    const nodes = [
+      { id: '1', position: { x: 0, y: 0 }, data: { label: 'n1' } },
+      { id: '2', position: { x: 0, y: 0 }, data: { label: 'n2' } }
+    ];
+    const edges = [{ id: 'e1', source: '1', target: '2' }];
+    get.mockReturnValue({ nodes, edges });
+
+    const slice = createFlowSlice(set, get, {} as any);
+    slice.autoLayout('LR');
+
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({
+      lastActionName: 'Auto Layout'
+    }));
+  });
 });

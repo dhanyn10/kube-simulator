@@ -19,6 +19,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-coverage
+          path: .
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
         continue-on-error: true
@@ -27,6 +28,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-coverage
+          path: coverage
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
         continue-on-error: true

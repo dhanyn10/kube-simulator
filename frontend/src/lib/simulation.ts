@@ -58,7 +58,7 @@ export const calculateReachability = (
 /**
  * Handles PVC readiness logic. Pods remain pending if their connected PVCs are not Bound.
  */
-export const checkPvcReadiness = (dep: Node, ctx: SimulationContext) => {
+export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
 
@@ -136,7 +136,7 @@ export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
 /**
  * Calculates incoming traffic for a workload based on 'Internet' nodes.
  */
-export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext) => {
+export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
   let totalTraffic = 0;
 
   if (!ctx.internetNodes || !ctx.internetReachableMap) return { traffic: 0, hasChanges: false };
@@ -252,7 +252,7 @@ export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContex
 /**
  * Handles Horizontal Pod Autoscaler (HPA) scaling logic.
  */
-export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext) => {
+export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
   // Use targetEdgeMap for faster HPA lookup
   let connectedHPA: Node | undefined;
   const incoming = ctx.targetEdgeMap?.get(dep.id);
