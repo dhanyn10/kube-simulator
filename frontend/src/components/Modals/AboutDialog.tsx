@@ -98,6 +98,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     async function fetchData() {
+      setIsCheckingUpdate(true);
       try {
         const info = await GetSystemInfo();
         const sys: SystemInfo = {
@@ -111,7 +112,6 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
           setAppVersion(sys.version);
         }
 
-        setIsCheckingUpdate(true);
         const update = await CheckForUpdates(sys.version || appVersion);
         setUpdateInfo(update);
       } catch (error) {
@@ -177,6 +177,7 @@ ${appCopyright}`;
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close About"
                   className={cn(
                     "absolute top-4 right-4 transition-colors focus:outline-none",
                     colorMode === 'dark' ? "text-gray-500 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"
