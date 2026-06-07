@@ -14,6 +14,11 @@ const (
 	RepoName  = "kube-simulator"
 )
 
+var (
+	// BaseURL for API calls, can be overridden in tests
+	apiBaseURL = "https://api.github.com"
+)
+
 type GitHubRelease struct {
 	TagName    string `json:"tag_name"`
 	HTMLURL    string `json:"html_url"`
@@ -31,7 +36,7 @@ type UpdateInfo struct {
 
 func fetchReleases() ([]GitHubRelease, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases", RepoOwner, RepoName)
+	url := fmt.Sprintf("%s/repos/%s/%s/releases", apiBaseURL, RepoOwner, RepoName)
 
 	resp, err := client.Get(url)
 	if err != nil {

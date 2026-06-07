@@ -12,6 +12,8 @@ import (
 var (
 	appCtx context.Context
 	mu     sync.Mutex
+	// Added for testing purposes
+	isTest bool
 )
 
 // Init initializes the logger with the application context
@@ -44,6 +46,7 @@ func Fatal(format string, args ...interface{}) {
 func emit(level, format string, args ...interface{}) {
 	mu.Lock()
 	ctx := appCtx
+	testingMode := isTest
 	mu.Unlock()
 
 	message := fmt.Sprintf(format, args...)
@@ -53,7 +56,7 @@ func emit(level, format string, args ...interface{}) {
 	// Also print to stdout for local debugging
 	fmt.Printf("[%s] %s\n", level, message)
 
-	if ctx != nil {
+	if ctx != nil && !testingMode {
 		wailsRuntime.EventsEmit(ctx, "backend-log", map[string]string{
 			"level":   level,
 			"message": message,
