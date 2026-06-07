@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import AboutDialog from '../../../src/components/Modals/AboutDialog';
 import { useFlowStore } from '../../../src/store';
 import * as AppBindings from '../../../wailsjs/go/main/App';
-import React from 'react';
 
 // Mock Wails bindings
 vi.mock('../../../wailsjs/go/main/App', () => ({

@@ -66,7 +66,8 @@ export const LogModal: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (selectMenuRef.current && !selectMenuRef.current.contains(event.target as Node)) {
+      const target = event.target;
+      if (selectMenuRef.current && target instanceof Node && !selectMenuRef.current.contains(target)) {
         setIsSelectMenuOpen(false);
       }
     };

@@ -22,7 +22,8 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
   // Close dropdown on click outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const target = e.target;
+      if (dropdownRef.current && target instanceof Node && !dropdownRef.current.contains(target)) {
         setIsOpen(false);
       }
     };

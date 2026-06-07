@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import App from '../src/App';
 import { useFlowStore } from '../src/store';
-import React from 'react';
-import * as Utils from '../src/lib/utils';
 
 // Mock utils
 vi.mock('../src/lib/utils', async (importOriginal) => {
@@ -92,14 +90,14 @@ describe('App Component', () => {
     const originalLocation = window.location;
     // @ts-ignore
     delete window.location;
-    window.location = { ...originalLocation, search: '?mode=monitoring' };
+    window.location = ({ ...originalLocation, search: '?mode=monitoring' } as any);
 
     await act(async () => {
         render(<App />);
     });
 
     expect(screen.getByText('Real-time Monitoring')).toBeDefined();
-    window.location = originalLocation;
+    window.location = (originalLocation as any);
   });
 
   it('handles node clicks and context menu', async () => {

@@ -258,7 +258,7 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     const n1 = nodes[0];
     const n2 = nodes[1];
 
-    onConnect({ source: n1.id, target: n2.id });
+    onConnect({ source: n1.id, target: n2.id, sourceHandle: "a", targetHandle: "b" });
 
     // 2. Select both nodes
     useFlowStore.setState({
