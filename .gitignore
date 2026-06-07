@@ -29,6 +29,8 @@ yarn-error.log*
 
 # Test coverage
 /coverage
+coverage-backend.out
+coverage_output.txt
 
 # Wails specific build cache
 /frontend/build
