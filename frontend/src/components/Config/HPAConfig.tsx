@@ -88,7 +88,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
       )}
 
       <AdvancedSection colorMode={colorMode}>
-        <div className="space-y-8 mt-2">
+        <div className="space-y-8">
           {/* Replicas Range */}
           <ConfigSection
             title="Replicas Range"

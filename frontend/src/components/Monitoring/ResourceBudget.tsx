@@ -102,7 +102,7 @@ export const ResourceBudget = () => {
               <Database size={10} /> RAM Usage
             </span>
             <span className={cn(totalMemPercent + k8sMemReqPercent > 90 ? "text-red-500 font-bold" : "text-slate-400")}>
-              {systemResources.freeMemoryGB.toFixed(1)}GB
+              {systemResources?.freeMemoryGB?.toFixed?.(1) || '0.0'}GB
             </span>
           </div>
           <MultiProgressBar
@@ -117,7 +117,7 @@ export const ResourceBudget = () => {
           <div className="flex justify-between text-[7px] text-slate-500 font-mono pt-0.5 uppercase tracking-tighter">
             <span>OS: {Math.round(totalMemPercent)}%</span>
             <span>K8s Req: {formatMemory(totals.memReq)}</span>
-            <span>Free: {systemResources.freeMemoryGB.toFixed(1)}GB</span>
+            <span>Free: {systemResources?.freeMemoryGB?.toFixed?.(1) || '0.0'}GB</span>
           </div>
         </div>
       </div>

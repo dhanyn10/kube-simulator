@@ -321,7 +321,8 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   // Handle click outside for canvas dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (canvasDropdownRef.current && !canvasDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target;
+      if (canvasDropdownRef.current && target instanceof Node && !canvasDropdownRef.current.contains(target)) {
         setIsCanvasDropdownOpen(false);
       }
     };

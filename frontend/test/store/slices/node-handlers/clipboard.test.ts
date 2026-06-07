@@ -219,5 +219,108 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     expect(finalReplicaSet.data.replicas).toBe(3);
     expect(podCount).toBe(3);
   });
+
+  it('copies child Pods when a Deployment is selected', () => {
+    const { addNode, updateNodeData, copyNodes } = useFlowStore.getState();
+
+    // 1. Create a Deployment
+    addNode('Deployment', { x: 0, y: 0 });
+    let nodes = useFlowStore.getState().nodes;
+    const deployment = nodes.find(n => n.type === 'Deployment')!;
+
+    // 2. Add a child Pod
+    updateNodeData(deployment.id, { replicas: 1 });
+    nodes = useFlowStore.getState().nodes;
+    const pod = nodes.find(n => n.type === 'Pod' && n.parentId === deployment.id)!;
+
+    // 3. Select ONLY the Deployment
+    useFlowStore.setState({
+      nodes: useFlowStore.getState().nodes.map(n => n.id === deployment.id ? { ...n, selected: true } : { ...n, selected: false })
+    });
+
+    // 4. Copy
+    copyNodes();
+
+    // 5. Verify: Clipboard should contain BOTH the Deployment and the Pod
+    const clipboard = useFlowStore.getState().clipboard;
+    expect(clipboard?.nodes.length).toBe(2);
+    expect(clipboard?.nodes.find(n => n.id === deployment.id)).toBeDefined();
+    expect(clipboard?.nodes.find(n => n.id === pod.id)).toBeDefined();
+  });
+
+  it('pastes nodes and edges correctly', () => {
+    const { addNode, onConnect, copyNodes, pasteNodes } = useFlowStore.getState();
+
+    // 1. Create two nodes and an edge
+    addNode('Internet', { x: 0, y: 0 });
+    addNode('Service', { x: 100, y: 0 });
+    let nodes = useFlowStore.getState().nodes;
+    const n1 = nodes[0];
+    const n2 = nodes[1];
+
+    onConnect({ source: n1.id, target: n2.id, sourceHandle: "a", targetHandle: "b" });
+
+    // 2. Select both nodes
+    useFlowStore.setState({
+      nodes: useFlowStore.getState().nodes.map(n => ({ ...n, selected: true }))
+    });
+
+    // 3. Copy
+    copyNodes();
+
+    // 4. Paste
+    pasteNodes();
+
+    // 5. Verify: New edge should be created
+    const finalEdges = useFlowStore.getState().edges;
+    expect(finalEdges.length).toBe(2);
+    expect(finalEdges.filter(e => e.selected).length).toBe(1);
+  });
+
+  it('handles paste when clipboard is empty', () => {
+    const { pasteNodes } = useFlowStore.getState();
+    useFlowStore.setState({ clipboard: null });
+    pasteNodes();
+    expect(useFlowStore.getState().nodes.length).toBe(0);
+
+    useFlowStore.setState({ clipboard: { nodes: [], edges: [] } });
+    pasteNodes();
+    expect(useFlowStore.getState().nodes.length).toBe(0);
+  });
+
+  it('tryIncrementPodReplicas returns false when pod labels do not match', () => {
+    const { addNode, copyNodes, pasteNodes, updateNodeData } = useFlowStore.getState();
+
+    // 1. Create Pod A and Copy it
+    addNode('Pod', { x: 0, y: 0 });
+    let nodes = useFlowStore.getState().nodes;
+    const podA = nodes[0];
+    updateNodeData(podA.id, { label: 'pod-a' });
+
+    useFlowStore.setState({ nodes: useFlowStore.getState().nodes.map(n => ({ ...n, selected: true })) });
+    copyNodes();
+
+    // 2. Create Pod B and Select it (Deselect A)
+    addNode('Pod', { x: 100, y: 100 });
+    nodes = useFlowStore.getState().nodes;
+    const podB = nodes.find(n => n.id !== podA.id)!;
+    updateNodeData(podB.id, { label: 'pod-b' });
+
+    useFlowStore.setState({
+      nodes: useFlowStore.getState().nodes.map(n => ({ ...n, selected: n.id === podB.id }))
+    });
+
+    // 3. Paste. should NOT increment Pod B, but add a new copy of Pod A
+    pasteNodes();
+
+    const finalNodes = useFlowStore.getState().nodes;
+    // Pod A, Pod B, and new Copy of Pod A = 3 nodes
+    expect(finalNodes.length).toBe(3);
+    expect(finalNodes.filter(n => n.type === 'Pod').length).toBe(3);
+
+    // Verify Pod B replicas remained 1
+    const finalPodB = finalNodes.find(n => n.id === podB.id)!;
+    expect(finalPodB.data.replicas).toBe(1);
+  });
 });
 
