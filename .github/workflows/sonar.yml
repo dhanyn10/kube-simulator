@@ -1,8 +1,7 @@
 name: SonarQube Analysis
 on:
-  workflow_run:
-    workflows: ["Backend Unit Tests", "Frontend Unit Tests"]
-    types: [completed]
+  push:
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
 
@@ -10,22 +9,17 @@ jobs:
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        if: github.event_name == 'pull_request'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.x'
+          go-version: '1.24.x'
 
       - name: Run Backend Tests
-        if: github.event_name == 'pull_request'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
@@ -34,13 +28,11 @@ jobs:
           go test ./... -v -coverprofile=coverage-backend.out -json > report-backend.json
 
       - name: Setup Node.js
-        if: github.event_name == 'pull_request'
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
 
       - name: Run Frontend Tests
-        if: github.event_name == 'pull_request'
         working-directory: frontend
         run: |
           corepack enable pnpm
@@ -48,26 +40,6 @@ jobs:
           npx vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
           mkdir -p ../coverage
           cp coverage/lcov.info ../coverage/lcov.info
-
-      - name: Download Backend Coverage
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-coverage
-          path: .
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-        continue-on-error: true
-
-      - name: Download Frontend Coverage
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-coverage
-          path: coverage
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-        continue-on-error: true
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
