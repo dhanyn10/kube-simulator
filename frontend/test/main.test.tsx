@@ -84,6 +84,27 @@ describe('main.tsx entry point', () => {
     expect(addLogSpy).toHaveBeenCalledWith('error', 'test error');
   });
 
+  it('formats complex log messages correctly', async () => {
+    await import('@/main');
+
+    console.log('string', { a: 1 }, new Error('boom'));
+    const lastCall = addLogSpy.mock.calls.at(-1);
+    expect(lastCall[1]).toContain('string');
+    expect(lastCall[1]).toContain('{"a":1}');
+    expect(lastCall[1]).toContain('Error: boom');
+  });
+
+  it('handles unserializable objects in logs', async () => {
+    await import('@/main');
+
+    const circular: any = {};
+    circular.self = circular;
+
+    console.log(circular);
+    const lastCall = addLogSpy.mock.calls.at(-1);
+    expect(lastCall[1]).toBe('[Unserializable Object]');
+  });
+
   it('handles backend log events', async () => {
     await import('@/main');
 
