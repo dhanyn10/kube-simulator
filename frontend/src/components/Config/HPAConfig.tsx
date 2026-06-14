@@ -59,7 +59,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
   const status = getStatusInfo();
 
   return (
-    <div className="space-y-4 p-3 rounded-lg border border-dashed border-slate-700/50 bg-slate-500/5">
+    <div className="space-y-4">
       {/* Validation Status */}
       <div className={cn("p-2 rounded border flex items-center gap-2", status.container)}>
         <div className={cn("w-2 h-2 rounded-full animate-pulse", status.dot)} />
@@ -69,8 +69,8 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
       </div>
 
       {!hasRequests && connectedEdge && (
-        <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-tight">
-          HPA requires CPU/Memory requests on the target Deployment to function in real-world clusters.
+        <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-relaxed">
+          <p>HPA requires CPU/Memory requests on the target Deployment to function in real-world clusters.</p>
           <button 
             onClick={() => {
               if (targetDeployment) {
@@ -80,7 +80,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
                 });
               }
             }}
-            className="block mt-1 underline font-bold hover:text-amber-400"
+            className="inline-flex items-center mt-2.5 px-2 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 transition-all font-bold text-[8px] uppercase tracking-wider"
           >
             Fix automatically
           </button>

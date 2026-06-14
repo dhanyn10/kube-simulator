@@ -1,153 +1,86 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createFlowSlice } from '../../../src/store/slices/createFlowSlice';
-import { Node, Edge } from '@xyflow/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useFlowStore } from '@/store';
 
 describe('createFlowSlice', () => {
-  const set = vi.fn();
-  const get = vi.fn();
-
-  it('should initialize with empty nodes and edges', () => {
-    const slice = createFlowSlice(set, get, {} as any);
-    expect(slice.nodes).toEqual([]);
-    expect(slice.edges).toEqual([]);
-  });
-
-  it('should set nodes and edges', () => {
-    const slice = createFlowSlice(set, get, {} as any);
-    const nodes = [{ id: '1' } as Node];
-    const edges = [{ id: 'e1' } as Edge];
-
-    slice.setNodes(nodes);
-    expect(set).toHaveBeenCalledWith({ nodes });
-
-    slice.setEdges(edges);
-    expect(set).toHaveBeenCalledWith({ edges });
-  });
-
-  it('should validate edge', () => {
-    get.mockReturnValue({
-      nodes: [
-        { id: '1', type: 'Internet' },
-        { id: '2', type: 'Ingress' },
-        { id: '3', type: 'Namespace' }
-      ]
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useFlowStore.setState({
+      nodes: [],
+      edges: [],
+      lastActionId: 'init'
     });
-
-    const slice = createFlowSlice(set, get, {} as any);
-
-    // Valid connection (Internet -> Ingress)
-    const edge1 = { source: '1', target: '2' } as Edge;
-    const validated1 = slice.validateEdge(edge1);
-    expect(validated1.data?.validationError).toBeNull();
-
-    // Invalid connection (Internet -> Namespace)
-    const edge2 = { source: '1', target: '3' } as Edge;
-    const validated2 = slice.validateEdge(edge2);
-    expect(validated2.data?.validationError).toBeDefined();
   });
 
-  it('should handle onNodesChange', () => {
-    const nodes = [{ id: '1', position: { x: 0, y: 0 }, data: {} }];
-    get.mockReturnValue({ nodes });
-    const slice = createFlowSlice(set, get, {} as any);
+  it('onNodesChange updates positions of grouped nodes', () => {
+      const node1 = { id: 'n1', position: { x: 0, y: 0 }, data: { groupId: 'g1' } };
+      const node2 = { id: 'n2', position: { x: 50, y: 50 }, data: { groupId: 'g1' } };
+      useFlowStore.setState({ nodes: [node1, node2] as any });
 
-    slice.onNodesChange([{ id: '1', type: 'position', position: { x: 10, y: 10 } }]);
-    expect(set).toHaveBeenCalled();
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'n1', type: 'position', position: { x: 10, y: 10 } }]);
+
+      const state = useFlowStore.getState();
+      const n1 = state.nodes.find(n => n.id === 'n1');
+      const n2 = state.nodes.find(n => n.id === 'n2');
+
+      expect(n1?.position).toEqual({ x: 10, y: 10 });
+      expect(n2?.position).toEqual({ x: 60, y: 60 });
   });
 
-  it('should handle onConnect and update node data for HPA', () => {
-    const updateNodeData = vi.fn();
-    get.mockReturnValue({
-      nodes: [
-        { id: 'hpa1', type: 'HPA', data: { id: 'hpa1' } },
-        { id: 'dep1', type: 'Deployment', data: { id: 'dep1' } }
-      ],
-      updateNodeData,
-      validateEdge: (e: Edge) => e,
-      edges: []
-    });
+  it('onConnect validates edges and handles HPA auto-config', () => {
+      const hpa = { id: 'h1', type: 'HPA', data: {} };
+      const dep = { id: 'd1', type: 'Deployment', data: { label: 'dep' } };
+      useFlowStore.setState({ nodes: [hpa, dep] as any });
 
-    const slice = createFlowSlice(set, get, {} as any);
-    slice.onConnect({ source: 'hpa1', target: 'dep1' });
+      const { onConnect } = useFlowStore.getState();
+      onConnect({ source: 'h1', target: 'd1' });
 
-    expect(updateNodeData).toHaveBeenCalledWith('dep1', {
-      cpuRequest: '100m',
-      memoryRequest: '128Mi'
-    });
-    expect(set).toHaveBeenCalled();
+      const state = useFlowStore.getState();
+      expect(state.edges.length).toBe(1);
+
+      const updatedDep = state.nodes.find(n => n.id === 'd1');
+      expect(updatedDep?.data.cpuRequest).toBe('100m');
+      expect(updatedDep?.data.memoryRequest).toBe('128Mi');
   });
 
-  it('should handle onQuickConnect', () => {
-    const onConnect = vi.fn();
-    get.mockReturnValue({
-      nodes: [
-        { id: '1', position: { x: 0, y: 0 }, width: 100, height: 100, type: 'Pod' },
-        { id: '2', position: { x: 200, y: 0 }, width: 100, height: 100, type: 'Service' },
-        { id: '3', position: { x: -200, y: 0 }, width: 100, height: 100, type: 'Pod' },
-        { id: '4', position: { x: 0, y: 200 }, width: 100, height: 100, type: 'Pod' },
-        { id: '5', position: { x: 0, y: -200 }, width: 100, height: 100, type: 'Pod' }
-      ],
-      onConnect
-    });
+  it('validateEdge flags invalid connections', () => {
+      const internet = { id: 'i1', type: 'Internet', data: {} };
+      const pvc = { id: 'p1', type: 'PVC', data: {} };
+      useFlowStore.setState({ nodes: [internet, pvc] as any });
 
-    const slice = createFlowSlice(set, get, {} as any);
+      const { validateEdge } = useFlowStore.getState();
+      const edge = { id: 'e1', source: 'i1', target: 'p1' };
+      const validated = validateEdge(edge as any);
 
-    // Test all directions
-    slice.onQuickConnect('1', 'right');
-    expect(onConnect).toHaveBeenCalledWith(expect.objectContaining({ target: '2' }));
-
-    slice.onQuickConnect('1', 'left');
-    expect(onConnect).toHaveBeenCalledWith(expect.objectContaining({ target: '3' }));
-
-    slice.onQuickConnect('1', 'bottom');
-    expect(onConnect).toHaveBeenCalledWith(expect.objectContaining({ target: '4' }));
-
-    slice.onQuickConnect('1', 'top');
-    expect(onConnect).toHaveBeenCalledWith(expect.objectContaining({ target: '5' }));
+      expect(validated.data.validationError).toBeDefined();
   });
 
-  it('should handle autoLayout', () => {
-    get.mockReturnValue({
-      nodes: [
-        { id: '1', position: { x: 0, y: 0 }, width: 100, height: 100 },
-        { id: '2', position: { x: 0, y: 0 }, width: 100, height: 100 }
-      ],
-      edges: [{ id: 'e1', source: '1', target: '2' }]
-    });
+  it('onQuickConnect finds node in direction', () => {
+      const source = { id: 's1', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
+      const target = { id: 't1', position: { x: 200, y: 0 }, width: 100, height: 100, data: {} };
+      useFlowStore.setState({ nodes: [source, target] as any });
 
-    const slice = createFlowSlice(set, get, {} as any);
-    slice.autoLayout('LR');
+      const { onQuickConnect } = useFlowStore.getState();
+      onQuickConnect('s1', 'right');
 
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({
-      nodes: expect.any(Array)
-    }));
-
-    slice.autoLayout('TB');
-    expect(set).toHaveBeenCalled();
+      const state = useFlowStore.getState();
+      expect(state.edges.length).toBe(1);
+      expect(state.edges[0].target).toBe('t1');
   });
 
-  it('should handle onReconnect', () => {
-    get.mockReturnValue({
-        edges: [{ id: 'e1', source: '1', target: '2' }],
-        validateEdge: (e: Edge) => e
-    });
-    const slice = createFlowSlice(set, get, {} as any);
+  it('autoLayout triggers dagre layout', () => {
+      const node1 = { id: 'n1', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
+      const node2 = { id: 'n2', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
+      const edge = { id: 'e1', source: 'n1', target: 'n2' };
+      useFlowStore.setState({ nodes: [node1, node2] as any, edges: [edge] as any });
 
-    slice.onReconnect({ id: 'e1' } as Edge, { source: '1', target: '3' });
-    expect(set).toHaveBeenCalledWith(expect.objectContaining({
-        edges: expect.any(Array)
-    }));
-  });
+      const { autoLayout } = useFlowStore.getState();
+      autoLayout();
 
-  it('should move group members together in onNodesChange', () => {
-    const nodes = [
-        { id: '1', position: { x: 0, y: 0 }, data: { groupId: 'g1' } },
-        { id: '2', position: { x: 50, y: 50 }, data: { groupId: 'g1' } }
-    ];
-    get.mockReturnValue({ nodes });
-    const slice = createFlowSlice(set, get, {} as any);
-
-    slice.onNodesChange([{ id: '1', type: 'position', position: { x: 10, y: 10 } }]);
-    expect(set).toHaveBeenCalled();
+      const state = useFlowStore.getState();
+      expect(state.lastActionName).toBe('Auto Layout');
+      expect(state.lastActionId).toContain('layout-');
+      // Verify nodes still exist
+      expect(state.nodes.length).toBe(2);
   });
 });

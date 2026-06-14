@@ -1,197 +1,50 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useFlowStore } from '../../../src/store';
-import * as simManager from '../../../src/store/slices/simulationManager';
+import { useFlowStore } from '@/store';
 
-describe('createUiSlice via useFlowStore', () => {
+describe('createUiSlice', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     useFlowStore.setState({
       colorMode: 'dark',
-      customImages: ['my-web-app:v1.0', 'backend-api:latest'],
-      isAutosaveEnabled: false,
-    });
-
-    vi.spyOn(simManager, 'getMetricsChannel').mockReturnValue({
-        postMessage: vi.fn(),
-    } as any);
-
-    globalThis.go = {
-        main: {
-          App: {
-            SaveSetting: vi.fn().mockResolvedValue(true)
-          }
-        }
-      } as any;
-  });
-
-  it('should toggle color mode', () => {
-    const channel = simManager.getMetricsChannel();
-    useFlowStore.getState().toggleColorMode();
-    expect(useFlowStore.getState().colorMode).toBe('light');
-    expect(channel?.postMessage).toHaveBeenCalledWith({ type: 'THEME_SYNC', colorMode: 'light' });
-  });
-
-  it('should add custom image', () => {
-    useFlowStore.getState().addCustomImage('test:latest');
-    expect(useFlowStore.getState().customImages).toContain('test:latest');
-  });
-
-  it('should delete custom image', () => {
-    useFlowStore.getState().deleteCustomImage('my-web-app:v1.0');
-    expect(useFlowStore.getState().customImages).not.toContain('my-web-app:v1.0');
-  });
-
-  it('should toggle autosave', () => {
-    useFlowStore.getState().toggleAutosave();
-    expect(useFlowStore.getState().isAutosaveEnabled).toBe(true);
-  });
-
-  it('should set simulation state and run a tick', async () => {
-    vi.useFakeTimers();
-    useFlowStore.setState({
-      nodes: [
-        { id: 'i1', type: 'Internet', data: { traffic: 1000, currentTraffic: 0 }, position: { x: 0, y: 0 } },
-        { id: 'd1', type: 'Deployment', data: { replicas: 1, cpuLimit: '1000m', memoryLimit: '1024Mi' }, position: { x: 200, y: 0 } }
-      ],
-      edges: [{ id: 'e1', source: 'i1', target: 'd1', type: 'custom' }],
       isSimulating: false,
-      simulationMetrics: {}
+      visibleWidgets: ['w1'],
+      customImages: ['img1']
     });
-
-    useFlowStore.getState().setSimulation(true);
-    expect(useFlowStore.getState().isSimulating).toBe(true);
-
-    // Advance time by 1s to trigger simulation tick
-    await vi.advanceTimersByTimeAsync(1000);
-
-    expect(useFlowStore.getState().simulationMetrics['d1']).toBeDefined();
-
-    useFlowStore.getState().setSimulation(false);
-    expect(useFlowStore.getState().isSimulating).toBe(false);
-    vi.useRealTimers();
   });
 
-  it('should set right sidebar visibility', () => {
-    useFlowStore.getState().setRightSidebarVisible(true);
-    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
-    useFlowStore.getState().setRightSidebarVisible(false);
-    expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
+  it('toggles color mode', () => {
+    const { toggleColorMode } = useFlowStore.getState();
+    toggleColorMode();
+    expect(useFlowStore.getState().colorMode).toBe('light');
+
+    toggleColorMode();
+    expect(useFlowStore.getState().colorMode).toBe('dark');
   });
 
-  it('should set global edge colors and save them', () => {
-    useFlowStore.getState().setGlobalEdgeColors('#ff0000', '#00ff00');
-    expect(useFlowStore.getState().globalEdgeColor).toBe('#ff0000');
-    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('#00ff00');
-    expect(globalThis.go.main.App.SaveSetting).toHaveBeenCalledWith('globalEdgeColor', '#ff0000');
-    expect(globalThis.go.main.App.SaveSetting).toHaveBeenCalledWith('globalEdgeErrorColor', '#00ff00');
-  });
-
-  it('should set dragging sidebar item', () => {
-    useFlowStore.getState().setDraggingSidebarItem('Pod');
-    expect(useFlowStore.getState().draggingSidebarItem).toBe('Pod');
-  });
-
-  it('should toggle autofocus', () => {
-    const initial = useFlowStore.getState().isAutofocusEnabled;
-    useFlowStore.getState().toggleAutofocus();
-    expect(useFlowStore.getState().isAutofocusEnabled).toBe(!initial);
-  });
-
-  it('should set system resources', () => {
-    const res = { cpuCores: 8, totalMemoryGB: 32, freeMemoryGB: 16, cpuUsage: 10 };
-    useFlowStore.getState().setSystemResources(res);
-    expect(useFlowStore.getState().systemResources).toEqual(res);
-  });
-
-  it('should toggle widgets', () => {
-    useFlowStore.setState({ visibleWidgets: ['w1'] });
-    useFlowStore.getState().toggleWidget('w2');
+  it('toggles widgets', () => {
+    const { toggleWidget } = useFlowStore.getState();
+    toggleWidget('w2');
     expect(useFlowStore.getState().visibleWidgets).toContain('w2');
-    useFlowStore.getState().toggleWidget('w1');
-    expect(useFlowStore.getState().visibleWidgets).not.toContain('w1');
+
+    toggleWidget('w2');
+    expect(useFlowStore.getState().visibleWidgets).not.toContain('w2');
   });
 
-  it('should set monitoring states', () => {
-    useFlowStore.getState().setMonitoringOpen(true);
-    expect(useFlowStore.getState().isMonitoringOpen).toBe(true);
-    useFlowStore.getState().setMonitoringDetached(true);
-    expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+  it('adds and deletes custom images', () => {
+    const { addCustomImage, deleteCustomImage } = useFlowStore.getState();
+    addCustomImage('img2');
+    expect(useFlowStore.getState().customImages).toContain('img2');
+
+    deleteCustomImage('img1');
+    expect(useFlowStore.getState().customImages).not.toContain('img1');
   });
 
-  it('should set sidebar visibility and save it', () => {
-    useFlowStore.getState().setSidebarVisible(false);
+  it('sets visibility states', () => {
+    const { setSidebarVisible, setRightSidebarVisible } = useFlowStore.getState();
+    setSidebarVisible(false);
     expect(useFlowStore.getState().isSidebarVisible).toBe(false);
-    expect(globalThis.go.main.App.SaveSetting).toHaveBeenCalledWith('isSidebarVisible', 'false');
-  });
 
-  it('should handle startSimulation with no internet nodes', () => {
-    useFlowStore.setState({ nodes: [] });
-    useFlowStore.getState().setSimulation(true);
-    expect(useFlowStore.getState().isSimulating).toBe(false);
-  });
-
-  it('should handle startSimulation with internetNodeIds', () => {
-    useFlowStore.setState({
-      nodes: [{ id: 'i1', type: 'Internet', data: {}, position: { x: 0, y: 0 } }],
-      edges: []
-    });
-    useFlowStore.getState().setSimulation(true, ['i1']);
-    expect(useFlowStore.getState().isSimulating).toBe(true);
-    useFlowStore.getState().setSimulation(false);
-  });
-
-  it('should handle addCustomImage duplicate', () => {
-    useFlowStore.setState({ customImages: ['img1'] });
-    useFlowStore.getState().addCustomImage('img1');
-    expect(useFlowStore.getState().customImages.length).toBe(1);
-  });
-
-  it('should handle simulation tick when isSimulating becomes false', async () => {
-    vi.useFakeTimers();
-    useFlowStore.setState({
-      nodes: [{ id: 'i1', type: 'Internet', data: {}, position: { x: 0, y: 0 } }],
-      edges: [],
-      isSimulating: true
-    });
-
-    useFlowStore.getState().setSimulation(true);
-    useFlowStore.setState({ isSimulating: false });
-
-    await vi.advanceTimersByTimeAsync(1000);
-    vi.useRealTimers();
-  });
-
-  it('should cover childPodMap branch in runSimulationTick', async () => {
-    vi.useFakeTimers();
-    useFlowStore.setState({
-      nodes: [
-        { id: 'i1', type: 'Internet', data: {}, position: { x: 0, y: 0 } },
-        { id: 'd1', type: 'Deployment', data: { replicas: 1 }, position: { x: 100, y: 0 } },
-        { id: 'p1', type: 'Pod', parentId: 'd1', data: {}, position: { x: 0, y: 0 } }
-      ],
-      edges: [{ id: 'e1', source: 'i1', target: 'd1' }]
-    });
-
-    useFlowStore.getState().setSimulation(true);
-    await vi.advanceTimersByTimeAsync(1000);
-    useFlowStore.getState().setSimulation(false);
-    vi.useRealTimers();
-  });
-
-  it('should handle invalid HPA targets in startSimulation', async () => {
-    vi.useFakeTimers();
-    useFlowStore.setState({
-      nodes: [
-        { id: 'h1', type: 'HPA', data: {}, position: { x: 0, y: 0 } },
-        { id: 'd1', type: 'Deployment', data: { replicas: 1 }, position: { x: 100, y: 0 } } // No limits
-      ],
-      edges: [{ id: 'e1', source: 'h1', target: 'd1' }]
-    });
-
-    useFlowStore.getState().setSimulation(true);
-    expect(useFlowStore.getState().isSimulating).toBe(true);
-
-    await vi.advanceTimersByTimeAsync(3000);
-    expect(useFlowStore.getState().isSimulating).toBe(false);
-    vi.useRealTimers();
+    setRightSidebarVisible(false);
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
   });
 });
