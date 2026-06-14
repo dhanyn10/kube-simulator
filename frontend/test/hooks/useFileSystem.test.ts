@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useFileSystem } from '../../src/hooks/useFileSystem';
-import { useFlowStore } from '../../src/store';
+import { useFileSystem } from '@/hooks/useFileSystem';
+import { useFlowStore } from '@/store';
 
 // Mock Wails globals
 (globalThis as any).go = {
@@ -11,6 +11,10 @@ import { useFlowStore } from '../../src/store';
       ImportProjectFile: vi.fn(),
     }
   }
+};
+
+(globalThis as any).runtime = {
+    EventsOn: vi.fn()
 };
 
 describe('useFileSystem', () => {
@@ -62,6 +66,54 @@ describe('useFileSystem', () => {
     });
 
     // Should not crash, nodes should remain empty
+    expect(useFlowStore.getState().nodes.length).toBe(0);
+  });
+
+  it('listens for open-infra-file events', async () => {
+    let eventCallback: any;
+    (globalThis as any).runtime.EventsOn.mockImplementation((event: string, cb: any) => {
+        if (event === 'open-infra-file') {
+            eventCallback = cb;
+        }
+        return vi.fn(); // off function
+    });
+
+    renderHook(() => useFileSystem([], []));
+    expect((globalThis as any).runtime.EventsOn).toHaveBeenCalledWith('open-infra-file', expect.any(Function));
+
+    const mockProject = {
+      name: 'External Project',
+      canvas: JSON.stringify({
+        nodes: [{ id: '2', type: 'Pod', data: { label: 'External Pod' }, position: { x: 10, y: 10 } }],
+        edges: []
+      })
+    };
+
+    act(() => {
+        eventCallback(JSON.stringify(mockProject));
+    });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.length).toBe(1);
+    expect(state.nodes[0].data.label).toBe('External Pod');
+    expect(state.currentProject?.name).toBe('External Project');
+  });
+
+  it('handles external file open error gracefully', async () => {
+    let eventCallback: any;
+    (globalThis as any).runtime.EventsOn.mockImplementation((event: string, cb: any) => {
+        if (event === 'open-infra-file') {
+            eventCallback = cb;
+        }
+        return vi.fn();
+    });
+
+    renderHook(() => useFileSystem([], []));
+
+    act(() => {
+        eventCallback('invalid json');
+    });
+
     expect(useFlowStore.getState().nodes.length).toBe(0);
   });
 });

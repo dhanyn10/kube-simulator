@@ -1,24 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ServiceConfig } from '../../../src/components/Config/ServiceConfig';
-import { useFlowStore } from '../../../src/store';
+import { ServiceConfig } from '@/components/Config/ServiceConfig';
+import { useFlowStore } from '@/store';
+import '@testing-library/jest-dom';
 
 describe('ServiceConfig', () => {
-  const performUpdate = vi.fn();
-  const toggleVisibility = vi.fn();
-  const toggleYaml = vi.fn();
-
-  const selectedNode = {
-    id: 'svc1',
-    type: 'Service',
-    data: {
-      label: 'My Service',
-      port: 80,
-      targetPort: 8080,
-      selector: 'my-app',
-      displaySettings: { port: true, targetPort: true, selector: true },
-      yamlSettings: { targetPort: true, selector: true }
-    }
+  const mockProps = {
+    selectedNode: { id: 's1', data: { port: 80, targetPort: 8080, selector: 'app' } },
+    performUpdate: vi.fn(),
+    toggleVisibility: vi.fn(),
+    toggleYaml: vi.fn()
   };
 
   beforeEach(() => {
@@ -26,67 +17,45 @@ describe('ServiceConfig', () => {
     useFlowStore.setState({ colorMode: 'dark' });
   });
 
-  it('renders correctly', () => {
-    render(
-      <ServiceConfig
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-        toggleVisibility={toggleVisibility}
-        toggleYaml={toggleYaml}
-      />
-    );
-
-    expect(screen.getByText('Port')).toBeDefined();
-    expect(screen.getByDisplayValue('80')).toBeDefined();
+  it('updates port', () => {
+    render(<ServiceConfig {...mockProps} />);
+    const inputs = screen.getAllByRole('spinbutton');
+    fireEvent.change(inputs[0], { target: { value: '8080' } });
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ port: 8080 });
   });
 
-  it('handles port updates', () => {
-    render(
-      <ServiceConfig
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-        toggleVisibility={toggleVisibility}
-        toggleYaml={toggleYaml}
-      />
-    );
+  it('updates targetPort and selector in advanced section', () => {
+    render(<ServiceConfig {...mockProps} />);
 
-    const portInput = screen.getByDisplayValue('80');
-    fireEvent.change(portInput, { target: { value: '8080' } });
-    expect(performUpdate).toHaveBeenCalledWith({ port: 8080 });
-  });
-
-  it('renders advanced settings when toggled', () => {
-    render(
-      <ServiceConfig
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-        toggleVisibility={toggleVisibility}
-        toggleYaml={toggleYaml}
-      />
-    );
-
-    const advancedBtn = screen.getByText('Advanced Options');
+    // Open advanced section
+    const advancedBtn = screen.getByText(/Advanced Options/i);
     fireEvent.click(advancedBtn);
 
-    expect(screen.getByText('Target Port')).toBeDefined();
-    expect(screen.getByText('Selector (app)')).toBeDefined();
-    expect(screen.getByDisplayValue('8080')).toBeDefined();
-    expect(screen.getByDisplayValue('my-app')).toBeDefined();
+    const spinButtons = screen.getAllByRole('spinbutton');
+    fireEvent.change(spinButtons[1], { target: { value: '9090' } });
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 9090 });
+
+    const input = screen.getByPlaceholderText('app-label');
+    fireEvent.change(input, { target: { value: 'my-app' } });
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'my-app' });
   });
 
-  it('handles selector updates', () => {
-    render(
-      <ServiceConfig
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-        toggleVisibility={toggleVisibility}
-        toggleYaml={toggleYaml}
-      />
-    );
+  it('triggers visibility toggle', () => {
+    render(<ServiceConfig {...mockProps} />);
+    const toggleBtns = screen.getAllByTitle('Show/Hide on Card');
+    fireEvent.click(toggleBtns[0]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('port');
+  });
 
-    fireEvent.click(screen.getByText('Advanced Options'));
-    const selectorInput = screen.getByDisplayValue('my-app');
-    fireEvent.change(selectorInput, { target: { value: 'new-label' } });
-    expect(performUpdate).toHaveBeenCalledWith({ selector: 'new-label' });
+  it('triggers yaml toggle in advanced section', () => {
+    render(<ServiceConfig {...mockProps} />);
+
+    // Open advanced section
+    const advancedBtn = screen.getByText(/Advanced Options/i);
+    fireEvent.click(advancedBtn);
+
+    const yamlBtns = screen.getAllByTitle('Include in YAML');
+    fireEvent.click(yamlBtns[0]);
+    expect(mockProps.toggleYaml).toHaveBeenCalledWith('targetPort');
   });
 });
