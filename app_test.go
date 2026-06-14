@@ -87,3 +87,64 @@ func TestGetTargetScreenHeight(t *testing.T) {
 		}
 	})
 }
+
+func TestGreet(t *testing.T) {
+	app := NewApp()
+	greeting := app.Greet("Jules")
+	expected := "Hello Jules, It's show time!"
+	if greeting != expected {
+		t.Errorf("Expected %s, got %s", expected, greeting)
+	}
+}
+
+func TestAppProjectActions_NoDB(t *testing.T) {
+	// Test methods when DB is not initialized
+	app := NewApp()
+
+	if app.UpdateProject(1, "{}") != false {
+		t.Error("Expected UpdateProject to fail without DB init")
+	}
+
+	if app.DeleteProject(1) != false {
+		t.Error("Expected DeleteProject to fail without DB init")
+	}
+
+	if len(app.GetProjects()) != 0 {
+		t.Error("Expected 0 projects without DB init")
+	}
+
+	if app.LoadProject(1) != nil {
+		t.Error("Expected LoadProject to return nil without DB init")
+	}
+
+	if app.SaveSetting("k", "v") != false {
+		t.Error("Expected SaveSetting to fail without DB init")
+	}
+
+	if app.GetSetting("k") != "" {
+		t.Error("Expected GetSetting to return empty without DB init")
+	}
+}
+
+func TestHistoryActions_NoDB(t *testing.T) {
+	app := NewApp()
+
+	// PushHistory shouldn't crash
+	app.PushHistory("{}")
+
+	if app.Undo() != "" {
+		t.Error("Expected Undo to return empty")
+	}
+
+	if app.Redo() != "" {
+		t.Error("Expected Redo to return empty")
+	}
+
+	if app.JumpToHistory(0) != "" {
+		t.Error("Expected JumpToHistory to return empty")
+	}
+
+	if len(app.GetHistoryLogs()) != 0 {
+		t.Error("Expected 0 history logs")
+	}
+}

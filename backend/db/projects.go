@@ -37,7 +37,9 @@ func (p *ProjectManager) Init() error {
 		return err
 	}
 	dbPath := filepath.Join(userHome, ".kube-builder", "app_data.db")
-	os.MkdirAll(filepath.Dir(dbPath), os.ModePerm)
+	if err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm); err != nil {
+		return err
+	}
 
 	// Use pure-Go SQLite driver with GORM
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
@@ -63,6 +65,9 @@ func (p *ProjectManager) Close() {
 }
 
 func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
+	if p.db == nil {
+		return 0, gorm.ErrInvalidDB
+	}
 	project := Project{
 		Name:    name,
 		Content: content,
@@ -72,6 +77,9 @@ func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 }
 
 func (p *ProjectManager) UpdateProject(id int64, content string) error {
+	if p.db == nil {
+		return gorm.ErrInvalidDB
+	}
 	return p.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"content":    content,
 		"updated_at": time.Now().Unix(),
@@ -79,12 +87,18 @@ func (p *ProjectManager) UpdateProject(id int64, content string) error {
 }
 
 func (p *ProjectManager) GetProjects() ([]Project, error) {
+	if p.db == nil {
+		return nil, gorm.ErrInvalidDB
+	}
 	var projects []Project
 	result := p.db.Order("updated_at desc").Find(&projects)
 	return projects, result.Error
 }
 
 func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
+	if p.db == nil {
+		return nil, gorm.ErrInvalidDB
+	}
 	var project Project
 	result := p.db.First(&project, id)
 	if result.Error != nil {
@@ -94,15 +108,24 @@ func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
 }
 
 func (p *ProjectManager) DeleteProject(id int64) error {
+	if p.db == nil {
+		return gorm.ErrInvalidDB
+	}
 	return p.db.Delete(&Project{}, id).Error
 }
 
 func (p *ProjectManager) SaveSetting(key, value string) error {
+	if p.db == nil {
+		return gorm.ErrInvalidDB
+	}
 	setting := Setting{Key: key, Value: value}
 	return p.db.Save(&setting).Error
 }
 
 func (p *ProjectManager) GetSetting(key string) (string, error) {
+	if p.db == nil {
+		return "", gorm.ErrInvalidDB
+	}
 	var setting Setting
 	result := p.db.First(&setting, "key = ?", key)
 	if result.Error != nil {
