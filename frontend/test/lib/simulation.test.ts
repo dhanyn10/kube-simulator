@@ -6,7 +6,10 @@ import {
   calculateResourceMetrics,
   checkPvcReadiness,
   calculateIncomingTraffic,
-  handleHpaScaling
+  handleHpaScaling,
+  updateNodeData,
+  handleUnboundPvcs,
+  handleBoundPvcs
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
@@ -58,11 +61,26 @@ describe('simulation test suite', () => {
     expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, active).has('d1')).toBe(expected);
   });
 
-  it('internet traffic logic', () => {
+  it('calculateReachability ignores edges with validationError', () => {
+    const ctx = getMockCtx();
+    const edgeWithError = { id: 'e1', source: 'i1', target: 'd1', data: { validationError: 'error' } } as any;
+    const edgeMap = new Map([['i1', [edgeWithError]]]);
+    expect(calculateReachability([baseNodes[1]], edgeMap, ['e1']).has('d1')).toBe(false);
+  });
+
+  it('internet traffic logic - increment', () => {
     const ctx = getMockCtx();
     const res = updateInternetTraffic(baseNodes[1], ctx);
     expect(res.traffic).toBe(1000);
     expect(ctx.updatedNodes[1].data.currentTraffic).toBe(1000);
+  });
+
+  it('internet traffic logic - decrement', () => {
+    const ctx = getMockCtx();
+    const node = createNode('i1', 'Internet', { traffic: 500, currentTraffic: 1000 });
+    const res = updateInternetTraffic(node, ctx);
+    expect(res.traffic).toBe(500);
+    expect(ctx.updatedNodes[1].data.currentTraffic).toBe(500);
   });
 
   it.each([
@@ -89,6 +107,30 @@ describe('simulation test suite', () => {
     expect(checkPvcReadiness(boundCtx.nodes[0], boundCtx).isBlocked).toBe(false);
   });
 
+  it('handleUnboundPvcs can transition to Bound', () => {
+    const ctx = getMockCtx();
+    const pvc = createNode('pvc1', 'PVC', { pvcStatus: 'Pending' });
+    const pod = createNode('pod1', 'Pod', { status: 'ready' });
+    ctx.updatedNodes.push(pod);
+    ctx.nodeIndexMap?.set('pod1', ctx.updatedNodes.length - 1);
+
+    const res = handleUnboundPvcs([pvc], [pod], ctx);
+    expect(res.isBlocked).toBe(true);
+    // pod1 should now be pending
+    expect(ctx.updatedNodes.find(n => n.id === 'pod1')?.data.status).toBe('pending');
+  });
+
+  it('handleBoundPvcs transitions pods to ready', () => {
+      const ctx = getMockCtx();
+      const pod = createNode('pod1', 'Pod', { status: 'pending', webserver: 'nginx' });
+      ctx.updatedNodes.push(pod);
+      ctx.nodeIndexMap?.set('pod1', ctx.updatedNodes.length - 1);
+
+      const res = handleBoundPvcs([pod], ctx);
+      expect(res.isBlocked).toBe(false);
+      expect(ctx.updatedNodes.find(n => n.id === 'pod1')?.data.status).toBe('ready');
+  });
+
   it('incoming traffic calculation', () => {
     const ctx = getMockCtx({
       internetNodes: [createNode('i1', 'Internet', { currentTraffic: 5000 })],
@@ -97,10 +139,35 @@ describe('simulation test suite', () => {
     expect(calculateIncomingTraffic(baseNodes[0], ctx).traffic).toBe(5000);
   });
 
-  it('hpa scaling execution', () => {
+  it('hpa scaling execution - scale up', () => {
     const ctx = getMockCtx();
     ctx.targetEdgeMap!.set('d1', [{ id: 'ehpa', source: 'h1', target: 'd1' } as Edge]);
     expect(handleHpaScaling(baseNodes[0], 100, ctx)).toBe(true);
     expect(ctx.updatedNodes.find(n => n.id === 'd1')?.data.replicas).toBe(2);
+  });
+
+  it('hpa scaling execution - update currentCPU', () => {
+    const ctx = getMockCtx();
+    // No HPA edge
+    expect(handleHpaScaling(baseNodes[0], 40, ctx)).toBe(false);
+
+    // With HPA edge
+    ctx.targetEdgeMap!.set('d1', [{ id: 'ehpa', source: 'h1', target: 'd1' } as Edge]);
+    handleHpaScaling(baseNodes[0], 40, ctx);
+    expect(ctx.updatedNodes.find(n => n.id === 'h1')?.data.currentCPU).toBe(40);
+  });
+
+  it('updateNodeData handles missing index', () => {
+      const ctx = getMockCtx();
+      ctx.nodeIndexMap?.clear(); // Force search
+      const res = updateNodeData(ctx, 'd1', { label: 'new' });
+      expect(res).toBe(true);
+      expect(ctx.updatedNodes[0].data.label).toBe('new');
+  });
+
+  it('updateNodeData handles non-existent node', () => {
+      const ctx = getMockCtx();
+      const res = updateNodeData(ctx, 'non-existent', { label: 'new' });
+      expect(res).toBe(false);
   });
 });
