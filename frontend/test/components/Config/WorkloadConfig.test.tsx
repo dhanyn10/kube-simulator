@@ -88,6 +88,32 @@ describe('WorkloadConfig', () => {
     expect(updateNodeData).toHaveBeenCalledWith('d1', { replicas: 5 });
   });
 
+  it('handles replica updates for Pod in Deployment', () => {
+    const updateNodeData = vi.fn();
+    const parentDep = { id: 'd1', type: 'Deployment', position: {x:0, y:0}, data: { label: 'dep-a' } };
+    const pod = { id: 'p1', type: 'Pod', parentId: 'd1', data: { label: 'pod-a', replicas: 1 } };
+
+    useFlowStore.setState({
+        updateNodeData,
+        nodes: [parentDep, pod] as any
+    });
+
+    render(
+        <WorkloadConfig
+          selectedNode={pod}
+          performUpdate={performUpdate}
+          toggleVisibility={toggleVisibility}
+          toggleYaml={toggleYaml}
+        />
+    );
+
+    const input = screen.getByDisplayValue('1');
+    fireEvent.change(input, { target: { value: '2' } });
+
+    // Should update the parent deployment
+    expect(updateNodeData).toHaveBeenCalledWith('d1', { replicas: 2 });
+  });
+
   it('handles runtime updates for Pod', () => {
     const selectedNode = {
         id: 'p1',
