@@ -37,7 +37,9 @@ func (p *ProjectManager) Init() error {
 		return err
 	}
 	dbPath := filepath.Join(userHome, ".kube-builder", "app_data.db")
-	os.MkdirAll(filepath.Dir(dbPath), os.ModePerm)
+	if err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm); err != nil {
+		return err
+	}
 
 	// Use pure-Go SQLite driver with GORM
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
@@ -63,6 +65,9 @@ func (p *ProjectManager) Close() {
 }
 
 func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
+	if p.db == nil {
+		return 0, gorm.ErrInvalidDB
+	}
 	project := Project{
 		Name:    name,
 		Content: content,
