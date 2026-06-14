@@ -143,7 +143,12 @@ export const MenuBar = ({
         ]
       }
     ];
-  }, [onSaveFile, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, currentProject, nodes, edges, isAutosaveEnabled, toggleAutosave, isMonitoringDetached, isMonitoringOpen, setMonitoringOpen]);
+  }, [
+    onSaveFile, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout,
+    currentProject, nodes, edges, isAutosaveEnabled, toggleAutosave,
+    isMonitoringDetached, isMonitoringOpen, setMonitoringOpen,
+    isSidebarVisible, isRightSidebarVisible, isAutofocusEnabled, setSidebarVisible, setRightSidebarVisible, toggleAutofocus, setLogModalOpen
+  ]);
 
   const hasInternet = useMemo(() => nodes.some((n: any) => n.type === 'Internet'), [nodes]);
 

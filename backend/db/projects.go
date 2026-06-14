@@ -72,6 +72,9 @@ func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 }
 
 func (p *ProjectManager) UpdateProject(id int64, content string) error {
+	if p.db == nil {
+		return gorm.ErrInvalidDB
+	}
 	return p.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"content":    content,
 		"updated_at": time.Now().Unix(),
@@ -79,12 +82,18 @@ func (p *ProjectManager) UpdateProject(id int64, content string) error {
 }
 
 func (p *ProjectManager) GetProjects() ([]Project, error) {
+	if p.db == nil {
+		return nil, gorm.ErrInvalidDB
+	}
 	var projects []Project
 	result := p.db.Order("updated_at desc").Find(&projects)
 	return projects, result.Error
 }
 
 func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
+	if p.db == nil {
+		return nil, gorm.ErrInvalidDB
+	}
 	var project Project
 	result := p.db.First(&project, id)
 	if result.Error != nil {
@@ -94,15 +103,24 @@ func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
 }
 
 func (p *ProjectManager) DeleteProject(id int64) error {
+	if p.db == nil {
+		return gorm.ErrInvalidDB
+	}
 	return p.db.Delete(&Project{}, id).Error
 }
 
 func (p *ProjectManager) SaveSetting(key, value string) error {
+	if p.db == nil {
+		return gorm.ErrInvalidDB
+	}
 	setting := Setting{Key: key, Value: value}
 	return p.db.Save(&setting).Error
 }
 
 func (p *ProjectManager) GetSetting(key string) (string, error) {
+	if p.db == nil {
+		return "", gorm.ErrInvalidDB
+	}
 	var setting Setting
 	result := p.db.First(&setting, "key = ?", key)
 	if result.Error != nil {
