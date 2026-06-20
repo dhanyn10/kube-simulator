@@ -113,8 +113,8 @@ func TestResourceGenerators_Secret(t *testing.T) {
 	})
 }
 
-func TestFindTargetMethods(t *testing.T) {
-	ctx := &GenContext{
+func setupTestContext() *GenContext {
+	return &GenContext{
 		nodeMap: map[string]*k8s.FrontendNode{
 			"svc1": {ID: "svc1", Type: "Service"},
 			"dep1": {ID: "dep1", Type: "Deployment", Data: k8s.K8sNodeData{Label: "my-dep"}},
@@ -134,48 +134,64 @@ func TestFindTargetMethods(t *testing.T) {
 			},
 		},
 	}
+}
 
-	t.Run("findTargetWorkload", func(t *testing.T) {
+func TestFindTargetWorkload(t *testing.T) {
+	ctx := setupTestContext()
+
+	t.Run("Deployment target", func(t *testing.T) {
 		target := findTargetWorkload("svc1", ctx)
 		if target == nil || target.ID != "dep1" {
 			t.Errorf("Expected target dep1, got %v", target)
 		}
+	})
 
-		// Test Pod as target
+	t.Run("Pod target", func(t *testing.T) {
 		ctx.sourceEdgeMap["svc1"] = []k8s.FrontendEdge{{Source: "svc1", Target: "pod1"}}
-		target = findTargetWorkload("svc1", ctx)
+		target := findTargetWorkload("svc1", ctx)
 		if target == nil || target.ID != "pod1" {
 			t.Errorf("Expected target pod1, got %v", target)
 		}
+	})
 
-		// Test no target
-		target = findTargetWorkload("non-existent", ctx)
+	t.Run("No target", func(t *testing.T) {
+		target := findTargetWorkload("non-existent", ctx)
 		if target != nil {
 			t.Errorf("Expected nil target, got %v", target)
 		}
 	})
+}
 
-	t.Run("findTargetService", func(t *testing.T) {
+func TestFindTargetService(t *testing.T) {
+	ctx := setupTestContext()
+
+	t.Run("Success", func(t *testing.T) {
 		target := findTargetService("ing1", ctx)
 		if target == nil || target.ID != "svc1" {
 			t.Errorf("Expected target svc1, got %v", target)
 		}
+	})
 
-		// Test no target
-		target = findTargetService("non-existent", ctx)
+	t.Run("No target", func(t *testing.T) {
+		target := findTargetService("non-existent", ctx)
 		if target != nil {
 			t.Errorf("Expected nil target, got %v", target)
 		}
 	})
+}
 
-	t.Run("findTargetDeployment", func(t *testing.T) {
+func TestFindTargetDeployment(t *testing.T) {
+	ctx := setupTestContext()
+
+	t.Run("Success", func(t *testing.T) {
 		target := findTargetDeployment("hpa1", ctx)
 		if target == nil || target.ID != "dep1" {
 			t.Errorf("Expected target dep1, got %v", target)
 		}
+	})
 
-		// Test no target
-		target = findTargetDeployment("non-existent", ctx)
+	t.Run("No target", func(t *testing.T) {
+		target := findTargetDeployment("non-existent", ctx)
 		if target != nil {
 			t.Errorf("Expected nil target, got %v", target)
 		}
