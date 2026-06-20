@@ -111,10 +111,10 @@ describe('createUiSlice', () => {
   });
 
   it('toggles simulation and handles validation failure', () => {
-    const { setSimulation } = useFlowStore.getState();
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
 
     // Start simulation with no internet nodes (should return early)
-    setSimulation(true);
+    startSimulation();
     expect(useFlowStore.getState().isSimulating).toBe(false);
 
     // Test validation failure (HPA with no limits)
@@ -129,7 +129,7 @@ describe('createUiSlice', () => {
     });
 
     vi.useFakeTimers();
-    setSimulation(true);
+    startSimulation();
     // It sets isSimulating to true temporarily before stopping
     expect(useFlowStore.getState().isSimulating).toBe(true);
 
@@ -139,7 +139,7 @@ describe('createUiSlice', () => {
 
     // Stop simulation
     useFlowStore.setState({ isSimulating: true });
-    setSimulation(false);
+    stopSimulation();
     expect(useFlowStore.getState().isSimulating).toBe(false);
   });
 
