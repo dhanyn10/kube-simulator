@@ -49,7 +49,7 @@ export const checkEmergencyStop = (params: {
   simulationInterval: { current: ReturnType<typeof setInterval> | null }
 }) => {
   const { ticks, workloads, nodes, metrics, set, simulationInterval } = params;
-  const activeWorkloads = workloads.filter(w => (metrics[w.id]?.slice(-1)[0]?.cpuValue || 0) > 0);
+  const activeWorkloads = workloads.filter(w => (metrics[w.id]?.at(-1)?.cpuValue || 0) > 0);
   if (ticks <= 3 || activeWorkloads.length === 0) return false;
 
   const allPods = nodes.filter(n => n.type === 'Pod' && (

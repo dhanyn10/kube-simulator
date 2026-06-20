@@ -4,7 +4,8 @@ import { cn } from '../../lib/utils';
 
 interface SimulationControlsProps {
   isSimulating: boolean;
-  setSimulation: (active: boolean) => void;
+  startSimulation: () => void;
+  stopSimulation: () => void;
   hasInternet: boolean;
   hasHpaValidationError: boolean;
   colorMode: 'dark' | 'light';
@@ -12,7 +13,8 @@ interface SimulationControlsProps {
 
 export const SimulationControls = ({
   isSimulating,
-  setSimulation,
+  startSimulation,
+  stopSimulation,
   hasInternet,
   hasHpaValidationError,
   colorMode
@@ -47,7 +49,7 @@ export const SimulationControls = ({
       style={{ '--wails-draggable': 'no-drag' }}
     >
       <button
-        onClick={() => setSimulation(!isSimulating)}
+        onClick={() => isSimulating ? stopSimulation() : startSimulation()}
         disabled={!hasInternet}
         title={getButtonTitle()}
         className={cn(

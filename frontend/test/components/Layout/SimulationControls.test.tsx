@@ -5,11 +5,13 @@ import '@testing-library/jest-dom';
 
 describe('SimulationControls', () => {
   it('renders start button when not simulating', () => {
-    const setSimulation = vi.fn();
+    const startSimulation = vi.fn();
+    const stopSimulation = vi.fn();
     render(
       <SimulationControls
         isSimulating={false}
-        setSimulation={setSimulation}
+        startSimulation={startSimulation}
+        stopSimulation={stopSimulation}
         hasInternet={true}
         hasHpaValidationError={false}
         colorMode="dark"
@@ -21,15 +23,17 @@ describe('SimulationControls', () => {
     expect(button.title).toBe('Start Simulation');
 
     fireEvent.click(button);
-    expect(setSimulation).toHaveBeenCalledWith(true);
+    expect(startSimulation).toHaveBeenCalled();
   });
 
   it('renders stop button when simulating', () => {
-    const setSimulation = vi.fn();
+    const startSimulation = vi.fn();
+    const stopSimulation = vi.fn();
     render(
       <SimulationControls
         isSimulating={true}
-        setSimulation={setSimulation}
+        startSimulation={startSimulation}
+        stopSimulation={stopSimulation}
         hasInternet={true}
         hasHpaValidationError={false}
         colorMode="dark"
@@ -41,14 +45,15 @@ describe('SimulationControls', () => {
     expect(button.title).toBe('Stop Simulation');
 
     fireEvent.click(button);
-    expect(setSimulation).toHaveBeenCalledWith(false);
+    expect(stopSimulation).toHaveBeenCalled();
   });
 
   it('disables button when no internet', () => {
     render(
       <SimulationControls
         isSimulating={false}
-        setSimulation={vi.fn()}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
         hasInternet={false}
         hasHpaValidationError={false}
         colorMode="dark"
@@ -64,7 +69,8 @@ describe('SimulationControls', () => {
     render(
       <SimulationControls
         isSimulating={false}
-        setSimulation={vi.fn()}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
         hasInternet={true}
         hasHpaValidationError={true}
         colorMode="dark"

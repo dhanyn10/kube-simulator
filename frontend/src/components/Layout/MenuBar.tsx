@@ -34,7 +34,8 @@ export const MenuBar = ({
   const nodes = useFlowStore((state: FlowState) => state.nodes);
   const edges = useFlowStore((state: FlowState) => state.edges);
   const isSimulating = useFlowStore((state: FlowState) => state.isSimulating);
-  const setSimulation = useFlowStore((state: FlowState) => state.setSimulation);
+  const startSimulation = useFlowStore((state: FlowState) => state.startSimulation);
+  const stopSimulation = useFlowStore((state: FlowState) => state.stopSimulation);
   const isMonitoringOpen = useFlowStore((state: FlowState) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state: FlowState) => state.setMonitoringOpen);
   const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
@@ -204,7 +205,8 @@ export const MenuBar = ({
 
         <SimulationControls
           isSimulating={isSimulating}
-          setSimulation={setSimulation}
+          startSimulation={startSimulation}
+          stopSimulation={stopSimulation}
           hasInternet={hasInternet}
           hasHpaValidationError={hasHpaValidationError}
           colorMode={colorMode}
