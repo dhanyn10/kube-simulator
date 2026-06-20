@@ -30,7 +30,12 @@ export default function CustomEdge({
   const isSimulating = activeSimulationEdges.some(eid => String(eid) === String(id));
   const edges = useFlowStore((state: any) => state.edges);
 
-  // Recursive error check to see if this edge leads to a failure
+  /**
+   * Recursive error check to see if this edge leads to a failure.
+   * Traverses downstream from the target node to check if any workload is not ready.
+   *
+   * @returns boolean
+   */
   const checkErrorState = () => {
     if (!isSimulating || validationError) return false;
 
@@ -67,7 +72,7 @@ export default function CustomEdge({
     return false;
   };
 
-  const validationError = data?.validationError as string | undefined;
+  const validationError = data?.validationError;
   const isTargetError = checkErrorState();
 
   const getStrokeColor = () => {
@@ -85,7 +90,7 @@ export default function CustomEdge({
     targetPosition,
   });
 
-  const edgeWidth = (data?.width as number) || 2;
+  const edgeWidth = data?.width || 2;
 
   const onRemove = (e: React.MouseEvent) => {
     e.stopPropagation();

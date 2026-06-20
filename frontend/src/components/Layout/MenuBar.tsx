@@ -34,7 +34,8 @@ export const MenuBar = ({
   const nodes = useFlowStore((state: FlowState) => state.nodes);
   const edges = useFlowStore((state: FlowState) => state.edges);
   const isSimulating = useFlowStore((state: FlowState) => state.isSimulating);
-  const setSimulation = useFlowStore((state: FlowState) => state.setSimulation);
+  const startSimulation = useFlowStore((state: FlowState) => state.startSimulation);
+  const stopSimulation = useFlowStore((state: FlowState) => state.stopSimulation);
   const isMonitoringOpen = useFlowStore((state: FlowState) => state.isMonitoringOpen);
   const setMonitoringOpen = useFlowStore((state: FlowState) => state.setMonitoringOpen);
   const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
@@ -164,7 +165,7 @@ export const MenuBar = ({
   return (
     <div
       ref={menuRef}
-      style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
+      style={{ '--wails-draggable': 'drag' }}
       className={cn(
         "h-10 border-b flex items-center px-3 justify-between z-50 select-none relative",
         themeClasses
@@ -192,7 +193,7 @@ export const MenuBar = ({
 
         <button
           onClick={toggleColorMode}
-          style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}
+          style={{ '--wails-draggable': 'no-drag' }}
           className={cn(
             "p-1.5 rounded-md transition-colors mr-1",
             colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-200 text-slate-500"
@@ -204,7 +205,8 @@ export const MenuBar = ({
 
         <SimulationControls
           isSimulating={isSimulating}
-          setSimulation={setSimulation}
+          startSimulation={startSimulation}
+          stopSimulation={stopSimulation}
           hasInternet={hasInternet}
           hasHpaValidationError={hasHpaValidationError}
           colorMode={colorMode}

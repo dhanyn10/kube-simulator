@@ -129,7 +129,8 @@ export interface FlowState {
   toggleColorMode: () => void;
   toggleAutosave: () => void;
   toggleAutofocus: () => void;
-  setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
+  startSimulation: (internetNodeIds?: string[]) => void;
+  stopSimulation: () => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
   setSidebarVisible: (visible: boolean) => void;

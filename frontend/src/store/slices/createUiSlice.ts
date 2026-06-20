@@ -10,7 +10,7 @@ import {
   updateInternetTraffic
 } from '../../lib/simulation';
 import {
-  stopSimulation,
+  stopSimulation as stopSimulationInternal,
   broadcastMetrics,
   checkEmergencyStop,
   validateHpaTargets,
@@ -41,7 +41,8 @@ export interface UiSlice {
   toggleAutofocus: () => void;
   setSidebarVisible: (visible: boolean) => void;
   setRightSidebarVisible: (visible: boolean) => void;
-  setSimulation: (active: boolean, internetNodeIds?: string[]) => void;
+  startSimulation: (internetNodeIds?: string[]) => void;
+  stopSimulation: () => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
   setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
@@ -51,8 +52,19 @@ export interface UiSlice {
 }
 
 const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } = { current: null };
+
+/**
+ * Retrieves the Wails runtime if available.
+ * @returns The Wails runtime or undefined.
+ */
 const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
+/**
+ * Executes a single tick of the simulation.
+ * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
+ *
+ * @param params Object containing the current flow state, current tick count, and store setters/getters.
+ */
 const runSimulationTick = (params: {
   state: FlowState,
   ticks: number,
@@ -147,7 +159,15 @@ const runSimulationTick = (params: {
   }
 };
 
-const startSimulation = (
+/**
+ * Internal logic for starting the simulation.
+ * It validates HPA targets, initializes metrics, and sets up the tick interval.
+ *
+ * @param internetNodeIds Optional list of internet node IDs to start simulation from.
+ * @param set Zustand store setter.
+ * @param get Zustand store getter.
+ */
+const startSimulationInternal = (
     internetNodeIds: string[] | undefined,
     set: (state: Partial<FlowState>) => void,
     get: () => FlowState
@@ -158,7 +178,7 @@ const startSimulation = (
           logger.error('[Simulation] ERROR: HPA requires resource limits on target workloads.');
           set({ isSimulating: true, activeSimulationEdges: [], simulationMetrics: {} });
           setTimeout(() => {
-            stopSimulation(set, get, simulationIntervalObj);
+            stopSimulationInternal(set, get, simulationIntervalObj);
           }, 3000);
           return;
       }
@@ -269,11 +289,17 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   deleteCustomImage: (image) => set((state: FlowState) => ({
     customImages: state.customImages.filter((img) => img !== image)
   })),
-  setSimulation: (active, internetNodeIds) => {
-    if (!active) {
-      stopSimulation(set, get, simulationIntervalObj);
-    } else {
-      startSimulation(internetNodeIds, set, get);
-    }
+  /**
+   * Public action to start the simulation.
+   * @param internetNodeIds Optional internet node IDs to start from.
+   */
+  startSimulation: (internetNodeIds) => {
+    startSimulationInternal(internetNodeIds, set, get);
+  },
+  /**
+   * Public action to stop the simulation.
+   */
+  stopSimulation: () => {
+    stopSimulationInternal(set, get, simulationIntervalObj);
   },
 });

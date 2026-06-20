@@ -6,7 +6,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
   const win = (globalThis as any).go?.main?.App;
 
   return (
-    <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+    <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' }}>
       <button
         aria-label="minimize"
         onClick={() => win?.MinimizeWindow?.()}
