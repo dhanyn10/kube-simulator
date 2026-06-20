@@ -5,7 +5,8 @@ import {
   calculateAlignmentGuides, 
   getNodeData, 
   sortNodes,
-  resolveGlobalCollisions
+  resolveGlobalCollisions,
+  optimizeEdgeHandles
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import { FlowState } from '../../types';
@@ -171,10 +172,13 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       node, nodes, get().edges, nodeAbs, detachingId !== null, hoveredId
     );
 
+    const optimizedEdges = optimizeEdgeHandles(node.id, nextNodes, get().edges);
+
     set({ 
         hoveredDeploymentId: hoveredId, 
         detachingDeploymentId: detachingId,
         nodes: nextNodes,
+        edges: optimizedEdges,
         alignmentGuides: { vertical: verticalGuides, horizontal: horizontalGuides },
         snapGuides: {
             vertical: Array.from(vSnap).map(([pos, isActive]) => ({ position: pos, isActive })),
@@ -215,7 +219,11 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       // 3. Parenting Logic
       nextNodes = handleDropParenting(node, finalNode, nextNodes, hoveredDeploymentId, detachingDeploymentId, get);
 
+      // 4. Edge Optimization
+      const optimizedEdges = optimizeEdgeHandles(node.id, nextNodes, state.edges);
+
       return {
+        edges: optimizedEdges,
         hoveredDeploymentId: null,
         detachingDeploymentId: null,
         draggedNodeId: null,

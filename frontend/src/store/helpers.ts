@@ -347,15 +347,21 @@ export const calculateAlignmentGuides = (
       ];
 
       nodePointsX.forEach(nP => {
+        const threshold = isConnected ? 24 : config.threshold;
         allVCandidates.push(...getAlignmentCandidates({
-          nP, otherPoints: otherPointsX, otherNode, config, nodeAbs, otherAbs,
+          nP, otherPoints: otherPointsX, otherNode,
+          config: { ...config, threshold },
+          nodeAbs, otherAbs,
           size: { node: nodeHeight, other: otherH }, axis: 'x', isConnected
         }));
       });
 
       nodePointsY.forEach(nP => {
+        const threshold = isConnected ? 24 : config.threshold;
         allHCandidates.push(...getAlignmentCandidates({
-          nP, otherPoints: otherPointsY, otherNode, config, nodeAbs, otherAbs,
+          nP, otherPoints: otherPointsY, otherNode,
+          config: { ...config, threshold },
+          nodeAbs, otherAbs,
           size: { node: nodeWidth, other: otherW }, axis: 'y', isConnected
         }));
       });
@@ -553,4 +559,54 @@ export const resolveGlobalCollisions = (nodes: Node[], fixedNodeId?: string, ite
     if (!performCollisionIteration(nextNodes, PADDING, fixedNodeId)) break;
   }
   return nextNodes;
+};
+
+export const optimizeEdgeHandles = (nodeId: string, nodes: Node[], edges: Edge[]): Edge[] => {
+  const node = nodes.find(n => n.id === nodeId);
+  if (!node) return edges;
+
+  const getHandleCoords = (n: Node, side: string) => {
+    const abs = getAbsPos(n.id, nodes);
+    const w = n.width || n.measured?.width || 160;
+    const h = n.height || n.measured?.height || 80;
+
+    if (side === 'top') return { x: abs.x + w / 2, y: abs.y };
+    if (side === 'bottom') return { x: abs.x + w / 2, y: abs.y + h };
+    if (side === 'left') return { x: abs.x, y: abs.y + h / 2 };
+    return { x: abs.x + w, y: abs.y + h / 2 }; // right
+  };
+
+  const sides = ['top', 'bottom', 'left', 'right'];
+
+  return edges.map(edge => {
+    if (edge.source !== nodeId && edge.target !== nodeId) return edge;
+
+    const sourceNode = nodes.find(n => n.id === edge.source);
+    const targetNode = nodes.find(n => n.id === edge.target);
+    if (!sourceNode || !targetNode) return edge;
+
+    let bestDist = Infinity;
+    let bestSource = edge.sourceHandle || 'right-s';
+    let bestTarget = edge.targetHandle || 'left-t';
+
+    for (const sSide of sides) {
+      for (const tSide of sides) {
+        const sCoord = getHandleCoords(sourceNode, sSide);
+        const tCoord = getHandleCoords(targetNode, tSide);
+        const dist = Math.sqrt(Math.pow(sCoord.x - tCoord.x, 2) + Math.pow(sCoord.y - tCoord.y, 2));
+
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestSource = `${sSide}-s`;
+          bestTarget = `${tSide}-t`;
+        }
+      }
+    }
+
+    return {
+      ...edge,
+      sourceHandle: bestSource,
+      targetHandle: bestTarget
+    };
+  });
 };

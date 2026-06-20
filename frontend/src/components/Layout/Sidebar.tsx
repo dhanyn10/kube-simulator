@@ -74,6 +74,7 @@ const SidebarSection = ({
           return (
             <button
               key={type}
+              data-testid={`node-${type.toLowerCase()}`}
               onClick={() => onAddNode(type)}
               onDragStart={(event) => onDragStart(event, type)}
               onDragEnd={onDragEnd}
