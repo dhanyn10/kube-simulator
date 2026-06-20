@@ -247,3 +247,42 @@ func TestGenerateWithEmptyLabel(t *testing.T) {
 		t.Errorf("Node with empty label should be skipped, got: %s", result)
 	}
 }
+
+func TestGenerate_Integration(t *testing.T) {
+	// A more complex setup to test Generate end-to-end with multiple resources
+	nodesJson := `[
+		{"id":"ns1","type":"Namespace","data":{"label":"Prod"}},
+		{"id":"pvc1","type":"PVC","data":{"label":"Database Storage","storageCapacity":"10Gi"},"parentId":"ns1"},
+		{"id":"dep1","type":"Deployment","data":{"label":"Api Server","image":"api:v1","replicas":3},"parentId":"ns1"},
+		{"id":"svc1","type":"Service","data":{"label":"Api Service","port":80,"targetPort":8080},"parentId":"ns1"}
+	]`
+	edgesJson := `[
+		{"id":"e1","source":"dep1","target":"pvc1"},
+		{"id":"e2","source":"svc1","target":"dep1"}
+	]`
+
+	result := Generate(nodesJson, edgesJson)
+
+	// Check if all kinds are present
+	expectedKinds := []string{"Namespace", "PersistentVolumeClaim", "Deployment", "Service"}
+	for _, kind := range expectedKinds {
+		if !strings.Contains(result, kind) {
+			t.Errorf("Integration test missing kind %s in output", kind)
+		}
+	}
+
+	// Check for proper namespacing
+	if !strings.Contains(result, "\"namespace\":\"prod\"") {
+		t.Error("Integration test output missing correct namespace assignment")
+	}
+
+	// Check for volume connection
+	if !strings.Contains(result, "database-storage") {
+		t.Error("Integration test output missing volume connection to PVC")
+	}
+
+	// Check for service selector
+	if !strings.Contains(result, "\"app\":\"api-server\"") {
+		t.Error("Integration test output missing service selector link to deployment")
+	}
+}
