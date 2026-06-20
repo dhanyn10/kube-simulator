@@ -110,18 +110,48 @@ describe('createUiSlice', () => {
     expect(useFlowStore.getState().systemResources).toEqual(resources);
   });
 
-  it('toggles simulation', () => {
-    // Note: startSimulation has its own complex logic, we just test the entry point here
+  it('toggles simulation and handles validation failure', () => {
     const { setSimulation } = useFlowStore.getState();
 
-    // Start simulation with no internet nodes (should return early or set isSimulating: false)
-    // Actually, with no nodes, it should not set isSimulating to true.
+    // Start simulation with no internet nodes (should return early)
     setSimulation(true);
     expect(useFlowStore.getState().isSimulating).toBe(false);
+
+    // Test validation failure (HPA with no limits)
+    useFlowStore.setState({
+        nodes: [
+            { id: 'h1', type: 'HPA', data: {} },
+            { id: 'd1', type: 'Deployment', data: { label: 'dep' } } // No limits
+        ] as any,
+        edges: [
+            { id: 'e1', source: 'h1', target: 'd1' }
+        ] as any
+    });
+
+    vi.useFakeTimers();
+    setSimulation(true);
+    // It sets isSimulating to true temporarily before stopping
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+
+    vi.advanceTimersByTime(3100);
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+    vi.useRealTimers();
 
     // Stop simulation
     useFlowStore.setState({ isSimulating: true });
     setSimulation(false);
     expect(useFlowStore.getState().isSimulating).toBe(false);
+  });
+
+  it('toggles widgets including new ones', () => {
+    const { toggleWidget } = useFlowStore.getState();
+
+    // Toggle existing widget
+    toggleWidget('w1');
+    expect(useFlowStore.getState().visibleWidgets).not.toContain('w1');
+
+    // Toggle new widget
+    toggleWidget('new-widget');
+    expect(useFlowStore.getState().visibleWidgets).toContain('new-widget');
   });
 });
