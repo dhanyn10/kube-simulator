@@ -107,67 +107,77 @@ export const AlignmentGuides = () => {
       }}
     >
       {/* Alignment guides (premium red/pink segmented lines) */}
-      {alignmentGuidesTransformed.vertical.map((guide: any) => (
-        <div
-          key={`v-align-${guide.position}-${guide.screenTop}-${guide.screenBottom}`}
-          style={{
-            position: 'absolute',
-            left: `${guide.screenX}px`,
-            top: `${guide.screenTop}px`,
-            height: `${guide.screenBottom - guide.screenTop}px`,
-            width: '1px',
-            backgroundColor: '#f43f5e', // rose-500
-            opacity: 0.8,
-            boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
-          }}
-        >
-            {/* Center indicator dot */}
-            {guide.type === 'center' && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    backgroundColor: '#f43f5e',
-                    boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)'
-                }} />
-            )}
-        </div>
-      ))}
+      {alignmentGuidesTransformed.vertical.map((guide: any) => {
+        const centerScreenY = guide.targetCenterPos * viewport.zoom + viewport.y;
+        const relativeCenter = centerScreenY - guide.screenTop;
 
-      {alignmentGuidesTransformed.horizontal.map((guide: any) => (
-        <div
-          key={`h-align-${guide.position}-${guide.screenLeft}-${guide.screenRight}`}
-          style={{
-            position: 'absolute',
-            top: `${guide.screenY}px`,
-            left: `${guide.screenLeft}px`,
-            width: `${guide.screenRight - guide.screenLeft}px`,
-            height: '1px',
-            backgroundColor: '#f43f5e',
-            opacity: 0.8,
-            boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
-          }}
-        >
-            {/* Center indicator dot */}
-            {guide.type === 'center' && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '5px',
-                    height: '5px',
-                    borderRadius: '50%',
-                    backgroundColor: '#f43f5e',
-                    boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)'
-                }} />
-            )}
-        </div>
-      ))}
+        return (
+          <div
+            key={`v-align-${guide.position}-${guide.screenTop}-${guide.screenBottom}`}
+            style={{
+              position: 'absolute',
+              left: `${guide.screenX}px`,
+              top: `${guide.screenTop}px`,
+              height: `${guide.screenBottom - guide.screenTop}px`,
+              width: '1px',
+              backgroundColor: '#f43f5e', // rose-500
+              opacity: 0.8,
+              boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
+            }}
+          >
+              {/* Center indicator dot */}
+              {guide.targetType === 'center' && (
+                  <div style={{
+                      position: 'absolute',
+                      top: `${relativeCenter}px`,
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '5px',
+                      height: '5px',
+                      borderRadius: '50%',
+                      backgroundColor: '#f43f5e',
+                      boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)'
+                  }} />
+              )}
+          </div>
+        );
+      })}
+
+      {alignmentGuidesTransformed.horizontal.map((guide: any) => {
+        const centerScreenX = guide.targetCenterPos * viewport.zoom + viewport.x;
+        const relativeCenter = centerScreenX - guide.screenLeft;
+
+        return (
+          <div
+            key={`h-align-${guide.position}-${guide.screenLeft}-${guide.screenRight}`}
+            style={{
+              position: 'absolute',
+              top: `${guide.screenY}px`,
+              left: `${guide.screenLeft}px`,
+              width: `${guide.screenRight - guide.screenLeft}px`,
+              height: '1px',
+              backgroundColor: '#f43f5e',
+              opacity: 0.8,
+              boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
+            }}
+          >
+              {/* Center indicator dot */}
+              {guide.targetType === 'center' && (
+                  <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: `${relativeCenter}px`,
+                      transform: 'translate(-50%, -50%)',
+                      width: '5px',
+                      height: '5px',
+                      borderRadius: '50%',
+                      backgroundColor: '#f43f5e',
+                      boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)'
+                  }} />
+              )}
+          </div>
+        );
+      })}
 
       {/* Snap guides (blue indicators inside dragged node) */}
       {draggedNode && (

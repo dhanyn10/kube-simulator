@@ -198,7 +198,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       const vSnaps = state.snapGuides.vertical.filter((g: any) => g.isActive).map((g: any) => g.position);
       const hSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
 
-      let finalNode = { ...node };
+      let finalNode = { ...node, position: { ...node.position } };
       
       // 1. Resolution Snapping
       if (vSnaps.length > 0 || hSnaps.length > 0) {

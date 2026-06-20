@@ -280,21 +280,46 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
     if (a.isConnected && !b.isConnected) return -1;
     if (b.isConnected && !a.isConnected) return 1;
 
-    // 2. Center-to-center has priority
-    if (a.type === 'center' && b.type !== 'center') return -1;
-    if (b.type === 'center' && a.type !== 'center') return 1;
+    // 2. Perfect matches (Center-to-Center) have highest visual priority
+    const isCenterMatch = (c: AlignmentCandidate) => c.sourceType === 'center' && c.targetType === 'center';
+    if (isCenterMatch(a) && !isCenterMatch(b)) return -1;
+    if (isCenterMatch(b) && !isCenterMatch(a)) return 1;
 
-    // 3. Proximity check: Prefer orthogonal reference proximity.
-    // For vertical alignment (axis 'x'), the horizontal distance is 'distance' (Delta X).
-    // For horizontal alignment (axis 'y'), the horizontal distance is 'crossDistance' (Delta X).
+    // 3. Same-type matches (Edge-to-Edge)
+    const isSameType = (c: AlignmentCandidate) => c.sourceType === c.targetType;
+    if (isSameType(a) && !isSameType(b)) return -1;
+    if (isSameType(b) && !isSameType(a)) return 1;
+
+    // 4. Proximity check: Prefer orthogonal reference proximity (Excel-style).
     const hDist = (c: AlignmentCandidate) => c.axis === 'x' ? c.distance : c.crossDistance;
-
     const hA = hDist(a), hB = hDist(b);
     if (Math.abs(hA - hB) > 1) return hA - hB;
 
-    // 4. Proximity to alignment (distance)
+    // 5. Proximity to alignment (distance)
     return a.distance - b.distance;
   })[0];
+};
+
+export const getEffectiveSize = (node: Node) => {
+  if (node.type === 'Pod') {
+    const minSize = getPodMinimumSize(node.data);
+    return {
+      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
+      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+    };
+  }
+  const getDefaultSize = (type: string | undefined) => {
+    if (type === 'Deployment') return { w: 400, h: 300 }; // Match scenario defaults
+    if (type === 'Namespace') return { w: 600, h: 400 };
+    if (type === 'ConfigMap' || type === 'Secret') return { w: 180, h: 140 };
+    return { w: 160, h: 80 };
+  };
+
+  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
+  return {
+    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
+    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
+  };
 };
 
 export const calculateAlignmentGuides = (
@@ -310,8 +335,7 @@ export const calculateAlignmentGuides = (
     if (slotGuides) return slotGuides;
   }
 
-  const nodeWidth = node.width || node.measured?.width || 160;
-  const nodeHeight = node.height || node.measured?.height || 80;
+  const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
 
   const config = { threshold: 8, tolerance: 4 };
 
@@ -329,11 +353,18 @@ export const calculateAlignmentGuides = (
     .forEach(otherNode => {
       const isConnected = connectedNodeIds.has(otherNode.id);
       const otherAbs = getAbsPos(otherNode.id, nodes);
-      const otherW = otherNode.width || otherNode.measured?.width || 160;
-      const otherH = otherNode.height || otherNode.measured?.height || 80;
+      const { width: otherW, height: otherH } = getEffectiveSize(otherNode);
 
-      const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
-      const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
+      const otherPointsX = [
+        { pos: otherAbs.x, type: 'edge' },
+        { pos: otherAbs.x + otherW / 2, type: 'center' },
+        { pos: otherAbs.x + otherW, type: 'edge' }
+      ];
+      const otherPointsY = [
+        { pos: otherAbs.y, type: 'edge' },
+        { pos: otherAbs.y + otherH / 2, type: 'center' },
+        { pos: otherAbs.y + otherH, type: 'edge' }
+      ];
 
       const nodePointsX = [
         { pos: nodeAbs.x, type: 'edge' },
@@ -373,7 +404,9 @@ export const calculateAlignmentGuides = (
   const verticalGuides = bestV ? [{
     position: bestV.position,
     targetNodeId: bestV.targetNodeId,
-    type: bestV.type,
+    sourceType: bestV.sourceType,
+    targetType: bestV.targetType,
+    targetCenterPos: bestV.targetCenterPos,
     minY: bestV.min,
     maxY: bestV.max
   }] : [];
@@ -381,7 +414,9 @@ export const calculateAlignmentGuides = (
   const horizontalGuides = bestH ? [{
     position: bestH.position,
     targetNodeId: bestH.targetNodeId,
-    type: bestH.type,
+    sourceType: bestH.sourceType,
+    targetType: bestH.targetType,
+    targetCenterPos: bestH.targetCenterPos,
     minX: bestH.min,
     maxX: bestH.max
   }] : [];
@@ -394,9 +429,9 @@ export const calculateAlignmentGuides = (
 
   if (isVSnapActive && isHSnapActive) {
     // If both are active, pick the best one to show only one blue line
-    if (bestV!.type === 'center' && bestH!.type !== 'center') {
+    if (bestV!.sourceType === 'center' && bestH!.sourceType !== 'center') {
       vSnap.set(bestV!.position, true);
-    } else if (bestH!.type === 'center' && bestV!.type !== 'center') {
+    } else if (bestH!.sourceType === 'center' && bestV!.sourceType !== 'center') {
       hSnap.set(bestH!.position, true);
     } else if (bestV!.distance <= bestH!.distance) {
       vSnap.set(bestV!.position, true);
@@ -416,26 +451,6 @@ export const calculateAlignmentGuides = (
   };
 };
 
-const getEffectiveSize = (node: Node) => {
-  if (node.type === 'Pod') {
-    const minSize = getPodMinimumSize(node.data);
-    return {
-      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
-      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
-    };
-  }
-  const getDefaultSize = (type: string | undefined) => {
-    if (type === 'Deployment') return { w: 320, h: 160 };
-    if (type === 'Namespace') return { w: 600, h: 400 };
-    return { w: 160, h: 80 };
-  };
-
-  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
-  return {
-    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
-    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
-  };
-};
 
 // Helper to get bounding box info for collision resolution
 const getBoundingBox = (node: Node) => {
