@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../../store';
 import { useReactFlow } from '@xyflow/react';
+import { getEffectiveSize } from '../../store/helpers';
 
 export const AlignmentGuides = () => {
   const alignmentGuides = useFlowStore((state: { alignmentGuides: any; }) => state.alignmentGuides);
@@ -14,8 +15,9 @@ export const AlignmentGuides = () => {
 
   // Get dragged node for snap guide positioning
   const draggedNode = nodes.find((n: { id: any; }) => n.id === draggedNodeId);
-  const nodeWidth = draggedNode?.width ?? draggedNode?.measured?.width ?? (draggedNode ? 160 : 0);
-  const nodeHeight = draggedNode?.height ?? draggedNode?.measured?.height ?? (draggedNode ? 80 : 0);
+  const { width: nodeWidth, height: nodeHeight } = draggedNode
+    ? getEffectiveSize(draggedNode)
+    : { width: 0, height: 0 };
 
   // Transform flow coordinates to screen coordinates for alignment guides
   const alignmentGuidesTransformed = React.useMemo(() => {

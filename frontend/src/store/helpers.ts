@@ -301,15 +301,21 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
 };
 
 export const getEffectiveSize = (node: Node) => {
+  const w = node.width || node.measured?.width;
+  const h = node.height || node.measured?.height;
+
+  if (w && h) return { width: w, height: h };
+
   if (node.type === 'Pod') {
     const minSize = getPodMinimumSize(node.data);
     return {
-      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
-      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+      width: w || minSize.width,
+      height: h || minSize.height
     };
   }
+
   const getDefaultSize = (type: string | undefined) => {
-    if (type === 'Deployment') return { w: 400, h: 300 }; // Match scenario defaults
+    if (type === 'Deployment') return { w: 400, h: 300 };
     if (type === 'Namespace') return { w: 600, h: 400 };
     if (type === 'ConfigMap' || type === 'Secret') return { w: 180, h: 140 };
     return { w: 160, h: 80 };
@@ -317,8 +323,8 @@ export const getEffectiveSize = (node: Node) => {
 
   const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
   return {
-    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
-    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
+    width: w || defaultW,
+    height: h || defaultH
   };
 };
 
