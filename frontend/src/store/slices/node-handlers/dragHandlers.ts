@@ -168,7 +168,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     });
 
     const { verticalGuides, horizontalGuides, vSnap, hSnap } = calculateAlignmentGuides(
-      node, nodes, nodeAbs, detachingId !== null, hoveredId
+      node, nodes, get().edges, nodeAbs, detachingId !== null, hoveredId
     );
 
     set({ 

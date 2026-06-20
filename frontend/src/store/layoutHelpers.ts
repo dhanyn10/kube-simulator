@@ -9,6 +9,7 @@ export interface AlignmentCandidate {
   min: number;
   max: number;
   axis: 'x' | 'y';
+  isConnected?: boolean;
 }
 
 interface AlignmentParams {
@@ -20,6 +21,7 @@ interface AlignmentParams {
   otherAbs: { x: number; y: number };
   size: { node: number; other: number };
   axis: 'x' | 'y';
+  isConnected?: boolean;
 }
 
 export const getAlignmentCandidates = ({
@@ -30,7 +32,8 @@ export const getAlignmentCandidates = ({
   nodeAbs,
   otherAbs,
   size,
-  axis
+  axis,
+  isConnected
 }: AlignmentParams): AlignmentCandidate[] => {
   const candidates: AlignmentCandidate[] = [];
 
@@ -57,7 +60,8 @@ export const getAlignmentCandidates = ({
         crossDistance,
         min,
         max,
-        axis
+        axis,
+        isConnected
       });
     }
   }

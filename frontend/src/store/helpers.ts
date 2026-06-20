@@ -1,4 +1,4 @@
-import { Node } from '@xyflow/react';
+import { Node, Edge } from '@xyflow/react';
 import { K8sNodeData } from '../types';
 import { getAlignmentCandidates, getPodSpacing, getReplicaThresholds, AlignmentCandidate } from './layoutHelpers';
 import { getPodMinimumSize } from '../lib/podSizing';
@@ -276,12 +276,15 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
   if (candidates.length === 0) return null;
 
   return candidates.sort((a, b) => {
-    // 1. Center-to-center has highest priority
+    // 1. Connected nodes have highest priority
+    if (a.isConnected && !b.isConnected) return -1;
+    if (b.isConnected && !a.isConnected) return 1;
+
+    // 2. Center-to-center has priority
     if (a.type === 'center' && b.type !== 'center') return -1;
     if (b.type === 'center' && a.type !== 'center') return 1;
 
-    // 2. Proximity check: Prefer "horizontally closest" reference.
-    // "Secara horizontal paling dekat"
+    // 3. Proximity check: Prefer orthogonal reference proximity.
     // For vertical alignment (axis 'x'), the horizontal distance is 'distance' (Delta X).
     // For horizontal alignment (axis 'y'), the horizontal distance is 'crossDistance' (Delta X).
     const hDist = (c: AlignmentCandidate) => c.axis === 'x' ? c.distance : c.crossDistance;
@@ -289,7 +292,7 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
     const hA = hDist(a), hB = hDist(b);
     if (Math.abs(hA - hB) > 1) return hA - hB;
 
-    // 3. Proximity to alignment (distance)
+    // 4. Proximity to alignment (distance)
     return a.distance - b.distance;
   })[0];
 };
@@ -297,6 +300,7 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
 export const calculateAlignmentGuides = (
   node: Node,
   nodes: Node[],
+  edges: Edge[],
   nodeAbs: { x: number, y: number },
   isDetaching: boolean,
   hoveredDeploymentId: string | null = null
@@ -314,9 +318,16 @@ export const calculateAlignmentGuides = (
   const allVCandidates: AlignmentCandidate[] = [];
   const allHCandidates: AlignmentCandidate[] = [];
 
+  const connectedNodeIds = new Set(
+    edges
+      .filter(e => e.source === node.id || e.target === node.id)
+      .map(e => (e.source === node.id ? e.target : e.source))
+  );
+
   nodes
     .filter(n => n.id !== node.id)
     .forEach(otherNode => {
+      const isConnected = connectedNodeIds.has(otherNode.id);
       const otherAbs = getAbsPos(otherNode.id, nodes);
       const otherW = otherNode.width || otherNode.measured?.width || 160;
       const otherH = otherNode.height || otherNode.measured?.height || 80;
@@ -338,14 +349,14 @@ export const calculateAlignmentGuides = (
       nodePointsX.forEach(nP => {
         allVCandidates.push(...getAlignmentCandidates({
           nP, otherPoints: otherPointsX, otherNode, config, nodeAbs, otherAbs,
-          size: { node: nodeHeight, other: otherH }, axis: 'x'
+          size: { node: nodeHeight, other: otherH }, axis: 'x', isConnected
         }));
       });
 
       nodePointsY.forEach(nP => {
         allHCandidates.push(...getAlignmentCandidates({
           nP, otherPoints: otherPointsY, otherNode, config, nodeAbs, otherAbs,
-          size: { node: nodeWidth, other: otherW }, axis: 'y'
+          size: { node: nodeWidth, other: otherW }, axis: 'y', isConnected
         }));
       });
     });
