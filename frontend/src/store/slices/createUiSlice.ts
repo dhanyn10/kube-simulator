@@ -52,8 +52,19 @@ export interface UiSlice {
 }
 
 const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } = { current: null };
+
+/**
+ * Retrieves the Wails runtime if available.
+ * @returns The Wails runtime or undefined.
+ */
 const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
+/**
+ * Executes a single tick of the simulation.
+ * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
+ *
+ * @param params Object containing the current flow state, current tick count, and store setters/getters.
+ */
 const runSimulationTick = (params: {
   state: FlowState,
   ticks: number,
@@ -148,6 +159,14 @@ const runSimulationTick = (params: {
   }
 };
 
+/**
+ * Internal logic for starting the simulation.
+ * It validates HPA targets, initializes metrics, and sets up the tick interval.
+ *
+ * @param internetNodeIds Optional list of internet node IDs to start simulation from.
+ * @param set Zustand store setter.
+ * @param get Zustand store getter.
+ */
 const startSimulationInternal = (
     internetNodeIds: string[] | undefined,
     set: (state: Partial<FlowState>) => void,
@@ -270,9 +289,16 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   deleteCustomImage: (image) => set((state: FlowState) => ({
     customImages: state.customImages.filter((img) => img !== image)
   })),
+  /**
+   * Public action to start the simulation.
+   * @param internetNodeIds Optional internet node IDs to start from.
+   */
   startSimulation: (internetNodeIds) => {
     startSimulationInternal(internetNodeIds, set, get);
   },
+  /**
+   * Public action to stop the simulation.
+   */
   stopSimulation: () => {
     stopSimulationInternal(set, get, simulationIntervalObj);
   },

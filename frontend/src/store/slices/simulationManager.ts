@@ -6,10 +6,18 @@ import { validateResourceLimits } from '../../lib/utils';
 
 // Centralize side-effect handlers
 const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
+
+/**
+ * Retrieves the Wails runtime if available.
+ * @returns The Wails runtime or undefined.
+ */
 const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
 /**
  * Stops the simulation and resets relevant state.
+ * @param set Zustand store setter.
+ * @param get Zustand store getter.
+ * @param simulationInterval Ref to the current interval object.
  */
 export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: () => FlowState, simulationInterval: { current: ReturnType<typeof setInterval> | null }) => {
   if (simulationInterval.current) {
@@ -22,6 +30,8 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
 
 /**
  * Broadcasts metrics to detached monitoring window and Wails backend.
+ * @param metrics The current simulation metrics.
+ * @param workloads List of active workload nodes.
  */
 export const broadcastMetrics = (metrics: Record<string, SimulationMetricPoint[]>, workloads: Node[]) => {
   const payload = {
@@ -39,6 +49,10 @@ export const broadcastMetrics = (metrics: Record<string, SimulationMetricPoint[]
 
 /**
  * Checks if simulation should be stopped due to critical errors (e.g., all pods pending).
+ * Returns true if an emergency stop was triggered.
+ *
+ * @param params Object containing tick count, workloads, nodes, metrics, and state setters.
+ * @returns boolean
  */
 export const checkEmergencyStop = (params: {
   ticks: number,
@@ -78,6 +92,10 @@ export const checkEmergencyStop = (params: {
 
 /**
  * Validates HPA targets for required resource limits and ensure limit >= request.
+ *
+ * @param nodes List of all flow nodes.
+ * @param edges List of all flow edges.
+ * @returns boolean True if all HPA targets are valid.
  */
 export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
     const hpaNodes = nodes.filter(n => n.type === 'HPA');
@@ -99,5 +117,8 @@ export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
     });
 };
 
-// Re-export channel for other slices if needed
+/**
+ * Returns the centralized metrics broadcast channel.
+ * @returns BroadcastChannel | null
+ */
 export const getMetricsChannel = () => metricsChannel;
