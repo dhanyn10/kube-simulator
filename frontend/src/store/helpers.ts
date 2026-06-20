@@ -1,6 +1,6 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '../types';
-import { checkXAlignment, checkYAlignment, getPodSpacing, getReplicaThresholds } from './layoutHelpers';
+import { getAlignmentCandidates, getPodSpacing, getReplicaThresholds, AlignmentCandidate } from './layoutHelpers';
 import { getPodMinimumSize } from '../lib/podSizing';
 
 export const getNodeData = (node: Node): K8sNodeData => {
@@ -272,42 +272,26 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   };
 };
 
-interface AlignmentContext {
-  nodes: Node[];
-  nodeAbs: { x: number; y: number };
-  nodeSize: { width: number; height: number };
-  verticalGuides: Map<number, any>;
-  horizontalGuides: Map<number, any>;
-  vSnap: Map<number, boolean>;
-  hSnap: Map<number, boolean>;
-}
+const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandidate | null => {
+  if (candidates.length === 0) return null;
 
-// Helper to check alignment between two nodes
-const updatePairAlignment = (
-  otherNode: Node,
-  ctx: AlignmentContext
-) => {
-  const otherAbs = getAbsPos(otherNode.id, ctx.nodes);
-  const otherW = otherNode.width || otherNode.measured?.width || 160;
-  const otherH = otherNode.height || otherNode.measured?.height || 80;
+  return candidates.sort((a, b) => {
+    // 1. Center-to-center has highest priority
+    if (a.type === 'center' && b.type !== 'center') return -1;
+    if (b.type === 'center' && a.type !== 'center') return 1;
 
-  const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
-  const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
+    // 2. Proximity check: Prefer "horizontally closest" reference.
+    // "Secara horizontal paling dekat"
+    // For vertical alignment (axis 'x'), the horizontal distance is 'distance' (Delta X).
+    // For horizontal alignment (axis 'y'), the horizontal distance is 'crossDistance' (Delta X).
+    const hDist = (c: AlignmentCandidate) => c.axis === 'x' ? c.distance : c.crossDistance;
 
-  const nodePointsX = [
-    { pos: ctx.nodeAbs.x, type: 'edge' },
-    { pos: ctx.nodeAbs.x + ctx.nodeSize.width / 2, type: 'center' },
-    { pos: ctx.nodeAbs.x + ctx.nodeSize.width, type: 'edge' }
-  ];
-  const nodePointsY = [
-    { pos: ctx.nodeAbs.y, type: 'edge' },
-    { pos: ctx.nodeAbs.y + ctx.nodeSize.height / 2, type: 'center' },
-    { pos: ctx.nodeAbs.y + ctx.nodeSize.height, type: 'edge' }
-  ];
+    const hA = hDist(a), hB = hDist(b);
+    if (Math.abs(hA - hB) > 1) return hA - hB;
 
-  const config = { threshold: 8, tolerance: 4 };
-  nodePointsX.forEach(nP => checkXAlignment({ nP, otherPoints: otherPointsX, otherNode, guides: ctx.verticalGuides, snap: ctx.vSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.height, other: otherH } }));
-  nodePointsY.forEach(nP => checkYAlignment({ nP, otherPoints: otherPointsY, otherNode, guides: ctx.horizontalGuides, snap: ctx.hSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.width, other: otherW } }));
+    // 3. Proximity to alignment (distance)
+    return a.distance - b.distance;
+  })[0];
 };
 
 export const calculateAlignmentGuides = (
@@ -322,33 +306,94 @@ export const calculateAlignmentGuides = (
     if (slotGuides) return slotGuides;
   }
 
-  const verticalGuides = new Map<number, any>();
-  const horizontalGuides = new Map<number, any>();
-  const vSnap = new Map<number, boolean>();
-  const hSnap = new Map<number, boolean>();
-
   const nodeWidth = node.width || node.measured?.width || 160;
   const nodeHeight = node.height || node.measured?.height || 80;
 
-  const ctx: AlignmentContext = {
-    nodes,
-    nodeAbs,
-    nodeSize: { width: nodeWidth, height: nodeHeight },
-    verticalGuides,
-    horizontalGuides,
-    vSnap,
-    hSnap
-  };
+  const config = { threshold: 8, tolerance: 4 };
+
+  const allVCandidates: AlignmentCandidate[] = [];
+  const allHCandidates: AlignmentCandidate[] = [];
 
   nodes
     .filter(n => n.id !== node.id)
     .forEach(otherNode => {
-      updatePairAlignment(otherNode, ctx);
+      const otherAbs = getAbsPos(otherNode.id, nodes);
+      const otherW = otherNode.width || otherNode.measured?.width || 160;
+      const otherH = otherNode.height || otherNode.measured?.height || 80;
+
+      const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
+      const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
+
+      const nodePointsX = [
+        { pos: nodeAbs.x, type: 'edge' },
+        { pos: nodeAbs.x + nodeWidth / 2, type: 'center' },
+        { pos: nodeAbs.x + nodeWidth, type: 'edge' }
+      ];
+      const nodePointsY = [
+        { pos: nodeAbs.y, type: 'edge' },
+        { pos: nodeAbs.y + nodeHeight / 2, type: 'center' },
+        { pos: nodeAbs.y + nodeHeight, type: 'edge' }
+      ];
+
+      nodePointsX.forEach(nP => {
+        allVCandidates.push(...getAlignmentCandidates({
+          nP, otherPoints: otherPointsX, otherNode, config, nodeAbs, otherAbs,
+          size: { node: nodeHeight, other: otherH }, axis: 'x'
+        }));
+      });
+
+      nodePointsY.forEach(nP => {
+        allHCandidates.push(...getAlignmentCandidates({
+          nP, otherPoints: otherPointsY, otherNode, config, nodeAbs, otherAbs,
+          size: { node: nodeWidth, other: otherW }, axis: 'y'
+        }));
+      });
     });
 
+  const bestV = selectBestCandidate(allVCandidates);
+  const bestH = selectBestCandidate(allHCandidates);
+
+  const verticalGuides = bestV ? [{
+    position: bestV.position,
+    targetNodeId: bestV.targetNodeId,
+    type: bestV.type,
+    minY: bestV.min,
+    maxY: bestV.max
+  }] : [];
+
+  const horizontalGuides = bestH ? [{
+    position: bestH.position,
+    targetNodeId: bestH.targetNodeId,
+    type: bestH.type,
+    minX: bestH.min,
+    maxX: bestH.max
+  }] : [];
+
+  const vSnap = new Map<number, boolean>();
+  const hSnap = new Map<number, boolean>();
+
+  const isVSnapActive = bestV && bestV.distance < config.tolerance;
+  const isHSnapActive = bestH && bestH.distance < config.tolerance;
+
+  if (isVSnapActive && isHSnapActive) {
+    // If both are active, pick the best one to show only one blue line
+    if (bestV!.type === 'center' && bestH!.type !== 'center') {
+      vSnap.set(bestV!.position, true);
+    } else if (bestH!.type === 'center' && bestV!.type !== 'center') {
+      hSnap.set(bestH!.position, true);
+    } else if (bestV!.distance <= bestH!.distance) {
+      vSnap.set(bestV!.position, true);
+    } else {
+      hSnap.set(bestH!.position, true);
+    }
+  } else {
+    if (isVSnapActive) vSnap.set(bestV!.position, true);
+    if (isHSnapActive) hSnap.set(bestH!.position, true);
+  }
+
   return {
-    verticalGuides: Array.from(verticalGuides.values()),
-    horizontalGuides: Array.from(horizontalGuides.values()),
+    verticalGuides,
+    horizontalGuides,
     vSnap,
     hSnap
   };
