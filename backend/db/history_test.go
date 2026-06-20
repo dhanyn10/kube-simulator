@@ -36,105 +36,90 @@ func TestHistoryManager_Init(t *testing.T) {
 	}
 }
 
-func TestHistoryManager(t *testing.T) {
+func setupHistoryTest(t *testing.T) (*HistoryManager, func()) {
 	tmpDir, err := os.MkdirTemp("", "badger-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
-
 	db, err := badger.Open(badger.DefaultOptions(tmpDir).WithLogger(nil))
 	if err != nil {
+		os.RemoveAll(tmpDir)
 		t.Fatal(err)
 	}
+	hm := &HistoryManager{db: db, currentIndex: -1, maxIndex: -1}
+	return hm, func() {
+		hm.Close()
+		os.RemoveAll(tmpDir)
+	}
+}
 
-	hm := &HistoryManager{
-		db:           db,
-		currentIndex: -1,
-		maxIndex:     -1,
-	}
-	defer hm.Close()
+func TestHistoryManager(t *testing.T) {
+	hm, cleanup := setupHistoryTest(t)
+	defer cleanup()
 
-	// Test Push
-	hm.Push("state1")
-	if hm.currentIndex != 0 || hm.maxIndex != 0 {
-		t.Errorf("Expected index 0, got current=%d max=%d", hm.currentIndex, hm.maxIndex)
-	}
+	t.Run("Push", func(t *testing.T) {
+		hm.Push("state1")
+		if hm.currentIndex != 0 || hm.maxIndex != 0 {
+			t.Errorf("Expected index 0, got current=%d max=%d", hm.currentIndex, hm.maxIndex)
+		}
+		hm.Push("state2")
+		if hm.currentIndex != 1 || hm.maxIndex != 1 {
+			t.Errorf("Expected index 1, got current=%d max=%d", hm.currentIndex, hm.maxIndex)
+		}
+	})
 
-	hm.Push("state2")
-	if hm.currentIndex != 1 || hm.maxIndex != 1 {
-		t.Errorf("Expected index 1, got current=%d max=%d", hm.currentIndex, hm.maxIndex)
-	}
+	t.Run("Undo", func(t *testing.T) {
+		state := hm.Undo()
+		if state != "state1" {
+			t.Errorf("Expected state1, got %s", state)
+		}
+		if hm.currentIndex != 0 {
+			t.Errorf("Expected index 0 after undo, got %d", hm.currentIndex)
+		}
+		if hm.Undo() != "" {
+			t.Error("Expected empty state for undo at boundary")
+		}
+	})
 
-	// Test Undo
-	state := hm.Undo()
-	if state != "state1" {
-		t.Errorf("Expected state1, got %s", state)
-	}
-	if hm.currentIndex != 0 {
-		t.Errorf("Expected current index 0 after undo, got %d", hm.currentIndex)
-	}
+	t.Run("Redo", func(t *testing.T) {
+		state := hm.Redo()
+		if state != "state2" {
+			t.Errorf("Expected state2, got %s", state)
+		}
+		if hm.currentIndex != 1 {
+			t.Errorf("Expected index 1 after redo, got %d", hm.currentIndex)
+		}
+		if hm.Redo() != "" {
+			t.Error("Expected empty state for redo at boundary")
+		}
+	})
 
-	// Undo at boundary
-	state = hm.Undo()
-	if state != "" {
-		t.Errorf("Expected empty state for undo at boundary, got %s", state)
-	}
+	t.Run("JumpTo", func(t *testing.T) {
+		if hm.JumpTo(0) != "state1" {
+			t.Error("Expected state1 for JumpTo(0)")
+		}
+		if hm.JumpTo(999) != "" {
+			t.Error("Expected empty state for invalid JumpTo index")
+		}
+	})
 
-	// Test Redo
-	state = hm.Redo()
-	if state != "state2" {
-		t.Errorf("Expected state2, got %s", state)
-	}
-	if hm.currentIndex != 1 {
-		t.Errorf("Expected current index 1 after redo, got %d", hm.currentIndex)
-	}
-
-	// Redo at boundary
-	state = hm.Redo()
-	if state != "" {
-		t.Errorf("Expected empty state for redo at boundary, got %s", state)
-	}
-
-	// Test JumpTo
-	state = hm.JumpTo(0)
-	if state != "state1" {
-		t.Errorf("Expected state1, got %s", state)
-	}
-
-	// JumpTo invalid index
-	state = hm.JumpTo(999)
-	if state != "" {
-		t.Errorf("Expected empty state for jump to invalid index, got %s", state)
-	}
-
-	// Test GetMaxIndex and GetDB
-	if hm.GetMaxIndex() != 1 {
-		t.Errorf("Expected max index 1, got %d", hm.GetMaxIndex())
-	}
-	if hm.GetDB() != db {
-		t.Error("GetDB returned wrong database instance")
-	}
+	t.Run("Metadata", func(t *testing.T) {
+		if hm.GetMaxIndex() != 1 {
+			t.Errorf("Expected max index 1, got %d", hm.GetMaxIndex())
+		}
+		if hm.GetDB() == nil {
+			t.Error("GetDB returned nil")
+		}
+	})
 }
 
 func TestHistoryManager_Uninitialized(t *testing.T) {
 	hm := NewHistoryManager()
-	// db is nil
-
+	if hm.Undo() != "" || hm.Redo() != "" || hm.JumpTo(0) != "" {
+		t.Error("Uninitialized manager should return empty strings")
+	}
 	hm.Push("state")
 	if hm.currentIndex != -1 {
 		t.Error("Push should do nothing if db is nil")
-	}
-
-	if hm.Undo() != "" {
-		t.Error("Undo should return empty if db is nil")
-	}
-
-	if hm.Redo() != "" {
-		t.Error("Redo should return empty if db is nil")
-	}
-
-	if hm.JumpTo(0) != "" {
-		t.Error("JumpTo should return empty if db is nil")
 	}
 }
