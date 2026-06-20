@@ -164,7 +164,7 @@ export const MenuBar = ({
   return (
     <div
       ref={menuRef}
-      style={{ '--wails-draggable': 'drag' } as React.CSSProperties}
+      style={{ '--wails-draggable': 'drag' }}
       className={cn(
         "h-10 border-b flex items-center px-3 justify-between z-50 select-none relative",
         themeClasses
@@ -192,7 +192,7 @@ export const MenuBar = ({
 
         <button
           onClick={toggleColorMode}
-          style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}
+          style={{ '--wails-draggable': 'no-drag' }}
           className={cn(
             "p-1.5 rounded-md transition-colors mr-1",
             colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-200 text-slate-500"

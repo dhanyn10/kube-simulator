@@ -39,7 +39,7 @@ export const MenuBarDropdown = ({
   );
 
   return (
-    <div className="relative" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+    <div className="relative" style={{ '--wails-draggable': 'no-drag' }}>
       <button
         onClick={() => setActiveMenu(isOpen ? null : menu.label)}
         onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
