@@ -30,14 +30,15 @@ describe('AlignmentGuides', () => {
   it('renders alignment guides', () => {
     useFlowStore.setState({
       alignmentGuides: {
-        vertical: [{ position: 100, minY: 0, maxY: 500, type: 'center' }],
-        horizontal: [{ position: 200, minX: 0, maxX: 500, type: 'edge' }],
+        vertical: [{ position: 100, minY: 0, maxY: 500, targetType: 'center', targetCenterPos: 250 }],
+        horizontal: [{ position: 200, minX: 0, maxX: 500, targetType: 'edge', targetCenterPos: 250 }],
       }
     });
 
     const { container } = render(<AlignmentGuides />);
     const innerDivs = container.querySelectorAll('div[style*="position: absolute"] > div');
-    expect(innerDivs.length).toBe(3); // 1 vertical + 1 dot + 1 horizontal
+    // 1 vertical line + 1 dot + 1 horizontal line = 3
+    expect(innerDivs.length).toBe(3);
   });
 
   it('renders snap guides when a node is being dragged', () => {

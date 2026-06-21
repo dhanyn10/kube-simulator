@@ -92,8 +92,25 @@ export const AlignmentGuides = () => {
     };
   }, [snapGuides, draggedNode, nodes, viewport]);
 
-  const nodeScreenWidth = nodeWidth * viewport.zoom;
-  const nodeScreenHeight = nodeHeight * viewport.zoom;
+  const nodeScreenWidth = (nodeWidth || 0) * viewport.zoom;
+  const nodeScreenHeight = (nodeHeight || 0) * viewport.zoom;
+
+  // Extract these from snapGuidesTransformed if available, or fallback to relative calculation
+  // But actually, we need the nodeScreenX/Y outside the map to position the fragment correctly.
+  // We can derive them from the draggedNode directly here.
+
+  const getAbsPosition = (node: any): { x: number, y: number } => {
+    if (!node?.position) return { x: 0, y: 0 };
+    if (!node.parentId) return node.position;
+    const parent = nodes.find((n: any) => n.id === node.parentId);
+    if (!parent) return node.position;
+    const parentAbs = getAbsPosition(parent);
+    return { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
+  };
+
+  const nodeAbs = draggedNode ? getAbsPosition(draggedNode) : { x: 0, y: 0 };
+  const nodeScreenX = nodeAbs.x * viewport.zoom + viewport.x;
+  const nodeScreenY = nodeAbs.y * viewport.zoom + viewport.y;
 
   return (
     <div
@@ -184,29 +201,29 @@ export const AlignmentGuides = () => {
       {/* Snap guides (blue indicators inside dragged node) */}
       {draggedNode && (
         <>
-          {snapGuidesTransformed.vertical.map((guide: { screenX: any; nodeScreenX: any; nodeScreenY: any; relativeX: any; }) => (
+          {snapGuidesTransformed.vertical.map((guide: any) => (
             <div
-              key={`v-snap-${guide.relativeX}`}
+              key={`v-snap-${guide.screenX}`}
               style={{
                 position: 'absolute',
-                left: `${guide.nodeScreenX + nodeScreenWidth / 2}px`,
-                top: `${guide.nodeScreenY}px`,
-                width: '2px', // Slightly thicker for emphasis
+                left: `${guide.screenX}px`,
+                top: `${nodeScreenY}px`,
+                width: '2px',
                 height: `${nodeScreenHeight}px`,
-                backgroundColor: '#3b82f6', // blue-500
+                backgroundColor: '#3b82f6',
                 opacity: 0.9,
                 boxShadow: '0 0 8px rgba(59, 130, 246, 0.8)',
               }}
             />
           ))}
 
-          {snapGuidesTransformed.horizontal.map((guide: { screenY: any; nodeScreenX: any; nodeScreenY: any; relativeY: any; }) => (
+          {snapGuidesTransformed.horizontal.map((guide: any) => (
             <div
-              key={`h-snap-${guide.relativeY}`}
+              key={`h-snap-${guide.screenY}`}
               style={{
                 position: 'absolute',
-                top: `${guide.nodeScreenY + nodeScreenHeight / 2}px`,
-                left: `${guide.nodeScreenX}px`,
+                top: `${guide.screenY}px`,
+                left: `${nodeScreenX}px`,
                 width: `${nodeScreenWidth}px`,
                 height: '2px',
                 backgroundColor: '#3b82f6',

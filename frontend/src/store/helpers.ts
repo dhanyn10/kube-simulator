@@ -249,7 +249,7 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
 };
 
 // Helper to get alignment guides for a pod being dragged over a deployment
-const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId: string) => {
+const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId: string, nodeAbs: { x: number, y: number }) => {
   const deployment = nodes.find(n => n.id === hoveredDeploymentId);
   if (!deployment) return null;
 
@@ -263,12 +263,36 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   const depAbs = getAbsPos(deployment.id, nodes);
   const targetAbsX = depAbs.x + targetPod.position.x;
   const targetAbsY = depAbs.y + targetPod.position.y;
-  
+
+  const { width: nodeW, height: nodeH } = getEffectiveSize(node);
+  const distV = Math.abs(nodeAbs.x - targetAbsX);
+  const distH = Math.abs(nodeAbs.y - targetAbsY);
+
+  const verticalGuides = distV < 48 ? [{
+    position: targetAbsX,
+    targetNodeId: deployment.id,
+    sourceType: 'edge',
+    targetType: 'edge',
+    targetCenterPos: targetAbsY + nodeH / 2,
+    minY: Math.min(targetAbsY, depAbs.y),
+    maxY: Math.max(targetAbsY + nodeH, depAbs.y + (deployment.height || 300))
+  }] : [];
+
+  const horizontalGuides = distH < 48 ? [{
+    position: targetAbsY,
+    targetNodeId: deployment.id,
+    sourceType: 'edge',
+    targetType: 'edge',
+    targetCenterPos: targetAbsX + nodeW / 2,
+    minX: Math.min(targetAbsX, depAbs.x),
+    maxX: Math.max(targetAbsX + nodeW, depAbs.x + (deployment.width || 400))
+  }] : [];
+
   return {
-    verticalGuides: [{ position: targetAbsX }],
-    horizontalGuides: [{ position: targetAbsY }],
-    vSnap: new Map([[targetAbsX, true]]),
-    hSnap: new Map([[targetAbsY, true]])
+    verticalGuides,
+    horizontalGuides,
+    vSnap: new Map(distV < 24 ? [[targetAbsX, true]] : []),
+    hSnap: new Map(distH < 24 ? [[targetAbsY, true]] : [])
   };
 };
 
@@ -276,7 +300,7 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
   if (candidates.length === 0) return null;
 
   return candidates.sort((a, b) => {
-    // 1. Connected nodes have highest priority
+    // 1. Connected nodes have highest priority (parent/children or linked edges)
     if (a.isConnected && !b.isConnected) return -1;
     if (b.isConnected && !a.isConnected) return 1;
 
@@ -285,18 +309,16 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
     if (isCenterMatch(a) && !isCenterMatch(b)) return -1;
     if (isCenterMatch(b) && !isCenterMatch(a)) return 1;
 
-    // 3. Same-type matches (Edge-to-Edge)
+    // 3. Snapping Proximity: Prefer the guide that is physically closest to being aligned (Delta X/Y)
+    if (Math.abs(a.distance - b.distance) > 0.1) return a.distance - b.distance;
+
+    // 4. Same-type matches (Edge-to-Edge)
     const isSameType = (c: AlignmentCandidate) => c.sourceType === c.targetType;
     if (isSameType(a) && !isSameType(b)) return -1;
     if (isSameType(b) && !isSameType(a)) return 1;
 
-    // 4. Proximity check: Prefer orthogonal reference proximity (Excel-style).
-    const hDist = (c: AlignmentCandidate) => c.axis === 'x' ? c.distance : c.crossDistance;
-    const hA = hDist(a), hB = hDist(b);
-    if (Math.abs(hA - hB) > 1) return hA - hB;
-
-    // 5. Proximity to alignment (distance)
-    return a.distance - b.distance;
+    // 5. Orthogonal Proximity (Excel-style): Pick reference that is physically closest on the other axis
+    return a.crossDistance - b.crossDistance;
   })[0];
 };
 
@@ -336,9 +358,9 @@ export const calculateAlignmentGuides = (
   isDetaching: boolean,
   hoveredDeploymentId: string | null = null
 ) => {
+  let slotGuides = null;
   if (node.type === 'Pod' && hoveredDeploymentId && !isDetaching) {
-    const slotGuides = getDeploymentSlotGuides(node, nodes, hoveredDeploymentId);
-    if (slotGuides) return slotGuides;
+    slotGuides = getDeploymentSlotGuides(node, nodes, hoveredDeploymentId, nodeAbs);
   }
 
   const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
@@ -353,6 +375,15 @@ export const calculateAlignmentGuides = (
       .filter(e => e.source === node.id || e.target === node.id)
       .map(e => (e.source === node.id ? e.target : e.source))
   );
+
+  // Also treat parent/children as connected for snapping purposes
+  if (node.parentId) connectedNodeIds.add(node.parentId);
+  nodes.forEach(n => { if (n.parentId === node.id) connectedNodeIds.add(n.id); });
+
+  // If pod is hovering over deployment, treat it as connected for snapping threshold
+  if (node.type === 'Pod' && hoveredDeploymentId) {
+    connectedNodeIds.add(hoveredDeploymentId);
+  }
 
   nodes
     .filter(n => n.id !== node.id)
@@ -430,23 +461,23 @@ export const calculateAlignmentGuides = (
   const vSnap = new Map<number, boolean>();
   const hSnap = new Map<number, boolean>();
 
-  const isVSnapActive = bestV && bestV.distance < config.tolerance;
-  const isHSnapActive = bestH && bestH.distance < config.tolerance;
+  const isVSnapActive = bestV && bestV.distance < (bestV.isConnected ? 24 : 12);
+  const isHSnapActive = bestH && bestH.distance < (bestH.isConnected ? 24 : 12);
 
-  if (isVSnapActive && isHSnapActive) {
-    // If both are active, pick the best one to show only one blue line
-    if (bestV!.sourceType === 'center' && bestH!.sourceType !== 'center') {
-      vSnap.set(bestV!.position, true);
-    } else if (bestH!.sourceType === 'center' && bestV!.sourceType !== 'center') {
-      hSnap.set(bestH!.position, true);
-    } else if (bestV!.distance <= bestH!.distance) {
-      vSnap.set(bestV!.position, true);
-    } else {
-      hSnap.set(bestH!.position, true);
-    }
-  } else {
-    if (isVSnapActive) vSnap.set(bestV!.position, true);
-    if (isHSnapActive) hSnap.set(bestH!.position, true);
+  if (isVSnapActive) vSnap.set(bestV!.position, true);
+  if (isHSnapActive) hSnap.set(bestH!.position, true);
+
+  // If slot guides were found, merge them. Slot guides take precedence.
+  if (slotGuides) {
+    const hasSlotV = slotGuides.verticalGuides.length > 0;
+    const hasSlotH = slotGuides.horizontalGuides.length > 0;
+
+    return {
+        verticalGuides: hasSlotV ? slotGuides.verticalGuides : verticalGuides,
+        horizontalGuides: hasSlotH ? slotGuides.horizontalGuides : horizontalGuides,
+        vSnap: slotGuides.vSnap.size > 0 ? slotGuides.vSnap : vSnap,
+        hSnap: slotGuides.hSnap.size > 0 ? slotGuides.hSnap : hSnap,
+    };
   }
 
   return {
