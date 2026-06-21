@@ -106,9 +106,9 @@ describe('store helpers', () => {
     // Snap threshold for unconnected is 8. Distance 5 should trigger snap.
     expect(guides.hSnap.size).toBeGreaterThan(0);
 
-    // Distance 9 should trigger guides but NOT snap
-    const guidesNoSnap = calculateAlignmentGuides(node, nodes, [], { x: 0, y: -4 }, false);
-    expect(guidesNoSnap.horizontalGuides.length).toBeGreaterThan(0);
+    // Distance 11 should trigger NO guides and NO snap (threshold is 10)
+    const guidesNoSnap = calculateAlignmentGuides(node, nodes, [], { x: 0, y: -6 }, false);
+    expect(guidesNoSnap.horizontalGuides.length).toBe(0);
     expect(guidesNoSnap.hSnap.size).toBe(0);
   });
 

@@ -46,13 +46,13 @@ export const getAlignmentCandidates = ({
         ? Math.abs((nodeAbs.y + size.node / 2) - (otherAbs.y + size.other / 2))
         : Math.abs((nodeAbs.x + size.node / 2) - (otherAbs.x + size.other / 2));
 
-      const min = axis === 'x'
+      const min = (axis === 'x'
         ? Math.min(nodeAbs.y, otherAbs.y)
-        : Math.min(nodeAbs.x, otherAbs.x);
+        : Math.min(nodeAbs.x, otherAbs.x)) - 200;
 
-      const max = axis === 'x'
+      const max = (axis === 'x'
         ? Math.max(nodeAbs.y + size.node, otherAbs.y + size.other)
-        : Math.max(nodeAbs.x + size.node, otherAbs.x + size.other);
+        : Math.max(nodeAbs.x + size.node, otherAbs.x + size.other)) + 200;
 
       candidates.push({
         position: oP.pos,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFlowStore } from '../../store';
 import { useReactFlow } from '@xyflow/react';
-import { getEffectiveSize } from '../../store/helpers';
+import { getEffectiveSize, getAbsPos } from '../../store/helpers';
 
 export const AlignmentGuides = () => {
   const alignmentGuides = useFlowStore((state: { alignmentGuides: any; }) => state.alignmentGuides);
@@ -28,14 +28,14 @@ export const AlignmentGuides = () => {
       vertical: vertical.map((guide: any) => {
         const screenX = Math.round((guide.position ?? 0) * viewport.zoom + viewport.x);
         // If minY/maxY are provided, use them for segmented lines
-        const screenTop = typeof guide.minY === 'number' ? guide.minY * viewport.zoom + viewport.y : 0;
-        const screenBottom = typeof guide.maxY === 'number' ? guide.maxY * viewport.zoom + viewport.y : 10000;
+        const screenTop = typeof guide.minY === 'number' ? Math.round(guide.minY * viewport.zoom + viewport.y) : 0;
+        const screenBottom = typeof guide.maxY === 'number' ? Math.round(guide.maxY * viewport.zoom + viewport.y) : 10000;
         return { ...guide, screenX, screenTop, screenBottom };
       }),
       horizontal: horizontal.map((guide: any) => {
         const screenY = Math.round((guide.position ?? 0) * viewport.zoom + viewport.y);
-        const screenLeft = typeof guide.minX === 'number' ? guide.minX * viewport.zoom + viewport.x : 0;
-        const screenRight = typeof guide.maxX === 'number' ? guide.maxX * viewport.zoom + viewport.x : 10000;
+        const screenLeft = typeof guide.minX === 'number' ? Math.round(guide.minX * viewport.zoom + viewport.x) : 0;
+        const screenRight = typeof guide.maxX === 'number' ? Math.round(guide.maxX * viewport.zoom + viewport.x) : 10000;
         return { ...guide, screenY, screenLeft, screenRight };
       }),
     };
@@ -45,19 +45,9 @@ export const AlignmentGuides = () => {
   const snapGuidesTransformed = React.useMemo(() => {
     if (!draggedNode?.position) return { vertical: [], horizontal: [] };
 
-    // Calculate absolute position of the dragged node
-    const getAbsPosition = (node: any): { x: number, y: number } => {
-      if (!node?.position) return { x: 0, y: 0 };
-      if (!node.parentId) return node.position;
-      const parent = nodes.find((n: any) => n.id === node.parentId);
-      if (!parent) return node.position;
-      const parentAbs = getAbsPosition(parent);
-      return { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
-    };
-
-    const nodeAbs = getAbsPosition(draggedNode);
-    const nodeScreenX = Math.round(nodeAbs.x * viewport.zoom + viewport.x);
-    const nodeScreenY = Math.round(nodeAbs.y * viewport.zoom + viewport.y);
+    const nodeAbs = getAbsPos(draggedNode.id, nodes, draggedNode);
+    const nodeScreenX = nodeAbs.x * viewport.zoom + viewport.x;
+    const nodeScreenY = nodeAbs.y * viewport.zoom + viewport.y;
 
     const vGuides = snapGuides?.vertical ?? [];
     const hGuides = snapGuides?.horizontal ?? [];
@@ -101,17 +91,7 @@ export const AlignmentGuides = () => {
   // Extract these from snapGuidesTransformed if available, or fallback to relative calculation
   // But actually, we need the nodeScreenX/Y outside the map to position the fragment correctly.
   // We can derive them from the draggedNode directly here.
-
-  const getAbsPosition = (node: any): { x: number, y: number } => {
-    if (!node?.position) return { x: 0, y: 0 };
-    if (!node.parentId) return node.position;
-    const parent = nodes.find((n: any) => n.id === node.parentId);
-    if (!parent) return node.position;
-    const parentAbs = getAbsPosition(parent);
-    return { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
-  };
-
-  const nodeAbs = draggedNode ? getAbsPosition(draggedNode) : { x: 0, y: 0 };
+  const nodeAbs = draggedNode ? getAbsPos(draggedNode.id, nodes, draggedNode) : { x: 0, y: 0 };
   const nodeScreenX = Math.round(nodeAbs.x * viewport.zoom + viewport.x);
   const nodeScreenY = Math.round(nodeAbs.y * viewport.zoom + viewport.y);
 
@@ -130,7 +110,7 @@ export const AlignmentGuides = () => {
     >
       {/* Alignment guides (premium red/pink segmented lines) */}
       {alignmentGuidesTransformed.vertical.map((guide: any) => {
-        const centerScreenY = guide.targetCenterPos * viewport.zoom + viewport.y;
+        const centerScreenY = Math.round(guide.targetCenterPos * viewport.zoom + viewport.y);
         const relativeCenter = centerScreenY - guide.screenTop;
 
         const renderLine = (top: number, height: number, keySuffix: string) => (
@@ -150,11 +130,26 @@ export const AlignmentGuides = () => {
         );
 
         // If snapping, don't draw line through the card
-        if (isVerticalSnapping && guide.screenX > nodeScreenX - 5 && guide.screenX < nodeScreenX + nodeScreenWidth + 5) {
+        if (isVerticalSnapping && guide.screenX > nodeScreenX - 2 && guide.screenX < nodeScreenX + nodeScreenWidth + 2) {
             return (
                 <React.Fragment key={`v-align-group-${guide.position}`}>
                     {renderLine(guide.screenTop, nodeScreenY - guide.screenTop, 'top')}
                     {renderLine(nodeScreenY + nodeScreenHeight, guide.screenBottom - (nodeScreenY + nodeScreenHeight), 'bottom')}
+                    {/* Center indicator dot always rendered on reference node */}
+                    {guide.targetType === 'center' && (
+                        <div style={{
+                            position: 'absolute',
+                            left: `${guide.screenX}px`,
+                            top: `${centerScreenY}px`,
+                            transform: 'translate(-50%, -50%)',
+                            width: '5px',
+                            height: '5px',
+                            borderRadius: '50%',
+                            backgroundColor: '#f43f5e',
+                            boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)',
+                            zIndex: 10
+                        }} />
+                    )}
                 </React.Fragment>
             );
         }
@@ -192,7 +187,7 @@ export const AlignmentGuides = () => {
       })}
 
       {alignmentGuidesTransformed.horizontal.map((guide: any) => {
-        const centerScreenX = guide.targetCenterPos * viewport.zoom + viewport.x;
+        const centerScreenX = Math.round(guide.targetCenterPos * viewport.zoom + viewport.x);
         const relativeCenter = centerScreenX - guide.screenLeft;
 
         const renderLine = (left: number, width: number, keySuffix: string) => (
@@ -211,11 +206,26 @@ export const AlignmentGuides = () => {
             />
         );
 
-        if (isHorizontalSnapping && guide.screenY > nodeScreenY - 5 && guide.screenY < nodeScreenY + nodeScreenHeight + 5) {
+        if (isHorizontalSnapping && guide.screenY > nodeScreenY - 2 && guide.screenY < nodeScreenY + nodeScreenHeight + 2) {
             return (
                 <React.Fragment key={`h-align-group-${guide.position}`}>
                     {renderLine(guide.screenLeft, nodeScreenX - guide.screenLeft, 'left')}
                     {renderLine(nodeScreenX + nodeScreenWidth, guide.screenRight - (nodeScreenX + nodeScreenWidth), 'right')}
+                    {/* Center indicator dot always rendered on reference node */}
+                    {guide.targetType === 'center' && (
+                        <div style={{
+                            position: 'absolute',
+                            top: `${guide.screenY}px`,
+                            left: `${centerScreenX}px`,
+                            transform: 'translate(-50%, -50%)',
+                            width: '5px',
+                            height: '5px',
+                            borderRadius: '50%',
+                            backgroundColor: '#f43f5e',
+                            boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)',
+                            zIndex: 10
+                        }} />
+                    )}
                 </React.Fragment>
             );
         }
@@ -263,7 +273,7 @@ export const AlignmentGuides = () => {
                 left: `${Math.round(nodeScreenX + nodeScreenWidth / 2) - 1}px`, // Always center of dragged node
                 top: `${nodeScreenY}px`,
                 width: '2px',
-                height: `${nodeScreenHeight}px`,
+                height: `${Math.round(nodeScreenHeight)}px`,
                 backgroundColor: '#3b82f6',
                 opacity: 1,
                 boxShadow: '0 0 10px rgba(59, 130, 246, 0.9)',
@@ -278,7 +288,7 @@ export const AlignmentGuides = () => {
                 position: 'absolute',
                 top: `${Math.round(nodeScreenY + nodeScreenHeight / 2) - 1}px`, // Always center of dragged node
                 left: `${nodeScreenX}px`,
-                width: `${nodeScreenWidth}px`,
+                width: `${Math.round(nodeScreenWidth)}px`,
                 height: '2px',
                 backgroundColor: '#3b82f6',
                 opacity: 1,
