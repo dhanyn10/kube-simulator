@@ -300,17 +300,17 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
   if (candidates.length === 0) return null;
 
   return candidates.sort((a, b) => {
-    // 1. Snapping Proximity (Delta X/Y): Prefer the guide that is physically closest to being aligned.
-    // This ensures we only show guides when the nodes are actually close to alignment.
-    if (Math.abs(a.distance - b.distance) > 0.1) return a.distance - b.distance;
+    // 1. Physical proximity on the alignment axis (Delta X or Y) is the most important factor.
+    // This ensures we snap to the "closest" alignment target.
+    if (Math.abs(a.distance - b.distance) > 0.5) return a.distance - b.distance;
 
-    // 2. Orthogonal Proximity: Pick reference that is physically closest on the other axis.
-    // This satisfies the "closest node" visual feel.
-    if (Math.abs(a.crossDistance - b.crossDistance) > 0.1) return a.crossDistance - b.crossDistance;
-
-    // 3. Connected nodes have priority if distances are identical
+    // 2. Connected nodes (edges/parenting) have priority for tie-breaking "equally close" alignments.
     if (a.isConnected && !b.isConnected) return -1;
     if (b.isConnected && !a.isConnected) return 1;
+
+    // 3. Orthogonal Proximity: Pick reference that is physically closest on the OTHER axis.
+    // This handles the user's F/G/H example where multiple nodes might be candidates.
+    if (Math.abs(a.crossDistance - b.crossDistance) > 1) return a.crossDistance - b.crossDistance;
 
     return 0;
   })[0];
@@ -318,31 +318,42 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
 
 export const getEffectiveSize = (node: Node) => {
   // Use manual width/height if available (user resized)
-  const w = node.width;
-  const h = node.height;
+  const w = node.width || (node.style as any)?.width;
+  const h = node.height || (node.style as any)?.height;
 
-  // For containers, we can trust measured size as they don't have quick-connect arrows polling
-  if (node.type === 'Namespace' || node.type === 'Deployment') {
+  // For containers, trust measured size if available
+  if (node.type === 'Namespace' || node.type === 'Deployment' || node.type === 'ReplicaSet') {
       return {
           width: w || node.measured?.width || (node.type === 'Namespace' ? 600 : 400),
           height: h || node.measured?.height || (node.type === 'Namespace' ? 400 : 300)
       };
   }
 
-  // For standard nodes, calculate size to avoid measurement pollution from quick-connect arrows
+  // For standard nodes (Pods, Services, etc.), calculate dimensions to avoid measurement
+  // pollution from absolute-positioned UI elements like quick-connect arrows.
   const minSize = getPodMinimumSize(node.data);
+  const type = node.type || '';
 
-  if (node.type === 'ConfigMap' || node.type === 'Secret') {
+  if (type === 'ConfigMap' || type === 'Secret') {
       return {
           width: w || minSize.width,
           height: h || Math.max(120, minSize.height)
       };
   }
 
-  return {
-    width: w || minSize.width || 144,
-    height: h || Math.max(56, minSize.height)
-  };
+  // Internet nodes are smaller
+  if (type === 'Internet') {
+      return { width: w || 160, height: h || 80 };
+  }
+
+  // Standard pod-like node
+  // Hardcode dimensions for standard nodes during dragging to ensure perfect alignment
+  // regardless of sub-pixel measurement variations.
+  // Standard Pod is 144x56
+  const isInternet = node.type === 'Internet';
+  const width = w || (isInternet ? 160 : 144);
+  const height = h || (isInternet ? 80 : 56);
+  return { width: Math.round(width), height: Math.round(height) };
 };
 
 export const calculateAlignmentGuides = (
@@ -360,7 +371,8 @@ export const calculateAlignmentGuides = (
 
   const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
 
-  const config = { threshold: 10, tolerance: 4 };
+  // Increased threshold for "segera" (immediate) detection of guides
+  const config = { threshold: 40, snapThreshold: 12, tolerance: 4 };
 
   const allVCandidates: AlignmentCandidate[] = [];
   const allHCandidates: AlignmentCandidate[] = [];
@@ -402,20 +414,18 @@ export const calculateAlignmentGuides = (
       ];
 
       nodePointsX.forEach(nP => {
-        const threshold = isConnected ? 16 : config.threshold;
         allVCandidates.push(...getAlignmentCandidates({
           nP, otherPoints: otherPointsX, otherNode,
-          config: { ...config, threshold },
+          config: { ...config },
           nodeAbs, otherAbs,
           size: { node: nodeHeight, other: otherH }, axis: 'x', isConnected
         }));
       });
 
       nodePointsY.forEach(nP => {
-        const threshold = isConnected ? 16 : config.threshold;
         allHCandidates.push(...getAlignmentCandidates({
           nP, otherPoints: otherPointsY, otherNode,
-          config: { ...config, threshold },
+          config: { ...config },
           nodeAbs, otherAbs,
           size: { node: nodeWidth, other: otherW }, axis: 'y', isConnected
         }));
@@ -448,9 +458,9 @@ export const calculateAlignmentGuides = (
   const vSnap = new Map<number, { sourceType: 'center' | 'edge' }>();
   const hSnap = new Map<number, { sourceType: 'center' | 'edge' }>();
 
-  // Increased snap threshold to ensure guides stay visible when perfectly aligned (distance = 0)
-  const isVSnapActive = bestV && bestV.distance <= (bestV.isConnected ? 16 : 10);
-  const isHSnapActive = bestH && bestH.distance <= (bestH.isConnected ? 16 : 10);
+  // Use a smaller threshold for actual snapping and showing the blue indicator
+  const isVSnapActive = bestV && bestV.distance <= (bestV.isConnected ? 16 : config.snapThreshold);
+  const isHSnapActive = bestH && bestH.distance <= (bestH.isConnected ? 16 : config.snapThreshold);
 
   if (isVSnapActive) vSnap.set(bestV!.position, { sourceType: bestV!.sourceType });
   if (isHSnapActive) hSnap.set(bestH!.position, { sourceType: bestH!.sourceType });

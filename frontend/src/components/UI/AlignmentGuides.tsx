@@ -129,8 +129,10 @@ export const AlignmentGuides = () => {
             />
         );
 
-        // If snapping, don't draw line through the card
-        if (isVerticalSnapping && guide.screenX > nodeScreenX - 2 && guide.screenX < nodeScreenX + nodeScreenWidth + 2) {
+        // Always segment red lines if they pass through the dragged card
+        const isIntersectsCard = guide.screenX > nodeScreenX - 2 && guide.screenX < nodeScreenX + nodeScreenWidth + 2;
+
+        if (isIntersectsCard) {
             return (
                 <React.Fragment key={`v-align-group-${guide.position}`}>
                     {renderLine(guide.screenTop, nodeScreenY - guide.screenTop, 'top')}
@@ -206,7 +208,9 @@ export const AlignmentGuides = () => {
             />
         );
 
-        if (isHorizontalSnapping && guide.screenY > nodeScreenY - 2 && guide.screenY < nodeScreenY + nodeScreenHeight + 2) {
+        const isIntersectsCard = guide.screenY > nodeScreenY - 2 && guide.screenY < nodeScreenY + nodeScreenHeight + 2;
+
+        if (isIntersectsCard) {
             return (
                 <React.Fragment key={`h-align-group-${guide.position}`}>
                     {renderLine(guide.screenLeft, nodeScreenX - guide.screenLeft, 'left')}
