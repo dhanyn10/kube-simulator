@@ -317,30 +317,31 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
 };
 
 export const getEffectiveSize = (node: Node) => {
-  const w = node.width || node.measured?.width;
-  const h = node.height || node.measured?.height;
+  // Use manual width/height if available (user resized)
+  const w = node.width;
+  const h = node.height;
 
-  if (w && h) return { width: w, height: h };
-
-  if (node.type === 'Pod') {
-    const minSize = getPodMinimumSize(node.data);
-    return {
-      width: w || minSize.width,
-      height: h || minSize.height
-    };
+  // For containers, we can trust measured size as they don't have quick-connect arrows polling
+  if (node.type === 'Namespace' || node.type === 'Deployment') {
+      return {
+          width: w || node.measured?.width || (node.type === 'Namespace' ? 600 : 400),
+          height: h || node.measured?.height || (node.type === 'Namespace' ? 400 : 300)
+      };
   }
 
-  const getDefaultSize = (type: string | undefined) => {
-    if (type === 'Deployment') return { w: 400, h: 300 };
-    if (type === 'Namespace') return { w: 600, h: 400 };
-    if (type === 'ConfigMap' || type === 'Secret') return { w: 180, h: 120 };
-    return { w: 160, h: 48 };
-  };
+  // For standard nodes, calculate size to avoid measurement pollution from quick-connect arrows
+  const minSize = getPodMinimumSize(node.data);
 
-  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
+  if (node.type === 'ConfigMap' || node.type === 'Secret') {
+      return {
+          width: w || minSize.width,
+          height: h || Math.max(120, minSize.height)
+      };
+  }
+
   return {
-    width: w || defaultW,
-    height: h || defaultH
+    width: w || minSize.width,
+    height: h || minSize.height
   };
 };
 

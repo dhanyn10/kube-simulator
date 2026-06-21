@@ -2,7 +2,7 @@ import { K8sNodeData } from '../types';
 
 export const POD_MIN_DIMENSIONS = {
   width: 168,
-  height: 48,
+  height: 64,
 };
 
 export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) => {
@@ -18,7 +18,7 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
 
 export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, badges: string[], isMegaPod: boolean) => {
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || ((data.replicas || 1) > 1 && !data.parentId));
-  let height = 32 + 16; // Refined base height for better center-to-center snapping
+  let height = 40 + 24; // Standard height: 40px content + 24px vertical padding
   if (showDashedProgress) height += isMegaPod ? 120 : 14;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) height += 38;
   if (badges.length > 0) height += 20;
