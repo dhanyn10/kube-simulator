@@ -100,7 +100,7 @@ describe('store helpers', () => {
         node,
         { id: 'n2', width: 100, height: 100, position: { x: 200, y: 0 }, data: {} } as Node
     ];
-    const guides = calculateAlignmentGuides(node, nodes, { x: 0, y: 0 }, false);
+    const guides = calculateAlignmentGuides(node, nodes, [], { x: 0, y: 0 }, false);
     expect(guides.horizontalGuides.length).toBeGreaterThan(0);
   });
 
@@ -108,11 +108,11 @@ describe('store helpers', () => {
     const pod = { id: 'p1', type: 'Pod', width: 100, height: 100, position: { x: 0, y: 0 }, data: {} } as any;
     const deployment = { id: 'd1', type: 'Deployment', width: 400, position: { x: 500, y: 500 }, data: { replicas: 1 } } as any;
     const nodes = [pod, deployment];
-    const guides = calculateAlignmentGuides(pod, nodes, { x: 0, y: 0 }, false, 'd1');
+    const guides = calculateAlignmentGuides(pod, nodes, [], { x: 0, y: 0 }, false, 'd1');
     expect(guides.vSnap).toBeDefined();
 
     // Test when deployment is NOT found
-    const guidesNull = calculateAlignmentGuides(pod, nodes, { x: 0, y: 0 }, false, 'non-existent');
+    const guidesNull = calculateAlignmentGuides(pod, nodes, [], { x: 0, y: 0 }, false, 'non-existent');
     expect(guidesNull.vSnap).toBeDefined(); // Falls back to normal guides
   });
 

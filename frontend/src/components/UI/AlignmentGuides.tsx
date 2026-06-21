@@ -184,12 +184,12 @@ export const AlignmentGuides = () => {
       {/* Snap guides (blue indicators inside dragged node) */}
       {draggedNode && (
         <>
-          {snapGuidesTransformed.vertical.map((guide: { screenX: any; nodeScreenY: any; relativeX: any; }) => (
+          {snapGuidesTransformed.vertical.map((guide: { screenX: any; nodeScreenX: any; nodeScreenY: any; relativeX: any; }) => (
             <div
               key={`v-snap-${guide.relativeX}`}
               style={{
                 position: 'absolute',
-                left: `${guide.screenX}px`,
+                left: `${guide.nodeScreenX + nodeScreenWidth / 2}px`,
                 top: `${guide.nodeScreenY}px`,
                 width: '2px', // Slightly thicker for emphasis
                 height: `${nodeScreenHeight}px`,
@@ -200,12 +200,12 @@ export const AlignmentGuides = () => {
             />
           ))}
 
-          {snapGuidesTransformed.horizontal.map((guide: { screenY: any; nodeScreenX: any; relativeY: any; }) => (
+          {snapGuidesTransformed.horizontal.map((guide: { screenY: any; nodeScreenX: any; nodeScreenY: any; relativeY: any; }) => (
             <div
               key={`h-snap-${guide.relativeY}`}
               style={{
                 position: 'absolute',
-                top: `${guide.screenY}px`,
+                top: `${guide.nodeScreenY + nodeScreenHeight / 2}px`,
                 left: `${guide.nodeScreenX}px`,
                 width: `${nodeScreenWidth}px`,
                 height: '2px',

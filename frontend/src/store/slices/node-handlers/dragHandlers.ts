@@ -6,7 +6,9 @@ import {
   getNodeData, 
   sortNodes,
   resolveGlobalCollisions,
-  optimizeEdgeHandles
+  resolveNodeEdgeCollisions,
+  optimizeEdgeHandles,
+  getEffectiveSize
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import { FlowState } from '../../types';
@@ -192,8 +194,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
 
     set((state: FlowState) => {
       let nextNodes = [...state.nodes];
-      const nodeWidth = node.width || node.measured?.width || 160;
-      const nodeHeight = node.height || node.measured?.height || 80;
+      const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
 
       const vSnaps = state.snapGuides.vertical.filter((g: any) => g.isActive).map((g: any) => g.position);
       const hSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
@@ -212,7 +213,11 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       // 2. Collision Detection
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
       if (!hoveredDeploymentId) {
+        // Node-Node collisions
         nextNodes = resolveGlobalCollisions(nextNodes, node.id);
+        // Node-Edge collisions
+        nextNodes = resolveNodeEdgeCollisions(nextNodes, state.edges, node.id);
+
         finalNode = nextNodes.find(n => n.id === node.id) || finalNode;
       }
 

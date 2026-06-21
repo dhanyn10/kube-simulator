@@ -582,6 +582,106 @@ export const resolveGlobalCollisions = (nodes: Node[], fixedNodeId?: string, ite
   return nextNodes;
 };
 
+/**
+ * Detects and resolves overlaps between nodes and edges not connected to them.
+ */
+export const resolveNodeEdgeCollisions = (nodes: Node[], edges: Edge[], fixedNodeId?: string): Node[] => {
+  let nextNodes = nodes.map(n => ({ ...n, position: { ...n.position } }));
+  const PADDING = 20;
+
+  edges.forEach(edge => {
+    const source = nextNodes.find(n => n.id === edge.source);
+    const target = nextNodes.find(n => n.id === edge.target);
+    if (!source || !target) return;
+
+    const sAbs = getAbsPos(source.id, nextNodes);
+    const tAbs = getAbsPos(target.id, nextNodes);
+
+    // Get handle offsets
+    const getHandlePos = (n: Node, handleId: string | null | undefined, abs: { x: number, y: number }) => {
+        const w = n.width || n.measured?.width || 160;
+        const h = n.height || n.measured?.height || 80;
+        if (!handleId) return { x: abs.x + w / 2, y: abs.y + h / 2 };
+        if (handleId.includes('top')) return { x: abs.x + w / 2, y: abs.y };
+        if (handleId.includes('bottom')) return { x: abs.x + w / 2, y: abs.y + h };
+        if (handleId.includes('left')) return { x: abs.x, y: abs.y + h / 2 };
+        return { x: abs.x + w, y: abs.y + h / 2 };
+    };
+
+    const p1 = getHandlePos(source, edge.sourceHandle, sAbs);
+    const p2 = getHandlePos(target, edge.targetHandle, tAbs);
+
+    nextNodes.forEach(node => {
+      // Don't collide with nodes that are connected to this edge
+      if (node.id === edge.source || node.id === edge.target) return;
+      // Skip containers
+      if (['Deployment', 'Namespace', 'ReplicaSet'].includes(node.type || '')) return;
+
+      const nAbs = getAbsPos(node.id, nextNodes);
+      const size = getEffectiveSize(node);
+
+      const rect = {
+        left: nAbs.x - PADDING,
+        right: nAbs.x + size.width + PADDING,
+        top: nAbs.y - PADDING,
+        bottom: nAbs.y + size.height + PADDING
+      };
+
+      // Simple line-rectangle intersection check
+      const intersects = (x1: number, y1: number, x2: number, y2: number, r: any) => {
+          const left = (x: number) => x < r.left;
+          const right = (x: number) => x > r.right;
+          const top = (y: number) => y < r.top;
+          const bottom = (y: number) => y > r.bottom;
+
+          if ((left(x1) && left(x2)) || (right(x1) && right(x2)) || (top(y1) && top(y2)) || (bottom(y1) && bottom(y2))) return false;
+
+          // Check if any point is inside
+          const isInside = (x: number, y: number) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+          if (isInside(x1, y1) || isInside(x2, y2)) return true;
+
+          // Linear intersection with each side
+          const m = (y2 - y1) / (x2 - x1);
+          const c = y1 - m * x1;
+
+          const intersectSide = (x: number, y: number) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+
+          // X = left
+          let y = m * r.left + c;
+          if (intersectSide(r.left, y)) return true;
+          // X = right
+          y = m * r.right + c;
+          if (intersectSide(r.right, y)) return true;
+          // Y = top
+          let x = (r.top - c) / m;
+          if (intersectSide(x, r.top)) return true;
+          // Y = bottom
+          x = (r.bottom - c) / m;
+          if (intersectSide(x, r.bottom)) return true;
+
+          return false;
+      };
+
+      if (intersects(p1.x, p1.y, p2.x, p2.y, rect)) {
+          // Push node away from the line
+          const midX = (p1.x + p2.x) / 2;
+          const midY = (p1.y + p2.y) / 2;
+          const dx = nAbs.x + size.width/2 - midX;
+          const dy = nAbs.y + size.height/2 - midY;
+
+          const shift = 40;
+          if (Math.abs(dx) > Math.abs(dy)) {
+              node.position.x += dx > 0 ? shift : -shift;
+          } else {
+              node.position.y += dy > 0 ? shift : -shift;
+          }
+      }
+    });
+  });
+
+  return nextNodes;
+};
+
 export const optimizeEdgeHandles = (nodeId: string, nodes: Node[], edges: Edge[]): Edge[] => {
   const node = nodes.find(n => n.id === nodeId);
   if (!node) return edges;
