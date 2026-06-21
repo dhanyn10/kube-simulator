@@ -140,8 +140,8 @@ export const AlignmentGuides = () => {
               height: `${guide.screenBottom - guide.screenTop}px`,
               width: '1px',
               backgroundColor: '#f43f5e', // rose-500
-              opacity: 0.8,
-              boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
+              opacity: 0.9,
+              boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)',
             }}
           >
               {/* Center indicator dot */}
@@ -176,8 +176,8 @@ export const AlignmentGuides = () => {
               width: `${guide.screenRight - guide.screenLeft}px`,
               height: '1px',
               backgroundColor: '#f43f5e',
-              opacity: 0.8,
-              boxShadow: '0 0 4px rgba(244, 63, 94, 0.6)',
+              opacity: 0.9,
+              boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)',
             }}
           >
               {/* Center indicator dot */}

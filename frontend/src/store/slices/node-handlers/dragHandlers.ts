@@ -177,6 +177,17 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       node, nodes, get().edges, nodeAbs, detachingId !== null, hoveredId
     );
 
+    // Filter snap guides to only include 'center' type as requested
+    const filteredVSnap = new Map();
+    const filteredHSnap = new Map();
+
+    vSnap.forEach((data, pos) => {
+        if (data.sourceType === 'center') filteredVSnap.set(pos, data);
+    });
+    hSnap.forEach((data, pos) => {
+        if (data.sourceType === 'center') filteredHSnap.set(pos, data);
+    });
+
     const optimizedEdges = optimizeEdgeHandles(node.id, nextNodes, get().edges);
 
     set({ 
@@ -186,8 +197,8 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
         edges: optimizedEdges,
         alignmentGuides: { vertical: verticalGuides, horizontal: horizontalGuides },
         snapGuides: {
-            vertical: Array.from(vSnap).map(([pos, data]) => ({ position: pos, isActive: true, ...data })),
-            horizontal: Array.from(hSnap).map(([pos, data]) => ({ position: pos, isActive: true, ...data })),
+            vertical: Array.from(filteredVSnap).map(([pos, data]) => ({ position: pos, isActive: true, ...data })),
+            horizontal: Array.from(filteredHSnap).map(([pos, data]) => ({ position: pos, isActive: true, ...data })),
         }
     });
   },

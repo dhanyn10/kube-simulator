@@ -300,25 +300,19 @@ const selectBestCandidate = (candidates: AlignmentCandidate[]): AlignmentCandida
   if (candidates.length === 0) return null;
 
   return candidates.sort((a, b) => {
-    // 1. Connected nodes have highest priority (parent/children or linked edges)
+    // 1. Snapping Proximity (Delta X/Y): Prefer the guide that is physically closest to being aligned.
+    // This ensures we only show guides when the nodes are actually close to alignment.
+    if (Math.abs(a.distance - b.distance) > 0.1) return a.distance - b.distance;
+
+    // 2. Orthogonal Proximity: Pick reference that is physically closest on the other axis.
+    // This satisfies the "closest node" visual feel.
+    if (Math.abs(a.crossDistance - b.crossDistance) > 0.1) return a.crossDistance - b.crossDistance;
+
+    // 3. Connected nodes have priority if distances are identical
     if (a.isConnected && !b.isConnected) return -1;
     if (b.isConnected && !a.isConnected) return 1;
 
-    // 2. Perfect matches (Center-to-Center) have highest visual priority
-    const isCenterMatch = (c: AlignmentCandidate) => c.sourceType === 'center' && c.targetType === 'center';
-    if (isCenterMatch(a) && !isCenterMatch(b)) return -1;
-    if (isCenterMatch(b) && !isCenterMatch(a)) return 1;
-
-    // 3. Snapping Proximity: Prefer the guide that is physically closest to being aligned (Delta X/Y)
-    if (Math.abs(a.distance - b.distance) > 0.1) return a.distance - b.distance;
-
-    // 4. Same-type matches (Edge-to-Edge)
-    const isSameType = (c: AlignmentCandidate) => c.sourceType === c.targetType;
-    if (isSameType(a) && !isSameType(b)) return -1;
-    if (isSameType(b) && !isSameType(a)) return 1;
-
-    // 5. Orthogonal Proximity (Excel-style): Pick reference that is physically closest on the other axis
-    return a.crossDistance - b.crossDistance;
+    return 0;
   })[0];
 };
 
@@ -393,25 +387,17 @@ export const calculateAlignmentGuides = (
       const { width: otherW, height: otherH } = getEffectiveSize(otherNode);
 
       const otherPointsX = [
-        { pos: otherAbs.x, type: 'edge' },
-        { pos: otherAbs.x + otherW / 2, type: 'center' },
-        { pos: otherAbs.x + otherW, type: 'edge' }
+        { pos: otherAbs.x + otherW / 2, type: 'center' }
       ];
       const otherPointsY = [
-        { pos: otherAbs.y, type: 'edge' },
-        { pos: otherAbs.y + otherH / 2, type: 'center' },
-        { pos: otherAbs.y + otherH, type: 'edge' }
+        { pos: otherAbs.y + otherH / 2, type: 'center' }
       ];
 
       const nodePointsX = [
-        { pos: nodeAbs.x, type: 'edge' },
-        { pos: nodeAbs.x + nodeWidth / 2, type: 'center' },
-        { pos: nodeAbs.x + nodeWidth, type: 'edge' }
+        { pos: nodeAbs.x + nodeWidth / 2, type: 'center' }
       ];
       const nodePointsY = [
-        { pos: nodeAbs.y, type: 'edge' },
-        { pos: nodeAbs.y + nodeHeight / 2, type: 'center' },
-        { pos: nodeAbs.y + nodeHeight, type: 'edge' }
+        { pos: nodeAbs.y + nodeHeight / 2, type: 'center' }
       ];
 
       nodePointsX.forEach(nP => {
