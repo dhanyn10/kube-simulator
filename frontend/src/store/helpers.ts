@@ -333,8 +333,8 @@ export const getEffectiveSize = (node: Node) => {
   const getDefaultSize = (type: string | undefined) => {
     if (type === 'Deployment') return { w: 400, h: 300 };
     if (type === 'Namespace') return { w: 600, h: 400 };
-    if (type === 'ConfigMap' || type === 'Secret') return { w: 180, h: 140 };
-    return { w: 160, h: 80 };
+    if (type === 'ConfigMap' || type === 'Secret') return { w: 180, h: 120 };
+    return { w: 160, h: 48 };
   };
 
   const { w: defaultW, h: defaultH } = getDefaultSize(node.type);

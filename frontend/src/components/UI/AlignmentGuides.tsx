@@ -95,6 +95,9 @@ export const AlignmentGuides = () => {
   const nodeScreenWidth = (nodeWidth || 0) * viewport.zoom;
   const nodeScreenHeight = (nodeHeight || 0) * viewport.zoom;
 
+  const isVerticalSnapping = snapGuidesTransformed.vertical.length > 0;
+  const isHorizontalSnapping = snapGuidesTransformed.horizontal.length > 0;
+
   // Extract these from snapGuidesTransformed if available, or fallback to relative calculation
   // But actually, we need the nodeScreenX/Y outside the map to position the fragment correctly.
   // We can derive them from the draggedNode directly here.
@@ -129,6 +132,32 @@ export const AlignmentGuides = () => {
       {alignmentGuidesTransformed.vertical.map((guide: any) => {
         const centerScreenY = guide.targetCenterPos * viewport.zoom + viewport.y;
         const relativeCenter = centerScreenY - guide.screenTop;
+
+        const renderLine = (top: number, height: number, keySuffix: string) => (
+            <div
+                key={`v-align-${guide.position}-${keySuffix}`}
+                style={{
+                    position: 'absolute',
+                    left: `${guide.screenX}px`,
+                    top: `${top}px`,
+                    height: `${height}px`,
+                    width: '1px',
+                    backgroundColor: '#f43f5e', // rose-500
+                    opacity: 0.9,
+                    boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)',
+                }}
+            />
+        );
+
+        // If snapping, don't draw line through the card
+        if (isVerticalSnapping && guide.screenX > nodeScreenX - 5 && guide.screenX < nodeScreenX + nodeScreenWidth + 5) {
+            return (
+                <React.Fragment key={`v-align-group-${guide.position}`}>
+                    {renderLine(guide.screenTop, nodeScreenY - guide.screenTop, 'top')}
+                    {renderLine(nodeScreenY + nodeScreenHeight, guide.screenBottom - (nodeScreenY + nodeScreenHeight), 'bottom')}
+                </React.Fragment>
+            );
+        }
 
         return (
           <div
@@ -165,6 +194,31 @@ export const AlignmentGuides = () => {
       {alignmentGuidesTransformed.horizontal.map((guide: any) => {
         const centerScreenX = guide.targetCenterPos * viewport.zoom + viewport.x;
         const relativeCenter = centerScreenX - guide.screenLeft;
+
+        const renderLine = (left: number, width: number, keySuffix: string) => (
+            <div
+                key={`h-align-${guide.position}-${keySuffix}`}
+                style={{
+                    position: 'absolute',
+                    top: `${guide.screenY}px`,
+                    left: `${left}px`,
+                    width: `${width}px`,
+                    height: '1px',
+                    backgroundColor: '#f43f5e',
+                    opacity: 0.9,
+                    boxShadow: '0 0 6px rgba(244, 63, 94, 0.8)',
+                }}
+            />
+        );
+
+        if (isHorizontalSnapping && guide.screenY > nodeScreenY - 5 && guide.screenY < nodeScreenY + nodeScreenHeight + 5) {
+            return (
+                <React.Fragment key={`h-align-group-${guide.position}`}>
+                    {renderLine(guide.screenLeft, nodeScreenX - guide.screenLeft, 'left')}
+                    {renderLine(nodeScreenX + nodeScreenWidth, guide.screenRight - (nodeScreenX + nodeScreenWidth), 'right')}
+                </React.Fragment>
+            );
+        }
 
         return (
           <div
