@@ -55,18 +55,21 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
 /**
  * Calculates a snapped coordinate based on active alignment guides.
  */
-const getSnappedCoord = (abs: number, size: number, guides: number[], parentAbs: number) => {
+const getSnappedCoord = (abs: number, size: number, guides: { position: number, sourceType: string }[], parentAbs: number) => {
   if (guides.length === 0) return abs - parentAbs;
   
-  const guide = guides.reduce((prev, curr) => {
-    const dist = (v: number) => Math.min(Math.abs(abs - v), Math.abs(abs + size / 2 - v), Math.abs(abs + size - v));
-    return dist(curr) < dist(prev) ? curr : prev;
-  }, guides[0]);
+  // Use the first active snap guide (usually there is only one per axis)
+  const guide = guides[0];
 
-  const dL = Math.abs(abs - guide), dC = Math.abs(abs + size / 2 - guide), dR = Math.abs(abs + size - guide);
-  if (dL <= dC && dL <= dR) return guide - parentAbs;
-  if (dR <= dL && dR <= dC) return guide - size - parentAbs;
-  return guide - size / 2 - parentAbs;
+  if (guide.sourceType === 'center') {
+      return guide.position - size / 2 - parentAbs;
+  }
+
+  // If edge, determine which edge (left/top vs right/bottom) is closer
+  const dL = Math.abs(abs - guide.position);
+  const dR = Math.abs(abs + size - guide.position);
+
+  return dL < dR ? guide.position - parentAbs : guide.position - size - parentAbs;
 };
 
 /**
@@ -183,8 +186,8 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
         edges: optimizedEdges,
         alignmentGuides: { vertical: verticalGuides, horizontal: horizontalGuides },
         snapGuides: {
-            vertical: Array.from(vSnap).map(([pos, isActive]) => ({ position: pos, isActive })),
-            horizontal: Array.from(hSnap).map(([pos, isActive]) => ({ position: pos, isActive })),
+            vertical: Array.from(vSnap).map(([pos, data]) => ({ position: pos, isActive: true, ...data })),
+            horizontal: Array.from(hSnap).map(([pos, data]) => ({ position: pos, isActive: true, ...data })),
         }
     });
   },
@@ -196,8 +199,8 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       let nextNodes = [...state.nodes];
       const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
 
-      const vSnaps = state.snapGuides.vertical.filter((g: any) => g.isActive).map((g: any) => g.position);
-      const hSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
+      const vSnaps = state.snapGuides.vertical.filter((g: any) => g.isActive);
+      const hSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive);
 
       let finalNode = { ...node, position: { ...node.position } };
       

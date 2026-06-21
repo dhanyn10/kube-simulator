@@ -268,7 +268,7 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   const distV = Math.abs(nodeAbs.x - targetAbsX);
   const distH = Math.abs(nodeAbs.y - targetAbsY);
 
-  const verticalGuides = distV < 48 ? [{
+  const verticalGuides = distV < 24 ? [{
     position: targetAbsX,
     targetNodeId: deployment.id,
     sourceType: 'edge',
@@ -278,7 +278,7 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
     maxY: Math.max(targetAbsY + nodeH, depAbs.y + (deployment.height || 300))
   }] : [];
 
-  const horizontalGuides = distH < 48 ? [{
+  const horizontalGuides = distH < 24 ? [{
     position: targetAbsY,
     targetNodeId: deployment.id,
     sourceType: 'edge',
@@ -291,8 +291,8 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   return {
     verticalGuides,
     horizontalGuides,
-    vSnap: new Map(distV < 24 ? [[targetAbsX, true]] : []),
-    hSnap: new Map(distH < 24 ? [[targetAbsY, true]] : [])
+    vSnap: new Map(distV < 8 ? [[targetAbsX, { sourceType: 'edge' as const }]] : []),
+    hSnap: new Map(distH < 8 ? [[targetAbsY, { sourceType: 'edge' as const }]] : [])
   };
 };
 
@@ -365,7 +365,7 @@ export const calculateAlignmentGuides = (
 
   const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
 
-  const config = { threshold: 8, tolerance: 4 };
+  const config = { threshold: 10, tolerance: 4 };
 
   const allVCandidates: AlignmentCandidate[] = [];
   const allHCandidates: AlignmentCandidate[] = [];
@@ -415,7 +415,7 @@ export const calculateAlignmentGuides = (
       ];
 
       nodePointsX.forEach(nP => {
-        const threshold = isConnected ? 24 : config.threshold;
+        const threshold = isConnected ? 16 : config.threshold;
         allVCandidates.push(...getAlignmentCandidates({
           nP, otherPoints: otherPointsX, otherNode,
           config: { ...config, threshold },
@@ -425,7 +425,7 @@ export const calculateAlignmentGuides = (
       });
 
       nodePointsY.forEach(nP => {
-        const threshold = isConnected ? 24 : config.threshold;
+        const threshold = isConnected ? 16 : config.threshold;
         allHCandidates.push(...getAlignmentCandidates({
           nP, otherPoints: otherPointsY, otherNode,
           config: { ...config, threshold },
@@ -458,14 +458,14 @@ export const calculateAlignmentGuides = (
     maxX: bestH.max
   }] : [];
 
-  const vSnap = new Map<number, boolean>();
-  const hSnap = new Map<number, boolean>();
+  const vSnap = new Map<number, { sourceType: 'center' | 'edge' }>();
+  const hSnap = new Map<number, { sourceType: 'center' | 'edge' }>();
 
-  const isVSnapActive = bestV && bestV.distance < (bestV.isConnected ? 24 : 12);
-  const isHSnapActive = bestH && bestH.distance < (bestH.isConnected ? 24 : 12);
+  const isVSnapActive = bestV && bestV.distance < (bestV.isConnected ? 12 : 8);
+  const isHSnapActive = bestH && bestH.distance < (bestH.isConnected ? 12 : 8);
 
-  if (isVSnapActive) vSnap.set(bestV!.position, true);
-  if (isHSnapActive) hSnap.set(bestH!.position, true);
+  if (isVSnapActive) vSnap.set(bestV!.position, { sourceType: bestV!.sourceType });
+  if (isHSnapActive) hSnap.set(bestH!.position, { sourceType: bestH!.sourceType });
 
   // If slot guides were found, merge them. Slot guides take precedence.
   if (slotGuides) {
@@ -672,23 +672,37 @@ export const resolveNodeEdgeCollisions = (nodes: Node[], edges: Edge[], fixedNod
           if (isInside(x1, y1) || isInside(x2, y2)) return true;
 
           // Linear intersection with each side
-          const m = (y2 - y1) / (x2 - x1);
-          const c = y1 - m * x1;
+          const dx = x2 - x1;
+          const dy = y2 - y1;
 
           const intersectSide = (x: number, y: number) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 
+          if (Math.abs(dx) < 0.001) {
+              // Vertical line
+              return x1 >= r.left && x1 <= r.right && Math.min(y1, y2) <= r.bottom && Math.max(y1, y2) >= r.top;
+          }
+
+          const m = dy / dx;
+          const c = y1 - m * x1;
+
           // X = left
           let y = m * r.left + c;
-          if (intersectSide(r.left, y)) return true;
+          if (intersectSide(r.left, y) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) return true;
           // X = right
           y = m * r.right + c;
-          if (intersectSide(r.right, y)) return true;
+          if (intersectSide(r.right, y) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) return true;
+
+          if (Math.abs(dy) < 0.001) {
+              // Horizontal line
+              return y1 >= r.top && y1 <= r.bottom && Math.min(x1, x2) <= r.right && Math.max(x1, x2) >= r.left;
+          }
+
           // Y = top
           let x = (r.top - c) / m;
-          if (intersectSide(x, r.top)) return true;
+          if (intersectSide(x, r.top) && x >= Math.min(x1, x2) && x <= Math.max(x1, x2)) return true;
           // Y = bottom
           x = (r.bottom - c) / m;
-          if (intersectSide(x, r.bottom)) return true;
+          if (intersectSide(x, r.bottom) && x >= Math.min(x1, x2) && x <= Math.max(x1, x2)) return true;
 
           return false;
       };

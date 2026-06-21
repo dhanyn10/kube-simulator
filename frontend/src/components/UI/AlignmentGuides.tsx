@@ -206,7 +206,7 @@ export const AlignmentGuides = () => {
               key={`v-snap-${guide.screenX}`}
               style={{
                 position: 'absolute',
-                left: `${guide.screenX}px`,
+                left: `${nodeScreenX + nodeScreenWidth / 2 - 1}px`, // Always center of dragged node
                 top: `${nodeScreenY}px`,
                 width: '2px',
                 height: `${nodeScreenHeight}px`,
@@ -222,7 +222,7 @@ export const AlignmentGuides = () => {
               key={`h-snap-${guide.screenY}`}
               style={{
                 position: 'absolute',
-                top: `${guide.screenY}px`,
+                top: `${nodeScreenY + nodeScreenHeight / 2 - 1}px`, // Always center of dragged node
                 left: `${nodeScreenX}px`,
                 width: `${nodeScreenWidth}px`,
                 height: '2px',

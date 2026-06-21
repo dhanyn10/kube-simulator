@@ -94,14 +94,22 @@ describe('store helpers', () => {
     expect(laidOut[1].position.x).toBeGreaterThan(144);
   });
 
-  it('calculateAlignmentGuides should return guides', () => {
+  it('calculateAlignmentGuides should return guides and snap state', () => {
     const node = { id: 'n1', width: 100, height: 100, position: { x: 0, y: 0 }, data: {} } as Node;
     const nodes = [
         node,
-        { id: 'n2', width: 100, height: 100, position: { x: 200, y: 0 }, data: {} } as Node
+        { id: 'n2', width: 100, height: 100, position: { x: 200, y: 5 }, data: {} } as Node
     ];
+    // Threshold is 10 for unconnected, distance 5 should trigger guides
     const guides = calculateAlignmentGuides(node, nodes, [], { x: 0, y: 0 }, false);
     expect(guides.horizontalGuides.length).toBeGreaterThan(0);
+    // Snap threshold for unconnected is 8. Distance 5 should trigger snap.
+    expect(guides.hSnap.size).toBeGreaterThan(0);
+
+    // Distance 9 should trigger guides but NOT snap
+    const guidesNoSnap = calculateAlignmentGuides(node, nodes, [], { x: 0, y: -4 }, false);
+    expect(guidesNoSnap.horizontalGuides.length).toBeGreaterThan(0);
+    expect(guidesNoSnap.hSnap.size).toBe(0);
   });
 
   it('calculateAlignmentGuides should handle Deployment slot guides', () => {
