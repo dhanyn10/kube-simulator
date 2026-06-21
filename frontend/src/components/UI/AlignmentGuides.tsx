@@ -26,14 +26,14 @@ export const AlignmentGuides = () => {
 
     return {
       vertical: vertical.map((guide: any) => {
-        const screenX = (guide.position ?? 0) * viewport.zoom + viewport.x;
+        const screenX = Math.round((guide.position ?? 0) * viewport.zoom + viewport.x);
         // If minY/maxY are provided, use them for segmented lines
         const screenTop = typeof guide.minY === 'number' ? guide.minY * viewport.zoom + viewport.y : 0;
         const screenBottom = typeof guide.maxY === 'number' ? guide.maxY * viewport.zoom + viewport.y : 10000;
         return { ...guide, screenX, screenTop, screenBottom };
       }),
       horizontal: horizontal.map((guide: any) => {
-        const screenY = (guide.position ?? 0) * viewport.zoom + viewport.y;
+        const screenY = Math.round((guide.position ?? 0) * viewport.zoom + viewport.y);
         const screenLeft = typeof guide.minX === 'number' ? guide.minX * viewport.zoom + viewport.x : 0;
         const screenRight = typeof guide.maxX === 'number' ? guide.maxX * viewport.zoom + viewport.x : 10000;
         return { ...guide, screenY, screenLeft, screenRight };
@@ -56,8 +56,8 @@ export const AlignmentGuides = () => {
     };
 
     const nodeAbs = getAbsPosition(draggedNode);
-    const nodeScreenX = nodeAbs.x * viewport.zoom + viewport.x;
-    const nodeScreenY = nodeAbs.y * viewport.zoom + viewport.y;
+    const nodeScreenX = Math.round(nodeAbs.x * viewport.zoom + viewport.x);
+    const nodeScreenY = Math.round(nodeAbs.y * viewport.zoom + viewport.y);
 
     const vGuides = snapGuides?.vertical ?? [];
     const hGuides = snapGuides?.horizontal ?? [];
@@ -112,8 +112,8 @@ export const AlignmentGuides = () => {
   };
 
   const nodeAbs = draggedNode ? getAbsPosition(draggedNode) : { x: 0, y: 0 };
-  const nodeScreenX = nodeAbs.x * viewport.zoom + viewport.x;
-  const nodeScreenY = nodeAbs.y * viewport.zoom + viewport.y;
+  const nodeScreenX = Math.round(nodeAbs.x * viewport.zoom + viewport.x);
+  const nodeScreenY = Math.round(nodeAbs.y * viewport.zoom + viewport.y);
 
   return (
     <div
@@ -260,13 +260,13 @@ export const AlignmentGuides = () => {
               key={`v-snap-${guide.screenX}`}
               style={{
                 position: 'absolute',
-                left: `${nodeScreenX + nodeScreenWidth / 2 - 1}px`, // Always center of dragged node
+                left: `${Math.round(nodeScreenX + nodeScreenWidth / 2) - 1}px`, // Always center of dragged node
                 top: `${nodeScreenY}px`,
                 width: '2px',
                 height: `${nodeScreenHeight}px`,
                 backgroundColor: '#3b82f6',
-                opacity: 0.9,
-                boxShadow: '0 0 8px rgba(59, 130, 246, 0.8)',
+                opacity: 1,
+                boxShadow: '0 0 10px rgba(59, 130, 246, 0.9)',
               }}
             />
           ))}
@@ -276,13 +276,13 @@ export const AlignmentGuides = () => {
               key={`h-snap-${guide.screenY}`}
               style={{
                 position: 'absolute',
-                top: `${nodeScreenY + nodeScreenHeight / 2 - 1}px`, // Always center of dragged node
+                top: `${Math.round(nodeScreenY + nodeScreenHeight / 2) - 1}px`, // Always center of dragged node
                 left: `${nodeScreenX}px`,
                 width: `${nodeScreenWidth}px`,
                 height: '2px',
                 backgroundColor: '#3b82f6',
-                opacity: 0.9,
-                boxShadow: '0 0 8px rgba(59, 130, 246, 0.8)',
+                opacity: 1,
+                boxShadow: '0 0 10px rgba(59, 130, 246, 0.9)',
               }}
             />
           ))}

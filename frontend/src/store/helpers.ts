@@ -341,7 +341,7 @@ export const getEffectiveSize = (node: Node) => {
 
   return {
     width: w || minSize.width,
-    height: h || minSize.height
+    height: h || Math.max(80, minSize.height)
   };
 };
 
@@ -426,7 +426,7 @@ export const calculateAlignmentGuides = (
   const bestH = selectBestCandidate(allHCandidates);
 
   const verticalGuides = bestV ? [{
-    position: bestV.position,
+    position: Math.round(bestV.position),
     targetNodeId: bestV.targetNodeId,
     sourceType: bestV.sourceType,
     targetType: bestV.targetType,
@@ -436,7 +436,7 @@ export const calculateAlignmentGuides = (
   }] : [];
 
   const horizontalGuides = bestH ? [{
-    position: bestH.position,
+    position: Math.round(bestH.position),
     targetNodeId: bestH.targetNodeId,
     sourceType: bestH.sourceType,
     targetType: bestH.targetType,
@@ -448,11 +448,11 @@ export const calculateAlignmentGuides = (
   const vSnap = new Map<number, { sourceType: 'center' | 'edge' }>();
   const hSnap = new Map<number, { sourceType: 'center' | 'edge' }>();
 
-  const isVSnapActive = bestV && bestV.distance < (bestV.isConnected ? 12 : 8);
-  const isHSnapActive = bestH && bestH.distance < (bestH.isConnected ? 12 : 8);
+  const isVSnapActive = bestV && bestV.distance <= (bestV.isConnected ? 12.5 : 8.5);
+  const isHSnapActive = bestH && bestH.distance <= (bestH.isConnected ? 12.5 : 8.5);
 
-  if (isVSnapActive) vSnap.set(bestV!.position, { sourceType: bestV!.sourceType });
-  if (isHSnapActive) hSnap.set(bestH!.position, { sourceType: bestH!.sourceType });
+  if (isVSnapActive) vSnap.set(Math.round(bestV!.position), { sourceType: bestV!.sourceType });
+  if (isHSnapActive) hSnap.set(Math.round(bestH!.position), { sourceType: bestH!.sourceType });
 
   // If slot guides were found, merge them. Slot guides take precedence.
   if (slotGuides) {

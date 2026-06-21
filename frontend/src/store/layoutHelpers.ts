@@ -41,7 +41,7 @@ export const getAlignmentCandidates = ({
 
   for (const oP of otherPoints) {
     const distance = Math.abs(nP.pos - oP.pos);
-    if (distance < config.threshold) {
+    if (distance <= config.threshold) {
       const crossDistance = axis === 'x'
         ? Math.abs((nodeAbs.y + size.node / 2) - (otherAbs.y + size.other / 2))
         : Math.abs((nodeAbs.x + size.node / 2) - (otherAbs.x + size.other / 2));
