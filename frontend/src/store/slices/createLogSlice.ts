@@ -18,7 +18,7 @@ const MAX_LOGS = 500;
 
 // Internal logging to avoid infinite recursion if storage fails
 const internalError = (...args: any[]) => {
-  const originalError = (globalThis as any)._originalConsoleError;
+  const originalError = (window as any)._originalConsoleError;
   if (originalError) {
     originalError.apply(console, args);
   }

@@ -31,7 +31,7 @@ test.describe('Traffic Simulation', () => {
 
     // 2. Connect via store (Robust and clean)
     await page.evaluate(() => {
-      const state = (globalThis as any).useFlowStore.getState();
+      const state = (window as any).useFlowStore.getState();
       const internet = state.nodes.find((n: any) => n.type === 'Internet');
       const deployment = state.nodes.find((n: any) => n.type === 'Deployment');
       if (internet && deployment) {
@@ -41,7 +41,7 @@ test.describe('Traffic Simulation', () => {
 
     // 3. Configure Deployment via Store
     await page.evaluate(() => {
-      const state = (globalThis as any).useFlowStore.getState();
+      const state = (window as any).useFlowStore.getState();
       const deployment = state.nodes.find((n: any) => n.type === 'Deployment');
       if (deployment) {
         state.updateNodeData(deployment.id, { webserver: 'nginx' });
@@ -70,7 +70,7 @@ test.describe('Traffic Simulation', () => {
 
     // Configure nodes via store for reliability
     await page.evaluate(() => {
-      const state = (globalThis as any).useFlowStore.getState();
+      const state = (window as any).useFlowStore.getState();
       const internet = state.nodes.find((n: any) => n.type === 'Internet');
       const deployment = state.nodes.find((n: any) => n.type === 'Deployment');
       const hpa = state.nodes.find((n: any) => n.type === 'HPA');

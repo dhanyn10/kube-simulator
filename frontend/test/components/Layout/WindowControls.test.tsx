@@ -9,7 +9,7 @@ describe('WindowControls', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (globalThis as any).go = {
+    (window as any).go = {
       main: {
         App: {
           MinimizeWindow: mockMinimize,
@@ -48,7 +48,7 @@ describe('WindowControls', () => {
   });
 
   it('handles missing go global gracefully', () => {
-    delete (globalThis as any).go;
+    delete (window as any).go;
     render(<WindowControls colorMode="light" />);
     const minBtn = screen.getByLabelText('minimize');
     fireEvent.click(minBtn); // Should not crash

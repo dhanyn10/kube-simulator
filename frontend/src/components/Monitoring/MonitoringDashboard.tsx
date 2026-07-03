@@ -26,7 +26,7 @@ export const MonitoringDashboard = () => {
 
   useEffect(() => {
     const channel = new BroadcastChannel('monitoring-data');
-    const runtime = globalThis.runtime;
+    const runtime = window.runtime;
 
     const handleOpen = () => {
       setMonitoringDetached(true);
@@ -56,11 +56,11 @@ export const MonitoringDashboard = () => {
   const handleDetach = () => {
     const width = 800;
     const height = 600;
-    const left = (globalThis.screen.width / 2) - (width / 2);
-    const top = (globalThis.screen.height / 2) - (height / 2);
+    const left = (window.screen.width / 2) - (width / 2);
+    const top = (window.screen.height / 2) - (height / 2);
 
-    globalThis.open(
-      `${globalThis.location.origin}${globalThis.location.pathname}?mode=monitoring`,
+    window.open(
+      `${window.location.origin}${window.location.pathname}?mode=monitoring`,
       '_blank',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );

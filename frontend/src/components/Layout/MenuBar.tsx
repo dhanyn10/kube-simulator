@@ -7,7 +7,7 @@ import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
 import { validateHpaTargets } from '../../store/slices/simulationManager';
 import { startTour } from '../../lib/tour';
-import { BrowserOpenURL } from '@wailsjs/runtime/runtime';
+import { BrowserOpenURL } from '@/wailsjs/runtime/runtime';
 
 interface MenuBarProps {
   onExportYaml: () => void;
@@ -88,7 +88,7 @@ export const MenuBar = ({
             onClick: async () => {
               if (currentProject?.id !== undefined && currentProject.id !== -1) {
                 const content = JSON.stringify({ nodes, edges });
-                const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+                const success = await window.go?.main?.App?.UpdateProject(currentProject.id, content);
                 if (success) {
                   useFlowStore.setState({ lastSavedSnapshot: content });
                   alert("Resource architecture saved successfully!");

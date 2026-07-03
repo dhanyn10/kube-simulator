@@ -1,32 +1,32 @@
 export const initWailsMocks = () => {
-    if (typeof globalThis === 'undefined' || (globalThis as any).go) return;
+    if (typeof window === 'undefined' || (window as any).go) return;
 
-    (globalThis as any)._originalConsoleLog('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
+    (window as any)._originalConsoleLog('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
 
-    (globalThis as any).runtime = {
+    (window as any).runtime = {
         EventsOnMultiple: (eventName: string, _callback: any, _maxCallbacks: number) => {
-            (globalThis as any)._originalConsoleLog(`[Mocks] EventsOnMultiple called for: ${eventName}`);
+            (window as any)._originalConsoleLog(`[Mocks] EventsOnMultiple called for: ${eventName}`);
             return () => {};
         },
         EventsOn: (eventName: string, _callback: any) => {
-            (globalThis as any)._originalConsoleLog(`[Mocks] EventsOn called for: ${eventName}`);
+            (window as any)._originalConsoleLog(`[Mocks] EventsOn called for: ${eventName}`);
             return () => {};
         },
         EventsOff: () => {},
         EventsEmit: () => {},
-        LogPrint: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogTrace: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogDebug: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogInfo: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogWarning: (msg: string) => (globalThis as any)._originalConsoleWarn(msg),
-        LogError: (msg: string) => (globalThis as any)._originalConsoleError(msg),
+        LogPrint: (msg: string) => (window as any)._originalConsoleLog(msg),
+        LogTrace: (msg: string) => (window as any)._originalConsoleLog(msg),
+        LogDebug: (msg: string) => (window as any)._originalConsoleLog(msg),
+        LogInfo: (msg: string) => (window as any)._originalConsoleLog(msg),
+        LogWarning: (msg: string) => (window as any)._originalConsoleWarn(msg),
+        LogError: (msg: string) => (window as any)._originalConsoleError(msg),
         LogFatal: (msg: string) => {
-            (globalThis as any)._originalConsoleError(`[FATAL] ${msg}`);
-            // Explicitly handle fatal if needed, but (globalThis as any)._originalConsoleError interceptor will catch it
+            (window as any)._originalConsoleError(`[FATAL] ${msg}`);
+            // Explicitly handle fatal if needed, but (window as any)._originalConsoleError interceptor will catch it
         }
     };
 
-    (globalThis as any).go = {
+    (window as any).go = {
         main: {
             App: {
                 GetProjects: async () => JSON.parse(localStorage.getItem('mock_projects') || '[]'),
@@ -91,9 +91,9 @@ export const initWailsMocks = () => {
                     arch: 'amd64',
                     goVersion: 'go1.25.0'
                 }),
-                MinimizeWindow: async () => (globalThis as any)._originalConsoleLog('Minimize Window'),
-                MaximizeWindow: async () => (globalThis as any)._originalConsoleLog('Maximize Window'),
-                CloseWindow: async () => (globalThis as any)._originalConsoleLog('Close Window'),
+                MinimizeWindow: async () => (window as any)._originalConsoleLog('Minimize Window'),
+                MaximizeWindow: async () => (window as any)._originalConsoleLog('Maximize Window'),
+                CloseWindow: async () => (window as any)._originalConsoleLog('Close Window'),
                 GetSetting: async () => "",
                 SaveSetting: async () => true
             }

@@ -3,7 +3,7 @@ import { Minus, Square, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export const WindowControls = ({ colorMode }: { colorMode: string }) => {
-  const win = (globalThis as any).go?.main?.App;
+  const win = (window as any).go?.main?.App;
 
   return (
     <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' }}>

@@ -39,9 +39,9 @@ export const Modal = ({
       if (e.key === 'Escape') onClose();
     };
     if (isOpen) {
-      globalThis.addEventListener('keydown', handleEsc);
+      window.addEventListener('keydown', handleEsc);
     }
-    return () => globalThis.removeEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;

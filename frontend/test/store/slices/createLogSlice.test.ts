@@ -4,8 +4,8 @@ import { createLogSlice } from '../../../src/store/slices/createLogSlice';
 import { webcrypto } from 'node:crypto';
 
 // Mock crypto.randomUUID using node:crypto for better safety/randomness in tests
-if (!globalThis.crypto) {
-    (globalThis as any).crypto = webcrypto;
+if (!window.crypto) {
+    (window as any).crypto = webcrypto;
 }
 
 describe('createLogSlice', () => {

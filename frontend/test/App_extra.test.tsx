@@ -50,7 +50,7 @@ const mockUnsubscribe = vi.fn();
 vi.mock('../wailsjs/runtime', () => ({
   EventsOn: vi.fn((event, callback) => {
       if (event === 'openAboutDialog') {
-          (globalThis as any).triggerAboutDialog = callback;
+          (window as any).triggerAboutDialog = callback;
       }
       return mockUnsubscribe;
   }),
@@ -78,7 +78,7 @@ describe('App Component Extra Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // @ts-ignore
-    globalThis.go = {
+    window.go = {
         main: {
             App: {
                 GetSetting: vi.fn().mockResolvedValue("true"),
@@ -103,10 +103,10 @@ describe('App Component Extra Coverage', () => {
   it('triggers about dialog from Wails event and cleans up', async () => {
     const { unmount } = render(<App />);
 
-    expect((globalThis as any).triggerAboutDialog).toBeDefined();
+    expect((window as any).triggerAboutDialog).toBeDefined();
 
     await act(async () => {
-        (globalThis as any).triggerAboutDialog();
+        (window as any).triggerAboutDialog();
     });
 
     expect(screen.getByText('Kube Simulator')).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe('App Component Extra Coverage', () => {
         return Promise.resolve('');
     });
     // @ts-ignore
-    globalThis.go.main.App.GetSetting = getSettingMock;
+    window.go.main.App.GetSetting = getSettingMock;
 
     await act(async () => {
         render(<App />);

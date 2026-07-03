@@ -20,8 +20,8 @@ export const getAbsPos = (nodeId: string, currentNodes: any[]): { x: number, y: 
  */
 export const safeRandom = (): number => {
   const array = new Uint32Array(1);
-  if (typeof globalThis !== 'undefined' && globalThis.crypto) {
-    globalThis.crypto.getRandomValues(array);
+  if (typeof window !== 'undefined' && window.crypto) {
+    window.crypto.getRandomValues(array);
     return array[0] / (0xffffffff + 1);
   }
   return Math.random(); // nosonar
@@ -85,7 +85,7 @@ export function validateResourceLimits(data: any) {
 }
 
 export async function generateYaml(nodes: any[], edges: any[]): Promise<string> {
-  const generateYamlFn = (globalThis as any).go?.main?.App?.GenerateYaml;
+  const generateYamlFn = (window as any).go?.main?.App?.GenerateYaml;
   if (generateYamlFn) {
     const jsonStr = await generateYamlFn(
       JSON.stringify(nodes),

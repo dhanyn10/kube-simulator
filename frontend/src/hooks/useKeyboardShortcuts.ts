@@ -41,7 +41,7 @@ export function useKeyboardShortcuts({ onUndo, onRedo, onCopy, onPaste, onGroup,
       }
     };
 
-    globalThis.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => globalThis.removeEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [onUndo, onRedo, onCopy, onPaste, onGroup, onUngroup]);
 }

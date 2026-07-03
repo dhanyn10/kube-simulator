@@ -462,7 +462,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const currentContent = JSON.stringify({ nodes, edges });
 
   const loadProjects = async () => {
-    const res = await globalThis.go?.main?.App?.GetProjects();
+    const res = await window.go?.main?.App?.GetProjects();
     setProjects(res || []);
   };
 
@@ -485,7 +485,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const handleUpdate = async () => {
     if (!currentProject) return;
     const content = JSON.stringify({ nodes, edges });
-    const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+    const success = await window.go?.main?.App?.UpdateProject(currentProject.id, content);
     if (success) {
       useFlowStore.setState({ lastSavedSnapshot: content });
       loadProjects();
@@ -495,7 +495,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
 
   const handleOverwrite = async (id: number) => {
     const content = JSON.stringify({ nodes, edges });
-    const success = await globalThis.go?.main?.App?.UpdateProject(id, content);
+    const success = await window.go?.main?.App?.UpdateProject(id, content);
     if (success) {
       if (currentProject?.id === id) {
         useFlowStore.setState({ lastSavedSnapshot: content });
@@ -508,7 +508,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const handleSave = async () => {
     if (!projectName.trim()) return;
     const content = JSON.stringify({ nodes, edges });
-    const id = await globalThis.go?.main?.App?.SaveProject(projectName, content);
+    const id = await window.go?.main?.App?.SaveProject(projectName, content);
     if (id !== undefined) {
       useFlowStore.setState({ 
         currentProject: { id, name: projectName },
@@ -520,7 +520,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   };
 
   const handleLoad = async (id: number, name: string) => {
-    const res = await globalThis.go?.main?.App?.LoadProject(id);
+    const res = await window.go?.main?.App?.LoadProject(id);
     if (!res?.content) return;
 
     const data = JSON.parse(res.content);
@@ -547,7 +547,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   };
 
   const handleDelete = async (id: number) => {
-    await globalThis.go?.main?.App?.DeleteProject(id);
+    await window.go?.main?.App?.DeleteProject(id);
     if (currentProject?.id === id) {
       useFlowStore.setState({ currentProject: null, lastSavedSnapshot: null });
     }

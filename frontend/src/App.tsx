@@ -1,6 +1,6 @@
 import { logger } from './lib/logger';
 import React, { useCallback, useState, useEffect } from 'react';
-import { GetSystemResources } from '@wailsjs/go/main/App.js';
+import { GetSystemResources } from '@/wailsjs/go/main/App.js';
 import {
   ReactFlow,
   Background,
@@ -12,7 +12,7 @@ import {
   Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
+import { EventsOn } from '@/wailsjs/runtime'; // Corrected import path
 
 import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
 import { AlignmentGuides, ContextMenu, ResourceManager } from './components/UI';
@@ -68,14 +68,10 @@ const defaultEdgeOptions = {
 
 export default function App() {
   useThemeSync();
-  const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
   logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
-
-  // Expose store for e2e testing
-  // @ts-ignore
-  if (typeof globalThis !== 'undefined') globalThis.useFlowStore = useFlowStore;
 
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
@@ -114,18 +110,18 @@ export default function App() {
   useEffect(() => {
     if (!isDetachedMode) {
       // Load sidebar settings
-      if (globalThis.go?.main?.App?.GetSetting) {
-        globalThis.go.main.App.GetSetting('isSidebarVisible').then((val: string) => {
+      if (window.go?.main?.App?.GetSetting) {
+        window.go.main.App.GetSetting('isSidebarVisible').then((val: string) => {
           if (val !== "") setSidebarVisible(val === 'true');
         });
-        globalThis.go.main.App.GetSetting('isRightSidebarVisible').then((val: string) => {
+        window.go.main.App.GetSetting('isRightSidebarVisible').then((val: string) => {
           if (val !== "") setRightSidebarVisible(val === 'true');
         });
 
         // Load global edge colors
         Promise.all([
-          globalThis.go.main.App.GetSetting('globalEdgeColor'),
-          globalThis.go.main.App.GetSetting('globalEdgeErrorColor')
+          window.go.main.App.GetSetting('globalEdgeColor'),
+          window.go.main.App.GetSetting('globalEdgeErrorColor')
         ]).then(([color, errorColor]: [string, string]) => {
           if (color !== "" || errorColor !== "") {
             setGlobalEdgeColors(

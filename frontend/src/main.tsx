@@ -6,11 +6,11 @@ import App from './App.tsx';
 import './index.css';
 import { initWailsMocks } from './lib/mocks.ts';
 import { useFlowStore } from './store';
-import { EventsOn } from '../wailsjs/runtime';
+import { EventsOn } from '@/wailsjs/runtime';
 
-const originalLog = (globalThis as any)._originalConsoleLog;
-const originalWarn = (globalThis as any)._originalConsoleWarn;
-const originalError = (globalThis as any)._originalConsoleError;
+const originalLog = (window as any)._originalConsoleLog;
+const originalWarn = (window as any)._originalConsoleWarn;
+const originalError = (window as any)._originalConsoleError;
 
 const formatLogMessage = (args: any[]) => {
   return args.map(arg => {
@@ -34,6 +34,9 @@ const formatLogMessage = (args: any[]) => {
 
 // Initialize mocks for browser/test environments after original console methods are captured
 initWailsMocks();
+
+// Expose store for E2E tests
+(window as any).useFlowStore = useFlowStore;
 
 // Listen for backend logs
 EventsOn('backend-log', (data: { level: string, message: string }) => {

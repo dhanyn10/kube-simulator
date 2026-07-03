@@ -26,7 +26,7 @@ describe('useKeyboardShortcuts', () => {
       bubbles: true,
       cancelable: true
     });
-    globalThis.dispatchEvent(event);
+    window.dispatchEvent(event);
     return event;
   };
 

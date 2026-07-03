@@ -19,8 +19,8 @@ describe('createUiSlice', () => {
       edges: []
     });
 
-    // Mock globalThis.go for backend calls
-    (globalThis as any).go = {
+    // Mock window.go for backend calls
+    (window as any).go = {
       main: {
         App: {
           SaveSetting: vi.fn().mockResolvedValue(true)
@@ -28,26 +28,26 @@ describe('createUiSlice', () => {
       }
     };
 
-    // Mock globalThis.runtime
-    (globalThis as any).runtime = {
+    // Mock window.runtime
+    (window as any).runtime = {
       EventsEmit: vi.fn()
     };
   });
 
   afterEach(() => {
-    delete (globalThis as any).go;
-    delete (globalThis as any).runtime;
+    delete (window as any).go;
+    delete (window as any).runtime;
   });
 
   it('toggles color mode and emits event', () => {
     const { toggleColorMode } = useFlowStore.getState();
     toggleColorMode();
     expect(useFlowStore.getState().colorMode).toBe('light');
-    expect((globalThis as any).runtime.EventsEmit).toHaveBeenCalledWith('theme-sync', 'light');
+    expect((window as any).runtime.EventsEmit).toHaveBeenCalledWith('theme-sync', 'light');
 
     toggleColorMode();
     expect(useFlowStore.getState().colorMode).toBe('dark');
-    expect((globalThis as any).runtime.EventsEmit).toHaveBeenCalledWith('theme-sync', 'dark');
+    expect((window as any).runtime.EventsEmit).toHaveBeenCalledWith('theme-sync', 'dark');
   });
 
   it('sets global edge colors and saves to backend', () => {
@@ -55,8 +55,8 @@ describe('createUiSlice', () => {
     setGlobalEdgeColors('new-color', 'new-error');
     expect(useFlowStore.getState().globalEdgeColor).toBe('new-color');
     expect(useFlowStore.getState().globalEdgeErrorColor).toBe('new-error');
-    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('globalEdgeColor', 'new-color');
-    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('globalEdgeErrorColor', 'new-error');
+    expect((window as any).go.main.App.SaveSetting).toHaveBeenCalledWith('globalEdgeColor', 'new-color');
+    expect((window as any).go.main.App.SaveSetting).toHaveBeenCalledWith('globalEdgeErrorColor', 'new-error');
   });
 
   it('sets sidebar visibility and saves to backend', () => {
@@ -64,11 +64,11 @@ describe('createUiSlice', () => {
 
     setSidebarVisible(false);
     expect(useFlowStore.getState().isSidebarVisible).toBe(false);
-    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('isSidebarVisible', 'false');
+    expect((window as any).go.main.App.SaveSetting).toHaveBeenCalledWith('isSidebarVisible', 'false');
 
     setRightSidebarVisible(false);
     expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
-    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('isRightSidebarVisible', 'false');
+    expect((window as any).go.main.App.SaveSetting).toHaveBeenCalledWith('isRightSidebarVisible', 'false');
   });
 
   it('toggles autosave and autofocus', () => {

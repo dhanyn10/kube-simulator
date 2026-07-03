@@ -6,6 +6,7 @@
   "frontend:build": "pnpm run build",
   "frontend:dev:watcher": "pnpm run dev",
   "frontend:dev:serverUrl": "http://127.0.0.1:3000",
+  "wailsjsdir": "./frontend/src",
   "author": {
     "name": "google-labs-jules[bot]",
     "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"

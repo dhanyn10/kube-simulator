@@ -52,7 +52,7 @@ describe('MonitoringDashboard', () => {
   });
 
   it('handles detaching the dashboard', () => {
-    const openSpy = vi.spyOn(globalThis, 'open').mockReturnValue(null);
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     render(<MonitoringDashboard />);
 
     fireEvent.click(screen.getByText('Detach'));

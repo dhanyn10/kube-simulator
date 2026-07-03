@@ -5,13 +5,13 @@ import { K8sNodeData } from '../../types';
 import { validateResourceLimits } from '../../lib/utils';
 
 // Centralize side-effect handlers
-const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
+const metricsChannel = typeof window !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
 
 /**
  * Retrieves the Wails runtime if available.
  * @returns The Wails runtime or undefined.
  */
-const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
+const getRuntime = () => typeof window !== 'undefined' ? (window as any).runtime : undefined;
 
 /**
  * Stops the simulation and resets relevant state.

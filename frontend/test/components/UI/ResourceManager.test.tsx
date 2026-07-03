@@ -10,7 +10,7 @@ const mockLoadProject = vi.fn().mockResolvedValue({ content: JSON.stringify({ no
 const mockUpdateProject = vi.fn().mockResolvedValue(true);
 const mockDeleteProject = vi.fn().mockResolvedValue(true);
 
-(globalThis as any).go = {
+(window as any).go = {
   main: {
     App: {
       GetProjects: mockGetProjects,

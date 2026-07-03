@@ -1,7 +1,7 @@
 import { logger } from '../../lib/logger';
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { GetSystemInfo, CheckForUpdates } from '../../../wailsjs/go/main/App';
+import { GetSystemInfo, CheckForUpdates } from '@/wailsjs/go/main/App';
 import { X as CloseIcon, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';

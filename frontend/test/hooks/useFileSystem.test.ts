@@ -4,7 +4,7 @@ import { useFileSystem } from '@/hooks/useFileSystem';
 import { useFlowStore } from '@/store';
 
 // Mock Wails globals
-(globalThis as any).go = {
+(window as any).go = {
   main: {
     App: {
       ExportProjectFile: vi.fn(),
@@ -13,7 +13,7 @@ import { useFlowStore } from '@/store';
   }
 };
 
-(globalThis as any).runtime = {
+(window as any).runtime = {
     EventsOn: vi.fn()
 };
 
@@ -32,7 +32,7 @@ describe('useFileSystem', () => {
       await result.current.handleExportFile();
     });
 
-    expect((globalThis as any).go.main.App.ExportProjectFile).toHaveBeenCalled();
+    expect((window as any).go.main.App.ExportProjectFile).toHaveBeenCalled();
   });
 
   it('handles import file', async () => {
@@ -43,7 +43,7 @@ describe('useFileSystem', () => {
         edges: []
       })
     };
-    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue(JSON.stringify(mockProject));
+    (window as any).go.main.App.ImportProjectFile.mockResolvedValue(JSON.stringify(mockProject));
 
     const { result } = renderHook(() => useFileSystem([], []));
 
@@ -58,7 +58,7 @@ describe('useFileSystem', () => {
   });
 
   it('handles import error gracefully', async () => {
-    (globalThis as any).go.main.App.ImportProjectFile.mockResolvedValue('invalid json');
+    (window as any).go.main.App.ImportProjectFile.mockResolvedValue('invalid json');
     const { result } = renderHook(() => useFileSystem([], []));
 
     await act(async () => {
@@ -71,7 +71,7 @@ describe('useFileSystem', () => {
 
   it('listens for open-infra-file events', async () => {
     let eventCallback: any;
-    (globalThis as any).runtime.EventsOn.mockImplementation((event: string, cb: any) => {
+    (window as any).runtime.EventsOn.mockImplementation((event: string, cb: any) => {
         if (event === 'open-infra-file') {
             eventCallback = cb;
         }
@@ -79,7 +79,7 @@ describe('useFileSystem', () => {
     });
 
     renderHook(() => useFileSystem([], []));
-    expect((globalThis as any).runtime.EventsOn).toHaveBeenCalledWith('open-infra-file', expect.any(Function));
+    expect((window as any).runtime.EventsOn).toHaveBeenCalledWith('open-infra-file', expect.any(Function));
 
     const mockProject = {
       name: 'External Project',
@@ -101,7 +101,7 @@ describe('useFileSystem', () => {
 
   it('handles external file open error gracefully', async () => {
     let eventCallback: any;
-    (globalThis as any).runtime.EventsOn.mockImplementation((event: string, cb: any) => {
+    (window as any).runtime.EventsOn.mockImplementation((event: string, cb: any) => {
         if (event === 'open-infra-file') {
             eventCallback = cb;
         }

@@ -91,7 +91,7 @@ describe('utils', () => {
   describe('generateYaml', () => {
       it('calls backend and parses JSON results', async () => {
           const mockYaml = JSON.stringify([{ kind: 'Pod', metadata: { name: 'test' } }]);
-          (globalThis as any).go = {
+          (window as any).go = {
               main: { App: { GenerateYaml: vi.fn().mockResolvedValue(mockYaml) } }
           };
 
@@ -101,7 +101,7 @@ describe('utils', () => {
       });
 
       it('handles non-array response from backend', async () => {
-        (globalThis as any).go = {
+        (window as any).go = {
             main: { App: { GenerateYaml: vi.fn().mockResolvedValue('raw string') } }
         };
         const result = await generateYaml([], []);
@@ -109,7 +109,7 @@ describe('utils', () => {
       });
 
       it('returns empty string if backend missing', async () => {
-        (globalThis as any).go = {};
+        (window as any).go = {};
         const result = await generateYaml([], []);
         expect(result).toBe("");
       });

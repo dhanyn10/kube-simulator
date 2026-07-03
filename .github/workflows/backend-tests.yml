@@ -28,6 +28,11 @@ jobs:
         echo "dummy" > frontend/dist/index.html
         go test ./... -v -coverprofile=coverage-backend.out -json > report-backend.json
 
+    - name: Run Wails Build Test
+      run: |
+        chmod +x test-wails-build.sh
+        ./test-wails-build.sh
+
     - name: Upload Backend Coverage
       uses: actions/upload-artifact@v4
       with:

@@ -36,6 +36,12 @@ coverage_output.txt
 # Wails specific build cache
 /frontend/build
 
+# Wails generated files
+/frontend/wailsjs/*
+!/frontend/wailsjs/.gitkeep
+/frontend/src/wailsjs/*
+!/frontend/src/wailsjs/.gitkeep
+
 # Python
 __pycache__/
 *.pyc

@@ -107,9 +107,9 @@ describe('simulationManager', () => {
 
   describe('broadcastMetrics', () => {
     it('calls runtime and channel', () => {
-        globalThis.go = { main: { App: {} } } as any;
+        window.go = { main: { App: {} } } as any;
         const mockEmit = vi.fn();
-        (globalThis as any).runtime = { EventsEmit: mockEmit };
+        (window as any).runtime = { EventsEmit: mockEmit };
 
         broadcastMetrics({ 'd1': [] }, [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node]);
         expect(mockEmit).toHaveBeenCalledWith('metrics-update', expect.any(String));

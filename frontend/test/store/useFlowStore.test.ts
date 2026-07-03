@@ -13,7 +13,7 @@ describe('useFlowStore', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock Go backend
-    (globalThis as any).go = {
+    (window as any).go = {
       main: {
         App: {
           PushHistory: vi.fn(),
@@ -61,8 +61,8 @@ describe('useFlowStore', () => {
     // Subscriptions are synchronous in Zustand, but the effect might be delayed if we use setTimeout
     // In our case it's a direct subscription.
 
-    expect((globalThis as any).go.main.App.PushHistory).toHaveBeenCalled();
-    const callArgs = (globalThis as any).go.main.App.PushHistory.mock.calls[0][0];
+    expect((window as any).go.main.App.PushHistory).toHaveBeenCalled();
+    const callArgs = (window as any).go.main.App.PushHistory.mock.calls[0][0];
     const data = JSON.parse(callArgs);
     expect(data.actionName).toBe('Test Action');
   });
@@ -74,6 +74,6 @@ describe('useFlowStore', () => {
         lastActionId: 'action-save'
     });
 
-    expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
+    expect((window as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
   });
 });

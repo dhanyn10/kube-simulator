@@ -42,7 +42,7 @@ describe('YamlModal', () => {
 
   it('closes on Escape key', () => {
     render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
-    fireEvent.keyDown(globalThis, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(mockOnClose).toHaveBeenCalled();
   });
 });

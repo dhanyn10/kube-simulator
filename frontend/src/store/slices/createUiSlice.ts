@@ -57,7 +57,7 @@ const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } 
  * Retrieves the Wails runtime if available.
  * @returns The Wails runtime or undefined.
  */
-const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
+const getRuntime = () => typeof window !== 'undefined' ? (window as any).runtime : undefined;
 
 /**
  * Executes a single tick of the simulation.
@@ -254,9 +254,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   },
   setGlobalEdgeColors: (color, errorColor) => {
     set({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('globalEdgeColor', color);
-      globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
+    if (window.go?.main?.App?.SaveSetting) {
+      window.go.main.App.SaveSetting('globalEdgeColor', color);
+      window.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
     }
   },
   setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
@@ -264,14 +264,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   toggleAutofocus: () => set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled })),
   setSidebarVisible: (visible) => {
     set({ isSidebarVisible: visible });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('isSidebarVisible', String(visible));
+    if (window.go?.main?.App?.SaveSetting) {
+      window.go.main.App.SaveSetting('isSidebarVisible', String(visible));
     }
   },
   setRightSidebarVisible: (visible) => {
     set({ isRightSidebarVisible: visible });
-    if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('isRightSidebarVisible', String(visible));
+    if (window.go?.main?.App?.SaveSetting) {
+      window.go.main.App.SaveSetting('isRightSidebarVisible', String(visible));
     }
   },
   setMonitoringOpen: (open) => set({ isMonitoringOpen: open }),

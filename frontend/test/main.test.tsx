@@ -27,7 +27,7 @@ vi.mock('@/store', () => ({
 }));
 
 const mockEventsOn = vi.fn();
-vi.mock('../wailsjs/runtime', () => ({
+vi.mock('@/wailsjs/runtime', () => ({
   EventsOn: mockEventsOn,
 }));
 
@@ -52,10 +52,10 @@ describe('main.tsx entry point', () => {
     // Setup DOM
     document.body.innerHTML = '<div id="root"></div>';
 
-    // We need to use globalThis because main.tsx uses it
-    (globalThis as any)._originalConsoleLog = vi.fn();
-    (globalThis as any)._originalConsoleWarn = vi.fn();
-    (globalThis as any)._originalConsoleError = vi.fn();
+    // We need to use window because main.tsx uses it
+    (window as any)._originalConsoleLog = vi.fn();
+    (window as any)._originalConsoleWarn = vi.fn();
+    (window as any)._originalConsoleError = vi.fn();
   });
 
   it('initializes the application', async () => {

@@ -6,7 +6,7 @@ test.describe('Right Sidebar Visibility', () => {
     // Add a deployment node via the store
     await page.evaluate(() => {
         // @ts-ignore
-        const store = globalThis.useFlowStore.getState();
+        const store = window.useFlowStore.getState();
         store.addNode('Deployment', { x: 100, y: 100 });
     });
     // Wait for node to appear
@@ -17,7 +17,7 @@ test.describe('Right Sidebar Visibility', () => {
     // Ensure sidebar is hidden
     await page.evaluate(() => {
         // @ts-ignore
-        globalThis.useFlowStore.getState().setRightSidebarVisible(false);
+        window.useFlowStore.getState().setRightSidebarVisible(false);
     });
 
     const sidebar = page.locator('.w-72.border-l');
@@ -36,7 +36,7 @@ test.describe('Right Sidebar Visibility', () => {
     // Ensure sidebar is hidden
     await page.evaluate(() => {
         // @ts-ignore
-        globalThis.useFlowStore.getState().setRightSidebarVisible(false);
+        window.useFlowStore.getState().setRightSidebarVisible(false);
     });
 
     const sidebar = page.locator('.w-72.border-l');

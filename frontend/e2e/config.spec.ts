@@ -62,9 +62,9 @@ test.describe('ConfigMap and Secret', () => {
     await page.getByText('Configured Application').click();
 
     // Establishing the connection manually to trigger env injection logic
-    // We use evaluate to access globalThis.useFlowStore directly
+    // We use evaluate to access window.useFlowStore directly
     await page.evaluate(() => {
-        const store = (globalThis as any).useFlowStore.getState();
+        const store = (window as any).useFlowStore.getState();
         const nodes = store.nodes;
         const cm = nodes.find((n: any) => n.type === 'ConfigMap');
         const sec = nodes.find((n: any) => n.type === 'Secret');
@@ -100,8 +100,8 @@ test.describe('ConfigMap and Secret', () => {
 
     // Mock GenerateYaml if it's not present (Wails environment)
     await page.evaluate(() => {
-        if (!(globalThis as any).go?.main?.App?.GenerateYaml) {
-            (globalThis as any).go = {
+        if (!(window as any).go?.main?.App?.GenerateYaml) {
+            (window as any).go = {
                 main: {
                     App: {
                         GenerateYaml: async () => JSON.stringify([{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"app-config"}},{"apiVersion":"v1","kind":"Secret","metadata":{"name":"app-secret"}},{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"app-deploy"},"spec":{"template":{"spec":{"containers":[{"name":"main","env":[{"name":"API_URL","valueFrom":{"configMapKeyRef":{"name":"app-config"}}},{"name":"DB_PASSWORD","valueFrom":{"secretKeyRef":{"name":"app-secret"}}}]}]}}}}])

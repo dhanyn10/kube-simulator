@@ -11,7 +11,7 @@ describe('useHistory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // @ts-ignore
-    globalThis.go = {
+    window.go = {
       main: {
         App: {
           Undo: vi.fn(),
@@ -26,7 +26,7 @@ describe('useHistory', () => {
   it('handleUndo calls backend and applies state', async () => {
     const mockState = { nodes: [] };
     // @ts-ignore
-    globalThis.go.main.App.Undo.mockResolvedValue(mockState);
+    window.go.main.App.Undo.mockResolvedValue(mockState);
 
     const { result } = renderHook(() => useHistory());
 
@@ -35,14 +35,14 @@ describe('useHistory', () => {
     });
 
     // @ts-ignore
-    expect(globalThis.go.main.App.Undo).toHaveBeenCalled();
+    expect(window.go.main.App.Undo).toHaveBeenCalled();
     expect(applyHistoryState).toHaveBeenCalledWith(mockState);
   });
 
   it('handleRedo calls backend and applies state', async () => {
     const mockState = { nodes: [] };
     // @ts-ignore
-    globalThis.go.main.App.Redo.mockResolvedValue(mockState);
+    window.go.main.App.Redo.mockResolvedValue(mockState);
 
     const { result } = renderHook(() => useHistory());
 
@@ -51,14 +51,14 @@ describe('useHistory', () => {
     });
 
     // @ts-ignore
-    expect(globalThis.go.main.App.Redo).toHaveBeenCalled();
+    expect(window.go.main.App.Redo).toHaveBeenCalled();
     expect(applyHistoryState).toHaveBeenCalledWith(mockState);
   });
 
   it('fetchHistoryLogs updates historyLogs state', async () => {
     const mockLogs = ['log1', 'log2'];
     // @ts-ignore
-    globalThis.go.main.App.GetHistoryLogs.mockResolvedValue(mockLogs);
+    window.go.main.App.GetHistoryLogs.mockResolvedValue(mockLogs);
 
     const { result } = renderHook(() => useHistory());
 
@@ -73,7 +73,7 @@ describe('useHistory', () => {
   it('handleJumpToHistory calls backend and applies state', async () => {
     const mockState = { nodes: [] };
     // @ts-ignore
-    globalThis.go.main.App.JumpToHistory.mockResolvedValue(mockState);
+    window.go.main.App.JumpToHistory.mockResolvedValue(mockState);
 
     const { result } = renderHook(() => useHistory());
 
@@ -82,7 +82,7 @@ describe('useHistory', () => {
     });
 
     // @ts-ignore
-    expect(globalThis.go.main.App.JumpToHistory).toHaveBeenCalledWith(1);
+    expect(window.go.main.App.JumpToHistory).toHaveBeenCalledWith(1);
     expect(applyHistoryState).toHaveBeenCalledWith(mockState);
   });
 });

@@ -13,7 +13,7 @@ describe('UI Toggle Handlers (Gear Settings)', () => {
     });
 
     // Mock SaveSetting to avoid actual backend calls during tests
-    globalThis.go = {
+    window.go = {
       main: {
         App: {
           SaveSetting: vi.fn().mockResolvedValue(true)
