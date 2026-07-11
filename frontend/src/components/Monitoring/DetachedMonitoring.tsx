@@ -37,7 +37,11 @@ export const DetachedMonitoring = () => {
     // Wails Events primary (more reliable between webviews)
     if (runtime) {
       runtime.EventsOn('metrics-update', (json: string) => {
-         try { handleUpdate(JSON.parse(json)); } catch(e) {}
+         try {
+           handleUpdate(JSON.parse(json));
+         } catch(e) {
+           logger.error('[DetachedMonitoring] Failed to parse metrics update:', e);
+         }
       });
       runtime.EventsOn('theme-sync', (mode: any) => {
          handleTheme(mode);
