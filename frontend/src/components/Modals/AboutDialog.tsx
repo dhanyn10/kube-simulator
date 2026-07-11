@@ -115,7 +115,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
         const update = await CheckForUpdates(sys.version || appVersion);
         setUpdateInfo(update);
       } catch (error) {
-        logger.error("Failed to fetch info:", error);
+        logger.error("[AboutDialog] Failed to fetch info:", error);
       } finally {
         setIsCheckingUpdate(false);
       }
@@ -140,7 +140,7 @@ ${appCopyright}`;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      logger.error("Failed to copy", err);
+      logger.error("[AboutDialog] Failed to copy:", err);
     }
   };
 

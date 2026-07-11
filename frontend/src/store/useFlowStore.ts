@@ -73,6 +73,8 @@ flowStore.subscribe((state, prevState) => {
           if (success) {
             flowStore.setState({ lastSavedSnapshot: content });
           }
+        }).catch(err => {
+          logger.error(`[Autosave] Failed to save project ${state.currentProject?.name}:`, err);
         });
       }
     }

@@ -36,7 +36,7 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
               lastSavedSnapshot: data.canvas
             });
           } catch (e) {
-            logger.error("Failed to open external file", e);
+            logger.error("[useFileSystem] Failed to open external file", e);
           }
         }
       });
@@ -88,7 +88,7 @@ export const useFileSystem = (nodes: Node[], edges: Edge[]) => {
             lastSavedSnapshot: data.canvas
           });
         } catch (e) {
-          logger.error("Failed to import file", e);
+            logger.error("[useFileSystem] Failed to import file", e);
         }
       }
     }

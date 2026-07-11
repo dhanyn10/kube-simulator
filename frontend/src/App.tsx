@@ -117,9 +117,14 @@ export default function App() {
       if (globalThis.go?.main?.App?.GetSetting) {
         globalThis.go.main.App.GetSetting('isSidebarVisible').then((val: string) => {
           if (val !== "") setSidebarVisible(val === 'true');
+        }).catch(err => {
+          logger.error('[App] Failed to load isSidebarVisible setting:', err);
         });
+
         globalThis.go.main.App.GetSetting('isRightSidebarVisible').then((val: string) => {
           if (val !== "") setRightSidebarVisible(val === 'true');
+        }).catch(err => {
+          logger.error('[App] Failed to load isRightSidebarVisible setting:', err);
         });
 
         // Load global edge colors
@@ -133,6 +138,8 @@ export default function App() {
               errorColor || 'var(--color-mat-red)'
             );
           }
+        }).catch(err => {
+          logger.error('[App] Failed to load global edge colors:', err);
         });
       }
 

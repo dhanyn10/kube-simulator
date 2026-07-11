@@ -17,7 +17,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch((err) => {
-      logger.error('Failed to copy text: ', err);
+      logger.error('[YamlModal] Failed to copy text:', err);
     });
   };
 

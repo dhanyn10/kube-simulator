@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
@@ -87,11 +88,15 @@ export const MenuBar = ({
             icon: Save,
             onClick: async () => {
               if (currentProject?.id !== undefined && currentProject.id !== -1) {
-                const content = JSON.stringify({ nodes, edges });
-                const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
-                if (success) {
-                  useFlowStore.setState({ lastSavedSnapshot: content });
-                  alert("Resource architecture saved successfully!");
+                try {
+                  const content = JSON.stringify({ nodes, edges });
+                  const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+                  if (success) {
+                    useFlowStore.setState({ lastSavedSnapshot: content });
+                    alert("Resource architecture saved successfully!");
+                  }
+                } catch (e) {
+                  logger.error('[MenuBar] Failed to save project:', e);
                 }
               } else {
                 onOpenProjects(); // Open manager to save as new

@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { useState, useEffect } from 'react';
 import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box } from 'lucide-react';
 import { useFlowStore } from '../../store';
@@ -220,7 +221,7 @@ const mapProjectEdges = (edges: any[]): any[] => {
 const generateTimestampedProjectName = (): string => {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
-  const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${pad(d.getFullYear())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
   return `Project-${dmyhis}`;
 };
 
@@ -462,8 +463,12 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const currentContent = JSON.stringify({ nodes, edges });
 
   const loadProjects = async () => {
-    const res = await globalThis.go?.main?.App?.GetProjects();
-    setProjects(res || []);
+    try {
+      const res = await globalThis.go?.main?.App?.GetProjects();
+      setProjects(res || []);
+    } catch (e) {
+      logger.error('[ResourceManager] Failed to load projects:', e);
+    }
   };
 
   useEffect(() => {
@@ -485,73 +490,93 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const handleUpdate = async () => {
     if (!currentProject) return;
     const content = JSON.stringify({ nodes, edges });
-    const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
-    if (success) {
-      useFlowStore.setState({ lastSavedSnapshot: content });
-      loadProjects();
-      onClose();
+    try {
+      const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+      if (success) {
+        useFlowStore.setState({ lastSavedSnapshot: content });
+        loadProjects();
+        onClose();
+      }
+    } catch (e) {
+      logger.error('[ResourceManager] Failed to update project:', e);
     }
   };
 
   const handleOverwrite = async (id: number) => {
     const content = JSON.stringify({ nodes, edges });
-    const success = await globalThis.go?.main?.App?.UpdateProject(id, content);
-    if (success) {
-      if (currentProject?.id === id) {
-        useFlowStore.setState({ lastSavedSnapshot: content });
+    try {
+      const success = await globalThis.go?.main?.App?.UpdateProject(id, content);
+      if (success) {
+        if (currentProject?.id === id) {
+          useFlowStore.setState({ lastSavedSnapshot: content });
+        }
+        setConfirmOverwriteId(null);
+        loadProjects();
       }
-      setConfirmOverwriteId(null);
-      loadProjects();
+    } catch (e) {
+      logger.error('[ResourceManager] Failed to overwrite project:', e);
     }
   };
 
   const handleSave = async () => {
     if (!projectName.trim()) return;
     const content = JSON.stringify({ nodes, edges });
-    const id = await globalThis.go?.main?.App?.SaveProject(projectName, content);
-    if (id !== undefined) {
-      useFlowStore.setState({ 
-        currentProject: { id, name: projectName },
-        lastSavedSnapshot: content
-      });
-      setProjectName('');
-      loadProjects();
+    try {
+      const id = await globalThis.go?.main?.App?.SaveProject(projectName, content);
+      if (id !== undefined) {
+        useFlowStore.setState({
+          currentProject: { id, name: projectName },
+          lastSavedSnapshot: content
+        });
+        setProjectName('');
+        loadProjects();
+      }
+    } catch (e) {
+      logger.error('[ResourceManager] Failed to save project:', e);
     }
   };
 
   const handleLoad = async (id: number, name: string) => {
-    const res = await globalThis.go?.main?.App?.LoadProject(id);
-    if (!res?.content) return;
+    try {
+      const res = await globalThis.go?.main?.App?.LoadProject(id);
+      if (!res?.content) return;
 
-    const data = JSON.parse(res.content);
-    const nodesWithStrings = mapProjectNodes(data.nodes);
-    const edgesWithStrings = mapProjectEdges(data.edges);
-    const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
+      const data = JSON.parse(res.content);
+      const nodesWithStrings = mapProjectNodes(data.nodes);
+      const edgesWithStrings = mapProjectEdges(data.edges);
+      const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
 
-    useFlowStore.setState({
-      nodes: hydratedNodes,
-      edges: edgesWithStrings,
-      currentProject: { id, name },
-      lastSavedSnapshot: res.content,
-      isSimulating: false,
-      activeSimulationEdges: [],
-      simulationMetrics: {},
-      lastActionId: `load-${Date.now()}`,
-      lastActionName: 'Load Project'
-    });
-    
-    onClose();
-    setTimeout(() => {
-      fitView({ padding: 0.1, duration: 800 });
-    }, 50);
+      useFlowStore.setState({
+        nodes: hydratedNodes,
+        edges: edgesWithStrings,
+        currentProject: { id, name },
+        lastSavedSnapshot: res.content,
+        isSimulating: false,
+        activeSimulationEdges: [],
+        simulationMetrics: {},
+        lastActionId: `load-${Date.now()}`,
+        lastActionName: 'Load Project'
+      });
+
+      onClose();
+      setTimeout(() => {
+        fitView({ padding: 0.1, duration: 800 });
+      }, 50);
+    } catch (e) {
+      logger.error('[ResourceManager] Failed to load project:', e);
+    }
   };
 
   const handleDelete = async (id: number) => {
-    await globalThis.go?.main?.App?.DeleteProject(id);
-    if (currentProject?.id === id) {
-      useFlowStore.setState({ currentProject: null, lastSavedSnapshot: null });
+    try {
+      await globalThis.go?.main?.App?.DeleteProject(id);
+      if (currentProject?.id === id) {
+        useFlowStore.setState({ currentProject: null, lastSavedSnapshot: null });
+      }
+      loadProjects();
+    } catch (e) {
+      logger.error('[ResourceManager] Failed to delete project:', e);
     }
-    loadProjects();
   };
 
   const handleAddCustomImageSubmit = () => {

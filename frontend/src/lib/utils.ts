@@ -87,18 +87,23 @@ export function validateResourceLimits(data: any) {
 export async function generateYaml(nodes: any[], edges: any[]): Promise<string> {
   const generateYamlFn = (globalThis as any).go?.main?.App?.GenerateYaml;
   if (generateYamlFn) {
-    const jsonStr = await generateYamlFn(
-      JSON.stringify(nodes),
-      JSON.stringify(edges)
-    );
-    if (!jsonStr) return "";
+    let jsonStr = "";
     try {
+      jsonStr = await generateYamlFn(
+        JSON.stringify(nodes),
+        JSON.stringify(edges)
+      );
+      if (!jsonStr) return "";
       const objects = JSON.parse(jsonStr);
       if (!Array.isArray(objects)) return jsonStr;
       return objects.map(obj => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
     } catch (e) {
-      logger.error('Failed to parse objects for YAML generation:', e);
-      return jsonStr;
+      // If it's a parse error and jsonStr is not empty, it might be a raw string already
+      if (jsonStr && e instanceof SyntaxError) {
+        return jsonStr;
+      }
+      logger.error('[Utils] Failed to generate YAML:', e);
+      return "";
     }
   }
   return "";
