@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from '@/store/slices/node-handlers/dragUtils';
 
 describe('dragUtils', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MenuBarDropdown } from '../../../src/components/Layout/MenuBarDropdown';
-import { LogIn, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 describe('MenuBarDropdown', () => {
   const mockMenu = {

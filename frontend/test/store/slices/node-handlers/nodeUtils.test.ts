@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getInitialData, resolveAutoImage, syncWorkloadMetadata, sanitizeResourceLimits } from '@/store/slices/node-handlers/nodeUtils';
 
 describe('nodeUtils', () => {
