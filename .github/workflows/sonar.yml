@@ -37,6 +37,8 @@ jobs:
         run: |
           corepack enable pnpm
           pnpm install
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+          (cd .. && mkdir -p frontend/dist && echo "dummy" > frontend/dist/index.html && $HOME/go/bin/wails build -s -platform windows/amd64 -nopackage)
           npx vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
           mkdir -p ../coverage
           cp coverage/lcov.info ../coverage/lcov.info
