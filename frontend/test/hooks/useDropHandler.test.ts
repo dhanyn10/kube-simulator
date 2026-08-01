@@ -4,7 +4,7 @@ import { useDropHandler } from '@/hooks/useDropHandler';
 import { useFlowStore } from '@/store';
 
 describe('useDropHandler', () => {
-  const mockScreenToFlowPosition = vi.fn((pos) => pos);
+  const mockScreenToFlowPosition = vi.fn((_pos) => _pos);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,7 +64,7 @@ describe('useDropHandler', () => {
 
     expect(mockEvent.preventDefault).toHaveBeenCalled();
     expect(addNode).toHaveBeenCalled();
-    const [type, pos, parentId] = addNode.mock.calls[0];
+    const [type, _pos, parentId] = addNode.mock.calls[0];
     expect(type).toBe('Pod');
     expect(parentId).toBeUndefined();
   });

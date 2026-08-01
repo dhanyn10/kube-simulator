@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { LogModal } from '@/components/Modals/LogModal';
 import { useFlowStore } from '@/store';
 
@@ -14,9 +14,9 @@ vi.mock('@/store', async (importOriginal) => {
 
 describe('LogModal', () => {
     const mockLogs = [
-        { id: '1', level: 'info', message: 'Info log 1', timestamp: Date.now() - 10000 },
-        { id: '2', level: 'warn', message: 'Warn log 1', timestamp: Date.now() - 5000 },
-        { id: '3', level: 'error', message: 'Error log 1', timestamp: Date.now() },
+        { id: '1', level: 'info' as const, message: 'Info log 1', timestamp: Date.now() - 10000 },
+        { id: '2', level: 'warn' as const, message: 'Warn log 1', timestamp: Date.now() - 5000 },
+        { id: '3', level: 'error' as const, message: 'Error log 1', timestamp: Date.now() },
     ];
 
     beforeEach(() => {

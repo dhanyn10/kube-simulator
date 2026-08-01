@@ -83,7 +83,6 @@ describe('simulation test suite', () => {
   });
 
   it('calculateReachability ignores edges with validationError', () => {
-    const ctx = getMockCtx();
     const edgeWithError = { id: 'e1', source: 'i1', target: 'd1', data: { validationError: 'error' } } as any;
     const edgeMap = new Map([['i1', [edgeWithError]]]);
     expect(calculateReachability([baseNodes[1]], edgeMap, ['e1']).has('d1')).toBe(false);
