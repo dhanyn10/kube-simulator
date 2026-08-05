@@ -8,6 +8,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
   return (
     <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' }}>
       <button
+        type="button"
         aria-label="minimize"
         onClick={() => win?.MinimizeWindow?.()}
         className={cn(
@@ -18,6 +19,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
         <Minus size={16} />
       </button>
       <button
+        type="button"
         aria-label="maximize"
         onClick={() => win?.MaximizeWindow?.()}
         className={cn(
@@ -28,6 +30,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
         <Square size={12} />
       </button>
       <button
+        type="button"
         aria-label="close"
         onClick={() => win?.CloseWindow?.()}
         className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"

@@ -195,6 +195,7 @@ export const MenuBar = ({
         <div className="mx-2 h-4 w-px bg-slate-700/30" />
 
         <button
+          type="button"
           onClick={toggleColorMode}
           style={{ '--wails-draggable': 'no-drag' }}
           className={cn(

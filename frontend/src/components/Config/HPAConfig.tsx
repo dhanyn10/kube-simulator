@@ -72,6 +72,7 @@ export const HPAConfig = ({ selectedNode, performUpdate, toggleVisibility, toggl
         <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-500 leading-relaxed">
           <p>HPA requires CPU/Memory requests on the target Deployment to function in real-world clusters.</p>
           <button 
+            type="button"
             onClick={() => {
               if (targetDeployment) {
                 useFlowStore.getState().updateNodeData(targetDeployment.id, {

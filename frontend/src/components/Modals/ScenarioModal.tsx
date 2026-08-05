@@ -118,6 +118,7 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
             </div>
             <div className="flex gap-3 w-full max-w-[320px]">
               <button
+                type="button"
                 onClick={() => setShowConfirm(false)}
                 className={cn(
                   "flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-all border",
@@ -129,6 +130,7 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => selectedScenario && applyScenario(selectedScenario)}
                 className="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-600/20"
               >
@@ -140,6 +142,7 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
           <div className="grid gap-3">
             {scenarios.map((scenario) => (
               <button
+                type="button"
                 key={scenario.id}
                 onClick={() => handleSelectScenario(scenario)}
                 className={cn(

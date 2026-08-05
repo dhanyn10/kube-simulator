@@ -49,6 +49,7 @@ export const SimulationControls = ({
       style={{ '--wails-draggable': 'no-drag' }}
     >
       <button
+        type="button"
         onClick={() => isSimulating ? stopSimulation() : startSimulation()}
         disabled={!hasInternet}
         title={getButtonTitle()}

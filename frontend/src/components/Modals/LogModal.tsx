@@ -31,6 +31,7 @@ const Tab = ({ type, label, count, activeFilter, setActiveFilter, colorMode }: T
 
   return (
     <button
+      type="button"
       onClick={() => setActiveFilter(type)}
       className={cn(
         "px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2",
@@ -173,6 +174,7 @@ export const LogModal: React.FC = () => {
         <div className="flex justify-between items-center w-full">
           <p className="text-xs text-slate-500">Logs are kept in-memory for the current session (last 500 entries).</p>
           <button
+            type="button"
             onClick={clearLogs}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
             data-testid="log-clear-all"
@@ -189,6 +191,7 @@ export const LogModal: React.FC = () => {
           <div className="flex items-center gap-1">
             <div className="flex items-center" ref={selectMenuRef}>
                 <button
+                    type="button"
                     onClick={handleSelectAll}
                     className={cn(
                         "p-2 rounded hover:bg-slate-500/10 transition-colors flex items-center",
@@ -200,6 +203,7 @@ export const LogModal: React.FC = () => {
                     {MasterCheckboxIcon}
                 </button>
                 <button
+                    type="button"
                     onClick={() => setIsSelectMenuOpen(!isSelectMenuOpen)}
                     className={cn(
                         "p-1 rounded hover:bg-slate-500/10 transition-colors",
@@ -217,6 +221,7 @@ export const LogModal: React.FC = () => {
                     )}>
                         {(['all', 'none', 'error', 'warn', 'info'] as const).map(type => (
                             <button
+                                type="button"
                                 key={type}
                                 onClick={() => selectByType(type)}
                                 className={cn(
@@ -236,6 +241,7 @@ export const LogModal: React.FC = () => {
                 <>
                     <div className="w-px h-4 bg-slate-700/50 mx-1" />
                     <button
+                        type="button"
                         onClick={handleBulkDelete}
                         className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
                         title="Delete selected"
@@ -323,6 +329,7 @@ export const LogModal: React.FC = () => {
                         </label>
 
                         <button
+                            type="button"
                             onClick={() => toggleExpand(log.id)}
                             aria-expanded={isExpanded}
                             className="flex-1 min-w-0 flex flex-col gap-1 text-left outline-none focus-visible:ring-1 focus-visible:ring-blue-500 rounded"
@@ -353,6 +360,7 @@ export const LogModal: React.FC = () => {
                         </button>
 
                         <button
+                            type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 deleteLog(log.id);

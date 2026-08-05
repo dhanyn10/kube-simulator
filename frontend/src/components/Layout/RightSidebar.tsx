@@ -211,6 +211,7 @@ export const SidebarTabBar = ({
     )}>
       <div className="flex-1 flex h-8 mx-1 relative" ref={canvasDropdownRef}>
         <button
+          type="button"
           onClick={() => setActiveTab('canvas')}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 rounded-l-md text-[10px] font-bold uppercase tracking-wider transition-all",
@@ -221,6 +222,7 @@ export const SidebarTabBar = ({
           Canvas
         </button>
         <button
+          type="button"
           data-testid="canvas-dropdown-toggle"
           onClick={() => {
             setIsCanvasDropdownOpen(!isCanvasDropdownOpen);
@@ -241,6 +243,7 @@ export const SidebarTabBar = ({
           )}>
             {canvasWidgets.map((w) => (
               <button
+                type="button"
                 key={w.id}
                 onClick={() => toggleWidget(w.id)}
                 className={cn(
@@ -259,6 +262,7 @@ export const SidebarTabBar = ({
             ))}
             <div className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-100")} />
             <button
+              type="button"
               data-testid="open-yaml-inspector"
               onClick={() => {
                 onExportYaml();
@@ -279,6 +283,7 @@ export const SidebarTabBar = ({
       </div>
 
       <button
+        type="button"
         onClick={() => setActiveTab('settings')}
         className={cn(
           "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",

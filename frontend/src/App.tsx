@@ -353,16 +353,17 @@ export default function App() {
 
           {/* Left Controls Panel */}
           <Panel position="top-left" className="m-4 flex flex-col gap-2">
-            <button onClick={() => zoomIn()} className={btnClass} title="Zoom In">
+            <button type="button" onClick={() => zoomIn()} className={btnClass} title="Zoom In">
               <Plus size={16} />
             </button>
-            <button onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
+            <button type="button" onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
               <Minus size={16} />
             </button>
-            <button onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
+            <button type="button" onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
               <Maximize size={16} />
             </button>
             <button
+              type="button"
               onClick={() => toggleAutofocus()}
               className={cn(
                 btnClass,

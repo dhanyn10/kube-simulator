@@ -58,6 +58,7 @@ export const Modal = ({
     >
       {/* Backdrop button for accessibility to handle clicks outside */}
       <button
+        type="button"
         className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent"
         onClick={onClose}
         aria-hidden="true"
@@ -90,6 +91,7 @@ export const Modal = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 hover:bg-slate-500/10 rounded-full transition-colors outline-none focus:ring-2 focus:ring-blue-500/50"
             aria-label="Close"

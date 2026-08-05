@@ -141,6 +141,7 @@ export default function CustomEdge({
           {selected && (
             <div className="flex gap-1 bg-white dark:bg-slate-800 p-1.5 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
               <button
+                type="button"
                 className={cn(
                   "p-1 rounded transition-colors",
                   isConfiguring 
@@ -153,6 +154,7 @@ export default function CustomEdge({
                 <Settings size={14} />
               </button>
               <button
+                type="button"
                 className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
                 onClick={onRemove}
                 title="Remove"
