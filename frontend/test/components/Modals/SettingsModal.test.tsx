@@ -56,8 +56,8 @@ describe('SettingsModal', () => {
     // Verify view toggles disappear and canvas customizations show up
     expect(screen.queryByText('View & Layout Toggles')).toBeNull();
     expect(screen.getByText('Canvas Customization')).toBeDefined();
-    expect(screen.getByText('Dots (Titik-titik)')).toBeDefined();
-    expect(screen.getByText('Lines (Kotak-kotak)')).toBeDefined();
+    expect(screen.getByText('Dots')).toBeDefined();
+    expect(screen.getByText('Lines')).toBeDefined();
   });
 
   it('toggles View properties and updates Zustand store', () => {
@@ -88,11 +88,11 @@ describe('SettingsModal', () => {
     const canvasTabBtn = screen.getByRole('button', { name: 'Canvas' });
     fireEvent.click(canvasTabBtn);
 
-    const linesBtn = screen.getByText('Lines (Kotak-kotak)');
+    const linesBtn = screen.getByText('Lines');
     fireEvent.click(linesBtn);
     expect(useFlowStore.getState().canvasBgVariant).toBe('lines');
 
-    const dotsBtn = screen.getByText('Dots (Titik-titik)');
+    const dotsBtn = screen.getByText('Dots');
     fireEvent.click(dotsBtn);
     expect(useFlowStore.getState().canvasBgVariant).toBe('dots');
   });

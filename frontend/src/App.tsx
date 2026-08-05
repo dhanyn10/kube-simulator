@@ -330,7 +330,7 @@ export default function App() {
             color={canvasBgColor === 'default' ? (colorMode === 'dark' ? '#334155' : '#E2E8F0') : canvasBgColor}
             variant={canvasBgVariant === 'lines' ? BackgroundVariant.Lines : BackgroundVariant.Dots}
             gap={24}
-            size={canvasBgVariant === 'lines' ? 1.5 : 1}
+            size={canvasBgVariant === 'lines' ? 1.5 : 2}
             style={{ opacity: canvasBgOpacity }}
           />
 

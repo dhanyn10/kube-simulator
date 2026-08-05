@@ -149,7 +149,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               canvasBgVariant === 'dots' ? activeBtnClass : inactiveBtnClass
             )}
           >
-            Dots (Titik-titik)
+            Dots
           </button>
           <button
             onClick={() => setCanvasBgVariant('lines')}
@@ -158,7 +158,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               canvasBgVariant === 'lines' ? activeBtnClass : inactiveBtnClass
             )}
           >
-            Lines (Kotak-kotak)
+            Lines
           </button>
         </div>
       </div>
