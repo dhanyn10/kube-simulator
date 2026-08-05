@@ -55,6 +55,7 @@ const SidebarSection = ({
   return (
     <section>
       <button
+        type="button"
         onClick={onToggle}
         className={cn(
           "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
@@ -73,6 +74,7 @@ const SidebarSection = ({
           
           return (
             <button
+              type="button"
               key={type}
               onClick={() => onAddNode(type)}
               onDragStart={(event) => onDragStart(event, type)}

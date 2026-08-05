@@ -59,6 +59,7 @@ export const SelectorGroup = ({
 
         return (
           <button
+            type="button"
             key={val}
             onClick={() => onSelect(val)}
             className={cn(

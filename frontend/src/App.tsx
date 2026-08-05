@@ -94,8 +94,6 @@ export default function App() {
   const isSidebarVisible = useFlowStore((state) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
-  const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
-  const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
   const copyNodes = useFlowStore((state) => state.copyNodes);
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
@@ -353,16 +351,17 @@ export default function App() {
 
           {/* Left Controls Panel */}
           <Panel position="top-left" className="m-4 flex flex-col gap-2">
-            <button onClick={() => zoomIn()} className={btnClass} title="Zoom In">
+            <button type="button" onClick={() => zoomIn()} className={btnClass} title="Zoom In">
               <Plus size={16} />
             </button>
-            <button onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
+            <button type="button" onClick={() => zoomOut()} className={btnClass} title="Zoom Out">
               <Minus size={16} />
             </button>
-            <button onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
+            <button type="button" onClick={() => fitView({ padding: 0.1, duration: 800 })} className={btnClass} title="Fit View">
               <Maximize size={16} />
             </button>
             <button
+              type="button"
               onClick={() => toggleAutofocus()}
               className={cn(
                 btnClass,

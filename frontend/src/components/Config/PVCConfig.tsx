@@ -73,6 +73,7 @@ export const PVCConfig = ({
 
             return (
               <button
+                type="button"
                 key={mode.value}
                 onClick={() => performUpdate({ accessMode: mode.value })}
                 className={cn(

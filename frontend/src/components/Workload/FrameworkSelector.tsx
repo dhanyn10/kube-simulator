@@ -39,6 +39,7 @@ export const FrameworkSelector = ({
 
             return (
               <button
+                type="button"
                 key={fw}
                 onClick={() => performUpdate({ framework: fw })}
                 className={cn(

@@ -93,6 +93,7 @@ export const KeyValueConfig = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={addData}
             className={cn(
               "flex items-center gap-1 px-2 py-1 rounded text-white text-[9px] font-bold transition-all",
@@ -133,6 +134,7 @@ export const KeyValueConfig = ({
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={() => removeData(idx)}
                   className="p-1.5 rounded hover:bg-rose-500/10 text-rose-500 transition-colors"
                 >

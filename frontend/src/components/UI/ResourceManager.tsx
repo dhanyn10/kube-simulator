@@ -56,14 +56,15 @@ const ArchitectureRow = ({
       return (
         <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
           <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
-          <button onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
-          <button onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
+          <button type="button" onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
+          <button type="button" onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
         </div>
       );
     }
 
     const deleteButton = (
       <button
+        type="button"
         onClick={() => onDelete(p.id)}
         className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
         title="Delete project"
@@ -77,6 +78,7 @@ const ArchitectureRow = ({
         <>
           {hasChanges && (
             <button
+              type="button"
               onClick={onUpdate}
               className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
             >
@@ -94,6 +96,7 @@ const ArchitectureRow = ({
       <>
         {showOverwrite && (
           <button
+            type="button"
             onClick={() => setConfirmOverwriteId(p.id)}
             className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
           >
@@ -101,6 +104,7 @@ const ArchitectureRow = ({
           </button>
         )}
         <button
+          type="button"
           onClick={() => onLoad(p.id, p.name)}
           className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
         >
@@ -188,6 +192,7 @@ const LocalImageRow = ({ img, onDelete, colorMode }: LocalImageRowProps) => {
       <div className="flex items-center gap-3">
         <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">LOCAL CACHE</span>
         <button
+          type="button"
           onClick={() => onDelete(img)}
           className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors"
           title="Delete image option"
@@ -282,6 +287,7 @@ const ProjectsTab = ({
         />
       </div>
       <button
+        type="button"
         onClick={handleSave}
         disabled={!projectName.trim()}
         className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
@@ -408,6 +414,7 @@ const LocalImagesTab = ({
         />
       </div>
       <button
+        type="button"
         onClick={handleAddCustomImageSubmit}
         disabled={!newCustomImage.trim()}
         className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
@@ -638,6 +645,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
 
               return (
                 <button
+                  type="button"
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={cn(

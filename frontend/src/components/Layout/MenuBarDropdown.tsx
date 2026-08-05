@@ -1,4 +1,3 @@
-import React from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -41,6 +40,7 @@ export const MenuBarDropdown = ({
   return (
     <div className="relative" style={{ '--wails-draggable': 'no-drag' }}>
       <button
+        type="button"
         onClick={() => setActiveMenu(isOpen ? null : menu.label)}
         onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
         className={buttonClasses}
@@ -72,6 +72,7 @@ export const MenuBarDropdown = ({
 
             return (
               <button
+                type="button"
                 key={item.label}
                 onClick={() => {
                   item.onClick();

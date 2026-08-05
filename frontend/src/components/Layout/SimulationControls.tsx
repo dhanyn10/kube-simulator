@@ -1,4 +1,3 @@
-import React from 'react';
 import { Play, Square } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -49,6 +48,7 @@ export const SimulationControls = ({
       style={{ '--wails-draggable': 'no-drag' }}
     >
       <button
+        type="button"
         onClick={() => isSimulating ? stopSimulation() : startSimulation()}
         disabled={!hasInternet}
         title={getButtonTitle()}

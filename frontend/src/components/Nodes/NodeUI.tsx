@@ -19,6 +19,7 @@ export const NodeActionButtons = ({
   <div className={cn("opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-all", className)}>
     {!hideSettings && (
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           useFlowStore.getState().toggleNodeSettings(id);
@@ -32,6 +33,7 @@ export const NodeActionButtons = ({
       </button>
     )}
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onDelete?.();

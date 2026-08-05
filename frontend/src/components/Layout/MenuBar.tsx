@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
@@ -195,6 +195,7 @@ export const MenuBar = ({
         <div className="mx-2 h-4 w-px bg-slate-700/30" />
 
         <button
+          type="button"
           onClick={toggleColorMode}
           style={{ '--wails-draggable': 'no-drag' }}
           className={cn(

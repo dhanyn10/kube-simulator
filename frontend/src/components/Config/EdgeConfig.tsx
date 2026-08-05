@@ -96,6 +96,7 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
               <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Normal / Running</span>
             </div>
             <button
+              type="button"
               onClick={resetRunningColor}
               className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-slate-600"
               title="Reset to default"
@@ -140,6 +141,7 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
               <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">Error State</span>
             </div>
             <button
+              type="button"
               onClick={resetErrorColor}
               className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-slate-600"
               title="Reset to default"

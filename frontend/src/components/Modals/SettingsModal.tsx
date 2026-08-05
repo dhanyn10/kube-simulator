@@ -42,8 +42,6 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     setCanvasBgOpacity(parseFloat(e.target.value));
   };
 
-  const textMutedClass = colorMode === 'dark' ? "text-slate-400" : "text-slate-500";
-  const borderClass = colorMode === 'dark' ? "border-slate-800" : "border-slate-200";
   const activeBtnClass = "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/10 border-blue-600";
   const inactiveBtnClass = colorMode === 'dark'
     ? "bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300"
