@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -16,6 +16,7 @@ interface MenuBarProps {
   onOpenProjects: () => void;
   onOpenScenarios: () => void;
   onOpenAbout: () => void;
+  onOpenSettings: () => void;
 }
 
 export const MenuBar = ({
@@ -24,7 +25,8 @@ export const MenuBar = ({
   onSaveFile,
   onOpenProjects,
   onOpenScenarios,
-  onOpenAbout
+  onOpenAbout,
+  onOpenSettings
 }: MenuBarProps) => {
   const colorMode = useFlowStore((state: FlowState) => state.colorMode);
   const toggleColorMode = useFlowStore((state: FlowState) => state.toggleColorMode);
@@ -75,6 +77,7 @@ export const MenuBar = ({
           { label: 'Save', icon: Save, onClick: onSaveFile, shortcut: 'Ctrl+S' },
           { label: 'Import', icon: Upload, onClick: onImportFile },
           { label: 'Export', icon: FileCode, onClick: onExportYaml },
+          { label: 'Settings', icon: Sliders, onClick: onOpenSettings },
         ]
       },
       {

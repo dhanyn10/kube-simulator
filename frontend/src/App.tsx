@@ -17,7 +17,7 @@ import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
 import { AlignmentGuides, ContextMenu, ResourceManager } from './components/UI';
 import { HistoryPanel, MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
-import { YamlModal, ScenarioModal, LogModal, AboutDialog } from './components/Modals';
+import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal } from './components/Modals';
 import {
   PodNode,
   ServiceNode,
@@ -110,19 +110,19 @@ export default function App() {
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false); // State for About dialog
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const canvasBgVariant = useFlowStore((state) => state.canvasBgVariant);
+  const canvasBgColor = useFlowStore((state) => state.canvasBgColor);
+  const canvasBgOpacity = useFlowStore((state) => state.canvasBgOpacity);
+  const loadSettingsJson = useFlowStore((state) => state.loadSettingsJson);
 
   useEffect(() => {
     if (!isDetachedMode) {
-      // Load sidebar settings
-      if (globalThis.go?.main?.App?.GetSetting) {
-        globalThis.go.main.App.GetSetting('isSidebarVisible').then((val: string) => {
-          if (val !== "") setSidebarVisible(val === 'true');
-        });
-        globalThis.go.main.App.GetSetting('isRightSidebarVisible').then((val: string) => {
-          if (val !== "") setRightSidebarVisible(val === 'true');
-        });
+      loadSettingsJson();
 
-        // Load global edge colors
+      // Load global edge colors
+      if (globalThis.go?.main?.App?.GetSetting) {
         Promise.all([
           globalThis.go.main.App.GetSetting('globalEdgeColor'),
           globalThis.go.main.App.GetSetting('globalEdgeErrorColor')
@@ -285,6 +285,7 @@ export default function App() {
         onOpenProjects={() => setIsProjectOpen(true)}
         onOpenScenarios={() => setIsScenarioOpen(true)}
         onOpenAbout={() => setIsAboutDialogOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -326,10 +327,11 @@ export default function App() {
           colorMode={colorMode}
         >
           <Background
-            color={colorMode === 'dark' ? '#334155' : '#E2E8F0'}
-            variant={BackgroundVariant.Dots}
+            color={canvasBgColor === 'default' ? (colorMode === 'dark' ? '#334155' : '#E2E8F0') : canvasBgColor}
+            variant={canvasBgVariant === 'lines' ? BackgroundVariant.Lines : BackgroundVariant.Dots}
             gap={24}
-            size={1}
+            size={canvasBgVariant === 'lines' ? 1.5 : 2}
+            style={{ opacity: canvasBgOpacity }}
           />
 
           <AlignmentGuides />
@@ -404,6 +406,8 @@ export default function App() {
 
           {/* Render the AboutDialog */}
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
+
+          <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 

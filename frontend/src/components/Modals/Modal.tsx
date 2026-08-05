@@ -16,6 +16,7 @@ interface ModalProps {
   maxHeightClass?: string;
   alignClass?: string;
   disableScroll?: boolean;
+  compactHeader?: boolean;
 }
 
 export const Modal = ({
@@ -30,7 +31,8 @@ export const Modal = ({
   widthClass = "w-[600px]",
   maxHeightClass = "max-h-[85vh]",
   alignClass = "items-center",
-  disableScroll = false
+  disableScroll = false,
+  compactHeader = true
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   
@@ -70,28 +72,36 @@ export const Modal = ({
         )}
       >
         {/* Header */}
-        <div className="p-6 border-b flex items-center justify-between shrink-0">
+        <div className={cn(
+          "border-b flex items-center justify-between shrink-0",
+          compactHeader ? "p-3 px-4" : "p-6"
+        )}>
           <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg bg-opacity-10", iconColorClass.replace('text-', 'bg-'))}>
-              <Icon className={iconColorClass} size={24} />
+            <div className={cn(
+              "rounded-lg bg-opacity-10",
+              compactHeader ? "p-1.5" : "p-2",
+              iconColorClass.replace('text-', 'bg-')
+            )}>
+              <Icon className={iconColorClass} size={compactHeader ? 18 : 24} />
             </div>
             <div>
-              <h2 className="text-xl font-bold">{title}</h2>
-              {subtitle && <p className="text-xs text-slate-500 font-medium">{subtitle}</p>}
+              <h2 className={cn("font-bold leading-tight", compactHeader ? "text-base" : "text-xl")}>{title}</h2>
+              {subtitle && <p className={cn("text-slate-500 font-medium", compactHeader ? "text-[10px] leading-tight" : "text-xs")}>{subtitle}</p>}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-500/10 rounded-full transition-colors outline-none focus:ring-2 focus:ring-blue-500/50"
+            className="p-1.5 hover:bg-slate-500/10 rounded-full transition-colors outline-none focus:ring-2 focus:ring-blue-500/50"
             aria-label="Close"
           >
-            <X size={20} />
+            <X size={compactHeader ? 16 : 20} />
           </button>
         </div>
 
         {/* Content */}
         <div className={cn(
-          "flex-1 p-6 min-h-0",
+          "flex-1 min-h-0",
+          compactHeader ? "p-4" : "p-6",
           !disableScroll && "overflow-y-auto custom-scrollbar"
         )}>
           {children}

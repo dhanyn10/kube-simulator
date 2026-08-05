@@ -87,8 +87,17 @@ export interface FlowState {
 
   visibleWidgets: string[];
   customImages: string[];
+  canvasBgVariant: 'dots' | 'lines';
+  canvasBgColor: string;
+  canvasBgOpacity: number;
+
   addCustomImage: (image: string) => void;
   deleteCustomImage: (image: string) => void;
+  setCanvasBgVariant: (variant: 'dots' | 'lines') => void;
+  setCanvasBgColor: (color: string) => void;
+  setCanvasBgOpacity: (opacity: number) => void;
+  saveSettingsJson: () => void;
+  loadSettingsJson: () => void;
 
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
