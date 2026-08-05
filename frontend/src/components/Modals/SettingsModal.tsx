@@ -215,8 +215,9 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
       widthClass="w-[680px]"
       maxHeightClass="h-[70vh]"
       disableScroll={true}
+      compactHeader={true}
     >
-      <div className="flex h-[calc(100%+3rem)] -mx-6 -my-6 overflow-hidden">
+      <div className="flex h-[calc(100%+2rem)] -mx-4 -my-4 overflow-hidden">
         {/* Left Sidebar Menu */}
         <div className={cn(
           "w-44 border-r p-4 space-y-1 shrink-0 flex flex-col h-full",
