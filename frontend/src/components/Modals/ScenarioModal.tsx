@@ -94,13 +94,14 @@ export const ScenarioModal = ({ isOpen, onClose }: ScenarioModalProps) => {
       title="Learning Scenarios"
       subtitle="Select a case study to learn infrastructure patterns"
       icon={BookOpen}
+      compactHeader={true}
       footer={
         <p className="text-[10px] text-center text-slate-500 font-medium">
           Scenarios are templates designed to show best practices in Kubernetes architecture.
         </p>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {showConfirm ? (
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
             <div className="p-4 bg-amber-500/10 rounded-full">

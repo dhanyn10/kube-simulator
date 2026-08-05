@@ -32,7 +32,7 @@ export const Modal = ({
   maxHeightClass = "max-h-[85vh]",
   alignClass = "items-center",
   disableScroll = false,
-  compactHeader = false
+  compactHeader = true
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   

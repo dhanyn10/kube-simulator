@@ -168,6 +168,7 @@ export const LogModal: React.FC = () => {
       iconColorClass="text-slate-500"
       widthClass="w-[900px]"
       disableScroll={true}
+      compactHeader={true}
       footer={
         <div className="flex justify-between items-center w-full">
           <p className="text-xs text-slate-500">Logs are kept in-memory for the current session (last 500 entries).</p>
@@ -182,7 +183,7 @@ export const LogModal: React.FC = () => {
         </div>
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {/* Header toolbar */}
         <div className="flex items-center justify-between border-b border-slate-700/30 pb-3 gap-4">
           <div className="flex items-center gap-1">
