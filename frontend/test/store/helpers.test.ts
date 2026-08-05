@@ -55,13 +55,13 @@ describe('store helpers', () => {
   it('syncPodsInDeployment should create pods based on replicas', () => {
     const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 2, label: 'app' } } as any;
     const pods = syncPodsInDeployment(deployment, []);
-    expect(pods.length).toBe(2);
+    expect(pods).toHaveLength(2);
     expect(pods[0].parentId).toBe('d1');
     expect(pods[0].data.replicas).toBe(1);
 
     // Test updating existing pods
     const updatedPods = syncPodsInDeployment(deployment, pods);
-    expect(updatedPods.length).toBe(2);
+    expect(updatedPods).toHaveLength(2);
     expect(updatedPods[0].id).toBe(pods[0].id);
   });
 
