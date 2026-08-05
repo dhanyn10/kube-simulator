@@ -88,6 +88,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
       >
         {/* Inspect */}
         <button
+          type="button"
           role="menuitem"
           onClick={() => { onInspect(); onClose(); }}
           className={itemClass}
@@ -100,6 +101,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
 
         {/* Copy / Paste */}
         <button
+          type="button"
           role="menuitem"
           onClick={() => { copyNodes(); onClose(); }}
           disabled={!hasSelection}
@@ -113,6 +115,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
         </button>
 
         <button
+          type="button"
           role="menuitem"
           onClick={() => { pasteNodes(); onClose(); }}
           className={itemClass}
@@ -128,6 +131,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
 
         {/* Group / Ungroup */}
         <button
+          type="button"
           role="menuitem"
           onClick={() => { groupNodes(selectedIds); onClose(); }}
           disabled={!canGroup}
@@ -141,6 +145,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
         </button>
 
         <button
+          type="button"
           role="menuitem"
           onClick={() => { ungroupNodes(selectedIds); onClose(); }}
           disabled={!isGrouped}
@@ -157,6 +162,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
 
         {/* Delete */}
         <button
+          type="button"
           role="menuitem"
           onClick={() => { onDelete(); onClose(); }}
           disabled={!hasSelection}

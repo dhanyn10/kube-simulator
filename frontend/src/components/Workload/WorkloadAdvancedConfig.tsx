@@ -59,6 +59,7 @@ export const WorkloadAdvancedConfig = ({
             </span>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => toggleVisibility('resources')}
                 className={cn(
                   "transition-colors",
@@ -68,6 +69,7 @@ export const WorkloadAdvancedConfig = ({
                 {data.displaySettings?.resources === false ? <EyeOff size={10} /> : <Eye size={10} />}
               </button>
               <button
+                type="button"
                 onClick={() => toggleYaml('resources')}
                 disabled={hasResources === false}
                 className={cn("transition-colors", yamlButtonClass)}

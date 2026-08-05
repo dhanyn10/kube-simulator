@@ -17,6 +17,7 @@ export const ColorPalette = ({ selectedColor, onSelect, className }: ColorPalett
     <div className={cn("grid grid-cols-7 gap-1.5", className)}>
       {MATERIAL_COLORS.map((c) => (
         <button
+          type="button"
           key={c.hex}
           onClick={() => onSelect(c.hex)}
           className={cn(

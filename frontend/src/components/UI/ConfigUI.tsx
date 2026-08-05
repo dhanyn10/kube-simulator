@@ -15,7 +15,7 @@ export const ConfigLabel = ({ children, className = "" }: { children: React.Reac
  * Toggle button for controlling field visibility on the canvas node.
  */
 export const VisibilityToggle = ({ isVisible, onToggle }: { isVisible: boolean, onToggle: () => void }) => (
-  <button onClick={onToggle} className={cn("transition-colors", isVisible ? "text-blue-500" : "text-slate-500 hover:text-blue-400")} title="Show/Hide on Card">
+  <button type="button" onClick={onToggle} className={cn("transition-colors", isVisible ? "text-blue-500" : "text-slate-500 hover:text-blue-400")} title="Show/Hide on Card">
     {isVisible ? <Eye size={10} /> : <EyeOff size={10} />}
   </button>
 );
@@ -38,6 +38,7 @@ export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boole
 
   return (
     <button
+      type="button"
       onClick={onToggle}
       disabled={disabled}
       className={cn("transition-colors", btnClass)}
@@ -99,6 +100,7 @@ export const AdvancedSection = ({ children, colorMode }: { children: React.React
   return (
     <div className="pt-1">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors w-full mb-3",
@@ -123,6 +125,7 @@ export const AdvancedSection = ({ children, colorMode }: { children: React.React
 export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode }: any) => (
   <div className="flex items-center gap-2">
     <button
+      type="button"
       onClick={() => onChange(Math.max(min, value - 1))}
       disabled={value <= min}
       className={cn(
@@ -156,6 +159,7 @@ export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode 
       )}
     />
     <button
+      type="button"
       onClick={() => onChange(Math.min(max, value + 1))}
       disabled={value >= max}
       className={cn(
