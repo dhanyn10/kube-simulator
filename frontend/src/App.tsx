@@ -94,8 +94,6 @@ export default function App() {
   const isSidebarVisible = useFlowStore((state) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
-  const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
-  const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
   const copyNodes = useFlowStore((state) => state.copyNodes);
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
