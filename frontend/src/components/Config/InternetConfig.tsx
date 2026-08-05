@@ -8,7 +8,6 @@ interface InternetConfigProps {
   selectedNode: any;
   performUpdate: (updates: any) => void;
   toggleVisibility: (field: string) => void;
-  toggleYaml?: (field: string) => void;
 }
 
 /**

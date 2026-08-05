@@ -39,6 +39,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent border-none w-full h-full"
     >
       <button
+        type="button"
         className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent"
         onClick={onClose}
         aria-hidden="true"
@@ -56,7 +57,7 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
               Kubernetes Manifest Output
             </h2>
           </div>
-          <button onClick={onClose} className={cn('p-1.5 rounded transition-colors', colorMode === 'dark' ? 'hover:bg-slate-800 text-slate-500' : 'hover:bg-slate-200 text-slate-500')}>
+          <button type="button" onClick={onClose} className={cn('p-1.5 rounded transition-colors', colorMode === 'dark' ? 'hover:bg-slate-800 text-slate-500' : 'hover:bg-slate-200 text-slate-500')}>
             <X size={16} />
           </button>
         </div>
@@ -104,12 +105,13 @@ export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
 
         <div className={cn('p-3 border-t flex justify-end gap-2', colorMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200')}>
           <button
+            type="button"
             onClick={onClose}
             className={cn('px-4 py-2 rounded text-[10px] font-bold uppercase tracking-wider transition-colors', colorMode === 'dark' ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-200 hover:bg-slate-300 text-slate-700')}
           >
             Close
           </button>
-          <button onClick={handleCopy} className="relative px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-[10px] font-bold uppercase shadow-lg shadow-blue-900/20 text-white transition-all active:scale-95">
+          <button type="button" onClick={handleCopy} className="relative px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-[10px] font-bold uppercase shadow-lg shadow-blue-900/20 text-white transition-all active:scale-95">
             {copied ? (
               <span className="flex items-center gap-1.5 animate-in fade-in zoom-in duration-200">
                 <CheckCircle2 size={12} />
