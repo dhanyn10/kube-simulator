@@ -213,11 +213,13 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
       icon={Sliders}
       iconColorClass="text-blue-500"
       widthClass="w-[680px]"
+      maxHeightClass="h-[70vh]"
+      disableScroll={true}
     >
-      <div className="flex min-h-[340px] -mx-6 -my-6">
+      <div className="flex h-[calc(100%+3rem)] -mx-6 -my-6 overflow-hidden">
         {/* Left Sidebar Menu */}
         <div className={cn(
-          "w-44 border-r p-4 space-y-1 shrink-0 flex flex-col",
+          "w-44 border-r p-4 space-y-1 shrink-0 flex flex-col h-full",
           colorMode === 'dark' ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"
         )}>
           {/* Tab View */}
@@ -250,7 +252,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
         </div>
 
         {/* Right Active Panel */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-6 overflow-y-auto h-full custom-scrollbar">
           {activeTab === 'view' && renderViewTab()}
           {activeTab === 'canvas' && renderCanvasTab()}
         </div>
