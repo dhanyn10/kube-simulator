@@ -138,14 +138,14 @@ describe('store helpers', () => {
   });
 
   it('calculateAlignmentGuides should ignore Pod nodes as alignment targets to prevent hijacking', () => {
-    const node = { id: 'n1', width: 160, height: 80, position: { x: 0, y: 140 }, data: {} } as Node;
-    // Pod has a smaller Y distance (center Y = 145) but should be ignored
-    const pod = { id: 'pod-1', type: 'Pod', position: { x: 200, y: 110 }, data: { replicas: 1 } } as Node;
-    // Deployment has a larger Y distance (center Y = 180) but is the valid target
-    const deployment = { id: 'd1', type: 'Deployment', position: { x: 300, y: 100 }, data: {} } as Node;
+    const node = { id: 'n1', width: 160, height: 80, position: { x: 0, y: 130 }, data: {} } as Node; // center is at 170
+    // Pod has a smaller Y distance (center Y = 170) and is closer, but should be ignored
+    const pod = { id: 'pod-1', type: 'Pod', position: { x: 200, y: 130 }, data: { replicas: 1 } } as Node; // center is at 170
+    // Deployment has center Y = 170 and is the valid target
+    const deployment = { id: 'd1', type: 'Deployment', position: { x: 300, y: 90 }, data: {} } as Node; // center is at 170 (90 + 160/2)
 
     const nodes = [node, pod, deployment];
-    const guides = calculateAlignmentGuides(node, nodes, { x: 0, y: 140 }, false);
+    const guides = calculateAlignmentGuides(node, nodes, { x: 0, y: 130 }, false);
 
     const hasPodHorizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'pod-1');
     const hasDeploymentHorizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'd1');
