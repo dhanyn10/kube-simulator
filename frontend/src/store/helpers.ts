@@ -272,12 +272,20 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   };
 };
 
-const getEffectiveSize = (node: Node) => {
-  if (node.type === 'Pod') {
-    const minSize = getPodMinimumSize(node.data);
+export const getEffectiveSize = (node: Node, nodes?: Node[]) => {
+  const storeNode = nodes?.find(n => n.id === node.id);
+  const n = storeNode ? {
+    ...node,
+    width: node.width ?? storeNode.width,
+    height: node.height ?? storeNode.height,
+    measured: node.measured ?? storeNode.measured
+  } : node;
+
+  if (n.type === 'Pod') {
+    const minSize = getPodMinimumSize(n.data);
     return {
-      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
-      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+      width: Math.max(n.width || 0, n.measured?.width || 0, minSize.width),
+      height: Math.max(n.height || 0, n.measured?.height || 0, minSize.height)
     };
   }
   const getDefaultSize = (type: string | undefined) => {
@@ -286,10 +294,10 @@ const getEffectiveSize = (node: Node) => {
     return { w: 160, h: 80 };
   };
 
-  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
+  const { w: defaultW, h: defaultH } = getDefaultSize(n.type);
   return {
-    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
-    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
+    width: Math.max(n.width || 0, n.measured?.width || 0, defaultW),
+    height: Math.max(n.height || 0, n.measured?.height || 0, defaultH)
   };
 };
 
@@ -310,7 +318,7 @@ export const calculateAlignmentGuides = (
   const vSnap = new Map<number, boolean>();
   const hSnap = new Map<number, boolean>();
 
-  const nodeSize = getEffectiveSize(node);
+  const nodeSize = getEffectiveSize(node, nodes);
   const nodeWidth = nodeSize.width;
   const nodeHeight = nodeSize.height;
 
@@ -322,7 +330,7 @@ export const calculateAlignmentGuides = (
 
   otherNodes.forEach(otherNode => {
     const otherAbs = getAbsPos(otherNode.id, nodes);
-    const otherSize = getEffectiveSize(otherNode);
+    const otherSize = getEffectiveSize(otherNode, nodes);
     const otherH = otherSize.height;
     const otherAbsYCenter = otherAbs.y + otherH / 2;
     const distanceY = Math.abs(nodeAbsYCenter - otherAbsYCenter);
@@ -334,7 +342,7 @@ export const calculateAlignmentGuides = (
 
   otherNodes.forEach(otherNode => {
     const otherAbs = getAbsPos(otherNode.id, nodes);
-    const otherSize = getEffectiveSize(otherNode);
+    const otherSize = getEffectiveSize(otherNode, nodes);
     const otherW = otherSize.width;
     const otherH = otherSize.height;
 

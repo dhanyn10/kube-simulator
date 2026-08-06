@@ -5,7 +5,8 @@ import {
   calculateAlignmentGuides, 
   getNodeData, 
   sortNodes,
-  resolveGlobalCollisions
+  resolveGlobalCollisions,
+  getEffectiveSize
 } from '../../helpers';
 import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
 import { FlowState } from '../../types';
@@ -188,8 +189,9 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
 
     set((state: FlowState) => {
       let nextNodes = [...state.nodes];
-      const nodeWidth = node.width || node.measured?.width || 160;
-      const nodeHeight = node.height || node.measured?.height || 80;
+      const nodeSize = getEffectiveSize(node, nextNodes);
+      const nodeWidth = nodeSize.width;
+      const nodeHeight = nodeSize.height;
 
       const vSnaps = state.snapGuides.vertical.filter((g: any) => g.isActive).map((g: any) => g.position);
       const hSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
