@@ -76,7 +76,7 @@ export const KeyValueConfig = ({
 
   const activeColors = colors[accentColor];
 
-  const hasData = configData.length > 0 && configData.some(item => item.key);
+  const hasData = configData.some(item => item.key);
   const showYaml = isYamlEnabled !== false && hasData;
 
   return (
