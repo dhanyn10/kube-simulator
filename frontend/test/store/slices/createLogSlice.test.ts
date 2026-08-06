@@ -41,7 +41,7 @@ describe('createLogSlice', () => {
     store.getState().addLog('warn', 'Persistence test');
 
     const stored = JSON.parse(sessionStorage.getItem('k8s_sim_logs') || '[]');
-    expect(stored.length).toBe(1);
+    expect(stored).toHaveLength(1);
     expect(stored[0].message).toBe('Persistence test');
   });
 
@@ -51,7 +51,7 @@ describe('createLogSlice', () => {
       store.getState().addLog('error', `Error ${i}`);
     }
 
-    expect(store.getState().logs.length).toBe(500);
+    expect(store.getState().logs).toHaveLength(500);
     // Should contain the LAST 500 logs
     expect(store.getState().logs[0].message).toBe('Error 5');
     expect(store.getState().logs[499].message).toBe('Error 504');
@@ -61,7 +61,7 @@ describe('createLogSlice', () => {
     store.getState().addLog('info', 'Log to delete');
     const id = store.getState().logs[0].id;
     store.getState().deleteLog(id);
-    expect(store.getState().logs.length).toBe(0);
+    expect(store.getState().logs).toHaveLength(0);
   });
 
   it('should delete multiple logs', () => {
@@ -72,7 +72,7 @@ describe('createLogSlice', () => {
     const ids = [store.getState().logs[0].id, store.getState().logs[2].id];
     store.getState().deleteLogs(ids);
 
-    expect(store.getState().logs.length).toBe(1);
+    expect(store.getState().logs).toHaveLength(1);
     expect(store.getState().logs[0].message).toBe('L2');
   });
 
