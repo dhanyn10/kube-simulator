@@ -36,7 +36,7 @@ describe('createFlowSlice', () => {
       onConnect({ source: 'h1', target: 'd1' });
 
       const state = useFlowStore.getState();
-      expect(state.edges.length).toBe(1);
+      expect(state.edges).toHaveLength(1);
 
       const updatedDep = state.nodes.find(n => n.id === 'd1');
       expect(updatedDep?.data.cpuRequest).toBe('100m');
@@ -64,7 +64,7 @@ describe('createFlowSlice', () => {
       onQuickConnect('s1', 'right');
 
       const state = useFlowStore.getState();
-      expect(state.edges.length).toBe(1);
+      expect(state.edges).toHaveLength(1);
       expect(state.edges[0].target).toBe('t1');
   });
 

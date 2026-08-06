@@ -115,6 +115,9 @@ export default function App() {
   const canvasBgOpacity = useFlowStore((state) => state.canvasBgOpacity);
   const loadSettingsJson = useFlowStore((state) => state.loadSettingsJson);
 
+  const defaultBgColor = colorMode === 'dark' ? '#334155' : '#E2E8F0';
+  const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
+
   useEffect(() => {
     if (!isDetachedMode) {
       loadSettingsJson();
@@ -325,7 +328,7 @@ export default function App() {
           colorMode={colorMode}
         >
           <Background
-            color={canvasBgColor === 'default' ? (colorMode === 'dark' ? '#334155' : '#E2E8F0') : canvasBgColor}
+            color={finalCanvasBgColor}
             variant={canvasBgVariant === 'lines' ? BackgroundVariant.Lines : BackgroundVariant.Dots}
             gap={24}
             size={canvasBgVariant === 'lines' ? 1.5 : 2}

@@ -52,7 +52,7 @@ describe('useFileSystem', () => {
     });
 
     const state = useFlowStore.getState();
-    expect(state.nodes.length).toBe(1);
+    expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].data.label).toBe('Imported Pod');
     expect(state.currentProject?.name).toBe('Imported Project');
   });
@@ -66,7 +66,7 @@ describe('useFileSystem', () => {
     });
 
     // Should not crash, nodes should remain empty
-    expect(useFlowStore.getState().nodes.length).toBe(0);
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
   });
 
   it('listens for open-infra-file events', async () => {
@@ -94,7 +94,7 @@ describe('useFileSystem', () => {
     });
 
     const state = useFlowStore.getState();
-    expect(state.nodes.length).toBe(1);
+    expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].data.label).toBe('External Pod');
     expect(state.currentProject?.name).toBe('External Project');
   });
@@ -114,6 +114,6 @@ describe('useFileSystem', () => {
         eventCallback('invalid json');
     });
 
-    expect(useFlowStore.getState().nodes.length).toBe(0);
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
   });
 });

@@ -6,8 +6,6 @@ import { useFlowStore } from '../../store';
 
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
-  isProjectOpen: boolean;
-  setIsProjectOpen: (open: boolean) => void;
 }
 
 const ITEM_STYLES: Record<string, { border: string, text: string }> = {

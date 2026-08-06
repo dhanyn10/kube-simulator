@@ -31,7 +31,7 @@ describe('createLogSlice', () => {
     store.getState().addLog('error', 'Test error message');
 
     const state = store.getState();
-    expect(state.logs.length).toBe(1);
+    expect(state.logs).toHaveLength(1);
     expect(state.logs[0].level).toBe('error');
     expect(state.logs[0].message).toBe('Test error message');
     expect(state.isLogToastVisible).toBe(true);

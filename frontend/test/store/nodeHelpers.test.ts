@@ -64,7 +64,7 @@ describe('nodeHelpers', () => {
         // Deployment should be updated and pods should be synced
         const deployment = hydrated.find(n => n.id === 'd1');
         expect(deployment.width).toBeGreaterThan(0);
-        expect(hydrated.filter(n => n.parentId === 'd1').length).toBe(1);
+        expect(hydrated.filter(n => n.parentId === 'd1')).toHaveLength(1);
     });
   });
 
@@ -77,7 +77,7 @@ describe('nodeHelpers', () => {
       const { updatedDeployment, laidOut } = syncDeployment(deployment, [deployment, pod], 1, get);
 
       expect(updatedDeployment.data.replicas).toBe(3);
-      expect(laidOut.length).toBe(3); // Should have created 3 pods
+      expect(laidOut).toHaveLength(3); // Should have created 3 pods
     });
   });
 

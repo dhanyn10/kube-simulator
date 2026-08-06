@@ -46,6 +46,7 @@ export const LogToast: React.FC = () => {
       </div>
 
       <button
+        type="button"
         onClick={() => setModalOpen(true)}
         className={cn(
           'px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 active:scale-95',
@@ -58,6 +59,7 @@ export const LogToast: React.FC = () => {
       </button>
 
       <button
+        type="button"
         onClick={() => setVisible(false)}
         className="p-1.5 rounded-md hover:bg-slate-500/20 transition-colors opacity-50 hover:opacity-100"
       >

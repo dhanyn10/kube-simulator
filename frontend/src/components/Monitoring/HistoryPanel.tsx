@@ -24,6 +24,7 @@ export function HistoryPanel({ colorMode }: HistoryPanelProps) {
   return (
     <div className="mt-4 flex flex-col gap-2 relative">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'p-2 rounded-md transition-all duration-300 shadow-xl z-30',
@@ -55,6 +56,7 @@ export function HistoryPanel({ colorMode }: HistoryPanelProps) {
             ) : (
               historyLogs.map((log) => (
                 <button
+                  type="button"
                   key={`${log.timestamp}-${log.index}`}
                   onClick={() => { handleJumpToHistory(log.index); setIsOpen(false); }}
                   className={cn(

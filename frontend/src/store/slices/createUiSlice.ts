@@ -67,6 +67,36 @@ const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } 
  */
 const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
+const applyParsedSettings = (val: string, set: (state: Partial<FlowState>) => void) => {
+  try {
+    const settings = JSON.parse(val);
+    set({
+      ...(typeof settings.isSidebarVisible === 'boolean' ? { isSidebarVisible: settings.isSidebarVisible } : {}),
+      ...(typeof settings.isRightSidebarVisible === 'boolean' ? { isRightSidebarVisible: settings.isRightSidebarVisible } : {}),
+      ...(typeof settings.isAutofocusEnabled === 'boolean' ? { isAutofocusEnabled: settings.isAutofocusEnabled } : {}),
+      ...(typeof settings.isMonitoringOpen === 'boolean' ? { isMonitoringOpen: settings.isMonitoringOpen } : {}),
+      ...(settings.canvasBgVariant === 'dots' || settings.canvasBgVariant === 'lines' ? { canvasBgVariant: settings.canvasBgVariant } : {}),
+      ...(typeof settings.canvasBgColor === 'string' ? { canvasBgColor: settings.canvasBgColor } : {}),
+      ...(typeof settings.canvasBgOpacity === 'number' ? { canvasBgOpacity: settings.canvasBgOpacity } : {}),
+    });
+  } catch (e) {
+    logger.error('Failed to parse app settings json', e);
+  }
+};
+
+const fallbackToLegacySettings = (set: (state: Partial<FlowState>) => void) => {
+  if (!globalThis.go?.main?.App?.GetSetting) return;
+  Promise.all([
+    globalThis.go.main.App.GetSetting('isSidebarVisible'),
+    globalThis.go.main.App.GetSetting('isRightSidebarVisible')
+  ]).then(([sidebar, rightSidebar]) => {
+    set({
+      ...(sidebar !== "" ? { isSidebarVisible: sidebar === 'true' } : {}),
+      ...(rightSidebar !== "" ? { isRightSidebarVisible: rightSidebar === 'true' } : {}),
+    });
+  });
+};
+
 /**
  * Executes a single tick of the simulation.
  * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
@@ -270,31 +300,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     if (globalThis.go?.main?.App?.GetSetting) {
       globalThis.go.main.App.GetSetting('app_settings_json').then((val: string) => {
         if (val) {
-          try {
-            const settings = JSON.parse(val);
-            set({
-              ...(typeof settings.isSidebarVisible === 'boolean' ? { isSidebarVisible: settings.isSidebarVisible } : {}),
-              ...(typeof settings.isRightSidebarVisible === 'boolean' ? { isRightSidebarVisible: settings.isRightSidebarVisible } : {}),
-              ...(typeof settings.isAutofocusEnabled === 'boolean' ? { isAutofocusEnabled: settings.isAutofocusEnabled } : {}),
-              ...(typeof settings.isMonitoringOpen === 'boolean' ? { isMonitoringOpen: settings.isMonitoringOpen } : {}),
-              ...(settings.canvasBgVariant === 'dots' || settings.canvasBgVariant === 'lines' ? { canvasBgVariant: settings.canvasBgVariant } : {}),
-              ...(typeof settings.canvasBgColor === 'string' ? { canvasBgColor: settings.canvasBgColor } : {}),
-              ...(typeof settings.canvasBgOpacity === 'number' ? { canvasBgOpacity: settings.canvasBgOpacity } : {}),
-            });
-          } catch (e) {
-            logger.error('Failed to parse app settings json', e);
-          }
+          applyParsedSettings(val, set);
         } else {
-          // Fallback to legacy single key settings
-          Promise.all([
-            globalThis.go.main.App.GetSetting('isSidebarVisible'),
-            globalThis.go.main.App.GetSetting('isRightSidebarVisible')
-          ]).then(([sidebar, rightSidebar]) => {
-            set({
-              ...(sidebar !== "" ? { isSidebarVisible: sidebar === 'true' } : {}),
-              ...(rightSidebar !== "" ? { isRightSidebarVisible: rightSidebar === 'true' } : {}),
-            });
-          });
+          fallbackToLegacySettings(set);
         }
       });
     }

@@ -103,6 +103,7 @@ export const MonitoringDashboard = () => {
           colorMode === 'dark' ? "bg-slate-800/50 border-slate-700/50" : "bg-slate-100 border-slate-200"
         )}>
         <button
+          type="button"
           onMouseDown={(e) => {
             setIsDragging(true);
             dragStart.current = {
@@ -117,6 +118,7 @@ export const MonitoringDashboard = () => {
           <span className="text-[11px] font-bold uppercase tracking-widest">System Monitoring</span>
         </button>
         <button
+          type="button"
           onClick={() => setMonitoringOpen(false)}
           className="p-1 mr-3 hover:bg-red-500 hover:text-white rounded transition-colors shrink-0"
           aria-label="Close dashboard"
@@ -131,6 +133,7 @@ export const MonitoringDashboard = () => {
       )}>
         <span className="text-[10px] text-slate-500">View on separate window?</span>
         <button
+          type="button"
           onClick={handleDetach}
           className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold transition-colors"
         >
