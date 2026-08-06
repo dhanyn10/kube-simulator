@@ -39,7 +39,7 @@ describe('useFlowStore', () => {
     applyHistoryState(snapshot);
 
     const state = useFlowStore.getState();
-    expect(state.nodes.length).toBe(1);
+    expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].id).toBe('h1');
     expect(state.lastActionName).toBe('Applied: Restored Action');
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Applied state from log'));

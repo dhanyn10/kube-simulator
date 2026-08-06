@@ -17,7 +17,7 @@ describe('nodeActions', () => {
     addNode('Pod', { x: 100, y: 100 });
 
     const state = useFlowStore.getState();
-    expect(state.nodes.length).toBe(1);
+    expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].type).toBe('Pod');
     expect(state.lastActionName).toBe('Add Pod');
   });
@@ -33,9 +33,9 @@ describe('nodeActions', () => {
     deleteNodes([node1] as any);
 
     const state = useFlowStore.getState();
-    expect(state.nodes.length).toBe(1);
+    expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].id).toBe('n2');
-    expect(state.edges.length).toBe(0);
+    expect(state.edges).toHaveLength(0);
   });
 
   it('updateNodeData updates data and handles special workload logic', () => {
@@ -59,7 +59,7 @@ describe('nodeActions', () => {
       const state = useFlowStore.getState();
       // Should find a ReplicaSet and Pods
       expect(state.nodes.some(n => n.type === 'ReplicaSet')).toBe(true);
-      expect(state.nodes.filter(n => n.type === 'Pod').length).toBe(3);
+      expect(state.nodes.filter(n => n.type === 'Pod')).toHaveLength(3);
   });
 
   it('onNodeClick updates configured node state', () => {
