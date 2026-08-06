@@ -272,44 +272,6 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   };
 };
 
-interface AlignmentContext {
-  nodes: Node[];
-  nodeAbs: { x: number; y: number };
-  nodeSize: { width: number; height: number };
-  verticalGuides: Map<number, any>;
-  horizontalGuides: Map<number, any>;
-  vSnap: Map<number, boolean>;
-  hSnap: Map<number, boolean>;
-}
-
-// Helper to check alignment between two nodes
-const updatePairAlignment = (
-  otherNode: Node,
-  ctx: AlignmentContext
-) => {
-  const otherAbs = getAbsPos(otherNode.id, ctx.nodes);
-  const otherW = otherNode.width || otherNode.measured?.width || 160;
-  const otherH = otherNode.height || otherNode.measured?.height || 80;
-
-  const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
-  const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
-
-  const nodePointsX = [
-    { pos: ctx.nodeAbs.x, type: 'edge' },
-    { pos: ctx.nodeAbs.x + ctx.nodeSize.width / 2, type: 'center' },
-    { pos: ctx.nodeAbs.x + ctx.nodeSize.width, type: 'edge' }
-  ];
-  const nodePointsY = [
-    { pos: ctx.nodeAbs.y, type: 'edge' },
-    { pos: ctx.nodeAbs.y + ctx.nodeSize.height / 2, type: 'center' },
-    { pos: ctx.nodeAbs.y + ctx.nodeSize.height, type: 'edge' }
-  ];
-
-  const config = { threshold: 8, tolerance: 4 };
-  nodePointsX.forEach(nP => checkXAlignment({ nP, otherPoints: otherPointsX, otherNode, guides: ctx.verticalGuides, snap: ctx.vSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.height, other: otherH } }));
-  nodePointsY.forEach(nP => checkYAlignment({ nP, otherPoints: otherPointsY, otherNode, guides: ctx.horizontalGuides, snap: ctx.hSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.width, other: otherW } }));
-};
-
 export const calculateAlignmentGuides = (
   node: Node,
   nodes: Node[],
@@ -330,21 +292,71 @@ export const calculateAlignmentGuides = (
   const nodeWidth = node.width || node.measured?.width || 160;
   const nodeHeight = node.height || node.measured?.height || 80;
 
-  const ctx: AlignmentContext = {
-    nodes,
-    nodeAbs,
-    nodeSize: { width: nodeWidth, height: nodeHeight },
-    verticalGuides,
-    horizontalGuides,
-    vSnap,
-    hSnap
-  };
+  const otherNodes = nodes.filter(n => n.id !== node.id);
+  let closestOtherNode: Node | null = null;
+  let minDistanceY = Infinity;
 
-  nodes
-    .filter(n => n.id !== node.id)
-    .forEach(otherNode => {
-      updatePairAlignment(otherNode, ctx);
-    });
+  const nodeAbsYCenter = nodeAbs.y + nodeHeight / 2;
+
+  otherNodes.forEach(otherNode => {
+    const otherAbs = getAbsPos(otherNode.id, nodes);
+    const otherH = otherNode.height || otherNode.measured?.height || 80;
+    const otherAbsYCenter = otherAbs.y + otherH / 2;
+    const distanceY = Math.abs(nodeAbsYCenter - otherAbsYCenter);
+    if (distanceY < minDistanceY) {
+      minDistanceY = distanceY;
+      closestOtherNode = otherNode;
+    }
+  });
+
+  otherNodes.forEach(otherNode => {
+    const otherAbs = getAbsPos(otherNode.id, nodes);
+    const otherW = otherNode.width || otherNode.measured?.width || 160;
+    const otherH = otherNode.height || otherNode.measured?.height || 80;
+
+    const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
+    const nodePointsX = [
+      { pos: nodeAbs.x, type: 'edge' },
+      { pos: nodeAbs.x + nodeWidth / 2, type: 'center' },
+      { pos: nodeAbs.x + nodeWidth, type: 'edge' }
+    ];
+
+    const config = { threshold: 8, tolerance: 4 };
+
+    // Always check X alignment (vertical guides) against all other nodes
+    nodePointsX.forEach(nP => checkXAlignment({
+      nP,
+      otherPoints: otherPointsX,
+      otherNode,
+      guides: verticalGuides,
+      snap: vSnap,
+      config,
+      nodeAbs,
+      otherAbs,
+      size: { node: nodeHeight, other: otherH }
+    }));
+
+    // ONLY check Y alignment (horizontal guides) if otherNode is the vertically closest node
+    if (closestOtherNode && otherNode.id === closestOtherNode.id) {
+      const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
+      const nodePointsY = [
+        { pos: nodeAbs.y, type: 'edge' },
+        { pos: nodeAbs.y + nodeHeight / 2, type: 'center' },
+        { pos: nodeAbs.y + nodeHeight, type: 'edge' }
+      ];
+      nodePointsY.forEach(nP => checkYAlignment({
+        nP,
+        otherPoints: otherPointsY,
+        otherNode,
+        guides: horizontalGuides,
+        snap: hSnap,
+        config,
+        nodeAbs,
+        otherAbs,
+        size: { node: nodeWidth, other: otherW }
+      }));
+    }
+  });
 
   return {
     verticalGuides: Array.from(verticalGuides.values()),

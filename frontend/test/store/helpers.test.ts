@@ -104,6 +104,27 @@ describe('store helpers', () => {
     expect(guides.horizontalGuides.length).toBeGreaterThan(0);
   });
 
+  it('calculateAlignmentGuides should only align horizontally with the vertically closest node', () => {
+    const node = { id: 'n1', width: 100, height: 100, position: { x: 0, y: 100 }, data: {} } as Node;
+    // n2 is vertically closer to n1 (Y center distance = 5)
+    const n2 = { id: 'n2', width: 100, height: 100, position: { x: 200, y: 105 }, data: {} } as Node;
+    // n3 is further away vertically (Y center distance = 100)
+    const n3 = { id: 'n3', width: 100, height: 100, position: { x: 400, y: 200 }, data: {} } as Node;
+
+    const nodes = [node, n2, n3];
+    const guides = calculateAlignmentGuides(node, nodes, { x: 0, y: 100 }, false);
+
+    // Should only have horizontal guides for n2, not n3
+    const hasN2Horizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'n2');
+    const hasN3Horizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'n3');
+
+    // Since n1 is at y: 100, n2 is at y: 105, which is within the default threshold of 8,
+    // they should have aligned horizontal guides.
+    expect(hasN2Horizontal).toBe(true);
+    // n3 should not have any horizontal guides because n2 is vertically closer.
+    expect(hasN3Horizontal).toBe(false);
+  });
+
   it('calculateAlignmentGuides should handle Deployment slot guides', () => {
     const pod = { id: 'p1', type: 'Pod', width: 100, height: 100, position: { x: 0, y: 0 }, data: {} } as any;
     const deployment = { id: 'd1', type: 'Deployment', width: 400, position: { x: 500, y: 500 }, data: { replicas: 1 } } as any;
