@@ -36,8 +36,10 @@ func NewApp() *App {
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
-	appCtx = ctx
-	logger.Init(ctx)
+	if ctx.Value("is_test") == nil {
+		appCtx = ctx
+		logger.Init(ctx)
+	}
 
 	// Redirect standard log to our wails logger
 	log.SetOutput(&logger.WailsWriter{Level: "info"})
@@ -52,7 +54,17 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	// Adjust window size to 90% of screen height on startup
-	screens, err := wailsRuntime.ScreenGetAll(ctx)
+	var screens []wailsRuntime.Screen
+	var err error
+	if ctx.Value("is_test") == nil {
+		screens, err = wailsRuntime.ScreenGetAll(ctx)
+	} else {
+		screens = []wailsRuntime.Screen{
+			{IsPrimary: true, Height: 1080, Width: 1920},
+		}
+		err = nil
+	}
+
 	if err == nil {
 		if targetScreen, ok := a.GetTargetScreen(screens); ok {
 			screenW := targetScreen.Size.Width
@@ -62,7 +74,10 @@ func (a *App) startup(ctx context.Context) {
 				screenH = targetScreen.Height
 			}
 			newHeight := a.CalculateAppHeight(screenH)
-			currWidth, _ := wailsRuntime.WindowGetSize(ctx)
+			currWidth := 1024
+			if ctx.Value("is_test") == nil {
+				currWidth, _ = wailsRuntime.WindowGetSize(ctx)
+			}
 
 			// Center horizontally; pin Y=0 so the menu bar is never clipped above the screen
 			x := (screenW - currWidth) / 2
@@ -70,19 +85,31 @@ func (a *App) startup(ctx context.Context) {
 				x = 0
 			}
 
-			wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
-			wailsRuntime.WindowSetPosition(ctx, x, 0)
+			if ctx.Value("is_test") == nil {
+				wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
+				wailsRuntime.WindowSetPosition(ctx, x, 0)
+			}
 		}
 	}
-	wailsRuntime.WindowShow(ctx)
+
+	if ctx.Value("is_test") == nil {
+		wailsRuntime.WindowShow(ctx)
+	}
 
 	// If a file was passed via CLI, read it and emit to frontend after a short delay
 	if a.initialFilePath != "" {
 		go func() {
-			time.Sleep(1 * time.Second) // Wait for frontend to be ready
+			// In tests, we sleep less so the test completes quickly
+			sleepDuration := 1 * time.Second
+			if ctx.Value("is_test") != nil {
+				sleepDuration = 5 * time.Millisecond
+			}
+			time.Sleep(sleepDuration) // Wait for frontend to be ready
 			fileData, err := os.ReadFile(a.initialFilePath)
 			if err == nil {
-				wailsRuntime.EventsEmit(ctx, "open-infra-file", string(fileData))
+				if ctx.Value("is_test") == nil {
+					wailsRuntime.EventsEmit(ctx, "open-infra-file", string(fileData))
+				}
 			}
 		}()
 	}
