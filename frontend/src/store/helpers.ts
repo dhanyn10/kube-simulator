@@ -346,9 +346,11 @@ export const calculateAlignmentGuides = (
     const otherW = otherSize.width;
     const otherH = otherSize.height;
 
-    const otherPointsX = [otherAbs.x + otherW / 2];
+    const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
     const nodePointsX = [
-      { pos: nodeAbs.x + nodeWidth / 2, type: 'center' }
+      { pos: nodeAbs.x, type: 'edge' },
+      { pos: nodeAbs.x + nodeWidth / 2, type: 'center' },
+      { pos: nodeAbs.x + nodeWidth, type: 'edge' }
     ];
 
     const config = { threshold: 8, tolerance: 4 };
