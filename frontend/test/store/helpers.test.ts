@@ -125,6 +125,35 @@ describe('store helpers', () => {
     expect(hasN3Horizontal).toBe(false);
   });
 
+  it('calculateAlignmentGuides should correctly use getEffectiveSize default sizes for Deployment nodes', () => {
+    const node = { id: 'n1', width: 160, height: 80, position: { x: 0, y: 140 }, data: {} } as Node; // center is at 140 + 40 = 180
+    // deployment has no width/height, defaults to 320x160 (center Y is at 100 + 160/2 = 180)
+    const deployment = { id: 'd1', type: 'Deployment', position: { x: 300, y: 100 }, data: {} } as Node;
+
+    const nodes = [node, deployment];
+    const guides = calculateAlignmentGuides(node, nodes, { x: 0, y: 140 }, false);
+
+    const hasHorizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'd1');
+    expect(hasHorizontal).toBe(true);
+  });
+
+  it('calculateAlignmentGuides should ignore Pod nodes as alignment targets to prevent hijacking', () => {
+    const node = { id: 'n1', width: 160, height: 80, position: { x: 0, y: 140 }, data: {} } as Node;
+    // Pod has a smaller Y distance (center Y = 145) but should be ignored
+    const pod = { id: 'pod-1', type: 'Pod', position: { x: 200, y: 110 }, data: { replicas: 1 } } as Node;
+    // Deployment has a larger Y distance (center Y = 180) but is the valid target
+    const deployment = { id: 'd1', type: 'Deployment', position: { x: 300, y: 100 }, data: {} } as Node;
+
+    const nodes = [node, pod, deployment];
+    const guides = calculateAlignmentGuides(node, nodes, { x: 0, y: 140 }, false);
+
+    const hasPodHorizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'pod-1');
+    const hasDeploymentHorizontal = guides.horizontalGuides.some(g => g.targetNodeId === 'd1');
+
+    expect(hasPodHorizontal).toBe(false);
+    expect(hasDeploymentHorizontal).toBe(true);
+  });
+
   it('calculateAlignmentGuides should handle Deployment slot guides', () => {
     const pod = { id: 'p1', type: 'Pod', width: 100, height: 100, position: { x: 0, y: 0 }, data: {} } as any;
     const deployment = { id: 'd1', type: 'Deployment', width: 400, position: { x: 500, y: 500 }, data: { replicas: 1 } } as any;

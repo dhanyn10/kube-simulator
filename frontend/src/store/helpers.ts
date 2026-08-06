@@ -272,6 +272,27 @@ const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId:
   };
 };
 
+const getEffectiveSize = (node: Node) => {
+  if (node.type === 'Pod') {
+    const minSize = getPodMinimumSize(node.data);
+    return {
+      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
+      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+    };
+  }
+  const getDefaultSize = (type: string | undefined) => {
+    if (type === 'Deployment') return { w: 320, h: 160 };
+    if (type === 'Namespace') return { w: 600, h: 400 };
+    return { w: 160, h: 80 };
+  };
+
+  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
+  return {
+    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
+    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
+  };
+};
+
 export const calculateAlignmentGuides = (
   node: Node,
   nodes: Node[],
@@ -289,10 +310,11 @@ export const calculateAlignmentGuides = (
   const vSnap = new Map<number, boolean>();
   const hSnap = new Map<number, boolean>();
 
-  const nodeWidth = node.width || node.measured?.width || 160;
-  const nodeHeight = node.height || node.measured?.height || 80;
+  const nodeSize = getEffectiveSize(node);
+  const nodeWidth = nodeSize.width;
+  const nodeHeight = nodeSize.height;
 
-  const otherNodes = nodes.filter(n => n.id !== node.id);
+  const otherNodes = nodes.filter(n => n.id !== node.id && n.type !== 'Pod');
   let closestOtherNode: Node | null = null;
   let minDistanceY = Infinity;
 
@@ -300,7 +322,8 @@ export const calculateAlignmentGuides = (
 
   otherNodes.forEach(otherNode => {
     const otherAbs = getAbsPos(otherNode.id, nodes);
-    const otherH = otherNode.height || otherNode.measured?.height || 80;
+    const otherSize = getEffectiveSize(otherNode);
+    const otherH = otherSize.height;
     const otherAbsYCenter = otherAbs.y + otherH / 2;
     const distanceY = Math.abs(nodeAbsYCenter - otherAbsYCenter);
     if (distanceY < minDistanceY) {
@@ -311,8 +334,9 @@ export const calculateAlignmentGuides = (
 
   otherNodes.forEach(otherNode => {
     const otherAbs = getAbsPos(otherNode.id, nodes);
-    const otherW = otherNode.width || otherNode.measured?.width || 160;
-    const otherH = otherNode.height || otherNode.measured?.height || 80;
+    const otherSize = getEffectiveSize(otherNode);
+    const otherW = otherSize.width;
+    const otherH = otherSize.height;
 
     const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
     const nodePointsX = [
@@ -363,27 +387,6 @@ export const calculateAlignmentGuides = (
     horizontalGuides: Array.from(horizontalGuides.values()),
     vSnap,
     hSnap
-  };
-};
-
-const getEffectiveSize = (node: Node) => {
-  if (node.type === 'Pod') {
-    const minSize = getPodMinimumSize(node.data);
-    return {
-      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
-      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
-    };
-  }
-  const getDefaultSize = (type: string | undefined) => {
-    if (type === 'Deployment') return { w: 320, h: 160 };
-    if (type === 'Namespace') return { w: 600, h: 400 };
-    return { w: 160, h: 80 };
-  };
-
-  const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
-  return {
-    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
-    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
   };
 };
 
