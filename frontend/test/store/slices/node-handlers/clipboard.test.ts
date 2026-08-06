@@ -30,7 +30,7 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     const pod = nodes.find(n => n.type === 'Pod' && n.parentId === deployment.id)!;
     
     expect(pod).toBeDefined();
-    expect(useFlowStore.getState().nodes.filter(n => n.type === 'Pod').length).toBe(1);
+    expect(useFlowStore.getState().nodes.filter(n => n.type === 'Pod')).toHaveLength(1);
 
     // 3. Select the Pod and Copy it
     useFlowStore.setState({
@@ -51,7 +51,7 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     expect(updatedDeployment.data.replicas).toBe(2);
     expect(podCount).toBe(2);
     // Ensure NO extra independent Pod nodes were created
-    expect(updatedNodes.filter(n => n.type === 'Pod').length).toBe(2);
+    expect(updatedNodes.filter(n => n.type === 'Pod')).toHaveLength(2);
   });
 
   it('transforms standalone Pod into ReplicaSet and increments replicas on copy-paste', () => {
@@ -80,7 +80,7 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
 
     expect(group).toBeDefined();
     expect(group.data.replicas).toBe(2);
-    expect(childPods.length).toBe(2); // Should have 2 visual cards because threshold is now 1
+    expect(childPods).toHaveLength(2); // Should have 2 visual cards because threshold is now 1
   });
 
   it('creates a new node if pasted while no node is selected', () => {
@@ -109,7 +109,7 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
     const finalNodes = useFlowStore.getState().nodes;
     const standalonePods = finalNodes.filter(n => n.type === 'Pod' && !n.parentId);
     
-    expect(standalonePods.length).toBe(2);
+    expect(standalonePods).toHaveLength(2);
     expect(finalNodes.find(n => n.type === 'ReplicaSet')).toBeUndefined();
   });
 
@@ -273,19 +273,19 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
 
     // 5. Verify: New edge should be created
     const finalEdges = useFlowStore.getState().edges;
-    expect(finalEdges.length).toBe(2);
-    expect(finalEdges.filter(e => e.selected).length).toBe(1);
+    expect(finalEdges).toHaveLength(2);
+    expect(finalEdges.filter(e => e.selected)).toHaveLength(1);
   });
 
   it('handles paste when clipboard is empty', () => {
     const { pasteNodes } = useFlowStore.getState();
     useFlowStore.setState({ clipboard: null });
     pasteNodes();
-    expect(useFlowStore.getState().nodes.length).toBe(0);
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
 
     useFlowStore.setState({ clipboard: { nodes: [], edges: [] } });
     pasteNodes();
-    expect(useFlowStore.getState().nodes.length).toBe(0);
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
   });
 
   it('tryIncrementPodReplicas returns false when pod labels do not match', () => {
@@ -315,8 +315,8 @@ describe('Clipboard Handlers (Pod Copy-Paste Replicas)', () => {
 
     const finalNodes = useFlowStore.getState().nodes;
     // Pod A, Pod B, and new Copy of Pod A = 3 nodes
-    expect(finalNodes.length).toBe(3);
-    expect(finalNodes.filter(n => n.type === 'Pod').length).toBe(3);
+    expect(finalNodes).toHaveLength(3);
+    expect(finalNodes.filter(n => n.type === 'Pod')).toHaveLength(3);
 
     // Verify Pod B replicas remained 1
     const finalPodB = finalNodes.find(n => n.id === podB.id)!;

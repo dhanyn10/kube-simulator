@@ -44,7 +44,7 @@ describe('UI Toggle Handlers (Gear Settings)', () => {
 
     const updatedState = useFlowStore.getState();
     expect(updatedState.isRightSidebarVisible).toBe(false);
-    expect(updatedState.configuringNodeId).toBe(null);
+    expect(updatedState.configuringNodeId).toBeNull();
   });
 
   it('keeps sidebar open and switches node when toggleNodeSettings is called on a different node', () => {
@@ -83,6 +83,6 @@ describe('UI Toggle Handlers (Gear Settings)', () => {
 
     const updatedState = useFlowStore.getState();
     expect(updatedState.isRightSidebarVisible).toBe(false);
-    expect(updatedState.configuringEdgeId).toBe(null);
+    expect(updatedState.configuringEdgeId).toBeNull();
   });
 });

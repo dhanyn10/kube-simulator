@@ -81,6 +81,6 @@ describe('createFlowSlice', () => {
       expect(state.lastActionName).toBe('Auto Layout');
       expect(state.lastActionId).toContain('layout-');
       // Verify nodes still exist
-      expect(state.nodes.length).toBe(2);
+      expect(state.nodes).toHaveLength(2);
   });
 });

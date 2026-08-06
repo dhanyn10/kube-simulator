@@ -146,7 +146,7 @@ describe('store helpers', () => {
         { id: 'n2', type: 'Other', position: { x: 0, y: 0 }, data: {} } as any,
     ];
     const resolved = resolveGlobalCollisions(nodes);
-    expect(resolved.length).toBe(2);
+    expect(resolved).toHaveLength(2);
 
     // Cover Pod type in getEffectiveSize
     const nodesWithPod = [
@@ -154,6 +154,6 @@ describe('store helpers', () => {
         { id: 'p2', type: 'Pod', position: { x: 10, y: 10 }, data: { replicas: 1 } } as any,
     ];
     const resolvedPods = resolveGlobalCollisions(nodesWithPod);
-    expect(resolvedPods.length).toBe(2);
+    expect(resolvedPods).toHaveLength(2);
   });
 });
