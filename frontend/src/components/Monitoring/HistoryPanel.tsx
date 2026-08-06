@@ -6,7 +6,7 @@ interface HistoryPanelProps {
   colorMode: 'dark' | 'light';
 }
 
-export function HistoryPanel({ colorMode }: HistoryPanelProps) {
+export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const { historyLogs, fetchHistoryLogs, handleJumpToHistory } = useHistory();
 

@@ -52,7 +52,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   };
 
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCanvasBgOpacity(parseFloat(e.target.value));
+    setCanvasBgOpacity(Number.parseFloat(e.target.value));
   };
 
   const activeBtnClass = "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/10 border-blue-600";
@@ -154,6 +154,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
         <span className="text-xs font-bold block">Background Pattern</span>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setCanvasBgVariant('dots')}
             className={cn(
               "flex-1 py-2.5 px-4 rounded-xl border text-xs font-bold transition-all",
@@ -163,6 +164,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
             Dots
           </button>
           <button
+            type="button"
             onClick={() => setCanvasBgVariant('lines')}
             className={cn(
               "flex-1 py-2.5 px-4 rounded-xl border text-xs font-bold transition-all",
@@ -180,6 +182,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
           <span className="text-xs font-bold">Grid/Dot Color</span>
           {canvasBgColor !== 'default' && (
             <button
+              type="button"
               onClick={resetCanvasBgColor}
               className="text-[10px] font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1 transition-colors"
             >

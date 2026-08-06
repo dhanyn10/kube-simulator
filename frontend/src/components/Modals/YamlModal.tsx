@@ -9,7 +9,7 @@ interface YamlModalProps {
   onClose: () => void;
 }
 
-export function YamlModal({ content, colorMode, onClose }: YamlModalProps) {
+export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalProps>) {
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = () => {

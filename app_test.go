@@ -1,11 +1,47 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+func setupAppWithDB(t *testing.T) (*App, func()) {
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	tmpDir, err := os.MkdirTemp("", "kube-builder-app-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+
+	app := NewApp()
+	err = app.history.Init()
+	if err != nil {
+		t.Fatalf("Failed to initialize history db: %v", err)
+	}
+	err = app.projects.Init()
+	if err != nil {
+		t.Fatalf("Failed to initialize projects db: %v", err)
+	}
+
+	cleanup := func() {
+		app.history.Close()
+		app.projects.Close()
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+		os.RemoveAll(tmpDir)
+	}
+
+	return app, cleanup
+}
 
 func TestGetSystemInfo(t *testing.T) {
 	app := NewApp()
@@ -146,5 +182,222 @@ func TestHistoryActions_NoDB(t *testing.T) {
 
 	if len(app.GetHistoryLogs()) != 0 {
 		t.Error("Expected 0 history logs")
+	}
+}
+
+func TestApp_WithDB(t *testing.T) {
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	// 1. SaveProject
+	id := app.SaveProject("Project Alpha", `{"nodes": []}`)
+	if id <= 0 {
+		t.Fatalf("Expected valid project ID, got %d", id)
+	}
+
+	// 2. GetProjects
+	projs := app.GetProjects()
+	if len(projs) != 1 {
+		t.Fatalf("Expected 1 project, got %d", len(projs))
+	}
+	if projs[0].Name != "Project Alpha" {
+		t.Errorf("Expected project name 'Project Alpha', got '%s'", projs[0].Name)
+	}
+
+	// 3. LoadProject
+	proj := app.LoadProject(id)
+	if proj == nil {
+		t.Fatal("Expected project to be loaded, got nil")
+	}
+	if proj.Content != `{"nodes": []}` {
+		t.Errorf("Expected content '{\"nodes\": []}', got '%s'", proj.Content)
+	}
+
+	// 4. UpdateProject
+	ok := app.UpdateProject(id, `{"nodes": [{"id": "1"}]}`)
+	if !ok {
+		t.Error("Expected UpdateProject to succeed")
+	}
+
+	proj = app.LoadProject(id)
+	if proj.Content != `{"nodes": [{"id": "1"}]}` {
+		t.Errorf("Expected updated content, got '%s'", proj.Content)
+	}
+
+	// 5. Save & Get Setting
+	ok = app.SaveSetting("theme", "dark")
+	if !ok {
+		t.Error("Expected SaveSetting to succeed")
+	}
+	val := app.GetSetting("theme")
+	if val != "dark" {
+		t.Errorf("Expected setting 'dark', got '%s'", val)
+	}
+
+	// Get non-existent setting should return empty string
+	nonExistent := app.GetSetting("non_existent")
+	if nonExistent != "" {
+		t.Errorf("Expected empty string for non-existent setting, got '%s'", nonExistent)
+	}
+
+	// 6. DeleteProject
+	ok = app.DeleteProject(id)
+	if !ok {
+		t.Error("Expected DeleteProject to succeed")
+	}
+
+	proj = app.LoadProject(id)
+	if proj != nil {
+		t.Error("Expected loaded project to be nil after deletion")
+	}
+}
+
+func TestApp_HistoryWithDB(t *testing.T) {
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	// 1. Push history states
+	state1 := `{"actionName": "State 1", "timestamp": 1000}`
+	state2 := `{"actionName": "State 2", "timestamp": 2000}`
+	state3 := `plain text state`
+
+	app.PushHistory(state1)
+	app.PushHistory(state2)
+	app.PushHistory(state3)
+
+	// 2. GetHistoryLogs
+	logs := app.GetHistoryLogs()
+	if len(logs) != 3 {
+		t.Fatalf("Expected 3 history logs, got %d", len(logs))
+	}
+
+	if logs[0].ActionName != "State 1" || logs[0].Timestamp != 1000 {
+		t.Errorf("Unexpected log at index 0: %+v", logs[0])
+	}
+	if logs[1].ActionName != "State 2" || logs[1].Timestamp != 2000 {
+		t.Errorf("Unexpected log at index 1: %+v", logs[1])
+	}
+	if logs[2].ActionName != "Activity #2" || logs[2].Timestamp != 0 {
+		t.Errorf("Unexpected log at index 2 (invalid JSON fallback): %+v", logs[2])
+	}
+
+	// 3. Undo and Redo
+	undone := app.Undo()
+	if undone != state2 {
+		t.Errorf("Expected undone to return state2, got '%s'", undone)
+	}
+
+	undone2 := app.Undo()
+	if undone2 != state1 {
+		t.Errorf("Expected undone2 to return state1, got '%s'", undone2)
+	}
+
+	undone3 := app.Undo()
+	if undone3 != "" {
+		t.Errorf("Expected undone3 to return empty string (boundary), got '%s'", undone3)
+	}
+
+	redone := app.Redo()
+	if redone != state2 {
+		t.Errorf("Expected redone to return state2, got '%s'", redone)
+	}
+
+	// 4. JumpToHistory
+	jumped := app.JumpToHistory(0)
+	if jumped != state1 {
+		t.Errorf("Expected JumpToHistory(0) to return state1, got '%s'", jumped)
+	}
+
+	jumpedInvalid := app.JumpToHistory(99)
+	if jumpedInvalid != "" {
+		t.Errorf("Expected JumpToHistory(99) to return empty string, got '%s'", jumpedInvalid)
+	}
+}
+
+func TestApp_StartupShutdown(t *testing.T) {
+	oldHome := os.Getenv("HOME")
+	oldUserProfile := os.Getenv("USERPROFILE")
+	tmpDir, err := os.MkdirTemp("", "kube-builder-app-startup-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", oldHome)
+		os.Setenv("USERPROFILE", oldUserProfile)
+	}()
+
+	app := NewApp()
+
+	// Create a temporary file to test initial file load
+	initialFilePath := filepath.Join(tmpDir, "initial.infra")
+	initialContent := "test file content"
+	err = os.WriteFile(initialFilePath, []byte(initialContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app.SetInitialFile(initialFilePath)
+
+	// Call startup with a background context containing "is_test".
+	// This skips Wails runtime window configuration which would otherwise crash under testing.
+	ctx := context.WithValue(context.Background(), "is_test", true)
+	app.startup(ctx)
+
+	// Wait briefly to allow the file loader goroutine to run
+	time.Sleep(150 * time.Millisecond)
+
+	// Verify DB is active (can save project)
+	id := app.SaveProject("Test Startup Proj", "{}")
+	if id <= 0 {
+		t.Error("Expected DB to be initialized and writable after startup")
+	}
+
+	// Call shutdown
+	app.shutdown(context.Background())
+}
+
+func TestApp_UtilityMethods(t *testing.T) {
+	app := NewApp()
+
+	// 1. GenerateYaml
+	yamlOut := app.GenerateYaml(`[]`, `[]`)
+	if yamlOut == "" {
+		t.Error("GenerateYaml returned empty string")
+	}
+
+	// 2. GetSystemResources
+	res := app.GetSystemResources()
+	if res == nil {
+		t.Error("GetSystemResources returned nil")
+	}
+
+	// 3. CheckForUpdates
+	// CheckForUpdates handles internet errors gracefully and returns nil
+	upd := app.CheckForUpdates("1.0.0")
+	// If offline, upd is nil. If online, upd can be non-nil. Both are expected/handled.
+	_ = upd
+
+	// 4. Window actions should not crash when appCtx is nil
+	app.MinimizeWindow()
+	app.MaximizeWindow()
+	app.CloseWindow()
+
+	// 5. Setup test DB for save/load testing
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	// 6. Export / Import Project file paths (where appCtx is nil or has a dummy context)
+	expOk := app.ExportProjectFile("name", "canvas", "yaml")
+	if expOk {
+		t.Error("Expected ExportProjectFile to return false with nil context")
+	}
+
+	impStr := app.ImportProjectFile()
+	if impStr != "" {
+		t.Error("Expected ImportProjectFile to return empty string with nil context")
 	}
 }
