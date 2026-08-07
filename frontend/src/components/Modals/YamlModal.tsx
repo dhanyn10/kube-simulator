@@ -36,7 +36,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
   return (
     <dialog
       open
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent border-none w-full h-full"
+      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent border-none w-full h-full outline-none focus:outline-none"
     >
       <button
         type="button"

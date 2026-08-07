@@ -52,7 +52,7 @@ export const Modal = ({
     <dialog
       open
       className={cn(
-        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden",
+        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none",
         alignClass
       )}
     >
