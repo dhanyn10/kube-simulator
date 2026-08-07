@@ -317,11 +317,6 @@ export const calculateAlignmentGuides = (
   isDetaching: boolean,
   hoveredDeploymentId: string | null = null
 ) => {
-  if (node.type === 'Pod' && hoveredDeploymentId && !isDetaching) {
-    const slotGuides = getDeploymentSlotGuides(node, nodes, hoveredDeploymentId);
-    if (slotGuides) return slotGuides;
-  }
-
   const verticalGuides = new Map<number, any>();
   const horizontalGuides = new Map<number, any>();
   const vSnap = new Map<number, boolean>();
