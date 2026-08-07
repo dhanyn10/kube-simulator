@@ -1,6 +1,6 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '../types';
-import { checkXAlignment, checkYAlignment, getPodSpacing, getReplicaThresholds } from './layoutHelpers';
+import { getPodSpacing, getReplicaThresholds } from './layoutHelpers';
 import { getPodMinimumSize } from '../lib/podSizing';
 
 export const getNodeData = (node: Node): K8sNodeData => {
@@ -248,111 +248,6 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   });
 };
 
-// Helper to get alignment guides for a pod being dragged over a deployment
-const getDeploymentSlotGuides = (node: Node, nodes: Node[], hoveredDeploymentId: string) => {
-  const deployment = nodes.find(n => n.id === hoveredDeploymentId);
-  if (!deployment) return null;
-
-  const depPods = nodes.filter(n => n.parentId === deployment.id && n.type === 'Pod');
-  const layoutNodes = depPods.some(p => p.id === node.id) ? depPods : [...depPods, node];
-  
-  const laidOut = layoutPodsInDeployment(deployment, layoutNodes);
-  const targetPod = laidOut.find(p => p.id === node.id);
-  if (!targetPod) return null;
-
-  const depAbs = getAbsPos(deployment.id, nodes);
-  const targetAbsX = depAbs.x + targetPod.position.x;
-  const targetAbsY = depAbs.y + targetPod.position.y;
-  
-  return {
-    verticalGuides: [{ position: targetAbsX }],
-    horizontalGuides: [{ position: targetAbsY }],
-    vSnap: new Map([[targetAbsX, true]]),
-    hSnap: new Map([[targetAbsY, true]])
-  };
-};
-
-interface AlignmentContext {
-  nodes: Node[];
-  nodeAbs: { x: number; y: number };
-  nodeSize: { width: number; height: number };
-  verticalGuides: Map<number, any>;
-  horizontalGuides: Map<number, any>;
-  vSnap: Map<number, boolean>;
-  hSnap: Map<number, boolean>;
-}
-
-// Helper to check alignment between two nodes
-const updatePairAlignment = (
-  otherNode: Node,
-  ctx: AlignmentContext
-) => {
-  const otherAbs = getAbsPos(otherNode.id, ctx.nodes);
-  const otherW = otherNode.width || otherNode.measured?.width || 160;
-  const otherH = otherNode.height || otherNode.measured?.height || 80;
-
-  const otherPointsX = [otherAbs.x, otherAbs.x + otherW / 2, otherAbs.x + otherW];
-  const otherPointsY = [otherAbs.y, otherAbs.y + otherH / 2, otherAbs.y + otherH];
-
-  const nodePointsX = [
-    { pos: ctx.nodeAbs.x, type: 'edge' },
-    { pos: ctx.nodeAbs.x + ctx.nodeSize.width / 2, type: 'center' },
-    { pos: ctx.nodeAbs.x + ctx.nodeSize.width, type: 'edge' }
-  ];
-  const nodePointsY = [
-    { pos: ctx.nodeAbs.y, type: 'edge' },
-    { pos: ctx.nodeAbs.y + ctx.nodeSize.height / 2, type: 'center' },
-    { pos: ctx.nodeAbs.y + ctx.nodeSize.height, type: 'edge' }
-  ];
-
-  const config = { threshold: 8, tolerance: 4 };
-  nodePointsX.forEach(nP => checkXAlignment({ nP, otherPoints: otherPointsX, otherNode, guides: ctx.verticalGuides, snap: ctx.vSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.height, other: otherH } }));
-  nodePointsY.forEach(nP => checkYAlignment({ nP, otherPoints: otherPointsY, otherNode, guides: ctx.horizontalGuides, snap: ctx.hSnap, config, nodeAbs: ctx.nodeAbs, otherAbs, size: { node: ctx.nodeSize.width, other: otherW } }));
-};
-
-export const calculateAlignmentGuides = (
-  node: Node,
-  nodes: Node[],
-  nodeAbs: { x: number, y: number },
-  isDetaching: boolean,
-  hoveredDeploymentId: string | null = null
-) => {
-  if (node.type === 'Pod' && hoveredDeploymentId && !isDetaching) {
-    const slotGuides = getDeploymentSlotGuides(node, nodes, hoveredDeploymentId);
-    if (slotGuides) return slotGuides;
-  }
-
-  const verticalGuides = new Map<number, any>();
-  const horizontalGuides = new Map<number, any>();
-  const vSnap = new Map<number, boolean>();
-  const hSnap = new Map<number, boolean>();
-
-  const nodeWidth = node.width || node.measured?.width || 160;
-  const nodeHeight = node.height || node.measured?.height || 80;
-
-  const ctx: AlignmentContext = {
-    nodes,
-    nodeAbs,
-    nodeSize: { width: nodeWidth, height: nodeHeight },
-    verticalGuides,
-    horizontalGuides,
-    vSnap,
-    hSnap
-  };
-
-  nodes
-    .filter(n => n.id !== node.id)
-    .forEach(otherNode => {
-      updatePairAlignment(otherNode, ctx);
-    });
-
-  return {
-    verticalGuides: Array.from(verticalGuides.values()),
-    horizontalGuides: Array.from(horizontalGuides.values()),
-    vSnap,
-    hSnap
-  };
-};
 
 const getEffectiveSize = (node: Node) => {
   if (node.type === 'Pod') {
