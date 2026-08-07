@@ -204,13 +204,13 @@ export default function App() {
         const centerX = absPos.x + nodeW / 2;
         const centerY = absPos.y + nodeH / 2;
 
-        let zoom = 1.4;
+        let zoom = 1.5;
         const containerElement = document.querySelector('.react-flow__renderer');
         if (containerElement) {
           const rect = containerElement.getBoundingClientRect();
           const containerWidth = rect.width || 1024;
           const containerHeight = rect.height || 768;
-          const padding = 0.2;
+          const padding = 0.08;
           const availableWidth = containerWidth * (1 - padding * 2);
           const availableHeight = containerHeight * (1 - padding * 2);
 
@@ -218,7 +218,7 @@ export default function App() {
           const scaleY = availableHeight / nodeH;
 
           const calculatedZoom = Math.min(scaleX, scaleY);
-          zoom = Math.max(0.5, Math.min(1.4, calculatedZoom));
+          zoom = Math.max(0.5, Math.min(1.5, calculatedZoom));
         }
 
         setCenter(centerX, centerY, { zoom, duration: 800 });

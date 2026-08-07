@@ -103,11 +103,11 @@ describe('App Dynamic Zoom Autofocus tests', () => {
     });
 
     // The pod has width/height 100.
-    // Container width = 1000, padding = 0.2, availableWidth = 1000 * 0.6 = 600.
-    // Container height = 800, padding = 0.2, availableHeight = 800 * 0.6 = 480.
-    // scaleX = 600 / 100 = 6. scaleY = 480 / 100 = 4.8.
-    // Minimum scale is 4.8, clamped to max 1.4.
-    expect(mockSetCenter).toHaveBeenCalledWith(60, 70, { zoom: 1.4, duration: 800 });
+    // Container width = 1000, padding = 0.08, availableWidth = 1000 * 0.84 = 840.
+    // Container height = 800, padding = 0.08, availableHeight = 800 * 0.84 = 672.
+    // scaleX = 840 / 100 = 8.4. scaleY = 672 / 100 = 6.72.
+    // Minimum scale is 6.72, clamped to max 1.5.
+    expect(mockSetCenter).toHaveBeenCalledWith(60, 70, { zoom: 1.5, duration: 800 });
 
     document.querySelector = originalQuerySelector;
   });
@@ -132,11 +132,12 @@ describe('App Dynamic Zoom Autofocus tests', () => {
     });
 
     // Namespace has width 800, height 600.
-    // AvailableWidth = 600, AvailableHeight = 480.
-    // scaleX = 600 / 800 = 0.75.
-    // scaleY = 480 / 600 = 0.8.
-    // Minimum scale is 0.75, which is inside clamped bounds [0.5, 1.4].
-    expect(mockSetCenter).toHaveBeenCalledWith(450, 350, { zoom: 0.75, duration: 800 });
+    // Container width = 1000, height = 800. Padding = 0.08.
+    // AvailableWidth = 1000 * 0.84 = 840. AvailableHeight = 800 * 0.84 = 672.
+    // scaleX = 840 / 800 = 1.05.
+    // scaleY = 672 / 600 = 1.12.
+    // Minimum scale is 1.05, which is inside clamped bounds [0.5, 1.5].
+    expect(mockSetCenter).toHaveBeenCalledWith(450, 350, { zoom: 1.05, duration: 800 });
 
     document.querySelector = originalQuerySelector;
   });
