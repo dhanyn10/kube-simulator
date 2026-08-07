@@ -106,6 +106,23 @@ export const LogModal: React.FC = () => {
     return filteredLogs.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredLogs, validCurrentPage]);
 
+  const getPageNumbers = () => {
+    const maxPageButtons = 5;
+    if (totalPages <= maxPageButtons) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    let start = Math.max(1, validCurrentPage - Math.floor(maxPageButtons / 2));
+    let end = start + maxPageButtons - 1;
+
+    if (end > totalPages) {
+      end = totalPages;
+      start = end - maxPageButtons + 1;
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
+
   const counts = useMemo(() => {
     let all = 0, error = 0, warn = 0, info = 0;
     for (const l of logs) {
@@ -421,9 +438,27 @@ export const LogModal: React.FC = () => {
               >
                 &lt; Prev
               </button>
-              <span className="px-2 font-mono">
-                Page {validCurrentPage} of {totalPages}
-              </span>
+
+              {/* Sliding Window Page Links */}
+              <div className="flex items-center gap-0.5 mx-1">
+                {getPageNumbers().map(p => (
+                  <button
+                    type="button"
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={cn(
+                      "px-2.5 py-1 rounded transition-colors text-[11px] font-medium",
+                      validCurrentPage === p
+                        ? "bg-blue-600 text-white font-bold"
+                        : "hover:bg-slate-500/10"
+                    )}
+                    data-testid={`log-pagination-page-${p}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
               <button
                 type="button"
                 disabled={validCurrentPage === totalPages}
