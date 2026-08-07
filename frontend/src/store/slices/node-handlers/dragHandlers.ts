@@ -2,7 +2,6 @@ import { Node } from '@xyflow/react';
 import { 
   getAbsPos, 
   isAllowed, 
-  calculateAlignmentGuides, 
   getNodeData, 
   sortNodes,
   resolveGlobalCollisions
@@ -49,22 +48,6 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
   return { hoveredId, detachingId };
 };
 
-/**
- * Calculates a snapped coordinate based on active alignment guides.
- */
-const getSnappedCoord = (abs: number, size: number, guides: number[], parentAbs: number) => {
-  if (guides.length === 0) return abs - parentAbs;
-  
-  const guide = guides.reduce((prev, curr) => {
-    const dist = (v: number) => Math.min(Math.abs(abs - v), Math.abs(abs + size / 2 - v), Math.abs(abs + size - v));
-    return dist(curr) < dist(prev) ? curr : prev;
-  }, guides[0]);
-
-  const dL = Math.abs(abs - guide), dC = Math.abs(abs + size / 2 - guide), dR = Math.abs(abs + size - guide);
-  if (dL <= dC && dL <= dR) return guide - parentAbs;
-  if (dR <= dL && dR <= dC) return guide - size - parentAbs;
-  return guide - size / 2 - parentAbs;
-};
 
 /**
  * Case 1: Drop into a new container
@@ -139,7 +122,7 @@ const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hov
 
 export const dragHandlers = (set: any, get: () => FlowState) => ({
   onNodeDragStart: (_event: any, node: Node) => {
-    get().setDraggedNodeId(node.id);
+    set({ draggedNodeId: node.id });
     if (node.type === 'Deployment') {
       get().setActiveDeploymentId(node.id);
     } else {
@@ -155,7 +138,6 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
 
   onNodeDrag: (_event: any, node: Node) => {
     const { nodes } = get();
-    get().setDraggedNodeId(node.id);
     
     const nodeAbs = getAbsPos(node.id, nodes, node);
     const { hoveredId, detachingId } = findHoveredContainer(node, nodeAbs, nodes);
@@ -167,19 +149,11 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       return n;
     });
 
-    const { verticalGuides, horizontalGuides, vSnap, hSnap } = calculateAlignmentGuides(
-      node, nodes, nodeAbs, detachingId !== null, hoveredId
-    );
-
     set({ 
+        draggedNodeId: node.id,
         hoveredDeploymentId: hoveredId, 
         detachingDeploymentId: detachingId,
-        nodes: nextNodes,
-        alignmentGuides: { vertical: verticalGuides, horizontal: horizontalGuides },
-        snapGuides: {
-            vertical: Array.from(vSnap).map(([pos, isActive]) => ({ position: pos, isActive })),
-            horizontal: Array.from(hSnap).map(([pos, isActive]) => ({ position: pos, isActive })),
-        }
+        nodes: nextNodes
     });
   },
 
@@ -188,39 +162,22 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
 
     set((state: FlowState) => {
       let nextNodes = [...state.nodes];
-      const nodeWidth = node.width || node.measured?.width || 160;
-      const nodeHeight = node.height || node.measured?.height || 80;
-
-      const vSnaps = state.snapGuides.vertical.filter((g: any) => g.isActive).map((g: any) => g.position);
-      const hSnaps = state.snapGuides.horizontal.filter((g: any) => g.isActive).map((g: any) => g.position);
-
       let finalNode = { ...node };
-      
-      // 1. Resolution Snapping
-      if (vSnaps.length > 0 || hSnaps.length > 0) {
-          const parentAbs = node.parentId ? getAbsPos(node.parentId, nextNodes) : { x: 0, y: 0 };
-          const nodeAbs = { x: node.position.x + parentAbs.x, y: node.position.y + parentAbs.y };
-          
-          if (vSnaps.length > 0) finalNode.position.x = getSnappedCoord(nodeAbs.x, nodeWidth, vSnaps, parentAbs.x);
-          if (hSnaps.length > 0) finalNode.position.y = getSnappedCoord(nodeAbs.y, nodeHeight, hSnaps, parentAbs.y);
-      }
 
-      // 2. Collision Detection
+      // 1. Collision Detection
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
       if (!hoveredDeploymentId) {
         nextNodes = resolveGlobalCollisions(nextNodes, node.id);
         finalNode = nextNodes.find(n => n.id === node.id) || finalNode;
       }
 
-      // 3. Parenting Logic
+      // 2. Parenting Logic
       nextNodes = handleDropParenting(node, finalNode, nextNodes, hoveredDeploymentId, detachingDeploymentId, get);
 
       return {
+        draggedNodeId: null,
         hoveredDeploymentId: null,
         detachingDeploymentId: null,
-        draggedNodeId: null,
-        alignmentGuides: { vertical: [], horizontal: [] },
-        snapGuides: { vertical: [], horizontal: [] },
         nodes: sortNodes(nextNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))),
         lastActionId: `drag-${Date.now()}`,
         lastActionName: 'Move Element'

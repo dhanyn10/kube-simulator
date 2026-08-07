@@ -11,8 +11,6 @@ describe('dragHandlers', () => {
         { id: 'ns1', type: 'Namespace', position: { x: 500, y: 500 }, width: 400, height: 400, data: { label: 'ns' } }
       ] as any,
       edges: [],
-      snapGuides: { vertical: [], horizontal: [] },
-      draggedNodeId: null,
       activeDeploymentId: null,
       hoveredDeploymentId: null,
       detachingDeploymentId: null
@@ -26,7 +24,6 @@ describe('dragHandlers', () => {
     onNodeDragStart({} as any, node);
 
     const state = useFlowStore.getState();
-    expect(state.draggedNodeId).toBe('n1');
     expect(state.nodes.find(n => n.id === 'n1')?.extent).toBeUndefined();
 
     // Test Deployment start
@@ -50,23 +47,6 @@ describe('dragHandlers', () => {
     onNodeDrag({} as any, nodeDetaching);
     // Based on findHoveredContainer logic, if it's already a child, it checks for < 20% overlap
     // With x:10, y:10 relative to d1 (100,100), the abs pos is 110, 110. It is inside d1.
-  });
-
-  it('onNodeDragStop handles snapping', () => {
-    const { onNodeDragStop } = useFlowStore.getState();
-    useFlowStore.setState({
-        snapGuides: {
-            vertical: [{ position: 105, isActive: true }],
-            horizontal: [{ position: 105, isActive: true }]
-        }
-    } as any);
-
-    const node = { id: 'n1', type: 'Pod', position: { x: 102, y: 102 }, data: {} } as any;
-    onNodeDragStop({} as any, node);
-
-    const updatedNode = useFlowStore.getState().nodes.find(n => n.id === 'n1');
-    expect(updatedNode?.position.x).toBe(105);
-    expect(updatedNode?.position.y).toBe(105);
   });
 
   it('onNodeDragStop handles detachment from Deployment', () => {

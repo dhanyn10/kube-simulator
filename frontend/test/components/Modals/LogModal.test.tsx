@@ -117,4 +117,46 @@ describe('LogModal', () => {
 
         expect(screen.getByText('No logs matching your search.')).toBeDefined();
     });
+
+    it('handles pagination for logs correctly', () => {
+        const manyLogs = Array.from({ length: 55 }, (_, i) => ({
+            id: `log-${i}`,
+            level: 'info' as const,
+            message: `Info log ${i}`,
+            timestamp: Date.now() - i * 1000,
+        }));
+        useFlowStore.setState({
+            logs: manyLogs,
+            isLogModalOpen: true,
+        });
+
+        render(<LogModal />);
+
+        // Expect page 1 button to exist
+        expect(screen.getByTestId('log-pagination-page-1')).toBeDefined();
+        expect(screen.getByTestId('log-pagination-page-2')).toBeDefined();
+        // Expect to show "Showing 1 to 50 of 55 logs"
+        expect(screen.getByText((_, el) => el?.textContent === 'Showing 1 to 50 of 55 logs')).toBeDefined();
+
+        // Click next
+        fireEvent.click(screen.getByTestId('log-pagination-next'));
+        expect(screen.getByTestId('log-pagination-page-2').className).toContain('bg-blue-600');
+        expect(screen.getByText((_, el) => el?.textContent === 'Showing 51 to 55 of 55 logs')).toBeDefined();
+
+        // Click prev
+        fireEvent.click(screen.getByTestId('log-pagination-prev'));
+        expect(screen.getByTestId('log-pagination-page-1').className).toContain('bg-blue-600');
+
+        // Click last
+        fireEvent.click(screen.getByTestId('log-pagination-last'));
+        expect(screen.getByTestId('log-pagination-page-2').className).toContain('bg-blue-600');
+
+        // Click first
+        fireEvent.click(screen.getByTestId('log-pagination-first'));
+        expect(screen.getByTestId('log-pagination-page-1').className).toContain('bg-blue-600');
+
+        // Click page 2 button directly
+        fireEvent.click(screen.getByTestId('log-pagination-page-2'));
+        expect(screen.getByTestId('log-pagination-page-2').className).toContain('bg-blue-600');
+    });
 });

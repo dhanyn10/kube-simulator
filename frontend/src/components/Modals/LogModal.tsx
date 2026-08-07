@@ -65,6 +65,13 @@ export const LogModal: React.FC = () => {
   const [isSelectMenuOpen, setIsSelectMenuOpen] = useState(false);
   const selectMenuRef = useRef<HTMLDivElement>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, searchQuery]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target;
@@ -90,6 +97,31 @@ export const LogModal: React.FC = () => {
     }
     return [...result].reverse();
   }, [logs, activeFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredLogs, validCurrentPage]);
+
+  const getPageNumbers = () => {
+    const maxPageButtons = 5;
+    if (totalPages <= maxPageButtons) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    let start = Math.max(1, validCurrentPage - Math.floor(maxPageButtons / 2));
+    let end = start + maxPageButtons - 1;
+
+    if (end > totalPages) {
+      end = totalPages;
+      start = end - maxPageButtons + 1;
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
 
   const counts = useMemo(() => {
     let all = 0, error = 0, warn = 0, info = 0;
@@ -278,13 +310,13 @@ export const LogModal: React.FC = () => {
 
         {/* Log list */}
         <div className="space-y-0.5 overflow-y-auto pr-2 custom-scrollbar max-h-[50vh]">
-          {filteredLogs.length === 0 ? (
+          {paginatedLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3" data-testid="no-logs-container">
               <Bell size={48} strokeWidth={1} />
               <p>{searchQuery ? "No logs matching your search." : "No logs recorded in this category."}</p>
             </div>
           ) : (
-            filteredLogs.map((log) => {
+            paginatedLogs.map((log) => {
                 let badgeClass = 'bg-blue-400/10 text-blue-400';
                 const isError = log.level === 'error' || log.level === 'fatal';
                 const isSelected = selectedIds.has(log.id);
@@ -375,6 +407,79 @@ export const LogModal: React.FC = () => {
             })
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className={cn(
+            "flex items-center justify-between border-t border-slate-700/30 pt-3 text-xs mt-1",
+            colorMode === 'dark' ? "text-slate-400" : "text-slate-600"
+          )}>
+            <div>
+              Showing <span className="font-semibold">{(validCurrentPage - 1) * itemsPerPage + 1}</span> to{" "}
+              <span className="font-semibold">{Math.min(filteredLogs.length, validCurrentPage * itemsPerPage)}</span> of{" "}
+              <span className="font-semibold">{filteredLogs.length}</span> logs
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={validCurrentPage === 1}
+                onClick={() => setCurrentPage(1)}
+                className="px-2 py-1 rounded hover:bg-slate-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                data-testid="log-pagination-first"
+              >
+                First
+              </button>
+              <button
+                type="button"
+                disabled={validCurrentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="px-2 py-1 rounded hover:bg-slate-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors font-semibold"
+                data-testid="log-pagination-prev"
+              >
+                &lt; Prev
+              </button>
+
+              {/* Sliding Window Page Links */}
+              <div className="flex items-center gap-0.5 mx-1">
+                {getPageNumbers().map(p => (
+                  <button
+                    type="button"
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={cn(
+                      "px-2.5 py-1 rounded transition-colors text-[11px] font-medium",
+                      validCurrentPage === p
+                        ? "bg-blue-600 text-white font-bold"
+                        : "hover:bg-slate-500/10"
+                    )}
+                    data-testid={`log-pagination-page-${p}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                disabled={validCurrentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="px-2 py-1 rounded hover:bg-slate-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors font-semibold"
+                data-testid="log-pagination-next"
+              >
+                Next &gt;
+              </button>
+              <button
+                type="button"
+                disabled={validCurrentPage === totalPages}
+                onClick={() => setCurrentPage(totalPages)}
+                className="px-2 py-1 rounded hover:bg-slate-500/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                data-testid="log-pagination-last"
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

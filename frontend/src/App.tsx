@@ -15,7 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 
 import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
-import { AlignmentGuides, ContextMenu, ResourceManager } from './components/UI';
+import { ContextMenu, ResourceManager } from './components/UI';
 import { HistoryPanel, MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal } from './components/Modals';
 import {
@@ -334,8 +334,6 @@ export default function App() {
             size={canvasBgVariant === 'lines' ? 1.5 : 2}
             style={{ opacity: canvasBgOpacity }}
           />
-
-          <AlignmentGuides />
 
           <MiniMap
             position="bottom-right"

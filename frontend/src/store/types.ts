@@ -15,15 +15,6 @@ export interface LogEntry {
   timestamp: number;
 }
 
-export interface AlignmentGuide {
-  position: number;
-}
-
-export interface SnapGuide {
-  position: number;
-  isActive: boolean;
-}
-
 export interface SimulationMetricPoint {
   cpuPercent: number;
   memoryPercent: number;
@@ -52,14 +43,6 @@ export interface FlowState {
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
   clipboard: { nodes: Node[], edges: Edge[] } | null;
-  alignmentGuides: {
-    vertical: AlignmentGuide[];
-    horizontal: AlignmentGuide[];
-  };
-  snapGuides: {
-    vertical: SnapGuide[];
-    horizontal: SnapGuide[];
-  };
   draggedNodeId: string | null;
   lastActionId: string;
   lastActionName: string;
@@ -114,11 +97,6 @@ export interface FlowState {
   setConfiguringEdgeId: (id: string | null) => void;
   toggleNodeSettings: (id: string) => void;
   toggleEdgeSettings: (id: string) => void;
-  setAlignmentGuides: (guides: { vertical: AlignmentGuide[], horizontal: AlignmentGuide[] }) => void;
-  clearAlignmentGuides: () => void;
-  setSnapGuides: (guides: { vertical: SnapGuide[], horizontal: SnapGuide[] }) => void;
-  clearSnapGuides: () => void;
-  setDraggedNodeId: (id: string | null) => void;
 
   addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => void;
   deleteNodes: (nodesToDelete: Node[]) => void;
