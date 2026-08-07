@@ -117,4 +117,41 @@ describe('LogModal', () => {
 
         expect(screen.getByText('No logs matching your search.')).toBeDefined();
     });
+
+    it('handles pagination for logs correctly', () => {
+        const manyLogs = Array.from({ length: 55 }, (_, i) => ({
+            id: `log-${i}`,
+            level: 'info' as const,
+            message: `Info log ${i}`,
+            timestamp: Date.now() - i * 1000,
+        }));
+        useFlowStore.setState({
+            logs: manyLogs,
+            isLogModalOpen: true,
+        });
+
+        render(<LogModal />);
+
+        // Expect page text to be "Page 1 of 2"
+        expect(screen.getByText('Page 1 of 2')).toBeDefined();
+        // Expect to show "Showing 1 to 50 of 55 logs"
+        expect(screen.getByText((_, el) => el?.textContent === 'Showing 1 to 50 of 55 logs')).toBeDefined();
+
+        // Click next
+        fireEvent.click(screen.getByTestId('log-pagination-next'));
+        expect(screen.getByText('Page 2 of 2')).toBeDefined();
+        expect(screen.getByText((_, el) => el?.textContent === 'Showing 51 to 55 of 55 logs')).toBeDefined();
+
+        // Click prev
+        fireEvent.click(screen.getByTestId('log-pagination-prev'));
+        expect(screen.getByText('Page 1 of 2')).toBeDefined();
+
+        // Click last
+        fireEvent.click(screen.getByTestId('log-pagination-last'));
+        expect(screen.getByText('Page 2 of 2')).toBeDefined();
+
+        // Click first
+        fireEvent.click(screen.getByTestId('log-pagination-first'));
+        expect(screen.getByText('Page 1 of 2')).toBeDefined();
+    });
 });
