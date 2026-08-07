@@ -199,9 +199,29 @@ export default function App() {
       onNodeClickStore(event, node);
       if (isAutofocusEnabled) {
         const absPos = getAbsPos(node.id, nodes);
-        const centerX = absPos.x + (node.measured?.width ?? node.width ?? 0) / 2;
-        const centerY = absPos.y + (node.measured?.height ?? node.height ?? 0) / 2;
-        setCenter(centerX, centerY, { zoom: 1.4, duration: 800 });
+        const nodeW = node.measured?.width ?? node.width ?? 150;
+        const nodeH = node.measured?.height ?? node.height ?? 100;
+        const centerX = absPos.x + nodeW / 2;
+        const centerY = absPos.y + nodeH / 2;
+
+        let zoom = 1.5;
+        const containerElement = document.querySelector('.react-flow__renderer');
+        if (containerElement) {
+          const rect = containerElement.getBoundingClientRect();
+          const containerWidth = rect.width || 1024;
+          const containerHeight = rect.height || 768;
+          const padding = 0.08;
+          const availableWidth = containerWidth * (1 - padding * 2);
+          const availableHeight = containerHeight * (1 - padding * 2);
+
+          const scaleX = availableWidth / nodeW;
+          const scaleY = availableHeight / nodeH;
+
+          const calculatedZoom = Math.min(scaleX, scaleY);
+          zoom = Math.max(0.5, Math.min(1.5, calculatedZoom));
+        }
+
+        setCenter(centerX, centerY, { zoom, duration: 800 });
       }
     },
     [onNodeClickStore, isAutofocusEnabled, setCenter, nodes]

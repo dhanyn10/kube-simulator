@@ -23,7 +23,8 @@ describe('createUiSlice', () => {
     (globalThis as any).go = {
       main: {
         App: {
-          SaveSetting: vi.fn().mockResolvedValue(true)
+          SaveSetting: vi.fn().mockResolvedValue(true),
+          GetSetting: vi.fn().mockResolvedValue('')
         }
       }
     };
@@ -153,5 +154,99 @@ describe('createUiSlice', () => {
     // Toggle new widget
     toggleWidget('new-widget');
     expect(useFlowStore.getState().visibleWidgets).toContain('new-widget');
+  });
+
+  it('saves settings to app_settings_json', () => {
+    const { saveSettingsJson } = useFlowStore.getState();
+    saveSettingsJson();
+
+    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith(
+      'app_settings_json',
+      expect.stringContaining('"isSidebarVisible":true')
+    );
+  });
+
+  it('loads valid settings from app_settings_json', async () => {
+    const mockJson = JSON.stringify({
+      isSidebarVisible: false,
+      isRightSidebarVisible: false,
+      isAutofocusEnabled: true,
+      isMonitoringOpen: true,
+      canvasBgVariant: 'lines',
+      canvasBgColor: '#aabbcc',
+      canvasBgOpacity: 0.9,
+    });
+
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockResolvedValue(mockJson);
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+
+    // Small delay to allow promise resolution
+    await new Promise(process.nextTick);
+
+    const state = useFlowStore.getState();
+    expect(state.isSidebarVisible).toBe(false);
+    expect(state.isRightSidebarVisible).toBe(false);
+    expect(state.isAutofocusEnabled).toBe(true);
+    expect(state.canvasBgVariant).toBe('lines');
+    expect(state.canvasBgColor).toBe('#aabbcc');
+    expect(state.canvasBgOpacity).toBe(0.9);
+  });
+
+  it('loads legacy settings if app_settings_json is empty', async () => {
+    const getSettingMock = vi.fn().mockImplementation((key) => {
+      if (key === 'app_settings_json') return Promise.resolve('');
+      if (key === 'isSidebarVisible') return Promise.resolve('false');
+      if (key === 'isRightSidebarVisible') return Promise.resolve('true');
+      return Promise.resolve('');
+    });
+
+    (globalThis as any).go.main.App.GetSetting = getSettingMock;
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+
+    await new Promise(process.nextTick);
+
+    const state = useFlowStore.getState();
+    expect(state.isSidebarVisible).toBe(false);
+    expect(state.isRightSidebarVisible).toBe(true);
+  });
+
+  it('sets canvas background styles and saves settings', () => {
+    const { setCanvasBgVariant, setCanvasBgColor, setCanvasBgOpacity } = useFlowStore.getState();
+
+    setCanvasBgVariant('lines');
+    expect(useFlowStore.getState().canvasBgVariant).toBe('lines');
+
+    setCanvasBgColor('#123456');
+    expect(useFlowStore.getState().canvasBgColor).toBe('#123456');
+
+    setCanvasBgOpacity(0.5);
+    expect(useFlowStore.getState().canvasBgOpacity).toBe(0.5);
+  });
+
+  it('successfully starts and runs a simulation tick with internet and workload nodes', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep1', cpuRequest: '100m' } }
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'i1', target: 'd1' }
+      ] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+
+    // Advance 1 second to trigger tick
+    vi.advanceTimersByTime(1000);
+
+    vi.useRealTimers();
   });
 });
