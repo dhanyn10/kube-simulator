@@ -241,4 +241,66 @@ describe('ResourceManager', () => {
 
     expect(useFlowStore.getState().customImages).toContain('nginx:latest');
   });
+
+  it('handles empty results from search', async () => {
+    (globalThis as any).go.main.App.SearchDockerHub = vi.fn().mockResolvedValue(JSON.stringify({
+      results: []
+    }));
+
+    vi.useFakeTimers();
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+
+    const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
+    await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'nonexistent-app-xyz' } });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(screen.getByText(/No images matched "nonexistent-app-xyz"/i)).toBeDefined();
+    });
+  });
+
+  it('handles API errors in Docker Registry gracefully', async () => {
+    (globalThis as any).go.main.App.SearchDockerHub = vi.fn().mockRejectedValue(new Error('API Rate Limit Exceeded'));
+
+    vi.useFakeTimers();
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+
+    const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
+    await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'error-trigger' } });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(screen.getByText('Offline / API Limit Exceeded')).toBeDefined();
+    });
+  });
 });

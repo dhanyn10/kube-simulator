@@ -176,6 +176,15 @@ const DockerImageCard = ({ img, colorMode, onClick }: DockerImageCardProps) => {
   );
 };
 
+/**
+ * Parses raw JSON results from Docker Hub.
+ * Handles the differences in property names between popular list response and search results
+ * to ensure consistent data structure downstream.
+ *
+ * @param rawData - Raw JSON string from backend API
+ * @param isSearch - Indicates whether the data comes from a search query or popular lists
+ * @returns Array of formatted image objects with name and description
+ */
 const parseDockerResults = (rawData: string, isSearch: boolean): { name: string; desc: string }[] => {
   const data = JSON.parse(rawData);
   return (data.results || []).map((r: any) => ({
@@ -491,6 +500,13 @@ interface DockerRegistryTabProps {
   deleteCustomImage: (img: string) => void;
 }
 
+/**
+ * DockerRegistryTab Component
+ *
+ * Manages fetching, searching, and displaying images from Docker Hub.
+ * Features an optimized debounce mechanism for the search field and
+ * clean state transition handling.
+ */
 const DockerRegistryTab = ({
   dockerSearch,
   setDockerSearch,
@@ -509,6 +525,7 @@ const DockerRegistryTab = ({
     setIsLoading(true);
     setError(null);
 
+    // Asynchronously fetch images from backend (which calls Docker Hub)
     const fetchImages = async () => {
       try {
         const isSearch = dockerSearch.trim().length > 0;
@@ -570,6 +587,9 @@ const DockerRegistryTab = ({
     );
   }
 
+  // Chained and nested ternary operations in JSX increase cognitive complexity.
+  // We extract them into a clean, sequential if-else statement to compute 'content'
+  // independently before rendering. This satisfies SonarQube complexity constraints.
   let content;
   if (isLoading) {
     content = (
