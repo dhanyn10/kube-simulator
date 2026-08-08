@@ -54,10 +54,10 @@ const ArchitectureRow = ({
   const renderActions = () => {
     if (isConfirming) {
       return (
-        <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
-          <span className="text-[9px] font-black text-red-500 uppercase tracking-wider">OVERWRITE?</span>
-          <button type="button" onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors">YES</button>
-          <button type="button" onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors">NO</button>
+        <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shrink-0">
+          <span className="text-[9px] font-black text-red-500 uppercase tracking-wider shrink-0">OVERWRITE?</span>
+          <button type="button" onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors shrink-0">YES</button>
+          <button type="button" onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors shrink-0">NO</button>
         </div>
       );
     }
@@ -66,7 +66,7 @@ const ArchitectureRow = ({
       <button
         type="button"
         onClick={() => onDelete(p.id)}
-        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors shrink-0"
         title="Delete project"
       >
         <Trash2 size={13} />
@@ -75,30 +75,30 @@ const ArchitectureRow = ({
 
     if (isActive) {
       return (
-        <>
+        <div className="flex items-center gap-2 shrink-0">
           {hasChanges && (
             <button
               type="button"
               onClick={onUpdate}
-              className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20"
+              className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20 shrink-0"
             >
               <Save size={12} /> Update
             </button>
           )}
           {deleteButton}
-        </>
+        </div>
       );
     }
 
     const showOverwrite = !isCanvasEmpty && p.content !== currentContent;
 
     return (
-      <>
+      <div className="flex items-center gap-2 shrink-0">
         {showOverwrite && (
           <button
             type="button"
             onClick={() => setConfirmOverwriteId(p.id)}
-            className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20"
+            className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20 shrink-0"
           >
             Overwrite
           </button>
@@ -106,31 +106,31 @@ const ArchitectureRow = ({
         <button
           type="button"
           onClick={() => onLoad(p.id, p.name)}
-          className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20"
+          className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20 shrink-0"
         >
           Open
         </button>
         {deleteButton}
-      </>
+      </div>
     );
   };
   
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md",
+        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md min-w-0 gap-3",
         colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
         isActive && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
       )}
     >
-      <div className="min-w-0 pr-3">
-        <div className="font-semibold text-xs truncate flex items-center gap-1.5">
-          <span>{p.name}</span>
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold text-xs flex items-center gap-1.5 min-w-0">
+          <span className="truncate flex-1" title={p.name}>{p.name}</span>
           {isActive && (
-            <span className="text-[9px] bg-blue-500 text-white px-1 py-0.2 rounded uppercase tracking-wider font-bold">Active</span>
+            <span className="text-[9px] bg-blue-500 text-white px-1 py-0.2 rounded uppercase tracking-wider font-bold shrink-0">Active</span>
           )}
         </div>
-        <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+        <div className="text-[9px] text-slate-500 font-mono mt-0.5 shrink-0">
           {new Date(p.updatedAt * 1000).toLocaleString()}
         </div>
       </div>
@@ -151,20 +151,20 @@ const DockerImageCard = ({ img, colorMode }: DockerImageCardProps) => {
   return (
     <div
       className={cn(
-        "p-3 rounded-lg border flex flex-col justify-between transition-all select-none hover:shadow",
+        "p-3 rounded-lg border flex flex-col justify-between transition-all select-none hover:shadow min-w-0",
         colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80" : "bg-slate-50 border-slate-200"
       )}
     >
-      <div>
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <Globe size={11} className="text-blue-500" />
-          <span className="font-semibold text-xs font-mono">{img.name}</span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
+          <Globe size={11} className="text-blue-500 shrink-0" />
+          <span className="font-semibold text-xs font-mono truncate" title={img.name}>{img.name}</span>
         </div>
         <p className="text-[9px] text-slate-500 leading-tight line-clamp-2">{img.desc}</p>
       </div>
-      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5">
-        <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">PUBLIC REGISTRY</span>
-        <span className="text-[8px] text-slate-600 font-bold">READY TO USE</span>
+      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5 shrink-0">
+        <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0">PUBLIC REGISTRY</span>
+        <span className="text-[8px] text-slate-600 font-bold shrink-0">READY TO USE</span>
       </div>
     </div>
   );
@@ -180,21 +180,21 @@ const LocalImageRow = ({ img, onDelete, colorMode }: LocalImageRowProps) => {
   return (
     <div
       className={cn(
-        "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150",
+        "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150 min-w-0 gap-3",
         colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
       )}
     >
-      <div className="flex items-center gap-2">
-        <Box size={12} className="text-emerald-500" />
-        <span className="font-semibold text-xs font-mono">{img}</span>
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <Box size={12} className="text-emerald-500 shrink-0" />
+        <span className="font-semibold text-xs font-mono truncate flex-1" title={img}>{img}</span>
       </div>
 
-      <div className="flex items-center gap-3">
-        <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider">LOCAL CACHE</span>
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0">LOCAL CACHE</span>
         <button
           type="button"
           onClick={() => onDelete(img)}
-          className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors"
+          className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors shrink-0"
           title="Delete image option"
         >
           <Trash2 size={13} />
@@ -264,7 +264,7 @@ const ProjectsTab = ({
   handleDelete,
   colorMode
 }: ProjectsTabProps) => (
-  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+  <div className="space-y-4">
     <div>
       <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Architecture Archives</h3>
       <p className="text-[10px] text-slate-500 leading-tight">Create, update, restore, or manage local Kubernetes system architectures.</p>
@@ -296,7 +296,7 @@ const ProjectsTab = ({
       </button>
     </div>
 
-    <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+    <div className="space-y-2">
       {projects.length === 0 ? (
         <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
           No saved architectures found
@@ -337,13 +337,13 @@ const DockerRegistryTab = ({
   filteredDockerImages,
   colorMode
 }: DockerRegistryTabProps) => (
-  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
-    <div className="flex items-center justify-between">
+  <div className="space-y-4">
+    <div className="flex items-center justify-between gap-4">
       <div>
         <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Docker Hub Official Images</h3>
         <p className="text-[10px] text-slate-500 leading-tight">Registry images readily available as options for Container Images.</p>
       </div>
-      <div className="relative w-44">
+      <div className="relative w-44 shrink-0">
         <Search size={10} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")} />
         <input
           type="text"
@@ -358,7 +358,7 @@ const DockerRegistryTab = ({
       </div>
     </div>
 
-    <div className="flex-1 overflow-y-auto pr-1 grid grid-cols-2 gap-3 self-stretch align-content-start">
+    <div className="grid grid-cols-2 gap-3">
       {filteredDockerImages.length === 0 ? (
         <div className="col-span-2 text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
       ) : (
@@ -391,7 +391,7 @@ const LocalImagesTab = ({
   deleteCustomImage,
   colorMode
 }: LocalImagesTabProps) => (
-  <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+  <div className="space-y-4">
     <div>
       <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Local & Private Images</h3>
       <p className="text-[10px] text-slate-500 leading-tight">Add your custom docker repositories, private enterprise images, or local builds.</p>
@@ -423,7 +423,7 @@ const LocalImagesTab = ({
       </button>
     </div>
 
-    <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+    <div className="space-y-2">
       {customImages.length === 0 ? (
         <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
           No custom local images registered yet. Add one above!
@@ -593,7 +593,9 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
       title="Resource Manager"
       icon={FolderOpen}
       widthClass="w-[780px]"
-      maxHeightClass="max-h-[85vh]"
+      maxHeightClass="h-[70vh]"
+      disableScroll={true}
+      compactHeader={true}
       footer={
         <div className="flex justify-between items-center w-full px-1 text-[10px] text-slate-500 font-medium font-mono">
           <span>Architecture & Resources Management</span>
@@ -602,45 +604,45 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
       }
     >
       {/* Settings Pane Layout */}
-      <div className="flex h-[460px] -mx-5 -my-5 overflow-hidden">
+      <div className="flex h-[calc(100%+2rem)] -mx-4 -my-4 overflow-hidden">
         
         {/* LEFT COLUMN: Sleek Settings Navigation Sidebar */}
         <div className={cn(
-          "w-[220px] flex flex-col border-r h-full p-3 select-none shrink-0",
-          colorMode === 'dark' ? "bg-slate-950/40 border-slate-800" : "bg-slate-50 border-slate-200"
+          "w-44 flex flex-col border-r h-full p-4 select-none shrink-0 space-y-1",
+          colorMode === 'dark' ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"
         )}>
           {/* Settings Search Input */}
-          <div className="relative mb-3">
+          <div className="relative mb-2 shrink-0">
             <Search size={12} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
             <input
               type="text"
-              placeholder="Search settings..."
+              placeholder="Search tabs..."
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
               className={cn(
-                "w-full pl-8 pr-2 py-1 text-[10px] outline-none rounded transition-all",
+                "w-full pl-8 pr-2 py-1.5 text-[11px] outline-none rounded border transition-all",
                 colorMode === 'dark'
-                  ? "bg-slate-900 border border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
-                  : "bg-white border border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
+                  ? "bg-slate-900 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
+                  : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
               )}
             />
           </div>
 
           {/* Settings Category List */}
-          <div className="space-y-0.5 flex-1 overflow-y-auto pr-1">
+          <div className="space-y-1 flex-1 overflow-y-auto pr-1">
             {filteredSidebarItems.map((item) => {
               const isActive = activeTab === item.id;
               const Icon = item.icon;
-              let itemClasses = "";
 
-              if (isActive && colorMode === 'dark') {
-                itemClasses = "bg-blue-600/15 text-blue-400 border-l-[3px] border-blue-500 pl-[9px]";
-              } else if (isActive) {
-                itemClasses = "bg-blue-50 text-blue-600 border-l-[3px] border-blue-500 pl-[9px]";
-              } else if (colorMode === 'dark') {
-                itemClasses = "text-slate-400 hover:bg-slate-800 hover:text-slate-200";
+              let tabStyleClass = "";
+              if (colorMode === 'dark') {
+                tabStyleClass = isActive
+                  ? "bg-slate-800 text-blue-400"
+                  : "text-slate-400 hover:bg-slate-800/30 hover:text-slate-200";
               } else {
-                itemClasses = "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+                tabStyleClass = isActive
+                  ? "bg-white text-blue-600 shadow-sm border border-slate-200/50"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900";
               }
 
               return (
@@ -649,11 +651,11 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-1.5 rounded text-[11px] font-semibold text-left transition-all duration-150 group",
-                    itemClasses
+                    "w-full px-3 py-2 rounded-xl flex items-center gap-2.5 text-xs font-bold transition-all text-left",
+                    tabStyleClass
                   )}
                 >
-                  <Icon size={13} className={cn("transition-colors", isActive ? "text-blue-500" : "text-slate-500 group-hover:text-slate-400")} />
+                  <Icon size={15} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -666,10 +668,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
         </div>
 
         {/* RIGHT COLUMN: Settings Details content panel */}
-        <div className={cn(
-          "flex-1 flex flex-col h-full overflow-hidden p-5",
-          colorMode === 'dark' ? "bg-slate-900/10" : "bg-white"
-        )}>
+        <div className="flex-1 p-6 overflow-y-auto h-full custom-scrollbar">
           
           {activeTab === 'projects' && (
             <ProjectsTab
