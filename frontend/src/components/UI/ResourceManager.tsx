@@ -6,7 +6,7 @@ import { hydrateNodes } from '../../store/nodeHelpers';
 import { Modal } from '../Modals/Modal';
 import { DEFAULT_REGISTRY_IMAGES } from '../../constants/config';
 import { useFitView } from '../../hooks/useFitView';
-import { FetchDockerHubPopular, SearchDockerHub } from '../../../wailsjs/go/main/App';
+import { FetchDockerHubPopular, SearchDockerHub, FetchDockerHubTags } from '../../../wailsjs/go/main/App';
 
 interface Project {
   id: number;
@@ -146,49 +146,31 @@ const ArchitectureRow = ({
 interface DockerImageCardProps {
   img: { name: string; desc: string };
   colorMode: 'dark' | 'light';
-  isRegistered: boolean;
-  onRegister: (name: string) => void;
-  onUnregister: (name: string) => void;
+  onClick: () => void;
 }
 
-const DockerImageCard = ({ img, colorMode, isRegistered, onRegister, onUnregister }: DockerImageCardProps) => {
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isRegistered) {
-      onUnregister(img.name);
-    } else {
-      onRegister(img.name);
-    }
-  };
-
+const DockerImageCard = ({ img, colorMode, onClick }: DockerImageCardProps) => {
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={onClick}
       className={cn(
         "p-3 rounded-lg border flex flex-col justify-between transition-all text-left hover:shadow-md min-w-0 outline-none focus:ring-1 focus:ring-blue-500/30",
-        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
-        isRegistered && (colorMode === 'dark' ? "border-emerald-500/40 bg-emerald-950/5" : "border-emerald-300 bg-emerald-50/10")
+        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
       )}
     >
       <div className="min-w-0 w-full">
         <div className="flex items-center gap-1.5 mb-1.5 min-w-0 w-full">
-          <Globe size={11} className={cn("shrink-0", isRegistered ? "text-emerald-500" : "text-blue-500")} />
+          <Globe size={11} className="shrink-0 text-blue-500" />
           <span className="font-semibold text-xs font-mono truncate" title={img.name}>{img.name}</span>
         </div>
         <p className="text-[9px] text-slate-500 leading-tight line-clamp-2">{img.desc}</p>
       </div>
       <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5 shrink-0 w-full">
         <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0">PUBLIC REGISTRY</span>
-        {isRegistered ? (
-          <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 flex items-center gap-0.5">
-            <Check size={8} strokeWidth={3} /> ADDED
-          </span>
-        ) : (
-          <span className="text-[8px] text-blue-500 font-bold shrink-0 uppercase tracking-wider hover:text-blue-600 transition-colors">
-            + ADD IMAGE
-          </span>
-        )}
+        <span className="text-[8px] text-blue-500 font-bold shrink-0 uppercase tracking-wider hover:text-blue-600 transition-colors">
+          VIEW TAGS &rarr;
+        </span>
       </div>
     </button>
   );
@@ -348,6 +330,150 @@ const ProjectsTab = ({
   </div>
 );
 
+interface TagsViewProps {
+  repoName: string;
+  onBack: () => void;
+  colorMode: 'dark' | 'light';
+  customImages: string[];
+  addCustomImage: (img: string) => void;
+  deleteCustomImage: (img: string) => void;
+}
+
+const TagsView = ({
+  repoName,
+  onBack,
+  colorMode,
+  customImages,
+  addCustomImage,
+  deleteCustomImage
+}: TagsViewProps) => {
+  const [tags, setTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    const loadTags = async () => {
+      try {
+        const rawData = await FetchDockerHubTags(repoName);
+        if (!rawData) {
+          throw new Error("Failed to retrieve tags from backend");
+        }
+        const data = JSON.parse(rawData);
+        if (!active) return;
+
+        const parsedTags = (data.results || []).map((t: any) => t.name).filter(Boolean);
+        setTags(parsedTags);
+      } catch (err: any) {
+        if (!active) return;
+        setError(err.message || "Failed to load tags");
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTags();
+
+    return () => {
+      active = false;
+    };
+  }, [repoName]);
+
+  return (
+    <div className="space-y-4">
+      {/* Header with Back button */}
+      <div className="flex items-center gap-3 pb-2 border-b border-dashed border-slate-700/20">
+        <button
+          type="button"
+          onClick={onBack}
+          className={cn(
+            "px-2.5 py-1 text-[10px] font-bold uppercase rounded border transition-colors cursor-pointer",
+            colorMode === 'dark'
+              ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+              : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
+          )}
+        >
+          &larr; Back
+        </button>
+        <div>
+          <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider">Tags for {repoName}</h3>
+          <p className="text-[10px] text-slate-500 leading-tight">Select specific tags to add to your available image options.</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-10 text-slate-500 text-xs">
+          <p className="text-red-400 font-semibold mb-1">Failed to load tags</p>
+          <p className="opacity-70">{error}</p>
+        </div>
+      ) : tags.length === 0 ? (
+        <div className="text-center py-10 text-slate-500 text-xs">No tags found for "{repoName}"</div>
+      ) : (
+        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
+          {tags.map((tag) => {
+            const fullName = `${repoName}:${tag}`;
+            const isAdded = customImages.includes(fullName);
+
+            const handleToggle = () => {
+              if (isAdded) {
+                deleteCustomImage(fullName);
+              } else {
+                addCustomImage(fullName);
+              }
+            };
+
+            return (
+              <div
+                key={tag}
+                className={cn(
+                  "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150 min-w-0 gap-3",
+                  colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
+                  isAdded && (colorMode === 'dark' ? "border-emerald-500/30 bg-emerald-950/5" : "border-emerald-300 bg-emerald-50/10")
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Box size={12} className={cn("shrink-0", isAdded ? "text-emerald-500" : "text-blue-500")} />
+                  <span className="font-semibold text-xs font-mono truncate flex-1" title={fullName}>{fullName}</span>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleToggle}
+                    className={cn(
+                      "px-2.5 py-1 text-[9px] font-bold uppercase rounded transition-colors flex items-center gap-1 cursor-pointer",
+                      isAdded
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : "bg-blue-600 hover:bg-blue-500 text-white"
+                    )}
+                  >
+                    {isAdded ? (
+                      <>
+                        <Check size={10} strokeWidth={3} /> ADDED
+                      </>
+                    ) : (
+                      "+ ADD OPTION"
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface DockerRegistryTabProps {
   dockerSearch: string;
   setDockerSearch: (val: string) => void;
@@ -368,6 +494,7 @@ const DockerRegistryTab = ({
   const [images, setImages] = useState<{ name: string; desc: string }[]>(DEFAULT_REGISTRY_IMAGES as any);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -438,6 +565,19 @@ const DockerRegistryTab = ({
     };
   }, [dockerSearch]);
 
+  if (selectedRepo) {
+    return (
+      <TagsView
+        repoName={selectedRepo}
+        onBack={() => setSelectedRepo(null)}
+        colorMode={colorMode}
+        customImages={customImages}
+        addCustomImage={addCustomImage}
+        deleteCustomImage={deleteCustomImage}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -473,19 +613,14 @@ const DockerRegistryTab = ({
         <div className="text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {images.map((img) => {
-            const isRegistered = customImages.includes(img.name);
-            return (
-              <DockerImageCard
-                key={img.name}
-                img={img}
-                colorMode={colorMode}
-                isRegistered={isRegistered}
-                onRegister={addCustomImage}
-                onUnregister={deleteCustomImage}
-              />
-            );
-          })}
+          {images.map((img) => (
+            <DockerImageCard
+              key={img.name}
+              img={img}
+              colorMode={colorMode}
+              onClick={() => setSelectedRepo(img.name)}
+            />
+          ))}
         </div>
       )}
     </div>

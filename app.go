@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"build-wails/backend/db"
@@ -395,6 +396,29 @@ func (a *App) FetchDockerHubPopular() string {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logger.Error("Failed to read popular Docker Hub response body: %v", err)
+		return ""
+	}
+	return string(body)
+}
+
+func (a *App) FetchDockerHubTags(imageName string) string {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	path := imageName
+	if !strings.Contains(imageName, "/") {
+		path = "library/" + imageName
+	}
+
+	targetURL := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/tags/?page_size=20", path)
+	resp, err := client.Get(targetURL)
+	if err != nil {
+		logger.Error("Failed to fetch Docker Hub tags for %s: %v", imageName, err)
+		return ""
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error("Failed to read Docker Hub tags response body: %v", err)
 		return ""
 	}
 	return string(body)
