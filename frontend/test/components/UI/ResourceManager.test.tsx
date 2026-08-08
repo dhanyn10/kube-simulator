@@ -242,6 +242,92 @@ describe('ResourceManager', () => {
     expect(useFlowStore.getState().customImages).toContain('nginx:latest');
   });
 
+  it('handles already added tags and deletes them in TagsView', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [
+        { name: 'latest' }
+      ]
+    }));
+
+    useFlowStore.setState({
+      customImages: ['nginx:latest']
+    });
+
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
+    });
+
+    const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
+    await act(async () => {
+        fireEvent.click(viewTagsBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('ADDED')).toBeDefined();
+    });
+
+    const addedBtn = screen.getByText('ADDED');
+    await act(async () => {
+        fireEvent.click(addedBtn);
+    });
+
+    expect(useFlowStore.getState().customImages).not.toContain('nginx:latest');
+  });
+
+  it('handles API errors in TagsView gracefully', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockRejectedValue(new Error('Network failure'));
+
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
+    });
+
+    const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
+    await act(async () => {
+        fireEvent.click(viewTagsBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load tags')).toBeDefined();
+    });
+  });
+
+  it('handles empty tags from Docker Hub in TagsView gracefully', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
+      results: []
+    }));
+
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
+    });
+
+    const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
+    await act(async () => {
+        fireEvent.click(viewTagsBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/No tags found for/i)).toBeDefined();
+    });
+  });
+
   it('handles empty results from search', async () => {
     (globalThis as any).go.main.App.SearchDockerHub = vi.fn().mockResolvedValue(JSON.stringify({
       results: []
