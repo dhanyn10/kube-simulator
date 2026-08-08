@@ -6,6 +6,7 @@ import { hydrateNodes } from '../../store/nodeHelpers';
 import { Modal } from '../Modals/Modal';
 import { DEFAULT_REGISTRY_IMAGES } from '../../constants/config';
 import { useFitView } from '../../hooks/useFitView';
+import { FetchDockerHubPopular, SearchDockerHub } from '../../../wailsjs/go/main/App';
 
 interface Project {
   id: number;
@@ -344,22 +345,20 @@ const DockerRegistryTab = ({
     setIsLoading(true);
     setError(null);
 
-    const controller = new AbortController();
-
     const fetchImages = async () => {
       try {
-        let url = "";
+        let rawData = "";
         if (!dockerSearch.trim()) {
-          url = "https://hub.docker.com/v2/repositories/library/?page_size=20";
+          rawData = await FetchDockerHubPopular();
         } else {
-          url = `https://hub.docker.com/v2/search/repositories/?query=${encodeURIComponent(dockerSearch.trim())}&page_size=20`;
+          rawData = await SearchDockerHub(dockerSearch.trim());
         }
 
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) {
-          throw new Error(`HTTP error ${res.status}`);
+        if (!rawData) {
+          throw new Error("No data returned from backend");
         }
-        const data = await res.json();
+
+        const data = JSON.parse(rawData);
 
         if (!active) return;
 
@@ -383,7 +382,6 @@ const DockerRegistryTab = ({
           setImages(parsed);
         }
       } catch (err: any) {
-        if (err.name === 'AbortError') return;
         if (!active) return;
 
         // If error (e.g. offline), fall back to static list if search is empty
@@ -407,7 +405,6 @@ const DockerRegistryTab = ({
 
     return () => {
       active = false;
-      controller.abort();
       clearTimeout(timer);
     };
   }, [dockerSearch]);

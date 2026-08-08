@@ -18,6 +18,17 @@ const mockDeleteProject = vi.fn().mockResolvedValue(true);
       LoadProject: mockLoadProject,
       UpdateProject: mockUpdateProject,
       DeleteProject: mockDeleteProject,
+      FetchDockerHubPopular: vi.fn().mockResolvedValue(JSON.stringify({
+        results: [
+          { name: 'nginx', description: 'Official build of Nginx.' },
+          { name: 'redis', description: 'In-memory data structure store' }
+        ]
+      })),
+      SearchDockerHub: vi.fn().mockResolvedValue(JSON.stringify({
+        results: [
+          { repo_name: 'nginx', short_description: 'Official build of Nginx.' }
+        ]
+      })),
     },
   },
 };
@@ -26,31 +37,6 @@ const mockDeleteProject = vi.fn().mockResolvedValue(true);
 vi.mock('@/hooks/useFitView', () => ({
   useFitView: () => vi.fn(),
 }));
-
-// Mock globalThis.fetch for Docker Hub API
-const mockFetch = vi.fn().mockImplementation((url) => {
-  if (url.includes('library')) {
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        results: [
-          { name: 'nginx', description: 'Official build of Nginx.' },
-          { name: 'redis', description: 'In-memory data structure store' }
-        ]
-      })
-    });
-  } else {
-    return Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        results: [
-          { repo_name: 'nginx', short_description: 'Official build of Nginx.' }
-        ]
-      })
-    });
-  }
-});
-globalThis.fetch = mockFetch;
 
 describe('ResourceManager', () => {
   beforeEach(() => {
@@ -190,14 +176,15 @@ describe('ResourceManager', () => {
   });
 
   it('filters docker images', async () => {
+    vi.useFakeTimers();
     await act(async () => {
         render(<ResourceManager isOpen={true} onClose={() => {}} />);
     });
 
     fireEvent.click(screen.getByText('Docker Hub Registry'));
 
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search Docker Hub...')).toBeDefined();
+    await act(async () => {
+      vi.advanceTimersByTime(400);
     });
 
     const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
@@ -205,6 +192,12 @@ describe('ResourceManager', () => {
     await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'nginx' } });
     });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+
+    vi.useRealTimers();
 
     await waitFor(() => {
       expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
