@@ -26,7 +26,7 @@ export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   const updateEdgeData = (newData: any) => {
     setEdges(edges.map(e => e.id === selectedEdge.id ? {
       ...e,
-      data: { ...(e.data || {}), ...newData }
+      data: { ...e.data, ...newData }
     } : e));
   };
 

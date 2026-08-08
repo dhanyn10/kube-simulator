@@ -401,6 +401,80 @@ const TagsView = ({
     };
   }, [repoName]);
 
+  let innerContent;
+  if (isLoading) {
+    innerContent = (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+      </div>
+    );
+  } else if (error) {
+    innerContent = (
+      <div className="text-center py-10 text-slate-500 text-xs">
+        <p className="text-red-400 font-semibold mb-1">Failed to load tags</p>
+        <p className="opacity-70">{error}</p>
+      </div>
+    );
+  } else if (tags.length === 0) {
+    innerContent = (
+      <div className="text-center py-10 text-slate-500 text-xs">No tags found for "{repoName}"</div>
+    );
+  } else {
+    innerContent = (
+      <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
+        {tags.map((tag) => {
+          const fullName = `${repoName}:${tag}`;
+          const isAdded = customImages.includes(fullName);
+
+          const handleToggle = () => {
+            if (isAdded) {
+              deleteCustomImage(fullName);
+            } else {
+              addCustomImage(fullName);
+            }
+          };
+
+          return (
+            <div
+              key={tag}
+              className={cn(
+                "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150 min-w-0 gap-3",
+                colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
+                isAdded && (colorMode === 'dark' ? "border-emerald-500/30 bg-emerald-950/5" : "border-emerald-300 bg-emerald-50/10")
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Box size={12} className={cn("shrink-0", isAdded ? "text-emerald-500" : "text-blue-500")} />
+                <span className="font-semibold text-xs font-mono truncate flex-1" title={fullName}>{fullName}</span>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleToggle}
+                  className={cn(
+                    "px-2.5 py-1 text-[9px] font-bold uppercase rounded transition-colors flex items-center gap-1 cursor-pointer",
+                    isAdded
+                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                      : "bg-blue-600 hover:bg-blue-500 text-white"
+                  )}
+                >
+                  {isAdded ? (
+                    <>
+                      <Check size={10} strokeWidth={3} /> ADDED
+                    </>
+                  ) : (
+                    "+ ADD OPTION"
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header with Back button */}
@@ -423,70 +497,7 @@ const TagsView = ({
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
-        </div>
-      ) : error ? (
-        <div className="text-center py-10 text-slate-500 text-xs">
-          <p className="text-red-400 font-semibold mb-1">Failed to load tags</p>
-          <p className="opacity-70">{error}</p>
-        </div>
-      ) : tags.length === 0 ? (
-        <div className="text-center py-10 text-slate-500 text-xs">No tags found for "{repoName}"</div>
-      ) : (
-        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
-          {tags.map((tag) => {
-            const fullName = `${repoName}:${tag}`;
-            const isAdded = customImages.includes(fullName);
-
-            const handleToggle = () => {
-              if (isAdded) {
-                deleteCustomImage(fullName);
-              } else {
-                addCustomImage(fullName);
-              }
-            };
-
-            return (
-              <div
-                key={tag}
-                className={cn(
-                  "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150 min-w-0 gap-3",
-                  colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
-                  isAdded && (colorMode === 'dark' ? "border-emerald-500/30 bg-emerald-950/5" : "border-emerald-300 bg-emerald-50/10")
-                )}
-              >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <Box size={12} className={cn("shrink-0", isAdded ? "text-emerald-500" : "text-blue-500")} />
-                  <span className="font-semibold text-xs font-mono truncate flex-1" title={fullName}>{fullName}</span>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleToggle}
-                    className={cn(
-                      "px-2.5 py-1 text-[9px] font-bold uppercase rounded transition-colors flex items-center gap-1 cursor-pointer",
-                      isAdded
-                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                        : "bg-blue-600 hover:bg-blue-500 text-white"
-                    )}
-                  >
-                    {isAdded ? (
-                      <>
-                        <Check size={10} strokeWidth={3} /> ADDED
-                      </>
-                    ) : (
-                      "+ ADD OPTION"
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {innerContent}
     </div>
   );
 };
