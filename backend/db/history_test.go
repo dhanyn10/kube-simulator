@@ -36,6 +36,43 @@ func TestHistoryManager_Init(t *testing.T) {
 	}
 }
 
+func TestHistoryManager_Init_HomeError(t *testing.T) {
+	originalHome := os.Getenv("HOME")
+	originalUserProfile := os.Getenv("USERPROFILE")
+	os.Unsetenv("HOME")
+	os.Unsetenv("USERPROFILE")
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("USERPROFILE", originalUserProfile)
+	}()
+
+	hm := NewHistoryManager()
+	err := hm.Init()
+	if err == nil {
+		t.Error("Expected error when HOME and USERPROFILE are unset")
+	}
+}
+
+func TestHistoryManager_Init_BadgerError(t *testing.T) {
+	originalHome := os.Getenv("HOME")
+	tmpDir, _ := os.MkdirTemp("", "kube-builder-history-fail-*")
+	defer os.RemoveAll(tmpDir)
+
+	os.Setenv("HOME", tmpDir)
+	defer os.Setenv("HOME", originalHome)
+
+	// Create a file where the directory history_db is expected
+	dbPath := filepath.Join(tmpDir, ".kube-simulator", "history_db")
+	os.MkdirAll(filepath.Dir(dbPath), 0755)
+	os.WriteFile(dbPath, []byte("not a directory"), 0644)
+
+	hm := NewHistoryManager()
+	err := hm.Init()
+	if err == nil {
+		t.Error("Expected error opening badger DB where a file conflicts")
+	}
+}
+
 func setupHistoryTest(t *testing.T) (*HistoryManager, func()) {
 	tmpDir, err := os.MkdirTemp("", "badger-test-*")
 	if err != nil {
@@ -64,6 +101,20 @@ func TestHistoryManager_Push(t *testing.T) {
 	hm.Push("state2")
 	if hm.currentIndex != 1 || hm.maxIndex != 1 {
 		t.Errorf("Expected index 1, got current=%d max=%d", hm.currentIndex, hm.maxIndex)
+	}
+}
+
+func TestHistoryManager_Push_Error(t *testing.T) {
+	hm, cleanup := setupHistoryTest(t)
+	// cleanup closes the DB
+	cleanup()
+
+	hm.currentIndex = 0
+	hm.maxIndex = 0
+	// Push on a closed DB should trigger the update error block
+	hm.Push("state")
+	if hm.currentIndex != 1 {
+		t.Errorf("Expected index to be 1 after update error, got %d", hm.currentIndex)
 	}
 }
 
@@ -121,6 +172,17 @@ func TestHistoryManager_JumpTo(t *testing.T) {
 	}
 	if hm.JumpTo(999) != "" {
 		t.Error("Expected empty state for invalid JumpTo index")
+	}
+}
+
+func TestHistoryManager_JumpTo_KeyNotFoundError(t *testing.T) {
+	hm, cleanup := setupHistoryTest(t)
+	defer cleanup()
+
+	hm.maxIndex = 5
+	state := hm.JumpTo(3)
+	if state != "" {
+		t.Errorf("Expected empty string for non-existent key, got %s", state)
 	}
 }
 
