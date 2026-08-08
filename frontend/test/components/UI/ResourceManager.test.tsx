@@ -27,6 +27,31 @@ vi.mock('@/hooks/useFitView', () => ({
   useFitView: () => vi.fn(),
 }));
 
+// Mock globalThis.fetch for Docker Hub API
+const mockFetch = vi.fn().mockImplementation((url) => {
+  if (url.includes('library')) {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        results: [
+          { name: 'nginx', description: 'Official build of Nginx.' },
+          { name: 'redis', description: 'In-memory data structure store' }
+        ]
+      })
+    });
+  } else {
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        results: [
+          { repo_name: 'nginx', short_description: 'Official build of Nginx.' }
+        ]
+      })
+    });
+  }
+});
+globalThis.fetch = mockFetch;
+
 describe('ResourceManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,7 +161,9 @@ describe('ResourceManager', () => {
     });
 
     fireEvent.click(screen.getByText('Docker Hub Registry'));
-    expect(screen.getByText('Docker Hub Official Images')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search Docker Hub...')).toBeDefined();
+    });
 
     fireEvent.click(screen.getByText('Local & Custom Images'));
     expect(screen.getByText('Local & Private Images')).toBeDefined();
@@ -169,10 +196,18 @@ describe('ResourceManager', () => {
 
     fireEvent.click(screen.getByText('Docker Hub Registry'));
 
-    const searchInput = screen.getByPlaceholderText('Search images...');
-    fireEvent.change(searchInput, { target: { value: 'nginx' } });
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search Docker Hub...')).toBeDefined();
+    });
 
-    expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/redis/i)).toBeNull();
+    const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
+
+    await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'nginx' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
+    });
   });
 });

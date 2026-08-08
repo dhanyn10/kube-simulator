@@ -327,52 +327,138 @@ const ProjectsTab = ({
 interface DockerRegistryTabProps {
   dockerSearch: string;
   setDockerSearch: (val: string) => void;
-  filteredDockerImages: { name: string; desc: string }[];
   colorMode: 'dark' | 'light';
 }
 
 const DockerRegistryTab = ({
   dockerSearch,
   setDockerSearch,
-  filteredDockerImages,
   colorMode
-}: DockerRegistryTabProps) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Docker Hub Official Images</h3>
-        <p className="text-[10px] text-slate-500 leading-tight">Registry images readily available as options for Container Images.</p>
-      </div>
-      <div className="relative w-44 shrink-0">
-        <Search size={10} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")} />
-        <input
-          type="text"
-          placeholder="Search images..."
-          value={dockerSearch}
-          onChange={(e) => setDockerSearch(e.target.value)}
-          className={cn(
-            "w-full pl-6 pr-2 py-0.8 text-[10px] outline-none rounded border",
-            colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200"
-          )}
-        />
-      </div>
-    </div>
+}: DockerRegistryTabProps) => {
+  const [images, setImages] = useState<{ name: string; desc: string }[]>(DEFAULT_REGISTRY_IMAGES as any);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    <div className="grid grid-cols-2 gap-3">
-      {filteredDockerImages.length === 0 ? (
-        <div className="col-span-2 text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
-      ) : (
-        filteredDockerImages.map((img) => (
-          <DockerImageCard
-            key={img.name}
-            img={img}
-            colorMode={colorMode}
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    const controller = new AbortController();
+
+    const fetchImages = async () => {
+      try {
+        let url = "";
+        if (!dockerSearch.trim()) {
+          url = "https://hub.docker.com/v2/repositories/library/?page_size=20";
+        } else {
+          url = `https://hub.docker.com/v2/search/repositories/?query=${encodeURIComponent(dockerSearch.trim())}&page_size=20`;
+        }
+
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) {
+          throw new Error(`HTTP error ${res.status}`);
+        }
+        const data = await res.json();
+
+        if (!active) return;
+
+        let parsed: { name: string; desc: string }[] = [];
+        if (!dockerSearch.trim()) {
+          parsed = (data.results || []).map((r: any) => ({
+            name: r.name,
+            desc: r.description || ''
+          }));
+        } else {
+          parsed = (data.results || []).map((r: any) => ({
+            name: r.repo_name,
+            desc: r.short_description || ''
+          }));
+        }
+
+        // If results are empty, fall back to our static defaults if search is empty, otherwise empty list
+        if (parsed.length === 0 && !dockerSearch.trim()) {
+          setImages(DEFAULT_REGISTRY_IMAGES as any);
+        } else {
+          setImages(parsed);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        if (!active) return;
+
+        // If error (e.g. offline), fall back to static list if search is empty
+        if (!dockerSearch.trim()) {
+          setImages(DEFAULT_REGISTRY_IMAGES as any);
+        } else {
+          setImages([]);
+          setError(err.message || 'Failed to fetch images');
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // Debounce the fetch call
+    const timer = setTimeout(() => {
+      fetchImages();
+    }, 400);
+
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [dockerSearch]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Docker Hub Registry</h3>
+          <p className="text-[10px] text-slate-500 leading-tight">Search real-time images or discover popular libraries from Docker Hub.</p>
+        </div>
+        <div className="relative w-44 shrink-0">
+          <Search size={10} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")} />
+          <input
+            type="text"
+            placeholder="Search Docker Hub..."
+            value={dockerSearch}
+            onChange={(e) => setDockerSearch(e.target.value)}
+            className={cn(
+              "w-full pl-6 pr-2 py-0.8 text-[10px] outline-none rounded border",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200"
+            )}
           />
-        ))
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+        </div>
+      ) : error && images.length === 0 ? (
+        <div className="text-center py-12 text-slate-500 text-xs">
+          <p className="text-red-400 font-semibold mb-1">Offline / API Limit Exceeded</p>
+          <p className="opacity-70">Could not retrieve results from Docker Hub.</p>
+        </div>
+      ) : images.length === 0 ? (
+        <div className="text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {images.map((img) => (
+            <DockerImageCard
+              key={img.name}
+              img={img}
+              colorMode={colorMode}
+            />
+          ))}
+        </div>
       )}
     </div>
-  </div>
-);
+  );
+};
 
 interface LocalImagesTabProps {
   newCustomImage: string;
@@ -578,12 +664,6 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     item.label.toLowerCase().includes(sidebarSearch.toLowerCase())
   );
 
-  // Filter public images inside tab
-  const filteredDockerImages = DEFAULT_REGISTRY_IMAGES.filter(img =>
-    img.name.toLowerCase().includes(dockerSearch.toLowerCase()) ||
-    img.desc.toLowerCase().includes(dockerSearch.toLowerCase())
-  );
-
   if (!isOpen) return null;
 
   return (
@@ -694,7 +774,6 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
             <DockerRegistryTab
               dockerSearch={dockerSearch}
               setDockerSearch={setDockerSearch}
-              filteredDockerImages={filteredDockerImages}
               colorMode={colorMode}
             />
           )}
