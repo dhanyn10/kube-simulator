@@ -56,6 +56,7 @@ ManifestDPIAware true
 !define MUI_FINISHPAGE_NOAUTOCLOSE # Wait on the INSTFILES page so the user can take a look into the details of the installation steps
 !define MUI_ABORTWARNING # This will warn the user if they exit from the installer.
 
+!define MUI_WELCOMEPAGE_TEXT "This wizard will guide you through the installation of Kube Simulator.\r\n\r\nYour saved projects, custom images, and application settings will be stored in your user profile folder (.kube-builder) to ensure they are preserved across updates."
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
 # !insertmacro MUI_PAGE_LICENSE "resources\eula.txt" # Adds a EULA page to the installer
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
@@ -99,6 +100,11 @@ SectionEnd
 
 Section "uninstall"
     !insertmacro wails.setShellContext
+
+    # Ask the user if they want to delete all saved projects and configuration data
+    MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to delete your saved projects and application data as well (located in .kube-builder)?" IDNO skip_data_deletion
+        RMDir /r "$PROFILE\.kube-builder"
+    skip_data_deletion:
 
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
 
