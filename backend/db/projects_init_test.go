@@ -29,7 +29,7 @@ func TestProjectManager_Init(t *testing.T) {
 	}
 	defer pm.Close()
 
-	dbPath := filepath.Join(tmpDir, ".kube-builder", "app_data.db")
+	dbPath := filepath.Join(tmpDir, ".kube-simulator", "app_data.db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		t.Errorf("Database file not created at %s", dbPath)
 	}
@@ -54,7 +54,7 @@ func TestProjectManager_Init_Error(t *testing.T) {
 
 	// Create a file where the directory should be
 	os.MkdirAll(filepath.Join(tmpDir, "restricted"), 0755)
-	os.WriteFile(filepath.Join(tmpDir, "restricted", ".kube-builder"), []byte("not a dir"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "restricted", ".kube-simulator"), []byte("not a dir"), 0644)
 
 	os.Setenv("HOME", filepath.Join(tmpDir, "restricted"))
 	pm2 := NewProjectManager()
@@ -69,7 +69,7 @@ func TestProjectManager_Init_Error(t *testing.T) {
 	os.Setenv("HOME", tmpDir3)
 
 	// Create a directory where the db file should be
-	os.MkdirAll(filepath.Join(tmpDir3, ".kube-builder", "app_data.db"), 0755)
+	os.MkdirAll(filepath.Join(tmpDir3, ".kube-simulator", "app_data.db"), 0755)
 
 	pm3 := NewProjectManager()
 	err3 := pm3.Init()

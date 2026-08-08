@@ -81,7 +81,7 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
           </div>
 
           <div className={cn('p-3 border-t text-[8px] uppercase tracking-[0.1em] text-center opacity-40 font-bold', colorMode === 'dark' ? 'bg-slate-950/30' : 'bg-slate-50')}>
-            Source: User/Home/.kube-builder/history_db
+            Source: User/Home/.kube-simulator/history_db
           </div>
         </div>
       )}

@@ -401,3 +401,16 @@ func TestApp_UtilityMethods(t *testing.T) {
 		t.Error("Expected ImportProjectFile to return empty string with nil context")
 	}
 }
+
+func TestApp_DockerHubMethods(t *testing.T) {
+	app := NewApp()
+
+	pop := app.FetchDockerHubPopular()
+	_ = pop
+
+	tags := app.FetchDockerHubTags("nginx")
+	_ = tags
+
+	search := app.SearchDockerHub("nginx")
+	_ = search
+}

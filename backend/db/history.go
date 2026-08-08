@@ -33,7 +33,7 @@ func (h *HistoryManager) Init() error {
 	if err != nil {
 		return err
 	}
-	dbPath := filepath.Join(userHome, ".kube-builder", "history_db")
+	dbPath := filepath.Join(userHome, ".kube-simulator", "history_db")
 	os.MkdirAll(dbPath, os.ModePerm)
 
 	opts := badger.DefaultOptions(dbPath).WithLogger(nil)

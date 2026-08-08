@@ -171,7 +171,7 @@ ${appCopyright}`;
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className={cn(
-                "w-full max-w-[640px] transform overflow-hidden rounded-md text-left align-middle shadow-2xl transition-all border relative",
+                "w-full max-w-[640px] transform overflow-hidden rounded-md text-left align-middle shadow-2xl transition-all border relative outline-none focus:outline-none",
                 colorMode === 'dark' ? "bg-[#2b2d30] border-[#1e1f22]" : "bg-white border-gray-200"
               )}>
                 <button

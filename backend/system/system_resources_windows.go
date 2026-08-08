@@ -9,16 +9,23 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 var wmicPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "wbem", "wmic.exe")
+
+func runWmic(arg ...string) ([]byte, error) {
+	cmd := exec.Command(wmicPath, arg...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Output()
+}
 
 // GetSystemResources returns the local CPU cores and total/available memory in GB using WMIC
 func GetSystemResources() map[string]interface{} {
 	cores := runtime.NumCPU()
 
 	// Get Total Memory
-	totalOut, _ := exec.Command(wmicPath, "computersystem", "get", "TotalPhysicalMemory").Output()
+	totalOut, _ := runWmic("computersystem", "get", "TotalPhysicalMemory")
 	totalMemoryGB := uint64(16)
 	
 	totalLines := strings.Split(string(totalOut), "\n")
@@ -30,7 +37,7 @@ func GetSystemResources() map[string]interface{} {
 	}
 
 	// Get Free Memory (returns in KB)
-	freeOut, _ := exec.Command(wmicPath, "os", "get", "FreePhysicalMemory").Output()
+	freeOut, _ := runWmic("os", "get", "FreePhysicalMemory")
 	freeMemoryGB := float64(0)
 	
 	freeLines := strings.Split(string(freeOut), "\n")
@@ -42,7 +49,7 @@ func GetSystemResources() map[string]interface{} {
 	}
 
 	// Get CPU Usage (Percent)
-	cpuOut, _ := exec.Command(wmicPath, "cpu", "get", "loadpercentage").Output()
+	cpuOut, _ := runWmic("cpu", "get", "loadpercentage")
 	cpuUsage := 0
 	cpuLines := strings.Split(string(cpuOut), "\n")
 	if len(cpuLines) >= 2 {

@@ -52,7 +52,7 @@ export const Modal = ({
     <dialog
       open
       className={cn(
-        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden",
+        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none",
         alignClass
       )}
     >
@@ -78,13 +78,7 @@ export const Modal = ({
           compactHeader ? "p-3 px-4" : "p-6"
         )}>
           <div className="flex items-center gap-3">
-            <div className={cn(
-              "rounded-lg bg-opacity-10",
-              compactHeader ? "p-1.5" : "p-2",
-              iconColorClass.replace('text-', 'bg-')
-            )}>
-              <Icon className={iconColorClass} size={compactHeader ? 18 : 24} />
-            </div>
+            <Icon className={iconColorClass} size={compactHeader ? 18 : 24} />
             <div>
               <h2 className={cn("font-bold leading-tight", compactHeader ? "text-base" : "text-xl")}>{title}</h2>
               {subtitle && <p className={cn("text-slate-500 font-medium", compactHeader ? "text-[10px] leading-tight" : "text-xs")}>{subtitle}</p>}

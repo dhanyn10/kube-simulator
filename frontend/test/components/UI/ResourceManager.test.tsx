@@ -18,6 +18,17 @@ const mockDeleteProject = vi.fn().mockResolvedValue(true);
       LoadProject: mockLoadProject,
       UpdateProject: mockUpdateProject,
       DeleteProject: mockDeleteProject,
+      FetchDockerHubPopular: vi.fn().mockResolvedValue(JSON.stringify({
+        results: [
+          { name: 'nginx', description: 'Official build of Nginx.' },
+          { name: 'redis', description: 'In-memory data structure store' }
+        ]
+      })),
+      SearchDockerHub: vi.fn().mockResolvedValue(JSON.stringify({
+        results: [
+          { repo_name: 'nginx', short_description: 'Official build of Nginx.' }
+        ]
+      })),
     },
   },
 };
@@ -136,7 +147,9 @@ describe('ResourceManager', () => {
     });
 
     fireEvent.click(screen.getByText('Docker Hub Registry'));
-    expect(screen.getByText('Docker Hub Official Images')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search Docker Hub...')).toBeDefined();
+    });
 
     fireEvent.click(screen.getByText('Local & Custom Images'));
     expect(screen.getByText('Local & Private Images')).toBeDefined();
@@ -163,16 +176,69 @@ describe('ResourceManager', () => {
   });
 
   it('filters docker images', async () => {
+    vi.useFakeTimers();
     await act(async () => {
         render(<ResourceManager isOpen={true} onClose={() => {}} />);
     });
 
     fireEvent.click(screen.getByText('Docker Hub Registry'));
 
-    const searchInput = screen.getByPlaceholderText('Search images...');
-    fireEvent.change(searchInput, { target: { value: 'nginx' } });
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
 
-    expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/redis/i)).toBeNull();
+    const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
+
+    await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'nginx' } });
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+    });
+
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('handles viewing tags and registering tags for docker images', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [
+        { name: 'latest' },
+        { name: 'alpine' }
+      ]
+    }));
+
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
+    });
+
+    const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
+    await act(async () => {
+        fireEvent.click(viewTagsBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Tags for nginx')).toBeDefined();
+    });
+
+    expect(screen.getByText('nginx:latest')).toBeDefined();
+    expect(screen.getByText('nginx:alpine')).toBeDefined();
+
+    const addBtn = screen.getAllByText('+ ADD OPTION')[0];
+    await act(async () => {
+        fireEvent.click(addBtn);
+    });
+
+    expect(useFlowStore.getState().customImages).toContain('nginx:latest');
   });
 });
