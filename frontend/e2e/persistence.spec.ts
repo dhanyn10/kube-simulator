@@ -43,9 +43,10 @@ test.describe('Persistence & Projects', () => {
 
   test('Activity Log recording', async ({ page }) => {
     // Perform actions
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
         const state = (globalThis as any).useFlowStore.getState();
         state.addNode('Pod');
+        await new Promise(resolve => setTimeout(resolve, 100));
         state.addNode('Service');
     });
 
