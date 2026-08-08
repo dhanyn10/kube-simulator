@@ -62,6 +62,11 @@ ManifestDPIAware true
 !insertmacro MUI_PAGE_COMPONENTS # Choose optional shortcuts to install
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
+
+# Define Launch App options on Finish Page
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXECUTABLE}"
+!define MUI_FINISHPAGE_RUN_TEXT "Launch Kube Simulator"
+
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
 
 !insertmacro MUI_UNPAGE_INSTFILES # Uinstalling page
