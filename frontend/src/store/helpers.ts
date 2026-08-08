@@ -239,7 +239,7 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
       ...pod,
       width: podW,
       style: {
-        ...(pod.style || {}),
+        ...pod.style,
         width: podW,
         minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minHeight),
       },
