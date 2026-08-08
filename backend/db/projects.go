@@ -36,7 +36,7 @@ func (p *ProjectManager) Init() error {
 	if err != nil {
 		return err
 	}
-	dbPath := filepath.Join(userHome, ".kube-builder", "app_data.db")
+	dbPath := filepath.Join(userHome, ".kube-simulator", "app_data.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm); err != nil {
 		return err
 	}

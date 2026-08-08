@@ -30,7 +30,7 @@ func TestHistoryManager_Init(t *testing.T) {
 	}
 	defer hm.Close()
 
-	dbPath := filepath.Join(tmpDir, ".kube-builder", "history_db")
+	dbPath := filepath.Join(tmpDir, ".kube-simulator", "history_db")
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		t.Errorf("History database directory not created at %s", dbPath)
 	}

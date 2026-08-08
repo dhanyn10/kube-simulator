@@ -56,9 +56,10 @@ ManifestDPIAware true
 !define MUI_FINISHPAGE_NOAUTOCLOSE # Wait on the INSTFILES page so the user can take a look into the details of the installation steps
 !define MUI_ABORTWARNING # This will warn the user if they exit from the installer.
 
-!define MUI_WELCOMEPAGE_TEXT "This wizard will guide you through the installation of Kube Simulator.\r\n\r\nYour saved projects, custom images, and application settings will be stored in your user profile folder (.kube-builder) to ensure they are preserved across updates."
+!define MUI_WELCOMEPAGE_TEXT "This wizard will guide you through the installation of Kube Simulator.\r\n\r\nYour saved projects, custom images, and application settings will be stored in your user profile folder (.kube-simulator) to ensure they are preserved across updates."
 !insertmacro MUI_PAGE_WELCOME # Welcome to the installer page.
 # !insertmacro MUI_PAGE_LICENSE "resources\eula.txt" # Adds a EULA page to the installer
+!insertmacro MUI_PAGE_COMPONENTS # Choose optional shortcuts to install
 !insertmacro MUI_PAGE_DIRECTORY # In which folder install page.
 !insertmacro MUI_PAGE_INSTFILES # Installing page.
 !insertmacro MUI_PAGE_FINISH # Finished installation page.
@@ -80,7 +81,8 @@ Function .onInit
    !insertmacro wails.checkArchitecture
 FunctionEnd
 
-Section
+Section "Kube Simulator Application" SecApp
+    SectionIn RO
     !insertmacro wails.setShellContext
 
     !insertmacro wails.webview2runtime
@@ -89,21 +91,36 @@ Section
 
     !insertmacro wails.files
 
-    CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
-    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
-
     !insertmacro wails.associateFiles
     !insertmacro wails.associateCustomProtocols
 
     !insertmacro wails.writeUninstaller
 SectionEnd
 
+Section "Create Start Menu Shortcut" SecStartMenu
+    !insertmacro wails.setShellContext
+    CreateDirectory "$SMPROGRAMS"
+    CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+SectionEnd
+
+Section "Create Desktop Shortcut" SecDesktop
+    !insertmacro wails.setShellContext
+    CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
+SectionEnd
+
+# Assign description strings to sections
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "Installs the core files of Kube Simulator."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} "Creates a shortcut to Kube Simulator in your Start Menu."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Creates a shortcut to Kube Simulator on your Desktop."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
+
 Section "uninstall"
     !insertmacro wails.setShellContext
 
     # Ask the user if they want to delete all saved projects and configuration data
-    MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to delete your saved projects and application data as well (located in .kube-builder)?" IDNO skip_data_deletion
-        RMDir /r "$PROFILE\.kube-builder"
+    MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to delete your saved projects and application data as well (located in .kube-simulator)?" IDNO skip_data_deletion
+        RMDir /r "$PROFILE\.kube-simulator"
     skip_data_deletion:
 
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
