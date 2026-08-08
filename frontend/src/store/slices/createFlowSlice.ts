@@ -15,16 +15,27 @@ import { K8sNodeData } from '../../types';
 import { getConnectionError } from '../../constants/connections';
 
 export interface FlowSlice {
+  /** Array of active React Flow nodes present on the canvas */
   nodes: Node[];
+  /** Array of active React Flow edges connecting canvas nodes */
   edges: Edge[];
+  /** Handler triggered on node movements, dimensions, selection, or deletion changes */
   onNodesChange: (changes: NodeChange[]) => void;
+  /** Handler triggered on edge addition, selection, or deletion changes */
   onEdgesChange: (changes: EdgeChange[]) => void;
+  /** Establishes a connection between two node handles */
   onConnect: (connection: Connection) => void;
+  /** Re-routes an existing edge connection from its previous handle to a new one */
   onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
+  /** Validates and decorates edge payload with specific Kubernetes connection errors */
   validateEdge: (edge: Edge) => Edge;
+  /** Direct node list override setter */
   setNodes: (nodes: Node[]) => void;
+  /** Direct edge list override setter */
   setEdges: (edges: Edge[]) => void;
+  /** Keyboard/arrow action establishing connections in a specific orthogonal direction */
   onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
+  /** Arranges top-level nodes using Dagre hierarchically in LR (Left-Right) or TB (Top-Bottom) directions */
   autoLayout: (direction?: 'LR' | 'TB') => void;
 }
 
@@ -32,6 +43,11 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   nodes: [],
   edges: [],
   currentProject: null,
+  /**
+   * Arranges canvas layout automatically using Dagre.
+   * Restricts processing to top-level node elements to ensure custom container layouts
+   * (e.g., pods inside namespace or deployments) remain fully intact.
+   */
   autoLayout: (direction = 'LR') => {
     const { nodes, edges } = get();
     const dagreGraph = new dagre.graphlib.Graph();
@@ -81,12 +97,16 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       lastActionName: 'Auto Layout'
     });
   },
+  /**
+   * Processes node mutations (such as dragging).
+   * Supports smart drag-grouping: if a node has an active groupId, dragging it
+   * will synchronously slide all other nodes in that group.
+   */
   onNodesChange: (changes: NodeChange[]) => {
     const { nodes } = get();
     const extraChanges: NodeChange[] = [];
     const processedGroupIds = new Set<string>();
 
-    // Pre-calculate node positions and group membership for efficiency
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
     for (const change of changes) {
@@ -127,6 +147,10 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       edges: applyEdgeChanges(changes, state.edges),
     }));
   },
+  /**
+   * Matches connection sources and targets against valid Kubernetes integration architectures
+   * (e.g. HPA -> Deployment is valid; Service -> HPA is invalid) and records errors.
+   */
   validateEdge: (edge: Edge) => {
     const { nodes } = get();
     const sourceNode = nodes.find(n => n.id === edge.source);
