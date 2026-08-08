@@ -203,4 +203,42 @@ describe('ResourceManager', () => {
       expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
     });
   });
+
+  it('handles viewing tags and registering tags for docker images', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [
+        { name: 'latest' },
+        { name: 'alpine' }
+      ]
+    }));
+
+    await act(async () => {
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    fireEvent.click(screen.getByText('Docker Hub Registry'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
+    });
+
+    const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
+    await act(async () => {
+        fireEvent.click(viewTagsBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Tags for nginx')).toBeDefined();
+    });
+
+    expect(screen.getByText('nginx:latest')).toBeDefined();
+    expect(screen.getByText('nginx:alpine')).toBeDefined();
+
+    const addBtn = screen.getAllByText('+ ADD OPTION')[0];
+    await act(async () => {
+        fireEvent.click(addBtn);
+    });
+
+    expect(useFlowStore.getState().customImages).toContain('nginx:latest');
+  });
 });
