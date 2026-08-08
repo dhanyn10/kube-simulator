@@ -1,6 +1,6 @@
 import { logger } from '../../lib/logger';
 import React, { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { GetSystemInfo, CheckForUpdates } from '../../../wailsjs/go/main/App';
 import { X as CloseIcon, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../../store';
@@ -147,7 +147,7 @@ ${appCopyright}`;
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-[9999]" onClose={onClose}>
-        <Transition.Child
+        <TransitionChild
           as={Fragment}
           enter="ease-out duration-300"
           enterFrom="opacity-0"
@@ -157,11 +157,11 @@ ${appCopyright}`;
           leaveTo="opacity-0"
         >
           <div className="fixed inset-0 bg-transparent" />
-        </Transition.Child>
+        </TransitionChild>
 
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
+            <TransitionChild
               as={Fragment}
               enter="ease-out duration-200"
               enterFrom="opacity-0 scale-95"
@@ -170,7 +170,7 @@ ${appCopyright}`;
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className={cn(
+              <DialogPanel className={cn(
                 "w-full max-w-[640px] transform overflow-hidden rounded-md text-left align-middle shadow-2xl transition-all border relative outline-none focus:outline-none",
                 colorMode === 'dark' ? "bg-[#2b2d30] border-[#1e1f22]" : "bg-white border-gray-200"
               )}>
@@ -261,8 +261,8 @@ ${appCopyright}`;
                     </div>
                   </div>
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              </DialogPanel>
+            </TransitionChild>
           </div>
         </div>
       </Dialog>

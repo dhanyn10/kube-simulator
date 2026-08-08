@@ -176,6 +176,14 @@ const DockerImageCard = ({ img, colorMode, onClick }: DockerImageCardProps) => {
   );
 };
 
+const parseDockerResults = (rawData: string, isSearch: boolean): { name: string; desc: string }[] => {
+  const data = JSON.parse(rawData);
+  return (data.results || []).map((r: any) => ({
+    name: isSearch ? r.repo_name : r.name,
+    desc: (isSearch ? r.short_description : r.description) || ''
+  }));
+};
+
 interface LocalImageRowProps {
   img: string;
   onDelete: (img: string) => void;
@@ -503,36 +511,20 @@ const DockerRegistryTab = ({
 
     const fetchImages = async () => {
       try {
-        let rawData = "";
-        if (!dockerSearch.trim()) {
-          rawData = await FetchDockerHubPopular();
-        } else {
-          rawData = await SearchDockerHub(dockerSearch.trim());
-        }
+        const isSearch = dockerSearch.trim().length > 0;
+        const rawData = isSearch
+          ? await SearchDockerHub(dockerSearch.trim())
+          : await FetchDockerHubPopular();
 
         if (!rawData) {
           throw new Error("No data returned from backend");
         }
 
-        const data = JSON.parse(rawData);
+        const parsed = parseDockerResults(rawData, isSearch);
 
         if (!active) return;
 
-        let parsed: { name: string; desc: string }[] = [];
-        if (!dockerSearch.trim()) {
-          parsed = (data.results || []).map((r: any) => ({
-            name: r.name,
-            desc: r.description || ''
-          }));
-        } else {
-          parsed = (data.results || []).map((r: any) => ({
-            name: r.repo_name,
-            desc: r.short_description || ''
-          }));
-        }
-
-        // If results are empty, fall back to our static defaults if search is empty, otherwise empty list
-        if (parsed.length === 0 && !dockerSearch.trim()) {
+        if (parsed.length === 0 && !isSearch) {
           setImages(DEFAULT_REGISTRY_IMAGES as any);
         } else {
           setImages(parsed);
@@ -540,8 +532,8 @@ const DockerRegistryTab = ({
       } catch (err: any) {
         if (!active) return;
 
-        // If error (e.g. offline), fall back to static list if search is empty
-        if (!dockerSearch.trim()) {
+        const isSearch = dockerSearch.trim().length > 0;
+        if (!isSearch) {
           setImages(DEFAULT_REGISTRY_IMAGES as any);
         } else {
           setImages([]);
@@ -578,6 +570,39 @@ const DockerRegistryTab = ({
     );
   }
 
+  let content;
+  if (isLoading) {
+    content = (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+      </div>
+    );
+  } else if (error && images.length === 0) {
+    content = (
+      <div className="text-center py-12 text-slate-500 text-xs">
+        <p className="text-red-400 font-semibold mb-1">Offline / API Limit Exceeded</p>
+        <p className="opacity-70">Could not retrieve results from Docker Hub.</p>
+      </div>
+    );
+  } else if (images.length === 0) {
+    content = (
+      <div className="text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
+    );
+  } else {
+    content = (
+      <div className="grid grid-cols-2 gap-3">
+        {images.map((img) => (
+          <DockerImageCard
+            key={img.name}
+            img={img}
+            colorMode={colorMode}
+            onClick={() => setSelectedRepo(img.name)}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -600,29 +625,7 @@ const DockerRegistryTab = ({
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
-        </div>
-      ) : error && images.length === 0 ? (
-        <div className="text-center py-12 text-slate-500 text-xs">
-          <p className="text-red-400 font-semibold mb-1">Offline / API Limit Exceeded</p>
-          <p className="opacity-70">Could not retrieve results from Docker Hub.</p>
-        </div>
-      ) : images.length === 0 ? (
-        <div className="text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {images.map((img) => (
-            <DockerImageCard
-              key={img.name}
-              img={img}
-              colorMode={colorMode}
-              onClick={() => setSelectedRepo(img.name)}
-            />
-          ))}
-        </div>
-      )}
+      {content}
     </div>
   );
 };

@@ -53,7 +53,7 @@ const applyPodResize = (nodes: Node[], resizedNode: Node) => {
       ...n,
       width: resizedNode.width,
       height: undefined,
-      style: { ...(n.style || {}), width: resizedNode.width, minHeight },
+      style: { ...n.style, width: resizedNode.width, minHeight },
       measured: undefined
     };
   });
@@ -96,7 +96,7 @@ export const resizeHandlers = (set: any) => ({
           ...n,
           width: nextW,
           height: n.type === 'Pod' ? undefined : nextH,
-          style: n.type === 'Pod' ? { ...(n.style || {}), width: nextW, minHeight: nextH } : { width: nextW, height: nextH },
+          style: n.type === 'Pod' ? { ...n.style, width: nextW, minHeight: nextH } : { width: nextW, height: nextH },
           measured: n.type === 'Pod' ? undefined : { width: nextW, height: nextH },
           data: { ...n.data, isManuallyResized: true }
       } : n);
