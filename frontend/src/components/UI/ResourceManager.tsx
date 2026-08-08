@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box } from 'lucide-react';
+import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box, Check } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { hydrateNodes } from '../../store/nodeHelpers';
@@ -146,28 +146,51 @@ const ArchitectureRow = ({
 interface DockerImageCardProps {
   img: { name: string; desc: string };
   colorMode: 'dark' | 'light';
+  isRegistered: boolean;
+  onRegister: (name: string) => void;
+  onUnregister: (name: string) => void;
 }
 
-const DockerImageCard = ({ img, colorMode }: DockerImageCardProps) => {
+const DockerImageCard = ({ img, colorMode, isRegistered, onRegister, onUnregister }: DockerImageCardProps) => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isRegistered) {
+      onUnregister(img.name);
+    } else {
+      onRegister(img.name);
+    }
+  };
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={handleClick}
       className={cn(
-        "p-3 rounded-lg border flex flex-col justify-between transition-all select-none hover:shadow min-w-0",
-        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80" : "bg-slate-50 border-slate-200"
+        "p-3 rounded-lg border flex flex-col justify-between transition-all text-left hover:shadow-md min-w-0 outline-none focus:ring-1 focus:ring-blue-500/30",
+        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
+        isRegistered && (colorMode === 'dark' ? "border-emerald-500/40 bg-emerald-950/5" : "border-emerald-300 bg-emerald-50/10")
       )}
     >
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
-          <Globe size={11} className="text-blue-500 shrink-0" />
+      <div className="min-w-0 w-full">
+        <div className="flex items-center gap-1.5 mb-1.5 min-w-0 w-full">
+          <Globe size={11} className={cn("shrink-0", isRegistered ? "text-emerald-500" : "text-blue-500")} />
           <span className="font-semibold text-xs font-mono truncate" title={img.name}>{img.name}</span>
         </div>
         <p className="text-[9px] text-slate-500 leading-tight line-clamp-2">{img.desc}</p>
       </div>
-      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5 shrink-0">
+      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5 shrink-0 w-full">
         <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0">PUBLIC REGISTRY</span>
-        <span className="text-[8px] text-slate-600 font-bold shrink-0">READY TO USE</span>
+        {isRegistered ? (
+          <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+            <Check size={8} strokeWidth={3} /> ADDED
+          </span>
+        ) : (
+          <span className="text-[8px] text-blue-500 font-bold shrink-0 uppercase tracking-wider hover:text-blue-600 transition-colors">
+            + ADD IMAGE
+          </span>
+        )}
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -329,12 +352,18 @@ interface DockerRegistryTabProps {
   dockerSearch: string;
   setDockerSearch: (val: string) => void;
   colorMode: 'dark' | 'light';
+  customImages: string[];
+  addCustomImage: (img: string) => void;
+  deleteCustomImage: (img: string) => void;
 }
 
 const DockerRegistryTab = ({
   dockerSearch,
   setDockerSearch,
-  colorMode
+  colorMode,
+  customImages,
+  addCustomImage,
+  deleteCustomImage
 }: DockerRegistryTabProps) => {
   const [images, setImages] = useState<{ name: string; desc: string }[]>(DEFAULT_REGISTRY_IMAGES as any);
   const [isLoading, setIsLoading] = useState(false);
@@ -444,13 +473,19 @@ const DockerRegistryTab = ({
         <div className="text-center py-12 text-slate-500 text-xs">No images matched "{dockerSearch}"</div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {images.map((img) => (
-            <DockerImageCard
-              key={img.name}
-              img={img}
-              colorMode={colorMode}
-            />
-          ))}
+          {images.map((img) => {
+            const isRegistered = customImages.includes(img.name);
+            return (
+              <DockerImageCard
+                key={img.name}
+                img={img}
+                colorMode={colorMode}
+                isRegistered={isRegistered}
+                onRegister={addCustomImage}
+                onUnregister={deleteCustomImage}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -772,6 +807,9 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
               dockerSearch={dockerSearch}
               setDockerSearch={setDockerSearch}
               colorMode={colorMode}
+              customImages={customImages}
+              addCustomImage={addCustomImage}
+              deleteCustomImage={deleteCustomImage}
             />
           )}
 
