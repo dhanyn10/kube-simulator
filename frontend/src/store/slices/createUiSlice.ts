@@ -37,6 +37,20 @@ export interface UiSlice {
   canvasBgVariant: 'dots' | 'lines';
   canvasBgColor: string;
   canvasBgOpacity: number;
+
+  // Terminal state & actions
+  isTerminalOpen: boolean;
+  terminalActiveTab: 'activity' | 'logs';
+  terminalSelectedResourceId: string | null;
+  terminalLogs: Record<string, string[]>;
+  activityLogs: string[];
+  setTerminalOpen: (open: boolean) => void;
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void;
+  setTerminalSelectedResourceId: (id: string | null) => void;
+  addTerminalLog: (resourceId: string, line: string) => void;
+  addActivityLog: (line: string) => void;
+  clearTerminalLogs: () => void;
+
   toggleColorMode: () => void;
   setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
@@ -187,7 +201,61 @@ const runSimulationTick = (params: {
   workloads.forEach(dep => {
     const { hasChanges } = processWorkloadSimulation(dep, ctx);
     if (hasChanges) hasOverallChanges = true;
+
+    // Simulate logs for this workload
+    const points = newMetrics[dep.id] || [];
+    const lastPoint = points[points.length - 1];
+    if (lastPoint) {
+      const currentPodLogs = get().terminalLogs[dep.id] || [];
+      const newLines: string[] = [];
+
+      // Simulated traffic logs
+      const trafficAmount = Math.round(lastPoint.cpuPercent * 1.5); // proxy for traffic load
+      if (trafficAmount > 0 && Math.random() > 0.4) {
+        const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/favicon.ico'];
+        const path = paths[Math.floor(Math.random() * paths.length)];
+        const clientIp = `10.244.0.${Math.floor(Math.random() * 254) + 1}`;
+        const status = lastPoint.isOOM ? '503 Service Unavailable' : '200 OK';
+        newLines.push(`[${new Date().toLocaleTimeString()}] ${clientIp} - GET ${path} - ${status}`);
+      }
+
+      if (lastPoint.isOOM) {
+        newLines.push(`[${new Date().toLocaleTimeString()}] [FATAL] Out of Memory (OOM) error occurred. Container crashed.`);
+      } else if (lastPoint.isThrottled) {
+        newLines.push(`[${new Date().toLocaleTimeString()}] [WARNING] CPU limit reached! Requests are being throttled.`);
+      }
+
+      if (newLines.length > 0) {
+        set((state) => ({
+          terminalLogs: {
+            ...state.terminalLogs,
+            [dep.id]: [...currentPodLogs, ...newLines].slice(-150)
+          }
+        }));
+      }
+    }
   });
+
+  // Append pod creation activity logs on ticks 1, 2, and 3
+  if (ticks === 1) {
+    const lines = workloads.map(w => {
+      const name = w.data.label || w.id;
+      return `${name.padEnd(38)} 0/1     Pending             0          1s`;
+    });
+    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
+  } else if (ticks === 2) {
+    const lines = workloads.map(w => {
+      const name = w.data.label || w.id;
+      return `${name.padEnd(38)} 0/1     ContainerCreating   0          2s`;
+    });
+    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
+  } else if (ticks === 3) {
+    const lines = workloads.map(w => {
+      const name = w.data.label || w.id;
+      return `${name.padEnd(38)} 1/1     Running             0          3s`;
+    });
+    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
+  }
 
   set({ simulationMetrics: newMetrics, ...(hasOverallChanges ? { nodes: updatedNodes } : {}) });
 
@@ -243,7 +311,63 @@ const startSimulationInternal = (
       const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)));
       const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
 
-      set({ isSimulating: true, activeSimulationEdges: activeEdges, simulationMetrics: {} });
+      // Clear logs and show terminal
+      const initialActivity: string[] = [
+        `$ kubectl apply -f k8s-manifest.yaml`,
+      ];
+
+      const k8sResources = nodes.filter(n =>
+        ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
+      );
+
+      if (k8sResources.length > 0) {
+        k8sResources.forEach(n => {
+          const typeLower = n.type.toLowerCase();
+          let group = '';
+          if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
+            group = '.apps';
+          } else if (n.type === 'Ingress') {
+            group = '.networking.k8s.io';
+          } else if (n.type === 'HPA') {
+            group = '.autoscaling';
+          }
+          const label = n.data.label || n.id;
+          initialActivity.push(`${typeLower}${group}/${label} created`);
+        });
+      } else {
+        initialActivity.push(`No resources defined in the canvas.`);
+      }
+
+      initialActivity.push(`$ kubectl get pods -w`);
+      initialActivity.push(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
+
+      const initialTerminalLogs: Record<string, string[]> = {};
+      nodes.forEach(n => {
+        if (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') {
+          const name = n.data.label || n.id;
+          const image = n.data.image || 'nginx:latest';
+          initialTerminalLogs[n.id] = [
+            `$ kubectl logs ${n.type.toLowerCase()}/${name} -f`,
+            `Initializing container for ${name}...`,
+            `Pulling image "${image}"...`,
+            `Successfully pulled image "${image}" in 1.45s`,
+            `Creating container...`,
+            `Started container!`,
+            `Server is now listening on port 80/tcp`,
+            `[INFO] Application instance is healthy and ready to accept traffic.`,
+          ];
+        }
+      });
+
+      set({
+        isSimulating: true,
+        activeSimulationEdges: activeEdges,
+        simulationMetrics: {},
+        isTerminalOpen: true,
+        terminalActiveTab: 'activity',
+        activityLogs: initialActivity,
+        terminalLogs: initialTerminalLogs,
+      });
 
       let ticks = 0;
       if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);
@@ -281,6 +405,30 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   canvasBgVariant: 'dots',
   canvasBgColor: 'default',
   canvasBgOpacity: 0.6,
+
+  // Terminal initial states & actions
+  isTerminalOpen: false,
+  terminalActiveTab: 'activity',
+  terminalSelectedResourceId: null,
+  terminalLogs: {},
+  activityLogs: [],
+  setTerminalOpen: (open) => set({ isTerminalOpen: open }),
+  setTerminalActiveTab: (tab) => set({ terminalActiveTab: tab }),
+  setTerminalSelectedResourceId: (id) => set({ terminalSelectedResourceId: id }),
+  addTerminalLog: (resourceId, line) => set((state) => {
+    const logs = state.terminalLogs[resourceId] || [];
+    return {
+      terminalLogs: {
+        ...state.terminalLogs,
+        [resourceId]: [...logs, line].slice(-200)
+      }
+    };
+  }),
+  addActivityLog: (line) => set((state) => ({
+    activityLogs: [...state.activityLogs, line].slice(-200)
+  })),
+  clearTerminalLogs: () => set({ terminalLogs: {}, activityLogs: [] }),
+
   saveSettingsJson: () => {
     const state = get();
     const settings = {
@@ -388,5 +536,28 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
    */
   stopSimulation: () => {
     stopSimulationInternal(set, get, simulationIntervalObj);
+    const { nodes } = get();
+    const deleteActivity: string[] = [
+      `$ kubectl delete -f k8s-manifest.yaml`,
+    ];
+    const k8sResources = nodes.filter(n =>
+      ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
+    );
+    k8sResources.forEach(n => {
+      const typeLower = n.type.toLowerCase();
+      let group = '';
+      if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
+        group = '.apps';
+      } else if (n.type === 'Ingress') {
+        group = '.networking.k8s.io';
+      } else if (n.type === 'HPA') {
+        group = '.autoscaling';
+      }
+      const label = n.data.label || n.id;
+      deleteActivity.push(`${typeLower}${group}/${label} deleted`);
+    });
+    set((state) => ({
+      activityLogs: [...state.activityLogs, ...deleteActivity].slice(-200)
+    }));
   },
 });
