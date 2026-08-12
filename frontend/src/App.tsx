@@ -14,7 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
 
-import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
+import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';
 import { HistoryPanel, MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal } from './components/Modals';
@@ -433,6 +433,7 @@ export default function App() {
 
           <LogToast />
           <LogModal />
+          <TerminalPanel />
         </main>
 
         {isRightSidebarVisible && (

@@ -1,6 +1,6 @@
 
 import { useEffect, useRef } from 'react';
-import { Boxes, Box, FileCode, Trash2, Copy, Clipboard } from 'lucide-react';
+import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
@@ -20,10 +20,16 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   const copyNodes = useFlowStore((state: any) => state.copyNodes);
   const pasteNodes = useFlowStore((state: any) => state.pasteNodes);
 
+  const setTerminalOpen = useFlowStore((state: any) => state.setTerminalOpen);
+  const setTerminalActiveTab = useFlowStore((state: any) => state.setTerminalActiveTab);
+  const setTerminalSelectedResourceId = useFlowStore((state: any) => state.setTerminalSelectedResourceId);
+
   const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedNodes = nodes.filter((n: any) => n.selected);
   const selectedIds = selectedNodes.map((n: any) => n.id);
+  const singleNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
+  const canViewLogs = singleNode && ['Deployment', 'ReplicaSet', 'Pod'].includes(singleNode.type);
   const hasSelection = selectedIds.length > 0;
   const canGroup = selectedIds.length > 1;
   const isGrouped = selectedNodes.some((n: any) => n.data?.groupId);
@@ -96,6 +102,23 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           <FileCode size={14} className="text-blue-500" />
           <span className="font-medium">Inspect YAML</span>
         </button>
+
+        {canViewLogs && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setTerminalSelectedResourceId(singleNode.id);
+              setTerminalActiveTab('logs');
+              setTerminalOpen(true);
+              onClose();
+            }}
+            className={itemClass}
+          >
+            <Terminal size={14} className="text-emerald-500" />
+            <span className="font-medium">View logs (kubectl logs)</span>
+          </button>
+        )}
 
         <div className={dividerClass} />
 

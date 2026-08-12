@@ -57,6 +57,19 @@ export interface FlowState {
   isMonitoringDetached: boolean;
   systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
 
+  // Terminal state
+  isTerminalOpen: boolean;
+  terminalActiveTab: 'activity' | 'logs';
+  terminalSelectedResourceId: string | null;
+  terminalLogs: Record<string, string[]>;
+  activityLogs: string[];
+  setTerminalOpen: (open: boolean) => void;
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void;
+  setTerminalSelectedResourceId: (id: string | null) => void;
+  addTerminalLog: (resourceId: string, line: string) => void;
+  addActivityLog: (line: string) => void;
+  clearTerminalLogs: () => void;
+
   // Log state
   logs: LogEntry[];
   isLogToastVisible: boolean;
