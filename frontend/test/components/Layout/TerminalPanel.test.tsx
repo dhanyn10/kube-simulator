@@ -98,6 +98,48 @@ describe('TerminalPanel', () => {
     expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('web-pod') ?? false))).toBeInTheDocument();
   });
 
+  it('handles kubectl get pods -w command', () => {
+    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+    fireEvent.change(input, { target: { value: 'kubectl get pods -w' } });
+    fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
+
+    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('web-pod') ?? false))).toBeInTheDocument();
+  });
+
+  it('navigates through command history with Up and Down arrows', () => {
+    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+    // Submit first command
+    fireEvent.change(input, { target: { value: 'kubectl get pods' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Submit second command
+    fireEvent.change(input, { target: { value: 'help' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Press ArrowUp to get 'help'
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(input.value).toBe('help');
+
+    // Press ArrowUp again to get 'kubectl get pods'
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    expect(input.value).toBe('kubectl get pods');
+
+    // Press ArrowDown to get 'help'
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.value).toBe('help');
+
+    // Press ArrowDown again to clear
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input.value).toBe('');
+  });
+
   it('handles kubectl get services command', () => {
     useFlowStore.setState({
       isTerminalOpen: true,

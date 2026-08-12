@@ -20,6 +20,8 @@ export const TerminalPanel = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [commandInput, setCommandInput] = useState('');
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
   // Filter workloads that can produce logs
@@ -95,12 +97,38 @@ export const TerminalPanel = () => {
     return <span className={textClass}>{line}</span>;
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (commandHistory.length === 0) return;
+      const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
+      setHistoryIndex(nextIndex);
+      setCommandInput(commandHistory[nextIndex]);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex === -1) return;
+      if (historyIndex === commandHistory.length - 1) {
+        setHistoryIndex(-1);
+        setCommandInput('');
+      } else {
+        const nextIndex = historyIndex + 1;
+        setHistoryIndex(nextIndex);
+        setCommandInput(commandHistory[nextIndex]);
+      }
+    }
+  };
+
   const handleCommandSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cmd = commandInput.trim();
     if (!cmd) return;
 
     setCommandInput('');
+    setCommandHistory(prev => {
+      if (prev[prev.length - 1] === cmd) return prev;
+      return [...prev, cmd];
+    });
+    setHistoryIndex(-1);
 
     const addActivityLog = useFlowStore.getState().addActivityLog;
     addActivityLog(`$ ${cmd}`);
@@ -123,7 +151,12 @@ export const TerminalPanel = () => {
       return;
     }
 
-    if (cmdLower === 'kubectl get pods' || cmdLower === 'kubectl get pod') {
+    if (
+      cmdLower === 'kubectl get pods' ||
+      cmdLower === 'kubectl get pod' ||
+      cmdLower === 'kubectl get pods -w' ||
+      cmdLower === 'kubectl get pod -w'
+    ) {
       const workloads = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
       if (workloads.length === 0) {
         addActivityLog('No pods or workloads found on the canvas.');
@@ -409,6 +442,11 @@ export const TerminalPanel = () => {
                   type="text"
                   value={commandInput}
                   onChange={(e) => setCommandInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  spellCheck="false"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
                   placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
                   className="flex-1 bg-transparent text-slate-200 outline-none border-none font-mono text-[11px] p-0 focus:ring-0 placeholder-slate-700"
                   data-testid="terminal-cli-input"
