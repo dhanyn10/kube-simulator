@@ -72,7 +72,58 @@ describe('TerminalPanel', () => {
     fireEvent.change(searchInput, { target: { value: 'one' } });
 
     // Using a custom text matcher to account for text split by <mark> elements
-    expect(screen.getByText((_, element) => element?.textContent === 'line one')).toBeInTheDocument();
-    expect(screen.queryByText((_, element) => element?.textContent === 'line two')).toBeNull();
+    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && element?.textContent === 'line one')).toBeInTheDocument();
+    expect(screen.queryByText((_, element) => element?.tagName === 'SPAN' && element?.textContent === 'line two')).toBeNull();
+  });
+
+  it('handles help command', () => {
+    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+    fireEvent.change(input, { target: { value: 'help' } });
+    fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
+
+    expect(screen.getByText('Available educational Kubernetes commands:')).toBeInTheDocument();
+  });
+
+  it('handles kubectl get pods command', () => {
+    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+    fireEvent.change(input, { target: { value: 'kubectl get pods' } });
+    fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
+
+    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('web-pod') ?? false))).toBeInTheDocument();
+  });
+
+  it('handles kubectl get services command', () => {
+    useFlowStore.setState({
+      isTerminalOpen: true,
+      isSimulating: true,
+      nodes: [
+        { id: 'svc-1', type: 'Service', data: { label: 'web-service', port: 80 }, position: { x: 0, y: 0 } }
+      ]
+    });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+    fireEvent.change(input, { target: { value: 'kubectl get services' } });
+    fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
+
+    expect(screen.getByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('web-service') ?? false))).toBeInTheDocument();
+  });
+
+  it('handles kubectl describe pod command', () => {
+    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+    fireEvent.change(input, { target: { value: 'kubectl describe pod web-pod' } });
+    fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
+
+    expect(screen.getByText(/Name:\s+web-pod/)).toBeInTheDocument();
+    expect(screen.getByText(/Successfully assigned default\/web-pod/)).toBeInTheDocument();
   });
 });
