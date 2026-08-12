@@ -363,7 +363,7 @@ export const TerminalPanel = () => {
                   : (colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600")
               )}
             >
-              Kubernetes Logs
+              Kube Logs
             </button>
           </div>
         </div>
@@ -449,7 +449,7 @@ export const TerminalPanel = () => {
           )}>
             <Box size={24} className="opacity-25" />
             <div className="space-y-0.5">
-              <p className={cn("text-xs font-bold uppercase tracking-wider", colorMode === 'dark' ? "text-slate-500" : "text-slate-500")}>Terminal Idle</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
               <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations.</p>
             </div>
             <button

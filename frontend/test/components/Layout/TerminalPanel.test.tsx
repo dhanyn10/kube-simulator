@@ -34,7 +34,7 @@ describe('TerminalPanel', () => {
     expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
     expect(screen.getByText('Kube Console')).toBeInTheDocument();
     expect(screen.getByText('Kubectl Activity')).toBeInTheDocument();
-    expect(screen.getByText('Kubernetes Logs')).toBeInTheDocument();
+    expect(screen.getByText('Kube Logs')).toBeInTheDocument();
   });
 
   it('renders kubectl activity logs', () => {
@@ -52,7 +52,7 @@ describe('TerminalPanel', () => {
     useFlowStore.setState({ isTerminalOpen: true });
     render(<TerminalPanel />);
 
-    const logsTab = screen.getByText('Kubernetes Logs');
+    const logsTab = screen.getByText('Kube Logs');
     fireEvent.click(logsTab);
 
     expect(useFlowStore.getState().terminalActiveTab).toBe('logs');
