@@ -68,15 +68,15 @@ export const TerminalPanel = () => {
     const isWarning = line.toLowerCase().includes('warning') || line.toLowerCase().includes('warn') || line.toLowerCase().includes('throttled') || line.toLowerCase().includes('oom risk');
     const isSuccess = line.includes('created') || line.includes('Running') || line.includes('Ready') || line.includes('Successfully') || line.includes('deleted');
 
-    let textClass = 'text-slate-300';
+    let textClass = colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700';
     if (isCommand) {
-      textClass = 'text-cyan-400 font-bold';
+      textClass = colorMode === 'dark' ? 'text-cyan-400 font-bold' : 'text-cyan-600 font-bold';
     } else if (isError) {
-      textClass = 'text-red-400';
+      textClass = colorMode === 'dark' ? 'text-red-400' : 'text-red-600';
     } else if (isWarning) {
-      textClass = 'text-amber-400';
+      textClass = colorMode === 'dark' ? 'text-amber-400' : 'text-amber-600';
     } else if (isSuccess) {
-      textClass = 'text-emerald-400';
+      textClass = colorMode === 'dark' ? 'text-emerald-400' : 'text-emerald-600';
     }
 
     // Highlight search match
@@ -297,18 +297,26 @@ export const TerminalPanel = () => {
       data-testid="terminal-container"
       className={cn(
         "fixed bottom-0 left-0 right-0 h-64 border-t z-[900] flex flex-col overflow-hidden backdrop-blur-md shadow-2xl transition-all duration-300",
-        colorMode === 'dark' ? "bg-slate-950/95 border-slate-800 text-slate-200" : "bg-slate-900/95 border-slate-700 text-slate-100"
+        colorMode === 'dark'
+          ? "bg-slate-950/95 border-slate-800 text-slate-200"
+          : "bg-white/95 border-slate-200 text-slate-800"
       )}
     >
       {/* Terminal Toolbar */}
-      <div className="h-9 border-b border-slate-800 flex items-center justify-between px-4 shrink-0 bg-slate-950/60 select-none">
+      <div className={cn(
+        "h-9 border-b flex items-center justify-between px-4 shrink-0 select-none",
+        colorMode === 'dark' ? "border-slate-800 bg-slate-950/60 text-slate-400" : "border-slate-200 bg-slate-50/80 text-slate-600"
+      )}>
         <div className="flex items-center gap-4 h-full">
-          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
+          <div className={cn(
+            "flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest",
+            colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
+          )}>
             <Terminal size={13} className="text-blue-500" />
             <span>Kubernetes Console</span>
           </div>
 
-          <div className="h-4 w-px bg-slate-800" />
+          <div className={cn("h-4 w-px", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
 
           {/* Tabs */}
           <div className="flex items-center gap-1 h-full text-[11px] font-bold uppercase tracking-wider">
@@ -318,8 +326,8 @@ export const TerminalPanel = () => {
               className={cn(
                 "h-full px-2.5 transition-colors border-b-2",
                 terminalActiveTab === 'activity'
-                  ? "border-blue-500 text-white font-black"
-                  : "border-transparent text-slate-500 hover:text-slate-300"
+                  ? "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900")
+                  : (colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600")
               )}
             >
               Kubectl Activity
@@ -330,8 +338,8 @@ export const TerminalPanel = () => {
               className={cn(
                 "h-full px-2.5 transition-colors border-b-2",
                 terminalActiveTab === 'logs'
-                  ? "border-blue-500 text-white font-black"
-                  : "border-transparent text-slate-500 hover:text-slate-300"
+                  ? "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900")
+                  : (colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600")
               )}
             >
               Kubernetes Logs
@@ -343,11 +351,16 @@ export const TerminalPanel = () => {
         <div className="flex items-center gap-3">
           {terminalActiveTab === 'logs' && loggableResources.length > 0 && (
             <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
-              <span className="text-[10px] font-mono text-slate-500 uppercase font-bold">RESOURCE:</span>
+              <span className={cn("text-[10px] font-mono uppercase font-bold", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>RESOURCE:</span>
               <select
                 value={terminalSelectedResourceId || ''}
                 onChange={(e) => setTerminalSelectedResourceId(e.target.value)}
-                className="bg-slate-900 text-slate-200 border border-slate-800 rounded px-2 py-0.5 text-[10px] font-mono focus:outline-none focus:border-blue-500/50"
+                className={cn(
+                  "border rounded px-2 py-0.5 text-[10px] font-mono focus:outline-none focus:border-blue-500/50",
+                  colorMode === 'dark'
+                    ? "bg-slate-900 text-slate-200 border-slate-800"
+                    : "bg-white text-slate-800 border-slate-200"
+                )}
               >
                 {loggableResources.map(r => (
                   <option key={r.id} value={r.id}>
@@ -360,24 +373,32 @@ export const TerminalPanel = () => {
 
           {/* Search Bar */}
           <div className="relative w-36">
-            <Search size={10} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={10} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
             <input
               type="text"
               placeholder="Filter logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900/60 border border-slate-800 text-slate-300 placeholder-slate-600 rounded pl-7 pr-2 py-0.5 text-[10px] outline-none focus:border-blue-500/50"
+              className={cn(
+                "w-full border rounded pl-7 pr-2 py-0.5 text-[10px] outline-none focus:border-blue-500/50",
+                colorMode === 'dark'
+                  ? "bg-slate-900/60 border-slate-800 text-slate-300 placeholder-slate-600"
+                  : "bg-slate-50 border-slate-200 text-slate-700 placeholder-slate-400"
+              )}
             />
           </div>
 
-          <div className="h-4 w-px bg-slate-800" />
+          <div className={cn("h-4 w-px", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
 
           {/* Action buttons */}
           <button
             type="button"
             onClick={clearTerminalLogs}
             title="Clear Terminal Output"
-            className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-200 transition-colors shrink-0"
+            className={cn(
+              "p-1 rounded transition-colors shrink-0",
+              colorMode === 'dark' ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+            )}
           >
             <Trash2 size={12} />
           </button>
@@ -385,7 +406,10 @@ export const TerminalPanel = () => {
             type="button"
             onClick={() => setTerminalOpen(false)}
             title="Minimize Panel"
-            className="p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-200 transition-colors shrink-0"
+            className={cn(
+              "p-1 rounded transition-colors shrink-0",
+              colorMode === 'dark' ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+            )}
           >
             <X size={12} />
           </button>
@@ -393,12 +417,18 @@ export const TerminalPanel = () => {
       </div>
 
       {/* Terminal logs content */}
-      <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar bg-slate-950/40">
+      <div className={cn(
+        "flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar",
+        colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
+      )}>
         {!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center py-6 text-slate-600 space-y-2">
+          <div className={cn(
+            "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+            colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+          )}>
             <Box size={24} className="opacity-25" />
             <div className="space-y-0.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
+              <p className={cn("text-xs font-bold uppercase tracking-wider", colorMode === 'dark' ? "text-slate-500" : "text-slate-500")}>Terminal Idle</p>
               <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations.</p>
             </div>
             <button
@@ -410,17 +440,23 @@ export const TerminalPanel = () => {
             </button>
           </div>
         ) : terminalActiveTab === 'logs' && loggableResources.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center py-6 text-slate-600 space-y-2">
+          <div className={cn(
+            "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+            colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+          )}>
             <Layers size={24} className="opacity-25" />
             <div className="space-y-0.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">No Loggable Resources</p>
+              <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
               <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
             </div>
           </div>
         ) : (
           <>
             {filteredLogs.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-slate-600">
+              <div className={cn(
+                "h-full flex items-center justify-center",
+                colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+              )}>
                 <span className="text-[10px] uppercase font-bold tracking-wider">
                   {searchQuery ? "No matches found" : "Waiting for log stream..."}
                 </span>
@@ -428,7 +464,10 @@ export const TerminalPanel = () => {
             ) : (
               filteredLogs.map((line, index) => (
                 <div key={index} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-                  <span className="text-slate-600 select-none text-right min-w-[20px] shrink-0 font-light">{index + 1}</span>
+                  <span className={cn(
+                    "select-none text-right min-w-[20px] shrink-0 font-light",
+                    colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+                  )}>{index + 1}</span>
                   {formatLogLine(line)}
                 </div>
               ))
@@ -436,8 +475,11 @@ export const TerminalPanel = () => {
 
             {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
             {terminalActiveTab === 'activity' && (
-              <form onSubmit={handleCommandSubmit} className="flex items-center gap-2 mt-2 select-text text-slate-300">
-                <span className="text-cyan-400 font-bold select-none">$</span>
+              <form onSubmit={handleCommandSubmit} className={cn(
+                "flex items-center gap-2 mt-2 select-text",
+                colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
+              )}>
+                <span className={cn("font-bold select-none", colorMode === 'dark' ? "text-cyan-400" : "text-cyan-600")}>$</span>
                 <input
                   type="text"
                   value={commandInput}
@@ -448,7 +490,10 @@ export const TerminalPanel = () => {
                   autoCorrect="off"
                   autoCapitalize="off"
                   placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
-                  className="flex-1 bg-transparent text-slate-200 outline-none border-none font-mono text-[11px] p-0 focus:ring-0 placeholder-slate-700"
+                  className={cn(
+                    "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
+                    colorMode === 'dark' ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
+                  )}
                   data-testid="terminal-cli-input"
                 />
               </form>
