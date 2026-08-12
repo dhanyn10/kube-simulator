@@ -24,7 +24,7 @@ describe('TerminalPanel', () => {
 
   it('renders minimized button when isTerminalOpen is false', () => {
     render(<TerminalPanel />);
-    expect(screen.getByText('K8s Terminal')).toBeInTheDocument();
+    expect(screen.getByText('Kube Terminal')).toBeInTheDocument();
     expect(screen.queryByTestId('terminal-container')).toBeNull();
   });
 
@@ -32,7 +32,7 @@ describe('TerminalPanel', () => {
     useFlowStore.setState({ isTerminalOpen: true });
     render(<TerminalPanel />);
     expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
-    expect(screen.getByText('Kubernetes Console')).toBeInTheDocument();
+    expect(screen.getByText('Kube Console')).toBeInTheDocument();
     expect(screen.getByText('Kubectl Activity')).toBeInTheDocument();
     expect(screen.getByText('Kubernetes Logs')).toBeInTheDocument();
   });

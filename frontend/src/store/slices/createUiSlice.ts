@@ -207,7 +207,6 @@ const runSimulationTick = (params: {
     const points = newMetrics[dep.id] || [];
     const lastPoint = points[points.length - 1];
     if (lastPoint) {
-      const currentPodLogs = get().terminalLogs[dep.id] || [];
       const newLines: string[] = [];
 
       // Simulated traffic logs
@@ -227,12 +226,15 @@ const runSimulationTick = (params: {
       }
 
       if (newLines.length > 0) {
-        set((state) => ({
-          terminalLogs: {
-            ...state.terminalLogs,
-            [dep.id]: [...currentPodLogs, ...newLines].slice(-150)
-          }
-        }));
+        set((state) => {
+          const currentPodLogs = state.terminalLogs[dep.id] || [];
+          return {
+            terminalLogs: {
+              ...state.terminalLogs,
+              [dep.id]: [...currentPodLogs, ...newLines].slice(-150)
+            }
+          };
+        });
       }
     }
   });

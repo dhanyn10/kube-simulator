@@ -307,7 +307,7 @@ export const TerminalPanel = () => {
           )}
         >
           <Terminal size={14} className="text-blue-500 animate-pulse" />
-          K8s Terminal {isSimulating && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-ping" />}
+          Kube Terminal {isSimulating && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block animate-ping" />}
         </button>
       </div>
     );
@@ -334,7 +334,7 @@ export const TerminalPanel = () => {
             colorMode === 'dark' ? "text-slate-400" : "text-slate-500"
           )}>
             <Terminal size={13} className="text-blue-500" />
-            <span>Kubernetes Console</span>
+            <span>Kube Console</span>
           </div>
 
           <div className={cn("h-4 w-px", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
@@ -439,7 +439,7 @@ export const TerminalPanel = () => {
 
       {/* Terminal logs content */}
       <div className={cn(
-        "flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar",
+        "flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar relative",
         colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
       )}>
         {!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0 ? (
@@ -472,38 +472,36 @@ export const TerminalPanel = () => {
             </div>
           </div>
         ) : (
-          <>
-            {paginatedLogs.length === 0 ? (
-              <div className={cn(
-                "h-full flex items-center justify-center",
-                colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-              )}>
-                <span className="text-[10px] uppercase font-bold tracking-wider">
-                  {searchQuery ? "No matches found" : "Waiting for log stream..."}
-                </span>
-              </div>
-            ) : (
-              paginatedLogs.map((line, index) => {
-                const actualIndex = terminalActiveTab === 'logs'
-                  ? (currentPage - 1) * PAGE_SIZE + index
-                  : index;
-                return (
-                  <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-                    <span className={cn(
-                      "select-none text-right min-w-[20px] shrink-0 font-light",
-                      colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-                    )}>{actualIndex + 1}</span>
-                    {formatLogLine(line)}
-                  </div>
-                );
-              })
-            )}
+          <div className="flex flex-col h-full">
+            <div className="flex-1">
+              {paginatedLogs.length === 0 ? (
+                <div className={cn(
+                  "h-full flex items-center justify-center",
+                  colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+                )}>
+                  <span className="text-[10px] uppercase font-bold tracking-wider">
+                    {searchQuery ? "No matches found" : "Waiting for log stream..."}
+                  </span>
+                </div>
+              ) : (
+                paginatedLogs.map((line, index) => {
+                  const actualIndex = terminalActiveTab === 'logs'
+                    ? (currentPage - 1) * PAGE_SIZE + index
+                    : index;
+                  return (
+                    <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+                      {formatLogLine(line)}
+                    </div>
+                  );
+                })
+              )}
+            </div>
 
-            {/* Pagination Controls for logs */}
+            {/* Pagination Controls for logs - Sticky at the bottom */}
             {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
               <div className={cn(
-                "flex items-center justify-between mt-3 pt-2 border-t text-[10px] select-none font-mono",
-                colorMode === 'dark' ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"
+                "sticky bottom-0 left-0 right-0 flex items-center justify-between mt-3 pt-2 pb-1 border-t text-[10px] select-none font-mono z-10 backdrop-blur-md",
+                colorMode === 'dark' ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
               )}>
                 <div>
                   Showing {Math.min(filteredLogs.length, (currentPage - 1) * PAGE_SIZE + 1)}-{Math.min(filteredLogs.length, currentPage * PAGE_SIZE)} of {filteredLogs.length} logs
@@ -565,7 +563,7 @@ export const TerminalPanel = () => {
                 />
               </form>
             )}
-          </>
+          </div>
         )}
         <div ref={terminalEndRef} />
       </div>
