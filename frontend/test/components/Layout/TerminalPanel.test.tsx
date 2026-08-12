@@ -168,4 +168,43 @@ describe('TerminalPanel', () => {
     expect(screen.getByText(/Name:\s+web-pod/)).toBeInTheDocument();
     expect(screen.getByText(/Successfully assigned default\/web-pod/)).toBeInTheDocument();
   });
+
+  it('paginates logs in Kubernetes Logs tab', () => {
+    // Generate 60 mock log lines for pod-1
+    const testLogs = Array.from({ length: 60 }, (_, i) => `log line ${i + 1}`);
+    useFlowStore.setState({
+      isTerminalOpen: true,
+      terminalActiveTab: 'logs',
+      terminalSelectedResourceId: 'pod-1',
+      terminalLogs: { 'pod-1': testLogs }
+    });
+
+    render(<TerminalPanel />);
+
+    // Page 1 should display logs 1 to 25 (PAGE_SIZE = 25)
+    expect(screen.getByText('log line 1')).toBeInTheDocument();
+    expect(screen.getByText('log line 25')).toBeInTheDocument();
+    expect(screen.queryByText('log line 26')).toBeNull();
+
+    expect(screen.getByText('Showing 1-25 of 60 logs')).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+
+    // Click Next button to go to Page 2
+    const nextBtn = screen.getByRole('button', { name: 'Next' });
+    fireEvent.click(nextBtn);
+
+    expect(screen.queryByText('log line 25')).toBeNull();
+    expect(screen.getByText('log line 26')).toBeInTheDocument();
+    expect(screen.getByText('log line 50')).toBeInTheDocument();
+    expect(screen.queryByText('log line 51')).toBeNull();
+    expect(screen.getByText('Showing 26-50 of 60 logs')).toBeInTheDocument();
+    expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
+
+    // Click Prev button to go back to Page 1
+    const prevBtn = screen.getByRole('button', { name: 'Prev' });
+    fireEvent.click(prevBtn);
+
+    expect(screen.getByText('log line 25')).toBeInTheDocument();
+    expect(screen.queryByText('log line 26')).toBeNull();
+  });
 });

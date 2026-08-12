@@ -22,7 +22,14 @@ export const TerminalPanel = () => {
   const [commandInput, setCommandInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 25;
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Reset page when tab, resource, or query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [terminalActiveTab, terminalSelectedResourceId, searchQuery]);
 
   // Filter workloads that can produce logs
   const loggableResources = useMemo(() => {
@@ -54,12 +61,26 @@ export const TerminalPanel = () => {
     return activeLogs.filter(line => line.toLowerCase().includes(q));
   }, [activeLogs, searchQuery]);
 
-  // Auto-scroll to bottom on new log line
+  // Calculate total pages for logging pagination
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+  }, [filteredLogs, PAGE_SIZE]);
+
+  // Paginated slice for logs
+  const paginatedLogs = useMemo(() => {
+    if (terminalActiveTab !== 'logs') return filteredLogs;
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredLogs.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredLogs, currentPage, terminalActiveTab, PAGE_SIZE]);
+
+  // Auto-scroll to bottom on new log line (only auto-scrolls if we are on the latest page or if it is activity tab)
   useEffect(() => {
     if (isTerminalOpen && terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      if (terminalActiveTab === 'activity' || currentPage === totalPages) {
+        terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
     }
-  }, [isTerminalOpen, filteredLogs, terminalActiveTab]);
+  }, [isTerminalOpen, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
   // Color formatting for lines based on content
   const formatLogLine = (line: string) => {
@@ -452,7 +473,7 @@ export const TerminalPanel = () => {
           </div>
         ) : (
           <>
-            {filteredLogs.length === 0 ? (
+            {paginatedLogs.length === 0 ? (
               <div className={cn(
                 "h-full flex items-center justify-center",
                 colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
@@ -462,15 +483,61 @@ export const TerminalPanel = () => {
                 </span>
               </div>
             ) : (
-              filteredLogs.map((line, index) => (
-                <div key={index} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-                  <span className={cn(
-                    "select-none text-right min-w-[20px] shrink-0 font-light",
-                    colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-                  )}>{index + 1}</span>
-                  {formatLogLine(line)}
+              paginatedLogs.map((line, index) => {
+                const actualIndex = terminalActiveTab === 'logs'
+                  ? (currentPage - 1) * PAGE_SIZE + index
+                  : index;
+                return (
+                  <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+                    <span className={cn(
+                      "select-none text-right min-w-[20px] shrink-0 font-light",
+                      colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+                    )}>{actualIndex + 1}</span>
+                    {formatLogLine(line)}
+                  </div>
+                );
+              })
+            )}
+
+            {/* Pagination Controls for logs */}
+            {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
+              <div className={cn(
+                "flex items-center justify-between mt-3 pt-2 border-t text-[10px] select-none font-mono",
+                colorMode === 'dark' ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"
+              )}>
+                <div>
+                  Showing {Math.min(filteredLogs.length, (currentPage - 1) * PAGE_SIZE + 1)}-{Math.min(filteredLogs.length, currentPage * PAGE_SIZE)} of {filteredLogs.length} logs
                 </div>
-              ))
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className={cn(
+                      "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
+                      colorMode === 'dark'
+                        ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                        : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+                    )}
+                  >
+                    Prev
+                  </button>
+                  <span className="font-bold">Page {currentPage} of {totalPages}</span>
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className={cn(
+                      "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
+                      colorMode === 'dark'
+                        ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                        : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+                    )}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
