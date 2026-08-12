@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { cn, safeRandom } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play } from 'lucide-react';
 
 export const TerminalPanel = () => {
@@ -248,7 +248,7 @@ export const TerminalPanel = () => {
         addActivityLog(`Name:         ${name}`);
         addActivityLog(`Namespace:    default`);
         addActivityLog(`Status:       ${status}`);
-        addActivityLog(`IP:           10.244.0.${Math.floor(Math.random() * 253) + 2}`);
+        addActivityLog(`IP:           10.244.0.${Math.floor(safeRandom() * 253) + 2}`);
         addActivityLog(`Containers:`);
         addActivityLog(`  app-container:`);
         addActivityLog(`    Image:      ${image}`);

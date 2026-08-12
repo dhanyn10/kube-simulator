@@ -3,6 +3,7 @@ import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
 import { K8sResourceType } from '../../types';
+import { safeRandom } from '../../lib/utils';
 import {
   processWorkloadSimulation,
   calculateReachability,
@@ -211,10 +212,10 @@ const runSimulationTick = (params: {
 
       // Simulated traffic logs
       const trafficAmount = Math.round(lastPoint.cpuPercent * 1.5); // proxy for traffic load
-      if (trafficAmount > 0 && Math.random() > 0.4) {
+      if (trafficAmount > 0 && safeRandom() > 0.4) {
         const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/favicon.ico'];
-        const path = paths[Math.floor(Math.random() * paths.length)];
-        const clientIp = `10.244.0.${Math.floor(Math.random() * 254) + 1}`;
+        const path = paths[Math.floor(safeRandom() * paths.length)];
+        const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
         const status = lastPoint.isOOM ? '503 Service Unavailable' : '200 OK';
         newLines.push(`[${new Date().toLocaleTimeString()}] ${clientIp} - GET ${path} - ${status}`);
       }
