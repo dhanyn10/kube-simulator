@@ -3,6 +3,17 @@ import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play } from 'lucide-react';
+import {
+  CommandContext,
+  handleScaleCommand,
+  handleSetImageCommand,
+  handleRolloutStatusCommand,
+  handleRolloutHistoryCommand,
+  handleRolloutUndoCommand,
+  handleDeletePodCommand,
+  handleGetAllCommand,
+  handleDescribeDeploymentCommand
+} from './terminalCommands';
 
 // Helper functions to handle kubectl commands and reduce cognitive complexity of TerminalPanel
 
@@ -310,14 +321,69 @@ export const TerminalPanel = () => {
       return;
     }
 
+    const getStoreState = useFlowStore.getState;
+    const setStoreState = useFlowStore.setState;
+    const updateNodeData = useFlowStore.getState().updateNodeData;
+    const deleteNodes = useFlowStore.getState().deleteNodes;
+
+    const ctx: CommandContext = {
+      nodes,
+      isSimulating,
+      updateNodeData,
+      addActivityLog,
+      deleteNodes,
+      getStoreState,
+      setStoreState
+    };
+
     if (cmdLower === 'help') {
       addActivityLog('Available educational Kubernetes commands:');
-      addActivityLog('  kubectl get pods            List all pods on the canvas');
-      addActivityLog('  kubectl get deployments     List deployments on the canvas');
-      addActivityLog('  kubectl get services        List services on the canvas');
-      addActivityLog('  kubectl logs <pod-name>     Stream live container stdout logs');
-      addActivityLog('  kubectl describe pod <name> Describe pod specifications & events');
-      addActivityLog('  clear                       Clear the console log list');
+      addActivityLog('  kubectl get pods                      List all pods on the canvas');
+      addActivityLog('  kubectl get deployments               List deployments on the canvas');
+      addActivityLog('  kubectl get services                  List services on the canvas');
+      addActivityLog('  kubectl get all                       List all resources on the canvas');
+      addActivityLog('  kubectl scale deployment/<name>       Scale replicas of a deployment');
+      addActivityLog('  kubectl set image deployment/<name>   Set container image (triggers Rolling Update)');
+      addActivityLog('  kubectl rollout status deploy/<name>  Check progress of a rolling update');
+      addActivityLog('  kubectl rollout history deploy/<name> View rollout revision history');
+      addActivityLog('  kubectl rollout undo deploy/<name>    Rollback to the previous deployment revision');
+      addActivityLog('  kubectl delete pod <name>             Delete pod (triggers replica controller self-healing)');
+      addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
+      addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
+      addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
+      addActivityLog('  clear                                 Clear the console log list');
+      return;
+    }
+
+    if (handleGetAllCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleScaleCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleSetImageCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleRolloutStatusCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleRolloutHistoryCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleRolloutUndoCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleDeletePodCommand(cmd, ctx)) {
+      return;
+    }
+
+    if (handleDescribeDeploymentCommand(cmd, ctx)) {
       return;
     }
 
@@ -353,47 +419,39 @@ export const TerminalPanel = () => {
   };
 
   const renderTerminalContent = () => {
-    if (!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0) {
-      return (
-        <div className={cn(
-          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
-          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-        )}>
-          <Box size={24} className="opacity-25" />
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
-            <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => startSimulation()}
-            className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
-          >
-            <Play size={10} fill="currentColor" /> Apply Manifests
-          </button>
-        </div>
-      );
-    }
-
-    if (terminalActiveTab === 'logs' && loggableResources.length === 0) {
-      return (
-        <div className={cn(
-          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
-          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-        )}>
-          <Layers size={24} className="opacity-25" />
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
-            <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1">
-          {paginatedLogs.length === 0 ? (
+          {!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0 ? (
+            <div className={cn(
+              "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+              colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+            )}>
+              <Box size={24} className="opacity-25" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
+                <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations, or type commands below.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => startSimulation()}
+                className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
+              >
+                <Play size={10} fill="currentColor" /> Apply Manifests
+              </button>
+            </div>
+          ) : terminalActiveTab === 'logs' && loggableResources.length === 0 ? (
+            <div className={cn(
+              "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+              colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+            )}>
+              <Layers size={24} className="opacity-25" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
+                <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
+              </div>
+            </div>
+          ) : paginatedLogs.length === 0 ? (
             <div className={cn(
               "h-full flex items-center justify-center",
               colorMode === 'dark' ? "text-slate-600" : "text-slate-400"

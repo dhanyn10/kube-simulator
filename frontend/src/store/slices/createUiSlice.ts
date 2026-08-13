@@ -246,6 +246,84 @@ const runSimulationTick = (params: {
   const updatedNodes = [...currentNodes];
   let hasOverallChanges = false;
 
+  // 1. Transition pending pods to ready
+  for (let i = 0; i < updatedNodes.length; i++) {
+    const node = updatedNodes[i];
+    if (node.type === 'Pod' && node.data.status === 'pending') {
+      const pendingTicks = (node.data.pendingTicks || 0) + 1;
+      updatedNodes[i] = {
+        ...node,
+        data: {
+          ...node.data,
+          pendingTicks,
+          status: pendingTicks >= 2 ? 'ready' : 'pending'
+        }
+      };
+      if (pendingTicks >= 2) {
+        const addActivityLog = get().addActivityLog;
+        addActivityLog(`pod/${node.data.label || node.id} status transitioned from Pending to Running`);
+      }
+      hasOverallChanges = true;
+    }
+  }
+
+  // 2. Handle rolling updates for deployments
+  for (let i = 0; i < updatedNodes.length; i++) {
+    const dep = updatedNodes[i];
+    if (dep.type === 'Deployment' && dep.data.isRollingUpdate) {
+      const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+      const hasPendingPod = childPods.some(p => p.data.status === 'pending');
+
+      if (!hasPendingPod) {
+        const oldPods = childPods.filter(p => p.data.image !== dep.data.rolloutTargetImage);
+
+        if (oldPods.length > 0) {
+          const firstOldPod = oldPods[0];
+          const podIdx = updatedNodes.findIndex(n => n.id === firstOldPod.id);
+          if (podIdx !== -1) {
+            updatedNodes[podIdx] = {
+              ...updatedNodes[podIdx],
+              data: {
+                ...updatedNodes[podIdx].data,
+                status: 'pending',
+                pendingTicks: 0,
+                image: dep.data.rolloutTargetImage
+              }
+            };
+
+            const updatedCount = childPods.length - oldPods.length + 1;
+            updatedNodes[i] = {
+              ...dep,
+              data: {
+                ...dep.data,
+                rolloutStatus: `Updating ${updatedCount}/${childPods.length} replicas...`
+              }
+            };
+
+            const addActivityLog = get().addActivityLog;
+            addActivityLog(`[rollout] Scaling down old replica pod ${firstOldPod.data.label || firstOldPod.id}...`);
+            addActivityLog(`[rollout] Scaling up new replica pod with image ${dep.data.rolloutTargetImage}...`);
+            hasOverallChanges = true;
+          }
+        } else {
+          updatedNodes[i] = {
+            ...dep,
+            data: {
+              ...dep.data,
+              isRollingUpdate: false,
+              image: dep.data.rolloutTargetImage,
+              rolloutStatus: 'Successfully rolled out'
+            }
+          };
+
+          const addActivityLog = get().addActivityLog;
+          addActivityLog(`deployment.apps/${dep.data.label || dep.id} successfully rolled out`);
+          hasOverallChanges = true;
+        }
+      }
+    }
+  }
+
   const { edgeMap, targetEdgeMap } = buildEdgeMaps(currentEdges);
   const { workloads, internetNodes, nodeMap, childPodMap, nodeIndexMap } = classifyNodes(currentNodes);
 
