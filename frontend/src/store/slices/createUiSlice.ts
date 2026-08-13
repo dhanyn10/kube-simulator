@@ -113,28 +113,34 @@ const fallbackToLegacySettings = (set: (state: Partial<FlowState>) => void) => {
 };
 
 /**
- * Executes a single tick of the simulation.
- * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
- *
- * @param params Object containing the current flow state, current tick count, and store setters/getters.
+ * Builds standard edge maps to classify connected edges
  */
-const runSimulationTick = (params: {
-  state: FlowState,
-  ticks: number,
-  set: (state: Partial<FlowState>) => void,
-  get: () => FlowState
-}) => {
-  const { state, ticks, set, get } = params;
-  const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
-  const newMetrics = { ...currentMetrics };
-  const updatedNodes = [...currentNodes];
-  let hasOverallChanges = false;
+const buildEdgeMaps = (edges: Edge[]) => {
+  const edgeMap = new Map<string, Edge[]>();
+  const targetEdgeMap = new Map<string, Edge[]>();
 
+  for (const edge of edges) {
+    const source = String(edge.source);
+    const existingSource = edgeMap.get(source) || [];
+    existingSource.push(edge);
+    edgeMap.set(source, existingSource);
+
+    const target = String(edge.target);
+    const existingTarget = targetEdgeMap.get(target) || [];
+    existingTarget.push(edge);
+    targetEdgeMap.set(target, existingTarget);
+  }
+
+  return { edgeMap, targetEdgeMap };
+};
+
+/**
+ * Classifies nodes into workloads, internet, children, and maps their indices
+ */
+const classifyNodes = (currentNodes: Node[]) => {
   const workloads: Node[] = [];
   const internetNodes: Node[] = [];
   const nodeMap = new Map<string, Node>();
-  const edgeMap = new Map<string, Edge[]>();
-  const targetEdgeMap = new Map<string, Edge[]>();
   const childPodMap = new Map<string, Node[]>();
   const nodeIndexMap = new Map<string, number>();
 
@@ -155,17 +161,93 @@ const runSimulationTick = (params: {
     }
   }
 
-  for (const edge of currentEdges) {
-    const source = String(edge.source);
-    const existingSource = edgeMap.get(source) || [];
-    existingSource.push(edge);
-    edgeMap.set(source, existingSource);
+  return { workloads, internetNodes, nodeMap, childPodMap, nodeIndexMap };
+};
 
-    const target = String(edge.target);
-    const existingTarget = targetEdgeMap.get(target) || [];
-    existingTarget.push(edge);
-    targetEdgeMap.set(target, existingTarget);
+/**
+ * Simulates logs generation for a given workload metric point
+ */
+const simulateWorkloadLogs = (
+  dep: Node,
+  lastPoint: SimulationMetricPoint,
+  set: (state: Partial<FlowState>) => void
+) => {
+  const newLines: string[] = [];
+
+  // Simulated traffic logs
+  const trafficAmount = Math.round(lastPoint.cpuPercent * 1.5); // proxy for traffic load
+  if (trafficAmount > 0 && safeRandom() > 0.4) {
+    const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/favicon.ico'];
+    const path = paths[Math.floor(safeRandom() * paths.length)];
+    const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
+    const status = lastPoint.isOOM ? '503 Service Unavailable' : '200 OK';
+    newLines.push(`[${new Date().toLocaleTimeString()}] ${clientIp} - GET ${path} - ${status}`);
   }
+
+  if (lastPoint.isOOM) {
+    newLines.push(`[${new Date().toLocaleTimeString()}] [FATAL] Out of Memory (OOM) error occurred. Container crashed.`);
+  } else if (lastPoint.isThrottled) {
+    newLines.push(`[${new Date().toLocaleTimeString()}] [WARNING] CPU limit reached! Requests are being throttled.`);
+  }
+
+  if (newLines.length > 0) {
+    set((state) => {
+      const currentPodLogs = state.terminalLogs[dep.id] || [];
+      return {
+        terminalLogs: {
+          ...state.terminalLogs,
+          [dep.id]: [...currentPodLogs, ...newLines].slice(-150)
+        }
+      };
+    });
+  }
+};
+
+/**
+ * Appends pod creation activity logs on ticks 1, 2, and 3
+ */
+const handleTicksActivityLogs = (ticks: number, workloads: Node[], set: (state: Partial<FlowState>) => void) => {
+  if (ticks === 1) {
+    const lines = workloads.map(w => {
+      const name = w.data.label || w.id;
+      return `${String(name).padEnd(38)} 0/1     Pending             0          1s`;
+    });
+    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
+  } else if (ticks === 2) {
+    const lines = workloads.map(w => {
+      const name = w.data.label || w.id;
+      return `${String(name).padEnd(38)} 0/1     ContainerCreating   0          2s`;
+    });
+    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
+  } else if (ticks === 3) {
+    const lines = workloads.map(w => {
+      const name = w.data.label || w.id;
+      return `${String(name).padEnd(38)} 1/1     Running             0          3s`;
+    });
+    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
+  }
+};
+
+/**
+ * Executes a single tick of the simulation.
+ * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
+ *
+ * @param params Object containing the current flow state, current tick count, and store setters/getters.
+ */
+const runSimulationTick = (params: {
+  state: FlowState,
+  ticks: number,
+  set: (state: Partial<FlowState>) => void,
+  get: () => FlowState
+}) => {
+  const { state, ticks, set, get } = params;
+  const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
+  const newMetrics = { ...currentMetrics };
+  const updatedNodes = [...currentNodes];
+  let hasOverallChanges = false;
+
+  const { edgeMap, targetEdgeMap } = buildEdgeMaps(currentEdges);
+  const { workloads, internetNodes, nodeMap, childPodMap, nodeIndexMap } = classifyNodes(currentNodes);
 
   const ctx: SimulationContext = {
     nodes: currentNodes,
@@ -207,58 +289,12 @@ const runSimulationTick = (params: {
     const points = newMetrics[dep.id] || [];
     const lastPoint = points[points.length - 1];
     if (lastPoint) {
-      const newLines: string[] = [];
-
-      // Simulated traffic logs
-      const trafficAmount = Math.round(lastPoint.cpuPercent * 1.5); // proxy for traffic load
-      if (trafficAmount > 0 && safeRandom() > 0.4) {
-        const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/favicon.ico'];
-        const path = paths[Math.floor(safeRandom() * paths.length)];
-        const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
-        const status = lastPoint.isOOM ? '503 Service Unavailable' : '200 OK';
-        newLines.push(`[${new Date().toLocaleTimeString()}] ${clientIp} - GET ${path} - ${status}`);
-      }
-
-      if (lastPoint.isOOM) {
-        newLines.push(`[${new Date().toLocaleTimeString()}] [FATAL] Out of Memory (OOM) error occurred. Container crashed.`);
-      } else if (lastPoint.isThrottled) {
-        newLines.push(`[${new Date().toLocaleTimeString()}] [WARNING] CPU limit reached! Requests are being throttled.`);
-      }
-
-      if (newLines.length > 0) {
-        set((state) => {
-          const currentPodLogs = state.terminalLogs[dep.id] || [];
-          return {
-            terminalLogs: {
-              ...state.terminalLogs,
-              [dep.id]: [...currentPodLogs, ...newLines].slice(-150)
-            }
-          };
-        });
-      }
+      simulateWorkloadLogs(dep, lastPoint, set);
     }
   });
 
   // Append pod creation activity logs on ticks 1, 2, and 3
-  if (ticks === 1) {
-    const lines = workloads.map(w => {
-      const name = w.data.label || w.id;
-      return `${name.padEnd(38)} 0/1     Pending             0          1s`;
-    });
-    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
-  } else if (ticks === 2) {
-    const lines = workloads.map(w => {
-      const name = w.data.label || w.id;
-      return `${name.padEnd(38)} 0/1     ContainerCreating   0          2s`;
-    });
-    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
-  } else if (ticks === 3) {
-    const lines = workloads.map(w => {
-      const name = w.data.label || w.id;
-      return `${name.padEnd(38)} 1/1     Running             0          3s`;
-    });
-    set(state => ({ activityLogs: [...state.activityLogs, ...lines] }));
-  }
+  handleTicksActivityLogs(ticks, workloads, set);
 
   set({ simulationMetrics: newMetrics, ...(hasOverallChanges ? { nodes: updatedNodes } : {}) });
 
@@ -266,6 +302,73 @@ const runSimulationTick = (params: {
   if (!checkEmergencyStop(stopParams)) {
     broadcastMetrics(newMetrics, updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)));
   }
+};
+
+/**
+ * Returns group strings based on resource types for yaml activity logs
+ */
+const getResourceGroup = (type: string) => {
+  if (type === 'Deployment' || type === 'ReplicaSet') {
+    return '.apps';
+  } else if (type === 'Ingress') {
+    return '.networking.k8s.io';
+  } else if (type === 'HPA') {
+    return '.autoscaling';
+  }
+  return '';
+};
+
+/**
+ * Build initial list of activity logs
+ */
+const buildInitialActivity = (nodes: Node[]) => {
+  const initialActivity: string[] = [
+    `$ kubectl apply -f k8s-manifest.yaml`,
+  ];
+
+  const k8sResources = nodes.filter(n =>
+    ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
+  );
+
+  if (k8sResources.length > 0) {
+    k8sResources.forEach(n => {
+      const typeLower = n.type.toLowerCase();
+      const group = getResourceGroup(n.type);
+      const label = n.data.label || n.id;
+      initialActivity.push(`${typeLower}${group}/${label} created`);
+    });
+  } else {
+    initialActivity.push(`No resources defined in the canvas.`);
+  }
+
+  initialActivity.push(`$ kubectl get pods -w`);
+  initialActivity.push(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
+
+  return initialActivity;
+};
+
+/**
+ * Build initial map of workload logs
+ */
+const buildInitialTerminalLogs = (nodes: Node[]) => {
+  const initialTerminalLogs: Record<string, string[]> = {};
+  nodes.forEach(n => {
+    if (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') {
+      const name = n.data.label || n.id;
+      const image = n.data.image || 'nginx:latest';
+      initialTerminalLogs[n.id] = [
+        `$ kubectl logs ${n.type.toLowerCase()}/${name} -f`,
+        `Initializing container for ${name}...`,
+        `Pulling image "${image}"...`,
+        `Successfully pulled image "${image}" in 1.45s`,
+        `Creating container...`,
+        `Started container!`,
+        `Server is now listening on port 80/tcp`,
+        `[INFO] Application instance is healthy and ready to accept traffic.`,
+      ];
+    }
+  });
+  return initialTerminalLogs;
 };
 
 /**
@@ -315,52 +418,8 @@ const startSimulationInternal = (
       const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
 
       // Clear logs and show terminal
-      const initialActivity: string[] = [
-        `$ kubectl apply -f k8s-manifest.yaml`,
-      ];
-
-      const k8sResources = nodes.filter(n =>
-        ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
-      );
-
-      if (k8sResources.length > 0) {
-        k8sResources.forEach(n => {
-          const typeLower = n.type.toLowerCase();
-          let group = '';
-          if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
-            group = '.apps';
-          } else if (n.type === 'Ingress') {
-            group = '.networking.k8s.io';
-          } else if (n.type === 'HPA') {
-            group = '.autoscaling';
-          }
-          const label = n.data.label || n.id;
-          initialActivity.push(`${typeLower}${group}/${label} created`);
-        });
-      } else {
-        initialActivity.push(`No resources defined in the canvas.`);
-      }
-
-      initialActivity.push(`$ kubectl get pods -w`);
-      initialActivity.push(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
-
-      const initialTerminalLogs: Record<string, string[]> = {};
-      nodes.forEach(n => {
-        if (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') {
-          const name = n.data.label || n.id;
-          const image = n.data.image || 'nginx:latest';
-          initialTerminalLogs[n.id] = [
-            `$ kubectl logs ${n.type.toLowerCase()}/${name} -f`,
-            `Initializing container for ${name}...`,
-            `Pulling image "${image}"...`,
-            `Successfully pulled image "${image}" in 1.45s`,
-            `Creating container...`,
-            `Started container!`,
-            `Server is now listening on port 80/tcp`,
-            `[INFO] Application instance is healthy and ready to accept traffic.`,
-          ];
-        }
-      });
+      const initialActivity = buildInitialActivity(nodes);
+      const initialTerminalLogs = buildInitialTerminalLogs(nodes);
 
       set({
         isSimulating: true,
@@ -386,6 +445,32 @@ const startSimulationInternal = (
         }
         runSimulationTick({ state, ticks, set, get });
       }, 1000);
+};
+
+/**
+ * Refactored simulation stop logic to keep cognitive complexity low
+ */
+const handleStopSimulation = (
+  nodes: Node[],
+  set: (state: Partial<FlowState>) => void,
+  get: () => FlowState
+) => {
+  stopSimulationInternal(set, get, simulationIntervalObj);
+  const deleteActivity: string[] = [
+    `$ kubectl delete -f k8s-manifest.yaml`,
+  ];
+  const k8sResources = nodes.filter(n =>
+    ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
+  );
+  k8sResources.forEach(n => {
+    const typeLower = n.type.toLowerCase();
+    const group = getResourceGroup(n.type);
+    const label = n.data.label || n.id;
+    deleteActivity.push(`${typeLower}${group}/${label} deleted`);
+  });
+  set((state) => ({
+    activityLogs: [...state.activityLogs, ...deleteActivity].slice(-200)
+  }));
 };
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
@@ -538,29 +623,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
    * Public action to stop the simulation.
    */
   stopSimulation: () => {
-    stopSimulationInternal(set, get, simulationIntervalObj);
     const { nodes } = get();
-    const deleteActivity: string[] = [
-      `$ kubectl delete -f k8s-manifest.yaml`,
-    ];
-    const k8sResources = nodes.filter(n =>
-      ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
-    );
-    k8sResources.forEach(n => {
-      const typeLower = n.type.toLowerCase();
-      let group = '';
-      if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
-        group = '.apps';
-      } else if (n.type === 'Ingress') {
-        group = '.networking.k8s.io';
-      } else if (n.type === 'HPA') {
-        group = '.autoscaling';
-      }
-      const label = n.data.label || n.id;
-      deleteActivity.push(`${typeLower}${group}/${label} deleted`);
-    });
-    set((state) => ({
-      activityLogs: [...state.activityLogs, ...deleteActivity].slice(-200)
-    }));
+    handleStopSimulation(nodes, set, get);
   },
 });

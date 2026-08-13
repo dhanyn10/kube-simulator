@@ -1,7 +1,133 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play } from 'lucide-react';
+
+// Helper functions to handle kubectl commands and reduce cognitive complexity of TerminalPanel
+
+const handleGetPods = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
+  const workloads = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
+  if (workloads.length === 0) {
+    addActivityLog('No pods or workloads found on the canvas.');
+    return;
+  }
+  addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
+  workloads.forEach(w => {
+    const name = w.data.label || w.id;
+    const status = w.data.status || (isSimulating ? 'Running' : 'Pending');
+    const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
+    const displayStatus = status === 'ready' ? 'Running' : (status === 'pending' ? 'Pending' : status);
+    addActivityLog(`${String(name).padEnd(38)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          45s`);
+  });
+};
+
+const handleGetDeployments = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
+  const deploys = nodes.filter(n => n.type === 'Deployment');
+  if (deploys.length === 0) {
+    addActivityLog('No deployments found on the canvas.');
+    return;
+  }
+  addActivityLog(`${"NAME".padEnd(30)} READY   UP-TO-DATE   AVAILABLE   AGE`);
+  deploys.forEach(d => {
+    const name = d.data.label || d.id;
+    const replicas = d.data.replicas || 1;
+    const status = isSimulating ? `${replicas}/${replicas}` : `0/${replicas}`;
+    addActivityLog(`${String(name).padEnd(30)} ${status.padEnd(7)} ${String(replicas).padEnd(12)} ${String(isSimulating ? replicas : 0).padEnd(11)} 2m`);
+  });
+};
+
+const handleGetServices = (addActivityLog: (line: string) => void, nodes: Node[]) => {
+  const svcs = nodes.filter(n => n.type === 'Service');
+  if (svcs.length === 0) {
+    addActivityLog('No services found on the canvas.');
+    return;
+  }
+  addActivityLog(`${"NAME".padEnd(30)} TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)`);
+  svcs.forEach(s => {
+    const name = s.data.label || s.id;
+    const port = s.data.port || 80;
+    addActivityLog(`${String(name).padEnd(30)} ClusterIP   10.96.4.52   <none>        ${port}/TCP`);
+  });
+};
+
+const handleLogsCommand = (
+  cmd: string,
+  addActivityLog: (line: string) => void,
+  nodes: Node[],
+  setTerminalSelectedResourceId: (id: string | null) => void,
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void
+): boolean => {
+  const logsMatch = cmd.match(/^kubectl\s+logs\s+([a-zA-Z0-9\-\/]+)/i);
+  if (!logsMatch) return false;
+
+  let targetName = logsMatch[1].toLowerCase();
+  if (targetName.startsWith('pod/')) targetName = targetName.substring(4);
+  if (targetName.startsWith('deployment/')) targetName = targetName.substring(11);
+  if (targetName.startsWith('deploy/')) targetName = targetName.substring(7);
+
+  const foundNode = nodes.find(n =>
+    ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type) &&
+    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+  );
+
+  if (foundNode) {
+    setTerminalSelectedResourceId(foundNode.id);
+    setTerminalActiveTab('logs');
+    addActivityLog(`Switched console output stream to logs for resource: ${foundNode.type.toLowerCase()}/${targetName}`);
+  } else {
+    addActivityLog(`Error from server (NotFound): resource "${targetName}" not found`);
+  }
+  return true;
+};
+
+const handleDescribeCommand = (
+  cmd: string,
+  addActivityLog: (line: string) => void,
+  nodes: Node[],
+  isSimulating: boolean
+): boolean => {
+  const describeMatch = cmd.match(/^kubectl\s+describe\s+(pod|deployment|deploy)\s+([a-zA-Z0-9\-]+)/i);
+  if (!describeMatch) return false;
+
+  const type = describeMatch[1].toLowerCase();
+  const targetName = describeMatch[2].toLowerCase();
+
+  const foundNode = nodes.find(n =>
+    (n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment')) &&
+    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+  );
+
+  if (foundNode) {
+    const name = foundNode.data.label || foundNode.id;
+    const status = foundNode.data.status || (isSimulating ? 'Running' : 'Pending');
+    const image = foundNode.data.image || 'nginx:latest';
+    const cpu = foundNode.data.cpuLimit || '500m';
+    const memory = foundNode.data.memoryLimit || '256Mi';
+
+    addActivityLog(`Name:         ${name}`);
+    addActivityLog(`Namespace:    default`);
+    addActivityLog(`Status:       ${status}`);
+    addActivityLog(`IP:           10.244.0.${Math.floor(safeRandom() * 253) + 2}`);
+    addActivityLog(`Containers:`);
+    addActivityLog(`  app-container:`);
+    addActivityLog(`    Image:      ${image}`);
+    addActivityLog(`    Limits:`);
+    addActivityLog(`      cpu:      ${cpu}`);
+    addActivityLog(`      memory:   ${memory}`);
+    addActivityLog(`Events:`);
+    addActivityLog(`  Type    Reason     Age   From               Message`);
+    addActivityLog(`  ----    ------     ----  ----               -------`);
+    addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} to minikube-worker-1`);
+    addActivityLog(`  Normal  Pulling    50s   kubelet            Pulling image "${image}"`);
+    addActivityLog(`  Normal  Pulled     45s   kubelet            Successfully pulled image "${image}"`);
+    addActivityLog(`  Normal  Created    44s   kubelet            Created container app-container`);
+    addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
+  } else {
+    addActivityLog(`Error from server (NotFound): ${type} "${targetName}" not found`);
+  }
+  return true;
+};
 
 export const TerminalPanel = () => {
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
@@ -25,6 +151,29 @@ export const TerminalPanel = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 25;
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Tab dynamic class computed independently to avoid nested ternaries
+  const activityTabClass = useMemo(() => {
+    if (terminalActiveTab === 'activity') {
+      const colorClass = colorMode === 'dark' ? " text-white" : " text-slate-900";
+      return "border-blue-500 font-black" + colorClass;
+    }
+    if (colorMode === 'dark') {
+      return "border-transparent text-slate-500 hover:text-slate-300";
+    }
+    return "border-transparent text-slate-400 hover:text-slate-600";
+  }, [terminalActiveTab, colorMode]);
+
+  const logsTabClass = useMemo(() => {
+    if (terminalActiveTab === 'logs') {
+      const colorClass = colorMode === 'dark' ? " text-white" : " text-slate-900";
+      return "border-blue-500 font-black" + colorClass;
+    }
+    if (colorMode === 'dark') {
+      return "border-transparent text-slate-500 hover:text-slate-300";
+    }
+    return "border-transparent text-slate-400 hover:text-slate-600";
+  }, [terminalActiveTab, colorMode]);
 
   // Reset page when tab, resource, or query changes
   useEffect(() => {
@@ -178,119 +327,163 @@ export const TerminalPanel = () => {
       cmdLower === 'kubectl get pods -w' ||
       cmdLower === 'kubectl get pod -w'
     ) {
-      const workloads = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
-      if (workloads.length === 0) {
-        addActivityLog('No pods or workloads found on the canvas.');
-        return;
-      }
-      addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
-      workloads.forEach(w => {
-        const name = w.data.label || w.id;
-        const status = w.data.status || (isSimulating ? 'Running' : 'Pending');
-        const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
-        const displayStatus = status === 'ready' ? 'Running' : (status === 'pending' ? 'Pending' : status);
-        addActivityLog(`${name.padEnd(38)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          45s`);
-      });
+      handleGetPods(addActivityLog, nodes, isSimulating);
       return;
     }
 
     if (cmdLower === 'kubectl get deployments' || cmdLower === 'kubectl get deployment' || cmdLower === 'kubectl get deploy') {
-      const deploys = nodes.filter(n => n.type === 'Deployment');
-      if (deploys.length === 0) {
-        addActivityLog('No deployments found on the canvas.');
-        return;
-      }
-      addActivityLog(`${"NAME".padEnd(30)} READY   UP-TO-DATE   AVAILABLE   AGE`);
-      deploys.forEach(d => {
-        const name = d.data.label || d.id;
-        const replicas = d.data.replicas || 1;
-        const status = isSimulating ? `${replicas}/${replicas}` : `0/${replicas}`;
-        addActivityLog(`${name.padEnd(30)} ${status.padEnd(7)} ${String(replicas).padEnd(12)} ${String(isSimulating ? replicas : 0).padEnd(11)} 2m`);
-      });
+      handleGetDeployments(addActivityLog, nodes, isSimulating);
       return;
     }
 
     if (cmdLower === 'kubectl get services' || cmdLower === 'kubectl get service' || cmdLower === 'kubectl get svc') {
-      const svcs = nodes.filter(n => n.type === 'Service');
-      if (svcs.length === 0) {
-        addActivityLog('No services found on the canvas.');
-        return;
-      }
-      addActivityLog(`${"NAME".padEnd(30)} TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)`);
-      svcs.forEach(s => {
-        const name = s.data.label || s.id;
-        const port = s.data.port || 80;
-        addActivityLog(`${name.padEnd(30)} ClusterIP   10.96.4.52   <none>        ${port}/TCP`);
-      });
+      handleGetServices(addActivityLog, nodes);
       return;
     }
 
-    // Match "kubectl logs <pod-name>"
-    const logsMatch = cmd.match(/^kubectl\s+logs\s+([a-zA-Z0-9\-\/]+)/i);
-    if (logsMatch) {
-      let targetName = logsMatch[1].toLowerCase();
-      if (targetName.startsWith('pod/')) targetName = targetName.substring(4);
-      if (targetName.startsWith('deployment/')) targetName = targetName.substring(11);
-      if (targetName.startsWith('deploy/')) targetName = targetName.substring(7);
-
-      const foundNode = nodes.find(n =>
-        ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type) &&
-        (n.id.toLowerCase() === targetName || (n.data.label && n.data.label.toLowerCase() === targetName))
-      );
-
-      if (foundNode) {
-        setTerminalSelectedResourceId(foundNode.id);
-        setTerminalActiveTab('logs');
-        addActivityLog(`Switched console output stream to logs for resource: ${foundNode.type.toLowerCase()}/${targetName}`);
-      } else {
-        addActivityLog(`Error from server (NotFound): resource "${targetName}" not found`);
-      }
+    if (handleLogsCommand(cmd, addActivityLog, nodes, setTerminalSelectedResourceId, setTerminalActiveTab)) {
       return;
     }
 
-    // Match "kubectl describe pod <name>" or "kubectl describe deploy <name>"
-    const describeMatch = cmd.match(/^kubectl\s+describe\s+(pod|deployment|deploy)\s+([a-zA-Z0-9\-]+)/i);
-    if (describeMatch) {
-      const type = describeMatch[1].toLowerCase();
-      const targetName = describeMatch[2].toLowerCase();
-
-      const foundNode = nodes.find(n =>
-        (n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment')) &&
-        (n.id.toLowerCase() === targetName || (n.data.label && n.data.label.toLowerCase() === targetName))
-      );
-
-      if (foundNode) {
-        const name = foundNode.data.label || foundNode.id;
-        const status = foundNode.data.status || (isSimulating ? 'Running' : 'Pending');
-        const image = foundNode.data.image || 'nginx:latest';
-        const cpu = foundNode.data.cpuLimit || '500m';
-        const memory = foundNode.data.memoryLimit || '256Mi';
-
-        addActivityLog(`Name:         ${name}`);
-        addActivityLog(`Namespace:    default`);
-        addActivityLog(`Status:       ${status}`);
-        addActivityLog(`IP:           10.244.0.${Math.floor(safeRandom() * 253) + 2}`);
-        addActivityLog(`Containers:`);
-        addActivityLog(`  app-container:`);
-        addActivityLog(`    Image:      ${image}`);
-        addActivityLog(`    Limits:`);
-        addActivityLog(`      cpu:      ${cpu}`);
-        addActivityLog(`      memory:   ${memory}`);
-        addActivityLog(`Events:`);
-        addActivityLog(`  Type    Reason     Age   From               Message`);
-        addActivityLog(`  ----    ------     ----  ----               -------`);
-        addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} to minikube-worker-1`);
-        addActivityLog(`  Normal  Pulling    50s   kubelet            Pulling image "${image}"`);
-        addActivityLog(`  Normal  Pulled     45s   kubelet            Successfully pulled image "${image}"`);
-        addActivityLog(`  Normal  Created    44s   kubelet            Created container app-container`);
-        addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
-      } else {
-        addActivityLog(`Error from server (NotFound): ${type} "${targetName}" not found`);
-      }
+    if (handleDescribeCommand(cmd, addActivityLog, nodes, isSimulating)) {
       return;
     }
 
     addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
+  };
+
+  const renderTerminalContent = () => {
+    if (!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0) {
+      return (
+        <div className={cn(
+          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+        )}>
+          <Box size={24} className="opacity-25" />
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
+            <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => startSimulation()}
+            className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
+          >
+            <Play size={10} fill="currentColor" /> Apply Manifests
+          </button>
+        </div>
+      );
+    }
+
+    if (terminalActiveTab === 'logs' && loggableResources.length === 0) {
+      return (
+        <div className={cn(
+          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+        )}>
+          <Layers size={24} className="opacity-25" />
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
+            <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1">
+          {paginatedLogs.length === 0 ? (
+            <div className={cn(
+              "h-full flex items-center justify-center",
+              colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+            )}>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                {searchQuery ? "No matches found" : "Waiting for log stream..."}
+              </span>
+            </div>
+          ) : (
+            paginatedLogs.map((line, index) => {
+              const actualIndex = terminalActiveTab === 'logs'
+                ? (currentPage - 1) * PAGE_SIZE + index
+                : index;
+              return (
+                <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+                  {formatLogLine(line)}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Pagination Controls for logs - Sticky at the bottom */}
+        {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
+          <div className={cn(
+            "sticky bottom-0 left-0 right-0 flex items-center justify-between mt-3 pt-2 pb-1 border-t text-[10px] select-none font-mono z-10 backdrop-blur-md",
+            colorMode === 'dark' ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
+          )}>
+            <div>
+              Showing {Math.min(filteredLogs.length, (currentPage - 1) * PAGE_SIZE + 1)}-{Math.min(filteredLogs.length, currentPage * PAGE_SIZE)} of {filteredLogs.length} logs
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className={cn(
+                  "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
+                  colorMode === 'dark'
+                    ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                    : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+                )}
+              >
+                Prev
+              </button>
+              <span className="font-bold">Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className={cn(
+                  "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
+                  colorMode === 'dark'
+                    ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                    : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+                )}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
+        {terminalActiveTab === 'activity' && (
+          <form onSubmit={handleCommandSubmit} className={cn(
+            "flex items-center gap-2 mt-2 select-text",
+            colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
+          )}>
+            <span className={cn("font-bold select-none", colorMode === 'dark' ? "text-cyan-400" : "text-cyan-600")}>$</span>
+            <input
+              type="text"
+              value={commandInput}
+              onChange={(e) => setCommandInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              spellCheck="false"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
+              className={cn(
+                "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
+                colorMode === 'dark' ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
+              )}
+              data-testid="terminal-cli-input"
+            />
+          </form>
+        )}
+      </div>
+    );
   };
 
   if (!isTerminalOpen) {
@@ -346,9 +539,7 @@ export const TerminalPanel = () => {
               onClick={() => setTerminalActiveTab('activity')}
               className={cn(
                 "h-full px-2.5 transition-colors border-b-2",
-                terminalActiveTab === 'activity'
-                  ? "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900")
-                  : (colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600")
+                activityTabClass
               )}
             >
               Kubectl Activity
@@ -358,9 +549,7 @@ export const TerminalPanel = () => {
               onClick={() => setTerminalActiveTab('logs')}
               className={cn(
                 "h-full px-2.5 transition-colors border-b-2",
-                terminalActiveTab === 'logs'
-                  ? "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900")
-                  : (colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600")
+                logsTabClass
               )}
             >
               Kube Logs
@@ -442,129 +631,7 @@ export const TerminalPanel = () => {
         "flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar relative",
         colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
       )}>
-        {!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0 ? (
-          <div className={cn(
-            "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
-            colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-          )}>
-            <Box size={24} className="opacity-25" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
-              <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => startSimulation()}
-              className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
-            >
-              <Play size={10} fill="currentColor" /> Apply Manifests
-            </button>
-          </div>
-        ) : terminalActiveTab === 'logs' && loggableResources.length === 0 ? (
-          <div className={cn(
-            "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
-            colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-          )}>
-            <Layers size={24} className="opacity-25" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
-              <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col h-full">
-            <div className="flex-1">
-              {paginatedLogs.length === 0 ? (
-                <div className={cn(
-                  "h-full flex items-center justify-center",
-                  colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-                )}>
-                  <span className="text-[10px] uppercase font-bold tracking-wider">
-                    {searchQuery ? "No matches found" : "Waiting for log stream..."}
-                  </span>
-                </div>
-              ) : (
-                paginatedLogs.map((line, index) => {
-                  const actualIndex = terminalActiveTab === 'logs'
-                    ? (currentPage - 1) * PAGE_SIZE + index
-                    : index;
-                  return (
-                    <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-                      {formatLogLine(line)}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Pagination Controls for logs - Sticky at the bottom */}
-            {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
-              <div className={cn(
-                "sticky bottom-0 left-0 right-0 flex items-center justify-between mt-3 pt-2 pb-1 border-t text-[10px] select-none font-mono z-10 backdrop-blur-md",
-                colorMode === 'dark' ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
-              )}>
-                <div>
-                  Showing {Math.min(filteredLogs.length, (currentPage - 1) * PAGE_SIZE + 1)}-{Math.min(filteredLogs.length, currentPage * PAGE_SIZE)} of {filteredLogs.length} logs
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    className={cn(
-                      "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
-                      colorMode === 'dark'
-                        ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-                        : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-                    )}
-                  >
-                    Prev
-                  </button>
-                  <span className="font-bold">Page {currentPage} of {totalPages}</span>
-                  <button
-                    type="button"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className={cn(
-                      "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
-                      colorMode === 'dark'
-                        ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-                        : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-                    )}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
-            {terminalActiveTab === 'activity' && (
-              <form onSubmit={handleCommandSubmit} className={cn(
-                "flex items-center gap-2 mt-2 select-text",
-                colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
-              )}>
-                <span className={cn("font-bold select-none", colorMode === 'dark' ? "text-cyan-400" : "text-cyan-600")}>$</span>
-                <input
-                  type="text"
-                  value={commandInput}
-                  onChange={(e) => setCommandInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  spellCheck="false"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
-                  className={cn(
-                    "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
-                    colorMode === 'dark' ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
-                  )}
-                  data-testid="terminal-cli-input"
-                />
-              </form>
-            )}
-          </div>
-        )}
+        {renderTerminalContent()}
         <div ref={terminalEndRef} />
       </div>
     </div>
