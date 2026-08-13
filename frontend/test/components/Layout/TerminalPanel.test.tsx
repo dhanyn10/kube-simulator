@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand } from '../../../src/components/Layout/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
@@ -15,6 +15,7 @@ describe('TerminalPanel', () => {
     state.setTerminalActiveTab('activity');
     state.setTerminalSelectedResourceId(null);
     useFlowStore.setState({
+      colorMode: 'dark',
       nodes: [
         { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
         { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep' }, position: { x: 10, y: 10 } }
@@ -29,7 +30,9 @@ describe('TerminalPanel', () => {
   });
 
   it('renders full terminal panel when isTerminalOpen is true', () => {
-    useFlowStore.setState({ isTerminalOpen: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true });
+    });
     render(<TerminalPanel />);
     expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
     expect(screen.getByText('Kube Console')).toBeInTheDocument();
@@ -38,9 +41,11 @@ describe('TerminalPanel', () => {
   });
 
   it('renders kubectl activity logs', () => {
-    useFlowStore.setState({
-      isTerminalOpen: true,
-      activityLogs: ['$ kubectl apply -f manifest.yaml', 'deployment.apps/api-dep created']
+    act(() => {
+      useFlowStore.setState({
+        isTerminalOpen: true,
+        activityLogs: ['$ kubectl apply -f manifest.yaml', 'deployment.apps/api-dep created']
+      });
     });
 
     render(<TerminalPanel />);
@@ -49,7 +54,9 @@ describe('TerminalPanel', () => {
   });
 
   it('allows switching tabs', () => {
-    useFlowStore.setState({ isTerminalOpen: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true });
+    });
     render(<TerminalPanel />);
 
     const logsTab = screen.getByText('Kube Logs');
@@ -59,9 +66,11 @@ describe('TerminalPanel', () => {
   });
 
   it('allows filtering logs via search', () => {
-    useFlowStore.setState({
-      isTerminalOpen: true,
-      activityLogs: ['line one', 'line two', 'another line']
+    act(() => {
+      useFlowStore.setState({
+        isTerminalOpen: true,
+        activityLogs: ['line one', 'line two', 'another line']
+      });
     });
 
     render(<TerminalPanel />);
@@ -77,7 +86,9 @@ describe('TerminalPanel', () => {
   });
 
   it('handles help command', () => {
-    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
     render(<TerminalPanel />);
 
     const input = screen.getByTestId('terminal-cli-input');
@@ -88,7 +99,9 @@ describe('TerminalPanel', () => {
   });
 
   it('handles kubectl get pods command', () => {
-    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
     render(<TerminalPanel />);
 
     const input = screen.getByTestId('terminal-cli-input');
@@ -99,7 +112,9 @@ describe('TerminalPanel', () => {
   });
 
   it('handles kubectl get pods -w command', () => {
-    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
     render(<TerminalPanel />);
 
     const input = screen.getByTestId('terminal-cli-input');
@@ -110,7 +125,9 @@ describe('TerminalPanel', () => {
   });
 
   it('navigates through command history with Up and Down arrows', () => {
-    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
     render(<TerminalPanel />);
 
     const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
@@ -141,12 +158,14 @@ describe('TerminalPanel', () => {
   });
 
   it('handles kubectl get services command', () => {
-    useFlowStore.setState({
-      isTerminalOpen: true,
-      isSimulating: true,
-      nodes: [
-        { id: 'svc-1', type: 'Service', data: { label: 'web-service', port: 80 }, position: { x: 0, y: 0 } }
-      ]
+    act(() => {
+      useFlowStore.setState({
+        isTerminalOpen: true,
+        isSimulating: true,
+        nodes: [
+          { id: 'svc-1', type: 'Service', data: { label: 'web-service', port: 80 }, position: { x: 0, y: 0 } }
+        ]
+      });
     });
     render(<TerminalPanel />);
 
@@ -158,7 +177,9 @@ describe('TerminalPanel', () => {
   });
 
   it('handles kubectl describe pod command', () => {
-    useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
     render(<TerminalPanel />);
 
     const input = screen.getByTestId('terminal-cli-input');
@@ -172,11 +193,13 @@ describe('TerminalPanel', () => {
   it('paginates logs in Kubernetes Logs tab', () => {
     // Generate 60 mock log lines for pod-1
     const testLogs = Array.from({ length: 60 }, (_, i) => `log line ${i + 1}`);
-    useFlowStore.setState({
-      isTerminalOpen: true,
-      terminalActiveTab: 'logs',
-      terminalSelectedResourceId: 'pod-1',
-      terminalLogs: { 'pod-1': testLogs }
+    act(() => {
+      useFlowStore.setState({
+        isTerminalOpen: true,
+        terminalActiveTab: 'logs',
+        terminalSelectedResourceId: 'pod-1',
+        terminalLogs: { 'pod-1': testLogs }
+      });
     });
 
     render(<TerminalPanel />);
@@ -282,6 +305,83 @@ describe('TerminalPanel', () => {
       const result = handleDescribeCommand('kubectl describe pod found-pod', addLog, nodes, true);
       expect(result).toBe(true);
       expect(addLog).toHaveBeenCalledWith(expect.stringContaining('Name:         found-pod'));
+    });
+  });
+
+  describe('additional styling and behavior tests', () => {
+    it('applies correct tab highlight classes based on colorMode and active status', () => {
+      act(() => {
+        useFlowStore.setState({ isTerminalOpen: true, terminalActiveTab: 'activity', colorMode: 'dark' });
+      });
+      const { rerender } = render(<TerminalPanel />);
+      let activityTab = screen.getByText('Kubectl Activity');
+      expect(activityTab.className).toContain('text-white');
+
+      act(() => {
+        useFlowStore.setState({ colorMode: 'light' });
+      });
+      rerender(<TerminalPanel />);
+      activityTab = screen.getByText('Kubectl Activity');
+      expect(activityTab.className).toContain('text-slate-900');
+
+      act(() => {
+        useFlowStore.setState({ terminalActiveTab: 'logs', colorMode: 'dark' });
+      });
+      rerender(<TerminalPanel />);
+      activityTab = screen.getByText('Kubectl Activity');
+      expect(activityTab.className).toContain('text-slate-500');
+
+      act(() => {
+        useFlowStore.setState({ colorMode: 'light' });
+      });
+      rerender(<TerminalPanel />);
+      activityTab = screen.getByText('Kubectl Activity');
+      expect(activityTab.className).toContain('text-slate-400');
+    });
+
+    it('disables Prev/Next pagination buttons correctly on first and last page boundaries', () => {
+      const testLogs = Array.from({ length: 30 }, (_, i) => `log line ${i + 1}`);
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'pod-1',
+          terminalLogs: { 'pod-1': testLogs }
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const prevBtn = screen.getByRole('button', { name: 'Prev' });
+      const nextBtn = screen.getByRole('button', { name: 'Next' });
+
+      expect(prevBtn).toBeDisabled();
+      expect(nextBtn).not.toBeDisabled();
+
+      fireEvent.click(nextBtn);
+
+      expect(prevBtn).not.toBeDisabled();
+      expect(nextBtn).toBeDisabled();
+    });
+
+    it('highlights matched search queries within logs', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'pod-1',
+          terminalLogs: { 'pod-1': ['Executing system logs for database connection'] }
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const searchInput = screen.getByPlaceholderText('Filter logs...');
+      fireEvent.change(searchInput, { target: { value: 'database' } });
+
+      const markElement = screen.getByText('database');
+      expect(markElement).toBeInTheDocument();
+      expect(markElement.tagName).toBe('MARK');
     });
   });
 });
