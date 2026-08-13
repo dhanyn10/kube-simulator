@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TerminalPanel } from '../../../src/components/Layout/TerminalPanel';
+import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand } from '../../../src/components/Layout/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 
@@ -206,5 +206,82 @@ describe('TerminalPanel', () => {
 
     expect(screen.getByText('log line 25')).toBeInTheDocument();
     expect(screen.queryByText('log line 26')).toBeNull();
+  });
+
+  describe('unit tests for extracted command helpers', () => {
+    it('handleGetPods outputs correct table headers and pod information', () => {
+      const addLog = vi.fn();
+      const nodes = [
+        { id: 'pod-test', type: 'Pod', data: { label: 'test-pod', status: 'ready' } }
+      ] as any;
+      handleGetPods(addLog, nodes, true);
+      expect(addLog).toHaveBeenCalledTimes(2);
+      expect(addLog).toHaveBeenNthCalledWith(1, expect.stringContaining('READY   STATUS'));
+      expect(addLog).toHaveBeenNthCalledWith(2, expect.stringContaining('test-pod'));
+    });
+
+    it('handleGetPods logs correctly when no workloads are found', () => {
+      const addLog = vi.fn();
+      handleGetPods(addLog, [], false);
+      expect(addLog).toHaveBeenCalledWith('No pods or workloads found on the canvas.');
+    });
+
+    it('handleGetDeployments outputs correct deployment table info', () => {
+      const addLog = vi.fn();
+      const nodes = [
+        { id: 'dep-test', type: 'Deployment', data: { label: 'test-dep', replicas: 3 } }
+      ] as any;
+      handleGetDeployments(addLog, nodes, true);
+      expect(addLog).toHaveBeenCalledTimes(2);
+      expect(addLog).toHaveBeenNthCalledWith(2, expect.stringContaining('test-dep'));
+    });
+
+    it('handleGetDeployments logs correctly when no deployments exist', () => {
+      const addLog = vi.fn();
+      handleGetDeployments(addLog, [], false);
+      expect(addLog).toHaveBeenCalledWith('No deployments found on the canvas.');
+    });
+
+    it('handleGetServices logs correctly when no services exist', () => {
+      const addLog = vi.fn();
+      handleGetServices(addLog, []);
+      expect(addLog).toHaveBeenCalledWith('No services found on the canvas.');
+    });
+
+    it('handleLogsCommand returns false when command does not match logs pattern', () => {
+      const result = handleLogsCommand('kubectl get pods', vi.fn(), [], vi.fn(), vi.fn());
+      expect(result).toBe(false);
+    });
+
+    it('handleLogsCommand updates terminal settings when matching workload exists', () => {
+      const addLog = vi.fn();
+      const setSelected = vi.fn();
+      const setActiveTab = vi.fn();
+      const nodes = [
+        { id: 'pod-t', type: 'Pod', data: { label: 'my-pod' } }
+      ] as any;
+
+      const result = handleLogsCommand('kubectl logs pod/my-pod', addLog, nodes, setSelected, setActiveTab);
+      expect(result).toBe(true);
+      expect(setSelected).toHaveBeenCalledWith('pod-t');
+      expect(setActiveTab).toHaveBeenCalledWith('logs');
+      expect(addLog).toHaveBeenCalledWith(expect.stringContaining('Switched console output stream'));
+    });
+
+    it('handleDescribeCommand returns false on non-describe command', () => {
+      const result = handleDescribeCommand('kubectl logs pod-x', vi.fn(), [], false);
+      expect(result).toBe(false);
+    });
+
+    it('handleDescribeCommand logs descriptive output when pod is found', () => {
+      const addLog = vi.fn();
+      const nodes = [
+        { id: 'pod-x', type: 'Pod', data: { label: 'found-pod', cpuLimit: '200m', memoryLimit: '128Mi' } }
+      ] as any;
+
+      const result = handleDescribeCommand('kubectl describe pod found-pod', addLog, nodes, true);
+      expect(result).toBe(true);
+      expect(addLog).toHaveBeenCalledWith(expect.stringContaining('Name:         found-pod'));
+    });
   });
 });

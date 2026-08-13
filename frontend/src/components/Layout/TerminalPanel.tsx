@@ -6,7 +6,7 @@ import { Terminal, X, Trash2, Search, Box, Layers, Play } from 'lucide-react';
 
 // Helper functions to handle kubectl commands and reduce cognitive complexity of TerminalPanel
 
-const handleGetPods = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
+export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
   const workloads = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
   if (workloads.length === 0) {
     addActivityLog('No pods or workloads found on the canvas.');
@@ -22,7 +22,7 @@ const handleGetPods = (addActivityLog: (line: string) => void, nodes: Node[], is
   });
 };
 
-const handleGetDeployments = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
+export const handleGetDeployments = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
   const deploys = nodes.filter(n => n.type === 'Deployment');
   if (deploys.length === 0) {
     addActivityLog('No deployments found on the canvas.');
@@ -37,7 +37,7 @@ const handleGetDeployments = (addActivityLog: (line: string) => void, nodes: Nod
   });
 };
 
-const handleGetServices = (addActivityLog: (line: string) => void, nodes: Node[]) => {
+export const handleGetServices = (addActivityLog: (line: string) => void, nodes: Node[]) => {
   const svcs = nodes.filter(n => n.type === 'Service');
   if (svcs.length === 0) {
     addActivityLog('No services found on the canvas.');
@@ -51,7 +51,7 @@ const handleGetServices = (addActivityLog: (line: string) => void, nodes: Node[]
   });
 };
 
-const handleLogsCommand = (
+export const handleLogsCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
   nodes: Node[],
@@ -81,7 +81,7 @@ const handleLogsCommand = (
   return true;
 };
 
-const handleDescribeCommand = (
+export const handleDescribeCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
   nodes: Node[],
