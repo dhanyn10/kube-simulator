@@ -490,11 +490,11 @@ describe('TerminalPanel', () => {
       fireEvent.submit(input.closest('form')!);
 
       const state = useFlowStore.getState();
-      # Check that 'web-pod' has been deleted
+      // Check that 'web-pod' has been deleted
       const webPodExists = state.nodes.some(n => n.id === 'pod-1');
       expect(webPodExists).toBe(false);
 
-      # Verify that the deployment controller has recreated a pod (self-healing)
+      // Verify that the deployment controller has recreated a pod (self-healing)
       const childPods = state.nodes.filter(n => n.parentId === 'dep-1' && n.type === 'Pod');
       expect(childPods).toHaveLength(1);
       expect(childPods[0].data.status).toBe('pending');
