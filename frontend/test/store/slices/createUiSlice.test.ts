@@ -249,4 +249,91 @@ describe('createUiSlice', () => {
 
     vi.useRealTimers();
   });
+
+  it('transitions pending pods to ready during simulation ticks', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'pod-1', type: 'Pod', parentId: 'd1', data: { label: 'web-pod', status: 'pending', pendingTicks: 0 } }
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'i1', target: 'pod-1' }
+      ] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Advance 1 second to trigger tick 1
+    vi.advanceTimersByTime(1000);
+    let state = useFlowStore.getState();
+    let pod = state.nodes.find(n => n.id === 'pod-1');
+    expect(pod?.data.status).toBe('pending');
+    expect(pod?.data.pendingTicks).toBe(1);
+
+    // Advance 1 more second to trigger tick 2 (should transition to ready/Running)
+    vi.advanceTimersByTime(1000);
+    state = useFlowStore.getState();
+    pod = state.nodes.find(n => n.id === 'pod-1');
+    expect(pod?.data.status).toBe('ready');
+    expect(pod?.data.pendingTicks).toBe(2);
+
+    vi.useRealTimers();
+  });
+
+  it('runs rolling updates for deployments tick-by-tick', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        {
+          id: 'dep-1',
+          type: 'Deployment',
+          data: {
+            label: 'api-dep',
+            isRollingUpdate: true,
+            rolloutTargetImage: 'nginx:alpine',
+            image: 'nginx:latest'
+          }
+        },
+        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-1', status: 'ready', image: 'nginx:latest' } }
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'i1', target: 'dep-1' },
+        { id: 'e2', source: 'dep-1', target: 'pod-1' }
+      ] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Advance 1 second to trigger tick 1: rollout should select pod-1, update image, and make it pending
+    vi.advanceTimersByTime(1000);
+    let state = useFlowStore.getState();
+    let pod = state.nodes.find(n => n.id === 'pod-1');
+    expect(pod?.data.status).toBe('pending');
+    expect(pod?.data.image).toBe('nginx:alpine');
+
+    // Advance 1 more second to trigger tick 2: pod pendingTicks becomes 1 (still pending)
+    vi.advanceTimersByTime(1000);
+    state = useFlowStore.getState();
+    pod = state.nodes.find(n => n.id === 'pod-1');
+    expect(pod?.data.status).toBe('pending');
+
+    // Advance 1 more second to trigger tick 3: pod pendingTicks becomes 2 (transitions to ready)
+    vi.advanceTimersByTime(1000);
+    state = useFlowStore.getState();
+    pod = state.nodes.find(n => n.id === 'pod-1');
+    expect(pod?.data.status).toBe('ready');
+
+    // Advance 1 more second to trigger tick 4: rollout finishes (since pod is ready, no more old pods)
+    vi.advanceTimersByTime(1000);
+    state = useFlowStore.getState();
+    const dep = state.nodes.find(n => n.id === 'dep-1');
+    expect(dep?.data.isRollingUpdate).toBe(false);
+    expect(dep?.data.rolloutStatus).toBe('Successfully rolled out');
+
+    vi.useRealTimers();
+  });
 });
