@@ -384,4 +384,142 @@ describe('TerminalPanel', () => {
       expect(markElement.tagName).toBe('MARK');
     });
   });
+
+  describe('Kubectl new interactive commands', () => {
+    beforeEach(() => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod', status: 'ready', image: 'nginx:latest' }, position: { x: 0, y: 0 } },
+            { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', replicas: 2, image: 'nginx:latest' }, position: { x: 10, y: 10 } }
+          ]
+        });
+      });
+    });
+
+    it('handles scale deployment command', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl scale deployment/api-dep --replicas=5' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const state = useFlowStore.getState();
+      const depNode = state.nodes.find(n => n.id === 'dep-1');
+      expect(depNode?.data.replicas).toBe(5);
+    });
+
+    it('handles set image deployment command', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl set image deployment/api-dep api-container=nginx:alpine' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const state = useFlowStore.getState();
+      const depNode = state.nodes.find(n => n.id === 'dep-1');
+      expect(depNode?.data.isRollingUpdate).toBe(true);
+      expect(depNode?.data.rolloutTargetImage).toBe('nginx:alpine');
+    });
+
+    it('handles rollout status command', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl rollout status deployment/api-dep' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const logs = useFlowStore.getState().activityLogs;
+      expect(logs[logs.length - 1]).toContain('successfully rolled out');
+    });
+
+    it('handles rollout history command', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl rollout history deployment/api-dep' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const logs = useFlowStore.getState().activityLogs;
+      expect(logs.some(line => line.includes('REVISION  CHANGE-CAUSE'))).toBe(true);
+    });
+
+    it('handles rollout undo command', () => {
+      // Setup some revisions first so rollback can be executed
+      act(() => {
+        useFlowStore.setState({
+          nodes: [
+            {
+              id: 'dep-1',
+              type: 'Deployment',
+              data: {
+                label: 'api-dep',
+                replicas: 2,
+                image: 'nginx:alpine',
+                rolloutRevisions: ['nginx:latest', 'nginx:alpine']
+              },
+              position: { x: 10, y: 10 }
+            }
+          ]
+        });
+      });
+
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl rollout undo deployment/api-dep' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const state = useFlowStore.getState();
+      const depNode = state.nodes.find(n => n.id === 'dep-1');
+      expect(depNode?.data.isRollingUpdate).toBe(true);
+      expect(depNode?.data.rolloutTargetImage).toBe('nginx:latest');
+    });
+
+    it('handles delete pod command with self-healing', () => {
+      // Put a pod with a parent deployment so self-healing is triggered
+      act(() => {
+        useFlowStore.setState({
+          nodes: [
+            { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', replicas: 1, image: 'nginx:latest' }, position: { x: 10, y: 10 } },
+            { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'web-pod', status: 'ready', image: 'nginx:latest' }, position: { x: 10, y: 10 } }
+          ]
+        });
+      });
+
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl delete pod web-pod' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const state = useFlowStore.getState();
+      // Check that 'web-pod' has been deleted
+      const webPodExists = state.nodes.some(n => n.id === 'pod-1');
+      expect(webPodExists).toBe(false);
+
+      // Verify that the deployment controller has recreated a pod (self-healing)
+      const childPods = state.nodes.filter(n => n.parentId === 'dep-1' && n.type === 'Pod');
+      expect(childPods).toHaveLength(1);
+      expect(childPods[0].data.status).toBe('pending');
+    });
+
+    it('handles get all command', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl get all' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const logs = useFlowStore.getState().activityLogs;
+      expect(logs.some(line => line.includes('pod/web-pod'))).toBe(true);
+      expect(logs.some(line => line.includes('deployment.apps/api-dep'))).toBe(true);
+    });
+
+    it('handles describe deployment command', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl describe deployment api-dep' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const logs = useFlowStore.getState().activityLogs;
+      expect(logs.some(line => line.includes('Name:                   api-dep'))).toBe(true);
+      expect(logs.some(line => line.includes('StrategyType:           RollingUpdate'))).toBe(true);
+    });
+  });
 });
