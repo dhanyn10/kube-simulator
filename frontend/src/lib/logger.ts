@@ -17,6 +17,20 @@ export const logger = {
     const formatted = formatMessage(message, args);
     useFlowStore.getState().addLog('error', formatted);
   },
+  withScope: (scope: string) => ({
+    info: (message: string, ...args: any[]) => {
+      const formatted = formatMessage(message, args);
+      useFlowStore.getState().addLog('info', formatted, scope);
+    },
+    warn: (message: string, ...args: any[]) => {
+      const formatted = formatMessage(message, args);
+      useFlowStore.getState().addLog('warn', formatted, scope);
+    },
+    error: (message: string, ...args: any[]) => {
+      const formatted = formatMessage(message, args);
+      useFlowStore.getState().addLog('error', formatted, scope);
+    },
+  }),
 };
 
 const formatMessage = (message: string, args: any[]) => {

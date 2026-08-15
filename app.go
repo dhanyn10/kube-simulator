@@ -243,6 +243,49 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
+func (a *App) ExportAndOpenLogFile(content string) bool {
+	if appCtx == nil {
+		return false
+	}
+	var filePath string
+	var err error
+
+	if appCtx.Value(isTestKey) != nil {
+		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok {
+			filePath = testPath
+		} else {
+			filePath = ""
+		}
+	} else {
+		now := time.Now()
+		defaultFilename := fmt.Sprintf("app_logs_%s.log", now.Format("2006-01-02_15-04-05"))
+		filePath, err = wailsRuntime.SaveFileDialog(appCtx, wailsRuntime.SaveDialogOptions{
+			DefaultFilename: defaultFilename,
+			Title:           "Save and Open Log File",
+			Filters: []wailsRuntime.FileFilter{
+				{DisplayName: "Log Files (*.log)", Pattern: "*.log"},
+				{DisplayName: "Text Files (*.txt)", Pattern: "*.txt"},
+			},
+		})
+	}
+
+	if err != nil || filePath == "" {
+		return false
+	}
+
+	err = os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		logger.Error("Error writing log file: %v", err)
+		return false
+	}
+
+	if appCtx.Value(isTestKey) == nil {
+		openInExplorer(filePath)
+	}
+
+	return true
+}
+
 func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false

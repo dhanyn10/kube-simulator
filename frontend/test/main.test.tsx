@@ -112,9 +112,9 @@ describe('main.tsx entry point', () => {
     const callback = mockEventsOn.mock.calls.find((call: any) => call[0] === 'backend-log')[1];
 
     callback({ level: 'info', message: 'backend message' });
-    expect(addLogSpy).toHaveBeenCalledWith('info', '[Backend] backend message');
+    expect(addLogSpy).toHaveBeenCalledWith('info', 'backend message', 'Backend');
 
     callback({ level: 'fatal', message: 'fatal error' });
-    expect(addLogSpy).toHaveBeenCalledWith('error', '[Backend] fatal error');
+    expect(addLogSpy).toHaveBeenCalledWith('error', 'fatal error', 'Backend');
   });
 });

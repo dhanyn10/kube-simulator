@@ -491,12 +491,37 @@ func TestApp_CoverUndercoveredPaths(t *testing.T) {
 	}
 
 	// Test ImportProjectFile read error (with non-existent file path)
-	ctxNonExistent := context.WithValue(context.Background(), isTestKey, true)
-	ctxNonExistent = context.WithValue(ctxNonExistent, testFilePathKey, filepath.Join(tmpDir, "does-not-exist.infra"))
+	ctxNonExistent := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, filepath.Join(tmpDir, "does-not-exist.infra"))
 	appCtx = ctxNonExistent
 	imported = app.ImportProjectFile()
 	if imported != "" {
 		t.Errorf("Expected empty string for non-existent file import, got %s", imported)
+	}
+
+	// 4. Test ExportAndOpenLogFile
+	logFilePath := filepath.Join(tmpDir, "app_test.log")
+	ctxLog := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, logFilePath)
+	appCtx = ctxLog
+
+	logOk := app.ExportAndOpenLogFile("[2025-05-20 10:00:00] [INFO ] [Simulation] Test log content")
+	if !logOk {
+		t.Error("Expected ExportAndOpenLogFile to return true with test log path")
+	}
+
+	logData, err := os.ReadFile(logFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read exported log file: %v", err)
+	}
+	if !strings.Contains(string(logData), "Test log content") {
+		t.Errorf("Expected log file content, got %s", string(logData))
+	}
+
+	// Test ExportAndOpenLogFile failure with empty/invalid path
+	ctxLogInvalid := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, "/invalid/dir/path/test.log")
+	appCtx = ctxLogInvalid
+	logOk = app.ExportAndOpenLogFile("test content")
+	if logOk {
+		t.Error("Expected ExportAndOpenLogFile to return false with invalid path")
 	}
 }
 

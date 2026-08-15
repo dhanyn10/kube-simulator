@@ -41,7 +41,7 @@ EventsOn('backend-log', (data: { level: string, message: string }) => {
   const store = useFlowStore.getState();
   // Map backend levels to frontend levels if necessary
   const logType = level === 'fatal' ? 'error' : (level as any);
-  store.addLog(logType, `[Backend] ${message}`);
+  store.addLog(logType, message, 'Backend');
 });
 
 console.error = (...args: any[]) => {
