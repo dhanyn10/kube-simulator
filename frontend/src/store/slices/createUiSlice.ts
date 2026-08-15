@@ -165,40 +165,62 @@ const classifyNodes = (currentNodes: Node[]) => {
 };
 
 /**
- * Simulates logs generation for a given workload metric point
+ * Generates continuous background log lines for a specific resource node
  */
-const simulateWorkloadLogs = (
-  dep: Node,
-  lastPoint: SimulationMetricPoint,
-  set: (state: Partial<FlowState>) => void
-) => {
-  const newLines: string[] = [];
+const createLogLineForResource = (node: Node, point?: SimulationMetricPoint): string | null => {
+  const timestamp = new Date().toISOString();
+  const name = node.data.label || node.id;
 
-  // Simulated traffic logs
-  const trafficAmount = Math.round(lastPoint.cpuPercent * 1.5); // proxy for traffic load
-  if (trafficAmount > 0 && safeRandom() > 0.4) {
-    const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/favicon.ico'];
+  if (point?.isOOM) {
+    return `[${timestamp}] [FATAL] Out of Memory (OOM) error occurred in container ${name}. Process terminated.`;
+  }
+  if (point?.isThrottled) {
+    return `[${timestamp}] [WARNING] CPU limit reached for ${name}. Container execution throttled.`;
+  }
+
+  if (safeRandom() > 0.3) {
+    const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/healthz', '/metrics'];
     const path = paths[Math.floor(safeRandom() * paths.length)];
     const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
-    const status = lastPoint.isOOM ? '503 Service Unavailable' : '200 OK';
-    newLines.push(`[${new Date().toLocaleTimeString()}] ${clientIp} - GET ${path} - ${status}`);
+    const statusCode = point?.isOOM ? '503' : '200 OK';
+    return `[${timestamp}] ${clientIp} - GET ${path} - ${statusCode} - ${name}`;
   }
 
-  if (lastPoint.isOOM) {
-    newLines.push(`[${new Date().toLocaleTimeString()}] [FATAL] Out of Memory (OOM) error occurred. Container crashed.`);
-  } else if (lastPoint.isThrottled) {
-    newLines.push(`[${new Date().toLocaleTimeString()}] [WARNING] CPU limit reached! Requests are being throttled.`);
+  return null;
+};
+
+/**
+ * Simulates real-time continuous log streams for all loggable resources on each tick
+ */
+const simulateAllResourceLogs = (
+  nodes: Node[],
+  metrics: Record<string, SimulationMetricPoint[]>,
+  set: (state: Partial<FlowState>) => void
+) => {
+  const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
+  if (loggableNodes.length === 0) return;
+
+  const newLogEntries: Record<string, string[]> = {};
+
+  for (const node of loggableNodes) {
+    const metricKey = node.parentId || node.id;
+    const points = metrics[metricKey] || [];
+    const lastPoint = points.at(-1);
+
+    const logLine = createLogLineForResource(node, lastPoint);
+    if (logLine) {
+      newLogEntries[node.id] = [logLine];
+    }
   }
 
-  if (newLines.length > 0) {
+  if (Object.keys(newLogEntries).length > 0) {
     set((state) => {
-      const currentPodLogs = state.terminalLogs[dep.id] || [];
-      return {
-        terminalLogs: {
-          ...state.terminalLogs,
-          [dep.id]: [...currentPodLogs, ...newLines].slice(-150)
-        }
-      };
+      const updatedTerminalLogs = { ...state.terminalLogs };
+      for (const [id, lines] of Object.entries(newLogEntries)) {
+        const existing = updatedTerminalLogs[id] || [];
+        updatedTerminalLogs[id] = [...existing, ...lines].slice(-150);
+      }
+      return { terminalLogs: updatedTerminalLogs };
     });
   }
 };
@@ -399,14 +421,10 @@ const runSimulationTick = (params: {
   workloads.forEach(dep => {
     const { hasChanges } = processWorkloadSimulation(dep, ctx);
     if (hasChanges) hasOverallChanges = true;
-
-    // Simulate logs for this workload
-    const points = newMetrics[dep.id] || [];
-    const lastPoint = points.at(-1);
-    if (lastPoint) {
-      simulateWorkloadLogs(dep, lastPoint, set);
-    }
   });
+
+  // Simulate logs for ALL resources continuously in the background
+  simulateAllResourceLogs(updatedNodes, newMetrics, set);
 
   // Append pod creation activity logs on ticks 1, 2, and 3
   handleTicksActivityLogs(ticks, workloads, set);

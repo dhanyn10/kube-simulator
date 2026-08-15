@@ -336,4 +336,54 @@ describe('createUiSlice', () => {
 
     vi.useRealTimers();
   });
+
+  it('continuously generates logs for all resources in background across resource switching', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'dep-1', type: 'Deployment', data: { label: 'dep-1' } },
+        { id: 'child-pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'child-pod-1', status: 'ready' } },
+        { id: 'standalone-pod-2', type: 'Pod', data: { label: 'standalone-pod-2', status: 'ready' } }
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'i1', target: 'dep-1' }
+      ] as any,
+      terminalSelectedResourceId: 'child-pod-1',
+      terminalLogs: {
+        'child-pod-1': ['initial child log'],
+        'standalone-pod-2': ['initial standalone log']
+      }
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation, setTerminalSelectedResourceId } = useFlowStore.getState();
+    startSimulation();
+
+    // Advance 3 seconds while viewing child-pod-1
+    vi.advanceTimersByTime(3000);
+
+    let state = useFlowStore.getState();
+    const childLogsCount1 = state.terminalLogs['child-pod-1']?.length || 0;
+    const standaloneLogsCount1 = state.terminalLogs['standalone-pod-2']?.length || 0;
+
+    // Both resources should have accumulated logs in the background
+    expect(childLogsCount1).toBeGreaterThan(1);
+    expect(standaloneLogsCount1).toBeGreaterThan(1);
+
+    // Switch selected resource to standalone-pod-2
+    setTerminalSelectedResourceId('standalone-pod-2');
+
+    // Advance 3 more seconds
+    vi.advanceTimersByTime(3000);
+
+    state = useFlowStore.getState();
+    const childLogsCount2 = state.terminalLogs['child-pod-1']?.length || 0;
+    const standaloneLogsCount2 = state.terminalLogs['standalone-pod-2']?.length || 0;
+
+    // Even though standalone-pod-2 was selected, child-pod-1's logs continued to grow in the background
+    expect(childLogsCount2).toBeGreaterThan(childLogsCount1);
+    expect(standaloneLogsCount2).toBeGreaterThan(standaloneLogsCount1);
+
+    vi.useRealTimers();
+  });
 });

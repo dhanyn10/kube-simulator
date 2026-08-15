@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
-import { Terminal, X, Trash2, Search, Box, Layers, Play } from 'lucide-react';
+import { Terminal, X, Trash2, Search, Box, Layers, Play, Download } from 'lucide-react';
 import './TerminalPanel.css';
 import {
   CommandContext,
@@ -125,6 +125,43 @@ export const handleLogsCommand = (
   return true;
 };
 
+export const generateLogFilename = (
+  projectName?: string | null,
+  activeTab?: 'activity' | 'logs',
+  resourceName?: string
+): string => {
+  let baseName = 'kube-simulator';
+  if (projectName) {
+    baseName = projectName.toLowerCase()
+      .replace(/^scenario:\s*/i, 'scenario-')
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+  if (activeTab === 'logs' && resourceName) {
+    const cleanResource = String(resourceName).toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+    baseName = `${baseName}-${cleanResource}`;
+  }
+
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10);
+  const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
+  return `${baseName}_${dateStr}_${timeStr}.log`;
+};
+
+export const exportLogFile = (logs: string[], filename: string) => {
+  const fileHeader = `# Kube Simulator Log Output\n# Exported At: ${new Date().toISOString()}\n# Total Lines: ${logs.length}\n--------------------------------------------------\n`;
+  const content = fileHeader + logs.join('\n');
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export const handleDescribeCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -185,8 +222,16 @@ export const TerminalPanel = () => {
   const clearTerminalLogs = useFlowStore((state) => state.clearTerminalLogs);
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const startSimulation = useFlowStore((state) => state.startSimulation);
+  const currentProject = useFlowStore((state) => state.currentProject);
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
+
+  const handleExportLogs = () => {
+    const selectedNode = nodes.find(n => n.id === terminalSelectedResourceId);
+    const resourceLabel = selectedNode ? (selectedNode.data.label || selectedNode.id) : undefined;
+    const filename = generateLogFilename(currentProject?.name, terminalActiveTab, resourceLabel);
+    exportLogFile(activeLogs, filename);
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [commandInput, setCommandInput] = useState('');
@@ -682,6 +727,18 @@ export const TerminalPanel = () => {
           <div className={cn("h-4 w-px", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
 
           {/* Action buttons */}
+          <button
+            type="button"
+            onClick={handleExportLogs}
+            title="Export Log File"
+            data-testid="terminal-export-log-btn"
+            className={cn(
+              "terminal-action-btn",
+              colorMode === 'dark' ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+            )}
+          >
+            <Download size={12} />
+          </button>
           <button
             type="button"
             onClick={clearTerminalLogs}
