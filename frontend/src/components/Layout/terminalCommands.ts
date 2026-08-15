@@ -15,11 +15,11 @@ export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+scale\s+(deployment|deploy)\/([a-zA-Z0-9\-]+)\s+--replicas=(\d+)/i);
+  const match = /^kubectl\s+scale\s+(deployment|deploy)\/([a-z0-9-]+)\s+--replicas=(\d+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const replicasNum = parseInt(match[3], 10);
+  const replicasNum = Number.parseInt(match[3], 10);
 
   const foundNode = ctx.nodes.find(n =>
     n.type === 'Deployment' &&
@@ -41,7 +41,7 @@ export const handleSetImageCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+set\s+image\s+(deployment|deploy)\/([a-zA-Z0-9\-]+)\s+([a-zA-Z0-9\-]+)?=?([a-zA-Z0-9\-\.\/:]+)/i);
+  const match = /^kubectl\s+set\s+image\s+(deployment|deploy)\/([a-z0-9-]+)\s+([a-z0-9-]+)?=?([a-z0-9./:]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -77,7 +77,7 @@ export const handleRolloutStatusCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+rollout\s+status\s+(deployment|deploy)\/([a-zA-Z0-9\-]+)/i);
+  const match = /^kubectl\s+rollout\s+status\s+(deployment|deploy)\/([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -102,7 +102,7 @@ export const handleRolloutHistoryCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+rollout\s+history\s+(deployment|deploy)\/([a-zA-Z0-9\-]+)/i);
+  const match = /^kubectl\s+rollout\s+history\s+(deployment|deploy)\/([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -127,7 +127,7 @@ export const handleRolloutUndoCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+rollout\s+undo\s+(deployment|deploy)\/([a-zA-Z0-9\-]+)/i);
+  const match = /^kubectl\s+rollout\s+undo\s+(deployment|deploy)\/([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -164,7 +164,7 @@ export const handleDeletePodCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+delete\s+(pod|pods)\s+([a-zA-Z0-9\-]+)/i);
+  const match = /^kubectl\s+delete\s+(pod|pods)\s+([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -224,7 +224,7 @@ export const handleGetAllCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.trim().match(/^kubectl\s+get\s+all$/i);
+  const match = /^kubectl\s+get\s+all$/i.exec(cmd.trim());
   if (!match) return false;
 
   ctx.addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
@@ -234,7 +234,12 @@ export const handleGetAllCommand = (
     const name = p.data.label || p.id;
     const status = p.data.status || (ctx.isSimulating ? 'Running' : 'Pending');
     const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
-    const displayStatus = status === 'ready' ? 'Running' : (status === 'pending' ? 'Pending' : status);
+    let displayStatus = status;
+    if (status === 'ready') {
+      displayStatus = 'Running';
+    } else if (status === 'pending') {
+      displayStatus = 'Pending';
+    }
     ctx.addActivityLog(`pod/${String(name).padEnd(34)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          1m`);
   });
 
@@ -285,7 +290,7 @@ export const handleDescribeDeploymentCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = cmd.match(/^kubectl\s+describe\s+(deployment|deploy)\s+([a-zA-Z0-9\-]+)/i);
+  const match = /^kubectl\s+describe\s+(deployment|deploy)\s+([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();

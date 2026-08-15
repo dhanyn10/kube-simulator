@@ -28,7 +28,12 @@ export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Nod
     const name = w.data.label || w.id;
     const status = w.data.status || (isSimulating ? 'Running' : 'Pending');
     const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
-    const displayStatus = status === 'ready' ? 'Running' : (status === 'pending' ? 'Pending' : status);
+    let displayStatus = status;
+    if (status === 'ready') {
+      displayStatus = 'Running';
+    } else if (status === 'pending') {
+      displayStatus = 'Pending';
+    }
     addActivityLog(`${String(name).padEnd(38)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          45s`);
   });
 };
@@ -291,12 +296,19 @@ export const TerminalPanel = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const parts = line.split(new RegExp(`(${searchQuery})`, 'gi'));
+      const partsWithObjects = parts.map((part, index) => ({
+        key: `part-${index}-${part}`,
+        text: part,
+        isMatch: part.toLowerCase() === q,
+      }));
       return (
         <span className={textClass}>
-          {parts.map((part, i) =>
-            part.toLowerCase() === q ? (
-              <mark key={i} className="bg-yellow-500 text-black px-0.5 rounded">{part}</mark>
-            ) : part
+          {partsWithObjects.map((item) =>
+            item.isMatch ? (
+              <mark key={item.key} className="bg-yellow-500 text-black px-0.5 rounded">{item.text}</mark>
+            ) : (
+              item.text
+            )
           )}
         </span>
       );
@@ -326,7 +338,7 @@ export const TerminalPanel = () => {
     }
   };
 
-  const handleCommandSubmit = (e: React.FormEvent) => {
+  const handleCommandSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const cmd = commandInput.trim();
     if (!cmd) return;
@@ -458,13 +470,20 @@ export const TerminalPanel = () => {
       );
     }
 
-    return paginatedLogs.map((line, index) => {
+    const logItems = paginatedLogs.map((line, index) => {
       const actualIndex = terminalActiveTab === 'logs'
         ? (currentPage - 1) * PAGE_SIZE + index
         : index;
+      return {
+        key: `log-${terminalActiveTab}-${actualIndex}-${line}`,
+        line,
+      };
+    });
+
+    return logItems.map((item) => {
       return (
-        <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-          {formatLogLine(line)}
+        <div key={item.key} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+          {formatLogLine(item.line)}
         </div>
       );
     });
