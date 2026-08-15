@@ -1,0 +1,19 @@
+@import "../../index.css";
+
+/* MenuBar Component Styles */
+
+.menubar-container {
+  @apply h-10 border-b flex items-center px-3 justify-between z-50 select-none relative;
+}
+
+.menubar-dropdown-btn {
+  @apply px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors;
+}
+
+.menubar-dropdown-panel {
+  @apply absolute top-full left-0 mt-1 w-48 rounded-lg shadow-2xl border py-1.5 z-[100];
+}
+
+.menubar-dropdown-item {
+  @apply w-full px-3 py-1.5 text-xs flex items-center justify-between transition-colors text-left font-medium;
+}

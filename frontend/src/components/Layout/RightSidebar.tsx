@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import './RightSidebar.css';
 import {
   Settings,
   Activity,
@@ -43,7 +44,7 @@ export const CanvasWidgetsPanel = ({ nodes, colorMode, visibleWidgets }: CanvasW
             </div>
           </div>
           <div className={cn(
-            "p-4 rounded-xl border",
+            "right-sidebar-card",
             colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
           )}>
             <ResourceBudget />
@@ -68,7 +69,7 @@ export const CanvasWidgetsPanel = ({ nodes, colorMode, visibleWidgets }: CanvasW
           </div>
 
           <div className={cn(
-            "p-3 rounded-xl border flex items-center justify-between",
+            "right-sidebar-stat-card",
             colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
           )}>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Active Objects</span>
@@ -125,7 +126,7 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
 
           {/* Main Config Panel */}
           <div className={cn(
-            "p-4 rounded-xl border min-h-[300px] overflow-visible",
+            "right-sidebar-card min-h-[300px] overflow-visible",
             colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/50" : "bg-slate-50/50 border-slate-100"
           )}>
             {selectedEdge ? (
@@ -206,7 +207,7 @@ export const SidebarTabBar = ({
 
   return (
     <div className={cn(
-      "h-10 border-b flex items-center px-1 shrink-0",
+      "right-sidebar-tab-bar",
       colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50/50 border-slate-200"
     )}>
       <div className="flex-1 flex h-8 mx-1 relative" ref={canvasDropdownRef}>
@@ -238,7 +239,7 @@ export const SidebarTabBar = ({
 
         {isCanvasDropdownOpen && (
           <div className={cn(
-            "absolute top-full left-0 mt-1 w-56 rounded-lg shadow-xl border py-1 z-[100] animate-in fade-in zoom-in-95 duration-100",
+            "right-sidebar-dropdown-menu",
             colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
           )}>
             {canvasWidgets.map((w) => (
@@ -344,7 +345,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
     <div
       id="right-sidebar"
       className={cn(
-        "w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden",
+        "right-sidebar-container w-72 border-l",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
@@ -362,7 +363,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       />
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-8 overscroll-contain custom-scrollbar">
+      <div className="right-sidebar-content-area custom-scrollbar">
         {activeTab === 'canvas' ? (
           <CanvasWidgetsPanel
             nodes={nodes}

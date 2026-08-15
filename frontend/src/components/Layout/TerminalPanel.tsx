@@ -3,6 +3,7 @@ import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play } from 'lucide-react';
+import './TerminalPanel.css';
 import {
   CommandContext,
   handleScaleCommand,
@@ -28,7 +29,12 @@ export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Nod
     const name = w.data.label || w.id;
     const status = w.data.status || (isSimulating ? 'Running' : 'Pending');
     const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
-    const displayStatus = status === 'ready' ? 'Running' : (status === 'pending' ? 'Pending' : status);
+    let displayStatus = status;
+    if (status === 'ready') {
+      displayStatus = 'Running';
+    } else if (status === 'pending') {
+      displayStatus = 'Pending';
+    }
     addActivityLog(`${String(name).padEnd(38)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          45s`);
   });
 };
@@ -291,12 +297,19 @@ export const TerminalPanel = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const parts = line.split(new RegExp(`(${searchQuery})`, 'gi'));
+      const partsWithObjects = parts.map((part, index) => ({
+        key: `part-${index}-${part}`,
+        text: part,
+        isMatch: part.toLowerCase() === q,
+      }));
       return (
         <span className={textClass}>
-          {parts.map((part, i) =>
-            part.toLowerCase() === q ? (
-              <mark key={i} className="bg-yellow-500 text-black px-0.5 rounded">{part}</mark>
-            ) : part
+          {partsWithObjects.map((item) =>
+            item.isMatch ? (
+              <mark key={item.key} className="bg-yellow-500 text-black px-0.5 rounded">{item.text}</mark>
+            ) : (
+              item.text
+            )
           )}
         </span>
       );
@@ -326,7 +339,7 @@ export const TerminalPanel = () => {
     }
   };
 
-  const handleCommandSubmit = (e: React.FormEvent) => {
+  const handleCommandSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const cmd = commandInput.trim();
     if (!cmd) return;
@@ -411,7 +424,7 @@ export const TerminalPanel = () => {
     if (!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0) {
       return (
         <div className={cn(
-          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+          "terminal-empty-state",
           colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
         )}>
           <Box size={24} className="opacity-25" />
@@ -433,7 +446,7 @@ export const TerminalPanel = () => {
     if (terminalActiveTab === 'logs' && loggableResources.length === 0) {
       return (
         <div className={cn(
-          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+          "terminal-empty-state",
           colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
         )}>
           <Layers size={24} className="opacity-25" />
@@ -458,13 +471,20 @@ export const TerminalPanel = () => {
       );
     }
 
-    return paginatedLogs.map((line, index) => {
+    const logItems = paginatedLogs.map((line, index) => {
       const actualIndex = terminalActiveTab === 'logs'
         ? (currentPage - 1) * PAGE_SIZE + index
         : index;
+      return {
+        key: `log-${terminalActiveTab}-${actualIndex}-${line}`,
+        line,
+      };
+    });
+
+    return logItems.map((item) => {
       return (
-        <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-          {formatLogLine(line)}
+        <div key={item.key} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+          {formatLogLine(item.line)}
         </div>
       );
     });
@@ -480,7 +500,7 @@ export const TerminalPanel = () => {
         {/* Pagination Controls for logs - Sticky at the bottom */}
         {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
           <div className={cn(
-            "sticky bottom-0 left-0 right-0 flex items-center justify-between mt-3 pt-2 pb-1 border-t text-[10px] select-none font-mono z-10 backdrop-blur-md",
+            "terminal-pagination-bar",
             colorMode === 'dark' ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
           )}>
             <div>
@@ -492,7 +512,7 @@ export const TerminalPanel = () => {
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 className={cn(
-                  "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
+                  "terminal-pagination-btn",
                   colorMode === 'dark'
                     ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
                     : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
@@ -506,7 +526,7 @@ export const TerminalPanel = () => {
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 className={cn(
-                  "px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none",
+                  "terminal-pagination-btn",
                   colorMode === 'dark'
                     ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
                     : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
@@ -554,7 +574,7 @@ export const TerminalPanel = () => {
           type="button"
           onClick={() => setTerminalOpen(true)}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95",
+            "terminal-trigger-btn",
             colorMode === 'dark'
               ? "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
               : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-700"
@@ -571,7 +591,7 @@ export const TerminalPanel = () => {
     <div
       data-testid="terminal-container"
       className={cn(
-        "fixed bottom-0 left-0 right-0 h-64 border-t z-[900] flex flex-col overflow-hidden backdrop-blur-md shadow-2xl transition-all duration-300",
+        "terminal-panel-container",
         colorMode === 'dark'
           ? "bg-slate-950/95 border-slate-800 text-slate-200"
           : "bg-white/95 border-slate-200 text-slate-800"
@@ -579,7 +599,7 @@ export const TerminalPanel = () => {
     >
       {/* Terminal Toolbar */}
       <div className={cn(
-        "h-9 border-b flex items-center justify-between px-4 shrink-0 select-none",
+        "terminal-toolbar",
         colorMode === 'dark' ? "border-slate-800 bg-slate-950/60 text-slate-400" : "border-slate-200 bg-slate-50/80 text-slate-600"
       )}>
         <div className="flex items-center gap-4 h-full">
@@ -667,7 +687,7 @@ export const TerminalPanel = () => {
             onClick={clearTerminalLogs}
             title="Clear Terminal Output"
             className={cn(
-              "p-1 rounded transition-colors shrink-0",
+              "terminal-action-btn",
               colorMode === 'dark' ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
             )}
           >
@@ -678,7 +698,7 @@ export const TerminalPanel = () => {
             onClick={() => setTerminalOpen(false)}
             title="Minimize Panel"
             className={cn(
-              "p-1 rounded transition-colors shrink-0",
+              "terminal-action-btn",
               colorMode === 'dark' ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
             )}
           >
@@ -689,7 +709,7 @@ export const TerminalPanel = () => {
 
       {/* Terminal logs content */}
       <div className={cn(
-        "flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar relative",
+        "terminal-content-area custom-scrollbar",
         colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
       )}>
         {renderTerminalContent()}

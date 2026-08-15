@@ -194,12 +194,12 @@ export const LogModal: React.FC = () => {
     <Modal
       isOpen={isOpen}
       onClose={() => setOpen(false)}
-      alignClass="items-start pt-20"
       title="Console Logs"
       subtitle="History of application events"
       icon={Bell}
       iconColorClass="text-slate-500"
-      widthClass="w-[900px]"
+      widthClass="w-[780px]"
+      maxHeightClass="h-[70vh]"
       disableScroll={true}
       compactHeader={true}
       footer={
@@ -217,7 +217,7 @@ export const LogModal: React.FC = () => {
         </div>
       }
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col h-full overflow-hidden gap-3">
         {/* Header toolbar */}
         <div className="flex items-center justify-between border-b border-slate-700/30 pb-3 gap-4">
           <div className="flex items-center gap-1">
@@ -309,7 +309,7 @@ export const LogModal: React.FC = () => {
         </div>
 
         {/* Log list */}
-        <div className="space-y-0.5 overflow-y-auto pr-2 custom-scrollbar max-h-[50vh]">
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0 space-y-0.5">
           {paginatedLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-500 gap-3" data-testid="no-logs-container">
               <Bell size={48} strokeWidth={1} />
@@ -340,7 +340,7 @@ export const LogModal: React.FC = () => {
                     <div
                         key={log.id}
                         className={cn(
-                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all select-none border-b',
+                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all select-text border-b',
                         rowColorClass
                         )}
                     >
@@ -369,7 +369,7 @@ export const LogModal: React.FC = () => {
                             <div className="flex items-start justify-between gap-4 w-full">
                                 <div className="flex-1 min-w-0 pt-0.5">
                                     <pre className={cn(
-                                        "text-xs font-mono leading-relaxed break-all whitespace-pre-wrap",
+                                        "text-xs font-mono leading-relaxed break-all whitespace-pre-wrap select-text",
                                         !isExpanded && "line-clamp-1",
                                         colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
                                     )}>

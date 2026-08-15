@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import './MenuBar.css';
 import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
@@ -170,7 +171,7 @@ export const MenuBar = ({
       ref={menuRef}
       style={{ '--wails-draggable': 'drag' }}
       className={cn(
-        "h-10 border-b flex items-center px-3 justify-between z-50 select-none relative",
+        "menubar-container",
         themeClasses
       )}
     >

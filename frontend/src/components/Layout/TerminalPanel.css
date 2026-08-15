@@ -1,0 +1,35 @@
+@import "../../index.css";
+
+/* Terminal Panel Component Styles */
+
+.terminal-trigger-btn {
+  @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[400] flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95;
+}
+
+.terminal-panel-container {
+  @apply fixed bottom-0 left-0 right-0 h-64 border-t z-[900] flex flex-col overflow-hidden backdrop-blur-md shadow-2xl transition-all duration-300;
+}
+
+.terminal-toolbar {
+  @apply h-9 border-b flex items-center justify-between px-4 shrink-0 select-none;
+}
+
+.terminal-content-area {
+  @apply flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 relative;
+}
+
+.terminal-pagination-bar {
+  @apply sticky bottom-0 left-0 right-0 flex items-center justify-between mt-3 pt-2 pb-1 border-t text-[10px] select-none font-mono z-10 backdrop-blur-md;
+}
+
+.terminal-pagination-btn {
+  @apply px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none;
+}
+
+.terminal-empty-state {
+  @apply h-full flex flex-col items-center justify-center text-center py-6 space-y-2;
+}
+
+.terminal-action-btn {
+  @apply p-1 rounded transition-colors shrink-0;
+}
