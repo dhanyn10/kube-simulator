@@ -229,24 +229,10 @@ const handleTicksActivityLogs = (ticks: number, workloads: Node[], set: (state: 
 };
 
 /**
- * Executes a single tick of the simulation.
- * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
- *
- * @param params Object containing the current flow state, current tick count, and store setters/getters.
+ * Helper to transition pending pods to ready
  */
-const runSimulationTick = (params: {
-  state: FlowState,
-  ticks: number,
-  set: (state: Partial<FlowState>) => void,
-  get: () => FlowState
-}) => {
-  const { state, ticks, set, get } = params;
-  const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
-  const newMetrics = { ...currentMetrics };
-  const updatedNodes = [...currentNodes];
-  let hasOverallChanges = false;
-
-  // 1. Transition pending pods to ready
+const updatePendingPods = (updatedNodes: Node[], get: () => FlowState): boolean => {
+  let hasChanges = false;
   for (let i = 0; i < updatedNodes.length; i++) {
     const node = updatedNodes[i];
     if (node.type === 'Pod' && node.data.status === 'pending') {
@@ -263,11 +249,17 @@ const runSimulationTick = (params: {
         const addActivityLog = get().addActivityLog;
         addActivityLog(`pod/${node.data.label || node.id} status transitioned from Pending to Running`);
       }
-      hasOverallChanges = true;
+      hasChanges = true;
     }
   }
+  return hasChanges;
+};
 
-  // 2. Handle rolling updates for deployments
+/**
+ * Helper to process rolling updates for deployments
+ */
+const updateRollingDeployments = (updatedNodes: Node[], get: () => FlowState): boolean => {
+  let hasChanges = false;
   for (let i = 0; i < updatedNodes.length; i++) {
     const dep = updatedNodes[i];
     if (dep.type === 'Deployment' && dep.data.isRollingUpdate) {
@@ -303,7 +295,7 @@ const runSimulationTick = (params: {
             const addActivityLog = get().addActivityLog;
             addActivityLog(`[rollout] Scaling down old replica pod ${firstOldPod.data.label || firstOldPod.id}...`);
             addActivityLog(`[rollout] Scaling up new replica pod with image ${dep.data.rolloutTargetImage}...`);
-            hasOverallChanges = true;
+            hasChanges = true;
           }
         } else {
           updatedNodes[i] = {
@@ -318,10 +310,40 @@ const runSimulationTick = (params: {
 
           const addActivityLog = get().addActivityLog;
           addActivityLog(`deployment.apps/${dep.data.label || dep.id} successfully rolled out`);
-          hasOverallChanges = true;
+          hasChanges = true;
         }
       }
     }
+  }
+  return hasChanges;
+};
+
+/**
+ * Executes a single tick of the simulation.
+ * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
+ *
+ * @param params Object containing the current flow state, current tick count, and store setters/getters.
+ */
+const runSimulationTick = (params: {
+  state: FlowState,
+  ticks: number,
+  set: (state: Partial<FlowState>) => void,
+  get: () => FlowState
+}) => {
+  const { state, ticks, set, get } = params;
+  const { nodes: currentNodes, edges: currentEdges, simulationMetrics: currentMetrics } = state;
+  const newMetrics = { ...currentMetrics };
+  const updatedNodes = [...currentNodes];
+  let hasOverallChanges = false;
+
+  // 1. Transition pending pods to ready
+  if (updatePendingPods(updatedNodes, get)) {
+    hasOverallChanges = true;
+  }
+
+  // 2. Handle rolling updates for deployments
+  if (updateRollingDeployments(updatedNodes, get)) {
+    hasOverallChanges = true;
   }
 
   const { edgeMap, targetEdgeMap } = buildEdgeMaps(currentEdges);
@@ -365,7 +387,7 @@ const runSimulationTick = (params: {
 
     // Simulate logs for this workload
     const points = newMetrics[dep.id] || [];
-    const lastPoint = points[points.length - 1];
+    const lastPoint = points.at(-1);
     if (lastPoint) {
       simulateWorkloadLogs(dep, lastPoint, set);
     }
@@ -419,8 +441,10 @@ const buildInitialActivity = (nodes: Node[]) => {
     initialActivity.push(`No resources defined in the canvas.`);
   }
 
-  initialActivity.push(`$ kubectl get pods -w`);
-  initialActivity.push(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
+  initialActivity.push(
+    `$ kubectl get pods -w`,
+    `${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`
+  );
 
   return initialActivity;
 };

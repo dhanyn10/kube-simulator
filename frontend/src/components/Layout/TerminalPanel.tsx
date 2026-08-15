@@ -62,6 +62,33 @@ export const handleGetServices = (addActivityLog: (line: string) => void, nodes:
   });
 };
 
+export const handleGetCommands = (
+  cmdLower: string,
+  addActivityLog: (line: string) => void,
+  nodes: Node[],
+  isSimulating: boolean
+): boolean => {
+  const isPodGet = ['kubectl get pods', 'kubectl get pod', 'kubectl get pods -w', 'kubectl get pod -w'].includes(cmdLower);
+  if (isPodGet) {
+    handleGetPods(addActivityLog, nodes, isSimulating);
+    return true;
+  }
+
+  const isDeployGet = ['kubectl get deployments', 'kubectl get deployment', 'kubectl get deploy'].includes(cmdLower);
+  if (isDeployGet) {
+    handleGetDeployments(addActivityLog, nodes, isSimulating);
+    return true;
+  }
+
+  const isSvcGet = ['kubectl get services', 'kubectl get service', 'kubectl get svc'].includes(cmdLower);
+  if (isSvcGet) {
+    handleGetServices(addActivityLog, nodes);
+    return true;
+  }
+
+  return false;
+};
+
 export const handleLogsCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -69,7 +96,7 @@ export const handleLogsCommand = (
   setTerminalSelectedResourceId: (id: string | null) => void,
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void
 ): boolean => {
-  const logsMatch = cmd.match(/^kubectl\s+logs\s+([a-zA-Z0-9\-\/]+)/i);
+  const logsMatch = cmd.match(/^kubectl\s+logs\s+([a-zA-Z0-9/-]+)/i);
   if (!logsMatch) return false;
 
   let targetName = logsMatch[1].toLowerCase();
@@ -306,7 +333,7 @@ export const TerminalPanel = () => {
 
     setCommandInput('');
     setCommandHistory(prev => {
-      if (prev[prev.length - 1] === cmd) return prev;
+      if (prev.at(-1) === cmd) return prev;
       return [...prev, cmd];
     });
     setHistoryIndex(-1);
@@ -321,19 +348,14 @@ export const TerminalPanel = () => {
       return;
     }
 
-    const getStoreState = useFlowStore.getState;
-    const setStoreState = useFlowStore.setState;
-    const updateNodeData = useFlowStore.getState().updateNodeData;
-    const deleteNodes = useFlowStore.getState().deleteNodes;
-
     const ctx: CommandContext = {
       nodes,
       isSimulating,
-      updateNodeData,
+      updateNodeData: useFlowStore.getState().updateNodeData,
       addActivityLog,
-      deleteNodes,
-      getStoreState,
-      setStoreState
+      deleteNodes: useFlowStore.getState().deleteNodes,
+      getStoreState: useFlowStore.getState,
+      setStoreState: useFlowStore.setState
     };
 
     if (cmdLower === 'help') {
@@ -355,55 +377,22 @@ export const TerminalPanel = () => {
       return;
     }
 
-    if (handleGetAllCommand(cmd, ctx)) {
-      return;
+    const commandHandlers = [
+      handleGetAllCommand,
+      handleScaleCommand,
+      handleSetImageCommand,
+      handleRolloutStatusCommand,
+      handleRolloutHistoryCommand,
+      handleRolloutUndoCommand,
+      handleDeletePodCommand,
+      handleDescribeDeploymentCommand,
+    ];
+
+    for (const handler of commandHandlers) {
+      if (handler(cmd, ctx)) return;
     }
 
-    if (handleScaleCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (handleSetImageCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (handleRolloutStatusCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (handleRolloutHistoryCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (handleRolloutUndoCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (handleDeletePodCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (handleDescribeDeploymentCommand(cmd, ctx)) {
-      return;
-    }
-
-    if (
-      cmdLower === 'kubectl get pods' ||
-      cmdLower === 'kubectl get pod' ||
-      cmdLower === 'kubectl get pods -w' ||
-      cmdLower === 'kubectl get pod -w'
-    ) {
-      handleGetPods(addActivityLog, nodes, isSimulating);
-      return;
-    }
-
-    if (cmdLower === 'kubectl get deployments' || cmdLower === 'kubectl get deployment' || cmdLower === 'kubectl get deploy') {
-      handleGetDeployments(addActivityLog, nodes, isSimulating);
-      return;
-    }
-
-    if (cmdLower === 'kubectl get services' || cmdLower === 'kubectl get service' || cmdLower === 'kubectl get svc') {
-      handleGetServices(addActivityLog, nodes);
+    if (handleGetCommands(cmdLower, addActivityLog, nodes, isSimulating)) {
       return;
     }
 
@@ -418,60 +407,74 @@ export const TerminalPanel = () => {
     addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
   };
 
+  const renderLogBody = () => {
+    if (!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0) {
+      return (
+        <div className={cn(
+          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+        )}>
+          <Box size={24} className="opacity-25" />
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
+            <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations, or type commands below.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => startSimulation()}
+            className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
+          >
+            <Play size={10} fill="currentColor" /> Apply Manifests
+          </button>
+        </div>
+      );
+    }
+
+    if (terminalActiveTab === 'logs' && loggableResources.length === 0) {
+      return (
+        <div className={cn(
+          "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
+          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+        )}>
+          <Layers size={24} className="opacity-25" />
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
+            <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (paginatedLogs.length === 0) {
+      return (
+        <div className={cn(
+          "h-full flex items-center justify-center",
+          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+        )}>
+          <span className="text-[10px] uppercase font-bold tracking-wider">
+            {searchQuery ? "No matches found" : "Waiting for log stream..."}
+          </span>
+        </div>
+      );
+    }
+
+    return paginatedLogs.map((line, index) => {
+      const actualIndex = terminalActiveTab === 'logs'
+        ? (currentPage - 1) * PAGE_SIZE + index
+        : index;
+      return (
+        <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+          {formatLogLine(line)}
+        </div>
+      );
+    });
+  };
+
   const renderTerminalContent = () => {
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1">
-          {!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0 ? (
-            <div className={cn(
-              "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
-              colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-            )}>
-              <Box size={24} className="opacity-25" />
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
-                <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations, or type commands below.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => startSimulation()}
-                className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
-              >
-                <Play size={10} fill="currentColor" /> Apply Manifests
-              </button>
-            </div>
-          ) : terminalActiveTab === 'logs' && loggableResources.length === 0 ? (
-            <div className={cn(
-              "h-full flex flex-col items-center justify-center text-center py-6 space-y-2",
-              colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-            )}>
-              <Layers size={24} className="opacity-25" />
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
-                <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
-              </div>
-            </div>
-          ) : paginatedLogs.length === 0 ? (
-            <div className={cn(
-              "h-full flex items-center justify-center",
-              colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-            )}>
-              <span className="text-[10px] uppercase font-bold tracking-wider">
-                {searchQuery ? "No matches found" : "Waiting for log stream..."}
-              </span>
-            </div>
-          ) : (
-            paginatedLogs.map((line, index) => {
-              const actualIndex = terminalActiveTab === 'logs'
-                ? (currentPage - 1) * PAGE_SIZE + index
-                : index;
-              return (
-                <div key={actualIndex} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-                  {formatLogLine(line)}
-                </div>
-              );
-            })
-          )}
+          {renderLogBody()}
         </div>
 
         {/* Pagination Controls for logs - Sticky at the bottom */}
