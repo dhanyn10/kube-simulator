@@ -256,63 +256,78 @@ const updatePendingPods = (updatedNodes: Node[], get: () => FlowState): boolean 
 };
 
 /**
+ * Helper to process a single deployment's rolling update step
+ */
+const processSingleDeploymentRollout = (
+  dep: Node,
+  depIndex: number,
+  updatedNodes: Node[],
+  get: () => FlowState
+): boolean => {
+  if (dep.type !== 'Deployment' || !dep.data.isRollingUpdate) {
+    return false;
+  }
+
+  const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  const hasPendingPod = childPods.some(p => p.data.status === 'pending');
+  if (hasPendingPod) {
+    return false;
+  }
+
+  const oldPods = childPods.filter(p => p.data.image !== dep.data.rolloutTargetImage);
+  if (oldPods.length > 0) {
+    const firstOldPod = oldPods[0];
+    const podIdx = updatedNodes.findIndex(n => n.id === firstOldPod.id);
+    if (podIdx === -1) return false;
+
+    updatedNodes[podIdx] = {
+      ...updatedNodes[podIdx],
+      data: {
+        ...updatedNodes[podIdx].data,
+        status: 'pending',
+        pendingTicks: 0,
+        image: dep.data.rolloutTargetImage
+      }
+    };
+
+    const updatedCount = childPods.length - oldPods.length + 1;
+    updatedNodes[depIndex] = {
+      ...dep,
+      data: {
+        ...dep.data,
+        rolloutStatus: `Updating ${updatedCount}/${childPods.length} replicas...`
+      }
+    };
+
+    const addActivityLog = get().addActivityLog;
+    addActivityLog(`[rollout] Scaling down old replica pod ${firstOldPod.data.label || firstOldPod.id}...`);
+    addActivityLog(`[rollout] Scaling up new replica pod with image ${dep.data.rolloutTargetImage}...`);
+    return true;
+  }
+
+  updatedNodes[depIndex] = {
+    ...dep,
+    data: {
+      ...dep.data,
+      isRollingUpdate: false,
+      image: dep.data.rolloutTargetImage,
+      rolloutStatus: 'Successfully rolled out'
+    }
+  };
+
+  const addActivityLog = get().addActivityLog;
+  addActivityLog(`deployment.apps/${dep.data.label || dep.id} successfully rolled out`);
+  return true;
+};
+
+/**
  * Helper to process rolling updates for deployments
  */
 const updateRollingDeployments = (updatedNodes: Node[], get: () => FlowState): boolean => {
   let hasChanges = false;
   for (let i = 0; i < updatedNodes.length; i++) {
-    const dep = updatedNodes[i];
-    if (dep.type === 'Deployment' && dep.data.isRollingUpdate) {
-      const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-      const hasPendingPod = childPods.some(p => p.data.status === 'pending');
-
-      if (!hasPendingPod) {
-        const oldPods = childPods.filter(p => p.data.image !== dep.data.rolloutTargetImage);
-
-        if (oldPods.length > 0) {
-          const firstOldPod = oldPods[0];
-          const podIdx = updatedNodes.findIndex(n => n.id === firstOldPod.id);
-          if (podIdx !== -1) {
-            updatedNodes[podIdx] = {
-              ...updatedNodes[podIdx],
-              data: {
-                ...updatedNodes[podIdx].data,
-                status: 'pending',
-                pendingTicks: 0,
-                image: dep.data.rolloutTargetImage
-              }
-            };
-
-            const updatedCount = childPods.length - oldPods.length + 1;
-            updatedNodes[i] = {
-              ...dep,
-              data: {
-                ...dep.data,
-                rolloutStatus: `Updating ${updatedCount}/${childPods.length} replicas...`
-              }
-            };
-
-            const addActivityLog = get().addActivityLog;
-            addActivityLog(`[rollout] Scaling down old replica pod ${firstOldPod.data.label || firstOldPod.id}...`);
-            addActivityLog(`[rollout] Scaling up new replica pod with image ${dep.data.rolloutTargetImage}...`);
-            hasChanges = true;
-          }
-        } else {
-          updatedNodes[i] = {
-            ...dep,
-            data: {
-              ...dep.data,
-              isRollingUpdate: false,
-              image: dep.data.rolloutTargetImage,
-              rolloutStatus: 'Successfully rolled out'
-            }
-          };
-
-          const addActivityLog = get().addActivityLog;
-          addActivityLog(`deployment.apps/${dep.data.label || dep.id} successfully rolled out`);
-          hasChanges = true;
-        }
-      }
+    if (processSingleDeploymentRollout(updatedNodes[i], i, updatedNodes, get)) {
+      hasChanges = true;
     }
   }
   return hasChanges;

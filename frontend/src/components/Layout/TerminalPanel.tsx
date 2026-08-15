@@ -96,7 +96,7 @@ export const handleLogsCommand = (
   setTerminalSelectedResourceId: (id: string | null) => void,
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void
 ): boolean => {
-  const logsMatch = cmd.match(/^kubectl\s+logs\s+([a-zA-Z0-9/-]+)/i);
+  const logsMatch = /^kubectl\s+logs\s+([a-z0-9/-]+)/i.exec(cmd);
   if (!logsMatch) return false;
 
   let targetName = logsMatch[1].toLowerCase();
@@ -125,7 +125,7 @@ export const handleDescribeCommand = (
   nodes: Node[],
   isSimulating: boolean
 ): boolean => {
-  const describeMatch = cmd.match(/^kubectl\s+describe\s+(pod|deployment|deploy)\s+([a-zA-Z0-9\-]+)/i);
+  const describeMatch = /^kubectl\s+describe\s+(pod|deployment|deploy)\s+([a-z0-9-]+)/i.exec(cmd);
   if (!describeMatch) return false;
 
   const type = describeMatch[1].toLowerCase();
