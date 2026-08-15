@@ -345,7 +345,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
     <div
       id="right-sidebar"
       className={cn(
-        "right-sidebar-container",
+        "right-sidebar-container w-72 border-l",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >

@@ -159,7 +159,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     <div
       id="sidebar-components"
       className={cn(
-        "sidebar-container",
+        "sidebar-container w-64 border-r",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
