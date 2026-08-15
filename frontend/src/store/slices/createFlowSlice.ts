@@ -14,6 +14,9 @@ import { FlowState } from '../types';
 import { K8sNodeData } from '../../types';
 import { getConnectionError } from '../../constants/connections';
 
+export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
+export type LayoutDirection = 'LR' | 'TB';
+
 export interface FlowSlice {
   nodes: Node[];
   edges: Edge[];
@@ -24,11 +27,11 @@ export interface FlowSlice {
   validateEdge: (edge: Edge) => Edge;
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
-  onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
-  autoLayout: (direction?: 'LR' | 'TB') => void;
+  onQuickConnect: (nodeId: string, direction: QuickConnectDirection) => void;
+  autoLayout: (direction?: LayoutDirection) => void;
 }
 
-const computeAutoLayout = (nodes: Node[], edges: Edge[], direction: 'LR' | 'TB'): Node[] => {
+const computeAutoLayout = (nodes: Node[], edges: Edge[], direction: LayoutDirection): Node[] => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
   dagreGraph.setGraph({ rankdir: direction, nodesep: 100, ranksep: 200 });
@@ -107,7 +110,7 @@ const getNodeCenter = (node: Node) => ({
 const isNodeInDirection = (
   sourceNode: Node,
   targetNode: Node,
-  direction: 'top' | 'bottom' | 'left' | 'right'
+  direction: QuickConnectDirection
 ): boolean => {
   if (targetNode.id === sourceNode.id || targetNode.parentId) return false;
   if (sourceNode.type === 'HPA' && targetNode.type !== 'Deployment') return false;
@@ -125,7 +128,7 @@ const isNodeInDirection = (
   return false;
 };
 
-const getQuickConnectHandles = (direction: 'top' | 'bottom' | 'left' | 'right') => {
+const getQuickConnectHandles = (direction: QuickConnectDirection) => {
   if (direction === 'right') return { sourceHandle: 'right-s', targetHandle: 'left-t' };
   if (direction === 'left') return { sourceHandle: 'left-s', targetHandle: 'right-t' };
   if (direction === 'top') return { sourceHandle: 'top-s', targetHandle: 'bottom-t' };
@@ -200,7 +203,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   setNodes: (nodes: Node[]) => set({ nodes }),
   setEdges: (edges: Edge[]) => set({ edges }),
-  onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => {
+  onQuickConnect: (nodeId: string, direction: QuickConnectDirection) => {
     const { nodes, onConnect } = get();
     const sourceNode = nodes.find((n) => n.id === nodeId);
     if (!sourceNode) return;
