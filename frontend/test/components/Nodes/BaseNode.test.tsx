@@ -56,27 +56,41 @@ describe('BaseNode', () => {
 
   it('shows replicas badge when > 1', () => {
     const props = {
-        ...defaultProps,
-        data: { ...defaultProps.data, replicas: 5 }
+      ...defaultProps,
+      data: { ...defaultProps.data, replicas: 5 }
     };
     render(
-        <ReactFlowProvider>
-          <BaseNode {...props} />
-        </ReactFlowProvider>
+      <ReactFlowProvider>
+        <BaseNode {...props} />
+      </ReactFlowProvider>
     );
     expect(screen.getByText('x5')).toBeDefined();
   });
 
-  it('renders progress segments for multi-replica pods', () => {
-    const props = {
-        ...defaultProps,
-        data: { ...defaultProps.data, replicas: 5, type: 'Pod' }
-    };
+  it('renders BaseNode with crashing status override and mega replicas (100)', () => {
     render(
-        <ReactFlowProvider>
-          <BaseNode {...props} />
-        </ReactFlowProvider>
+      <ReactFlowProvider>
+        <BaseNode
+          id="mega-pod"
+          type="Pod"
+          title="Mega Pod"
+          icon={Box}
+          color="emerald"
+          statusOverride="crashing"
+          data={{
+            label: 'mega-pod',
+            type: 'Pod',
+            replicas: 100,
+            status: 'crashing',
+            runtime: 'nodejs',
+            webserver: 'nginx',
+            image: 'custom/app:v1',
+          }}
+        />
+      </ReactFlowProvider>
     );
-    // 10 segments should be rendered
+
+    expect(screen.getByText('Crashing')).toBeDefined();
+    expect(screen.getByText('x100')).toBeDefined();
   });
 });

@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MenuBar } from '../../../src/components/Layout/MenuBar';
 import { useFlowStore } from '../../../src/store';
 
-// Mock Wails runtime
 vi.mock('@wailsjs/runtime/runtime', () => ({
   BrowserOpenURL: vi.fn(),
 }));
 
-// Mock tour
 vi.mock('../../../src/lib/tour', () => ({
   startTour: vi.fn(),
 }));
@@ -21,6 +19,7 @@ describe('MenuBar', () => {
     onOpenProjects: vi.fn(),
     onOpenScenarios: vi.fn(),
     onOpenAbout: vi.fn(),
+    onOpenSettings: vi.fn(),
   };
 
   beforeEach(() => {
@@ -38,6 +37,13 @@ describe('MenuBar', () => {
       isAutofocusEnabled: true,
       currentProject: null,
     });
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: vi.fn().mockResolvedValue(true),
+        },
+      },
+    };
   });
 
   it('renders correctly', () => {
@@ -47,6 +53,25 @@ describe('MenuBar', () => {
     expect(screen.getByText('View')).toBeDefined();
     expect(screen.getByText('Help')).toBeDefined();
     expect(screen.getByTestId('app-title')).toBeDefined();
+  });
+
+  it('handles Resource > Save on existing project', async () => {
+    useFlowStore.setState({
+      currentProject: { id: 10, name: "Active Proj" },
+      nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
+    });
+
+    render(<MenuBar {...defaultProps} />);
+
+    const resourceBtn = screen.getByText("Resource");
+    fireEvent.click(resourceBtn);
+
+    const saveItems = screen.getAllByText("Save");
+    fireEvent.click(saveItems[saveItems.length - 1]);
+
+    await waitFor(() => {
+      expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(10, expect.any(String));
+    });
   });
 
   it('opens dropdown on click', () => {
@@ -78,25 +103,20 @@ describe('MenuBar', () => {
     const setSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setSidebarVisible');
     const { rerender } = render(<MenuBar {...defaultProps} />);
 
-    // Open View menu
     fireEvent.click(screen.getByText('View'));
 
-    // Should have a checkmark because isSidebarVisible is true by default in beforeEach
     const componentsBtn = screen.getByText('Components').closest('button');
     expect(componentsBtn?.querySelector('svg[class*="lucide-check"]')).not.toBeNull();
 
     fireEvent.click(screen.getByText('Components'));
     expect(setSidebarVisible).toHaveBeenCalledWith(false);
 
-    // Close menu by clicking outside to have a clean state for next part
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText('Components')).toBeNull();
 
-    // Update store and rerender to verify checkmark disappears
     useFlowStore.setState({ isSidebarVisible: false });
     rerender(<MenuBar {...defaultProps} />);
 
-    // Open View menu again
     fireEvent.click(screen.getByText('View'));
     expect(screen.getByText('Components').closest('button')?.querySelector('svg[class*="lucide-check"]')).toBeNull();
   });

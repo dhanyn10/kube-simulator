@@ -1,4 +1,3 @@
-
 import { cn } from '../../lib/utils';
 
 interface SelectorGroupProps {
@@ -12,6 +11,30 @@ interface SelectorGroupProps {
   layout?: 'wrap' | 'grid' | 'column';
   validateOption?: (value: string) => boolean;
 }
+
+const getSelectorButtonClasses = (
+  isActive: boolean,
+  isInvalid: boolean | undefined,
+  colorMode: string,
+  activeColorClass: string,
+  activeShadowClass: string
+) => {
+  if (isActive) {
+    return `${activeColorClass} ${activeShadowClass}`;
+  }
+
+  const baseState = colorMode === 'dark'
+    ? "bg-slate-800 border-slate-700 hover:border-slate-600"
+    : "bg-slate-50 border-slate-200 hover:border-slate-300";
+
+  if (!isInvalid) return baseState;
+
+  const invalidState = colorMode === 'dark'
+    ? " border-red-900/50 text-red-400/70"
+    : " border-red-200 text-red-400";
+
+  return `${baseState}${invalidState}`;
+};
 
 export const SelectorGroup = ({
   options,
@@ -37,25 +60,13 @@ export const SelectorGroup = ({
         const val = opt.value ?? opt.id;
         const isActive = currentValue === val;
         const isInvalid = validateOption?.(val);
-
-        let stateClasses = "";
-        if (isActive) {
-          stateClasses = `${activeColorClass} ${activeShadowClass}`;
-        } else {
-          if (colorMode === 'dark') {
-            stateClasses = "bg-slate-800 border-slate-700 hover:border-slate-600";
-          } else {
-            stateClasses = "bg-slate-50 border-slate-200 hover:border-slate-300";
-          }
-
-          if (isInvalid) {
-            if (colorMode === 'dark') {
-              stateClasses += " border-red-900/50 text-red-400/70";
-            } else {
-              stateClasses += " border-red-200 text-red-400";
-            }
-          }
-        }
+        const stateClasses = getSelectorButtonClasses(
+          isActive,
+          isInvalid,
+          colorMode,
+          activeColorClass,
+          activeShadowClass
+        );
 
         return (
           <button

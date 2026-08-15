@@ -1,58 +1,58 @@
-import  { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFlowStore } from '../../store';
 import { K8sNodeData } from '../../types';
 import { parseCPU, parseMemory, formatCPU, formatMemory, cn } from '../../lib/utils';
 import { MultiProgressBar } from './MultiProgressBar';
 import { Cpu, Database, AlertCircle } from 'lucide-react';
 
+const calculateResourceTotals = (nodes: any[]) => {
+  return nodes.reduce((acc, node) => {
+    if (!['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) return acc;
+
+    const data = node.data as K8sNodeData;
+    const replicas = data.replicas || 1;
+
+    if (node.parentId) {
+      const parent = nodes.find((n) => n.id === node.parentId);
+      if (['Deployment', 'ReplicaSet'].includes(parent?.type ?? '')) {
+        return acc;
+      }
+    }
+
+    const cpuReq = parseCPU(data.cpuRequest || '0');
+    const memReq = parseMemory(data.memoryRequest || '0');
+    const cpuLim = data.cpuLimit ? parseCPU(data.cpuLimit) : cpuReq;
+    const memLim = data.memoryLimit ? parseMemory(data.memoryLimit) : memReq;
+
+    return {
+      cpuReq: acc.cpuReq + cpuReq * replicas,
+      memReq: acc.memReq + memReq * replicas,
+      cpuLim: acc.cpuLim + cpuLim * replicas,
+      memLim: acc.memLim + memLim * replicas,
+      hasMissingLimits: acc.hasMissingLimits || (!data.cpuLimit || !data.memoryLimit),
+    };
+  }, { cpuReq: 0, memReq: 0, cpuLim: 0, memLim: 0, hasMissingLimits: false });
+};
+
 export const ResourceBudget = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const systemResources = useFlowStore((state) => state.systemResources);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const totals = useMemo(() => {
-    return nodes.reduce((acc, node) => {
-      if (!['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) return acc;
-      
-      const data = node.data as K8sNodeData;
-      const replicas = data.replicas || 1;
-      
-      if (node.parentId && ['Deployment', 'ReplicaSet'].includes(nodes.find(n => n.id === node.parentId)?.type ?? '')) {
-          return acc;
-      }
-
-      const cpuReq = parseCPU(data.cpuRequest || '0');
-      const memReq = parseMemory(data.memoryRequest || '0');
-      
-      // If limit is missing, we treat it as a potential risk (showing it can grow)
-      // For calculation, let's assume it could go up to request * 2 if not specified, 
-      // or just show the actual limit if specified.
-      const cpuLim = data.cpuLimit ? parseCPU(data.cpuLimit) : cpuReq;
-      const memLim = data.memoryLimit ? parseMemory(data.memoryLimit) : memReq;
-      
-      return {
-        cpuReq: acc.cpuReq + (cpuReq * replicas),
-        memReq: acc.memReq + (memReq * replicas),
-        cpuLim: acc.cpuLim + (cpuLim * replicas),
-        memLim: acc.memLim + (memLim * replicas),
-        hasMissingLimits: acc.hasMissingLimits || (!data.cpuLimit || !data.memoryLimit)
-      };
-    }, { cpuReq: 0, memReq: 0, cpuLim: 0, memLim: 0, hasMissingLimits: false });
-  }, [nodes]);
+  const totals = useMemo(() => calculateResourceTotals(nodes), [nodes]);
 
   if (!systemResources) return null;
 
   const cpuLimit = systemResources.cpuCores * 1000;
   const memLimit = systemResources.totalMemoryGB * 1024;
-  
+
   const usedMemMiB = (systemResources.totalMemoryGB - systemResources.freeMemoryGB) * 1024;
-  
-  // Percentages for bars
+
   const k8sCpuReqPercent = (totals.cpuReq / cpuLimit) * 100;
   const k8sCpuLimPercent = (totals.cpuLim / cpuLimit) * 100;
   const k8sMemReqPercent = (totals.memReq / memLimit) * 100;
   const k8sMemLimPercent = (totals.memLim / memLimit) * 100;
-  
+
   const totalCpuPercent = systemResources.cpuUsage;
   const totalMemPercent = (usedMemMiB / memLimit) * 100;
 
@@ -125,13 +125,13 @@ export const ResourceBudget = () => {
       <div className="mt-2 space-y-1">
         {totals.hasMissingLimits && (
           <div className="text-[8px] text-amber-500/80 flex items-center gap-1 bg-amber-500/5 p-1 rounded">
-            <AlertCircle size={8} /> 
+            <AlertCircle size={8} />
             Some nodes have no limits. Potential for "Noisy Neighbor" effect.
           </div>
         )}
         {(isOverCpu || isOverMem) && (
           <div className="text-[8px] text-red-500 font-bold leading-tight flex items-center gap-1 bg-red-500/10 p-1 rounded">
-            <AlertCircle size={8} /> 
+            <AlertCircle size={8} />
             CRITICAL: Potential usage exceeds host capacity!
           </div>
         )}
