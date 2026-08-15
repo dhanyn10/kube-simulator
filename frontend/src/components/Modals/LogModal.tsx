@@ -340,7 +340,7 @@ export const LogModal: React.FC = () => {
                     <div
                         key={log.id}
                         className={cn(
-                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all select-none border-b',
+                        'group p-1.5 px-2 rounded flex items-start gap-3 transition-all select-text border-b',
                         rowColorClass
                         )}
                     >
@@ -369,7 +369,7 @@ export const LogModal: React.FC = () => {
                             <div className="flex items-start justify-between gap-4 w-full">
                                 <div className="flex-1 min-w-0 pt-0.5">
                                     <pre className={cn(
-                                        "text-xs font-mono leading-relaxed break-all whitespace-pre-wrap",
+                                        "text-xs font-mono leading-relaxed break-all whitespace-pre-wrap select-text",
                                         !isExpanded && "line-clamp-1",
                                         colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
                                     )}>
