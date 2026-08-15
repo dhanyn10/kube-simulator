@@ -41,7 +41,7 @@ describe('useFlowStore - Terminal Slice', () => {
     for (let i = 0; i < 210; i++) {
       useFlowStore.getState().addActivityLog(`Log ${i}`);
     }
-    expect(useFlowStore.getState().activityLogs.length).toBe(200);
+    expect(useFlowStore.getState().activityLogs).toHaveLength(200);
   });
 
   it('adds terminal workload logs', () => {

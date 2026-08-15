@@ -229,6 +229,111 @@ const handleTicksActivityLogs = (ticks: number, workloads: Node[], set: (state: 
 };
 
 /**
+ * Helper to transition pending pods to ready
+ */
+const updatePendingPods = (updatedNodes: Node[], get: () => FlowState): boolean => {
+  let hasChanges = false;
+  for (let i = 0; i < updatedNodes.length; i++) {
+    const node = updatedNodes[i];
+    if (node.type === 'Pod' && node.data.status === 'pending') {
+      const pendingTicks = (node.data.pendingTicks || 0) + 1;
+      updatedNodes[i] = {
+        ...node,
+        data: {
+          ...node.data,
+          pendingTicks,
+          status: pendingTicks >= 2 ? 'ready' : 'pending'
+        }
+      };
+      if (pendingTicks >= 2) {
+        const addActivityLog = get().addActivityLog;
+        addActivityLog(`pod/${node.data.label || node.id} status transitioned from Pending to Running`);
+      }
+      hasChanges = true;
+    }
+  }
+  return hasChanges;
+};
+
+/**
+ * Helper to process a single deployment's rolling update step
+ */
+const processSingleDeploymentRollout = (
+  dep: Node,
+  depIndex: number,
+  updatedNodes: Node[],
+  get: () => FlowState
+): boolean => {
+  if (dep.type !== 'Deployment' || !dep.data.isRollingUpdate) {
+    return false;
+  }
+
+  const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
+  const hasPendingPod = childPods.some(p => p.data.status === 'pending');
+  if (hasPendingPod) {
+    return false;
+  }
+
+  const oldPods = childPods.filter(p => p.data.image !== dep.data.rolloutTargetImage);
+  if (oldPods.length > 0) {
+    const firstOldPod = oldPods[0];
+    const podIdx = updatedNodes.findIndex(n => n.id === firstOldPod.id);
+    if (podIdx === -1) return false;
+
+    updatedNodes[podIdx] = {
+      ...updatedNodes[podIdx],
+      data: {
+        ...updatedNodes[podIdx].data,
+        status: 'pending',
+        pendingTicks: 0,
+        image: dep.data.rolloutTargetImage
+      }
+    };
+
+    const updatedCount = childPods.length - oldPods.length + 1;
+    updatedNodes[depIndex] = {
+      ...dep,
+      data: {
+        ...dep.data,
+        rolloutStatus: `Updating ${updatedCount}/${childPods.length} replicas...`
+      }
+    };
+
+    const addActivityLog = get().addActivityLog;
+    addActivityLog(`[rollout] Scaling down old replica pod ${firstOldPod.data.label || firstOldPod.id}...`);
+    addActivityLog(`[rollout] Scaling up new replica pod with image ${dep.data.rolloutTargetImage}...`);
+    return true;
+  }
+
+  updatedNodes[depIndex] = {
+    ...dep,
+    data: {
+      ...dep.data,
+      isRollingUpdate: false,
+      image: dep.data.rolloutTargetImage,
+      rolloutStatus: 'Successfully rolled out'
+    }
+  };
+
+  const addActivityLog = get().addActivityLog;
+  addActivityLog(`deployment.apps/${dep.data.label || dep.id} successfully rolled out`);
+  return true;
+};
+
+/**
+ * Helper to process rolling updates for deployments
+ */
+const updateRollingDeployments = (updatedNodes: Node[], get: () => FlowState): boolean => {
+  let hasChanges = false;
+  for (let i = 0; i < updatedNodes.length; i++) {
+    if (processSingleDeploymentRollout(updatedNodes[i], i, updatedNodes, get)) {
+      hasChanges = true;
+    }
+  }
+  return hasChanges;
+};
+
+/**
  * Executes a single tick of the simulation.
  * It updates metrics, processes workloads, and broadcasts changes to the UI and backend.
  *
@@ -247,81 +352,13 @@ const runSimulationTick = (params: {
   let hasOverallChanges = false;
 
   // 1. Transition pending pods to ready
-  for (let i = 0; i < updatedNodes.length; i++) {
-    const node = updatedNodes[i];
-    if (node.type === 'Pod' && node.data.status === 'pending') {
-      const pendingTicks = (node.data.pendingTicks || 0) + 1;
-      updatedNodes[i] = {
-        ...node,
-        data: {
-          ...node.data,
-          pendingTicks,
-          status: pendingTicks >= 2 ? 'ready' : 'pending'
-        }
-      };
-      if (pendingTicks >= 2) {
-        const addActivityLog = get().addActivityLog;
-        addActivityLog(`pod/${node.data.label || node.id} status transitioned from Pending to Running`);
-      }
-      hasOverallChanges = true;
-    }
+  if (updatePendingPods(updatedNodes, get)) {
+    hasOverallChanges = true;
   }
 
   // 2. Handle rolling updates for deployments
-  for (let i = 0; i < updatedNodes.length; i++) {
-    const dep = updatedNodes[i];
-    if (dep.type === 'Deployment' && dep.data.isRollingUpdate) {
-      const childPods = updatedNodes.filter(n => n.parentId === dep.id && n.type === 'Pod');
-      const hasPendingPod = childPods.some(p => p.data.status === 'pending');
-
-      if (!hasPendingPod) {
-        const oldPods = childPods.filter(p => p.data.image !== dep.data.rolloutTargetImage);
-
-        if (oldPods.length > 0) {
-          const firstOldPod = oldPods[0];
-          const podIdx = updatedNodes.findIndex(n => n.id === firstOldPod.id);
-          if (podIdx !== -1) {
-            updatedNodes[podIdx] = {
-              ...updatedNodes[podIdx],
-              data: {
-                ...updatedNodes[podIdx].data,
-                status: 'pending',
-                pendingTicks: 0,
-                image: dep.data.rolloutTargetImage
-              }
-            };
-
-            const updatedCount = childPods.length - oldPods.length + 1;
-            updatedNodes[i] = {
-              ...dep,
-              data: {
-                ...dep.data,
-                rolloutStatus: `Updating ${updatedCount}/${childPods.length} replicas...`
-              }
-            };
-
-            const addActivityLog = get().addActivityLog;
-            addActivityLog(`[rollout] Scaling down old replica pod ${firstOldPod.data.label || firstOldPod.id}...`);
-            addActivityLog(`[rollout] Scaling up new replica pod with image ${dep.data.rolloutTargetImage}...`);
-            hasOverallChanges = true;
-          }
-        } else {
-          updatedNodes[i] = {
-            ...dep,
-            data: {
-              ...dep.data,
-              isRollingUpdate: false,
-              image: dep.data.rolloutTargetImage,
-              rolloutStatus: 'Successfully rolled out'
-            }
-          };
-
-          const addActivityLog = get().addActivityLog;
-          addActivityLog(`deployment.apps/${dep.data.label || dep.id} successfully rolled out`);
-          hasOverallChanges = true;
-        }
-      }
-    }
+  if (updateRollingDeployments(updatedNodes, get)) {
+    hasOverallChanges = true;
   }
 
   const { edgeMap, targetEdgeMap } = buildEdgeMaps(currentEdges);
@@ -365,7 +402,7 @@ const runSimulationTick = (params: {
 
     // Simulate logs for this workload
     const points = newMetrics[dep.id] || [];
-    const lastPoint = points[points.length - 1];
+    const lastPoint = points.at(-1);
     if (lastPoint) {
       simulateWorkloadLogs(dep, lastPoint, set);
     }
@@ -419,8 +456,10 @@ const buildInitialActivity = (nodes: Node[]) => {
     initialActivity.push(`No resources defined in the canvas.`);
   }
 
-  initialActivity.push(`$ kubectl get pods -w`);
-  initialActivity.push(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
+  initialActivity.push(
+    `$ kubectl get pods -w`,
+    `${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`
+  );
 
   return initialActivity;
 };
