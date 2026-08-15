@@ -1,3 +1,5 @@
+@import "../../index.css";
+
 /* Terminal Panel Component Styles */
 
 .terminal-trigger-btn {
@@ -13,7 +15,7 @@
 }
 
 .terminal-content-area {
-  @apply flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 custom-scrollbar relative;
+  @apply flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 relative;
 }
 
 .terminal-pagination-bar {

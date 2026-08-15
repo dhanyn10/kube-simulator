@@ -3,6 +3,7 @@ import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight,
 import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
+import './Sidebar.css';
 
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
@@ -56,7 +57,7 @@ const SidebarSection = ({
         type="button"
         onClick={onToggle}
         className={cn(
-          "w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors",
+          "sidebar-section-toggle-btn",
           colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"
         )}
       >
@@ -79,9 +80,8 @@ const SidebarSection = ({
               onDragEnd={onDragEnd}
               draggable
               className={cn(
-                "group flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200",
+                "sidebar-item-card group",
                 colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
-                "hover:shadow-lg active:cursor-grabbing",
                 style.border
               )}
             >
@@ -159,11 +159,11 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     <div
       id="sidebar-components"
       className={cn(
-        "w-64 border-r flex flex-col h-full shrink-0 z-10 transition-colors",
+        "sidebar-container",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
-      <div className={cn("p-5 border-b flex flex-col gap-4", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
+      <div className={cn("sidebar-header-area", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
         <div className="flex items-center justify-between">
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>
             Components
@@ -177,14 +177,14 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={cn(
-              "w-full pl-8 pr-2 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium",
+              "sidebar-search-input",
               colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50" : "bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-blue-400"
             )}
           />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 overscroll-contain">
+      <div className="sidebar-content-scroll">
         {SECTIONS.map(section => (
           <SidebarSection 
             key={section.id}

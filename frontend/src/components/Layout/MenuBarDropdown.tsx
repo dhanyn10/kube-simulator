@@ -50,7 +50,7 @@ export const MenuBarDropdown = ({
 
       {isOpen && (
         <div className={cn(
-          "absolute top-full left-0 mt-1 w-48 rounded-md shadow-lg border py-1 z-[100]",
+          "menubar-dropdown-panel",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}>
           {menu.items.map((item, idx) => {
@@ -79,7 +79,7 @@ export const MenuBarDropdown = ({
                   if (typeof item.checked !== 'boolean') setActiveMenu(null);
                 }}
                 className={cn(
-                  "w-full px-4 py-1.5 text-xs flex items-center justify-between transition-colors group",
+                  "menubar-dropdown-item group",
                   isDark ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
                 )}
               >

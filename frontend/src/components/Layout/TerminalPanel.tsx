@@ -709,7 +709,7 @@ export const TerminalPanel = () => {
 
       {/* Terminal logs content */}
       <div className={cn(
-        "terminal-content-area",
+        "terminal-content-area custom-scrollbar",
         colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
       )}>
         {renderTerminalContent()}
