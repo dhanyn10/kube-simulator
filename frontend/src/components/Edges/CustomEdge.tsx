@@ -3,6 +3,50 @@ import { Settings, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
+const checkNodeUnready = (node: any, nodes: any[]): boolean => {
+  if (!node) return false;
+  const isWorkload = node.type === 'Pod' || node.type === 'Deployment';
+  if (isWorkload && node.data?.status !== 'ready') return true;
+
+  if (node.type === 'Deployment') {
+    const childPods = nodes.filter((n: any) => String(n.parentId) === String(node.id) && n.type === 'Pod');
+    if (childPods.some((p: any) => p.data?.status !== 'ready')) return true;
+  }
+  return false;
+};
+
+const checkDownstreamErrorState = (
+  isSimulating: boolean,
+  validationError: any,
+  target: string,
+  nodes: any[],
+  edges: any[],
+  activeSimulationEdges: string[]
+): boolean => {
+  if (!isSimulating || validationError) return false;
+
+  const visited = new Set<string>();
+  const queue = [target];
+
+  while (queue.length > 0) {
+    const currentId = String(queue.shift()!);
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const node = nodes.find((n: any) => String(n.id) === currentId);
+    if (checkNodeUnready(node, nodes)) return true;
+
+    const outgoingEdges = edges.filter((e: any) =>
+      String(e.source) === currentId && activeSimulationEdges.some((eid) => String(eid) === String(e.id))
+    );
+
+    for (const edge of outgoingEdges) {
+      queue.push(String(edge.target));
+    }
+  }
+  return false;
+};
+
 export default function CustomEdge({
   id,
   sourceX,
@@ -23,64 +67,28 @@ export default function CustomEdge({
   const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
   const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
   const nodes = useFlowStore((state: any) => state.nodes);
+  const edges = useFlowStore((state: any) => state.edges);
   const globalEdgeColor = useFlowStore((state: any) => state.globalEdgeColor);
   const globalEdgeErrorColor = useFlowStore((state: any) => state.globalEdgeErrorColor);
 
   const isConfiguring = String(configuringEdgeId) === String(id);
-  const isSimulating = activeSimulationEdges.some(eid => String(eid) === String(id));
-  const edges = useFlowStore((state: any) => state.edges);
-
-  /**
-   * Recursive error check to see if this edge leads to a failure.
-   * Traverses downstream from the target node to check if any workload is not ready.
-   *
-   * @returns boolean
-   */
-  const checkErrorState = () => {
-    if (!isSimulating || validationError) return false;
-
-    const visited = new Set<string>();
-    const queue = [target];
-
-    while (queue.length > 0) {
-      const currentId = String(queue.shift()!);
-      if (visited.has(currentId)) continue;
-      visited.add(currentId);
-
-      const node = nodes.find((n: any) => String(n.id) === currentId);
-      const data = node?.data;
-      const isWorkload = node?.type === 'Pod' || node?.type === 'Deployment';
-
-      // 1. Check current node status
-      if (isWorkload && data?.status !== 'ready') return true;
-
-      // 2. If it's a Deployment, explicitly check its child pods
-      if (node?.type === 'Deployment') {
-        const childPods = nodes.filter((n: any) => String(n.parentId) === currentId && n.type === 'Pod');
-        if (childPods.some((p: any) => p.data?.status !== 'ready')) return true;
-      }
-
-      // 3. Search downstream via edges
-      const outgoingEdges = edges.filter((e: any) =>
-        String(e.source) === currentId && activeSimulationEdges.some(eid => String(eid) === String(e.id))
-      );
-
-      for (const edge of outgoingEdges) {
-        queue.push(String(edge.target));
-      }
-    }
-    return false;
-  };
-
+  const isSimulating = activeSimulationEdges.some((eid: any) => String(eid) === String(id));
   const validationError = data?.validationError;
-  const isTargetError = checkErrorState();
+
+  const isTargetError = checkDownstreamErrorState(
+    isSimulating,
+    validationError,
+    target,
+    nodes,
+    edges,
+    activeSimulationEdges
+  );
 
   const getStrokeColor = () => {
-    if (validationError) return globalEdgeErrorColor;
-    if (isTargetError) return globalEdgeErrorColor;
+    if (validationError || isTargetError) return globalEdgeErrorColor;
     return globalEdgeColor;
   };
-  
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -105,18 +113,18 @@ export default function CustomEdge({
 
   return (
     <>
-      <BaseEdge 
-        path={edgePath} 
-        markerEnd={markerEnd} 
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
         className={cn(isSimulating && "traffic-line")}
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
           stroke: getStrokeColor(),
           transition: 'stroke 0.2s, stroke-width 0.2s',
-        }} 
+        }}
       />
-      
+
       <EdgeLabelRenderer>
         <div
           style={{
@@ -144,8 +152,8 @@ export default function CustomEdge({
                 type="button"
                 className={cn(
                   "p-1 rounded transition-colors",
-                  isConfiguring 
-                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
+                  isConfiguring
+                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
                     : "hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                 )}
                 onClick={onSettings}
@@ -168,4 +176,3 @@ export default function CustomEdge({
     </>
   );
 }
-

@@ -17,6 +17,48 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Secret: { x: 80, y: 50 },
 };
 
+const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {
+  if (childType === 'Pod') return nodeType === 'Deployment' || nodeType === 'Namespace';
+  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA'].includes(childType)) return nodeType === 'Namespace';
+  return false;
+};
+
+const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes: Node[]): boolean => {
+  const w = n.width || n.measured?.width || (n.type === 'Deployment' ? 320 : 600);
+  const h = n.height || n.measured?.height || (n.type === 'Deployment' ? 160 : 400);
+
+  let absX = n.position.x;
+  let absY = n.position.y;
+  if (n.parentId) {
+    const parent = nodes.find((p) => p.id === n.parentId);
+    if (parent) {
+      absX += parent.position.x;
+      absY += parent.position.y;
+    }
+  }
+
+  return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
+};
+
+const computeFinalDropPosition = (
+  centeredPosition: { x: number; y: number },
+  targetContainer: Node | undefined,
+  nodes: Node[]
+): { x: number; y: number } => {
+  if (!targetContainer) return centeredPosition;
+
+  let absX = targetContainer.position.x;
+  let absY = targetContainer.position.y;
+  if (targetContainer.parentId) {
+    const p = nodes.find((n) => n.id === targetContainer.parentId);
+    if (p) {
+      absX += p.position.x;
+      absY += p.position.y;
+    }
+  }
+  return { x: centeredPosition.x - absX, y: centeredPosition.y - absY };
+};
+
 export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: number }) => { x: number; y: number }) {
   const nodes = useFlowStore((state) => state.nodes);
   const addNode = useFlowStore((state) => state.addNode);
@@ -26,33 +68,13 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
   const getTargetContainer = useCallback(
     (clientX: number, clientY: number, childType: K8sResourceType): Node | undefined => {
       const position = screenToFlowPosition({ x: clientX, y: clientY });
-
-      const candidates = nodes.filter((n) => {
-        if (childType === 'Pod') return n.type === 'Deployment' || n.type === 'Namespace';
-        if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA'].includes(childType)) return n.type === 'Namespace';
-        return false;
-      });
+      const candidates = nodes.filter((n) => isChildTypeAllowed(n.type, childType));
 
       const sorted = [...candidates].sort(
         (a, b) => (a.width || 0) * (a.height || 0) - (b.width || 0) * (b.height || 0)
       );
 
-      return sorted.find((n) => {
-        const w = n.width || n.measured?.width || (n.type === 'Deployment' ? 320 : 600);
-        const h = n.height || n.measured?.height || (n.type === 'Deployment' ? 160 : 400);
-
-        let absX = n.position.x;
-        let absY = n.position.y;
-        if (n.parentId) {
-          const parent = nodes.find((p) => p.id === n.parentId);
-          if (parent) {
-            absX += parent.position.x;
-            absY += parent.position.y;
-          }
-        }
-
-        return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
-      });
+      return sorted.find((n) => isPositionInsideNode(position, n, nodes));
     },
     [nodes, screenToFlowPosition]
   );
@@ -62,18 +84,17 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
 
-      if (draggingSidebarItem) {
-        const target = getTargetContainer(event.clientX, event.clientY, draggingSidebarItem);
-        setHoveredDeploymentId(target?.id || null);
+      if (!draggingSidebarItem) return;
 
-        useFlowStore.setState((state) => ({
-          nodes: state.nodes.map((n) =>
-            n.id === target?.id
-              ? { ...n, data: { ...n.data, isHovered: true } }
-              : { ...n, data: { ...n.data, isHovered: false } }
-          ),
-        }));
-      }
+      const target = getTargetContainer(event.clientX, event.clientY, draggingSidebarItem);
+      setHoveredDeploymentId(target?.id || null);
+
+      useFlowStore.setState((state) => ({
+        nodes: state.nodes.map((n) => ({
+          ...n,
+          data: { ...n.data, isHovered: n.id === target?.id },
+        })),
+      }));
     },
     [getTargetContainer, setHoveredDeploymentId, draggingSidebarItem]
   );
@@ -89,20 +110,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       const centeredPosition = { x: position.x - offset.x, y: position.y - offset.y };
 
       const targetContainer = getTargetContainer(event.clientX, event.clientY, type);
-      let finalPosition = centeredPosition;
-
-      if (targetContainer) {
-        let absX = targetContainer.position.x;
-        let absY = targetContainer.position.y;
-        if (targetContainer.parentId) {
-          const p = nodes.find((n) => n.id === targetContainer.parentId);
-          if (p) {
-            absX += p.position.x;
-            absY += p.position.y;
-          }
-        }
-        finalPosition = { x: centeredPosition.x - absX, y: centeredPosition.y - absY };
-      }
+      const finalPosition = computeFinalDropPosition(centeredPosition, targetContainer, nodes);
 
       setHoveredDeploymentId(null);
       useFlowStore.setState((state) => ({

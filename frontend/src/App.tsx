@@ -12,7 +12,7 @@ import {
   Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { EventsOn } from '../wailsjs/runtime'; // Corrected import path
+import { EventsOn } from '../wailsjs/runtime';
 
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';
@@ -66,6 +66,63 @@ const defaultEdgeOptions = {
   reconnectable: 'target' as const,
 };
 
+function useAppInit(isDetachedMode: boolean, loadSettingsJson: () => void, setGlobalEdgeColors: any, setSystemResources: any) {
+  useEffect(() => {
+    if (isDetachedMode) return;
+    loadSettingsJson();
+
+    if (globalThis.go?.main?.App?.GetSetting) {
+      Promise.all([
+        globalThis.go.main.App.GetSetting('globalEdgeColor'),
+        globalThis.go.main.App.GetSetting('globalEdgeErrorColor')
+      ]).then(([color, errorColor]: [string, string]) => {
+        if (color !== "" || errorColor !== "") {
+          setGlobalEdgeColors(
+            color || 'var(--color-mat-indigo)',
+            errorColor || 'var(--color-mat-red)'
+          );
+        }
+      });
+    }
+
+    const fetchResources = () => {
+      if (typeof GetSystemResources === 'function') {
+        GetSystemResources().then((resources: any) => {
+          setSystemResources(resources);
+        }).catch(err => {
+          logger.error('[App] Failed to fetch system resources:', err);
+        });
+      }
+    };
+
+    fetchResources();
+    const interval = setInterval(fetchResources, 5000);
+    return () => clearInterval(interval);
+  }, [isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources]);
+}
+
+function computeAutofocusZoom(node: Node) {
+  let zoom = 1.5;
+  const containerElement = document.querySelector('.react-flow__renderer');
+  if (containerElement) {
+    const rect = containerElement.getBoundingClientRect();
+    const containerWidth = rect.width || 1024;
+    const containerHeight = rect.height || 768;
+    const padding = 0.08;
+    const availableWidth = containerWidth * (1 - padding * 2);
+    const availableHeight = containerHeight * (1 - padding * 2);
+
+    const nodeW = node.measured?.width ?? node.width ?? 150;
+    const nodeH = node.measured?.height ?? node.height ?? 100;
+
+    const scaleX = availableWidth / nodeW;
+    const scaleY = availableHeight / nodeH;
+
+    zoom = Math.max(0.5, Math.min(1.5, Math.min(scaleX, scaleY)));
+  }
+  return zoom;
+}
+
 export default function App() {
   useThemeSync();
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
@@ -73,7 +130,6 @@ export default function App() {
 
   logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
 
-  // Expose store for e2e testing
   // @ts-ignore
   if (typeof globalThis !== 'undefined') globalThis.useFlowStore = useFlowStore;
 
@@ -107,7 +163,7 @@ export default function App() {
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
-  const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false); // State for About dialog
+  const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const canvasBgVariant = useFlowStore((state) => state.canvasBgVariant);
@@ -118,43 +174,8 @@ export default function App() {
   const defaultBgColor = colorMode === 'dark' ? '#334155' : '#E2E8F0';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
 
-  useEffect(() => {
-    if (!isDetachedMode) {
-      loadSettingsJson();
+  useAppInit(isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources);
 
-      // Load global edge colors
-      if (globalThis.go?.main?.App?.GetSetting) {
-        Promise.all([
-          globalThis.go.main.App.GetSetting('globalEdgeColor'),
-          globalThis.go.main.App.GetSetting('globalEdgeErrorColor')
-        ]).then(([color, errorColor]: [string, string]) => {
-          if (color !== "" || errorColor !== "") {
-            setGlobalEdgeColors(
-              color || 'var(--color-mat-indigo)',
-              errorColor || 'var(--color-mat-red)'
-            );
-          }
-        });
-      }
-
-      const fetchResources = () => {
-        // Safety check for Wails binding
-        if (typeof GetSystemResources === 'function') {
-          GetSystemResources().then((resources: any) => {
-            setSystemResources(resources);
-          }).catch(err => {
-            logger.error('[App] Failed to fetch system resources:', err);
-          });
-        }
-      };
-
-      fetchResources();
-      const interval = setInterval(fetchResources, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isDetachedMode, setSystemResources]);
-
-  // Effect to listen for the 'openAboutDialog' event
   useEffect(() => {
     const unsubscribe = EventsOn('openAboutDialog', () => {
       setIsAboutDialogOpen(true);
@@ -175,7 +196,6 @@ export default function App() {
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
-      // If node not selected, select only this node
       if (!node.selected) {
         useFlowStore.setState({
           nodes: nodes.map(n => ({ ...n, selected: n.id === node.id }))
@@ -183,16 +203,13 @@ export default function App() {
       }
       setContextMenu({ x: event.clientX, y: event.clientY });
     },
-    [nodes, setContextMenu]
+    [nodes]
   );
 
-  const onPaneContextMenu = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      setContextMenu({ x: event.clientX, y: event.clientY });
-    },
-    [setContextMenu]
-  );
+  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    setContextMenu({ x: event.clientX, y: event.clientY });
+  }, []);
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -203,23 +220,7 @@ export default function App() {
         const nodeH = node.measured?.height ?? node.height ?? 100;
         const centerX = absPos.x + nodeW / 2;
         const centerY = absPos.y + nodeH / 2;
-
-        let zoom = 1.5;
-        const containerElement = document.querySelector('.react-flow__renderer');
-        if (containerElement) {
-          const rect = containerElement.getBoundingClientRect();
-          const containerWidth = rect.width || 1024;
-          const containerHeight = rect.height || 768;
-          const padding = 0.08;
-          const availableWidth = containerWidth * (1 - padding * 2);
-          const availableHeight = containerHeight * (1 - padding * 2);
-
-          const scaleX = availableWidth / nodeW;
-          const scaleY = availableHeight / nodeH;
-
-          const calculatedZoom = Math.min(scaleX, scaleY);
-          zoom = Math.max(0.5, Math.min(1.5, calculatedZoom));
-        }
+        const zoom = computeAutofocusZoom(node);
 
         setCenter(centerX, centerY, { zoom, duration: 800 });
       }
@@ -395,7 +396,7 @@ export default function App() {
             <HistoryPanel colorMode={colorMode} />
           </Panel>
 
-          {/* Right Info Panel (Floating widgets moved to RightSidebar) */}
+          {/* Right Info Panel */}
           <Panel position="top-right" className="p-4 flex flex-col gap-3 items-end" />
         </ReactFlow>
 
@@ -424,7 +425,6 @@ export default function App() {
             />
           )}
 
-          {/* Render the AboutDialog */}
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
 
           <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

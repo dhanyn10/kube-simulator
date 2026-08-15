@@ -4,55 +4,58 @@ import { Activity, Cpu, Database, AlertTriangle, ZapOff } from 'lucide-react';
 import { cn, formatCPU, formatMemory } from '../../lib/utils';
 import { LineChart } from './LineChart';
 
+const setupDetachedListeners = (
+  setMetrics: (m: any) => void,
+  setDeployments: (d: any[]) => void,
+  setColorMode: (mode: 'dark' | 'light') => void
+) => {
+  logger.info('[DetachedMonitoring] Initializing sync...');
+  const channel = new BroadcastChannel('monitoring-data');
+  const runtime = (globalThis as any).runtime;
+
+  const handleUpdate = (data: any) => {
+    setMetrics(data.metrics);
+    setDeployments(data.deployments);
+  };
+
+  const handleTheme = (mode: 'dark' | 'light') => {
+    setColorMode(mode);
+  };
+
+  channel.onmessage = (event) => {
+    if (event.data.type === 'METRICS_UPDATE') {
+      handleUpdate(event.data);
+    } else if (event.data.type === 'THEME_SYNC') {
+      handleTheme(event.data.colorMode);
+    }
+  };
+
+  if (runtime) {
+    runtime.EventsOn('metrics-update', (json: string) => {
+      try { handleUpdate(JSON.parse(json)); } catch (e) { /* ignore parse error */ }
+    });
+    runtime.EventsOn('theme-sync', (mode: any) => {
+      handleTheme(mode);
+    });
+  }
+
+  channel.postMessage({ type: 'DETACHED_OPEN' });
+  if (runtime) runtime.EventsEmit('detached-open');
+
+  return () => {
+    channel.postMessage({ type: 'DETACHED_CLOSED' });
+    if (runtime) runtime.EventsEmit('detached-closed');
+    channel.close();
+  };
+};
+
 export const DetachedMonitoring = () => {
   const [metrics, setMetrics] = useState<any>({});
   const [deployments, setDeployments] = useState<any[]>([]);
   const [colorMode, setColorMode] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    logger.info('[DetachedMonitoring] Initializing sync...');
-    const channel = new BroadcastChannel('monitoring-data');
-
-    // @ts-ignore
-    const runtime = globalThis.runtime;
-
-    const handleUpdate = (data: any) => {
-       setMetrics(data.metrics);
-       setDeployments(data.deployments);
-    };
-
-    const handleTheme = (mode: 'dark' | 'light') => {
-       setColorMode(mode);
-    };
-
-    // BroadcastChannel backup
-    channel.onmessage = (event) => {
-      if (event.data.type === 'METRICS_UPDATE') {
-        handleUpdate(event.data);
-      } else if (event.data.type === 'THEME_SYNC') {
-        handleTheme(event.data.colorMode);
-      }
-    };
-
-    // Wails Events primary (more reliable between webviews)
-    if (runtime) {
-      runtime.EventsOn('metrics-update', (json: string) => {
-         try { handleUpdate(JSON.parse(json)); } catch(e) {}
-      });
-      runtime.EventsOn('theme-sync', (mode: any) => {
-         handleTheme(mode);
-      });
-    }
-
-    // Notify main window we are open
-    channel.postMessage({ type: 'DETACHED_OPEN' });
-    if (runtime) runtime.EventsEmit('detached-open');
-
-    return () => {
-      channel.postMessage({ type: 'DETACHED_CLOSED' });
-      if (runtime) runtime.EventsEmit('detached-closed');
-      channel.close();
-    };
+    return setupDetachedListeners(setMetrics, setDeployments, setColorMode);
   }, []);
 
   useEffect(() => {

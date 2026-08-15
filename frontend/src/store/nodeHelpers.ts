@@ -10,9 +10,6 @@ import {
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../lib/podSizing';
 import { syncWorkloadMetadata, getInitialData } from './slices/node-handlers/nodeUtils';
 
-/**
- * Attaches standard event handlers (onDelete, onRename) to a node data object.
- */
 export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
   onDelete: () => {
     const nodeToDelete = get().nodes.find((n: Node) => n.id === nodeId);
@@ -24,14 +21,10 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
   },
 });
 
-/**
- * Hydrates nodes with their runtime handlers and ensures initial status.
- */
 export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   let nextNodes = nodes.map(node => {
     const handlers = attachHandlers(node.id, get);
     
-    // Ensure displaySettings and yamlSettings are hydrated with defaults
     const defaultInitialData = getInitialData(node.type, node.id, get);
     const displaySettings = {
       ...defaultInitialData.displaySettings,
@@ -59,7 +52,6 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
     };
   });
 
-  // Sync Deployments and ReplicaSets after all handlers are attached
   const workloads = nextNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet');
   workloads.forEach(dept => {
     const { updatedDeployment, laidOut } = syncDeployment(dept, nextNodes, 0, get);
@@ -70,9 +62,6 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   return resolveGlobalCollisions(nextNodes);
 };
 
-/**
- * Synchronizes deployment state with its child pods.
- */
 export const syncDeployment = (
   deployment: Node, 
   currentNodes: Node[], 
@@ -93,7 +82,6 @@ export const syncDeployment = (
 
   const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
 
-  // Sync Deployment metadata with Pod template
   if (syncedPods.length > 0) {
     const podTemplate = syncedPods[0].data as any;
     updatedDeployment.data = {
@@ -126,9 +114,6 @@ export const syncDeployment = (
   return { updatedDeployment: finalDeployment, laidOut };
 };
 
-/**
- * Calculates dimensions for a deployment/group node based on its children.
- */
 const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const data = deployment.data as K8sNodeData;
   const isReplicaSet = deployment.type === 'ReplicaSet';
@@ -160,19 +145,7 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   return { width: depW, height: depH };
 };
 
-/**
- * Recursively synchronizes container sizes (e.g. Namespace) to fit their children.
- */
-export const syncContainerSize = (containerId: string | undefined, currentNodes: Node[]): Node[] => {
-  if (!containerId) return currentNodes;
-  
-  const container = currentNodes.find(n => n.id === containerId);
-  if (!container) return currentNodes;
-
-  const children = currentNodes.filter(n => n.parentId === containerId);
-  if (children.length === 0) return currentNodes;
-
-  const padding = 40;
+const computeChildrenBounds = (children: Node[], container: Node, padding: number) => {
   let minX = 0;
   let minY = 0;
   let maxX = Math.max(container.width || 0, container.measured?.width || 320);
@@ -184,21 +157,36 @@ export const syncContainerSize = (containerId: string | undefined, currentNodes:
     const childMinSize = getChildMinSize(child);
     const childWidth = Math.max(child.width || 0, child.measured?.width || 0, childMinSize.width);
     const childHeight = Math.max(child.height || 0, child.measured?.height || 0, childMinSize.height);
-    
-    if (child.position.x < padding/2) minX = Math.min(minX, child.position.x - padding);
-    if (child.position.y < padding/2) minY = Math.min(minY, child.position.y - padding);
-    
+
+    if (child.position.x < padding / 2) minX = Math.min(minX, child.position.x - padding);
+    if (child.position.y < padding / 2) minY = Math.min(minY, child.position.y - padding);
+
     maxX = Math.max(maxX, child.position.x + childWidth + padding);
     maxY = Math.max(maxY, child.position.y + childHeight + padding);
   });
+
+  return { minX, minY, maxX, maxY };
+};
+
+export const syncContainerSize = (containerId: string | undefined, currentNodes: Node[]): Node[] => {
+  if (!containerId) return currentNodes;
+
+  const container = currentNodes.find(n => n.id === containerId);
+  if (!container) return currentNodes;
+
+  const children = currentNodes.filter(n => n.parentId === containerId);
+  if (children.length === 0) return currentNodes;
+
+  const padding = 40;
+  const { minX, minY, maxX, maxY } = computeChildrenBounds(children, container, padding);
 
   const shiftX = minX < 0 ? Math.abs(minX) : 0;
   const shiftY = minY < 0 ? Math.abs(minY) : 0;
   const newWidth = maxX + shiftX;
   const newHeight = maxY + shiftY;
 
-  const isSizeChanged = Math.abs(newWidth - (container.width || 0)) > 1 || 
-                        Math.abs(newHeight - (container.height || 0)) > 1 || 
+  const isSizeChanged = Math.abs(newWidth - (container.width || 0)) > 1 ||
+                        Math.abs(newHeight - (container.height || 0)) > 1 ||
                         shiftX > 0 || shiftY > 0;
 
   if (!isSizeChanged) return currentNodes;

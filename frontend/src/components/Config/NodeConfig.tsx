@@ -1,4 +1,3 @@
-
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { Type, Terminal } from 'lucide-react';
@@ -18,6 +17,54 @@ interface NodeConfigProps {
   selectedNode: any;
 }
 
+const syncPeersAndParent = (
+  selectedNode: any,
+  additionalUpdates: any,
+  nextSettings: any,
+  settingKey: 'displaySettings' | 'yamlSettings',
+  data: any
+) => {
+  const state = useFlowStore.getState();
+  const updateNodeData = state.updateNodeData;
+
+  state.nodes.forEach((n: any) => {
+    if (isPeerPod(n, selectedNode, data.label)) {
+      updateNodeData(n.id, {
+        ...(settingKey === 'yamlSettings' ? data : {}),
+        ...additionalUpdates,
+        [settingKey]: nextSettings,
+      });
+    }
+  });
+
+  if (selectedNode.parentId) {
+    const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+    if (parent) {
+      updateNodeData(parent.id, {
+        ...(settingKey === 'yamlSettings' ? data : {}),
+        ...additionalUpdates,
+        [settingKey]: nextSettings,
+      });
+    }
+  }
+};
+
+const syncParentPodUpdates = (selectedNode: any, updates: any) => {
+  if (selectedNode.type !== 'Pod' || !selectedNode.parentId) return;
+  const state = useFlowStore.getState();
+  const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+  if (!parent) return;
+
+  const syncData: any = {};
+  const syncKeys = ['cpuLimit', 'memoryLimit', 'label', 'image', 'status', 'webserver', 'runtime'];
+  syncKeys.forEach((key) => {
+    if (key in updates) syncData[key] = updates[key];
+  });
+  if (Object.keys(syncData).length > 0) {
+    state.updateNodeData(parent.id, syncData);
+  }
+};
+
 export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -31,18 +78,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     const nextSettings = { ...currentSettings, [field]: nextVisibility };
 
     updateNodeData(selectedNode.id, { ...data, ...additionalUpdates, displaySettings: nextSettings });
-
-    const state = useFlowStore.getState();
-    state.nodes.forEach((n: any) => {
-      if (isPeerPod(n, selectedNode, data.label)) {
-        updateNodeData(n.id, { ...additionalUpdates, displaySettings: nextSettings });
-      }
-    });
-
-    if (selectedNode.parentId) {
-      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-      if (parent) updateNodeData(parent.id, { ...additionalUpdates, displaySettings: nextSettings });
-    }
+    syncPeersAndParent(selectedNode, additionalUpdates, nextSettings, 'displaySettings', data);
   };
 
   const toggleYaml = (field: string) => {
@@ -51,18 +87,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     const nextSettings = { ...currentSettings, [field]: nextYaml };
 
     updateNodeData(selectedNode.id, { ...data, yamlSettings: nextSettings });
-
-    const state = useFlowStore.getState();
-    state.nodes.forEach((n: any) => {
-      if (isPeerPod(n, selectedNode, data.label)) {
-        updateNodeData(n.id, { ...data, yamlSettings: nextSettings });
-      }
-    });
-
-    if (selectedNode.parentId) {
-      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-      if (parent) updateNodeData(parent.id, { ...data, yamlSettings: nextSettings });
-    }
+    syncPeersAndParent(selectedNode, {}, nextSettings, 'yamlSettings', data);
   };
 
   const performUpdate = (updates: any) => {
@@ -73,18 +98,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     }
 
     updateNodeData(selectedNode.id, nextData);
-
-    if (selectedNode.type === 'Pod' && selectedNode.parentId) {
-      const state = useFlowStore.getState();
-      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-      if (parent) {
-        const syncData: any = {};
-        ['cpuLimit', 'memoryLimit', 'label', 'image', 'status', 'webserver', 'runtime'].forEach(key => {
-          if (key in updates) syncData[key] = updates[key];
-        });
-        if (Object.keys(syncData).length > 0) updateNodeData(parent.id, syncData);
-      }
-    }
+    syncParentPodUpdates(selectedNode, updates);
   };
 
   const renderConfig = () => {

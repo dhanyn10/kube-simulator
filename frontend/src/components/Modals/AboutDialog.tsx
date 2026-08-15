@@ -86,6 +86,29 @@ const UpdateStatus: React.FC<{
   );
 };
 
+const fetchAboutData = async (
+  appVersion: string,
+  setSystemInfo: (info: SystemInfo) => void,
+  setAppVersion: (v: string) => void,
+  setUpdateInfo: (u: UpdateInfo) => void
+) => {
+  const info = await GetSystemInfo();
+  const sys: SystemInfo = {
+    os: (info as any).os ?? '',
+    arch: (info as any).arch ?? '',
+    goVersion: (info as any).goVersion ?? '',
+    version: (info as any).version ?? '',
+  };
+  setSystemInfo(sys);
+  const effectiveVersion = sys.version || appVersion;
+  if (sys.version) {
+    setAppVersion(sys.version);
+  }
+
+  const update = await CheckForUpdates(effectiveVersion);
+  setUpdateInfo(update);
+};
+
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const [appVersion, setAppVersion] = useState('0.1.0');
@@ -97,33 +120,12 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    async function fetchData() {
-      setIsCheckingUpdate(true);
-      try {
-        const info = await GetSystemInfo();
-        const sys: SystemInfo = {
-          os: (info as any).os ?? '',
-          arch: (info as any).arch ?? '',
-          goVersion: (info as any).goVersion ?? '',
-          version: (info as any).version ?? '',
-        };
-        setSystemInfo(sys);
-        if (sys.version) {
-          setAppVersion(sys.version);
-        }
+    if (!isOpen) return;
 
-        const update = await CheckForUpdates(sys.version || appVersion);
-        setUpdateInfo(update);
-      } catch (error) {
-        logger.error("Failed to fetch info:", error);
-      } finally {
-        setIsCheckingUpdate(false);
-      }
-    }
-
-    if (isOpen) {
-      fetchData();
-    }
+    setIsCheckingUpdate(true);
+    fetchAboutData(appVersion, setSystemInfo, setAppVersion, setUpdateInfo)
+      .catch((error) => logger.error("Failed to fetch info:", error))
+      .finally(() => setIsCheckingUpdate(false));
   }, [isOpen, appVersion]);
 
   const handleCopy = async () => {
@@ -271,4 +273,3 @@ ${appCopyright}`;
 };
 
 export default AboutDialog;
-

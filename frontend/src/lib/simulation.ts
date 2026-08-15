@@ -4,52 +4,24 @@ import { SimulationMetricPoint, FlowState } from '../store/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
 import { syncDeployment } from '../store/nodeHelpers';
 
-/**
- * Context payload containing the pre-calculated states, cache lookups,
- * and mutations during a single simulation iteration tick.
- */
 export interface SimulationContext {
-  /** The current immutable list of nodes in the workspace */
   nodes: Node[];
-  /** The current list of edges in the workspace */
   edges: Edge[];
-  /** Array of currently active edge IDs carrying virtual traffic flow */
   activeSimulationEdges: string[];
-  /** Mutable clone of nodes being modified during the tick */
   updatedNodes: Node[];
-  /** Accrued history of performance metrics (CPU/Mem percent and values) for each node */
   newMetrics: Record<string, SimulationMetricPoint[]>;
-  /** Total elapsed clock ticks since the simulation started */
   ticks: number;
-  /** Returns the current active Zustand store state */
   get: () => FlowState;
-  /** Updates the Zustand store with partial state */
   set: (state: Partial<FlowState>) => void;
-  /** Fast cache mapping sourceNodeId -> outgoing Edge array */
   edgeMap?: Map<string, Edge[]>;
-  /** Fast cache mapping targetNodeId -> incoming Edge array */
   targetEdgeMap?: Map<string, Edge[]>;
-  /** Fast cache mapping nodeId -> Node object */
   nodeMap?: Map<string, Node>;
-  /** Fast cache mapping parentId -> children Pod nodes array */
   childPodMap?: Map<string, Node[]>;
-  /** List of top-level internet gateway nodes */
   internetNodes?: Node[];
-  /** Cache of node IDs reachable from each internet gateway node */
   internetReachableMap?: Map<string, Set<string>>;
-  /** Fast index mapping node.id -> array index in updatedNodes */
   nodeIndexMap?: Map<string, number>;
 }
 
-/**
- * Calculates which nodes are reachable from a set of starting nodes using BFS traversal.
- * Uses a pre-computed adjacency map for fast, high-performance O(1) lookups.
- *
- * @param startNodes - Array of origin nodes (e.g., Internet source nodes)
- * @param edgeMap - Pre-calculated map of outgoing edges per node
- * @param activeSimulationEdges - Active visual edges to traverse
- * @returns A Set of reachable node IDs
- */
 export const calculateReachability = (
   startNodes: Node[],
   edgeMap: Map<string, Edge[]>,
@@ -78,14 +50,6 @@ export const calculateReachability = (
   return reachableNodes;
 };
 
-/**
- * Validates Persistent Volume Claim (PVC) bindings and readiness.
- * Standalone/workload pods remain in a 'pending' state until all attached PVC nodes are fully bound.
- *
- * @param dep - Workload or standalone Pod node to check
- * @param ctx - The active simulation tick context
- * @returns Object indicating whether any changes occurred and if the workload is currently blocked
- */
 export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
@@ -161,14 +125,6 @@ export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   return { hasChanges, isBlocked: false };
 };
 
-/**
- * Sums up incoming virtual network traffic flowing into a workload or Pod.
- * It traverses connectivity from all active 'Internet' traffic nodes down to this target.
- *
- * @param dep - Target workload node receiving traffic
- * @param ctx - The active simulation tick context
- * @returns Object indicating total computed traffic load (in requests/sec) and change status
- */
 export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
   let totalTraffic = 0;
 
@@ -218,15 +174,6 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   return { traffic: nextTraffic, hasChanges };
 };
 
-/**
- * Calculates resource utilization metrics (virtual CPU millicores and Memory MiB)
- * based on incoming request load, number of replicas, and config limits.
- *
- * @param dep - Target workload node
- * @param incomingTraffic - Total requests/sec load
- * @param ctx - The active simulation tick context
- * @returns Calculated CPU percentage use and boolean flag if the workload hit Out-Of-Memory (OOM) limits
- */
 export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
   const dData = dep.data as K8sNodeData;
   const replicas = (dData.replicas as number) || 1;
@@ -252,15 +199,6 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
   return { cpuPercent, isOOM };
 };
 
-/**
- * Models dynamic Out-Of-Memory (OOM) crashes when pod memory utilization hits limits.
- * A single replica pod is randomly crashed and schedules a recovery sequence.
- *
- * @param dep - Workload parent node
- * @param isOOM - Whether memory limit has been exceeded
- * @param ctx - The active simulation tick context
- * @returns True if a crash event was triggered
- */
 export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
   if (!isOOM || safeRandom() <= 0.5) return false;
 
@@ -294,57 +232,56 @@ export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContex
   }, 3000);
 };
 
-/**
- * Processes Kubernetes Horizontal Pod Autoscaler (HPA) auto-scaling algorithms.
- * Calculates desired replicas based on CPU utilization and triggers scale-up/scale-down actions,
- * incorporating basic hysteresis metrics to prevent replica oscillation (flapping).
- *
- * @param dep - Target workload deployment node
- * @param cpuPercent - Computed virtual CPU usage percentage
- * @param ctx - The active simulation tick context
- * @returns True if scaling or state update changes were executed
- */
-export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
-  // Use targetEdgeMap for faster HPA lookup
-  let connectedHPA: Node | undefined;
-  const incoming = ctx.targetEdgeMap?.get(dep.id);
-  if (incoming) {
-    for (const edge of incoming) {
-      const sourceNode = ctx.nodeMap?.get(String(edge.source));
-      if (sourceNode?.type === 'HPA') {
-        connectedHPA = sourceNode;
-        break;
-      }
+const findConnectedHPA = (depId: string, ctx: SimulationContext): Node | undefined => {
+  const incoming = ctx.targetEdgeMap?.get(depId);
+  if (!incoming) return undefined;
+
+  for (const edge of incoming) {
+    const sourceNode = ctx.nodeMap?.get(String(edge.source));
+    if (sourceNode?.type === 'HPA') {
+      return sourceNode;
     }
   }
+  return undefined;
+};
 
+const calculateDesiredReplicas = (
+  replicas: number,
+  cpuPercent: number,
+  hpaData: K8sNodeData
+): number => {
+  const targetCPU = hpaData.targetCPU || 50;
+  const cpuRatio = cpuPercent / targetCPU;
+
+  let desired = replicas;
+  if (Math.abs(1 - cpuRatio) > 0.1) {
+    desired = Math.max(hpaData.minReplicas || 1, Math.min(hpaData.maxReplicas || 10, Math.ceil(replicas * cpuRatio)));
+  }
+
+  if (desired < replicas && safeRandom() < 0.7) {
+    desired = replicas;
+  }
+  return desired;
+};
+
+export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
+  const connectedHPA = findConnectedHPA(dep.id, ctx);
   if (!connectedHPA) return false;
 
   let hasChanges = false;
   const hpaData = connectedHPA.data as K8sNodeData;
   const replicas = (dep.data as K8sNodeData).replicas || 1;
-  const targetCPU = hpaData.targetCPU || 50;
-  const cpuRatio = cpuPercent / targetCPU;
-
-  let desiredReplicas = replicas;
-  if (Math.abs(1 - cpuRatio) > 0.1) {
-    desiredReplicas = Math.max(hpaData.minReplicas || 1, Math.min(hpaData.maxReplicas || 10, Math.ceil(replicas * cpuRatio)));
-  }
-
-  // Add some dampening/hysteresis to avoid flapping
-  if (desiredReplicas < replicas && safeRandom() < 0.7) desiredReplicas = replicas;
+  const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaData);
 
   if (desiredReplicas !== replicas) {
     const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(n => n.id === dep.id);
     if (nodeIndex !== -1) {
       const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, desiredReplicas - replicas, ctx.get);
 
-      // Rebuild the updatedNodes array to include new pods and remove old ones
       const filteredNodes = ctx.updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
       ctx.updatedNodes.length = 0;
       ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
 
-      // Invalidate index map as the array was rebuilt
       ctx.nodeIndexMap?.clear();
       hasChanges = true;
     }
@@ -357,15 +294,6 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   return hasChanges;
 };
 
-/**
- * Standard processing loop for a single workload node (Deployment, ReplicaSet, or Standalone Pod)
- * during a simulation tick. Executes PVC validation, traffic calculations, resource metrics,
- * crash modeling, and HPA auto-scaling logic.
- *
- * @param dep - The workload or Pod node being processed
- * @param ctx - The active simulation tick context
- * @returns Object indicating whether any store updating actions occurred
- */
 export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
   const pvcResult = checkPvcReadiness(dep, ctx);
   if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges };
