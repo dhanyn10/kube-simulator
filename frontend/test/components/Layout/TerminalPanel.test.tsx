@@ -540,6 +540,7 @@ describe('TerminalPanel', () => {
         href: '',
         download: '',
         click: vi.fn(),
+        remove: vi.fn(),
       };
       const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as any);
       const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor as any);
@@ -551,7 +552,7 @@ describe('TerminalPanel', () => {
       expect(mockAnchor.download).toBe('test_file.log');
       expect(mockAnchor.click).toHaveBeenCalled();
       expect(appendChildSpy).toHaveBeenCalled();
-      expect(removeChildSpy).toHaveBeenCalled();
+      expect(mockAnchor.remove).toHaveBeenCalled();
 
       createObjectUrlSpy.mockRestore();
       revokeObjectUrlSpy.mockRestore();

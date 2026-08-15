@@ -133,18 +133,19 @@ export const generateLogFilename = (
   let baseName = 'kube-simulator';
   if (projectName) {
     baseName = projectName.toLowerCase()
-      .replace(/^scenario:\s*/i, 'scenario-')
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .replace(/^scenario:\s*/gi, 'scenario-')
+      .replaceAll(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '');
   }
   if (activeTab === 'logs' && resourceName) {
-    const cleanResource = String(resourceName).toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+    const cleanResource = String(resourceName).toLowerCase().replaceAll(/[^a-z0-9_-]+/g, '-');
     baseName = `${baseName}-${cleanResource}`;
   }
 
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10);
-  const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
+  const timeStr = date.toTimeString().slice(0, 8).replaceAll(':', '-');
   return `${baseName}_${dateStr}_${timeStr}.log`;
 };
 
@@ -158,8 +159,32 @@ export const exportLogFile = (logs: string[], filename: string) => {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  if (typeof a.remove === 'function') {
+    a.remove();
+  } else if (a.parentNode) {
+    a.parentNode.removeChild(a);
+  }
   URL.revokeObjectURL(url);
+};
+
+export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: string) => void): boolean => {
+  if (cmdLower !== 'help') return false;
+  addActivityLog('Available educational Kubernetes commands:');
+  addActivityLog('  kubectl get pods                      List all pods on the canvas');
+  addActivityLog('  kubectl get deployments               List deployments on the canvas');
+  addActivityLog('  kubectl get services                  List services on the canvas');
+  addActivityLog('  kubectl get all                       List all resources on the canvas');
+  addActivityLog('  kubectl scale deployment/<name>       Scale replicas of a deployment');
+  addActivityLog('  kubectl set image deployment/<name>   Set container image (triggers Rolling Update)');
+  addActivityLog('  kubectl rollout status deploy/<name>  Check progress of a rolling update');
+  addActivityLog('  kubectl rollout history deploy/<name> View rollout revision history');
+  addActivityLog('  kubectl rollout undo deploy/<name>    Rollback to the previous deployment revision');
+  addActivityLog('  kubectl delete pod <name>             Delete pod (triggers replica controller self-healing)');
+  addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
+  addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
+  addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
+  addActivityLog('  clear                                 Clear the console log list');
+  return true;
 };
 
 export const handleDescribeCommand = (
@@ -416,22 +441,7 @@ export const TerminalPanel = () => {
       setStoreState: useFlowStore.setState
     };
 
-    if (cmdLower === 'help') {
-      addActivityLog('Available educational Kubernetes commands:');
-      addActivityLog('  kubectl get pods                      List all pods on the canvas');
-      addActivityLog('  kubectl get deployments               List deployments on the canvas');
-      addActivityLog('  kubectl get services                  List services on the canvas');
-      addActivityLog('  kubectl get all                       List all resources on the canvas');
-      addActivityLog('  kubectl scale deployment/<name>       Scale replicas of a deployment');
-      addActivityLog('  kubectl set image deployment/<name>   Set container image (triggers Rolling Update)');
-      addActivityLog('  kubectl rollout status deploy/<name>  Check progress of a rolling update');
-      addActivityLog('  kubectl rollout history deploy/<name> View rollout revision history');
-      addActivityLog('  kubectl rollout undo deploy/<name>    Rollback to the previous deployment revision');
-      addActivityLog('  kubectl delete pod <name>             Delete pod (triggers replica controller self-healing)');
-      addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
-      addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
-      addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
-      addActivityLog('  clear                                 Clear the console log list');
+    if (handleHelpCommand(cmdLower, addActivityLog)) {
       return;
     }
 
