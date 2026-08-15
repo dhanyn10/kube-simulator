@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand } from '../../../src/components/Layout/TerminalPanel';
+import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile } from '../../../src/components/Layout/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 
@@ -520,6 +520,70 @@ describe('TerminalPanel', () => {
       const logs = useFlowStore.getState().activityLogs;
       expect(logs.some(line => line.includes('Name:                   api-dep'))).toBe(true);
       expect(logs.some(line => line.includes('StrategyType:           RollingUpdate'))).toBe(true);
+    });
+  });
+
+  describe('unit tests for log export utilities', () => {
+    it('generateLogFilename formats scenario and default project names correctly', () => {
+      const scenarioFilename = generateLogFilename('Scenario: Basic Deployment', 'logs', 'web-pod');
+      expect(scenarioFilename).toMatch(/^scenario-basic-deployment-web-pod_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/);
+
+      const defaultFilename = generateLogFilename(null, 'activity');
+      expect(defaultFilename).toMatch(/^kube-simulator_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/);
+    });
+
+    it('exportLogFile triggers download element correctly', () => {
+      const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
+      const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+      const mockAnchor = {
+        href: '',
+        download: '',
+        click: vi.fn(),
+        remove: vi.fn(),
+      };
+      const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as any);
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockAnchor as any);
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockAnchor as any);
+
+      exportLogFile(['line 1', 'line 2'], 'test_file.log');
+
+      expect(createElementSpy).toHaveBeenCalledWith('a');
+      expect(mockAnchor.download).toBe('test_file.log');
+      expect(mockAnchor.click).toHaveBeenCalled();
+      expect(appendChildSpy).toHaveBeenCalled();
+      expect(mockAnchor.remove).toHaveBeenCalled();
+
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+      createElementSpy.mockRestore();
+      appendChildSpy.mockRestore();
+      removeChildSpy.mockRestore();
+    });
+
+    it('renders export log button and triggers export when clicked', () => {
+      const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
+      const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          activityLogs: ['line 1', 'line 2'],
+          currentProject: { id: 1, name: 'Scenario: Basic Deployment' }
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const exportBtn = screen.getByTestId('terminal-export-log-btn');
+      expect(exportBtn).toBeInTheDocument();
+
+      fireEvent.click(exportBtn);
+
+      expect(createObjectUrlSpy).toHaveBeenCalled();
+
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
     });
   });
 });
