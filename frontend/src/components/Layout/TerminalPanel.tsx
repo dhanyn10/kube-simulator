@@ -133,7 +133,7 @@ export const generateLogFilename = (
   let baseName = 'kube-simulator';
   if (projectName) {
     baseName = projectName.toLowerCase()
-      .replace(/^scenario:\s*/gi, 'scenario-')
+      .replace(/^scenario:\s*/g, 'scenario-')
       .replaceAll(/[^a-z0-9_-]+/g, '-')
       .replace(/^-+/, '')
       .replace(/-+$/, '');
@@ -366,7 +366,8 @@ export const TerminalPanel = () => {
     // Highlight search match
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const parts = line.split(new RegExp(`(${searchQuery})`, 'gi'));
+      const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
       const partsWithObjects = parts.map((part, index) => ({
         key: `part-${index}-${part}`,
         text: part,

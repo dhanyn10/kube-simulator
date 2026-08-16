@@ -9,6 +9,7 @@
   - Use cryptographically safe random generator `safeRandom()` from `@/lib/utils` instead of `Math.random()`.
   - Use `window` instead of `globalThis` in frontend browser code.
   - Avoid regexes with backtracking risks; use bounded prefixes and `.slice()`.
+  - Simplify regular expressions to reduce runtime and avoid super-linear performance due to backtracking. Ensure optional groups with overlapping character sets use explicit delimiters like '=' or non-capturing bounded groups.
 
 ## Testing
 - Run Vitest tests with `cd frontend && pnpm test`.
