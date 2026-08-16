@@ -243,44 +243,34 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
-func (a *App) ExportAndOpenLogFile(content string) bool {
-	if appCtx == nil {
-		return false
-	}
-	var filePath string
-	var err error
-
-	if appCtx.Value(isTestKey) != nil {
-		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok {
-			filePath = testPath
+func (a *App) OpenLogFile(content string) bool {
+	var logFilePath string
+	if appCtx != nil && appCtx.Value(isTestKey) != nil {
+		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok && testPath != "" {
+			logFilePath = testPath
 		} else {
-			filePath = ""
+			logFilePath = logger.GetLogFilePath()
 		}
 	} else {
-		now := time.Now()
-		defaultFilename := fmt.Sprintf("app_logs_%s.log", now.Format("2006-01-02_15-04-05"))
-		filePath, err = wailsRuntime.SaveFileDialog(appCtx, wailsRuntime.SaveDialogOptions{
-			DefaultFilename: defaultFilename,
-			Title:           "Save and Open Log File",
-			Filters: []wailsRuntime.FileFilter{
-				{DisplayName: "Log Files (*.log)", Pattern: "*.log"},
-				{DisplayName: "Text Files (*.txt)", Pattern: "*.txt"},
-			},
-		})
+		logFilePath = logger.GetLogFilePath()
 	}
 
-	if err != nil || filePath == "" {
+	if logFilePath == "" {
 		return false
 	}
 
-	err = os.WriteFile(filePath, []byte(content), 0644)
-	if err != nil {
-		logger.Error("Error writing log file: %v", err)
-		return false
+	if content != "" {
+		err := os.WriteFile(logFilePath, []byte(content), 0644)
+		if err != nil {
+			logger.Error("Error writing log file: %v", err)
+			return false
+		}
+	} else if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
+		_ = os.WriteFile(logFilePath, []byte("[INFO] Log file initialized\n"), 0644)
 	}
 
-	if appCtx.Value(isTestKey) == nil {
-		openInExplorer(filePath)
+	if appCtx == nil || appCtx.Value(isTestKey) == nil {
+		openInExplorer(logFilePath)
 	}
 
 	return true

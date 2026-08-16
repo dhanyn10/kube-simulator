@@ -253,14 +253,8 @@ export const LogToolbar: React.FC<LogToolbarProps> = ({
           <button
             type="button"
             onClick={onExportLogs}
-            disabled={logs.length === 0}
-            className={cn(
-              "px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all shrink-0",
-              logs.length === 0
-                ? "opacity-40 cursor-not-allowed border-slate-700/30 text-slate-500"
-                : "border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
-            )}
-            title="Save and open log file in explorer"
+            className="px-2.5 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 text-xs font-medium flex items-center gap-1.5 transition-all shrink-0"
+            title="Open log file in explorer"
             data-testid="log-export-btn"
           >
             <FolderOpen size={14} />

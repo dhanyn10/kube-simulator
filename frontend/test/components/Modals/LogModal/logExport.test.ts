@@ -25,12 +25,12 @@ describe('logExport', () => {
     expect(lines[1]).toContain('[ERROR] [KubeConsole] Failed command');
   });
 
-  it('calls ExportAndOpenLogFile when window.go is defined', async () => {
+  it('calls OpenLogFile when window.go is defined', async () => {
     const exportMock = vi.fn().mockResolvedValue(true);
     (window as any).go = {
       main: {
         App: {
-          ExportAndOpenLogFile: exportMock,
+          OpenLogFile: exportMock,
         },
       },
     };

@@ -30,22 +30,22 @@ export const formatLogsText = (logs: LogEntry[]): string => {
 };
 
 /**
- * Saves and opens the log file in OS file explorer via Wails backend,
+ * Opens the log file in OS file explorer via Wails backend (App.OpenLogFile),
  * or falls back to browser download if outside Wails context.
  */
 export const exportLogsToFile = async (logs: LogEntry[]): Promise<boolean> => {
-  if (logs.length === 0) return false;
-
   const content = formatLogsText(logs);
 
-  if (window.go?.main?.App?.ExportAndOpenLogFile) {
+  if (window.go?.main?.App?.OpenLogFile) {
     try {
-      const success = await window.go.main.App.ExportAndOpenLogFile(content);
+      const success = await window.go.main.App.OpenLogFile(content);
       if (success) return true;
     } catch {
       // Fallback to browser download if backend call fails
     }
   }
+
+  if (logs.length === 0) return false;
 
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
