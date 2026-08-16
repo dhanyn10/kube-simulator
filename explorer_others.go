@@ -9,11 +9,11 @@ import (
 )
 
 func openInExplorer(filePath string) {
+	dir := filepath.Dir(filePath)
 	var cmd *exec.Cmd
 	if runtime.GOOS == "darwin" {
-		cmd = exec.Command("open", "-R", filePath)
+		cmd = exec.Command("open", dir)
 	} else {
-		dir := filepath.Dir(filePath)
 		cmd = exec.Command("xdg-open", dir)
 	}
 	_ = cmd.Start()
