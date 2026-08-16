@@ -187,6 +187,218 @@ export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: strin
   return true;
 };
 
+export const getLogLineColorClass = (line: string, colorMode: 'dark' | 'light'): string => {
+  const lineLower = line.toLowerCase();
+  const isCommand = line.startsWith('$');
+  const isError = lineLower.includes('error') || lineLower.includes('fatal') || lineLower.includes('failed');
+  const isWarning = lineLower.includes('warning') || lineLower.includes('warn') || lineLower.includes('throttled') || lineLower.includes('oom risk');
+  const isSuccess = line.includes('created') || line.includes('Running') || line.includes('Ready') || line.includes('Successfully') || line.includes('deleted');
+
+  if (isCommand) {
+    return colorMode === 'dark' ? 'text-cyan-400 font-bold' : 'text-cyan-600 font-bold';
+  }
+  if (isError) {
+    return colorMode === 'dark' ? 'text-red-400' : 'text-red-600';
+  }
+  if (isWarning) {
+    return colorMode === 'dark' ? 'text-amber-400' : 'text-amber-600';
+  }
+  if (isSuccess) {
+    return colorMode === 'dark' ? 'text-emerald-400' : 'text-emerald-600';
+  }
+  return colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700';
+};
+
+export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', searchQuery: string): React.ReactNode => {
+  const textClass = getLogLineColorClass(line, colorMode);
+
+  if (!searchQuery) {
+    return <span className={textClass}>{line}</span>;
+  }
+
+  const q = searchQuery.toLowerCase();
+  const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
+  const partsWithObjects = parts.map((part, index) => ({
+    key: `part-${index}-${part}`,
+    text: part,
+    isMatch: part.toLowerCase() === q,
+  }));
+
+  return (
+    <span className={textClass}>
+      {partsWithObjects.map((item) =>
+        item.isMatch ? (
+          <mark key={item.key} className="bg-yellow-500 text-black px-0.5 rounded">{item.text}</mark>
+        ) : (
+          item.text
+        )
+      )}
+    </span>
+  );
+};
+
+interface TerminalLogBodyProps {
+  isSimulating: boolean;
+  terminalActiveTab: 'activity' | 'logs';
+  activeLogs: string[];
+  loggableResources: Node[];
+  paginatedLogs: string[];
+  searchQuery: string;
+  colorMode: 'dark' | 'light';
+  startSimulation: () => void;
+  currentPage: number;
+  pageSize: number;
+}
+
+export const TerminalLogBody = ({
+  isSimulating,
+  terminalActiveTab,
+  activeLogs,
+  loggableResources,
+  paginatedLogs,
+  searchQuery,
+  colorMode,
+  startSimulation,
+  currentPage,
+  pageSize,
+}: TerminalLogBodyProps) => {
+  if (!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0) {
+    return (
+      <div className={cn(
+        "terminal-empty-state",
+        colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+      )}>
+        <Box size={24} className="opacity-25" />
+        <div className="space-y-0.5">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
+          <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations, or type commands below.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => startSimulation()}
+          className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
+        >
+          <Play size={10} fill="currentColor" /> Apply Manifests
+        </button>
+      </div>
+    );
+  }
+
+  if (terminalActiveTab === 'logs' && loggableResources.length === 0) {
+    return (
+      <div className={cn(
+        "terminal-empty-state",
+        colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+      )}>
+        <Layers size={24} className="opacity-25" />
+        <div className="space-y-0.5">
+          <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
+          <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (paginatedLogs.length === 0) {
+    return (
+      <div className={cn(
+        "h-full flex items-center justify-center",
+        colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
+      )}>
+        <span className="text-[10px] uppercase font-bold tracking-wider">
+          {searchQuery ? "No matches found" : "Waiting for log stream..."}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {paginatedLogs.map((line, index) => {
+        const actualIndex = terminalActiveTab === 'logs'
+          ? (currentPage - 1) * pageSize + index
+          : index;
+        const key = `log-${terminalActiveTab}-${actualIndex}-${line}`;
+        return (
+          <div key={key} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
+            {formatLogLineContent(line, colorMode, searchQuery)}
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
+export const handleTerminalKeyDown = (
+  e: React.KeyboardEvent<HTMLInputElement>,
+  commandHistory: string[],
+  historyIndex: number,
+  setHistoryIndex: (idx: number) => void,
+  setCommandInput: (val: string) => void
+) => {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (commandHistory.length === 0) return;
+    const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
+    setHistoryIndex(nextIndex);
+    setCommandInput(commandHistory[nextIndex]);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (historyIndex === -1) return;
+    if (historyIndex === commandHistory.length - 1) {
+      setHistoryIndex(-1);
+      setCommandInput('');
+    } else {
+      const nextIndex = historyIndex + 1;
+      setHistoryIndex(nextIndex);
+      setCommandInput(commandHistory[nextIndex]);
+    }
+  }
+};
+
+export const executeKubectlCommand = (
+  cmd: string,
+  ctx: CommandContext,
+  setTerminalSelectedResourceId: (id: string | null) => void,
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void
+) => {
+  const cmdLower = cmd.toLowerCase();
+
+  if (handleHelpCommand(cmdLower, ctx.addActivityLog)) {
+    return;
+  }
+
+  const commandHandlers = [
+    handleGetAllCommand,
+    handleScaleCommand,
+    handleSetImageCommand,
+    handleRolloutStatusCommand,
+    handleRolloutHistoryCommand,
+    handleRolloutUndoCommand,
+    handleDeletePodCommand,
+    handleDescribeDeploymentCommand,
+  ];
+
+  for (const handler of commandHandlers) {
+    if (handler(cmd, ctx)) return;
+  }
+
+  if (handleGetCommands(cmdLower, ctx.addActivityLog, ctx.nodes, ctx.isSimulating)) {
+    return;
+  }
+
+  if (handleLogsCommand(cmd, ctx.addActivityLog, ctx.nodes, setTerminalSelectedResourceId, setTerminalActiveTab)) {
+    return;
+  }
+
+  if (handleDescribeCommand(cmd, ctx.addActivityLog, ctx.nodes, ctx.isSimulating)) {
+    return;
+  }
+
+  ctx.addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
+};
+
 export const handleDescribeCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -266,27 +478,18 @@ export const TerminalPanel = () => {
   const PAGE_SIZE = 25;
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
-  // Tab dynamic class computed independently to avoid nested ternaries
   const activityTabClass = useMemo(() => {
     if (terminalActiveTab === 'activity') {
-      const colorClass = colorMode === 'dark' ? " text-white" : " text-slate-900";
-      return "border-blue-500 font-black" + colorClass;
+      return "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900");
     }
-    if (colorMode === 'dark') {
-      return "border-transparent text-slate-500 hover:text-slate-300";
-    }
-    return "border-transparent text-slate-400 hover:text-slate-600";
+    return colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600";
   }, [terminalActiveTab, colorMode]);
 
   const logsTabClass = useMemo(() => {
     if (terminalActiveTab === 'logs') {
-      const colorClass = colorMode === 'dark' ? " text-white" : " text-slate-900";
-      return "border-blue-500 font-black" + colorClass;
+      return "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900");
     }
-    if (colorMode === 'dark') {
-      return "border-transparent text-slate-500 hover:text-slate-300";
-    }
-    return "border-transparent text-slate-400 hover:text-slate-600";
+    return colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600";
   }, [terminalActiveTab, colorMode]);
 
   // Reset page when tab, resource, or query changes
@@ -345,69 +548,12 @@ export const TerminalPanel = () => {
     }
   }, [isTerminalOpen, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
-  // Color formatting for lines based on content
   const formatLogLine = (line: string) => {
-    const isCommand = line.startsWith('$');
-    const isError = line.toLowerCase().includes('error') || line.toLowerCase().includes('fatal') || line.toLowerCase().includes('failed');
-    const isWarning = line.toLowerCase().includes('warning') || line.toLowerCase().includes('warn') || line.toLowerCase().includes('throttled') || line.toLowerCase().includes('oom risk');
-    const isSuccess = line.includes('created') || line.includes('Running') || line.includes('Ready') || line.includes('Successfully') || line.includes('deleted');
-
-    let textClass = colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700';
-    if (isCommand) {
-      textClass = colorMode === 'dark' ? 'text-cyan-400 font-bold' : 'text-cyan-600 font-bold';
-    } else if (isError) {
-      textClass = colorMode === 'dark' ? 'text-red-400' : 'text-red-600';
-    } else if (isWarning) {
-      textClass = colorMode === 'dark' ? 'text-amber-400' : 'text-amber-600';
-    } else if (isSuccess) {
-      textClass = colorMode === 'dark' ? 'text-emerald-400' : 'text-emerald-600';
-    }
-
-    // Highlight search match
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
-      const partsWithObjects = parts.map((part, index) => ({
-        key: `part-${index}-${part}`,
-        text: part,
-        isMatch: part.toLowerCase() === q,
-      }));
-      return (
-        <span className={textClass}>
-          {partsWithObjects.map((item) =>
-            item.isMatch ? (
-              <mark key={item.key} className="bg-yellow-500 text-black px-0.5 rounded">{item.text}</mark>
-            ) : (
-              item.text
-            )
-          )}
-        </span>
-      );
-    }
-
-    return <span className={textClass}>{line}</span>;
+    return formatLogLineContent(line, colorMode, searchQuery);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (commandHistory.length === 0) return;
-      const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
-      setHistoryIndex(nextIndex);
-      setCommandInput(commandHistory[nextIndex]);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (historyIndex === -1) return;
-      if (historyIndex === commandHistory.length - 1) {
-        setHistoryIndex(-1);
-        setCommandInput('');
-      } else {
-        const nextIndex = historyIndex + 1;
-        setHistoryIndex(nextIndex);
-        setCommandInput(commandHistory[nextIndex]);
-      }
-    }
+    handleTerminalKeyDown(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput);
   };
 
   const handleCommandSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -416,18 +562,13 @@ export const TerminalPanel = () => {
     if (!cmd) return;
 
     setCommandInput('');
-    setCommandHistory(prev => {
-      if (prev.at(-1) === cmd) return prev;
-      return [...prev, cmd];
-    });
+    setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
     setHistoryIndex(-1);
 
     const addActivityLog = useFlowStore.getState().addActivityLog;
     addActivityLog(`$ ${cmd}`);
 
-    const cmdLower = cmd.toLowerCase();
-
-    if (cmdLower === 'clear') {
+    if (cmd.toLowerCase() === 'clear') {
       clearTerminalLogs();
       return;
     }
@@ -439,118 +580,28 @@ export const TerminalPanel = () => {
       addActivityLog,
       deleteNodes: useFlowStore.getState().deleteNodes,
       getStoreState: useFlowStore.getState,
-      setStoreState: useFlowStore.setState
+      setStoreState: useFlowStore.setState,
     };
 
-    if (handleHelpCommand(cmdLower, addActivityLog)) {
-      return;
-    }
-
-    const commandHandlers = [
-      handleGetAllCommand,
-      handleScaleCommand,
-      handleSetImageCommand,
-      handleRolloutStatusCommand,
-      handleRolloutHistoryCommand,
-      handleRolloutUndoCommand,
-      handleDeletePodCommand,
-      handleDescribeDeploymentCommand,
-    ];
-
-    for (const handler of commandHandlers) {
-      if (handler(cmd, ctx)) return;
-    }
-
-    if (handleGetCommands(cmdLower, addActivityLog, nodes, isSimulating)) {
-      return;
-    }
-
-    if (handleLogsCommand(cmd, addActivityLog, nodes, setTerminalSelectedResourceId, setTerminalActiveTab)) {
-      return;
-    }
-
-    if (handleDescribeCommand(cmd, addActivityLog, nodes, isSimulating)) {
-      return;
-    }
-
-    addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
-  };
-
-  const renderLogBody = () => {
-    if (!isSimulating && terminalActiveTab === 'activity' && activeLogs.length === 0) {
-      return (
-        <div className={cn(
-          "terminal-empty-state",
-          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-        )}>
-          <Box size={24} className="opacity-25" />
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Terminal Idle</p>
-            <p className="text-[10px] max-w-xs">Click the "Play" button in the top menu to apply manifests and start cluster operations, or type commands below.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => startSimulation()}
-            className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow"
-          >
-            <Play size={10} fill="currentColor" /> Apply Manifests
-          </button>
-        </div>
-      );
-    }
-
-    if (terminalActiveTab === 'logs' && loggableResources.length === 0) {
-      return (
-        <div className={cn(
-          "terminal-empty-state",
-          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-        )}>
-          <Layers size={24} className="opacity-25" />
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold uppercase tracking-wider">No Loggable Resources</p>
-            <p className="text-[10px] max-w-xs">Add a Pod, Deployment, or ReplicaSet to the canvas to view container logs.</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (paginatedLogs.length === 0) {
-      return (
-        <div className={cn(
-          "h-full flex items-center justify-center",
-          colorMode === 'dark' ? "text-slate-600" : "text-slate-400"
-        )}>
-          <span className="text-[10px] uppercase font-bold tracking-wider">
-            {searchQuery ? "No matches found" : "Waiting for log stream..."}
-          </span>
-        </div>
-      );
-    }
-
-    const logItems = paginatedLogs.map((line, index) => {
-      const actualIndex = terminalActiveTab === 'logs'
-        ? (currentPage - 1) * PAGE_SIZE + index
-        : index;
-      return {
-        key: `log-${terminalActiveTab}-${actualIndex}-${line}`,
-        line,
-      };
-    });
-
-    return logItems.map((item) => {
-      return (
-        <div key={item.key} className="flex items-start gap-2 whitespace-pre-wrap select-text leading-relaxed">
-          {formatLogLine(item.line)}
-        </div>
-      );
-    });
+    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab);
   };
 
   const renderTerminalContent = () => {
     return (
       <div className="flex flex-col h-full">
         <div className="flex-1">
-          {renderLogBody()}
+          <TerminalLogBody
+            isSimulating={isSimulating}
+            terminalActiveTab={terminalActiveTab}
+            activeLogs={activeLogs}
+            loggableResources={loggableResources}
+            paginatedLogs={paginatedLogs}
+            searchQuery={searchQuery}
+            colorMode={colorMode}
+            startSimulation={startSimulation}
+            currentPage={currentPage}
+            pageSize={PAGE_SIZE}
+          />
         </div>
 
         {/* Pagination Controls for logs - Sticky at the bottom */}
