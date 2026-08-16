@@ -130,27 +130,30 @@ export const generateLogFilename = (
   activeTab?: 'activity' | 'logs',
   resourceName?: string
 ): string => {
-  let baseName = 'kube-simulator';
+  let prefix = activeTab === 'activity' ? 'activity-history' : 'resource-logs';
   if (projectName) {
-    baseName = projectName.toLowerCase()
+    const cleanProject = projectName.toLowerCase()
       .replace(/^scenario:\s*/i, 'scenario-')
       .replace(/[^a-z0-9_-]+/g, '-')
       .replace(/^[-]+|[-]+$/g, '');
+    if (cleanProject) {
+      prefix = `${prefix}-${cleanProject}`;
+    }
   }
   if (activeTab === 'logs' && resourceName) {
     const cleanResource = String(resourceName).toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
-    baseName = `${baseName}-${cleanResource}`;
+    prefix = `${prefix}-${cleanResource}`;
   }
 
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10);
   const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
-  return `${baseName}_${dateStr}_${timeStr}.log`;
+  return `${prefix}_${dateStr}_${timeStr}.log`;
 };
 
 export const exportLogFile = (logs: string[], filename: string) => {
-  const fileHeader = `# Kube Simulator Log Output\n# Exported At: ${new Date().toISOString()}\n# Total Lines: ${logs.length}\n--------------------------------------------------\n`;
-  const content = fileHeader + logs.join('\n');
+  const fileHeader = `# Kube Simulator Log Output\n# File: ${filename}\n# Exported At: ${new Date().toISOString()}\n# Total Lines: ${logs.length}\n--------------------------------------------------\n`;
+  const content = fileHeader + (logs.length > 0 ? logs.join('\n') : '# No log entries recorded');
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

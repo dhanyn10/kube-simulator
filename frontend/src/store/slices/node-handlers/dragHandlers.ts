@@ -174,6 +174,16 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       // 2. Parenting Logic
       nextNodes = handleDropParenting(node, finalNode, nextNodes, hoveredDeploymentId, detachingDeploymentId, get);
 
+      const pos = getAbsPos(node.id, nextNodes, finalNode);
+      const x1 = Math.round(pos.x);
+      const y1 = Math.round(pos.y);
+      const w = Math.round(finalNode.width || finalNode.measured?.width || 150);
+      const h = Math.round(finalNode.height || finalNode.measured?.height || 100);
+      const x2 = x1 + w;
+      const y2 = y1 + h;
+      const label = finalNode.data?.label || finalNode.id;
+      get().addActivityLog?.(`[Canvas Action] Moved card '${label}' (${finalNode.type}) to coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`);
+
       return {
         draggedNodeId: null,
         hoveredDeploymentId: null,
