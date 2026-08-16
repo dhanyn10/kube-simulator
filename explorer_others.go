@@ -8,7 +8,7 @@ import (
 	"runtime"
 )
 
-func openInExplorer(filePath string) {
+func openInExplorer(filePath string) error {
 	dir := filepath.Dir(filePath)
 	var cmd *exec.Cmd
 	if runtime.GOOS == "darwin" {
@@ -16,5 +16,8 @@ func openInExplorer(filePath string) {
 	} else {
 		cmd = exec.Command("xdg-open", dir)
 	}
-	_ = cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return nil
 }

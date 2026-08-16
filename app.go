@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -262,6 +263,13 @@ func (a *App) OpenLogFile() bool {
 	}
 
 	if logFilePath == "" {
+		logger.Error("Failed to open log file directory: path is empty")
+		return false
+	}
+
+	dir := filepath.Dir(logFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		logger.Error("Failed to create log directory %s: %v", dir, err)
 		return false
 	}
 
@@ -271,7 +279,10 @@ func (a *App) OpenLogFile() bool {
 	}
 
 	if appCtx == nil || appCtx.Value(isTestKey) == nil {
-		openInExplorer(logFilePath)
+		if err := openInExplorer(logFilePath); err != nil {
+			logger.Error("Failed to open log directory %s: %v", dir, err)
+			return false
+		}
 	}
 
 	return true
