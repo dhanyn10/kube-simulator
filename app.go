@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -53,9 +54,8 @@ func (a *App) startup(ctx context.Context) {
 		logger.Init(ctx)
 	}
 
-	// Redirect standard log to our wails logger
 	log.SetOutput(&logger.WailsWriter{Level: "info"})
-	log.SetFlags(0) // Remove timestamps as they are handled by frontend
+	log.SetFlags(0)
 
 	if err := a.history.Init(); err != nil {
 		logger.Fatal("Failed to initialize history manager: %v", err)
@@ -65,7 +65,16 @@ func (a *App) startup(ctx context.Context) {
 		logger.Fatal("Failed to initialize project manager: %v", err)
 	}
 
-	// Adjust window size to 90% of screen height on startup
+	a.configureStartupWindow(ctx)
+
+	if ctx.Value(isTestKey) == nil {
+		wailsRuntime.WindowShow(ctx)
+	}
+
+	a.handleInitialFileOpen(ctx)
+}
+
+func (a *App) configureStartupWindow(ctx context.Context) {
 	var screens []wailsRuntime.Screen
 	var err error
 	if ctx.Value(isTestKey) == nil {
@@ -74,57 +83,55 @@ func (a *App) startup(ctx context.Context) {
 		screens = []wailsRuntime.Screen{
 			{IsPrimary: true, Height: 1080, Width: 1920},
 		}
-		err = nil
 	}
 
-	if err == nil {
-		if targetScreen, ok := a.GetTargetScreen(screens); ok {
-			screenW := targetScreen.Size.Width
-			screenH := targetScreen.Size.Height
-			if screenW == 0 {
-				screenW = targetScreen.Width
-				screenH = targetScreen.Height
-			}
-			newHeight := a.CalculateAppHeight(screenH)
-			currWidth := 1024
-			if ctx.Value(isTestKey) == nil {
-				currWidth, _ = wailsRuntime.WindowGetSize(ctx)
-			}
+	if err != nil {
+		return
+	}
 
-			// Center horizontally; pin Y=0 so the menu bar is never clipped above the screen
-			x := (screenW - currWidth) / 2
-			if x < 0 {
-				x = 0
-			}
+	targetScreen, ok := a.GetTargetScreen(screens)
+	if !ok {
+		return
+	}
 
-			if ctx.Value(isTestKey) == nil {
-				wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
-				wailsRuntime.WindowSetPosition(ctx, x, 0)
-			}
-		}
+	screenW := targetScreen.Size.Width
+	screenH := targetScreen.Size.Height
+	if screenW == 0 {
+		screenW = targetScreen.Width
+		screenH = targetScreen.Height
+	}
+	newHeight := a.CalculateAppHeight(screenH)
+	currWidth := 1024
+	if ctx.Value(isTestKey) == nil {
+		currWidth, _ = wailsRuntime.WindowGetSize(ctx)
+	}
+
+	x := (screenW - currWidth) / 2
+	if x < 0 {
+		x = 0
 	}
 
 	if ctx.Value(isTestKey) == nil {
-		wailsRuntime.WindowShow(ctx)
+		wailsRuntime.WindowSetSize(ctx, currWidth, newHeight)
+		wailsRuntime.WindowSetPosition(ctx, x, 0)
 	}
+}
 
-	// If a file was passed via CLI, read it and emit to frontend after a short delay
-	if a.initialFilePath != "" {
-		go func() {
-			// In tests, we sleep less so the test completes quickly
-			sleepDuration := 1 * time.Second
-			if ctx.Value(isTestKey) != nil {
-				sleepDuration = 5 * time.Millisecond
-			}
-			time.Sleep(sleepDuration) // Wait for frontend to be ready
-			fileData, err := os.ReadFile(a.initialFilePath)
-			if err == nil {
-				if ctx.Value(isTestKey) == nil {
-					wailsRuntime.EventsEmit(ctx, "open-infra-file", string(fileData))
-				}
-			}
-		}()
+func (a *App) handleInitialFileOpen(ctx context.Context) {
+	if a.initialFilePath == "" {
+		return
 	}
+	go func() {
+		sleepDuration := 1 * time.Second
+		if ctx.Value(isTestKey) != nil {
+			sleepDuration = 5 * time.Millisecond
+		}
+		time.Sleep(sleepDuration)
+		fileData, err := os.ReadFile(a.initialFilePath)
+		if err == nil && ctx.Value(isTestKey) == nil {
+			wailsRuntime.EventsEmit(ctx, "open-infra-file", string(fileData))
+		}
+	}()
 }
 
 // GetTargetScreen selects the target screen: either the primary screen or the first fallback screen.
@@ -256,6 +263,13 @@ func (a *App) OpenLogFile() bool {
 	}
 
 	if logFilePath == "" {
+		logger.Error("Failed to open log file directory: path is empty")
+		return false
+	}
+
+	dir := filepath.Dir(logFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		logger.Error("Failed to create log directory %s: %v", dir, err)
 		return false
 	}
 
@@ -265,7 +279,10 @@ func (a *App) OpenLogFile() bool {
 	}
 
 	if appCtx == nil || appCtx.Value(isTestKey) == nil {
-		openInExplorer(logFilePath)
+		if err := openInExplorer(logFilePath); err != nil {
+			logger.Error("Failed to open log directory %s: %v", dir, err)
+			return false
+		}
 	}
 
 	return true

@@ -41,7 +41,7 @@ export const handleSetImageCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+set\s+image\s+(deployment|deploy)\/([a-z0-9-]+)\s+([a-z0-9-]+)?=?([a-z0-9./:]+)/i.exec(cmd);
+  const match = /^kubectl\s+set\s+image\s+(deployment|deploy)\/([a-z0-9-]+)\s+(?:([a-z0-9-]+)=)?([a-z0-9./:]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();

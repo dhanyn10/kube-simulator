@@ -518,114 +518,94 @@ func TestApp_CoverUndercoveredPaths(t *testing.T) {
 	}
 }
 
-func TestApp_DockerHubMethods(t *testing.T) {
+func mockDockerHubBody(urlStr string) string {
+	if strings.Contains(urlStr, "/repositories/library/?page_size=20") {
+		return `{"results": [{"name": "nginx"}]}`
+	}
+	if strings.Contains(urlStr, "/tags/?page_size=20") {
+		return `{"results": [{"name": "latest"}]}`
+	}
+	if strings.Contains(urlStr, "/search/repositories/") {
+		return `{"results": [{"name": "nginx-search"}]}`
+	}
+	if strings.Contains(urlStr, "/releases") {
+		return `[{"tag_name": "v2.0.0", "html_url": "https://example.com", "prerelease": false, "draft": false}]`
+	}
+	return `{}`
+}
+
+func TestApp_DockerHubMethods_Success(t *testing.T) {
 	app := NewApp()
-
-	// Mock HTTP Transport
 	oldTransport := http.DefaultTransport
-	defer func() {
-		http.DefaultTransport = oldTransport
-	}()
+	defer func() { http.DefaultTransport = oldTransport }()
 
-	t.Run("HTTP Success Routes", func(t *testing.T) {
-		http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-			urlStr := req.URL.String()
-			var body string
-
-			if strings.Contains(urlStr, "/repositories/library/?page_size=20") {
-				body = `{"results": [{"name": "nginx"}]}`
-			} else if strings.Contains(urlStr, "/tags/?page_size=20") {
-				body = `{"results": [{"name": "latest"}]}`
-			} else if strings.Contains(urlStr, "/search/repositories/") {
-				body = `{"results": [{"name": "nginx-search"}]}`
-			} else if strings.Contains(urlStr, "/releases") {
-				body = `[{"tag_name": "v2.0.0", "html_url": "https://example.com", "prerelease": false, "draft": false}]`
-			} else {
-				body = `{}`
-			}
-
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-			}, nil
-		})
-
-		pop := app.FetchDockerHubPopular()
-		if !strings.Contains(pop, "nginx") {
-			t.Errorf("Expected pop response to contain nginx, got %s", pop)
-		}
-
-		tags := app.FetchDockerHubTags("nginx")
-		if !strings.Contains(tags, "latest") {
-			t.Errorf("Expected tags response to contain latest, got %s", tags)
-		}
-
-		// Also check user image tags (slash format)
-		tagsUser := app.FetchDockerHubTags("library/nginx")
-		if !strings.Contains(tagsUser, "latest") {
-			t.Errorf("Expected tagsUser response to contain latest, got %s", tagsUser)
-		}
-
-		search := app.SearchDockerHub("nginx")
-		if !strings.Contains(search, "nginx-search") {
-			t.Errorf("Expected search response to contain nginx-search, got %s", search)
-		}
-
-		upd := app.CheckForUpdates("1.0.0")
-		if upd == nil || upd.LatestVersion != "2.0.0" {
-			t.Errorf("Expected latest version to be 2.0.0, got %+v", upd)
-		}
+	http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
+		body := mockDockerHubBody(req.URL.String())
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+		}, nil
 	})
 
-	t.Run("HTTP Failure Routes", func(t *testing.T) {
-		http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(strings.NewReader("Internal Error")),
-			}, nil
-		})
+	if pop := app.FetchDockerHubPopular(); !strings.Contains(pop, "nginx") {
+		t.Errorf("Expected pop response to contain nginx, got %s", pop)
+	}
+	if tags := app.FetchDockerHubTags("nginx"); !strings.Contains(tags, "latest") {
+		t.Errorf("Expected tags response to contain latest, got %s", tags)
+	}
+	if tagsUser := app.FetchDockerHubTags("library/nginx"); !strings.Contains(tagsUser, "latest") {
+		t.Errorf("Expected tagsUser response to contain latest, got %s", tagsUser)
+	}
+	if search := app.SearchDockerHub("nginx"); !strings.Contains(search, "nginx-search") {
+		t.Errorf("Expected search response to contain nginx-search, got %s", search)
+	}
+	if upd := app.CheckForUpdates("1.0.0"); upd == nil || upd.LatestVersion != "2.0.0" {
+		t.Errorf("Expected latest version to be 2.0.0, got %+v", upd)
+	}
+}
 
-		pop := app.FetchDockerHubPopular()
-		// Since status is 500, we still read the body in our implementation, but let's see.
-		// Wait, FetchDockerHubPopular doesn't check status code, it just reads body!
-		if pop != "Internal Error" {
-			t.Errorf("Expected pop response to be 'Internal Error', got '%s'", pop)
-		}
+func TestApp_DockerHubMethods_Failure(t *testing.T) {
+	app := NewApp()
+	oldTransport := http.DefaultTransport
+	defer func() { http.DefaultTransport = oldTransport }()
 
-		tags := app.FetchDockerHubTags("nginx")
-		if tags != "Internal Error" {
-			t.Errorf("Expected tags response to be 'Internal Error', got '%s'", tags)
-		}
-
-		search := app.SearchDockerHub("nginx")
-		if search != "Internal Error" {
-			t.Errorf("Expected search response to be 'Internal Error', got '%s'", search)
-		}
+	http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       io.NopCloser(strings.NewReader("Internal Error")),
+		}, nil
 	})
 
-	t.Run("HTTP Hard Error Routes", func(t *testing.T) {
-		http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-			return nil, fmt.Errorf("connection refused")
-		})
+	if pop := app.FetchDockerHubPopular(); pop != "Internal Error" {
+		t.Errorf("Expected pop response to be 'Internal Error', got '%s'", pop)
+	}
+	if tags := app.FetchDockerHubTags("nginx"); tags != "Internal Error" {
+		t.Errorf("Expected tags response to be 'Internal Error', got '%s'", tags)
+	}
+	if search := app.SearchDockerHub("nginx"); search != "Internal Error" {
+		t.Errorf("Expected search response to be 'Internal Error', got '%s'", search)
+	}
+}
 
-		pop := app.FetchDockerHubPopular()
-		if pop != "" {
-			t.Errorf("Expected empty response for network failure, got '%s'", pop)
-		}
+func TestApp_DockerHubMethods_HardError(t *testing.T) {
+	app := NewApp()
+	oldTransport := http.DefaultTransport
+	defer func() { http.DefaultTransport = oldTransport }()
 
-		tags := app.FetchDockerHubTags("nginx")
-		if tags != "" {
-			t.Errorf("Expected empty response for network failure, got '%s'", tags)
-		}
-
-		search := app.SearchDockerHub("nginx")
-		if search != "" {
-			t.Errorf("Expected empty response for network failure, got '%s'", search)
-		}
-
-		upd := app.CheckForUpdates("1.0.0")
-		if upd != nil {
-			t.Errorf("Expected nil for network failure, got %+v", upd)
-		}
+	http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("connection refused")
 	})
+
+	if pop := app.FetchDockerHubPopular(); pop != "" {
+		t.Errorf("Expected empty response for network failure, got '%s'", pop)
+	}
+	if tags := app.FetchDockerHubTags("nginx"); tags != "" {
+		t.Errorf("Expected empty response for network failure, got '%s'", tags)
+	}
+	if search := app.SearchDockerHub("nginx"); search != "" {
+		t.Errorf("Expected empty response for network failure, got '%s'", search)
+	}
+	if upd := app.CheckForUpdates("1.0.0"); upd != nil {
+		t.Errorf("Expected nil for network failure, got %+v", upd)
+	}
 }

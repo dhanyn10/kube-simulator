@@ -1,5 +1,6 @@
 import { LogEntry } from '../../../store/types';
 import { OpenLogFile } from '../../../../wailsjs/go/main/App';
+import { logger } from '../../../lib/logger';
 
 /**
  * Formats timestamp to ISO-like local date time string: YYYY-MM-DD HH:mm:ss
@@ -38,8 +39,9 @@ export const exportLogsToFile = async (logs: LogEntry[]): Promise<boolean> => {
   try {
     const success = await OpenLogFile();
     if (success) return true;
-  } catch {
-    // Fallback to browser download if backend call fails or outside Wails context
+    logger.warn('[LogExport] Backend OpenLogFile returned false, falling back to browser download.');
+  } catch (error) {
+    logger.error('[LogExport] Failed to open log directory via backend:', error);
   }
 
   if (logs.length === 0) return false;

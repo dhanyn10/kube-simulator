@@ -99,34 +99,32 @@ func TestProjectManager(t *testing.T) {
 	}
 }
 
-func TestProjectManager_Uninitialized(t *testing.T) {
+func TestProjectManager_UninitializedProjects(t *testing.T) {
 	pm := NewProjectManager()
-	// Do not call Init()
 
 	if _, err := pm.SaveProject("n", "c"); err == nil {
 		t.Error("Expected error for SaveProject")
 	}
-
 	if err := pm.UpdateProject(1, "c"); err == nil {
 		t.Error("Expected error for UpdateProject")
 	}
-
 	if _, err := pm.GetProjects(); err == nil {
 		t.Error("Expected error for GetProjects")
 	}
-
 	if _, err := pm.LoadProject(1); err == nil {
 		t.Error("Expected error for LoadProject")
 	}
-
 	if err := pm.DeleteProject(1); err == nil {
 		t.Error("Expected error for DeleteProject")
 	}
+}
+
+func TestProjectManager_UninitializedSettings(t *testing.T) {
+	pm := NewProjectManager()
 
 	if err := pm.SaveSetting("k", "v"); err == nil {
 		t.Error("Expected error for SaveSetting")
 	}
-
 	if _, err := pm.GetSetting("k"); err == nil {
 		t.Error("Expected error for GetSetting")
 	}
