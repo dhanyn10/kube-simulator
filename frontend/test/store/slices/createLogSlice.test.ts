@@ -106,14 +106,7 @@ describe('createLogSlice', () => {
     expect(log.message).toBe('Deployment updated');
   });
 
-  it('should extract scope from message when formatted as [Scope] Message', () => {
-    store.getState().addLog('info', '[KubeConsole] kubectl get pods executed');
-    const log = store.getState().logs[0];
-    expect(log.scope).toBe('KubeConsole');
-    expect(log.message).toBe('kubectl get pods executed');
-  });
-
-  it('should fallback scope to System when not provided or matched', () => {
+  it('should fallback scope to System when not provided', () => {
     store.getState().addLog('info', 'System initialization completed');
     const log = store.getState().logs[0];
     expect(log.scope).toBe('System');

@@ -66,24 +66,11 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
     isLogToastVisible: initialLogs.some(l => l.level === 'error' || l.level === 'fatal' || l.level === 'warn'),
     isLogModalOpen: false,
     addLog: (level, message, scope) => {
-      let resolvedScope = scope;
-      let finalMessage = message;
-
-      if (!resolvedScope) {
-        const match = /^\[([A-Za-z0-9_-]+)\]\s*(.*)$/.exec(message);
-        if (match) {
-          resolvedScope = match[1];
-          finalMessage = match[2];
-        } else {
-          resolvedScope = 'System';
-        }
-      }
-
       const newLog: LogEntry = {
         id: crypto.randomUUID(),
         level,
-        scope: resolvedScope,
-        message: finalMessage,
+        scope: scope || 'System',
+        message,
         timestamp: Date.now(),
       };
 

@@ -28,14 +28,15 @@ const renderHighlightedText = (text: string, query: string) => {
   const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
 
   return parts.map((part, i) => {
+    const key = `part-${part}-${i}`;
     if (part.toLowerCase() === query.toLowerCase()) {
       return (
-        <mark key={i} className="bg-amber-400/30 text-amber-200 rounded px-0.5 font-semibold underline">
+        <mark key={key} className="bg-amber-400/30 text-amber-200 rounded px-0.5 font-semibold underline">
           {part}
         </mark>
       );
     }
-    return part;
+    return <React.Fragment key={key}>{part}</React.Fragment>;
   });
 };
 
