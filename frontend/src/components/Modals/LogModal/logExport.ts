@@ -1,4 +1,5 @@
 import { LogEntry } from '../../../store/types';
+import { OpenLogFile } from '../../../../wailsjs/go/main/App';
 
 /**
  * Formats timestamp to ISO-like local date time string: YYYY-MM-DD HH:mm:ss
@@ -34,13 +35,11 @@ export const formatLogsText = (logs: LogEntry[]): string => {
  * or falls back to browser JSON download if outside Wails context.
  */
 export const exportLogsToFile = async (logs: LogEntry[]): Promise<boolean> => {
-  if (window.go?.main?.App?.OpenLogFile) {
-    try {
-      const success = await window.go.main.App.OpenLogFile();
-      if (success) return true;
-    } catch {
-      // Fallback to browser download if backend call fails
-    }
+  try {
+    const success = await OpenLogFile();
+    if (success) return true;
+  } catch {
+    // Fallback to browser download if backend call fails or outside Wails context
   }
 
   if (logs.length === 0) return false;
