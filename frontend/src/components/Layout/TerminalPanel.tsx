@@ -133,19 +133,18 @@ export const generateLogFilename = (
   let baseName = 'kube-simulator';
   if (projectName) {
     baseName = projectName.toLowerCase()
-      .replace(/^scenario:\s*/g, 'scenario-')
-      .replaceAll(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+/, '')
-      .replace(/-+$/, '');
+      .replace(/^scenario:\s*/i, 'scenario-')
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^[-]+|[-]+$/g, '');
   }
   if (activeTab === 'logs' && resourceName) {
-    const cleanResource = String(resourceName).toLowerCase().replaceAll(/[^a-z0-9_-]+/g, '-');
+    const cleanResource = String(resourceName).toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
     baseName = `${baseName}-${cleanResource}`;
   }
 
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10);
-  const timeStr = date.toTimeString().slice(0, 8).replaceAll(':', '-');
+  const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
   return `${baseName}_${dateStr}_${timeStr}.log`;
 };
 
@@ -159,11 +158,7 @@ export const exportLogFile = (logs: string[], filename: string) => {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  if (typeof a.remove === 'function') {
-    a.remove();
-  } else if (a.parentNode) {
-    a.parentNode.removeChild(a);
-  }
+  a.remove();
   URL.revokeObjectURL(url);
 };
 
@@ -187,26 +182,26 @@ export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: strin
   return true;
 };
 
-export const getLogLineColorClass = (line: string, colorMode: 'dark' | 'light'): string => {
-  const lineLower = line.toLowerCase();
-  const isCommand = line.startsWith('$');
-  const isError = lineLower.includes('error') || lineLower.includes('fatal') || lineLower.includes('failed');
-  const isWarning = lineLower.includes('warning') || lineLower.includes('warn') || lineLower.includes('throttled') || lineLower.includes('oom risk');
-  const isSuccess = line.includes('created') || line.includes('Running') || line.includes('Ready') || line.includes('Successfully') || line.includes('deleted');
+const LOG_COLORS = {
+  command: { dark: 'text-cyan-400 font-bold', light: 'text-cyan-600 font-bold' },
+  error: { dark: 'text-red-400', light: 'text-red-600' },
+  warning: { dark: 'text-amber-400', light: 'text-amber-600' },
+  success: { dark: 'text-emerald-400', light: 'text-emerald-600' },
+  default: { dark: 'text-slate-300', light: 'text-slate-700' },
+};
 
-  if (isCommand) {
-    return colorMode === 'dark' ? 'text-cyan-400 font-bold' : 'text-cyan-600 font-bold';
-  }
-  if (isError) {
-    return colorMode === 'dark' ? 'text-red-400' : 'text-red-600';
-  }
-  if (isWarning) {
-    return colorMode === 'dark' ? 'text-amber-400' : 'text-amber-600';
-  }
-  if (isSuccess) {
-    return colorMode === 'dark' ? 'text-emerald-400' : 'text-emerald-600';
-  }
-  return colorMode === 'dark' ? 'text-slate-300' : 'text-slate-700';
+const getLineType = (line: string): keyof typeof LOG_COLORS => {
+  if (line.startsWith('$')) return 'command';
+  const lineLower = line.toLowerCase();
+  if (/(?:error|fatal|failed)/i.test(lineLower)) return 'error';
+  if (/(?:warning|warn|throttled|oom risk)/i.test(lineLower)) return 'warning';
+  if (/(?:created|running|ready|successfully|deleted)/i.test(lineLower)) return 'success';
+  return 'default';
+};
+
+export const getLogLineColorClass = (line: string, colorMode: 'dark' | 'light'): string => {
+  const lineType = getLineType(line);
+  return LOG_COLORS[lineType][colorMode];
 };
 
 export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', searchQuery: string): React.ReactNode => {
@@ -405,7 +400,7 @@ export const handleDescribeCommand = (
   nodes: Node[],
   isSimulating: boolean
 ): boolean => {
-  const describeMatch = /^kubectl\s+describe\s+(pod|deployment|deploy)\s+([a-z0-9-]+)/i.exec(cmd);
+  const describeMatch = /^kubectl\s+describe\s+(pod|deploy(?:ment)?)\s+([a-z0-9-]+)/i.exec(cmd);
   if (!describeMatch) return false;
 
   const type = describeMatch[1].toLowerCase();
@@ -480,16 +475,16 @@ export const TerminalPanel = () => {
 
   const activityTabClass = useMemo(() => {
     if (terminalActiveTab === 'activity') {
-      return "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900");
+      return `border-blue-500 font-black ${colorMode === 'dark' ? 'text-white' : 'text-slate-900'}`;
     }
-    return colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600";
+    return colorMode === 'dark' ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-400 hover:text-slate-600';
   }, [terminalActiveTab, colorMode]);
 
   const logsTabClass = useMemo(() => {
     if (terminalActiveTab === 'logs') {
-      return "border-blue-500 font-black" + (colorMode === 'dark' ? " text-white" : " text-slate-900");
+      return `border-blue-500 font-black ${colorMode === 'dark' ? 'text-white' : 'text-slate-900'}`;
     }
-    return colorMode === 'dark' ? "border-transparent text-slate-500 hover:text-slate-300" : "border-transparent text-slate-400 hover:text-slate-600";
+    return colorMode === 'dark' ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-400 hover:text-slate-600';
   }, [terminalActiveTab, colorMode]);
 
   // Reset page when tab, resource, or query changes

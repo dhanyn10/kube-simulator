@@ -15,7 +15,7 @@ export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+scale\s+(deployment|deploy)\/([a-z0-9-]+)\s+--replicas=(\d+)/i.exec(cmd);
+  const match = /^kubectl\s+scale\s+(deploy(?:ment)?)\/([a-z0-9-]+)\s+--replicas=(\d+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -41,7 +41,7 @@ export const handleSetImageCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+set\s+image\s+(deployment|deploy)\/([a-z0-9-]+)\s+(?:([a-z0-9-]+)=)?([a-z0-9./:]+)/i.exec(cmd);
+  const match = /^kubectl\s+set\s+image\s+(deploy(?:ment)?)\/([a-z0-9-]+)\s+(?:([a-z0-9-]+)=)?([a-z0-9./:]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -77,7 +77,7 @@ export const handleRolloutStatusCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+rollout\s+status\s+(deployment|deploy)\/([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+rollout\s+status\s+(deploy(?:ment)?)\/([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -102,7 +102,7 @@ export const handleRolloutHistoryCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+rollout\s+history\s+(deployment|deploy)\/([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+rollout\s+history\s+(deploy(?:ment)?)\/([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -127,7 +127,7 @@ export const handleRolloutUndoCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+rollout\s+undo\s+(deployment|deploy)\/([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+rollout\s+undo\s+(deploy(?:ment)?)\/([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
@@ -290,7 +290,7 @@ export const handleDescribeDeploymentCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+describe\s+(deployment|deploy)\s+([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+describe\s+(deploy(?:ment)?)\s+([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
