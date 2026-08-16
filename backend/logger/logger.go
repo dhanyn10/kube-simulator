@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ var (
 	logFilePath string
 )
 
-// GetLogFilePath returns the path to the physical app.log file
+// GetLogFilePath returns the path to the physical app_logs.jsonl file
 func GetLogFilePath() string {
 	mu.Lock()
 	defer mu.Unlock()
@@ -33,7 +34,7 @@ func GetLogFilePath() string {
 	}
 	dir := filepath.Join(configDir, "kube-simulator")
 	_ = os.MkdirAll(dir, 0755)
-	logFilePath = filepath.Join(dir, "app.log")
+	logFilePath = filepath.Join(dir, "app_logs.jsonl")
 	return logFilePath
 }
 
@@ -97,9 +98,18 @@ func emit(level, format string, args ...interface{}) {
 	dateTime := time.Now().Format("2006-01-02 15:04:05")
 	logLine := fmt.Sprintf("[%s] [%s] %s", dateTime, strings.ToUpper(level), message)
 
-	// Print to stdout and append to app.log
+	// Format entry as JSON object
+	jsonEntry, err := json.Marshal(map[string]string{
+		"timestamp": dateTime,
+		"level":     strings.ToUpper(level),
+		"message":   message,
+	})
+
+	// Print to stdout and append JSON entry to app_logs.json
 	fmt.Println(logLine)
-	appendToLogFile(logLine)
+	if err == nil {
+		appendToLogFile(string(jsonEntry))
+	}
 
 	if ctx != nil && !testingMode {
 		wailsRuntime.EventsEmit(ctx, "backend-log", map[string]string{

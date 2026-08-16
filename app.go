@@ -243,7 +243,7 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
-func (a *App) OpenLogFile(content string) bool {
+func (a *App) OpenLogFile() bool {
 	var logFilePath string
 	if appCtx != nil && appCtx.Value(isTestKey) != nil {
 		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok && testPath != "" {
@@ -259,14 +259,9 @@ func (a *App) OpenLogFile(content string) bool {
 		return false
 	}
 
-	if content != "" {
-		err := os.WriteFile(logFilePath, []byte(content), 0644)
-		if err != nil {
-			logger.Error("Error writing log file: %v", err)
-			return false
-		}
-	} else if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
-		_ = os.WriteFile(logFilePath, []byte("[INFO] Log file initialized\n"), 0644)
+	// Ensure the log file exists before revealing in File Explorer
+	if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
+		_ = os.WriteFile(logFilePath, []byte("{}\n"), 0644)
 	}
 
 	if appCtx == nil || appCtx.Value(isTestKey) == nil {

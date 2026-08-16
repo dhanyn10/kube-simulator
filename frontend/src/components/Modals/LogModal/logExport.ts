@@ -30,15 +30,13 @@ export const formatLogsText = (logs: LogEntry[]): string => {
 };
 
 /**
- * Opens the log file in OS file explorer via Wails backend (App.OpenLogFile),
- * or falls back to browser download if outside Wails context.
+ * Opens the log JSON file directory in OS file explorer via Wails backend (App.OpenLogFile),
+ * or falls back to browser JSON download if outside Wails context.
  */
 export const exportLogsToFile = async (logs: LogEntry[]): Promise<boolean> => {
-  const content = formatLogsText(logs);
-
   if (window.go?.main?.App?.OpenLogFile) {
     try {
-      const success = await window.go.main.App.OpenLogFile(content);
+      const success = await window.go.main.App.OpenLogFile();
       if (success) return true;
     } catch {
       // Fallback to browser download if backend call fails
@@ -47,14 +45,15 @@ export const exportLogsToFile = async (logs: LogEntry[]): Promise<boolean> => {
 
   if (logs.length === 0) return false;
 
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const jsonlContent = logs.map((log) => JSON.stringify(log)).join('\n');
+  const blob = new Blob([jsonlContent], { type: 'application/x-ndjson;charset=utf-8' });
   const url = URL.createObjectURL(blob);
 
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-  const filename = `app_logs_${dateStr}_${timeStr}.log`;
+  const filename = `app_logs_${dateStr}_${timeStr}.jsonl`;
 
   const link = document.createElement('a');
   link.href = url;
