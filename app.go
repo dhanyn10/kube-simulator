@@ -243,6 +243,34 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
+func (a *App) OpenLogFile() bool {
+	var logFilePath string
+	if appCtx != nil && appCtx.Value(isTestKey) != nil {
+		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok && testPath != "" {
+			logFilePath = testPath
+		} else {
+			logFilePath = logger.GetLogFilePath()
+		}
+	} else {
+		logFilePath = logger.GetLogFilePath()
+	}
+
+	if logFilePath == "" {
+		return false
+	}
+
+	// Ensure the log file exists before revealing in File Explorer
+	if _, err := os.Stat(logFilePath); os.IsNotExist(err) {
+		_ = os.WriteFile(logFilePath, []byte("{}\n"), 0644)
+	}
+
+	if appCtx == nil || appCtx.Value(isTestKey) == nil {
+		openInExplorer(logFilePath)
+	}
+
+	return true
+}
+
 func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false

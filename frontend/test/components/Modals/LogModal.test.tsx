@@ -28,12 +28,15 @@ describe('LogModal', () => {
         });
     });
 
+    const matchPre = (text: string) => (_, el: Element | null) =>
+        el?.tagName.toLowerCase() === 'pre' && (el.textContent?.includes(text) ?? false);
+
     it('renders logs correctly', () => {
         render(<LogModal />);
         expect(screen.getByText('Console Logs')).toBeDefined();
-        expect(screen.getByText('Info log 1')).toBeDefined();
-        expect(screen.getByText('Warn log 1')).toBeDefined();
-        expect(screen.getByText('Error log 1')).toBeDefined();
+        expect(screen.getByText(matchPre('Info log 1'))).toBeDefined();
+        expect(screen.getByText(matchPre('Warn log 1'))).toBeDefined();
+        expect(screen.getByText(matchPre('Error log 1'))).toBeDefined();
     });
 
     it('filters logs by level', async () => {
@@ -42,9 +45,9 @@ describe('LogModal', () => {
         const errorTab = screen.getByText('Errors');
         fireEvent.click(errorTab);
 
-        expect(screen.getByText('Error log 1')).toBeDefined();
-        expect(screen.queryByText('Info log 1')).toBeNull();
-        expect(screen.queryByText('Warn log 1')).toBeNull();
+        expect(screen.getByText(matchPre('Error log 1'))).toBeDefined();
+        expect(screen.queryByText(matchPre('Info log 1'))).toBeNull();
+        expect(screen.queryByText(matchPre('Warn log 1'))).toBeNull();
     });
 
     it('searches logs', () => {
@@ -52,9 +55,42 @@ describe('LogModal', () => {
         const searchInput = screen.getByPlaceholderText('Search logs...');
         fireEvent.change(searchInput, { target: { value: 'Warn' } });
 
-        expect(screen.getByText('Warn log 1')).toBeDefined();
-        expect(screen.queryByText('Info log 1')).toBeNull();
-        expect(screen.queryByText('Error log 1')).toBeNull();
+        expect(screen.getByText(matchPre('Warn log 1'))).toBeDefined();
+        expect(screen.queryByText(matchPre('Info log 1'))).toBeNull();
+        expect(screen.queryByText(matchPre('Error log 1'))).toBeNull();
+    });
+
+    it('filters logs by scope', () => {
+        useFlowStore.setState({
+            logs: [
+                { id: '1', level: 'info', scope: 'Simulation', message: 'Simulation event', timestamp: Date.now() },
+                { id: '2', level: 'info', scope: 'KubeConsole', message: 'Console command', timestamp: Date.now() },
+            ],
+            isLogModalOpen: true,
+        });
+
+        render(<LogModal />);
+
+        const scopeSelect = screen.getByTestId('log-scope-filter');
+        fireEvent.change(scopeSelect, { target: { value: 'Simulation' } });
+
+        expect(screen.getByText(matchPre('Simulation event'))).toBeDefined();
+        expect(screen.queryByText(matchPre('Console command'))).toBeNull();
+    });
+
+    it('exports logs to .log file when export button is clicked', () => {
+        const createObjectURLMock = vi.fn().mockReturnValue('blob:test');
+        const revokeObjectURLMock = vi.fn();
+        globalThis.URL.createObjectURL = createObjectURLMock;
+        globalThis.URL.revokeObjectURL = revokeObjectURLMock;
+
+        render(<LogModal />);
+
+        const exportBtn = screen.getByTestId('log-export-btn');
+        fireEvent.click(exportBtn);
+
+        expect(createObjectURLMock).toHaveBeenCalled();
+        expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:test');
     });
 
     it('handles individual log deletion', async () => {
@@ -102,7 +138,8 @@ describe('LogModal', () => {
 
     it('toggles log expansion', () => {
         render(<LogModal />);
-        const logItem = screen.getByText('Info log 1').closest('button');
+        const element = screen.getByText(matchPre('Info log 1'));
+        const logItem = element.closest('button');
         if (!logItem) throw new Error('Log item button not found');
 
         expect(logItem.getAttribute('aria-expanded')).toBe('false');

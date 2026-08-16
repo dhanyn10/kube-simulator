@@ -491,12 +491,30 @@ func TestApp_CoverUndercoveredPaths(t *testing.T) {
 	}
 
 	// Test ImportProjectFile read error (with non-existent file path)
-	ctxNonExistent := context.WithValue(context.Background(), isTestKey, true)
-	ctxNonExistent = context.WithValue(ctxNonExistent, testFilePathKey, filepath.Join(tmpDir, "does-not-exist.infra"))
+	ctxNonExistent := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, filepath.Join(tmpDir, "does-not-exist.infra"))
 	appCtx = ctxNonExistent
 	imported = app.ImportProjectFile()
 	if imported != "" {
 		t.Errorf("Expected empty string for non-existent file import, got %s", imported)
+	}
+
+	// 4. Test OpenLogFile
+	logFilePath := filepath.Join(tmpDir, "app_logs.jsonl")
+	_ = os.WriteFile(logFilePath, []byte(`{"message": "test"}`), 0644)
+	ctxLog := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, logFilePath)
+	appCtx = ctxLog
+
+	logOk := app.OpenLogFile()
+	if !logOk {
+		t.Error("Expected OpenLogFile to return true with test log path")
+	}
+
+	logData, err := os.ReadFile(logFilePath)
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	if !strings.Contains(string(logData), "test") {
+		t.Errorf("Expected log file content to remain intact, got %s", string(logData))
 	}
 }
 

@@ -48,4 +48,18 @@ describe('Frontend logger', () => {
     logger.info('circular', obj);
     expect(addLog).toHaveBeenCalledWith('info', 'circular [Circular Object]');
   });
+
+  it('supports withScope for scoped logs', () => {
+    const addLog = vi.spyOn(useFlowStore.getState(), 'addLog');
+    const scopedLogger = logger.withScope('Simulation');
+
+    scopedLogger.info('Simulation tick started');
+    expect(addLog).toHaveBeenCalledWith('info', 'Simulation tick started', 'Simulation');
+
+    scopedLogger.warn('High CPU usage');
+    expect(addLog).toHaveBeenCalledWith('warn', 'High CPU usage', 'Simulation');
+
+    scopedLogger.error('Pod crashed');
+    expect(addLog).toHaveBeenCalledWith('error', 'Pod crashed', 'Simulation');
+  });
 });

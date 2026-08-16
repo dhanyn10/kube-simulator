@@ -98,4 +98,18 @@ describe('createLogSlice', () => {
     store.getState().setLogModalOpen(false);
     expect(store.getState().isLogModalOpen).toBe(false);
   });
+
+  it('should store explicitly passed scope', () => {
+    store.getState().addLog('info', 'Deployment updated', 'Simulation');
+    const log = store.getState().logs[0];
+    expect(log.scope).toBe('Simulation');
+    expect(log.message).toBe('Deployment updated');
+  });
+
+  it('should fallback scope to System when not provided', () => {
+    store.getState().addLog('info', 'System initialization completed');
+    const log = store.getState().logs[0];
+    expect(log.scope).toBe('System');
+    expect(log.message).toBe('System initialization completed');
+  });
 });

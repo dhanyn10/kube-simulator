@@ -8,9 +8,12 @@ import {
 import { K8sResourceType, K8sNodeData } from '../types';
 
 export type LogLevel = 'error' | 'warn' | 'fatal' | 'info';
+export type LogScope = 'Simulation' | 'KubeConsole' | 'Store' | 'UI' | 'Backend' | 'System' | string;
+
 export interface LogEntry {
   id: string;
   level: LogLevel;
+  scope?: LogScope;
   message: string;
   timestamp: number;
 }
@@ -74,7 +77,7 @@ export interface FlowState {
   logs: LogEntry[];
   isLogToastVisible: boolean;
   isLogModalOpen: boolean;
-  addLog: (level: LogLevel, message: string) => void;
+  addLog: (level: LogLevel, message: string, scope?: LogScope) => void;
   deleteLog: (id: string) => void;
   deleteLogs: (ids: string[]) => void;
   clearLogs: () => void;

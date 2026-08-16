@@ -1,11 +1,11 @@
 import { StateCreator } from 'zustand';
-import { FlowState, LogEntry, LogLevel } from '../types';
+import { FlowState, LogEntry, LogLevel, LogScope } from '../types';
 
 export interface LogSlice {
   logs: LogEntry[];
   isLogToastVisible: boolean;
   isLogModalOpen: boolean;
-  addLog: (level: LogLevel, message: string) => void;
+  addLog: (level: LogLevel, message: string, scope?: LogScope) => void;
   deleteLog: (id: string) => void;
   deleteLogs: (ids: string[]) => void;
   clearLogs: () => void;
@@ -65,10 +65,11 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
     logs: initialLogs,
     isLogToastVisible: initialLogs.some(l => l.level === 'error' || l.level === 'fatal' || l.level === 'warn'),
     isLogModalOpen: false,
-    addLog: (level, message) => {
+    addLog: (level, message, scope) => {
       const newLog: LogEntry = {
         id: crypto.randomUUID(),
         level,
+        scope: scope || 'System',
         message,
         timestamp: Date.now(),
       };
