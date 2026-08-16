@@ -151,8 +151,10 @@ export const generateLogFilename = (
   return `${prefix}_${dateStr}_${timeStr}.log`;
 };
 
+export const makeDivider = (char = '-', length = 50): string => char.repeat(length);
+
 export const exportLogFile = (logs: string[], filename: string) => {
-  const fileHeader = `# Kube Simulator Log Output\n# File: ${filename}\n# Exported At: ${new Date().toISOString()}\n# Total Lines: ${logs.length}\n--------------------------------------------------\n`;
+  const fileHeader = `# Kube Simulator Log Output\n# File: ${filename}\n# Exported At: ${new Date().toISOString()}\n# Total Lines: ${logs.length}\n${makeDivider('-', 50)}\n`;
   const content = fileHeader + (logs.length > 0 ? logs.join('\n') : '# No log entries recorded');
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
