@@ -128,7 +128,9 @@ export default function App() {
   const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
-  logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
+  useEffect(() => {
+    logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
+  }, [isDetachedMode]);
 
   // @ts-ignore
   if (typeof globalThis !== 'undefined') globalThis.useFlowStore = useFlowStore;

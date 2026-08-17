@@ -1,6 +1,7 @@
 import { Node } from '@xyflow/react';
 import { 
-  layoutPodsInDeployment
+  layoutPodsInDeployment,
+  getAbsPos
 } from '../../helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../../../lib/podSizing';
 import { FlowState } from '../../types';
@@ -81,7 +82,7 @@ const applyDeploymentResize = (nodes: Node[], resizedNode: Node) => {
   return syncContainerSizeToBounds(nextNodes, resizedNode.id, calculateMinContainerBounds(laidOut));
 };
 
-export const resizeHandlers = (set: any) => ({
+export const resizeHandlers = (set: any, get?: () => FlowState) => ({
   onNodeResize: (_event: any, node: Node) => {
     set((state: FlowState) => {
       const currentNode = state.nodes.find((n: Node) => n.id === node.id);
@@ -113,7 +114,24 @@ export const resizeHandlers = (set: any) => ({
     });
   },
 
-  onNodeResizeStop: (_event: any, _node: Node) => {
+  onNodeResizeStop: (_event: any, node: Node) => {
+    if (get && node) {
+      const nodes = get().nodes;
+      const currentNode = nodes.find((n: Node) => n.id === node.id) || node;
+      const pos = getAbsPos(currentNode.id, nodes, currentNode);
+      const x1 = Math.round(pos.x);
+      const y1 = Math.round(pos.y);
+      const w = Math.round(currentNode.width || currentNode.measured?.width || 150);
+      const h = Math.round(currentNode.height || currentNode.measured?.height || 100);
+      const x2 = x1 + w;
+      const y2 = y1 + h;
+      const label = currentNode.data?.label || currentNode.id;
+      const logMsg = `[Canvas Action] Resized card '${label}' (${currentNode.type}) to size: ${w}x${h}px at coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}) [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`;
+      get().addActivityLog?.(logMsg);
+      if (globalThis.go?.main?.App?.WriteLog) {
+        globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
+      }
+    }
     set({
       lastActionId: `resize-${Date.now()}`,
       lastActionName: 'Resize Element'

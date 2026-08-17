@@ -88,6 +88,10 @@ export const createLogSlice: StateCreator<FlowState, [], [], LogSlice> = (set, g
 
       set(newState);
       saveLogsToStorage(updatedLogs);
+
+      if (globalThis.go?.main?.App?.WriteLog) {
+        globalThis.go.main.App.WriteLog(scope || 'app', level, message).catch(() => {});
+      }
     },
     deleteLog: (id) => {
       const updatedLogs = get().logs.filter(l => l.id !== id);

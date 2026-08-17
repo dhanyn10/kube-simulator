@@ -58,6 +58,67 @@ func appendToLogFile(line string) {
 	_, _ = f.WriteString(line + "\n")
 }
 
+// AppendCategorizedLog writes a log entry into a category-specific log file (app-*, history-*, report-*)
+func AppendCategorizedLog(category, level, message string) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	message = strings.TrimRight(message, "\n")
+	dateTime := time.Now().Format("2006-01-02 15:04:05")
+	dateSuffix := time.Now().Format("20060102")
+
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		configDir = os.TempDir()
+	}
+	dir := filepath.Join(configDir, "kube-simulator")
+	_ = os.MkdirAll(dir, 0755)
+
+	cleanCat := strings.ToLower(strings.TrimSpace(category))
+	var filename string
+	switch cleanCat {
+	case "canvas", "history":
+		filename = fmt.Sprintf("history-%s.jsonl", dateSuffix)
+	case "kubeconsole", "terminal", "console":
+		filename = fmt.Sprintf("kubeconsole-%s.jsonl", dateSuffix)
+	case "report", "simulation":
+		filename = fmt.Sprintf("report-%s.jsonl", dateSuffix)
+	default:
+		filename = fmt.Sprintf("app-%s.jsonl", dateSuffix)
+	}
+
+	jsonEntry, err := json.Marshal(map[string]string{
+		"category":  cleanCat,
+		"timestamp": dateTime,
+		"level":     strings.ToUpper(level),
+		"message":   message,
+	})
+	if err == nil {
+		jsonLine := string(jsonEntry) + "\n"
+
+		targetPath := filepath.Join(dir, filename)
+		f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			_, _ = f.WriteString(jsonLine)
+			f.Close()
+		}
+
+		path := logFilePath
+		if path == "" {
+			configDir, err := os.UserConfigDir()
+			if err != nil || configDir == "" {
+				configDir = os.TempDir()
+			}
+			path = filepath.Join(configDir, "kube-simulator", "app_logs.jsonl")
+		}
+		af, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			_, _ = af.WriteString(jsonLine)
+			af.Close()
+		}
+	}
+}
+
 // Init initializes the logger with the application context
 func Init(ctx context.Context) {
 	mu.Lock()

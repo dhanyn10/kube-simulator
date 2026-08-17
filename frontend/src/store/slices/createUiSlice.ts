@@ -647,9 +647,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       }
     };
   }),
-  addActivityLog: (line) => set((state) => ({
-    activityLogs: [...state.activityLogs, line].slice(-200)
-  })),
+  addActivityLog: (line) => {
+    if (globalThis.go?.main?.App?.WriteLog) {
+      globalThis.go.main.App.WriteLog('history', 'info', line).catch(() => {});
+    }
+    set((state) => ({
+      activityLogs: [...state.activityLogs, line].slice(-200)
+    }));
+  },
   clearTerminalLogs: () => set({ terminalLogs: {}, activityLogs: [] }),
 
   saveSettingsJson: () => {

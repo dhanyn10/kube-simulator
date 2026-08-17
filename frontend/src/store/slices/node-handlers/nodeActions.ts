@@ -125,12 +125,41 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
 
   const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
   const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, id);
+
+  const x1 = Math.round(finalPos.x);
+  const y1 = Math.round(finalPos.y);
+  const w = Math.round(newNode.width || 150);
+  const h = Math.round(newNode.height || 100);
+  const x2 = x1 + w;
+  const y2 = y1 + h;
+  const logMsg = `[Canvas Action] Placed card '${type}' (${id}) at coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`;
+  get().addActivityLog?.(logMsg);
+  if (globalThis.go?.main?.App?.WriteLog) {
+    globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
+  }
+
   set({ nodes: collisionResolvedNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
 
 const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodesToDelete: Node[]) => {
   const { nodes, edges } = get();
   const deleteIds = new Set(nodesToDelete.map(n => n.id));
+
+  nodesToDelete.forEach(n => {
+    const pos = getAbsPos(n.id, nodes);
+    const x1 = Math.round(pos.x);
+    const y1 = Math.round(pos.y);
+    const w = Math.round(n.width || n.measured?.width || 150);
+    const h = Math.round(n.height || n.measured?.height || 100);
+    const x2 = x1 + w;
+    const y2 = y1 + h;
+    const label = n.data?.label || n.id;
+    const logMsg = `[Canvas Action] Deleted card '${label}' (${n.type}) from coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px`;
+    get().addActivityLog?.(logMsg);
+    if (globalThis.go?.main?.App?.WriteLog) {
+      globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
+    }
+  });
 
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
   nodesToDelete.forEach(node => {

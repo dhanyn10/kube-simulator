@@ -526,10 +526,10 @@ describe('TerminalPanel', () => {
   describe('unit tests for log export utilities', () => {
     it('generateLogFilename formats scenario and default project names correctly', () => {
       const scenarioFilename = generateLogFilename('Scenario: Basic Deployment', 'logs', 'web-pod');
-      expect(scenarioFilename).toMatch(/^scenario-basic-deployment-web-pod_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/);
+      expect(scenarioFilename).toMatch(/^resource-logs-scenario-basic-deployment-web-pod_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/);
 
       const defaultFilename = generateLogFilename(null, 'activity');
-      expect(defaultFilename).toMatch(/^kube-simulator_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/);
+      expect(defaultFilename).toMatch(/^activity-history_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log$/);
     });
 
     it('exportLogFile triggers download element correctly', () => {
