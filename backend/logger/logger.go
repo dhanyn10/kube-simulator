@@ -78,23 +78,13 @@ func AppendCategorizedLog(category, level, message string) {
 	var filename string
 	switch cleanCat {
 	case "history", "activity", "kubeconsole":
-		filename = fmt.Sprintf("history-%s.log", dateSuffix)
+		filename = fmt.Sprintf("history-%s.jsonl", dateSuffix)
 	case "report", "simulation":
-		filename = fmt.Sprintf("report-%s.log", dateSuffix)
+		filename = fmt.Sprintf("report-%s.jsonl", dateSuffix)
 	default:
-		filename = fmt.Sprintf("app-%s.log", dateSuffix)
+		filename = fmt.Sprintf("app-%s.jsonl", dateSuffix)
 	}
 
-	targetPath := filepath.Join(dir, filename)
-	logLine := fmt.Sprintf("[%s] [%s] %s", dateTime, strings.ToUpper(level), message)
-
-	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err == nil {
-		_, _ = f.WriteString(logLine + "\n")
-		f.Close()
-	}
-
-	// Also write JSON entry to main log file for unified tracking
 	jsonEntry, err := json.Marshal(map[string]string{
 		"category":  cleanCat,
 		"timestamp": dateTime,
@@ -102,6 +92,15 @@ func AppendCategorizedLog(category, level, message string) {
 		"message":   message,
 	})
 	if err == nil {
+		jsonLine := string(jsonEntry) + "\n"
+
+		targetPath := filepath.Join(dir, filename)
+		f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			_, _ = f.WriteString(jsonLine)
+			f.Close()
+		}
+
 		path := logFilePath
 		if path == "" {
 			configDir, err := os.UserConfigDir()
@@ -112,7 +111,7 @@ func AppendCategorizedLog(category, level, message string) {
 		}
 		af, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err == nil {
-			_, _ = af.WriteString(string(jsonEntry) + "\n")
+			_, _ = af.WriteString(jsonLine)
 			af.Close()
 		}
 	}
