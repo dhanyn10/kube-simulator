@@ -457,6 +457,8 @@ interface TerminalPaginationBarProps {
   totalPages: number;
   colorMode: 'dark' | 'light';
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  isAutoscroll: boolean;
+  setIsAutoscroll: (val: boolean) => void;
 }
 
 export const TerminalPaginationBar = ({
@@ -466,6 +468,8 @@ export const TerminalPaginationBar = ({
   totalPages,
   colorMode,
   setCurrentPage,
+  isAutoscroll,
+  setIsAutoscroll,
 }: TerminalPaginationBarProps) => {
   const startCount = Math.min(filteredLogsLength, (currentPage - 1) * pageSize + 1);
   const endCount = Math.min(filteredLogsLength, currentPage * pageSize);
@@ -479,34 +483,46 @@ export const TerminalPaginationBar = ({
       <div>
         Showing {startCount}-{endCount} of {filteredLogsLength} logs
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-          className={cn(
-            "terminal-pagination-btn",
-            isDark
-              ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-              : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-          )}
-        >
-          Prev
-        </button>
-        <span className="font-bold">Page {currentPage} of {totalPages}</span>
-        <button
-          type="button"
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-          className={cn(
-            "terminal-pagination-btn",
-            isDark
-              ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-              : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-          )}
-        >
-          Next
-        </button>
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-bold select-none hover:opacity-80">
+          <input
+            type="checkbox"
+            checked={isAutoscroll}
+            onChange={(e) => setIsAutoscroll(e.target.checked)}
+            className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+            data-testid="autoscroll-checkbox-logs"
+          />
+          <span>Autoscroll</span>
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            className={cn(
+              "terminal-pagination-btn",
+              isDark
+                ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+            )}
+          >
+            Prev
+          </button>
+          <span className="font-bold">Page {currentPage} of {totalPages}</span>
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            className={cn(
+              "terminal-pagination-btn",
+              isDark
+                ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+            )}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -518,6 +534,8 @@ interface TerminalCommandFormProps {
   setCommandInput: (val: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   colorMode: 'dark' | 'light';
+  isAutoscroll: boolean;
+  setIsAutoscroll: (val: boolean) => void;
 }
 
 export const TerminalCommandForm = ({
@@ -526,31 +544,48 @@ export const TerminalCommandForm = ({
   setCommandInput,
   onKeyDown,
   colorMode,
+  isAutoscroll,
+  setIsAutoscroll,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   return (
-    <form onSubmit={onSubmit} className={cn(
-      "flex items-center gap-2 select-text",
-      isDark ? "text-slate-300" : "text-slate-700"
-    )}>
-      <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
-      <input
-        type="text"
-        value={commandInput}
-        onChange={(e) => setCommandInput(e.target.value)}
-        onKeyDown={onKeyDown}
-        spellCheck="false"
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
-        className={cn(
-          "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
-          isDark ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
-        )}
-        data-testid="terminal-cli-input"
-      />
-    </form>
+    <div className="flex items-center justify-between gap-4 w-full">
+      <form onSubmit={onSubmit} className={cn(
+        "flex-1 flex items-center gap-2 select-text",
+        isDark ? "text-slate-300" : "text-slate-700"
+      )}>
+        <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
+        <input
+          type="text"
+          value={commandInput}
+          onChange={(e) => setCommandInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          spellCheck="false"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
+          className={cn(
+            "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
+            isDark ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
+          )}
+          data-testid="terminal-cli-input"
+        />
+      </form>
+      <label className={cn(
+        "flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-bold select-none shrink-0 hover:opacity-80",
+        isDark ? "text-slate-400" : "text-slate-500"
+      )}>
+        <input
+          type="checkbox"
+          checked={isAutoscroll}
+          onChange={(e) => setIsAutoscroll(e.target.checked)}
+          className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+          data-testid="autoscroll-checkbox-activity"
+        />
+        <span>Autoscroll</span>
+      </label>
+    </div>
   );
 };
 
@@ -819,8 +854,19 @@ export const TerminalPanel = () => {
   const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAutoscroll, setIsAutoscroll] = useState(true);
   const PAGE_SIZE = 25;
+  const contentAreaRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = () => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
+    if (!isAtBottom && isAutoscroll) {
+      setIsAutoscroll(false);
+    }
+  };
 
   const activityTabClass = useMemo(() => getTabClass('activity', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
   const logsTabClass = useMemo(() => getTabClass('logs', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
@@ -872,14 +918,14 @@ export const TerminalPanel = () => {
     return filteredLogs.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredLogs, currentPage, terminalActiveTab, PAGE_SIZE]);
 
-  // Auto-scroll to bottom on new log line (only auto-scrolls if we are on the latest page or if it is activity tab)
+  // Auto-scroll to bottom on new log line or when autoscroll is enabled
   useEffect(() => {
-    if (isTerminalOpen && terminalEndRef.current) {
+    if (isTerminalOpen && isAutoscroll && terminalEndRef.current) {
       if (terminalActiveTab === 'activity' || currentPage === totalPages) {
         terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
-  }, [isTerminalOpen, filteredLogs, terminalActiveTab, currentPage, totalPages]);
+  }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleTerminalKeyDown(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput);
@@ -966,10 +1012,14 @@ export const TerminalPanel = () => {
       />
 
       {/* Terminal logs content */}
-      <div className={cn(
-        "terminal-content-area custom-scrollbar",
-        colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
-      )}>
+      <div
+        ref={contentAreaRef}
+        onScroll={handleScroll}
+        className={cn(
+          "terminal-content-area custom-scrollbar",
+          colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
+        )}
+      >
         <TerminalLogBody
           isSimulating={isSimulating}
           terminalActiveTab={terminalActiveTab}
@@ -1001,6 +1051,8 @@ export const TerminalPanel = () => {
               totalPages={totalPages}
               colorMode={colorMode}
               setCurrentPage={setCurrentPage}
+              isAutoscroll={isAutoscroll}
+              setIsAutoscroll={setIsAutoscroll}
             />
           )}
 
@@ -1011,6 +1063,8 @@ export const TerminalPanel = () => {
               setCommandInput={setCommandInput}
               onKeyDown={handleKeyDown}
               colorMode={colorMode}
+              isAutoscroll={isAutoscroll}
+              setIsAutoscroll={setIsAutoscroll}
             />
           )}
         </div>

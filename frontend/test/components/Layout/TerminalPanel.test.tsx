@@ -431,6 +431,37 @@ describe('TerminalPanel', () => {
       expect(markElement).toBeInTheDocument();
       expect(markElement.tagName).toBe('MARK');
     });
+
+    it('renders Autoscroll checkbox and handles toggle and manual scroll up uncheck', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'activity',
+          activityLogs: Array.from({ length: 50 }, (_, i) => `log line ${i + 1}`)
+        });
+      });
+
+      const { container } = render(<TerminalPanel />);
+
+      const autoscrollCheckbox = screen.getByTestId('autoscroll-checkbox-activity') as HTMLInputElement;
+      expect(autoscrollCheckbox).toBeInTheDocument();
+      expect(autoscrollCheckbox.checked).toBe(true);
+
+      // Simulate manual scroll up on the content area
+      const contentArea = container.querySelector('.terminal-content-area')!;
+      Object.defineProperty(contentArea, 'scrollHeight', { value: 1000, configurable: true });
+      Object.defineProperty(contentArea, 'scrollTop', { value: 100, configurable: true });
+      Object.defineProperty(contentArea, 'clientHeight', { value: 300, configurable: true });
+
+      fireEvent.scroll(contentArea);
+
+      // Autoscroll should automatically be unchecked
+      expect(autoscrollCheckbox.checked).toBe(false);
+
+      // Clicking checkbox re-checks it
+      fireEvent.click(autoscrollCheckbox);
+      expect(autoscrollCheckbox.checked).toBe(true);
+    });
   });
 
   describe('Kubectl new interactive commands', () => {
