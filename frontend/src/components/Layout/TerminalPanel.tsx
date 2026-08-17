@@ -102,7 +102,7 @@ export const handleLogsCommand = (
   setTerminalSelectedResourceId: (id: string | null) => void,
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void
 ): boolean => {
-  const logsMatch = /^kubectl\s+logs\s+([a-z0-9/-]+)/i.exec(cmd);
+  const logsMatch = /^kubectl\s+logs\s+([-a-z0-9/]+)/i.exec(cmd);
   if (!logsMatch) return false;
 
   let targetName = logsMatch[1].toLowerCase();
@@ -217,7 +217,7 @@ export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', 
   }
 
   const q = searchQuery.toLowerCase();
-  const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedSearch = searchQuery.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
   const partsWithObjects = parts.map((part, index) => ({
     key: `part-${index}-${part}`,
@@ -405,7 +405,7 @@ export const handleDescribeCommand = (
   nodes: Node[],
   isSimulating: boolean
 ): boolean => {
-  const describeMatch = /^kubectl\s+describe\s+(pod|deploy(?:ment)?)\s+([a-z0-9-]+)/i.exec(cmd);
+  const describeMatch = /^kubectl\s+describe\s+(pod|deploy(?:ment)?)\s+([-a-z0-9]+)/i.exec(cmd);
   if (!describeMatch) return false;
 
   const type = describeMatch[1].toLowerCase();
