@@ -359,8 +359,8 @@ describe('createUiSlice', () => {
     const { startSimulation, setTerminalSelectedResourceId } = useFlowStore.getState();
     startSimulation();
 
-    // Advance 3 seconds while viewing child-pod-1
-    vi.advanceTimersByTime(3000);
+    // Advance 10 seconds while viewing child-pod-1
+    vi.advanceTimersByTime(10000);
 
     let state = useFlowStore.getState();
     const childLogsCount1 = state.terminalLogs['child-pod-1']?.length || 0;
@@ -373,8 +373,8 @@ describe('createUiSlice', () => {
     // Switch selected resource to standalone-pod-2
     setTerminalSelectedResourceId('standalone-pod-2');
 
-    // Advance 3 more seconds
-    vi.advanceTimersByTime(3000);
+    // Advance 10 more seconds
+    vi.advanceTimersByTime(10000);
 
     state = useFlowStore.getState();
     const childLogsCount2 = state.terminalLogs['child-pod-1']?.length || 0;
