@@ -126,7 +126,11 @@ export const resizeHandlers = (set: any, get?: () => FlowState) => ({
       const x2 = x1 + w;
       const y2 = y1 + h;
       const label = currentNode.data?.label || currentNode.id;
-      get().addActivityLog?.(`[Canvas Action] Resized card '${label}' (${currentNode.type}) to size: ${w}x${h}px at coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}) [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`);
+      const logMsg = `[Canvas Action] Resized card '${label}' (${currentNode.type}) to size: ${w}x${h}px at coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}) [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`;
+      get().addActivityLog?.(logMsg);
+      if (globalThis.go?.main?.App?.WriteLog) {
+        globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
+      }
     }
     set({
       lastActionId: `resize-${Date.now()}`,

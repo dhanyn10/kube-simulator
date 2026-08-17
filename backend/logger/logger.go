@@ -77,8 +77,10 @@ func AppendCategorizedLog(category, level, message string) {
 	cleanCat := strings.ToLower(strings.TrimSpace(category))
 	var filename string
 	switch cleanCat {
-	case "history", "activity", "kubeconsole":
+	case "canvas", "history":
 		filename = fmt.Sprintf("history-%s.jsonl", dateSuffix)
+	case "kubeconsole", "terminal", "console":
+		filename = fmt.Sprintf("kubeconsole-%s.jsonl", dateSuffix)
 	case "report", "simulation":
 		filename = fmt.Sprintf("report-%s.jsonl", dateSuffix)
 	default:
