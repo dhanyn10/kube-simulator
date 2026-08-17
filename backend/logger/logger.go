@@ -13,6 +13,8 @@ import (
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+const appDirName = "kube-simulator"
+
 var (
 	appCtx      context.Context
 	mu          sync.Mutex
@@ -32,7 +34,7 @@ func GetLogFilePath() string {
 	if err != nil || configDir == "" {
 		configDir = os.TempDir()
 	}
-	dir := filepath.Join(configDir, "kube-simulator")
+	dir := filepath.Join(configDir, appDirName)
 	_ = os.MkdirAll(dir, 0755)
 	logFilePath = filepath.Join(dir, "app_logs.jsonl")
 	return logFilePath
@@ -71,7 +73,7 @@ func AppendCategorizedLog(category, level, message string) {
 	if err != nil || configDir == "" {
 		configDir = os.TempDir()
 	}
-	dir := filepath.Join(configDir, "kube-simulator")
+	dir := filepath.Join(configDir, appDirName)
 	_ = os.MkdirAll(dir, 0755)
 
 	cleanCat := strings.ToLower(strings.TrimSpace(category))
@@ -109,7 +111,7 @@ func AppendCategorizedLog(category, level, message string) {
 			if err != nil || configDir == "" {
 				configDir = os.TempDir()
 			}
-			path = filepath.Join(configDir, "kube-simulator", "app_logs.jsonl")
+			path = filepath.Join(configDir, appDirName, "app_logs.jsonl")
 		}
 		af, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err == nil {
