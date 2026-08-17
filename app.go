@@ -250,6 +250,12 @@ func (a *App) UpdateProject(id int64, content string) bool {
 	return true
 }
 
+// WriteLog receives frontend logs and persists them into category-specific log files on disk
+func (a *App) WriteLog(category, level, message string) bool {
+	logger.AppendCategorizedLog(category, level, message)
+	return true
+}
+
 func (a *App) OpenLogFile() bool {
 	var logFilePath string
 	if appCtx != nil && appCtx.Value(isTestKey) != nil {

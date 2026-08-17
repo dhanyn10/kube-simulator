@@ -58,6 +58,66 @@ func appendToLogFile(line string) {
 	_, _ = f.WriteString(line + "\n")
 }
 
+// AppendCategorizedLog writes a log entry into a category-specific log file (app-*, history-*, report-*)
+func AppendCategorizedLog(category, level, message string) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	message = strings.TrimRight(message, "\n")
+	dateTime := time.Now().Format("2006-01-02 15:04:05")
+	dateSuffix := time.Now().Format("20060102")
+
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		configDir = os.TempDir()
+	}
+	dir := filepath.Join(configDir, "kube-simulator")
+	_ = os.MkdirAll(dir, 0755)
+
+	cleanCat := strings.ToLower(strings.TrimSpace(category))
+	var filename string
+	switch cleanCat {
+	case "history", "activity", "kubeconsole":
+		filename = fmt.Sprintf("history-%s.log", dateSuffix)
+	case "report", "simulation":
+		filename = fmt.Sprintf("report-%s.log", dateSuffix)
+	default:
+		filename = fmt.Sprintf("app-%s.log", dateSuffix)
+	}
+
+	targetPath := filepath.Join(dir, filename)
+	logLine := fmt.Sprintf("[%s] [%s] %s", dateTime, strings.ToUpper(level), message)
+
+	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err == nil {
+		_, _ = f.WriteString(logLine + "\n")
+		f.Close()
+	}
+
+	// Also write JSON entry to main log file for unified tracking
+	jsonEntry, err := json.Marshal(map[string]string{
+		"category":  cleanCat,
+		"timestamp": dateTime,
+		"level":     strings.ToUpper(level),
+		"message":   message,
+	})
+	if err == nil {
+		path := logFilePath
+		if path == "" {
+			configDir, err := os.UserConfigDir()
+			if err != nil || configDir == "" {
+				configDir = os.TempDir()
+			}
+			path = filepath.Join(configDir, "kube-simulator", "app_logs.jsonl")
+		}
+		af, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			_, _ = af.WriteString(string(jsonEntry) + "\n")
+			af.Close()
+		}
+	}
+}
+
 // Init initializes the logger with the application context
 func Init(ctx context.Context) {
 	mu.Lock()
