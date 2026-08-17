@@ -135,7 +135,7 @@ export const generateLogFilename = (
     const cleanProject = projectName.toLowerCase()
       .replace(/^scenario:\s*/i, 'scenario-')
       .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^[-]+|[-]+$/g, '');
+      .replace(/^-+|-+$/g, '');
     if (cleanProject) {
       prefix = `${prefix}-${cleanProject}`;
     }
@@ -399,6 +399,121 @@ export const executeKubectlCommand = (
   ctx.addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
 };
 
+export const getTabClass = (
+  tabName: 'activity' | 'logs',
+  activeTab: 'activity' | 'logs',
+  colorMode: 'dark' | 'light'
+): string => {
+  if (activeTab === tabName) {
+    return `border-blue-500 font-black ${colorMode === 'dark' ? 'text-white' : 'text-slate-900'}`;
+  }
+  return colorMode === 'dark' ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-400 hover:text-slate-600';
+};
+
+interface TerminalPaginationBarProps {
+  filteredLogsLength: number;
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  colorMode: 'dark' | 'light';
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+}
+
+export const TerminalPaginationBar = ({
+  filteredLogsLength,
+  currentPage,
+  pageSize,
+  totalPages,
+  colorMode,
+  setCurrentPage,
+}: TerminalPaginationBarProps) => {
+  const startCount = Math.min(filteredLogsLength, (currentPage - 1) * pageSize + 1);
+  const endCount = Math.min(filteredLogsLength, currentPage * pageSize);
+  const isDark = colorMode === 'dark';
+
+  return (
+    <div className={cn(
+      "terminal-pagination-bar",
+      isDark ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
+    )}>
+      <div>
+        Showing {startCount}-{endCount} of {filteredLogsLength} logs
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          className={cn(
+            "terminal-pagination-btn",
+            isDark
+              ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+              : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+          )}
+        >
+          Prev
+        </button>
+        <span className="font-bold">Page {currentPage} of {totalPages}</span>
+        <button
+          type="button"
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+          className={cn(
+            "terminal-pagination-btn",
+            isDark
+              ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+              : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+          )}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+};
+
+interface TerminalCommandFormProps {
+  onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
+  commandInput: string;
+  setCommandInput: (val: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  colorMode: 'dark' | 'light';
+}
+
+export const TerminalCommandForm = ({
+  onSubmit,
+  commandInput,
+  setCommandInput,
+  onKeyDown,
+  colorMode,
+}: TerminalCommandFormProps) => {
+  const isDark = colorMode === 'dark';
+  return (
+    <form onSubmit={onSubmit} className={cn(
+      "flex items-center gap-2 mt-2 select-text",
+      isDark ? "text-slate-300" : "text-slate-700"
+    )}>
+      <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
+      <input
+        type="text"
+        value={commandInput}
+        onChange={(e) => setCommandInput(e.target.value)}
+        onKeyDown={onKeyDown}
+        spellCheck="false"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
+        className={cn(
+          "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
+          isDark ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
+        )}
+        data-testid="terminal-cli-input"
+      />
+    </form>
+  );
+};
+
 export const handleDescribeCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -478,19 +593,8 @@ export const TerminalPanel = () => {
   const PAGE_SIZE = 25;
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
-  const activityTabClass = useMemo(() => {
-    if (terminalActiveTab === 'activity') {
-      return `border-blue-500 font-black ${colorMode === 'dark' ? 'text-white' : 'text-slate-900'}`;
-    }
-    return colorMode === 'dark' ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-400 hover:text-slate-600';
-  }, [terminalActiveTab, colorMode]);
-
-  const logsTabClass = useMemo(() => {
-    if (terminalActiveTab === 'logs') {
-      return `border-blue-500 font-black ${colorMode === 'dark' ? 'text-white' : 'text-slate-900'}`;
-    }
-    return colorMode === 'dark' ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-400 hover:text-slate-600';
-  }, [terminalActiveTab, colorMode]);
+  const activityTabClass = useMemo(() => getTabClass('activity', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
+  const logsTabClass = useMemo(() => getTabClass('logs', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
 
   // Reset page when tab, resource, or query changes
   useEffect(() => {
@@ -548,15 +652,11 @@ export const TerminalPanel = () => {
     }
   }, [isTerminalOpen, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
-  const formatLogLine = (line: string) => {
-    return formatLogLineContent(line, colorMode, searchQuery);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleTerminalKeyDown(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput);
   };
 
-  const handleCommandSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCommandSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const cmd = commandInput.trim();
     if (!cmd) return;
@@ -606,69 +706,25 @@ export const TerminalPanel = () => {
 
         {/* Pagination Controls for logs - Sticky at the bottom */}
         {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
-          <div className={cn(
-            "terminal-pagination-bar",
-            colorMode === 'dark' ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
-          )}>
-            <div>
-              Showing {Math.min(filteredLogs.length, (currentPage - 1) * PAGE_SIZE + 1)}-{Math.min(filteredLogs.length, currentPage * PAGE_SIZE)} of {filteredLogs.length} logs
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                className={cn(
-                  "terminal-pagination-btn",
-                  colorMode === 'dark'
-                    ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-                    : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-                )}
-              >
-                Prev
-              </button>
-              <span className="font-bold">Page {currentPage} of {totalPages}</span>
-              <button
-                type="button"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                className={cn(
-                  "terminal-pagination-btn",
-                  colorMode === 'dark'
-                    ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-                    : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-                )}
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <TerminalPaginationBar
+            filteredLogsLength={filteredLogs.length}
+            currentPage={currentPage}
+            pageSize={PAGE_SIZE}
+            totalPages={totalPages}
+            colorMode={colorMode}
+            setCurrentPage={setCurrentPage}
+          />
         )}
 
         {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
         {terminalActiveTab === 'activity' && (
-          <form onSubmit={handleCommandSubmit} className={cn(
-            "flex items-center gap-2 mt-2 select-text",
-            colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
-          )}>
-            <span className={cn("font-bold select-none", colorMode === 'dark' ? "text-cyan-400" : "text-cyan-600")}>$</span>
-            <input
-              type="text"
-              value={commandInput}
-              onChange={(e) => setCommandInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              spellCheck="false"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
-              className={cn(
-                "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
-                colorMode === 'dark' ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
-              )}
-              data-testid="terminal-cli-input"
-            />
-          </form>
+          <TerminalCommandForm
+            onSubmit={handleCommandSubmit}
+            commandInput={commandInput}
+            setCommandInput={setCommandInput}
+            onKeyDown={handleKeyDown}
+            colorMode={colorMode}
+          />
         )}
       </div>
     );
