@@ -47,6 +47,14 @@ func setupAppWithDB(t *testing.T) (*App, func()) {
 	return app, cleanup
 }
 
+func TestWriteLog(t *testing.T) {
+	app := NewApp()
+	ok := app.WriteLog("canvas", "info", "Placed card test")
+	if !ok {
+		t.Error("Expected WriteLog to return true")
+	}
+}
+
 func TestGetSystemInfo(t *testing.T) {
 	app := NewApp()
 	info := app.GetSystemInfo()
