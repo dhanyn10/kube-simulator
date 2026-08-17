@@ -167,6 +167,40 @@ export const exportLogFile = (logs: string[], filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+export interface CommandHistoryEntry {
+  id: number;
+  command: string;
+  timestamp: string;
+}
+
+export const formatCommandTimestamp = (d = new Date()): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+export const handleHistoryCommand = (
+  cmdLower: string,
+  historyEntries: CommandHistoryEntry[],
+  addActivityLog: (line: string) => void
+): boolean => {
+  if (cmdLower !== 'history') return false;
+  if (historyEntries.length === 0) {
+    addActivityLog('No command history recorded.');
+    return true;
+  }
+  historyEntries.forEach((entry) => {
+    const paddedId = String(entry.id).padStart(5, ' ');
+    addActivityLog(`${paddedId}  ${entry.timestamp}  ${entry.command}`);
+  });
+  return true;
+};
+
 export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: string) => void): boolean => {
   if (cmdLower !== 'help') return false;
   addActivityLog('Available educational Kubernetes commands:');
@@ -183,6 +217,7 @@ export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: strin
   addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
   addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
+  addActivityLog('  history                               View command execution history with timestamps');
   addActivityLog('  clear                                 Clear the console log list');
   return true;
 };
@@ -361,11 +396,16 @@ export const executeKubectlCommand = (
   cmd: string,
   ctx: CommandContext,
   setTerminalSelectedResourceId: (id: string | null) => void,
-  setTerminalActiveTab: (tab: 'activity' | 'logs') => void
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void,
+  historyEntries: CommandHistoryEntry[] = []
 ) => {
   const cmdLower = cmd.toLowerCase();
 
   if (handleHelpCommand(cmdLower, ctx.addActivityLog)) {
+    return;
+  }
+
+  if (handleHistoryCommand(cmdLower, historyEntries, ctx.addActivityLog)) {
     return;
   }
 
@@ -434,7 +474,7 @@ export const TerminalPaginationBar = ({
   return (
     <div className={cn(
       "terminal-pagination-bar",
-      isDark ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
+      isDark ? "text-slate-400" : "text-slate-500"
     )}>
       <div>
         Showing {startCount}-{endCount} of {filteredLogsLength} logs
@@ -490,7 +530,7 @@ export const TerminalCommandForm = ({
   const isDark = colorMode === 'dark';
   return (
     <form onSubmit={onSubmit} className={cn(
-      "flex items-center gap-2 mt-2 select-text",
+      "flex items-center gap-2 select-text",
       isDark ? "text-slate-300" : "text-slate-700"
     )}>
       <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
@@ -776,6 +816,7 @@ export const TerminalPanel = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [commandInput, setCommandInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 25;
@@ -850,11 +891,25 @@ export const TerminalPanel = () => {
     if (!cmd) return;
 
     setCommandInput('');
+
+    const timestamp = formatCommandTimestamp();
+    const newEntry: CommandHistoryEntry = {
+      id: commandHistoryEntries.length + 1,
+      command: cmd,
+      timestamp,
+    };
+
+    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
+    setCommandHistoryEntries(nextHistoryEntries);
     setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
     setHistoryIndex(-1);
 
     const addActivityLog = useFlowStore.getState().addActivityLog;
     addActivityLog(`$ ${cmd}`);
+
+    if (globalThis.go?.main?.App?.WriteLog) {
+      globalThis.go.main.App.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
+    }
 
     if (cmd.toLowerCase() === 'clear') {
       clearTerminalLogs();
@@ -871,7 +926,7 @@ export const TerminalPanel = () => {
       setStoreState: useFlowStore.setState,
     };
 
-    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab);
+    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab, nextHistoryEntries);
   };
 
   if (!isTerminalOpen) {
@@ -915,23 +970,29 @@ export const TerminalPanel = () => {
         "terminal-content-area custom-scrollbar",
         colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
       )}>
-        <div className="flex flex-col h-full">
-          <div className="flex-1">
-            <TerminalLogBody
-              isSimulating={isSimulating}
-              terminalActiveTab={terminalActiveTab}
-              activeLogs={activeLogs}
-              loggableResources={loggableResources}
-              paginatedLogs={paginatedLogs}
-              searchQuery={searchQuery}
-              colorMode={colorMode}
-              startSimulation={startSimulation}
-              currentPage={currentPage}
-              pageSize={PAGE_SIZE}
-            />
-          </div>
+        <TerminalLogBody
+          isSimulating={isSimulating}
+          terminalActiveTab={terminalActiveTab}
+          activeLogs={activeLogs}
+          loggableResources={loggableResources}
+          paginatedLogs={paginatedLogs}
+          searchQuery={searchQuery}
+          colorMode={colorMode}
+          startSimulation={startSimulation}
+          currentPage={currentPage}
+          pageSize={PAGE_SIZE}
+        />
+        <div ref={terminalEndRef} />
+      </div>
 
-          {/* Pagination Controls for logs - Sticky at the bottom */}
+      {/* Fixed bottom footer for pagination and input form */}
+      {((terminalActiveTab === 'logs' && filteredLogs.length > 0) || terminalActiveTab === 'activity') && (
+        <div className={cn(
+          "terminal-footer",
+          colorMode === 'dark'
+            ? "border-slate-800 bg-slate-950/95 text-slate-400"
+            : "border-slate-200 bg-white/95 text-slate-500"
+        )}>
           {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
             <TerminalPaginationBar
               filteredLogsLength={filteredLogs.length}
@@ -943,7 +1004,6 @@ export const TerminalPanel = () => {
             />
           )}
 
-          {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
           {terminalActiveTab === 'activity' && (
             <TerminalCommandForm
               onSubmit={handleCommandSubmit}
@@ -954,8 +1014,7 @@ export const TerminalPanel = () => {
             />
           )}
         </div>
-        <div ref={terminalEndRef} />
-      </div>
+      )}
     </div>
   );
 };

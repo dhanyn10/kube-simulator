@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile } from '../../../src/components/Layout/TerminalPanel';
+import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../src/components/Layout/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 
@@ -96,6 +96,27 @@ describe('TerminalPanel', () => {
     fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
 
     expect(screen.getByText('Available educational Kubernetes commands:')).toBeInTheDocument();
+  });
+
+  it('handles history command and displays command history with timestamps', () => {
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+
+    // Run first command
+    fireEvent.change(input, { target: { value: 'kubectl get pods' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Run history command
+    fireEvent.change(input, { target: { value: 'history' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Should display history output
+    expect(screen.getAllByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('history') ?? false)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('kubectl get pods') ?? false)).length).toBeGreaterThan(0);
   });
 
   it('handles kubectl get pods command', () => {
@@ -305,6 +326,33 @@ describe('TerminalPanel', () => {
       const result = handleDescribeCommand('kubectl describe pod found-pod', addLog, nodes, true);
       expect(result).toBe(true);
       expect(addLog).toHaveBeenCalledWith(expect.stringContaining('Name:         found-pod'));
+    });
+
+    it('formatCommandTimestamp formats date into YYYY-MM-DD HH:MM:SS string', () => {
+      const mockDate = new Date('2026-03-30T10:15:20');
+      const formatted = formatCommandTimestamp(mockDate);
+      expect(formatted).toBe('2026-03-30 10:15:20');
+    });
+
+    it('handleHistoryCommand outputs formatted history entries', () => {
+      const addLog = vi.fn();
+      const entries: CommandHistoryEntry[] = [
+        { id: 1, command: 'kubectl get pods', timestamp: '2026-03-30 10:15:20' },
+        { id: 2, command: 'history', timestamp: '2026-03-30 10:15:25' },
+      ];
+
+      const result = handleHistoryCommand('history', entries, addLog);
+      expect(result).toBe(true);
+      expect(addLog).toHaveBeenCalledTimes(2);
+      expect(addLog).toHaveBeenNthCalledWith(1, '    1  2026-03-30 10:15:20  kubectl get pods');
+      expect(addLog).toHaveBeenNthCalledWith(2, '    2  2026-03-30 10:15:25  history');
+    });
+
+    it('handleHistoryCommand handles empty history list', () => {
+      const addLog = vi.fn();
+      const result = handleHistoryCommand('history', [], addLog);
+      expect(result).toBe(true);
+      expect(addLog).toHaveBeenCalledWith('No command history recorded.');
     });
   });
 
