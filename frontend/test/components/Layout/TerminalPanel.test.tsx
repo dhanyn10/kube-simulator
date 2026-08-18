@@ -433,6 +433,8 @@ describe('TerminalPanel', () => {
     });
 
     it('renders Autoscroll checkbox and handles toggle and manual scroll up uncheck', () => {
+      vi.useFakeTimers();
+
       act(() => {
         useFlowStore.setState({
           isTerminalOpen: true,
@@ -442,6 +444,10 @@ describe('TerminalPanel', () => {
       });
 
       const { container } = render(<TerminalPanel />);
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
 
       const autoscrollCheckbox = screen.getByTestId('autoscroll-checkbox-activity') as HTMLInputElement;
       expect(autoscrollCheckbox).toBeInTheDocument();
@@ -453,14 +459,20 @@ describe('TerminalPanel', () => {
       Object.defineProperty(contentArea, 'scrollTop', { value: 100, configurable: true });
       Object.defineProperty(contentArea, 'clientHeight', { value: 300, configurable: true });
 
-      fireEvent.scroll(contentArea);
+      act(() => {
+        fireEvent.scroll(contentArea);
+      });
 
       // Autoscroll should automatically be unchecked
       expect(autoscrollCheckbox.checked).toBe(false);
 
       // Clicking checkbox re-checks it
-      fireEvent.click(autoscrollCheckbox);
+      act(() => {
+        fireEvent.click(autoscrollCheckbox);
+      });
       expect(autoscrollCheckbox.checked).toBe(true);
+
+      vi.useRealTimers();
     });
   });
 

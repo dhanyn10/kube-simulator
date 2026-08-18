@@ -458,7 +458,7 @@ interface TerminalPaginationBarProps {
   colorMode: 'dark' | 'light';
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   isAutoscroll: boolean;
-  setIsAutoscroll: (val: boolean) => void;
+  onToggleAutoscroll: (val: boolean) => void;
 }
 
 export const TerminalPaginationBar = ({
@@ -469,7 +469,7 @@ export const TerminalPaginationBar = ({
   colorMode,
   setCurrentPage,
   isAutoscroll,
-  setIsAutoscroll,
+  onToggleAutoscroll,
 }: TerminalPaginationBarProps) => {
   const startCount = Math.min(filteredLogsLength, (currentPage - 1) * pageSize + 1);
   const endCount = Math.min(filteredLogsLength, currentPage * pageSize);
@@ -488,7 +488,7 @@ export const TerminalPaginationBar = ({
           <input
             type="checkbox"
             checked={isAutoscroll}
-            onChange={(e) => setIsAutoscroll(e.target.checked)}
+            onChange={(e) => onToggleAutoscroll(e.target.checked)}
             className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
             data-testid="autoscroll-checkbox-logs"
           />
@@ -535,7 +535,7 @@ interface TerminalCommandFormProps {
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   colorMode: 'dark' | 'light';
   isAutoscroll: boolean;
-  setIsAutoscroll: (val: boolean) => void;
+  onToggleAutoscroll: (val: boolean) => void;
 }
 
 export const TerminalCommandForm = ({
@@ -545,7 +545,7 @@ export const TerminalCommandForm = ({
   onKeyDown,
   colorMode,
   isAutoscroll,
-  setIsAutoscroll,
+  onToggleAutoscroll,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   return (
@@ -579,7 +579,7 @@ export const TerminalCommandForm = ({
         <input
           type="checkbox"
           checked={isAutoscroll}
-          onChange={(e) => setIsAutoscroll(e.target.checked)}
+          onChange={(e) => onToggleAutoscroll(e.target.checked)}
           className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
           data-testid="autoscroll-checkbox-activity"
         />
@@ -858,10 +858,52 @@ export const TerminalPanel = () => {
   const PAGE_SIZE = 25;
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticScrollRef = useRef(false);
+
+  const scrollToBottom = (instant = false) => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+    isProgrammaticScrollRef.current = true;
+    if (instant) {
+      if (terminalEndRef.current) {
+        terminalEndRef.current.scrollIntoView({ behavior: 'auto' });
+      } else if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top: el.scrollHeight });
+      }
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 100);
+    } else {
+      if (terminalEndRef.current) {
+        terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      } else if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 600);
+    }
+  };
+
+  const handleToggleAutoscroll = (checked: boolean) => {
+    setIsAutoscroll(checked);
+    if (checked) {
+      scrollToBottom(true);
+    }
+  };
 
   const handleScroll = () => {
     const el = contentAreaRef.current;
     if (!el) return;
+
+    if (isProgrammaticScrollRef.current) {
+      const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
+      if (isAtBottom) {
+        isProgrammaticScrollRef.current = false;
+      }
+      return;
+    }
+
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
     if (!isAtBottom && isAutoscroll) {
       setIsAutoscroll(false);
@@ -920,9 +962,9 @@ export const TerminalPanel = () => {
 
   // Auto-scroll to bottom on new log line or when autoscroll is enabled
   useEffect(() => {
-    if (isTerminalOpen && isAutoscroll && terminalEndRef.current) {
+    if (isTerminalOpen && isAutoscroll) {
       if (terminalActiveTab === 'activity' || currentPage === totalPages) {
-        terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom(false);
       }
     }
   }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
@@ -1052,7 +1094,7 @@ export const TerminalPanel = () => {
               colorMode={colorMode}
               setCurrentPage={setCurrentPage}
               isAutoscroll={isAutoscroll}
-              setIsAutoscroll={setIsAutoscroll}
+              onToggleAutoscroll={handleToggleAutoscroll}
             />
           )}
 
@@ -1064,7 +1106,7 @@ export const TerminalPanel = () => {
               onKeyDown={handleKeyDown}
               colorMode={colorMode}
               isAutoscroll={isAutoscroll}
-              setIsAutoscroll={setIsAutoscroll}
+              onToggleAutoscroll={handleToggleAutoscroll}
             />
           )}
         </div>
