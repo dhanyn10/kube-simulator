@@ -474,6 +474,70 @@ describe('TerminalPanel', () => {
 
       vi.useRealTimers();
     });
+
+    it('renders Autoscroll checkbox in Kube Logs tab and handles switching selected resource', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'pod-1',
+          terminalLogs: {
+            'pod-1': ['pod-1 log line 1', 'pod-1 log line 2'],
+            'dep-1': ['dep-1 log line 1', 'dep-1 log line 2']
+          }
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const autoscrollLogsCheckbox = screen.getByTestId('autoscroll-checkbox-logs') as HTMLInputElement;
+      expect(autoscrollLogsCheckbox).toBeInTheDocument();
+      expect(autoscrollLogsCheckbox.checked).toBe(true);
+
+      expect(screen.getByText('pod-1 log line 1')).toBeInTheDocument();
+
+      // Change resource dropdown
+      const selectResource = screen.getByRole('combobox');
+      fireEvent.change(selectResource, { target: { value: 'dep-1' } });
+
+      expect(useFlowStore.getState().terminalSelectedResourceId).toBe('dep-1');
+      expect(screen.getByText('dep-1 log line 1')).toBeInTheDocument();
+    });
+
+    it('clears terminal logs when clear command is executed', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          activityLogs: ['line 1', 'line 2']
+        });
+      });
+
+      render(<TerminalPanel />);
+      expect(screen.getByText('line 1')).toBeInTheDocument();
+
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'clear' } });
+      fireEvent.submit(input.closest('form')!);
+
+      expect(useFlowStore.getState().activityLogs).toHaveLength(0);
+    });
+
+    it('outputs command not found message on unknown kubectl command', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl unknowncommand' } });
+      fireEvent.submit(input.closest('form')!);
+
+      expect(screen.getByText(/command not found: "kubectl unknowncommand"/)).toBeInTheDocument();
+    });
   });
 
   describe('Kubectl new interactive commands', () => {
