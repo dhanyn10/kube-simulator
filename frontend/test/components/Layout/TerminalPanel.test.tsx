@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile } from '../../../src/components/Layout/TerminalPanel';
+import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../src/components/Layout/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 
@@ -96,6 +96,27 @@ describe('TerminalPanel', () => {
     fireEvent.submit(screen.getByTestId('terminal-cli-input').closest('form')!);
 
     expect(screen.getByText('Available educational Kubernetes commands:')).toBeInTheDocument();
+  });
+
+  it('handles history command and displays command history with timestamps', () => {
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+
+    // Run first command
+    fireEvent.change(input, { target: { value: 'kubectl get pods' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Run history command
+    fireEvent.change(input, { target: { value: 'history' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Should display history output
+    expect(screen.getAllByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('history') ?? false)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((_, element) => element?.tagName === 'SPAN' && (element?.textContent?.includes('kubectl get pods') ?? false)).length).toBeGreaterThan(0);
   });
 
   it('handles kubectl get pods command', () => {
@@ -306,6 +327,33 @@ describe('TerminalPanel', () => {
       expect(result).toBe(true);
       expect(addLog).toHaveBeenCalledWith(expect.stringContaining('Name:         found-pod'));
     });
+
+    it('formatCommandTimestamp formats date into YYYY-MM-DD HH:MM:SS string', () => {
+      const mockDate = new Date('2026-03-30T10:15:20');
+      const formatted = formatCommandTimestamp(mockDate);
+      expect(formatted).toBe('2026-03-30 10:15:20');
+    });
+
+    it('handleHistoryCommand outputs formatted history entries', () => {
+      const addLog = vi.fn();
+      const entries: CommandHistoryEntry[] = [
+        { id: 1, command: 'kubectl get pods', timestamp: '2026-03-30 10:15:20' },
+        { id: 2, command: 'history', timestamp: '2026-03-30 10:15:25' },
+      ];
+
+      const result = handleHistoryCommand('history', entries, addLog);
+      expect(result).toBe(true);
+      expect(addLog).toHaveBeenCalledTimes(2);
+      expect(addLog).toHaveBeenNthCalledWith(1, '    1  2026-03-30 10:15:20  kubectl get pods');
+      expect(addLog).toHaveBeenNthCalledWith(2, '    2  2026-03-30 10:15:25  history');
+    });
+
+    it('handleHistoryCommand handles empty history list', () => {
+      const addLog = vi.fn();
+      const result = handleHistoryCommand('history', [], addLog);
+      expect(result).toBe(true);
+      expect(addLog).toHaveBeenCalledWith('No command history recorded.');
+    });
   });
 
   describe('additional styling and behavior tests', () => {
@@ -382,6 +430,113 @@ describe('TerminalPanel', () => {
       const markElement = screen.getByText('database');
       expect(markElement).toBeInTheDocument();
       expect(markElement.tagName).toBe('MARK');
+    });
+
+    it('renders Autoscroll checkbox and handles toggle and manual scroll up uncheck', () => {
+      vi.useFakeTimers();
+
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'activity',
+          activityLogs: Array.from({ length: 50 }, (_, i) => `log line ${i + 1}`)
+        });
+      });
+
+      const { container } = render(<TerminalPanel />);
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      const autoscrollCheckbox = screen.getByTestId('autoscroll-checkbox-activity') as HTMLInputElement;
+      expect(autoscrollCheckbox).toBeInTheDocument();
+      expect(autoscrollCheckbox.checked).toBe(true);
+
+      // Simulate manual scroll up on the content area
+      const contentArea = container.querySelector('.terminal-content-area')!;
+      Object.defineProperty(contentArea, 'scrollHeight', { value: 1000, configurable: true });
+      Object.defineProperty(contentArea, 'scrollTop', { value: 100, configurable: true });
+      Object.defineProperty(contentArea, 'clientHeight', { value: 300, configurable: true });
+
+      act(() => {
+        fireEvent.scroll(contentArea);
+      });
+
+      // Autoscroll should automatically be unchecked
+      expect(autoscrollCheckbox.checked).toBe(false);
+
+      // Clicking checkbox re-checks it
+      act(() => {
+        fireEvent.click(autoscrollCheckbox);
+      });
+      expect(autoscrollCheckbox.checked).toBe(true);
+
+      vi.useRealTimers();
+    });
+
+    it('renders Autoscroll checkbox in Kube Logs tab and handles switching selected resource', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'pod-1',
+          terminalLogs: {
+            'pod-1': ['pod-1 log line 1', 'pod-1 log line 2'],
+            'dep-1': ['dep-1 log line 1', 'dep-1 log line 2']
+          }
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const autoscrollLogsCheckbox = screen.getByTestId('autoscroll-checkbox-logs') as HTMLInputElement;
+      expect(autoscrollLogsCheckbox).toBeInTheDocument();
+      expect(autoscrollLogsCheckbox.checked).toBe(true);
+
+      expect(screen.getByText('pod-1 log line 1')).toBeInTheDocument();
+
+      // Change resource dropdown
+      const selectResource = screen.getByRole('combobox');
+      fireEvent.change(selectResource, { target: { value: 'dep-1' } });
+
+      expect(useFlowStore.getState().terminalSelectedResourceId).toBe('dep-1');
+      expect(screen.getByText('dep-1 log line 1')).toBeInTheDocument();
+    });
+
+    it('clears terminal logs when clear command is executed', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          activityLogs: ['line 1', 'line 2']
+        });
+      });
+
+      render(<TerminalPanel />);
+      expect(screen.getByText('line 1')).toBeInTheDocument();
+
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'clear' } });
+      fireEvent.submit(input.closest('form')!);
+
+      expect(useFlowStore.getState().activityLogs).toHaveLength(0);
+    });
+
+    it('outputs command not found message on unknown kubectl command', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl unknowncommand' } });
+      fireEvent.submit(input.closest('form')!);
+
+      expect(screen.getByText(/command not found: "kubectl unknowncommand"/)).toBeInTheDocument();
     });
   });
 

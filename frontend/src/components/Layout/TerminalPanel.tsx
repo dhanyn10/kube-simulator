@@ -167,6 +167,40 @@ export const exportLogFile = (logs: string[], filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+export interface CommandHistoryEntry {
+  id: number;
+  command: string;
+  timestamp: string;
+}
+
+export const formatCommandTimestamp = (d = new Date()): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+export const handleHistoryCommand = (
+  cmdLower: string,
+  historyEntries: CommandHistoryEntry[],
+  addActivityLog: (line: string) => void
+): boolean => {
+  if (cmdLower !== 'history') return false;
+  if (historyEntries.length === 0) {
+    addActivityLog('No command history recorded.');
+    return true;
+  }
+  historyEntries.forEach((entry) => {
+    const paddedId = String(entry.id).padStart(5, ' ');
+    addActivityLog(`${paddedId}  ${entry.timestamp}  ${entry.command}`);
+  });
+  return true;
+};
+
 export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: string) => void): boolean => {
   if (cmdLower !== 'help') return false;
   addActivityLog('Available educational Kubernetes commands:');
@@ -183,6 +217,7 @@ export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: strin
   addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
   addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
+  addActivityLog('  history                               View command execution history with timestamps');
   addActivityLog('  clear                                 Clear the console log list');
   return true;
 };
@@ -361,11 +396,16 @@ export const executeKubectlCommand = (
   cmd: string,
   ctx: CommandContext,
   setTerminalSelectedResourceId: (id: string | null) => void,
-  setTerminalActiveTab: (tab: 'activity' | 'logs') => void
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void,
+  historyEntries: CommandHistoryEntry[] = []
 ) => {
   const cmdLower = cmd.toLowerCase();
 
   if (handleHelpCommand(cmdLower, ctx.addActivityLog)) {
+    return;
+  }
+
+  if (handleHistoryCommand(cmdLower, historyEntries, ctx.addActivityLog)) {
     return;
   }
 
@@ -417,6 +457,8 @@ interface TerminalPaginationBarProps {
   totalPages: number;
   colorMode: 'dark' | 'light';
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  isAutoscroll: boolean;
+  onToggleAutoscroll: (val: boolean) => void;
 }
 
 export const TerminalPaginationBar = ({
@@ -426,6 +468,8 @@ export const TerminalPaginationBar = ({
   totalPages,
   colorMode,
   setCurrentPage,
+  isAutoscroll,
+  onToggleAutoscroll,
 }: TerminalPaginationBarProps) => {
   const startCount = Math.min(filteredLogsLength, (currentPage - 1) * pageSize + 1);
   const endCount = Math.min(filteredLogsLength, currentPage * pageSize);
@@ -434,39 +478,51 @@ export const TerminalPaginationBar = ({
   return (
     <div className={cn(
       "terminal-pagination-bar",
-      isDark ? "border-slate-800 text-slate-400 bg-slate-950/95" : "border-slate-200 text-slate-500 bg-white/95"
+      isDark ? "text-slate-400" : "text-slate-500"
     )}>
       <div>
         Showing {startCount}-{endCount} of {filteredLogsLength} logs
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-          className={cn(
-            "terminal-pagination-btn",
-            isDark
-              ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-              : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-          )}
-        >
-          Prev
-        </button>
-        <span className="font-bold">Page {currentPage} of {totalPages}</span>
-        <button
-          type="button"
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-          className={cn(
-            "terminal-pagination-btn",
-            isDark
-              ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
-              : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
-          )}
-        >
-          Next
-        </button>
+      <div className="flex items-center gap-4">
+        <label className="flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-bold select-none hover:opacity-80">
+          <input
+            type="checkbox"
+            checked={isAutoscroll}
+            onChange={(e) => onToggleAutoscroll(e.target.checked)}
+            className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+            data-testid="autoscroll-checkbox-logs"
+          />
+          <span>Autoscroll</span>
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            className={cn(
+              "terminal-pagination-btn",
+              isDark
+                ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+            )}
+          >
+            Prev
+          </button>
+          <span className="font-bold">Page {currentPage} of {totalPages}</span>
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            className={cn(
+              "terminal-pagination-btn",
+              isDark
+                ? "border-slate-800 hover:bg-slate-900 bg-slate-950 text-slate-300"
+                : "border-slate-200 hover:bg-slate-100 bg-white text-slate-600"
+            )}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -478,6 +534,8 @@ interface TerminalCommandFormProps {
   setCommandInput: (val: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   colorMode: 'dark' | 'light';
+  isAutoscroll: boolean;
+  onToggleAutoscroll: (val: boolean) => void;
 }
 
 export const TerminalCommandForm = ({
@@ -486,31 +544,48 @@ export const TerminalCommandForm = ({
   setCommandInput,
   onKeyDown,
   colorMode,
+  isAutoscroll,
+  onToggleAutoscroll,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   return (
-    <form onSubmit={onSubmit} className={cn(
-      "flex items-center gap-2 mt-2 select-text",
-      isDark ? "text-slate-300" : "text-slate-700"
-    )}>
-      <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
-      <input
-        type="text"
-        value={commandInput}
-        onChange={(e) => setCommandInput(e.target.value)}
-        onKeyDown={onKeyDown}
-        spellCheck="false"
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
-        className={cn(
-          "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
-          isDark ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
-        )}
-        data-testid="terminal-cli-input"
-      />
-    </form>
+    <div className="flex items-center justify-between gap-4 w-full">
+      <form onSubmit={onSubmit} className={cn(
+        "flex-1 flex items-center gap-2 select-text",
+        isDark ? "text-slate-300" : "text-slate-700"
+      )}>
+        <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
+        <input
+          type="text"
+          value={commandInput}
+          onChange={(e) => setCommandInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          spellCheck="false"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
+          className={cn(
+            "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
+            isDark ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"
+          )}
+          data-testid="terminal-cli-input"
+        />
+      </form>
+      <label className={cn(
+        "flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-bold select-none shrink-0 hover:opacity-80",
+        isDark ? "text-slate-400" : "text-slate-500"
+      )}>
+        <input
+          type="checkbox"
+          checked={isAutoscroll}
+          onChange={(e) => onToggleAutoscroll(e.target.checked)}
+          className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+          data-testid="autoscroll-checkbox-activity"
+        />
+        <span>Autoscroll</span>
+      </label>
+    </div>
   );
 };
 
@@ -776,10 +851,64 @@ export const TerminalPanel = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [commandInput, setCommandInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAutoscroll, setIsAutoscroll] = useState(true);
   const PAGE_SIZE = 25;
+  const contentAreaRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticScrollRef = useRef(false);
+
+  const scrollToBottom = (instant = false) => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+    isProgrammaticScrollRef.current = true;
+    if (instant) {
+      if (terminalEndRef.current) {
+        terminalEndRef.current.scrollIntoView({ behavior: 'auto' });
+      } else if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top: el.scrollHeight });
+      }
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 100);
+    } else {
+      if (terminalEndRef.current) {
+        terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      } else if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      }
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 600);
+    }
+  };
+
+  const handleToggleAutoscroll = (checked: boolean) => {
+    setIsAutoscroll(checked);
+    if (checked) {
+      scrollToBottom(true);
+    }
+  };
+
+  const handleScroll = () => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+
+    if (isProgrammaticScrollRef.current) {
+      const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
+      if (isAtBottom) {
+        isProgrammaticScrollRef.current = false;
+      }
+      return;
+    }
+
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
+    if (!isAtBottom && isAutoscroll) {
+      setIsAutoscroll(false);
+    }
+  };
 
   const activityTabClass = useMemo(() => getTabClass('activity', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
   const logsTabClass = useMemo(() => getTabClass('logs', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
@@ -831,14 +960,14 @@ export const TerminalPanel = () => {
     return filteredLogs.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredLogs, currentPage, terminalActiveTab, PAGE_SIZE]);
 
-  // Auto-scroll to bottom on new log line (only auto-scrolls if we are on the latest page or if it is activity tab)
+  // Auto-scroll to bottom on new log line or when autoscroll is enabled
   useEffect(() => {
-    if (isTerminalOpen && terminalEndRef.current) {
+    if (isTerminalOpen && isAutoscroll) {
       if (terminalActiveTab === 'activity' || currentPage === totalPages) {
-        terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        scrollToBottom(false);
       }
     }
-  }, [isTerminalOpen, filteredLogs, terminalActiveTab, currentPage, totalPages]);
+  }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleTerminalKeyDown(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput);
@@ -850,11 +979,25 @@ export const TerminalPanel = () => {
     if (!cmd) return;
 
     setCommandInput('');
+
+    const timestamp = formatCommandTimestamp();
+    const newEntry: CommandHistoryEntry = {
+      id: commandHistoryEntries.length + 1,
+      command: cmd,
+      timestamp,
+    };
+
+    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
+    setCommandHistoryEntries(nextHistoryEntries);
     setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
     setHistoryIndex(-1);
 
     const addActivityLog = useFlowStore.getState().addActivityLog;
     addActivityLog(`$ ${cmd}`);
+
+    if (globalThis.go?.main?.App?.WriteLog) {
+      globalThis.go.main.App.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
+    }
 
     if (cmd.toLowerCase() === 'clear') {
       clearTerminalLogs();
@@ -871,7 +1014,7 @@ export const TerminalPanel = () => {
       setStoreState: useFlowStore.setState,
     };
 
-    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab);
+    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab, nextHistoryEntries);
   };
 
   if (!isTerminalOpen) {
@@ -911,27 +1054,37 @@ export const TerminalPanel = () => {
       />
 
       {/* Terminal logs content */}
-      <div className={cn(
-        "terminal-content-area custom-scrollbar",
-        colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
-      )}>
-        <div className="flex flex-col h-full">
-          <div className="flex-1">
-            <TerminalLogBody
-              isSimulating={isSimulating}
-              terminalActiveTab={terminalActiveTab}
-              activeLogs={activeLogs}
-              loggableResources={loggableResources}
-              paginatedLogs={paginatedLogs}
-              searchQuery={searchQuery}
-              colorMode={colorMode}
-              startSimulation={startSimulation}
-              currentPage={currentPage}
-              pageSize={PAGE_SIZE}
-            />
-          </div>
+      <div
+        ref={contentAreaRef}
+        onScroll={handleScroll}
+        className={cn(
+          "terminal-content-area custom-scrollbar",
+          colorMode === 'dark' ? "bg-slate-950/40" : "bg-slate-50/30"
+        )}
+      >
+        <TerminalLogBody
+          isSimulating={isSimulating}
+          terminalActiveTab={terminalActiveTab}
+          activeLogs={activeLogs}
+          loggableResources={loggableResources}
+          paginatedLogs={paginatedLogs}
+          searchQuery={searchQuery}
+          colorMode={colorMode}
+          startSimulation={startSimulation}
+          currentPage={currentPage}
+          pageSize={PAGE_SIZE}
+        />
+        <div ref={terminalEndRef} />
+      </div>
 
-          {/* Pagination Controls for logs - Sticky at the bottom */}
+      {/* Fixed bottom footer for pagination and input form */}
+      {((terminalActiveTab === 'logs' && filteredLogs.length > 0) || terminalActiveTab === 'activity') && (
+        <div className={cn(
+          "terminal-footer",
+          colorMode === 'dark'
+            ? "border-slate-800 bg-slate-950/95 text-slate-400"
+            : "border-slate-200 bg-white/95 text-slate-500"
+        )}>
           {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
             <TerminalPaginationBar
               filteredLogsLength={filteredLogs.length}
@@ -940,10 +1093,11 @@ export const TerminalPanel = () => {
               totalPages={totalPages}
               colorMode={colorMode}
               setCurrentPage={setCurrentPage}
+              isAutoscroll={isAutoscroll}
+              onToggleAutoscroll={handleToggleAutoscroll}
             />
           )}
 
-          {/* Interactive Terminal Input (Only available in the Kubectl Activity tab) */}
           {terminalActiveTab === 'activity' && (
             <TerminalCommandForm
               onSubmit={handleCommandSubmit}
@@ -951,11 +1105,12 @@ export const TerminalPanel = () => {
               setCommandInput={setCommandInput}
               onKeyDown={handleKeyDown}
               colorMode={colorMode}
+              isAutoscroll={isAutoscroll}
+              onToggleAutoscroll={handleToggleAutoscroll}
             />
           )}
         </div>
-        <div ref={terminalEndRef} />
-      </div>
+      )}
     </div>
   );
 };
