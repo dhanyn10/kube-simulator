@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
-import { Terminal, X, Trash2, Search, Box, Layers, Play, Download } from 'lucide-react';
+import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare } from 'lucide-react';
 import './TerminalPanel.css';
 import {
   CommandContext,
@@ -15,6 +15,7 @@ import {
   handleGetAllCommand,
   handleDescribeDeploymentCommand
 } from './terminalCommands';
+import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomplete';
 
 // Helper functions to handle kubectl commands and reduce cognitive complexity of TerminalPanel
 
@@ -370,17 +371,56 @@ export const handleTerminalKeyDown = (
   commandHistory: string[],
   historyIndex: number,
   setHistoryIndex: (idx: number) => void,
-  setCommandInput: (val: string) => void
+  setCommandInput: (val: string) => void,
+  suggestions: SuggestionItem[] = [],
+  selectedIndex = -1,
+  setSelectedIndex: (idx: number) => void = () => {},
+  isDropdownOpen = false,
+  setIsDropdownOpen: (open: boolean) => void = () => {},
+  setIsNavigatingHistory?: (navigating: boolean) => void
 ) => {
+  if (isDropdownOpen && suggestions.length > 0) {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const nextIdx = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
+      setSelectedIndex(nextIdx);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIdx = selectedIndex >= suggestions.length - 1 ? 0 : selectedIndex + 1;
+      setSelectedIndex(nextIdx);
+      return;
+    }
+    if (e.key === 'Tab' || (e.key === 'Enter' && selectedIndex >= 0)) {
+      e.preventDefault();
+      const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+      if (chosen) {
+        setCommandInput(chosen.value);
+        setIsDropdownOpen(false);
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsDropdownOpen(false);
+      return;
+    }
+  }
+
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     if (commandHistory.length === 0) return;
+    if (setIsNavigatingHistory) setIsNavigatingHistory(true);
+    setIsDropdownOpen(false);
     const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
     setHistoryIndex(nextIndex);
     setCommandInput(commandHistory[nextIndex]);
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
     if (historyIndex === -1) return;
+    if (setIsNavigatingHistory) setIsNavigatingHistory(true);
+    setIsDropdownOpen(false);
     if (historyIndex === commandHistory.length - 1) {
       setHistoryIndex(-1);
       setCommandInput('');
@@ -531,25 +571,84 @@ export const TerminalPaginationBar = ({
 interface TerminalCommandFormProps {
   onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
   commandInput: string;
-  setCommandInput: (val: string) => void;
+  onInputChange: (val: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   colorMode: 'dark' | 'light';
   isAutoscroll: boolean;
   onToggleAutoscroll: (val: boolean) => void;
+  suggestions: SuggestionItem[];
+  isDropdownOpen: boolean;
+  selectedIndex: number;
+  onSelectSuggestion: (item: SuggestionItem) => void;
 }
 
 export const TerminalCommandForm = ({
   onSubmit,
   commandInput,
-  setCommandInput,
+  onInputChange,
   onKeyDown,
   colorMode,
   isAutoscroll,
   onToggleAutoscroll,
+  suggestions,
+  isDropdownOpen,
+  selectedIndex,
+  onSelectSuggestion,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   return (
-    <div className="flex items-center justify-between gap-4 w-full">
+    <div className="flex items-center justify-between gap-4 w-full relative">
+      {/* Autocomplete Popup Dropdown */}
+      {isDropdownOpen && suggestions.length > 0 && (
+        <div
+          data-testid="terminal-autocomplete-popup"
+          className={cn(
+            "terminal-autocomplete-popup custom-scrollbar",
+            isDark
+              ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
+              : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+          )}
+        >
+          {suggestions.map((item, index) => {
+            const isSelected = index === selectedIndex;
+            return (
+              <button
+                key={`${item.value}-${index}`}
+                type="button"
+                data-testid={`autocomplete-item-${index}`}
+                onClick={() => onSelectSuggestion(item)}
+                className={cn(
+                  "terminal-autocomplete-item w-full",
+                  isSelected
+                    ? (isDark ? "bg-blue-600 text-white" : "bg-blue-500 text-white")
+                    : (isDark ? "hover:bg-slate-800 text-slate-300" : "hover:bg-slate-50 text-slate-700")
+                )}
+              >
+                <div className="flex items-center gap-2 overflow-hidden mr-2">
+                  <TerminalSquare size={12} className={isSelected ? "text-white" : "text-blue-400"} />
+                  <span className="font-semibold truncate text-[11px]">{item.label}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {item.description && (
+                    <span className={cn("text-[9px] truncate max-w-[120px]", isSelected ? "text-blue-100" : "text-slate-400")}>
+                      {item.description}
+                    </span>
+                  )}
+                  <span className={cn(
+                    "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+                    isSelected
+                      ? "bg-blue-700 text-white"
+                      : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
+                  )}>
+                    {item.category}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <form onSubmit={onSubmit} className={cn(
         "flex-1 flex items-center gap-2 select-text",
         isDark ? "text-slate-300" : "text-slate-700"
@@ -558,7 +657,7 @@ export const TerminalCommandForm = ({
         <input
           type="text"
           value={commandInput}
-          onChange={(e) => setCommandInput(e.target.value)}
+          onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={onKeyDown}
           spellCheck="false"
           autoComplete="off"
@@ -855,10 +954,36 @@ export const TerminalPanel = () => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAutoscroll, setIsAutoscroll] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const isNavigatingHistoryRef = useRef(false);
+
   const PAGE_SIZE = 25;
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollRef = useRef(false);
+
+  const suggestions = useMemo(() => {
+    return getAutocompleteSuggestions(commandInput, nodes);
+  }, [commandInput, nodes]);
+
+  useEffect(() => {
+    if (isNavigatingHistoryRef.current) {
+      setIsDropdownOpen(false);
+      return;
+    }
+    if (commandInput.trim().length > 0 && suggestions.length > 0) {
+      setIsDropdownOpen(true);
+      setSelectedIndex(0);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  }, [commandInput, suggestions]);
+
+  const handleInputChange = (val: string) => {
+    isNavigatingHistoryRef.current = false;
+    setCommandInput(val);
+  };
 
   const scrollToBottom = (instant = false) => {
     const el = contentAreaRef.current;
@@ -969,13 +1094,37 @@ export const TerminalPanel = () => {
     }
   }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
+  const setIsNavigatingHistory = (navigating: boolean) => {
+    isNavigatingHistoryRef.current = navigating;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    handleTerminalKeyDown(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput);
+    handleTerminalKeyDown(
+      e,
+      commandHistory,
+      historyIndex,
+      setHistoryIndex,
+      setCommandInput,
+      suggestions,
+      selectedIndex,
+      setSelectedIndex,
+      isDropdownOpen,
+      setIsDropdownOpen,
+      setIsNavigatingHistory
+    );
+  };
+
+  const handleSelectSuggestion = (item: SuggestionItem) => {
+    isNavigatingHistoryRef.current = false;
+    setCommandInput(item.value);
+    setIsDropdownOpen(false);
   };
 
   const handleCommandSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const cmd = commandInput.trim();
+    setIsDropdownOpen(false);
+    isNavigatingHistoryRef.current = false;
     if (!cmd) return;
 
     setCommandInput('');
@@ -1102,11 +1251,15 @@ export const TerminalPanel = () => {
             <TerminalCommandForm
               onSubmit={handleCommandSubmit}
               commandInput={commandInput}
-              setCommandInput={setCommandInput}
+              onInputChange={handleInputChange}
               onKeyDown={handleKeyDown}
               colorMode={colorMode}
               isAutoscroll={isAutoscroll}
               onToggleAutoscroll={handleToggleAutoscroll}
+              suggestions={suggestions}
+              isDropdownOpen={isDropdownOpen}
+              selectedIndex={selectedIndex}
+              onSelectSuggestion={handleSelectSuggestion}
             />
           )}
         </div>
