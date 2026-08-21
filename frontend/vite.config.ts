@@ -12,7 +12,28 @@ export default defineConfig(() => {
         '@wailsjs': path.resolve(__dirname, './wailsjs'),
       },
     },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        '@xyflow/react',
+        'framer-motion',
+        'lucide-react',
+        '@headlessui/react',
+        'shepherd.js',
+        'zustand',
+        'zundo',
+        'js-yaml',
+        'dagre',
+        'clsx',
+        'tailwind-merge',
+      ],
+    },
     server: {
+      strictPort: true,
+      warmup: {
+        clientFiles: ['./src/main.tsx', './src/App.tsx'],
+      },
       fs: {
         allow: ['..'],
       },
