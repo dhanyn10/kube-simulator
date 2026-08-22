@@ -3,24 +3,38 @@ import { Node } from '@xyflow/react';
 export interface SuggestionItem {
   value: string;
   label: string;
-  category: 'Command' | 'Pod' | 'Deployment' | 'Service' | 'Utility';
+  category: 'Command' | 'Subcommand' | 'Pod' | 'Deployment' | 'Service' | 'Utility';
   description?: string;
 }
 
-export const BASE_SUGGESTIONS: SuggestionItem[] = [
+// Level 1: General subcommands when user types 'kubectl' or 'k'
+export const KUBECTL_TOP_COMMANDS: SuggestionItem[] = [
+  { value: 'kubectl get', label: 'kubectl get', category: 'Subcommand', description: 'Display one or many resources' },
+  { value: 'kubectl logs', label: 'kubectl logs', category: 'Subcommand', description: 'Print the logs for a container in a pod' },
+  { value: 'kubectl describe', label: 'kubectl describe', category: 'Subcommand', description: 'Show details of a specific resource' },
+  { value: 'kubectl scale', label: 'kubectl scale', category: 'Subcommand', description: 'Set a new size for a Deployment' },
+  { value: 'kubectl set image', label: 'kubectl set image', category: 'Subcommand', description: 'Update image of a Deployment' },
+  { value: 'kubectl rollout', label: 'kubectl rollout', category: 'Subcommand', description: 'Manage the rollout of a resource' },
+  { value: 'kubectl delete', label: 'kubectl delete', category: 'Subcommand', description: 'Delete resources by resource and name' },
+];
+
+// Level 2: Specific subcommands after typing 'kubectl get'
+export const GET_SUBCOMMANDS: SuggestionItem[] = [
   { value: 'kubectl get pods', label: 'kubectl get pods', category: 'Command', description: 'List all pods on canvas' },
   { value: 'kubectl get deployments', label: 'kubectl get deployments', category: 'Command', description: 'List deployments on canvas' },
   { value: 'kubectl get services', label: 'kubectl get services', category: 'Command', description: 'List services on canvas' },
   { value: 'kubectl get all', label: 'kubectl get all', category: 'Command', description: 'List all resources on canvas' },
-  { value: 'kubectl scale deployment/', label: 'kubectl scale deployment/<name> --replicas=<num>', category: 'Command', description: 'Scale deployment replicas' },
-  { value: 'kubectl set image deployment/', label: 'kubectl set image deployment/<name> container=<image>', category: 'Command', description: 'Set container image (triggers update)' },
+];
+
+// Level 2: Subcommands after 'kubectl rollout'
+export const ROLLOUT_SUBCOMMANDS: SuggestionItem[] = [
   { value: 'kubectl rollout status deploy/', label: 'kubectl rollout status deploy/<name>', category: 'Command', description: 'Check rolling update progress' },
   { value: 'kubectl rollout history deploy/', label: 'kubectl rollout history deploy/<name>', category: 'Command', description: 'View revision history' },
   { value: 'kubectl rollout undo deploy/', label: 'kubectl rollout undo deploy/<name>', category: 'Command', description: 'Rollback to previous revision' },
-  { value: 'kubectl delete pod ', label: 'kubectl delete pod <name>', category: 'Command', description: 'Delete pod (triggers self-healing)' },
-  { value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Command', description: 'Stream container logs' },
-  { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Command', description: 'Describe deployment specs' },
-  { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Command', description: 'Describe pod specs & events' },
+];
+
+// Top level standalone utilities
+export const UTILITY_COMMANDS: SuggestionItem[] = [
   { value: 'history', label: 'history', category: 'Utility', description: 'View command execution history' },
   { value: 'help', label: 'help', category: 'Utility', description: 'Show help and available commands' },
   { value: 'clear', label: 'clear', category: 'Utility', description: 'Clear terminal output' },
@@ -60,11 +74,56 @@ export const getAutocompleteSuggestions = (input: string, nodes: Node[]): Sugges
   const trimmed = input.trim();
   if (!trimmed) return [];
 
-  const inputLower = input.toLowerCase();
-  const allCandidates = [...BASE_SUGGESTIONS, ...getResourceSuggestions(nodes)];
+  const inputLower = trimmed.toLowerCase();
+  const tokens = inputLower.split(/\s+/);
 
-  // Deduplicate and filter candidates by matching input string
-  const matched = allCandidates.filter(item => item.value.toLowerCase().includes(inputLower) || item.label.toLowerCase().includes(inputLower));
+  let candidates: SuggestionItem[] = [];
+
+  // When user types 'kubectl' or 'kubectl <subcommand-prefix>'
+  if (tokens[0] === 'kubectl' || 'kubectl'.startsWith(tokens[0])) {
+    if (tokens.length === 1) {
+      // Return top-level general subcommands first
+      candidates = [...KUBECTL_TOP_COMMANDS];
+    } else {
+      const sub = tokens[1];
+      if (sub === 'get' || 'get'.startsWith(sub)) {
+        candidates.push(...GET_SUBCOMMANDS);
+      }
+      if (sub === 'rollout' || 'rollout'.startsWith(sub)) {
+        candidates.push(...ROLLOUT_SUBCOMMANDS);
+      }
+      if (sub === 'logs' || 'logs'.startsWith(sub)) {
+        candidates.push({ value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Subcommand', description: 'Stream container logs' });
+      }
+      if (sub === 'describe' || 'describe'.startsWith(sub)) {
+        candidates.push(
+          { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
+          { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' }
+        );
+      }
+      if (sub === 'scale' || 'scale'.startsWith(sub)) {
+        candidates.push({ value: 'kubectl scale deployment/', label: 'kubectl scale deployment/<name> --replicas=<num>', category: 'Subcommand', description: 'Scale deployment replicas' });
+      }
+      if (sub === 'set' || 'set'.startsWith(sub)) {
+        candidates.push({ value: 'kubectl set image deployment/', label: 'kubectl set image deployment/<name> container=<image>', category: 'Subcommand', description: 'Set container image' });
+      }
+      if (sub === 'delete' || 'delete'.startsWith(sub)) {
+        candidates.push({ value: 'kubectl delete pod ', label: 'kubectl delete pod <name>', category: 'Subcommand', description: 'Delete pod' });
+      }
+
+      // Append dynamic canvas resource matches as user types deeper
+      candidates.push(...getResourceSuggestions(nodes));
+    }
+  } else {
+    // Check utility commands or full candidate pool if not starting with kubectl
+    candidates = [...UTILITY_COMMANDS, ...KUBECTL_TOP_COMMANDS];
+  }
+
+  // Filter candidates matching user input
+  const matched = candidates.filter(item =>
+    item.value.toLowerCase().includes(inputLower) ||
+    item.label.toLowerCase().includes(inputLower)
+  );
 
   const seen = new Set<string>();
   const uniqueSuggestions: SuggestionItem[] = [];
@@ -76,5 +135,5 @@ export const getAutocompleteSuggestions = (input: string, nodes: Node[]): Sugges
     }
   });
 
-  return uniqueSuggestions.slice(0, 8);
+  return uniqueSuggestions.slice(0, 10);
 };
