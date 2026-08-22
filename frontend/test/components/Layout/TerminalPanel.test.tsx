@@ -538,6 +538,32 @@ describe('TerminalPanel', () => {
 
       expect(screen.getByText(/command not found: "kubectl unknowncommand"/)).toBeInTheDocument();
     });
+
+    it('renders autocomplete info button on item hover and opens accordion description when clicked', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input');
+      fireEvent.change(input, { target: { value: 'kubectl get' } });
+
+      const popup = screen.getByTestId('terminal-autocomplete-popup');
+      expect(popup).toBeInTheDocument();
+
+      const infoBtn = screen.getByTestId('autocomplete-info-btn-0');
+      expect(infoBtn).toBeInTheDocument();
+
+      fireEvent.click(infoBtn);
+
+      const accordion = screen.getByTestId('autocomplete-description-accordion-0');
+      expect(accordion).toBeInTheDocument();
+      expect(accordion).toHaveTextContent('List all pods on canvas');
+    });
   });
 
   describe('Kubectl new interactive commands', () => {

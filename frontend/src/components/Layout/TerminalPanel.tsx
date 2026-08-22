@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
-import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare } from 'lucide-react';
+import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info, ChevronDown, ChevronRight } from 'lucide-react';
 import './TerminalPanel.css';
 import {
   CommandContext,
@@ -568,6 +568,113 @@ export const TerminalPaginationBar = ({
   );
 };
 
+interface AutocompleteItemProps {
+  item: SuggestionItem;
+  index: number;
+  isSelected: boolean;
+  isDark: boolean;
+  onSelectSuggestion: (item: SuggestionItem) => void;
+}
+
+export const AutocompleteItem = ({
+  item,
+  index,
+  isSelected,
+  isDark,
+  onSelectSuggestion,
+}: AutocompleteItemProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setIsInfoOpen(false);
+      }}
+      className={cn(
+        "group flex flex-col transition-colors border-b last:border-b-0",
+        isSelected
+          ? (isDark ? "bg-blue-600 text-white border-blue-700" : "bg-blue-500 text-white border-blue-600")
+          : (isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100")
+      )}
+    >
+      <div className="flex items-center justify-between px-3 py-1.5 w-full">
+        <button
+          type="button"
+          data-testid={`autocomplete-item-${index}`}
+          onClick={() => onSelectSuggestion(item)}
+          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none"
+        >
+          <TerminalSquare size={12} className={isSelected ? "text-white shrink-0" : "text-blue-400 shrink-0"} />
+          <span className="font-semibold truncate text-[11px]">{item.label}</span>
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {item.description && (
+            <span className={cn("text-[9px] truncate max-w-[120px] hidden sm:inline-block", isSelected ? "text-blue-100" : "text-slate-400")}>
+              {item.description}
+            </span>
+          )}
+
+          <span className={cn(
+            "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+            isSelected
+              ? "bg-blue-700 text-white"
+              : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
+          )}>
+            {item.category}
+          </span>
+
+          {/* Info toggle button visible on hover */}
+          {item.description && (
+            <button
+              type="button"
+              data-testid={`autocomplete-info-btn-${index}`}
+              title="Toggle detailed description"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsInfoOpen(prev => !prev);
+              }}
+              className={cn(
+                "p-0.5 rounded transition-all focus:outline-none",
+                isHovered || isInfoOpen ? "opacity-100" : "opacity-0",
+                isSelected
+                  ? "hover:bg-blue-700 text-white"
+                  : (isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600")
+              )}
+            >
+              <Info size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Accordion dropdown for full description */}
+      {isInfoOpen && item.description && (
+        <div
+          data-testid={`autocomplete-description-accordion-${index}`}
+          className={cn(
+            "px-3 py-1.5 text-[10px] border-t leading-relaxed animate-in slide-in-from-top-1 duration-150",
+            isSelected
+              ? "bg-blue-700/80 text-blue-50 border-blue-600/50"
+              : (isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200")
+          )}
+        >
+          <div className="flex items-start gap-1.5">
+            <Info size={11} className="mt-0.5 shrink-0 opacity-80" />
+            <div>
+              <p className="font-bold mb-0.5 uppercase text-[9px] tracking-wider opacity-90">Detailed Information</p>
+              <p className="select-text whitespace-normal break-words">{item.description}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface TerminalCommandFormProps {
   onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
   commandInput: string;
@@ -612,38 +719,14 @@ export const TerminalCommandForm = ({
           {suggestions.map((item, index) => {
             const isSelected = index === selectedIndex;
             return (
-              <button
+              <AutocompleteItem
                 key={`${item.value}-${index}`}
-                type="button"
-                data-testid={`autocomplete-item-${index}`}
-                onClick={() => onSelectSuggestion(item)}
-                className={cn(
-                  "terminal-autocomplete-item w-full",
-                  isSelected
-                    ? (isDark ? "bg-blue-600 text-white" : "bg-blue-500 text-white")
-                    : (isDark ? "hover:bg-slate-800 text-slate-300" : "hover:bg-slate-50 text-slate-700")
-                )}
-              >
-                <div className="flex items-center gap-2 overflow-hidden mr-2">
-                  <TerminalSquare size={12} className={isSelected ? "text-white" : "text-blue-400"} />
-                  <span className="font-semibold truncate text-[11px]">{item.label}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {item.description && (
-                    <span className={cn("text-[9px] truncate max-w-[120px]", isSelected ? "text-blue-100" : "text-slate-400")}>
-                      {item.description}
-                    </span>
-                  )}
-                  <span className={cn(
-                    "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
-                    isSelected
-                      ? "bg-blue-700 text-white"
-                      : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
-                  )}>
-                    {item.category}
-                  </span>
-                </div>
-              </button>
+                item={item}
+                index={index}
+                isSelected={isSelected}
+                isDark={isDark}
+                onSelectSuggestion={onSelectSuggestion}
+              />
             );
           })}
         </div>
