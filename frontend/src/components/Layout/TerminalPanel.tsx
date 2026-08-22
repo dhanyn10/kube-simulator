@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
-import { Terminal, X, Trash2, Search, Box, Layers, Play, Download } from 'lucide-react';
+import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info } from 'lucide-react';
 import './TerminalPanel.css';
 import {
   CommandContext,
@@ -15,6 +15,7 @@ import {
   handleGetAllCommand,
   handleDescribeDeploymentCommand
 } from './terminalCommands';
+import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomplete';
 
 // Helper functions to handle kubectl commands and reduce cognitive complexity of TerminalPanel
 
@@ -26,8 +27,8 @@ export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Nod
   }
   addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
   workloads.forEach(w => {
-    const name = w.data.label || w.id;
-    const status = w.data.status || (isSimulating ? 'Running' : 'Pending');
+    const name = (w.data?.label as string) || w.id;
+    const status = (w.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
     const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
     let displayStatus = status;
     if (status === 'ready') {
@@ -47,8 +48,8 @@ export const handleGetDeployments = (addActivityLog: (line: string) => void, nod
   }
   addActivityLog(`${"NAME".padEnd(30)} READY   UP-TO-DATE   AVAILABLE   AGE`);
   deploys.forEach(d => {
-    const name = d.data.label || d.id;
-    const replicas = d.data.replicas || 1;
+    const name = (d.data?.label as string) || d.id;
+    const replicas = (d.data?.replicas as number) || 1;
     const status = isSimulating ? `${replicas}/${replicas}` : `0/${replicas}`;
     addActivityLog(`${String(name).padEnd(30)} ${status.padEnd(7)} ${String(replicas).padEnd(12)} ${String(isSimulating ? replicas : 0).padEnd(11)} 2m`);
   });
@@ -62,8 +63,8 @@ export const handleGetServices = (addActivityLog: (line: string) => void, nodes:
   }
   addActivityLog(`${"NAME".padEnd(30)} TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)`);
   svcs.forEach(s => {
-    const name = s.data.label || s.id;
-    const port = s.data.port || 80;
+    const name = (s.data?.label as string) || s.id;
+    const port = (s.data?.port as number) || 80;
     addActivityLog(`${String(name).padEnd(30)} ClusterIP   10.96.4.52   <none>        ${port}/TCP`);
   });
 };
@@ -112,7 +113,7 @@ export const handleLogsCommand = (
 
   const foundNode = nodes.find(n =>
     ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type) &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+    (n.id.toLowerCase() === targetName || (n.data?.label && String(n.data.label).toLowerCase() === targetName))
   );
 
   if (foundNode) {
@@ -255,7 +256,7 @@ export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', 
   const escapedSearch = searchQuery.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
   const partsWithObjects = parts.map((part, index) => ({
-    key: `part-${index}-${part}`,
+    key: `highlight-part-${index}-${part}`,
     text: part,
     isMatch: part.toLowerCase() === q,
   }));
@@ -365,22 +366,79 @@ export const TerminalLogBody = ({
   );
 };
 
-export const handleTerminalKeyDown = (
+export interface HandleTerminalKeyDownOptions {
+  e: React.KeyboardEvent<HTMLInputElement>;
+  commandHistory: string[];
+  historyIndex: number;
+  setHistoryIndex: (idx: number) => void;
+  setCommandInput: (val: string) => void;
+  suggestions?: SuggestionItem[];
+  selectedIndex?: number;
+  setSelectedIndex?: (idx: number) => void;
+  isDropdownOpen?: boolean;
+  setIsDropdownOpen?: (open: boolean) => void;
+  setIsNavigatingHistory?: (navigating: boolean) => void;
+}
+
+const handleDropdownKeys = (
+  e: React.KeyboardEvent<HTMLInputElement>,
+  suggestions: SuggestionItem[],
+  selectedIndex: number,
+  setSelectedIndex: (idx: number) => void,
+  setCommandInput: (val: string) => void,
+  setIsDropdownOpen: (open: boolean) => void
+): boolean => {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const nextIdx = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
+    setSelectedIndex(nextIdx);
+    return true;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const nextIdx = selectedIndex >= suggestions.length - 1 ? 0 : selectedIndex + 1;
+    setSelectedIndex(nextIdx);
+    return true;
+  }
+  if (e.key === 'Tab' || (e.key === 'Enter' && selectedIndex >= 0)) {
+    e.preventDefault();
+    const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+    if (chosen) {
+      setCommandInput(chosen.value);
+      setIsDropdownOpen(false);
+    }
+    return true;
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    setIsDropdownOpen(false);
+    return true;
+  }
+  return false;
+};
+
+const handleHistoryKeys = (
   e: React.KeyboardEvent<HTMLInputElement>,
   commandHistory: string[],
   historyIndex: number,
   setHistoryIndex: (idx: number) => void,
-  setCommandInput: (val: string) => void
+  setCommandInput: (val: string) => void,
+  setIsDropdownOpen?: (open: boolean) => void,
+  setIsNavigatingHistory?: (navigating: boolean) => void
 ) => {
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     if (commandHistory.length === 0) return;
+    if (setIsNavigatingHistory) setIsNavigatingHistory(true);
+    if (setIsDropdownOpen) setIsDropdownOpen(false);
     const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
     setHistoryIndex(nextIndex);
     setCommandInput(commandHistory[nextIndex]);
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
     if (historyIndex === -1) return;
+    if (setIsNavigatingHistory) setIsNavigatingHistory(true);
+    if (setIsDropdownOpen) setIsDropdownOpen(false);
     if (historyIndex === commandHistory.length - 1) {
       setHistoryIndex(-1);
       setCommandInput('');
@@ -390,6 +448,60 @@ export const handleTerminalKeyDown = (
       setCommandInput(commandHistory[nextIndex]);
     }
   }
+};
+
+export const handleTerminalKeyDown = (
+  eOrOptions: React.KeyboardEvent<HTMLInputElement> | HandleTerminalKeyDownOptions,
+  paramCommandHistory?: string[],
+  paramHistoryIndex?: number,
+  paramSetHistoryIndex?: (idx: number) => void,
+  paramSetCommandInput?: (val: string) => void,
+  paramSuggestions: SuggestionItem[] = [],
+  paramSelectedIndex = -1,
+  paramSetSelectedIndex: (idx: number) => void = () => {},
+  paramIsDropdownOpen = false,
+  paramSetIsDropdownOpen: (open: boolean) => void = () => {},
+  paramSetIsNavigatingHistory?: (navigating: boolean) => void
+) => {
+  let opts: HandleTerminalKeyDownOptions;
+  if ('e' in eOrOptions) {
+    opts = eOrOptions;
+  } else {
+    opts = {
+      e: eOrOptions,
+      commandHistory: paramCommandHistory || [],
+      historyIndex: paramHistoryIndex ?? -1,
+      setHistoryIndex: paramSetHistoryIndex || (() => {}),
+      setCommandInput: paramSetCommandInput || (() => {}),
+      suggestions: paramSuggestions,
+      selectedIndex: paramSelectedIndex,
+      setSelectedIndex: paramSetSelectedIndex,
+      isDropdownOpen: paramIsDropdownOpen,
+      setIsDropdownOpen: paramSetIsDropdownOpen,
+      setIsNavigatingHistory: paramSetIsNavigatingHistory,
+    };
+  }
+
+  const {
+    e,
+    commandHistory,
+    historyIndex,
+    setHistoryIndex,
+    setCommandInput,
+    suggestions = [],
+    selectedIndex = -1,
+    setSelectedIndex = () => {},
+    isDropdownOpen = false,
+    setIsDropdownOpen = () => {},
+    setIsNavigatingHistory,
+  } = opts;
+
+  if (isDropdownOpen && suggestions.length > 0) {
+    const handled = handleDropdownKeys(e, suggestions, selectedIndex, setSelectedIndex, setCommandInput, setIsDropdownOpen);
+    if (handled) return;
+  }
+
+  handleHistoryKeys(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput, setIsDropdownOpen, setIsNavigatingHistory);
 };
 
 export const executeKubectlCommand = (
@@ -528,28 +640,170 @@ export const TerminalPaginationBar = ({
   );
 };
 
+interface AutocompleteItemProps {
+  item: SuggestionItem;
+  index: number;
+  isSelected: boolean;
+  isDark: boolean;
+  onSelectSuggestion: (item: SuggestionItem) => void;
+}
+
+export const AutocompleteItem = ({
+  item,
+  index,
+  isSelected,
+  isDark,
+  onSelectSuggestion,
+}: AutocompleteItemProps) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setIsInfoOpen(false);
+      }}
+      className={cn(
+        "group flex flex-col transition-colors border-b last:border-b-0",
+        isSelected
+          ? (isDark ? "bg-blue-600 text-white border-blue-700" : "bg-blue-500 text-white border-blue-600")
+          : (isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100")
+      )}
+    >
+      <div className="flex items-center justify-between px-3 py-1.5 w-full">
+        <button
+          type="button"
+          data-testid={`autocomplete-item-${index}`}
+          onClick={() => onSelectSuggestion(item)}
+          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none"
+        >
+          <TerminalSquare size={12} className={isSelected ? "text-white shrink-0" : "text-blue-400 shrink-0"} />
+          <span className="font-semibold truncate text-[11px]">{item.label}</span>
+        </button>
+
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {item.description && (
+            <span className={cn("text-[9px] truncate max-w-[120px] hidden sm:inline-block", isSelected ? "text-blue-100" : "text-slate-400")}>
+              {item.description}
+            </span>
+          )}
+
+          <span className={cn(
+            "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+            isSelected
+              ? "bg-blue-700 text-white"
+              : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
+          )}>
+            {item.category}
+          </span>
+
+          {/* Info toggle button visible on hover */}
+          {item.description && (
+            <button
+              type="button"
+              data-testid={`autocomplete-info-btn-${index}`}
+              title="Toggle detailed description"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsInfoOpen(prev => !prev);
+              }}
+              className={cn(
+                "p-0.5 rounded transition-all focus:outline-none",
+                isHovered || isInfoOpen ? "opacity-100" : "opacity-0",
+                isSelected
+                  ? "hover:bg-blue-700 text-white"
+                  : (isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600")
+              )}
+            >
+              <Info size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Accordion dropdown for full description */}
+      {isInfoOpen && item.description && (
+        <div
+          data-testid={`autocomplete-description-accordion-${index}`}
+          className={cn(
+            "px-3 py-1.5 text-[10px] border-t leading-relaxed animate-in slide-in-from-top-1 duration-150",
+            isSelected
+              ? "bg-blue-700/80 text-blue-50 border-blue-600/50"
+              : (isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200")
+          )}
+        >
+          <div className="flex items-start gap-1.5">
+            <Info size={11} className="mt-0.5 shrink-0 opacity-80" />
+            <div>
+              <p className="font-bold mb-0.5 uppercase text-[9px] tracking-wider opacity-90">Detailed Information</p>
+              <p className="select-text whitespace-normal break-words">{item.description}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface TerminalCommandFormProps {
   onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
   commandInput: string;
-  setCommandInput: (val: string) => void;
+  onInputChange: (val: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   colorMode: 'dark' | 'light';
   isAutoscroll: boolean;
   onToggleAutoscroll: (val: boolean) => void;
+  suggestions: SuggestionItem[];
+  isDropdownOpen: boolean;
+  selectedIndex: number;
+  onSelectSuggestion: (item: SuggestionItem) => void;
 }
 
 export const TerminalCommandForm = ({
   onSubmit,
   commandInput,
-  setCommandInput,
+  onInputChange,
   onKeyDown,
   colorMode,
   isAutoscroll,
   onToggleAutoscroll,
+  suggestions,
+  isDropdownOpen,
+  selectedIndex,
+  onSelectSuggestion,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   return (
-    <div className="flex items-center justify-between gap-4 w-full">
+    <div className="flex items-center justify-between gap-4 w-full relative">
+      {/* Autocomplete Popup Dropdown */}
+      {isDropdownOpen && suggestions.length > 0 && (
+        <div
+          data-testid="terminal-autocomplete-popup"
+          className={cn(
+            "terminal-autocomplete-popup custom-scrollbar",
+            isDark
+              ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
+              : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+          )}
+        >
+          {suggestions.map((item, index) => {
+            const isSelected = index === selectedIndex;
+            return (
+              <AutocompleteItem
+                key={`suggestion-${item.value}-${index}`}
+                item={item}
+                index={index}
+                isSelected={isSelected}
+                isDark={isDark}
+                onSelectSuggestion={onSelectSuggestion}
+              />
+            );
+          })}
+        </div>
+      )}
+
       <form onSubmit={onSubmit} className={cn(
         "flex-1 flex items-center gap-2 select-text",
         isDark ? "text-slate-300" : "text-slate-700"
@@ -558,7 +812,7 @@ export const TerminalCommandForm = ({
         <input
           type="text"
           value={commandInput}
-          onChange={(e) => setCommandInput(e.target.value)}
+          onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={onKeyDown}
           spellCheck="false"
           autoComplete="off"
@@ -711,7 +965,7 @@ export const TerminalToolbar = ({
             >
               {loggableResources.map(r => (
                 <option key={r.id} value={r.id}>
-                  {r.type.toLowerCase()}/{r.data.label || r.id}
+                  {r.type.toLowerCase()}/{(r.data?.label as string) || r.id}
                 </option>
               ))}
             </select>
@@ -791,15 +1045,15 @@ export const handleDescribeCommand = (
 
   const foundNode = nodes.find(n =>
     (n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment')) &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+    (n.id.toLowerCase() === targetName || (n.data?.label && String(n.data.label).toLowerCase() === targetName))
   );
 
   if (foundNode) {
-    const name = foundNode.data.label || foundNode.id;
-    const status = foundNode.data.status || (isSimulating ? 'Running' : 'Pending');
-    const image = foundNode.data.image || 'nginx:latest';
-    const cpu = foundNode.data.cpuLimit || '500m';
-    const memory = foundNode.data.memoryLimit || '256Mi';
+    const name = (foundNode.data?.label as string) || foundNode.id;
+    const status = (foundNode.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
+    const image = (foundNode.data?.image as string) || 'nginx:latest';
+    const cpu = (foundNode.data?.cpuLimit as string) || '500m';
+    const memory = (foundNode.data?.memoryLimit as string) || '256Mi';
 
     addActivityLog(`Name:         ${name}`);
     addActivityLog(`Namespace:    default`);
@@ -825,6 +1079,80 @@ export const handleDescribeCommand = (
   return true;
 };
 
+// Custom Hook to manage terminal command submission and history
+export const useTerminalCommandSubmit = (
+  nodes: Node[],
+  isSimulating: boolean,
+  clearTerminalLogs: () => void,
+  setTerminalSelectedResourceId: (id: string | null) => void,
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void
+) => {
+  const [commandInput, setCommandInput] = useState('');
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const processCommandSubmit = useCallback((
+    cmdInput: string,
+    setIsDropdownOpen: (open: boolean) => void,
+    setIsNavigatingHistory: (navigating: boolean) => void
+  ) => {
+    const cmd = cmdInput.trim();
+    setIsDropdownOpen(false);
+    setIsNavigatingHistory(false);
+    if (!cmd) return;
+
+    setCommandInput('');
+
+    const timestamp = formatCommandTimestamp();
+    const newEntry: CommandHistoryEntry = {
+      id: commandHistoryEntries.length + 1,
+      command: cmd,
+      timestamp,
+    };
+
+    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
+    setCommandHistoryEntries(nextHistoryEntries);
+    setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
+    setHistoryIndex(-1);
+
+    const addActivityLog = useFlowStore.getState().addActivityLog;
+    addActivityLog(`$ ${cmd}`);
+
+    const wailsApp = globalThis.go?.main?.App as unknown as { WriteLog?: (cat: string, level: string, msg: string) => Promise<void> };
+    if (wailsApp?.WriteLog) {
+      wailsApp.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
+    }
+
+    if (cmd.toLowerCase() === 'clear') {
+      clearTerminalLogs();
+      return;
+    }
+
+    const ctx: CommandContext = {
+      nodes,
+      isSimulating,
+      updateNodeData: useFlowStore.getState().updateNodeData,
+      addActivityLog,
+      deleteNodes: useFlowStore.getState().deleteNodes,
+      getStoreState: useFlowStore.getState,
+      setStoreState: useFlowStore.setState,
+    };
+
+    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab, nextHistoryEntries);
+  }, [commandHistoryEntries, isSimulating, nodes, clearTerminalLogs, setTerminalSelectedResourceId, setTerminalActiveTab]);
+
+  return {
+    commandInput,
+    setCommandInput,
+    commandHistory,
+    commandHistoryEntries,
+    historyIndex,
+    setHistoryIndex,
+    processCommandSubmit,
+  };
+};
+
 export const TerminalPanel = () => {
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setTerminalOpen = useFlowStore((state) => state.setTerminalOpen);
@@ -841,24 +1169,61 @@ export const TerminalPanel = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isAutoscroll, setIsAutoscroll] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const isNavigatingHistoryRef = useRef(false);
+
+  const {
+    commandInput,
+    setCommandInput,
+    commandHistory,
+    historyIndex,
+    setHistoryIndex,
+    processCommandSubmit,
+  } = useTerminalCommandSubmit(
+    nodes,
+    isSimulating,
+    clearTerminalLogs,
+    setTerminalSelectedResourceId,
+    setTerminalActiveTab
+  );
+
   const handleExportLogs = () => {
     const selectedNode = nodes.find(n => n.id === terminalSelectedResourceId);
-    const resourceLabel = selectedNode ? (selectedNode.data.label || selectedNode.id) : undefined;
+    const resourceLabel = selectedNode ? ((selectedNode.data?.label as string) || selectedNode.id) : undefined;
     const filename = generateLogFilename(currentProject?.name, terminalActiveTab, resourceLabel);
     exportLogFile(activeLogs, filename);
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [commandInput, setCommandInput] = useState('');
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
-  const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAutoscroll, setIsAutoscroll] = useState(true);
   const PAGE_SIZE = 25;
   const contentAreaRef = useRef<HTMLDivElement>(null);
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const isProgrammaticScrollRef = useRef(false);
+
+  const suggestions = useMemo(() => {
+    return getAutocompleteSuggestions(commandInput, nodes);
+  }, [commandInput, nodes]);
+
+  useEffect(() => {
+    if (isNavigatingHistoryRef.current) {
+      setIsDropdownOpen(false);
+      return;
+    }
+    if (commandInput.trim().length > 0 && suggestions.length > 0) {
+      setIsDropdownOpen(true);
+      setSelectedIndex(0);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  }, [commandInput, suggestions]);
+
+  const handleInputChange = (val: string) => {
+    isNavigatingHistoryRef.current = false;
+    setCommandInput(val);
+  };
 
   const scrollToBottom = (instant = false) => {
     const el = contentAreaRef.current;
@@ -969,52 +1334,35 @@ export const TerminalPanel = () => {
     }
   }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
+  const setIsNavigatingHistory = useCallback((navigating: boolean) => {
+    isNavigatingHistoryRef.current = navigating;
+  }, []);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    handleTerminalKeyDown(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput);
+    handleTerminalKeyDown({
+      e,
+      commandHistory,
+      historyIndex,
+      setHistoryIndex,
+      setCommandInput,
+      suggestions,
+      selectedIndex,
+      setSelectedIndex,
+      isDropdownOpen,
+      setIsDropdownOpen,
+      setIsNavigatingHistory,
+    });
+  };
+
+  const handleSelectSuggestion = (item: SuggestionItem) => {
+    isNavigatingHistoryRef.current = false;
+    setCommandInput(item.value);
+    setIsDropdownOpen(false);
   };
 
   const handleCommandSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const cmd = commandInput.trim();
-    if (!cmd) return;
-
-    setCommandInput('');
-
-    const timestamp = formatCommandTimestamp();
-    const newEntry: CommandHistoryEntry = {
-      id: commandHistoryEntries.length + 1,
-      command: cmd,
-      timestamp,
-    };
-
-    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
-    setCommandHistoryEntries(nextHistoryEntries);
-    setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
-    setHistoryIndex(-1);
-
-    const addActivityLog = useFlowStore.getState().addActivityLog;
-    addActivityLog(`$ ${cmd}`);
-
-    if (globalThis.go?.main?.App?.WriteLog) {
-      globalThis.go.main.App.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
-    }
-
-    if (cmd.toLowerCase() === 'clear') {
-      clearTerminalLogs();
-      return;
-    }
-
-    const ctx: CommandContext = {
-      nodes,
-      isSimulating,
-      updateNodeData: useFlowStore.getState().updateNodeData,
-      addActivityLog,
-      deleteNodes: useFlowStore.getState().deleteNodes,
-      getStoreState: useFlowStore.getState,
-      setStoreState: useFlowStore.setState,
-    };
-
-    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab, nextHistoryEntries);
+    processCommandSubmit(commandInput, setIsDropdownOpen, setIsNavigatingHistory);
   };
 
   if (!isTerminalOpen) {
@@ -1102,11 +1450,15 @@ export const TerminalPanel = () => {
             <TerminalCommandForm
               onSubmit={handleCommandSubmit}
               commandInput={commandInput}
-              setCommandInput={setCommandInput}
+              onInputChange={handleInputChange}
               onKeyDown={handleKeyDown}
               colorMode={colorMode}
               isAutoscroll={isAutoscroll}
               onToggleAutoscroll={handleToggleAutoscroll}
+              suggestions={suggestions}
+              isDropdownOpen={isDropdownOpen}
+              selectedIndex={selectedIndex}
+              onSelectSuggestion={handleSelectSuggestion}
             />
           )}
         </div>
