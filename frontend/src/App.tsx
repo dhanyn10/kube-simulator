@@ -86,12 +86,18 @@ function useAppInit(isDetachedMode: boolean, loadSettingsJson: () => void, setGl
     }
 
     const fetchResources = () => {
-      if (typeof GetSystemResources === 'function') {
-        GetSystemResources().then((resources: any) => {
-          setSystemResources(resources);
-        }).catch(err => {
-          logger.error('[App] Failed to fetch system resources:', err);
-        });
+      try {
+        if (typeof globalThis.window !== 'undefined' && globalThis.window?.go?.main?.App?.GetSystemResources) {
+          GetSystemResources().then((resources: any) => {
+            if (resources) setSystemResources(resources);
+          }).catch(err => {
+            if (!String(err).includes('not registered')) {
+              logger.error('[App] Failed to fetch system resources:', err);
+            }
+          });
+        }
+      } catch {
+        // Silently ignore when running outside desktop Wails runtime or before callback registration
       }
     };
 
