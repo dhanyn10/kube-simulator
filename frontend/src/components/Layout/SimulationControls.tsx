@@ -1,5 +1,6 @@
-import { Play, Square } from 'lucide-react';
+import { Play, Square, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useFlowStore } from '../../store';
 
 interface SimulationControlsProps {
   isSimulating: boolean;
@@ -18,6 +19,11 @@ export const SimulationControls = ({
   hasHpaValidationError,
   colorMode
 }: SimulationControlsProps) => {
+  const logs = useFlowStore((state) => state.logs);
+  const setLogModalOpen = useFlowStore((state) => state.setLogModalOpen);
+
+  const errorCount = logs.filter((l) => l.level === 'error' || l.level === 'fatal').length;
+
   const getButtonTitle = () => {
     if (!hasInternet) return "Add an Internet card to start simulation";
     if (hasHpaValidationError) return "HPA requires Resource Limits on target workloads";
@@ -42,7 +48,7 @@ export const SimulationControls = ({
     <div
       id="simulation-controls"
       className={cn(
-        "flex items-center rounded-lg border p-0.5 shadow-sm",
+        "flex items-center gap-1 rounded-lg border p-0.5 shadow-sm",
         colorMode === 'dark' ? "bg-slate-900/50 border-slate-700/50" : "bg-white border-slate-200"
       )}
       style={{ '--wails-draggable': 'no-drag' }}
@@ -59,6 +65,30 @@ export const SimulationControls = ({
       >
         {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
         {isSimulating ? "Stop" : "Play"}
+      </button>
+
+      {/* Bell Notification button directly next to Play button */}
+      <button
+        type="button"
+        onClick={() => setLogModalOpen(true)}
+        title={errorCount > 0 ? `${errorCount} application errors recorded` : "View Logs"}
+        data-testid="bell-notification-btn"
+        className={cn(
+          "relative h-7 w-7 flex items-center justify-center rounded-md transition-colors",
+          colorMode === 'dark'
+            ? "hover:bg-slate-800 text-slate-400 hover:text-white"
+            : "hover:bg-slate-100 text-slate-500 hover:text-slate-900"
+        )}
+      >
+        <Bell size={14} />
+        {errorCount > 0 && (
+          <span
+            data-testid="bell-error-badge"
+            className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white shadow-sm animate-in zoom-in-50 duration-150"
+          >
+            {errorCount > 99 ? '99+' : errorCount}
+          </span>
+        )}
       </button>
     </div>
   );
