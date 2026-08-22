@@ -53,13 +53,6 @@ export const startTour = (colorMode: 'dark' | 'light') => {
       text: 'Select any node or edge to configure its properties here. You can also view real-time cluster statistics and resource budgets.',
       element: '#right-sidebar',
       on: 'left'
-    },
-    {
-      id: 'logs',
-      title: 'Activity Logs',
-      text: 'Keep track of backend activities, errors, and simulation events through these notifications and the detailed log modal.',
-      element: '#log-toast',
-      on: 'top'
     }
   ];
 

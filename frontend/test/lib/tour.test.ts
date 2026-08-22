@@ -25,7 +25,7 @@ describe('startTour', () => {
     startTour('dark');
 
     expect(Shepherd.Tour).toHaveBeenCalled();
-    expect(mockTourInstance.addStep).toHaveBeenCalledTimes(5);
+    expect(mockTourInstance.addStep).toHaveBeenCalledTimes(4);
     expect(mockTourInstance.start).toHaveBeenCalled();
   });
 });

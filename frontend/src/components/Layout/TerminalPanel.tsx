@@ -96,6 +96,20 @@ export const handleGetCommands = (
   return false;
 };
 
+const cleanLogTargetName = (rawName: string): string => {
+  const name = rawName.toLowerCase();
+  if (name.startsWith('pod/')) return name.substring(4);
+  if (name.startsWith('deployment/')) return name.substring(11);
+  if (name.startsWith('deploy/')) return name.substring(7);
+  return name;
+};
+
+const isLoggableNode = (n: Node, targetName: string): boolean => {
+  if (!['Pod', 'Deployment', 'ReplicaSet'].includes(n.type)) return false;
+  const label = n.data?.label ? String(n.data.label).toLowerCase() : '';
+  return n.id.toLowerCase() === targetName || label === targetName;
+};
+
 export const handleLogsCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -106,15 +120,8 @@ export const handleLogsCommand = (
   const logsMatch = /^kubectl\s+logs\s+([-a-z0-9/]+)/i.exec(cmd);
   if (!logsMatch) return false;
 
-  let targetName = logsMatch[1].toLowerCase();
-  if (targetName.startsWith('pod/')) targetName = targetName.substring(4);
-  if (targetName.startsWith('deployment/')) targetName = targetName.substring(11);
-  if (targetName.startsWith('deploy/')) targetName = targetName.substring(7);
-
-  const foundNode = nodes.find(n =>
-    ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type) &&
-    (n.id.toLowerCase() === targetName || (n.data?.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const targetName = cleanLogTargetName(logsMatch[1]);
+  const foundNode = nodes.find(n => isLoggableNode(n, targetName));
 
   if (foundNode) {
     setTerminalSelectedResourceId(foundNode.id);
@@ -263,13 +270,12 @@ export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', 
 
   return (
     <span className={textClass}>
-      {partsWithObjects.map((item) =>
-        item.isMatch ? (
-          <mark key={item.key} className="bg-yellow-500 text-black px-0.5 rounded">{item.text}</mark>
-        ) : (
-          item.text
-        )
-      )}
+      {partsWithObjects.map((item) => {
+        if (item.isMatch) {
+          return <mark key={item.key} className="bg-yellow-500 text-black px-0.5 rounded">{item.text}</mark>;
+        }
+        return item.text;
+      })}
     </span>
   );
 };
@@ -417,28 +423,21 @@ const handleDropdownKeys = (
   return false;
 };
 
-const handleHistoryKeys = (
-  e: React.KeyboardEvent<HTMLInputElement>,
-  commandHistory: string[],
-  historyIndex: number,
-  setHistoryIndex: (idx: number) => void,
-  setCommandInput: (val: string) => void,
-  setIsDropdownOpen?: (open: boolean) => void,
-  setIsNavigatingHistory?: (navigating: boolean) => void
-) => {
+const handleHistoryKeys = (opts: HandleTerminalKeyDownOptions) => {
+  const { e, commandHistory, historyIndex, setHistoryIndex, setCommandInput, setIsDropdownOpen, setIsNavigatingHistory } = opts;
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     if (commandHistory.length === 0) return;
-    if (setIsNavigatingHistory) setIsNavigatingHistory(true);
-    if (setIsDropdownOpen) setIsDropdownOpen(false);
+    setIsNavigatingHistory?.(true);
+    setIsDropdownOpen?.(false);
     const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
     setHistoryIndex(nextIndex);
     setCommandInput(commandHistory[nextIndex]);
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
     if (historyIndex === -1) return;
-    if (setIsNavigatingHistory) setIsNavigatingHistory(true);
-    if (setIsDropdownOpen) setIsDropdownOpen(false);
+    setIsNavigatingHistory?.(true);
+    setIsDropdownOpen?.(false);
     if (historyIndex === commandHistory.length - 1) {
       setHistoryIndex(-1);
       setCommandInput('');
@@ -450,50 +449,15 @@ const handleHistoryKeys = (
   }
 };
 
-export const handleTerminalKeyDown = (
-  eOrOptions: React.KeyboardEvent<HTMLInputElement> | HandleTerminalKeyDownOptions,
-  paramCommandHistory?: string[],
-  paramHistoryIndex?: number,
-  paramSetHistoryIndex?: (idx: number) => void,
-  paramSetCommandInput?: (val: string) => void,
-  paramSuggestions: SuggestionItem[] = [],
-  paramSelectedIndex = -1,
-  paramSetSelectedIndex: (idx: number) => void = () => {},
-  paramIsDropdownOpen = false,
-  paramSetIsDropdownOpen: (open: boolean) => void = () => {},
-  paramSetIsNavigatingHistory?: (navigating: boolean) => void
-) => {
-  let opts: HandleTerminalKeyDownOptions;
-  if ('e' in eOrOptions) {
-    opts = eOrOptions;
-  } else {
-    opts = {
-      e: eOrOptions,
-      commandHistory: paramCommandHistory || [],
-      historyIndex: paramHistoryIndex ?? -1,
-      setHistoryIndex: paramSetHistoryIndex || (() => {}),
-      setCommandInput: paramSetCommandInput || (() => {}),
-      suggestions: paramSuggestions,
-      selectedIndex: paramSelectedIndex,
-      setSelectedIndex: paramSetSelectedIndex,
-      isDropdownOpen: paramIsDropdownOpen,
-      setIsDropdownOpen: paramSetIsDropdownOpen,
-      setIsNavigatingHistory: paramSetIsNavigatingHistory,
-    };
-  }
-
+export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
   const {
     e,
-    commandHistory,
-    historyIndex,
-    setHistoryIndex,
-    setCommandInput,
     suggestions = [],
     selectedIndex = -1,
     setSelectedIndex = () => {},
+    setCommandInput,
     isDropdownOpen = false,
     setIsDropdownOpen = () => {},
-    setIsNavigatingHistory,
   } = opts;
 
   if (isDropdownOpen && suggestions.length > 0) {
@@ -501,7 +465,7 @@ export const handleTerminalKeyDown = (
     if (handled) return;
   }
 
-  handleHistoryKeys(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput, setIsDropdownOpen, setIsNavigatingHistory);
+  handleHistoryKeys(opts);
 };
 
 export const executeKubectlCommand = (
@@ -648,6 +612,34 @@ interface AutocompleteItemProps {
   onSelectSuggestion: (item: SuggestionItem) => void;
 }
 
+const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean): string => {
+  if (isSelected) {
+    return isDark ? "bg-blue-600 text-white border-blue-700" : "bg-blue-500 text-white border-blue-600";
+  }
+  return isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100";
+};
+
+const getCategoryBadgeClass = (isSelected: boolean, isDark: boolean): string => {
+  if (isSelected) {
+    return "bg-blue-700 text-white";
+  }
+  return isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500";
+};
+
+const getInfoBtnClass = (isSelected: boolean, isDark: boolean): string => {
+  if (isSelected) {
+    return "hover:bg-blue-700 text-white";
+  }
+  return isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600";
+};
+
+const getAccordionClass = (isSelected: boolean, isDark: boolean): string => {
+  if (isSelected) {
+    return "bg-blue-700/80 text-blue-50 border-blue-600/50";
+  }
+  return isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200";
+};
+
 export const AutocompleteItem = ({
   item,
   index,
@@ -658,6 +650,11 @@ export const AutocompleteItem = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
+  const containerClass = getAutocompleteItemClass(isSelected, isDark);
+  const categoryBadgeClass = getCategoryBadgeClass(isSelected, isDark);
+  const infoBtnClass = getInfoBtnClass(isSelected, isDark);
+  const accordionClass = getAccordionClass(isSelected, isDark);
+
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
@@ -667,9 +664,7 @@ export const AutocompleteItem = ({
       }}
       className={cn(
         "group flex flex-col transition-colors border-b last:border-b-0",
-        isSelected
-          ? (isDark ? "bg-blue-600 text-white border-blue-700" : "bg-blue-500 text-white border-blue-600")
-          : (isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100")
+        containerClass
       )}
     >
       <div className="flex items-center justify-between px-3 py-1.5 w-full">
@@ -692,9 +687,7 @@ export const AutocompleteItem = ({
 
           <span className={cn(
             "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
-            isSelected
-              ? "bg-blue-700 text-white"
-              : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
+            categoryBadgeClass
           )}>
             {item.category}
           </span>
@@ -712,9 +705,7 @@ export const AutocompleteItem = ({
               className={cn(
                 "p-0.5 rounded transition-all focus:outline-none",
                 isHovered || isInfoOpen ? "opacity-100" : "opacity-0",
-                isSelected
-                  ? "hover:bg-blue-700 text-white"
-                  : (isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600")
+                infoBtnClass
               )}
             >
               <Info size={12} />
@@ -729,9 +720,7 @@ export const AutocompleteItem = ({
           data-testid={`autocomplete-description-accordion-${index}`}
           className={cn(
             "px-3 py-1.5 text-[10px] border-t leading-relaxed animate-in slide-in-from-top-1 duration-150",
-            isSelected
-              ? "bg-blue-700/80 text-blue-50 border-blue-600/50"
-              : (isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200")
+            accordionClass
           )}
         >
           <div className="flex items-start gap-1.5">
@@ -1031,6 +1020,44 @@ export const TerminalToolbar = ({
   );
 };
 
+const isTargetNode = (n: Node, type: string, targetName: string): boolean => {
+  const matchesType = n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment');
+  if (!matchesType) return false;
+  const label = n.data?.label ? String(n.data.label).toLowerCase() : '';
+  return n.id.toLowerCase() === targetName || label === targetName;
+};
+
+const printNodeDescription = (
+  foundNode: Node,
+  isSimulating: boolean,
+  addActivityLog: (line: string) => void
+) => {
+  const name = (foundNode.data?.label as string) || foundNode.id;
+  const status = (foundNode.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
+  const image = (foundNode.data?.image as string) || 'nginx:latest';
+  const cpu = (foundNode.data?.cpuLimit as string) || '500m';
+  const memory = (foundNode.data?.memoryLimit as string) || '256Mi';
+
+  addActivityLog(`Name:         ${name}`);
+  addActivityLog(`Namespace:    default`);
+  addActivityLog(`Status:       ${status}`);
+  addActivityLog(`IP:           10.244.0.${Math.floor(safeRandom() * 253) + 2}`);
+  addActivityLog(`Containers:`);
+  addActivityLog(`  app-container:`);
+  addActivityLog(`    Image:      ${image}`);
+  addActivityLog(`    Limits:`);
+  addActivityLog(`      cpu:      ${cpu}`);
+  addActivityLog(`      memory:   ${memory}`);
+  addActivityLog(`Events:`);
+  addActivityLog(`  Type    Reason     Age   From               Message`);
+  addActivityLog(`  ----    ------     ----  ----               -------`);
+  addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} to minikube-worker-1`);
+  addActivityLog(`  Normal  Pulling    50s   kubelet            Pulling image "${image}"`);
+  addActivityLog(`  Normal  Pulled     45s   kubelet            Successfully pulled image "${image}"`);
+  addActivityLog(`  Normal  Created    44s   kubelet            Created container app-container`);
+  addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
+};
+
 export const handleDescribeCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -1043,36 +1070,10 @@ export const handleDescribeCommand = (
   const type = describeMatch[1].toLowerCase();
   const targetName = describeMatch[2].toLowerCase();
 
-  const foundNode = nodes.find(n =>
-    (n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment')) &&
-    (n.id.toLowerCase() === targetName || (n.data?.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = nodes.find(n => isTargetNode(n, type, targetName));
 
   if (foundNode) {
-    const name = (foundNode.data?.label as string) || foundNode.id;
-    const status = (foundNode.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
-    const image = (foundNode.data?.image as string) || 'nginx:latest';
-    const cpu = (foundNode.data?.cpuLimit as string) || '500m';
-    const memory = (foundNode.data?.memoryLimit as string) || '256Mi';
-
-    addActivityLog(`Name:         ${name}`);
-    addActivityLog(`Namespace:    default`);
-    addActivityLog(`Status:       ${status}`);
-    addActivityLog(`IP:           10.244.0.${Math.floor(safeRandom() * 253) + 2}`);
-    addActivityLog(`Containers:`);
-    addActivityLog(`  app-container:`);
-    addActivityLog(`    Image:      ${image}`);
-    addActivityLog(`    Limits:`);
-    addActivityLog(`      cpu:      ${cpu}`);
-    addActivityLog(`      memory:   ${memory}`);
-    addActivityLog(`Events:`);
-    addActivityLog(`  Type    Reason     Age   From               Message`);
-    addActivityLog(`  ----    ------     ----  ----               -------`);
-    addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} to minikube-worker-1`);
-    addActivityLog(`  Normal  Pulling    50s   kubelet            Pulling image "${image}"`);
-    addActivityLog(`  Normal  Pulled     45s   kubelet            Successfully pulled image "${image}"`);
-    addActivityLog(`  Normal  Created    44s   kubelet            Created container app-container`);
-    addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
+    printNodeDescription(foundNode, isSimulating, addActivityLog);
   } else {
     addActivityLog(`Error from server (NotFound): ${type} "${targetName}" not found`);
   }
@@ -1153,6 +1154,139 @@ export const useTerminalCommandSubmit = (
   };
 };
 
+const useTerminalScroll = (
+  isTerminalOpen: boolean,
+  terminalActiveTab: 'activity' | 'logs',
+  currentPage: number,
+  totalPages: number,
+  filteredLogs: string[]
+) => {
+  const [isAutoscroll, setIsAutoscroll] = useState(true);
+  const contentAreaRef = useRef<HTMLDivElement>(null);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
+  const isProgrammaticScrollRef = useRef(false);
+
+  const performScroll = useCallback((instant: boolean) => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+    isProgrammaticScrollRef.current = true;
+    const behavior = instant ? 'auto' : 'smooth';
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior });
+    } else if (typeof el.scrollTo === 'function') {
+      el.scrollTo({ top: el.scrollHeight, behavior });
+    }
+    const timeoutMs = instant ? 100 : 600;
+    setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, timeoutMs);
+  }, []);
+
+  const handleToggleAutoscroll = useCallback((checked: boolean) => {
+    setIsAutoscroll(checked);
+    if (checked) {
+      performScroll(true);
+    }
+  }, [performScroll]);
+
+  const handleScroll = useCallback(() => {
+    const el = contentAreaRef.current;
+    if (!el) return;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
+    if (isProgrammaticScrollRef.current) {
+      if (isAtBottom) {
+        isProgrammaticScrollRef.current = false;
+      }
+      return;
+    }
+    if (!isAtBottom && isAutoscroll) {
+      setIsAutoscroll(false);
+    }
+  }, [isAutoscroll]);
+
+  useEffect(() => {
+    if (isTerminalOpen && isAutoscroll) {
+      if (terminalActiveTab === 'activity' || currentPage === totalPages) {
+        performScroll(false);
+      }
+    }
+  }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages, performScroll]);
+
+  return {
+    contentAreaRef,
+    terminalEndRef,
+    isAutoscroll,
+    handleToggleAutoscroll,
+    handleScroll,
+  };
+};
+
+const useTerminalLogs = (
+  terminalActiveTab: 'activity' | 'logs',
+  terminalSelectedResourceId: string | null,
+  setTerminalSelectedResourceId: (id: string | null) => void,
+  nodes: Node[],
+  activityLogs: string[],
+  terminalLogs: Record<string, string[]>,
+  searchQuery: string,
+  pageSize: number
+) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filter workloads that can produce logs
+  const loggableResources = useMemo(() => {
+    return nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
+  }, [nodes]);
+
+  // Automatically select a resource if none is selected and one is available
+  useEffect(() => {
+    if (!terminalSelectedResourceId && loggableResources.length > 0) {
+      setTerminalSelectedResourceId(loggableResources[0].id);
+    }
+  }, [loggableResources, terminalSelectedResourceId, setTerminalSelectedResourceId]);
+
+  // Reset page when tab, resource, or query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [terminalActiveTab, terminalSelectedResourceId, searchQuery]);
+
+  const activeLogs = useMemo(() => {
+    if (terminalActiveTab === 'activity') {
+      return activityLogs;
+    }
+    if (terminalSelectedResourceId) {
+      return terminalLogs[terminalSelectedResourceId] || [];
+    }
+    return [];
+  }, [terminalActiveTab, terminalSelectedResourceId, activityLogs, terminalLogs]);
+
+  const filteredLogs = useMemo(() => {
+    if (!searchQuery) return activeLogs;
+    const q = searchQuery.toLowerCase();
+    return activeLogs.filter(line => line.toLowerCase().includes(q));
+  }, [activeLogs, searchQuery]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  }, [filteredLogs, pageSize]);
+
+  const paginatedLogs = useMemo(() => {
+    if (terminalActiveTab !== 'logs') return filteredLogs;
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredLogs.slice(startIndex, startIndex + pageSize);
+  }, [filteredLogs, currentPage, terminalActiveTab, pageSize]);
+
+  return {
+    currentPage,
+    setCurrentPage,
+    loggableResources,
+    activeLogs,
+    filteredLogs,
+    totalPages,
+    paginatedLogs,
+  };
+};
+
 export const TerminalPanel = () => {
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setTerminalOpen = useFlowStore((state) => state.setTerminalOpen);
@@ -1170,8 +1304,6 @@ export const TerminalPanel = () => {
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAutoscroll, setIsAutoscroll] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const isNavigatingHistoryRef = useRef(false);
@@ -1191,17 +1323,47 @@ export const TerminalPanel = () => {
     setTerminalActiveTab
   );
 
+  const PAGE_SIZE = 25;
+
+  const {
+    currentPage,
+    setCurrentPage,
+    loggableResources,
+    activeLogs,
+    filteredLogs,
+    totalPages,
+    paginatedLogs,
+  } = useTerminalLogs(
+    terminalActiveTab,
+    terminalSelectedResourceId,
+    setTerminalSelectedResourceId,
+    nodes,
+    activityLogs,
+    terminalLogs,
+    searchQuery,
+    PAGE_SIZE
+  );
+
+  const {
+    contentAreaRef,
+    terminalEndRef,
+    isAutoscroll,
+    handleToggleAutoscroll,
+    handleScroll,
+  } = useTerminalScroll(
+    isTerminalOpen,
+    terminalActiveTab,
+    currentPage,
+    totalPages,
+    filteredLogs
+  );
+
   const handleExportLogs = () => {
     const selectedNode = nodes.find(n => n.id === terminalSelectedResourceId);
     const resourceLabel = selectedNode ? ((selectedNode.data?.label as string) || selectedNode.id) : undefined;
     const filename = generateLogFilename(currentProject?.name, terminalActiveTab, resourceLabel);
     exportLogFile(activeLogs, filename);
   };
-
-  const PAGE_SIZE = 25;
-  const contentAreaRef = useRef<HTMLDivElement>(null);
-  const terminalEndRef = useRef<HTMLDivElement>(null);
-  const isProgrammaticScrollRef = useRef(false);
 
   const suggestions = useMemo(() => {
     return getAutocompleteSuggestions(commandInput, nodes);
@@ -1225,114 +1387,8 @@ export const TerminalPanel = () => {
     setCommandInput(val);
   };
 
-  const scrollToBottom = (instant = false) => {
-    const el = contentAreaRef.current;
-    if (!el) return;
-    isProgrammaticScrollRef.current = true;
-    if (instant) {
-      if (terminalEndRef.current) {
-        terminalEndRef.current.scrollIntoView({ behavior: 'auto' });
-      } else if (typeof el.scrollTo === 'function') {
-        el.scrollTo({ top: el.scrollHeight });
-      }
-      setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-      }, 100);
-    } else {
-      if (terminalEndRef.current) {
-        terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      } else if (typeof el.scrollTo === 'function') {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-      }
-      setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-      }, 600);
-    }
-  };
-
-  const handleToggleAutoscroll = (checked: boolean) => {
-    setIsAutoscroll(checked);
-    if (checked) {
-      scrollToBottom(true);
-    }
-  };
-
-  const handleScroll = () => {
-    const el = contentAreaRef.current;
-    if (!el) return;
-
-    if (isProgrammaticScrollRef.current) {
-      const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
-      if (isAtBottom) {
-        isProgrammaticScrollRef.current = false;
-      }
-      return;
-    }
-
-    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 15;
-    if (!isAtBottom && isAutoscroll) {
-      setIsAutoscroll(false);
-    }
-  };
-
   const activityTabClass = useMemo(() => getTabClass('activity', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
   const logsTabClass = useMemo(() => getTabClass('logs', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
-
-  // Reset page when tab, resource, or query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [terminalActiveTab, terminalSelectedResourceId, searchQuery]);
-
-  // Filter workloads that can produce logs
-  const loggableResources = useMemo(() => {
-    return nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
-  }, [nodes]);
-
-  // Automatically select a resource if none is selected and one is available
-  useEffect(() => {
-    if (!terminalSelectedResourceId && loggableResources.length > 0) {
-      setTerminalSelectedResourceId(loggableResources[0].id);
-    }
-  }, [loggableResources, terminalSelectedResourceId, setTerminalSelectedResourceId]);
-
-  // Get active logs to render
-  const activeLogs = useMemo(() => {
-    if (terminalActiveTab === 'activity') {
-      return activityLogs;
-    }
-    if (terminalSelectedResourceId) {
-      return terminalLogs[terminalSelectedResourceId] || [];
-    }
-    return [];
-  }, [terminalActiveTab, terminalSelectedResourceId, activityLogs, terminalLogs]);
-
-  // Filtered logs by search query
-  const filteredLogs = useMemo(() => {
-    if (!searchQuery) return activeLogs;
-    const q = searchQuery.toLowerCase();
-    return activeLogs.filter(line => line.toLowerCase().includes(q));
-  }, [activeLogs, searchQuery]);
-
-  // Calculate total pages for logging pagination
-  const totalPages = useMemo(() => {
-    return Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
-  }, [filteredLogs, PAGE_SIZE]);
-
-  // Paginated slice for logs
-  const paginatedLogs = useMemo(() => {
-    if (terminalActiveTab !== 'logs') return filteredLogs;
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return filteredLogs.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredLogs, currentPage, terminalActiveTab, PAGE_SIZE]);
-
-  // Auto-scroll to bottom on new log line or when autoscroll is enabled
-  useEffect(() => {
-    if (isTerminalOpen && isAutoscroll) {
-      if (terminalActiveTab === 'activity' || currentPage === totalPages) {
-        scrollToBottom(false);
-      }
-    }
-  }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
   const setIsNavigatingHistory = useCallback((navigating: boolean) => {
     isNavigatingHistoryRef.current = navigating;
