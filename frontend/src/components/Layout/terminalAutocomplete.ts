@@ -53,8 +53,7 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
       { value: `kubectl rollout status deploy/${name}`, label: `kubectl rollout status deploy/${name}`, category: 'Deployment', description: `Rollout status for ${name}` },
       { value: `kubectl rollout history deploy/${name}`, label: `kubectl rollout history deploy/${name}`, category: 'Deployment', description: `Rollout history for ${name}` },
       { value: `kubectl rollout undo deploy/${name}`, label: `kubectl rollout undo deploy/${name}`, category: 'Deployment', description: `Rollback deployment ${name}` },
-      { value: `kubectl describe deploy ${name}`, label: `kubectl describe deploy ${name}`, category: 'Deployment', description: `Describe deployment ${name}` },
-      { value: `kubectl logs deployment/${name}`, label: `kubectl logs deployment/${name}`, category: 'Deployment', description: `Logs for deployment ${name}` }
+      { value: `kubectl describe deploy ${name}`, label: `kubectl describe deploy ${name}`, category: 'Deployment', description: `Describe deployment ${name}` }
     );
   });
 
@@ -63,7 +62,6 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
     const name = p.data.label || p.id;
     suggestions.push(
       { value: `kubectl delete pod ${name}`, label: `kubectl delete pod ${name}`, category: 'Pod', description: `Delete pod ${name}` },
-      { value: `kubectl logs ${name}`, label: `kubectl logs ${name}`, category: 'Pod', description: `View logs for pod ${name}` },
       { value: `kubectl describe pod ${name}`, label: `kubectl describe pod ${name}`, category: 'Pod', description: `Describe pod ${name}` }
     );
   });
