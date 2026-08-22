@@ -584,15 +584,121 @@ describe('TerminalPanel', () => {
       fireEvent.keyDown(input, { key: 'ArrowDown' });
       fireEvent.keyDown(input, { key: 'ArrowUp' });
 
-      // Tab to complete selection
-      fireEvent.keyDown(input, { key: 'Tab' });
+      // Enter to complete selection
+      fireEvent.keyDown(input, { key: 'Enter' });
       expect(input.value).toBe('kubectl get pods');
+    });
 
-      // Escape closes popup
+    it('handles Tab / Shift+Tab and Arrow keys to cycle through accordion sub-items without blurring input', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+            { id: 'pod-2', type: 'Pod', data: { label: 'api-pod' }, position: { x: 0, y: 0 } }
+          ]
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      // Typing 'kubectl logs' opens dropdown with accordion sub-items
       fireEvent.change(input, { target: { value: 'kubectl logs' } });
       expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+      expect(screen.getByTestId('autocomplete-subitems-accordion-0')).toBeInTheDocument();
+
+      // Pressing Tab cycles to second sub-item option
+      fireEvent.keyDown(input, { key: 'Tab' });
+
+      // Pressing Shift+Tab cycles backward to first sub-item option
+      fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+
+      // Pressing ArrowRight cycles right
+      fireEvent.keyDown(input, { key: 'ArrowRight' });
+
+      // Pressing ArrowLeft cycles left
+      fireEvent.keyDown(input, { key: 'ArrowLeft' });
+
+      // Pressing Enter selects current sub-item option
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(input.value).toBe('kubectl logs web-pod');
+      expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
+    });
+
+    it('handles clicking on sub-item button directly to complete input', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'frontend-pod' }, position: { x: 0, y: 0 } },
+            { id: 'pod-2', type: 'Pod', data: { label: 'backend-pod' }, position: { x: 0, y: 0 } }
+          ]
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: 'kubectl logs' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      const subItem1 = screen.getByTestId('autocomplete-subitem-1');
+      expect(subItem1).toHaveTextContent('backend-pod');
+
+      fireEvent.click(subItem1);
+
+      expect(input.value).toBe('kubectl logs backend-pod');
+      expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
+    });
+
+    it('handles Escape key to close autocomplete popup', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } }
+          ]
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: 'kubectl logs' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
       fireEvent.keyDown(input, { key: 'Escape' });
       expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
+    });
+
+    it('handles ArrowUp and ArrowDown navigation when dropdown has no sub-items', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: 'kubectl get' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowUp' });
+
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(input.value).toBe('kubectl get deployments');
     });
   });
 

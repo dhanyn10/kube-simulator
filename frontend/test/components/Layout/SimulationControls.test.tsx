@@ -18,11 +18,11 @@ describe('SimulationControls', () => {
       />
     );
 
-    const button = screen.getByRole('button');
-    expect(button.textContent).toContain('Play');
-    expect(button.title).toBe('Start Simulation');
+    const playButton = screen.getByRole('button', { name: /play/i });
+    expect(playButton.textContent).toContain('Play');
+    expect(playButton.title).toBe('Start Simulation');
 
-    fireEvent.click(button);
+    fireEvent.click(playButton);
     expect(startSimulation).toHaveBeenCalled();
   });
 
@@ -40,11 +40,11 @@ describe('SimulationControls', () => {
       />
     );
 
-    const button = screen.getByRole('button');
-    expect(button.textContent).toContain('Stop');
-    expect(button.title).toBe('Stop Simulation');
+    const stopButton = screen.getByRole('button', { name: /stop/i });
+    expect(stopButton.textContent).toContain('Stop');
+    expect(stopButton.title).toBe('Stop Simulation');
 
-    fireEvent.click(button);
+    fireEvent.click(stopButton);
     expect(stopSimulation).toHaveBeenCalled();
   });
 
@@ -60,9 +60,9 @@ describe('SimulationControls', () => {
       />
     );
 
-    const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
-    expect(button.title).toBe('Add an Internet card to start simulation');
+    const playButton = screen.getByRole('button', { name: /play/i });
+    expect(playButton).toBeDisabled();
+    expect(playButton.title).toBe('Add an Internet card to start simulation');
   });
 
   it('shows warning title when HPA validation error exists', () => {
@@ -77,7 +77,8 @@ describe('SimulationControls', () => {
       />
     );
 
-    const button = screen.getByRole('button');
-    expect(button.title).toBe('HPA requires Resource Limits on target workloads');
+    const playButton = screen.getByRole('button', { name: /play/i });
+    expect(playButton.title).toBe('HPA requires Resource Limits on target workloads');
   });
+
 });

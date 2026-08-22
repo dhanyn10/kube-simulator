@@ -56,8 +56,10 @@ describe('terminalAutocomplete', () => {
     expect(resSuggestions.some(s => s.value.includes('my-backend-app'))).toBe(true);
 
     const logsSugg = getAutocompleteSuggestions('kubectl logs', mockNodes);
-    expect(logsSugg.some(s => s.value.includes('my-custom-pod'))).toBe(true);
-    expect(logsSugg.some(s => s.value.includes('my-backend-app'))).toBe(true);
+    expect(logsSugg.some(s => s.label === 'kubectl logs <pod-name>')).toBe(true);
+    const logsItem = logsSugg.find(s => s.label === 'kubectl logs <pod-name>');
+    expect(logsItem?.subItems).toContain('my-custom-pod');
+    expect(logsItem?.subItems).toContain('my-backend-app');
   });
 
   it('filters utility commands and handles empty input', () => {
@@ -70,5 +72,44 @@ describe('terminalAutocomplete', () => {
 
     const helpMatch = getAutocompleteSuggestions('hel', []);
     expect(helpMatch.some(s => s.value === 'help')).toBe(true);
+  });
+
+  it('handles autocomplete filtering for scale, set image, and delete commands with canvas resources', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-web', type: 'Deployment', data: { label: 'web-deployment' }, position: { x: 0, y: 0 } },
+      { id: 'pod-db', type: 'Pod', data: { label: 'db-pod' }, position: { x: 0, y: 0 } },
+    ];
+
+    const scaleSuggestions = getAutocompleteSuggestions('kubectl scale', mockNodes);
+    expect(scaleSuggestions.some(s => s.value.includes('web-deployment'))).toBe(true);
+
+    const setSuggestions = getAutocompleteSuggestions('kubectl set image', mockNodes);
+    expect(setSuggestions.some(s => s.value.includes('web-deployment'))).toBe(true);
+
+    const deleteSuggestions = getAutocompleteSuggestions('kubectl delete', mockNodes);
+    expect(deleteSuggestions.some(s => s.value.includes('db-pod'))).toBe(true);
+  });
+
+  it('handles autocomplete for rollout and describe commands with canvas deployments', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-api', type: 'Deployment', data: { label: 'api-service' }, position: { x: 0, y: 0 } }
+    ];
+
+    const rolloutSuggestions = getAutocompleteSuggestions('kubectl rollout status', mockNodes);
+    expect(rolloutSuggestions.some(s => s.value.includes('api-service'))).toBe(true);
+
+    const describeSuggestions = getAutocompleteSuggestions('kubectl describe deploy', mockNodes);
+    expect(describeSuggestions.some(s => s.value.includes('api-service'))).toBe(true);
+  });
+
+  it('deduplicates identical suggestion values', () => {
+    const mockNodes: Node[] = [
+      { id: 'pod-1', type: 'Pod', data: { label: 'same-label' }, position: { x: 0, y: 0 } },
+      { id: 'pod-2', type: 'Pod', data: { label: 'same-label' }, position: { x: 0, y: 0 } },
+    ];
+
+    const suggestions = getAutocompleteSuggestions('kubectl delete pod same-label', mockNodes);
+    const deleteSameLabelMatches = suggestions.filter(s => s.value === 'kubectl delete pod same-label');
+    expect(deleteSameLabelMatches).toHaveLength(1);
   });
 });

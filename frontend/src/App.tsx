@@ -86,11 +86,13 @@ function useAppInit(isDetachedMode: boolean, loadSettingsJson: () => void, setGl
     }
 
     const fetchResources = () => {
-      if (typeof GetSystemResources === 'function') {
+      if (typeof globalThis.window !== 'undefined' && globalThis.window?.go?.main?.App?.GetSystemResources) {
         GetSystemResources().then((resources: any) => {
-          setSystemResources(resources);
+          if (resources) setSystemResources(resources);
         }).catch(err => {
-          logger.error('[App] Failed to fetch system resources:', err);
+          if (!String(err).includes('not registered')) {
+            logger.error('[App] Failed to fetch system resources:', err);
+          }
         });
       }
     };
