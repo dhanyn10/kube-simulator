@@ -27,8 +27,8 @@ export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Nod
   }
   addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
   workloads.forEach(w => {
-    const name = w.data.label || w.id;
-    const status = w.data.status || (isSimulating ? 'Running' : 'Pending');
+    const name = (w.data?.label as string) || w.id;
+    const status = (w.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
     const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
     let displayStatus = status;
     if (status === 'ready') {
@@ -48,8 +48,8 @@ export const handleGetDeployments = (addActivityLog: (line: string) => void, nod
   }
   addActivityLog(`${"NAME".padEnd(30)} READY   UP-TO-DATE   AVAILABLE   AGE`);
   deploys.forEach(d => {
-    const name = d.data.label || d.id;
-    const replicas = d.data.replicas || 1;
+    const name = (d.data?.label as string) || d.id;
+    const replicas = (d.data?.replicas as number) || 1;
     const status = isSimulating ? `${replicas}/${replicas}` : `0/${replicas}`;
     addActivityLog(`${String(name).padEnd(30)} ${status.padEnd(7)} ${String(replicas).padEnd(12)} ${String(isSimulating ? replicas : 0).padEnd(11)} 2m`);
   });
@@ -63,8 +63,8 @@ export const handleGetServices = (addActivityLog: (line: string) => void, nodes:
   }
   addActivityLog(`${"NAME".padEnd(30)} TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)`);
   svcs.forEach(s => {
-    const name = s.data.label || s.id;
-    const port = s.data.port || 80;
+    const name = (s.data?.label as string) || s.id;
+    const port = (s.data?.port as number) || 80;
     addActivityLog(`${String(name).padEnd(30)} ClusterIP   10.96.4.52   <none>        ${port}/TCP`);
   });
 };
@@ -113,7 +113,7 @@ export const handleLogsCommand = (
 
   const foundNode = nodes.find(n =>
     ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type) &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+    (n.id.toLowerCase() === targetName || (n.data?.label && String(n.data.label).toLowerCase() === targetName))
   );
 
   if (foundNode) {
@@ -366,53 +366,71 @@ export const TerminalLogBody = ({
   );
 };
 
-export const handleTerminalKeyDown = (
+export interface HandleTerminalKeyDownOptions {
+  e: React.KeyboardEvent<HTMLInputElement>;
+  commandHistory: string[];
+  historyIndex: number;
+  setHistoryIndex: (idx: number) => void;
+  setCommandInput: (val: string) => void;
+  suggestions?: SuggestionItem[];
+  selectedIndex?: number;
+  setSelectedIndex?: (idx: number) => void;
+  isDropdownOpen?: boolean;
+  setIsDropdownOpen?: (open: boolean) => void;
+  setIsNavigatingHistory?: (navigating: boolean) => void;
+}
+
+const handleDropdownKeys = (
+  e: React.KeyboardEvent<HTMLInputElement>,
+  suggestions: SuggestionItem[],
+  selectedIndex: number,
+  setSelectedIndex: (idx: number) => void,
+  setCommandInput: (val: string) => void,
+  setIsDropdownOpen: (open: boolean) => void
+): boolean => {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const nextIdx = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
+    setSelectedIndex(nextIdx);
+    return true;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const nextIdx = selectedIndex >= suggestions.length - 1 ? 0 : selectedIndex + 1;
+    setSelectedIndex(nextIdx);
+    return true;
+  }
+  if (e.key === 'Tab' || (e.key === 'Enter' && selectedIndex >= 0)) {
+    e.preventDefault();
+    const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+    if (chosen) {
+      setCommandInput(chosen.value);
+      setIsDropdownOpen(false);
+    }
+    return true;
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    setIsDropdownOpen(false);
+    return true;
+  }
+  return false;
+};
+
+const handleHistoryKeys = (
   e: React.KeyboardEvent<HTMLInputElement>,
   commandHistory: string[],
   historyIndex: number,
   setHistoryIndex: (idx: number) => void,
   setCommandInput: (val: string) => void,
-  suggestions: SuggestionItem[] = [],
-  selectedIndex = -1,
-  setSelectedIndex: (idx: number) => void = () => {},
-  isDropdownOpen = false,
-  setIsDropdownOpen: (open: boolean) => void = () => {},
+  setIsDropdownOpen?: (open: boolean) => void,
   setIsNavigatingHistory?: (navigating: boolean) => void
 ) => {
-  if (isDropdownOpen && suggestions.length > 0) {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const nextIdx = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
-      setSelectedIndex(nextIdx);
-      return;
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const nextIdx = selectedIndex >= suggestions.length - 1 ? 0 : selectedIndex + 1;
-      setSelectedIndex(nextIdx);
-      return;
-    }
-    if (e.key === 'Tab' || (e.key === 'Enter' && selectedIndex >= 0)) {
-      e.preventDefault();
-      const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
-      if (chosen) {
-        setCommandInput(chosen.value);
-        setIsDropdownOpen(false);
-      }
-      return;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      setIsDropdownOpen(false);
-      return;
-    }
-  }
-
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     if (commandHistory.length === 0) return;
     if (setIsNavigatingHistory) setIsNavigatingHistory(true);
-    setIsDropdownOpen(false);
+    if (setIsDropdownOpen) setIsDropdownOpen(false);
     const nextIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
     setHistoryIndex(nextIndex);
     setCommandInput(commandHistory[nextIndex]);
@@ -420,7 +438,7 @@ export const handleTerminalKeyDown = (
     e.preventDefault();
     if (historyIndex === -1) return;
     if (setIsNavigatingHistory) setIsNavigatingHistory(true);
-    setIsDropdownOpen(false);
+    if (setIsDropdownOpen) setIsDropdownOpen(false);
     if (historyIndex === commandHistory.length - 1) {
       setHistoryIndex(-1);
       setCommandInput('');
@@ -430,6 +448,60 @@ export const handleTerminalKeyDown = (
       setCommandInput(commandHistory[nextIndex]);
     }
   }
+};
+
+export const handleTerminalKeyDown = (
+  eOrOptions: React.KeyboardEvent<HTMLInputElement> | HandleTerminalKeyDownOptions,
+  paramCommandHistory?: string[],
+  paramHistoryIndex?: number,
+  paramSetHistoryIndex?: (idx: number) => void,
+  paramSetCommandInput?: (val: string) => void,
+  paramSuggestions: SuggestionItem[] = [],
+  paramSelectedIndex = -1,
+  paramSetSelectedIndex: (idx: number) => void = () => {},
+  paramIsDropdownOpen = false,
+  paramSetIsDropdownOpen: (open: boolean) => void = () => {},
+  paramSetIsNavigatingHistory?: (navigating: boolean) => void
+) => {
+  let opts: HandleTerminalKeyDownOptions;
+  if ('e' in eOrOptions) {
+    opts = eOrOptions;
+  } else {
+    opts = {
+      e: eOrOptions,
+      commandHistory: paramCommandHistory || [],
+      historyIndex: paramHistoryIndex ?? -1,
+      setHistoryIndex: paramSetHistoryIndex || (() => {}),
+      setCommandInput: paramSetCommandInput || (() => {}),
+      suggestions: paramSuggestions,
+      selectedIndex: paramSelectedIndex,
+      setSelectedIndex: paramSetSelectedIndex,
+      isDropdownOpen: paramIsDropdownOpen,
+      setIsDropdownOpen: paramSetIsDropdownOpen,
+      setIsNavigatingHistory: paramSetIsNavigatingHistory,
+    };
+  }
+
+  const {
+    e,
+    commandHistory,
+    historyIndex,
+    setHistoryIndex,
+    setCommandInput,
+    suggestions = [],
+    selectedIndex = -1,
+    setSelectedIndex = () => {},
+    isDropdownOpen = false,
+    setIsDropdownOpen = () => {},
+    setIsNavigatingHistory,
+  } = opts;
+
+  if (isDropdownOpen && suggestions.length > 0) {
+    const handled = handleDropdownKeys(e, suggestions, selectedIndex, setSelectedIndex, setCommandInput, setIsDropdownOpen);
+    if (handled) return;
+  }
+
+  handleHistoryKeys(e, commandHistory, historyIndex, setHistoryIndex, setCommandInput, setIsDropdownOpen, setIsNavigatingHistory);
 };
 
 export const executeKubectlCommand = (
@@ -893,7 +965,7 @@ export const TerminalToolbar = ({
             >
               {loggableResources.map(r => (
                 <option key={r.id} value={r.id}>
-                  {r.type.toLowerCase()}/{r.data.label || r.id}
+                  {r.type.toLowerCase()}/{(r.data?.label as string) || r.id}
                 </option>
               ))}
             </select>
@@ -973,15 +1045,15 @@ export const handleDescribeCommand = (
 
   const foundNode = nodes.find(n =>
     (n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment')) &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+    (n.id.toLowerCase() === targetName || (n.data?.label && String(n.data.label).toLowerCase() === targetName))
   );
 
   if (foundNode) {
-    const name = foundNode.data.label || foundNode.id;
-    const status = foundNode.data.status || (isSimulating ? 'Running' : 'Pending');
-    const image = foundNode.data.image || 'nginx:latest';
-    const cpu = foundNode.data.cpuLimit || '500m';
-    const memory = foundNode.data.memoryLimit || '256Mi';
+    const name = (foundNode.data?.label as string) || foundNode.id;
+    const status = (foundNode.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
+    const image = (foundNode.data?.image as string) || 'nginx:latest';
+    const cpu = (foundNode.data?.cpuLimit as string) || '500m';
+    const memory = (foundNode.data?.memoryLimit as string) || '256Mi';
 
     addActivityLog(`Name:         ${name}`);
     addActivityLog(`Namespace:    default`);
@@ -996,7 +1068,7 @@ export const handleDescribeCommand = (
     addActivityLog(`Events:`);
     addActivityLog(`  Type    Reason     Age   From               Message`);
     addActivityLog(`  ----    ------     ----  ----               -------`);
-    addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} minikube-worker-1`);
+    addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} to minikube-worker-1`);
     addActivityLog(`  Normal  Pulling    50s   kubelet            Pulling image "${image}"`);
     addActivityLog(`  Normal  Pulled     45s   kubelet            Successfully pulled image "${image}"`);
     addActivityLog(`  Normal  Created    44s   kubelet            Created container app-container`);
@@ -1047,8 +1119,9 @@ export const useTerminalCommandSubmit = (
     const addActivityLog = useFlowStore.getState().addActivityLog;
     addActivityLog(`$ ${cmd}`);
 
-    if (globalThis.go?.main?.App?.WriteLog) {
-      globalThis.go.main.App.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
+    const wailsApp = globalThis.go?.main?.App as unknown as { WriteLog?: (cat: string, level: string, msg: string) => Promise<void> };
+    if (wailsApp?.WriteLog) {
+      wailsApp.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
     }
 
     if (cmd.toLowerCase() === 'clear') {
@@ -1120,7 +1193,7 @@ export const TerminalPanel = () => {
 
   const handleExportLogs = () => {
     const selectedNode = nodes.find(n => n.id === terminalSelectedResourceId);
-    const resourceLabel = selectedNode ? (selectedNode.data.label || selectedNode.id) : undefined;
+    const resourceLabel = selectedNode ? ((selectedNode.data?.label as string) || selectedNode.id) : undefined;
     const filename = generateLogFilename(currentProject?.name, terminalActiveTab, resourceLabel);
     exportLogFile(activeLogs, filename);
   };
@@ -1266,7 +1339,7 @@ export const TerminalPanel = () => {
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    handleTerminalKeyDown(
+    handleTerminalKeyDown({
       e,
       commandHistory,
       historyIndex,
@@ -1277,8 +1350,8 @@ export const TerminalPanel = () => {
       setSelectedIndex,
       isDropdownOpen,
       setIsDropdownOpen,
-      setIsNavigatingHistory
-    );
+      setIsNavigatingHistory,
+    });
   };
 
   const handleSelectSuggestion = (item: SuggestionItem) => {
