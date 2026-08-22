@@ -5,6 +5,7 @@ export interface SuggestionItem {
   label: string;
   category: 'Command' | 'Subcommand' | 'Pod' | 'Deployment' | 'Service' | 'Utility';
   description?: string;
+  subItems?: string[];
 }
 
 // Level 1: General subcommands when user types 'kubectl' or 'k'
@@ -70,22 +71,10 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
   return suggestions;
 };
 
-// Helper function to resolve pod suggestions specifically for 'kubectl logs ...'
-export const getPodLogSuggestions = (nodes: Node[]): SuggestionItem[] => {
-  const suggestions: SuggestionItem[] = [];
+// Helper function to get pod names on canvas
+export const getPodNames = (nodes: Node[]): string[] => {
   const pods = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
-
-  pods.forEach(p => {
-    const name = p.data?.label || p.id;
-    suggestions.push({
-      value: `kubectl logs ${name}`,
-      label: `kubectl logs ${name}`,
-      category: p.type === 'Pod' ? 'Pod' : (p.type === 'Deployment' ? 'Deployment' : 'Utility'),
-      description: `Stream logs for ${p.type.toLowerCase()} ${name}`,
-    });
-  });
-
-  return suggestions;
+  return pods.map(p => String(p.data?.label || p.id));
 };
 
 // Helper function to resolve subcommands for 'kubectl <subcommand>' inputs
@@ -98,12 +87,14 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
     list.push(...ROLLOUT_SUBCOMMANDS);
   }
   if (sub === 'logs' || 'logs'.startsWith(sub)) {
-    const podLogs = getPodLogSuggestions(nodes);
-    if (podLogs.length > 0) {
-      list.push(...podLogs);
-    } else {
-      list.push({ value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Subcommand', description: 'Stream container logs' });
-    }
+    const podNames = getPodNames(nodes);
+    list.push({
+      value: 'kubectl logs ',
+      label: 'kubectl logs <pod-name>',
+      category: 'Subcommand',
+      description: 'Stream container logs',
+      subItems: podNames,
+    });
   }
   if (sub === 'describe' || 'describe'.startsWith(sub)) {
     list.push(

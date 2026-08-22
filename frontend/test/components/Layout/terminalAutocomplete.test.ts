@@ -56,8 +56,10 @@ describe('terminalAutocomplete', () => {
     expect(resSuggestions.some(s => s.value.includes('my-backend-app'))).toBe(true);
 
     const logsSugg = getAutocompleteSuggestions('kubectl logs', mockNodes);
-    expect(logsSugg.some(s => s.value === 'kubectl logs my-custom-pod')).toBe(true);
-    expect(logsSugg.some(s => s.value === 'kubectl logs my-backend-app')).toBe(true);
+    expect(logsSugg.some(s => s.label === 'kubectl logs <pod-name>')).toBe(true);
+    const logsItem = logsSugg.find(s => s.label === 'kubectl logs <pod-name>');
+    expect(logsItem?.subItems).toContain('my-custom-pod');
+    expect(logsItem?.subItems).toContain('my-backend-app');
   });
 
   it('filters utility commands and handles empty input', () => {

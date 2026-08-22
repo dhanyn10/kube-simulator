@@ -381,36 +381,92 @@ export interface HandleTerminalKeyDownOptions {
   suggestions?: SuggestionItem[];
   selectedIndex?: number;
   setSelectedIndex?: (idx: number) => void;
+  selectedSubIndex?: number;
+  setSelectedSubIndex?: React.Dispatch<React.SetStateAction<number>>;
   isDropdownOpen?: boolean;
   setIsDropdownOpen?: (open: boolean) => void;
   setIsNavigatingHistory?: (navigating: boolean) => void;
 }
 
+const handleTabKey = (
+  isDropdownOpen: boolean,
+  suggestions: SuggestionItem[],
+  selectedIndex: number,
+  selectedSubIndex: number,
+  setSelectedIndex: (idx: number) => void,
+  setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>,
+  setCommandInput: (val: string) => void,
+  setIsDropdownOpen: (open: boolean) => void
+) => {
+  if (!isDropdownOpen) {
+    if (suggestions.length > 0) {
+      setIsDropdownOpen(true);
+      setSelectedIndex(0);
+      setSelectedSubIndex(0);
+    }
+    return;
+  }
+
+  if (suggestions.length > 0) {
+    const activeItem = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+    if (activeItem) {
+      if (activeItem.subItems && activeItem.subItems.length > 0) {
+        const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
+        setCommandInput(`kubectl logs ${podName}`);
+      } else {
+        setCommandInput(activeItem.value);
+      }
+      setIsDropdownOpen(false);
+    }
+  }
+};
+
 const handleDropdownKeys = (
   e: React.KeyboardEvent<HTMLInputElement>,
   suggestions: SuggestionItem[],
   selectedIndex: number,
+  selectedSubIndex: number,
   setSelectedIndex: (idx: number) => void,
+  setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>,
   setCommandInput: (val: string) => void,
   setIsDropdownOpen: (open: boolean) => void
 ): boolean => {
+  const activeItem = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+  const subCount = activeItem?.subItems?.length || 0;
+
+  if (e.key === 'ArrowLeft' && subCount > 0) {
+    e.preventDefault();
+    setSelectedSubIndex(prev => (prev <= 0 ? subCount - 1 : prev - 1));
+    return true;
+  }
+  if (e.key === 'ArrowRight' && subCount > 0) {
+    e.preventDefault();
+    setSelectedSubIndex(prev => (prev >= subCount - 1 ? 0 : prev + 1));
+    return true;
+  }
   if (e.key === 'ArrowUp') {
     e.preventDefault();
     const nextIdx = selectedIndex <= 0 ? suggestions.length - 1 : selectedIndex - 1;
     setSelectedIndex(nextIdx);
+    setSelectedSubIndex(0);
     return true;
   }
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     const nextIdx = selectedIndex >= suggestions.length - 1 ? 0 : selectedIndex + 1;
     setSelectedIndex(nextIdx);
+    setSelectedSubIndex(0);
     return true;
   }
-  if (e.key === 'Tab' || (e.key === 'Enter' && selectedIndex >= 0)) {
+  if (e.key === 'Enter' && selectedIndex >= 0) {
     e.preventDefault();
-    const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
-    if (chosen) {
-      setCommandInput(chosen.value);
+    if (activeItem) {
+      if (activeItem.subItems && activeItem.subItems.length > 0) {
+        const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
+        setCommandInput(`kubectl logs ${podName}`);
+      } else {
+        setCommandInput(activeItem.value);
+      }
       setIsDropdownOpen(false);
     }
     return true;
@@ -455,6 +511,8 @@ export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
     suggestions = [],
     selectedIndex = -1,
     setSelectedIndex = () => {},
+    selectedSubIndex = 0,
+    setSelectedSubIndex = () => {},
     setCommandInput,
     isDropdownOpen = false,
     setIsDropdownOpen = () => {},
@@ -462,25 +520,30 @@ export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
 
   if (e.key === 'Tab') {
     e.preventDefault();
-    if (!isDropdownOpen) {
-      if (suggestions.length > 0) {
-        setIsDropdownOpen(true);
-        setSelectedIndex(0);
-      }
-      return;
-    }
-    if (suggestions.length > 0) {
-      const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
-      if (chosen) {
-        setCommandInput(chosen.value);
-        setIsDropdownOpen(false);
-      }
-      return;
-    }
+    handleTabKey(
+      isDropdownOpen,
+      suggestions,
+      selectedIndex,
+      selectedSubIndex,
+      setSelectedIndex,
+      setSelectedSubIndex,
+      setCommandInput,
+      setIsDropdownOpen
+    );
+    return;
   }
 
   if (isDropdownOpen && suggestions.length > 0) {
-    const handled = handleDropdownKeys(e, suggestions, selectedIndex, setSelectedIndex, setCommandInput, setIsDropdownOpen);
+    const handled = handleDropdownKeys(
+      e,
+      suggestions,
+      selectedIndex,
+      selectedSubIndex,
+      setSelectedIndex,
+      setSelectedSubIndex,
+      setCommandInput,
+      setIsDropdownOpen
+    );
     if (handled) return;
   }
 
@@ -628,19 +691,20 @@ interface AutocompleteItemProps {
   index: number;
   isSelected: boolean;
   isDark: boolean;
-  onSelectSuggestion: (item: SuggestionItem) => void;
+  selectedSubIndex: number;
+  onSelectSuggestion: (item: SuggestionItem, podName?: string) => void;
 }
 
 const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean): string => {
   if (isSelected) {
-    return isDark ? "bg-blue-600 text-white border-blue-700" : "bg-blue-500 text-white border-blue-600";
+    return isDark ? "bg-slate-800 text-white border-blue-600/80" : "bg-blue-50 text-slate-900 border-blue-400/80";
   }
-  return isDark ? "hover:bg-slate-800 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100";
+  return isDark ? "hover:bg-slate-800/80 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100";
 };
 
 const getCategoryBadgeClass = (isSelected: boolean, isDark: boolean): string => {
   if (isSelected) {
-    return "bg-blue-700 text-white";
+    return "bg-blue-600 text-white";
   }
   return isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500";
 };
@@ -654,7 +718,7 @@ const getInfoBtnClass = (isSelected: boolean, isDark: boolean): string => {
 
 const getAccordionClass = (isSelected: boolean, isDark: boolean): string => {
   if (isSelected) {
-    return "bg-blue-700/80 text-blue-50 border-blue-600/50";
+    return "bg-slate-900/90 text-blue-100 border-slate-800";
   }
   return isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200";
 };
@@ -664,6 +728,7 @@ export const AutocompleteItem = ({
   index,
   isSelected,
   isDark,
+  selectedSubIndex,
   onSelectSuggestion,
 }: AutocompleteItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -673,6 +738,8 @@ export const AutocompleteItem = ({
   const categoryBadgeClass = getCategoryBadgeClass(isSelected, isDark);
   const infoBtnClass = getInfoBtnClass(isSelected, isDark);
   const accordionClass = getAccordionClass(isSelected, isDark);
+
+  const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
 
   return (
     <div
@@ -693,13 +760,13 @@ export const AutocompleteItem = ({
           onClick={() => onSelectSuggestion(item)}
           className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none"
         >
-          <TerminalSquare size={12} className={isSelected ? "text-white shrink-0" : "text-blue-400 shrink-0"} />
+          <TerminalSquare size={12} className={isSelected ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
           <span className="font-semibold truncate text-[11px]">{item.label}</span>
         </button>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
           {item.description && (
-            <span className={cn("text-[9px] truncate max-w-[120px] hidden sm:inline-block", isSelected ? "text-blue-100" : "text-slate-400")}>
+            <span className={cn("text-[9px] truncate max-w-[120px] hidden sm:inline-block", isSelected ? "text-slate-300" : "text-slate-400")}>
               {item.description}
             </span>
           )}
@@ -732,6 +799,42 @@ export const AutocompleteItem = ({
           )}
         </div>
       </div>
+
+      {/* Accordion list showing inline sub-item options (pod names) */}
+      {hasSubItems && (
+        <div
+          data-testid={`autocomplete-subitems-accordion-${index}`}
+          className={cn(
+            "px-3 py-1.5 text-[10px] border-t flex flex-wrap items-center gap-1.5 animate-in slide-in-from-top-1 duration-150",
+            accordionClass
+          )}
+        >
+          {item.subItems!.map((subName, subIdx) => {
+            const isSubSelected = isSelected && selectedSubIndex === subIdx;
+            return (
+              <button
+                type="button"
+                key={`subitem-${subName}-${subIdx}`}
+                data-testid={`autocomplete-subitem-${subIdx}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectSuggestion(item, subName);
+                }}
+                className={cn(
+                  "px-2 py-0.5 rounded font-mono text-[10px] transition-all inline-block border focus:outline-none",
+                  isSubSelected
+                    ? "bg-blue-600 text-white border-blue-400 shadow-sm font-bold scale-105"
+                    : isDark
+                      ? "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white"
+                      : "bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-600"
+                )}
+              >
+                {subName}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Accordion dropdown for full description */}
       {isInfoOpen && item.description && (
@@ -766,7 +869,8 @@ interface TerminalCommandFormProps {
   suggestions: SuggestionItem[];
   isDropdownOpen: boolean;
   selectedIndex: number;
-  onSelectSuggestion: (item: SuggestionItem) => void;
+  selectedSubIndex: number;
+  onSelectSuggestion: (item: SuggestionItem, podName?: string) => void;
 }
 
 export const TerminalCommandForm = ({
@@ -780,6 +884,7 @@ export const TerminalCommandForm = ({
   suggestions,
   isDropdownOpen,
   selectedIndex,
+  selectedSubIndex,
   onSelectSuggestion,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
@@ -805,6 +910,7 @@ export const TerminalCommandForm = ({
                 index={index}
                 isSelected={isSelected}
                 isDark={isDark}
+                selectedSubIndex={selectedSubIndex}
                 onSelectSuggestion={onSelectSuggestion}
               />
             );
@@ -1325,6 +1431,7 @@ export const TerminalPanel = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedSubIndex, setSelectedSubIndex] = useState(0);
   const isNavigatingHistoryRef = useRef(false);
 
   const {
@@ -1396,6 +1503,7 @@ export const TerminalPanel = () => {
     if (commandInput.trim().length > 0 && suggestions.length > 0) {
       setIsDropdownOpen(true);
       setSelectedIndex(0);
+      setSelectedSubIndex(0);
     } else {
       setIsDropdownOpen(false);
     }
@@ -1423,15 +1531,24 @@ export const TerminalPanel = () => {
       suggestions,
       selectedIndex,
       setSelectedIndex,
+      selectedSubIndex,
+      setSelectedSubIndex,
       isDropdownOpen,
       setIsDropdownOpen,
       setIsNavigatingHistory,
     });
   };
 
-  const handleSelectSuggestion = (item: SuggestionItem) => {
+  const handleSelectSuggestion = (item: SuggestionItem, podName?: string) => {
     isNavigatingHistoryRef.current = false;
-    setCommandInput(item.value);
+    if (podName) {
+      setCommandInput(`kubectl logs ${podName}`);
+    } else if (item.subItems && item.subItems.length > 0) {
+      const selectedPod = item.subItems[selectedSubIndex] || item.subItems[0];
+      setCommandInput(`kubectl logs ${selectedPod}`);
+    } else {
+      setCommandInput(item.value);
+    }
     setIsDropdownOpen(false);
   };
 
@@ -1533,6 +1650,7 @@ export const TerminalPanel = () => {
               suggestions={suggestions}
               isDropdownOpen={isDropdownOpen}
               selectedIndex={selectedIndex}
+              selectedSubIndex={selectedSubIndex}
               onSelectSuggestion={handleSelectSuggestion}
             />
           )}

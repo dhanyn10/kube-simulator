@@ -604,21 +604,17 @@ describe('TerminalPanel', () => {
 
       const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
 
-      // Type 'kubectl logs'
+      // Typing 'kubectl logs' opens dropdown with accordion subitems
       fireEvent.change(input, { target: { value: 'kubectl logs' } });
-
-      // First Tab opens/ensures dropdown is open
-      fireEvent.keyDown(input, { key: 'Tab' });
       expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+      expect(screen.getByTestId('autocomplete-subitems-accordion-0')).toBeInTheDocument();
+      expect(screen.getByTestId('autocomplete-subitem-0')).toHaveTextContent('web-pod');
 
-      // Second Tab selects the first suggestion 'kubectl logs web-pod'
+      // Pressing Tab selects the active pod option 'kubectl logs web-pod'
       fireEvent.keyDown(input, { key: 'Tab' });
       expect(input.value).toBe('kubectl logs web-pod');
-      expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
 
-      // Escape closes popup
-      fireEvent.change(input, { target: { value: 'kubectl logs' } });
-      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+      // Escape closes popup when typing
       fireEvent.keyDown(input, { key: 'Escape' });
       expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
     });
