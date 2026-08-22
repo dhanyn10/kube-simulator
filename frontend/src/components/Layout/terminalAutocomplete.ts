@@ -70,6 +70,36 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
   return suggestions;
 };
 
+// Helper function to resolve subcommands for 'kubectl <subcommand>' inputs
+export const getKubectlSubcommandCandidates = (sub: string): SuggestionItem[] => {
+  const list: SuggestionItem[] = [];
+  if (sub === 'get' || 'get'.startsWith(sub)) {
+    list.push(...GET_SUBCOMMANDS);
+  }
+  if (sub === 'rollout' || 'rollout'.startsWith(sub)) {
+    list.push(...ROLLOUT_SUBCOMMANDS);
+  }
+  if (sub === 'logs' || 'logs'.startsWith(sub)) {
+    list.push({ value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Subcommand', description: 'Stream container logs' });
+  }
+  if (sub === 'describe' || 'describe'.startsWith(sub)) {
+    list.push(
+      { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
+      { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' }
+    );
+  }
+  if (sub === 'scale' || 'scale'.startsWith(sub)) {
+    list.push({ value: 'kubectl scale deployment/', label: 'kubectl scale deployment/<name> --replicas=<num>', category: 'Subcommand', description: 'Scale deployment replicas' });
+  }
+  if (sub === 'set' || 'set'.startsWith(sub)) {
+    list.push({ value: 'kubectl set image deployment/', label: 'kubectl set image deployment/<name> container=<image>', category: 'Subcommand', description: 'Set container image' });
+  }
+  if (sub === 'delete' || 'delete'.startsWith(sub)) {
+    list.push({ value: 'kubectl delete pod ', label: 'kubectl delete pod <name>', category: 'Subcommand', description: 'Delete pod' });
+  }
+  return list;
+};
+
 export const getAutocompleteSuggestions = (input: string, nodes: Node[]): SuggestionItem[] => {
   const trimmed = input.trim();
   if (!trimmed) return [];
@@ -79,47 +109,17 @@ export const getAutocompleteSuggestions = (input: string, nodes: Node[]): Sugges
 
   let candidates: SuggestionItem[] = [];
 
-  // When user types 'kubectl' or 'kubectl <subcommand-prefix>'
   if (tokens[0] === 'kubectl' || 'kubectl'.startsWith(tokens[0])) {
     if (tokens.length === 1) {
-      // Return top-level general subcommands first
       candidates = [...KUBECTL_TOP_COMMANDS];
     } else {
-      const sub = tokens[1];
-      if (sub === 'get' || 'get'.startsWith(sub)) {
-        candidates.push(...GET_SUBCOMMANDS);
-      }
-      if (sub === 'rollout' || 'rollout'.startsWith(sub)) {
-        candidates.push(...ROLLOUT_SUBCOMMANDS);
-      }
-      if (sub === 'logs' || 'logs'.startsWith(sub)) {
-        candidates.push({ value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Subcommand', description: 'Stream container logs' });
-      }
-      if (sub === 'describe' || 'describe'.startsWith(sub)) {
-        candidates.push(
-          { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
-          { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' }
-        );
-      }
-      if (sub === 'scale' || 'scale'.startsWith(sub)) {
-        candidates.push({ value: 'kubectl scale deployment/', label: 'kubectl scale deployment/<name> --replicas=<num>', category: 'Subcommand', description: 'Scale deployment replicas' });
-      }
-      if (sub === 'set' || 'set'.startsWith(sub)) {
-        candidates.push({ value: 'kubectl set image deployment/', label: 'kubectl set image deployment/<name> container=<image>', category: 'Subcommand', description: 'Set container image' });
-      }
-      if (sub === 'delete' || 'delete'.startsWith(sub)) {
-        candidates.push({ value: 'kubectl delete pod ', label: 'kubectl delete pod <name>', category: 'Subcommand', description: 'Delete pod' });
-      }
-
-      // Append dynamic canvas resource matches as user types deeper
+      candidates = getKubectlSubcommandCandidates(tokens[1]);
       candidates.push(...getResourceSuggestions(nodes));
     }
   } else {
-    // Check utility commands or full candidate pool if not starting with kubectl
     candidates = [...UTILITY_COMMANDS, ...KUBECTL_TOP_COMMANDS];
   }
 
-  // Filter candidates matching user input
   const matched = candidates.filter(item =>
     item.value.toLowerCase().includes(inputLower) ||
     item.label.toLowerCase().includes(inputLower)

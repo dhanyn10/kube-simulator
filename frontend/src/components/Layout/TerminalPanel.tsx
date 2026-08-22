@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
-import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info, ChevronDown, ChevronRight } from 'lucide-react';
+import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info } from 'lucide-react';
 import './TerminalPanel.css';
 import {
   CommandContext,
@@ -256,7 +256,7 @@ export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', 
   const escapedSearch = searchQuery.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
   const partsWithObjects = parts.map((part, index) => ({
-    key: `part-${index}-${part}`,
+    key: `highlight-part-${index}-${part}`,
     text: part,
     isMatch: part.toLowerCase() === q,
   }));
@@ -720,7 +720,7 @@ export const TerminalCommandForm = ({
             const isSelected = index === selectedIndex;
             return (
               <AutocompleteItem
-                key={`${item.value}-${index}`}
+                key={`suggestion-${item.value}-${index}`}
                 item={item}
                 index={index}
                 isSelected={isSelected}
