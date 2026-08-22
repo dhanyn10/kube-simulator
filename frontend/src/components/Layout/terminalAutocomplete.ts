@@ -70,8 +70,26 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
   return suggestions;
 };
 
+// Helper function to resolve pod suggestions specifically for 'kubectl logs ...'
+export const getPodLogSuggestions = (nodes: Node[]): SuggestionItem[] => {
+  const suggestions: SuggestionItem[] = [];
+  const pods = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
+
+  pods.forEach(p => {
+    const name = p.data?.label || p.id;
+    suggestions.push({
+      value: `kubectl logs ${name}`,
+      label: `kubectl logs ${name}`,
+      category: p.type === 'Pod' ? 'Pod' : (p.type === 'Deployment' ? 'Deployment' : 'Utility'),
+      description: `Stream logs for ${p.type.toLowerCase()} ${name}`,
+    });
+  });
+
+  return suggestions;
+};
+
 // Helper function to resolve subcommands for 'kubectl <subcommand>' inputs
-export const getKubectlSubcommandCandidates = (sub: string): SuggestionItem[] => {
+export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []): SuggestionItem[] => {
   const list: SuggestionItem[] = [];
   if (sub === 'get' || 'get'.startsWith(sub)) {
     list.push(...GET_SUBCOMMANDS);
@@ -80,7 +98,12 @@ export const getKubectlSubcommandCandidates = (sub: string): SuggestionItem[] =>
     list.push(...ROLLOUT_SUBCOMMANDS);
   }
   if (sub === 'logs' || 'logs'.startsWith(sub)) {
-    list.push({ value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Subcommand', description: 'Stream container logs' });
+    const podLogs = getPodLogSuggestions(nodes);
+    if (podLogs.length > 0) {
+      list.push(...podLogs);
+    } else {
+      list.push({ value: 'kubectl logs ', label: 'kubectl logs <pod-name>', category: 'Subcommand', description: 'Stream container logs' });
+    }
   }
   if (sub === 'describe' || 'describe'.startsWith(sub)) {
     list.push(
@@ -113,7 +136,7 @@ export const getAutocompleteSuggestions = (input: string, nodes: Node[]): Sugges
     if (tokens.length === 1) {
       candidates = [...KUBECTL_TOP_COMMANDS];
     } else {
-      candidates = getKubectlSubcommandCandidates(tokens[1]);
+      candidates = getKubectlSubcommandCandidates(tokens[1], nodes);
       candidates.push(...getResourceSuggestions(nodes));
     }
   } else {

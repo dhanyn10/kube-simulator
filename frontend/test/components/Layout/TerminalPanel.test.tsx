@@ -587,6 +587,34 @@ describe('TerminalPanel', () => {
       // Tab to complete selection
       fireEvent.keyDown(input, { key: 'Tab' });
       expect(input.value).toBe('kubectl get pods');
+    });
+
+    it('handles 2-step Tab interaction (1st Tab opens dropdown, 2nd Tab selects option)', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } }
+          ]
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      // Type 'kubectl logs'
+      fireEvent.change(input, { target: { value: 'kubectl logs' } });
+
+      // First Tab opens/ensures dropdown is open
+      fireEvent.keyDown(input, { key: 'Tab' });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      // Second Tab selects the first suggestion 'kubectl logs web-pod'
+      fireEvent.keyDown(input, { key: 'Tab' });
+      expect(input.value).toBe('kubectl logs web-pod');
+      expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
 
       // Escape closes popup
       fireEvent.change(input, { target: { value: 'kubectl logs' } });

@@ -460,6 +460,25 @@ export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
     setIsDropdownOpen = () => {},
   } = opts;
 
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (!isDropdownOpen) {
+      if (suggestions.length > 0) {
+        setIsDropdownOpen(true);
+        setSelectedIndex(0);
+      }
+      return;
+    }
+    if (suggestions.length > 0) {
+      const chosen = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+      if (chosen) {
+        setCommandInput(chosen.value);
+        setIsDropdownOpen(false);
+      }
+      return;
+    }
+  }
+
   if (isDropdownOpen && suggestions.length > 0) {
     const handled = handleDropdownKeys(e, suggestions, selectedIndex, setSelectedIndex, setCommandInput, setIsDropdownOpen);
     if (handled) return;
