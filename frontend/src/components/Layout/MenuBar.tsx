@@ -48,9 +48,12 @@ export const MenuBar = ({
   const setSidebarVisible = useFlowStore((state: FlowState) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state: FlowState) => state.setRightSidebarVisible);
   const toggleAutofocus = useFlowStore((state: FlowState) => state.toggleAutofocus);
+  const logs = useFlowStore((state: FlowState) => state.logs);
   const setLogModalOpen = useFlowStore((state: FlowState) => state.setLogModalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  const errorCount = logs.filter((l) => l.level === 'error' || l.level === 'fatal').length;
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -216,6 +219,29 @@ export const MenuBar = ({
           hasHpaValidationError={hasHpaValidationError}
           colorMode={colorMode}
         />
+
+        {/* Bell Notification button on the right side of Play button */}
+        <button
+          type="button"
+          onClick={() => setLogModalOpen(true)}
+          style={{ '--wails-draggable': 'no-drag' }}
+          title={errorCount > 0 ? `${errorCount} application errors recorded` : "View Logs"}
+          data-testid="bell-notification-btn"
+          className={cn(
+            "relative p-1.5 rounded-md transition-colors ml-1",
+            colorMode === 'dark' ? "hover:bg-slate-800 text-slate-400 hover:text-white" : "hover:bg-slate-200 text-slate-500 hover:text-slate-900"
+          )}
+        >
+          <Bell size={14} />
+          {errorCount > 0 && (
+            <span
+              data-testid="bell-error-badge"
+              className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white shadow-sm animate-in zoom-in-50 duration-150"
+            >
+              {errorCount > 99 ? '99+' : errorCount}
+            </span>
+          )}
+        </button>
       </div>
 
 

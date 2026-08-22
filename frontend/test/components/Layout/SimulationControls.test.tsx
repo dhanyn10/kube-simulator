@@ -81,19 +81,4 @@ describe('SimulationControls', () => {
     expect(playButton.title).toBe('HPA requires Resource Limits on target workloads');
   });
 
-  it('renders bell notification button and opens log modal when clicked', () => {
-    render(
-      <SimulationControls
-        isSimulating={false}
-        startSimulation={vi.fn()}
-        stopSimulation={vi.fn()}
-        hasInternet={true}
-        hasHpaValidationError={false}
-        colorMode="dark"
-      />
-    );
-
-    const bellBtn = screen.getByTestId('bell-notification-btn');
-    expect(bellBtn).toBeInTheDocument();
-  });
 });

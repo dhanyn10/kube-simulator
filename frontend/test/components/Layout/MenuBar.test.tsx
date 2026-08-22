@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MenuBar } from '../../../src/components/Layout/MenuBar';
 import { useFlowStore } from '../../../src/store';
+import '@testing-library/jest-dom';
 
 vi.mock('@wailsjs/runtime/runtime', () => ({
   BrowserOpenURL: vi.fn(),
@@ -183,5 +184,27 @@ describe('MenuBar', () => {
     render(<MenuBar {...defaultProps} />);
     fireEvent.click(screen.getByText('File'));
     expect(screen.getByText('Ctrl+S')).toBeDefined();
+  });
+
+  it('renders bell notification button on the right side of play button and displays error count badge', () => {
+    useFlowStore.setState({
+      logs: [
+        { id: '1', level: 'error', message: 'Database connection error', timestamp: '10:00:00', scope: 'System' },
+        { id: '2', level: 'fatal', message: 'Out of memory', timestamp: '10:00:01', scope: 'Backend' },
+      ],
+    });
+
+    render(<MenuBar {...defaultProps} />);
+
+    const bellBtn = screen.getByTestId('bell-notification-btn');
+    expect(bellBtn).toBeInTheDocument();
+
+    const errorBadge = screen.getByTestId('bell-error-badge');
+    expect(errorBadge).toBeInTheDocument();
+    expect(errorBadge).toHaveTextContent('2');
+
+    const setLogModalOpen = vi.spyOn(useFlowStore.getState(), 'setLogModalOpen');
+    fireEvent.click(bellBtn);
+    expect(setLogModalOpen).toHaveBeenCalledWith(true);
   });
 });
