@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { KUBECTL_TOP_COMMANDS, getResourceSuggestions, getAutocompleteSuggestions } from '../../../src/components/Layout/terminalAutocomplete';
+import {
+  KUBECTL_TOP_COMMANDS,
+  GET_SUBCOMMANDS,
+  ROLLOUT_SUBCOMMANDS,
+  UTILITY_COMMANDS,
+  getResourceSuggestions,
+  getAutocompleteSuggestions
+} from '../../../src/components/Layout/terminalAutocomplete';
 import { Node } from '@xyflow/react';
 
 describe('terminalAutocomplete', () => {
@@ -15,31 +22,53 @@ describe('terminalAutocomplete', () => {
     expect(suggestions.some(s => s.value === 'kubectl delete')).toBe(true);
   });
 
-  it('returns specific subcommands when typing "kubectl get"', () => {
-    const suggestions = getAutocompleteSuggestions('kubectl get', []);
-    expect(suggestions.some(s => s.value === 'kubectl get pods')).toBe(true);
-    expect(suggestions.some(s => s.value === 'kubectl get deployments')).toBe(true);
-    expect(suggestions.some(s => s.value === 'kubectl get services')).toBe(true);
-    expect(suggestions.some(s => s.value === 'kubectl get all')).toBe(true);
+  it('returns specific subcommands for get, rollout, logs, describe, scale, set, delete', () => {
+    const getSugg = getAutocompleteSuggestions('kubectl get', []);
+    expect(getSugg.some(s => s.value === 'kubectl get pods')).toBe(true);
+
+    const rolloutSugg = getAutocompleteSuggestions('kubectl rollout', []);
+    expect(rolloutSugg.some(s => s.value.includes('rollout status'))).toBe(true);
+
+    const logsSugg = getAutocompleteSuggestions('kubectl logs', []);
+    expect(logsSugg.some(s => s.value === 'kubectl logs ')).toBe(true);
+
+    const describeSugg = getAutocompleteSuggestions('kubectl describe', []);
+    expect(describeSugg.some(s => s.value.includes('describe deploy'))).toBe(true);
+
+    const scaleSugg = getAutocompleteSuggestions('kubectl scale', []);
+    expect(scaleSugg.some(s => s.value.includes('scale deployment'))).toBe(true);
+
+    const setSugg = getAutocompleteSuggestions('kubectl set', []);
+    expect(setSugg.some(s => s.value.includes('set image'))).toBe(true);
+
+    const deleteSugg = getAutocompleteSuggestions('kubectl delete', []);
+    expect(deleteSugg.some(s => s.value.includes('delete pod'))).toBe(true);
   });
 
-  it('generates dynamic resource suggestions based on canvas nodes when typing deeper commands', () => {
+  it('generates dynamic resource suggestions for deployments and pods', () => {
     const mockNodes: Node[] = [
       { id: 'pod-101', type: 'Pod', data: { label: 'my-custom-pod' }, position: { x: 0, y: 0 } },
       { id: 'dep-202', type: 'Deployment', data: { label: 'my-backend-app' }, position: { x: 0, y: 0 } }
     ];
 
-    const suggestions = getAutocompleteSuggestions('kubectl logs', mockNodes);
-    expect(suggestions.some(s => s.value.includes('my-custom-pod'))).toBe(true);
-    expect(suggestions.some(s => s.value.includes('my-backend-app'))).toBe(true);
+    const resSuggestions = getResourceSuggestions(mockNodes);
+    expect(resSuggestions.some(s => s.value.includes('my-custom-pod'))).toBe(true);
+    expect(resSuggestions.some(s => s.value.includes('my-backend-app'))).toBe(true);
+
+    const logsSugg = getAutocompleteSuggestions('kubectl logs', mockNodes);
+    expect(logsSugg.some(s => s.value.includes('my-custom-pod'))).toBe(true);
+    expect(logsSugg.some(s => s.value.includes('my-backend-app'))).toBe(true);
   });
 
-  it('filters suggestions and handles empty input', () => {
+  it('filters utility commands and handles empty input', () => {
     expect(getAutocompleteSuggestions('', [])).toEqual([]);
     expect(getAutocompleteSuggestions('   ', [])).toEqual([]);
 
     const clearMatch = getAutocompleteSuggestions('clea', []);
     expect(clearMatch).toHaveLength(1);
     expect(clearMatch[0].value).toBe('clear');
+
+    const helpMatch = getAutocompleteSuggestions('hel', []);
+    expect(helpMatch.some(s => s.value === 'help')).toBe(true);
   });
 });

@@ -564,6 +564,36 @@ describe('TerminalPanel', () => {
       expect(accordion).toBeInTheDocument();
       expect(accordion).toHaveTextContent('List all pods on canvas');
     });
+
+    it('handles keyboard navigation and selection in autocomplete popup', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: 'kubectl get' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      // Navigate down and up in popup
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'ArrowUp' });
+
+      // Tab to complete selection
+      fireEvent.keyDown(input, { key: 'Tab' });
+      expect(input.value).toBe('kubectl get pods');
+
+      // Escape closes popup
+      fireEvent.change(input, { target: { value: 'kubectl logs' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+      fireEvent.keyDown(input, { key: 'Escape' });
+      expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
+    });
   });
 
   describe('Kubectl new interactive commands', () => {
