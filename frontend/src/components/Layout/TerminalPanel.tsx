@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
 import { cn, safeRandom } from '../../lib/utils';
@@ -996,7 +996,7 @@ export const handleDescribeCommand = (
     addActivityLog(`Events:`);
     addActivityLog(`  Type    Reason     Age   From               Message`);
     addActivityLog(`  ----    ------     ----  ----               -------`);
-    addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} to minikube-worker-1`);
+    addActivityLog(`  Normal  Scheduled  1m    default-scheduler  Successfully assigned default/${name} minikube-worker-1`);
     addActivityLog(`  Normal  Pulling    50s   kubelet            Pulling image "${image}"`);
     addActivityLog(`  Normal  Pulled     45s   kubelet            Successfully pulled image "${image}"`);
     addActivityLog(`  Normal  Created    44s   kubelet            Created container app-container`);
@@ -1005,6 +1005,79 @@ export const handleDescribeCommand = (
     addActivityLog(`Error from server (NotFound): ${type} "${targetName}" not found`);
   }
   return true;
+};
+
+// Custom Hook to manage terminal command submission and history
+export const useTerminalCommandSubmit = (
+  nodes: Node[],
+  isSimulating: boolean,
+  clearTerminalLogs: () => void,
+  setTerminalSelectedResourceId: (id: string | null) => void,
+  setTerminalActiveTab: (tab: 'activity' | 'logs') => void
+) => {
+  const [commandInput, setCommandInput] = useState('');
+  const [commandHistory, setCommandHistory] = useState<string[]>([]);
+  const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const processCommandSubmit = useCallback((
+    cmdInput: string,
+    setIsDropdownOpen: (open: boolean) => void,
+    setIsNavigatingHistory: (navigating: boolean) => void
+  ) => {
+    const cmd = cmdInput.trim();
+    setIsDropdownOpen(false);
+    setIsNavigatingHistory(false);
+    if (!cmd) return;
+
+    setCommandInput('');
+
+    const timestamp = formatCommandTimestamp();
+    const newEntry: CommandHistoryEntry = {
+      id: commandHistoryEntries.length + 1,
+      command: cmd,
+      timestamp,
+    };
+
+    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
+    setCommandHistoryEntries(nextHistoryEntries);
+    setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
+    setHistoryIndex(-1);
+
+    const addActivityLog = useFlowStore.getState().addActivityLog;
+    addActivityLog(`$ ${cmd}`);
+
+    if (globalThis.go?.main?.App?.WriteLog) {
+      globalThis.go.main.App.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
+    }
+
+    if (cmd.toLowerCase() === 'clear') {
+      clearTerminalLogs();
+      return;
+    }
+
+    const ctx: CommandContext = {
+      nodes,
+      isSimulating,
+      updateNodeData: useFlowStore.getState().updateNodeData,
+      addActivityLog,
+      deleteNodes: useFlowStore.getState().deleteNodes,
+      getStoreState: useFlowStore.getState,
+      setStoreState: useFlowStore.setState,
+    };
+
+    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab, nextHistoryEntries);
+  }, [commandHistoryEntries, isSimulating, nodes, clearTerminalLogs, setTerminalSelectedResourceId, setTerminalActiveTab]);
+
+  return {
+    commandInput,
+    setCommandInput,
+    commandHistory,
+    commandHistoryEntries,
+    historyIndex,
+    setHistoryIndex,
+    processCommandSubmit,
+  };
 };
 
 export const TerminalPanel = () => {
@@ -1023,23 +1096,34 @@ export const TerminalPanel = () => {
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isAutoscroll, setIsAutoscroll] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const isNavigatingHistoryRef = useRef(false);
+
+  const {
+    commandInput,
+    setCommandInput,
+    commandHistory,
+    historyIndex,
+    setHistoryIndex,
+    processCommandSubmit,
+  } = useTerminalCommandSubmit(
+    nodes,
+    isSimulating,
+    clearTerminalLogs,
+    setTerminalSelectedResourceId,
+    setTerminalActiveTab
+  );
+
   const handleExportLogs = () => {
     const selectedNode = nodes.find(n => n.id === terminalSelectedResourceId);
     const resourceLabel = selectedNode ? (selectedNode.data.label || selectedNode.id) : undefined;
     const filename = generateLogFilename(currentProject?.name, terminalActiveTab, resourceLabel);
     exportLogFile(activeLogs, filename);
   };
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [commandInput, setCommandInput] = useState('');
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
-  const [commandHistoryEntries, setCommandHistoryEntries] = useState<CommandHistoryEntry[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAutoscroll, setIsAutoscroll] = useState(true);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const isNavigatingHistoryRef = useRef(false);
 
   const PAGE_SIZE = 25;
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -1177,9 +1261,9 @@ export const TerminalPanel = () => {
     }
   }, [isTerminalOpen, isAutoscroll, filteredLogs, terminalActiveTab, currentPage, totalPages]);
 
-  const setIsNavigatingHistory = (navigating: boolean) => {
+  const setIsNavigatingHistory = useCallback((navigating: boolean) => {
     isNavigatingHistoryRef.current = navigating;
-  };
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleTerminalKeyDown(
@@ -1205,48 +1289,7 @@ export const TerminalPanel = () => {
 
   const handleCommandSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const cmd = commandInput.trim();
-    setIsDropdownOpen(false);
-    isNavigatingHistoryRef.current = false;
-    if (!cmd) return;
-
-    setCommandInput('');
-
-    const timestamp = formatCommandTimestamp();
-    const newEntry: CommandHistoryEntry = {
-      id: commandHistoryEntries.length + 1,
-      command: cmd,
-      timestamp,
-    };
-
-    const nextHistoryEntries = [...commandHistoryEntries, newEntry];
-    setCommandHistoryEntries(nextHistoryEntries);
-    setCommandHistory(prev => (prev.at(-1) === cmd ? prev : [...prev, cmd]));
-    setHistoryIndex(-1);
-
-    const addActivityLog = useFlowStore.getState().addActivityLog;
-    addActivityLog(`$ ${cmd}`);
-
-    if (globalThis.go?.main?.App?.WriteLog) {
-      globalThis.go.main.App.WriteLog('kubeconsole', 'info', `$ ${cmd}`).catch(() => {});
-    }
-
-    if (cmd.toLowerCase() === 'clear') {
-      clearTerminalLogs();
-      return;
-    }
-
-    const ctx: CommandContext = {
-      nodes,
-      isSimulating,
-      updateNodeData: useFlowStore.getState().updateNodeData,
-      addActivityLog,
-      deleteNodes: useFlowStore.getState().deleteNodes,
-      getStoreState: useFlowStore.getState,
-      setStoreState: useFlowStore.setState,
-    };
-
-    executeKubectlCommand(cmd, ctx, setTerminalSelectedResourceId, setTerminalActiveTab, nextHistoryEntries);
+    processCommandSubmit(commandInput, setIsDropdownOpen, setIsNavigatingHistory);
   };
 
   if (!isTerminalOpen) {
