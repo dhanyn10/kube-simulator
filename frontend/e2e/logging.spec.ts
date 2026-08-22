@@ -16,16 +16,17 @@ test.describe('Error Reporting Feature', () => {
     await page.waitForSelector('[data-testid="app-title"]', { timeout: 10000 });
   });
 
-  test('intercepts console errors and shows toast with correct counts', async ({ page }) => {
+  test('intercepts console errors and shows bell badge with correct count', async ({ page }) => {
     await page.evaluate(() => {
       console.error('Test Error 1');
       console.error('Test Error 2');
       console.warn('Test Warning 1');
     });
 
-    await expect(page.locator('text=2').first()).toBeVisible();
-    await expect(page.locator('text=1').first()).toBeVisible();
-    await expect(page.locator('button:has-text("Open")').first()).toBeVisible();
+    const badge = page.getByTestId('bell-error-badge');
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveText('2');
+    await expect(page.getByTestId('bell-notification-btn')).toBeVisible();
   });
 
   test('opens error report modal and displays logs', async ({ page }) => {
@@ -33,24 +34,23 @@ test.describe('Error Reporting Feature', () => {
       console.error('Modal Test Error');
     });
 
-    await page.locator('button:has-text("Open")').first().click();
+    await page.getByTestId('bell-notification-btn').click();
     await expect(page.getByText('Console Logs')).toBeVisible();
     await expect(page.getByText('Modal Test Error')).toBeVisible();
   });
 
-  test('clears logs and hides toast', async ({ page }) => {
+  test('clears logs and hides bell badge', async ({ page }) => {
     await page.evaluate(() => {
-      console.warn('To be cleared');
+      console.error('To be cleared');
     });
 
-    await page.locator('button:has-text("Open")').first().click();
+    await page.getByTestId('bell-notification-btn').click();
 
     const clearAll = page.getByTestId('log-clear-all');
     await clearAll.click();
 
-    // Use a more flexible search for empty state
     await expect(page.getByText('Console Logs')).not.toBeVisible();
-    await expect(page.locator('button:has-text("Open")').first()).not.toBeVisible();
+    await expect(page.getByTestId('bell-error-badge')).not.toBeVisible();
   });
 
   test('persists logs across reloads', async ({ page }) => {
@@ -62,8 +62,8 @@ test.describe('Error Reporting Feature', () => {
     await page.reload();
     await page.waitForSelector('[data-testid="app-title"]');
 
-    await expect(page.locator('button:has-text("Open")').first()).toBeVisible();
-    await page.locator('button:has-text("Open")').first().click();
+    await expect(page.getByTestId('bell-notification-btn')).toBeVisible();
+    await page.getByTestId('bell-notification-btn').click();
     await expect(page.getByText('Persistence Error')).toBeVisible();
   });
 
@@ -78,7 +78,7 @@ test.describe('Error Reporting Feature', () => {
       console.error('Error 2');
     });
 
-    await page.locator('button:has-text("Open")').first().click();
+    await page.getByTestId('bell-notification-btn').click();
     await expect(page.getByText('Error 1')).toBeVisible();
 
     // Select two logs
@@ -87,7 +87,7 @@ test.describe('Error Reporting Feature', () => {
         checkboxes.forEach(c => (c as HTMLElement).click());
     });
 
-    // Check if count appears (it might be "2 selected")
+    // Check if count appears
     await expect(page.getByTestId('log-selection-count')).toBeVisible();
 
     // Delete selected
@@ -106,7 +106,7 @@ test.describe('Error Reporting Feature', () => {
       console.warn('TestWarning');
     });
 
-    await page.locator('button:has-text("Open")').first().click();
+    await page.getByTestId('bell-notification-btn').click();
     await expect(page.getByText('TestError')).toBeVisible();
 
     // Open dropdown
@@ -125,7 +125,7 @@ test.describe('Error Reporting Feature', () => {
     const longMessage = 'EXPAND_ME_' + 'A'.repeat(200);
     await page.evaluate((msg) => console.error(msg), longMessage);
 
-    await page.locator('button:has-text("Open")').first().click();
+    await page.getByTestId('bell-notification-btn').click();
 
     const pre = page.locator('pre', { hasText: 'EXPAND_ME_' }).first();
     await expect(pre).toHaveClass(/line-clamp-1/);
