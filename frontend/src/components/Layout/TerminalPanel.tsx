@@ -388,50 +388,84 @@ export interface HandleTerminalKeyDownOptions {
   setIsNavigatingHistory?: (navigating: boolean) => void;
 }
 
-const handleTabKey = (
-  isDropdownOpen: boolean,
-  suggestions: SuggestionItem[],
-  selectedIndex: number,
-  selectedSubIndex: number,
-  setSelectedIndex: (idx: number) => void,
-  setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>,
-  setCommandInput: (val: string) => void,
-  setIsDropdownOpen: (open: boolean) => void
-) => {
+interface HandleTabKeyOptions {
+  e: React.KeyboardEvent<HTMLInputElement>;
+  isDropdownOpen: boolean;
+  suggestions: SuggestionItem[];
+  selectedIndex: number;
+  selectedSubIndex: number;
+  setSelectedIndex: (idx: number) => void;
+  setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>;
+  setIsDropdownOpen: (open: boolean) => void;
+}
+
+const handleTabKey = (opts: HandleTabKeyOptions) => {
+  const {
+    e,
+    isDropdownOpen,
+    suggestions,
+    selectedIndex,
+    selectedSubIndex,
+    setSelectedIndex,
+    setSelectedSubIndex,
+    setIsDropdownOpen,
+  } = opts;
+
+  if (suggestions.length === 0) return;
+
   if (!isDropdownOpen) {
-    if (suggestions.length > 0) {
-      setIsDropdownOpen(true);
-      setSelectedIndex(0);
-      setSelectedSubIndex(0);
-    }
+    setIsDropdownOpen(true);
+    setSelectedIndex(0);
+    setSelectedSubIndex(0);
     return;
   }
 
-  if (suggestions.length > 0) {
-    const activeItem = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
-    if (activeItem) {
-      if (activeItem.subItems && activeItem.subItems.length > 0) {
-        const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
-        setCommandInput(`kubectl logs ${podName}`);
-      } else {
-        setCommandInput(activeItem.value);
-      }
-      setIsDropdownOpen(false);
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const activeItem = suggestions[activeIndex];
+  const subCount = activeItem?.subItems?.length || 0;
+
+  if (e.shiftKey) {
+    if (subCount > 0) {
+      setSelectedSubIndex(prev => (prev <= 0 ? subCount - 1 : prev - 1));
+    } else {
+      setSelectedIndex(prev => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+      setSelectedSubIndex(0);
+    }
+  } else {
+    if (subCount > 0) {
+      setSelectedSubIndex(prev => (prev >= subCount - 1 ? 0 : prev + 1));
+    } else {
+      setSelectedIndex(prev => (prev >= suggestions.length - 1 ? 0 : prev + 1));
+      setSelectedSubIndex(0);
     }
   }
 };
 
-const handleDropdownKeys = (
-  e: React.KeyboardEvent<HTMLInputElement>,
-  suggestions: SuggestionItem[],
-  selectedIndex: number,
-  selectedSubIndex: number,
-  setSelectedIndex: (idx: number) => void,
-  setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>,
-  setCommandInput: (val: string) => void,
-  setIsDropdownOpen: (open: boolean) => void
-): boolean => {
-  const activeItem = suggestions[selectedIndex >= 0 ? selectedIndex : 0];
+interface HandleDropdownKeysOptions {
+  e: React.KeyboardEvent<HTMLInputElement>;
+  suggestions: SuggestionItem[];
+  selectedIndex: number;
+  selectedSubIndex: number;
+  setSelectedIndex: (idx: number) => void;
+  setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>;
+  setCommandInput: (val: string) => void;
+  setIsDropdownOpen: (open: boolean) => void;
+}
+
+const handleDropdownKeys = (opts: HandleDropdownKeysOptions): boolean => {
+  const {
+    e,
+    suggestions,
+    selectedIndex,
+    selectedSubIndex,
+    setSelectedIndex,
+    setSelectedSubIndex,
+    setCommandInput,
+    setIsDropdownOpen,
+  } = opts;
+
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const activeItem = suggestions[activeIndex];
   const subCount = activeItem?.subItems?.length || 0;
 
   if (e.key === 'ArrowLeft' && subCount > 0) {
@@ -520,21 +554,21 @@ export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
 
   if (e.key === 'Tab') {
     e.preventDefault();
-    handleTabKey(
+    handleTabKey({
+      e,
       isDropdownOpen,
       suggestions,
       selectedIndex,
       selectedSubIndex,
       setSelectedIndex,
       setSelectedSubIndex,
-      setCommandInput,
-      setIsDropdownOpen
-    );
+      setIsDropdownOpen,
+    });
     return;
   }
 
   if (isDropdownOpen && suggestions.length > 0) {
-    const handled = handleDropdownKeys(
+    const handled = handleDropdownKeys({
       e,
       suggestions,
       selectedIndex,
@@ -542,8 +576,8 @@ export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
       setSelectedIndex,
       setSelectedSubIndex,
       setCommandInput,
-      setIsDropdownOpen
-    );
+      setIsDropdownOpen,
+    });
     if (handled) return;
   }
 
@@ -1432,7 +1466,7 @@ export const TerminalPanel = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedSubIndex, setSelectedSubIndex] = useState(0);
-  const isNavigatingHistoryRef = useRef(false);
+  const suppressAutocompleteRef = useRef(false);
 
   const {
     commandInput,
@@ -1496,7 +1530,7 @@ export const TerminalPanel = () => {
   }, [commandInput, nodes]);
 
   useEffect(() => {
-    if (isNavigatingHistoryRef.current) {
+    if (suppressAutocompleteRef.current) {
       setIsDropdownOpen(false);
       return;
     }
@@ -1510,7 +1544,7 @@ export const TerminalPanel = () => {
   }, [commandInput, suggestions]);
 
   const handleInputChange = (val: string) => {
-    isNavigatingHistoryRef.current = false;
+    suppressAutocompleteRef.current = false;
     setCommandInput(val);
   };
 
@@ -1518,7 +1552,27 @@ export const TerminalPanel = () => {
   const logsTabClass = useMemo(() => getTabClass('logs', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
 
   const setIsNavigatingHistory = useCallback((navigating: boolean) => {
-    isNavigatingHistoryRef.current = navigating;
+    suppressAutocompleteRef.current = navigating;
+  }, []);
+
+  const handleSelectSuggestion = useCallback((item: SuggestionItem, podName?: string) => {
+    suppressAutocompleteRef.current = true;
+    if (podName) {
+      setCommandInput(`kubectl logs ${podName}`);
+    } else if (item.subItems && item.subItems.length > 0) {
+      const selectedPod = item.subItems[selectedSubIndex] || item.subItems[0];
+      setCommandInput(`kubectl logs ${selectedPod}`);
+    } else {
+      setCommandInput(item.value);
+    }
+    setIsDropdownOpen(false);
+  }, [selectedSubIndex, setCommandInput]);
+
+  const setDropdownOpenCustom = useCallback((open: boolean) => {
+    if (!open) {
+      suppressAutocompleteRef.current = true;
+    }
+    setIsDropdownOpen(open);
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1534,27 +1588,14 @@ export const TerminalPanel = () => {
       selectedSubIndex,
       setSelectedSubIndex,
       isDropdownOpen,
-      setIsDropdownOpen,
+      setIsDropdownOpen: setDropdownOpenCustom,
       setIsNavigatingHistory,
     });
   };
 
-  const handleSelectSuggestion = (item: SuggestionItem, podName?: string) => {
-    isNavigatingHistoryRef.current = false;
-    if (podName) {
-      setCommandInput(`kubectl logs ${podName}`);
-    } else if (item.subItems && item.subItems.length > 0) {
-      const selectedPod = item.subItems[selectedSubIndex] || item.subItems[0];
-      setCommandInput(`kubectl logs ${selectedPod}`);
-    } else {
-      setCommandInput(item.value);
-    }
-    setIsDropdownOpen(false);
-  };
-
   const handleCommandSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    processCommandSubmit(commandInput, setIsDropdownOpen, setIsNavigatingHistory);
+    processCommandSubmit(commandInput, setDropdownOpenCustom, setIsNavigatingHistory);
   };
 
   if (!isTerminalOpen) {

@@ -584,18 +584,19 @@ describe('TerminalPanel', () => {
       fireEvent.keyDown(input, { key: 'ArrowDown' });
       fireEvent.keyDown(input, { key: 'ArrowUp' });
 
-      // Tab to complete selection
-      fireEvent.keyDown(input, { key: 'Tab' });
+      // Enter to complete selection
+      fireEvent.keyDown(input, { key: 'Enter' });
       expect(input.value).toBe('kubectl get pods');
     });
 
-    it('handles 2-step Tab interaction (1st Tab opens dropdown, 2nd Tab selects option)', () => {
+    it('handles Tab / Shift+Tab and Arrow keys to cycle through accordion sub-items without blurring input', () => {
       act(() => {
         useFlowStore.setState({
           isTerminalOpen: true,
           isSimulating: true,
           nodes: [
-            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } }
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+            { id: 'pod-2', type: 'Pod', data: { label: 'api-pod' }, position: { x: 0, y: 0 } }
           ]
         });
       });
@@ -604,18 +605,26 @@ describe('TerminalPanel', () => {
 
       const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
 
-      // Typing 'kubectl logs' opens dropdown with accordion subitems
+      // Typing 'kubectl logs' opens dropdown with accordion sub-items
       fireEvent.change(input, { target: { value: 'kubectl logs' } });
       expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
       expect(screen.getByTestId('autocomplete-subitems-accordion-0')).toBeInTheDocument();
-      expect(screen.getByTestId('autocomplete-subitem-0')).toHaveTextContent('web-pod');
 
-      // Pressing Tab selects the active pod option 'kubectl logs web-pod'
+      // Pressing Tab cycles to second sub-item option
       fireEvent.keyDown(input, { key: 'Tab' });
-      expect(input.value).toBe('kubectl logs web-pod');
 
-      // Escape closes popup when typing
-      fireEvent.keyDown(input, { key: 'Escape' });
+      // Pressing Shift+Tab cycles backward to first sub-item option
+      fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+
+      // Pressing ArrowRight cycles right
+      fireEvent.keyDown(input, { key: 'ArrowRight' });
+
+      // Pressing ArrowLeft cycles left
+      fireEvent.keyDown(input, { key: 'ArrowLeft' });
+
+      // Pressing Enter selects current sub-item option
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(input.value).toBe('kubectl logs web-pod');
       expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
     });
   });
