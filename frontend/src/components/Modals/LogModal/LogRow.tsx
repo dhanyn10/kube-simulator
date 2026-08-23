@@ -24,7 +24,7 @@ const formatTime = (ts: number) => {
 const renderHighlightedText = (text: string, query: string) => {
   if (!query.trim()) return text;
 
-  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
 
   return parts.map((part, i) => {
