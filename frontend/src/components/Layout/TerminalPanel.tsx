@@ -155,7 +155,7 @@ export const generateLogFilename = (
 
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10);
-  const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
+  const timeStr = date.toTimeString().slice(0, 8).replaceAll(':', '-');
   return `${prefix}_${dateStr}_${timeStr}.log`;
 };
 
@@ -394,7 +394,7 @@ interface HandleTabKeyOptions {
   suggestions: SuggestionItem[];
   selectedIndex: number;
   selectedSubIndex: number;
-  setSelectedIndex: (idx: number) => void;
+  setSelectedIndex: React.Dispatch<React.SetStateAction<number>>;
   setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>;
   setIsDropdownOpen: (open: boolean) => void;
 }
@@ -405,7 +405,6 @@ const handleTabKey = (opts: HandleTabKeyOptions) => {
     isDropdownOpen,
     suggestions,
     selectedIndex,
-    selectedSubIndex,
     setSelectedIndex,
     setSelectedSubIndex,
     setIsDropdownOpen,
@@ -420,7 +419,7 @@ const handleTabKey = (opts: HandleTabKeyOptions) => {
     return;
   }
 
-  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const activeIndex = Math.max(0, selectedIndex);
   const activeItem = suggestions[activeIndex];
   const subCount = activeItem?.subItems?.length || 0;
 
@@ -431,13 +430,11 @@ const handleTabKey = (opts: HandleTabKeyOptions) => {
       setSelectedIndex(prev => (prev <= 0 ? suggestions.length - 1 : prev - 1));
       setSelectedSubIndex(0);
     }
+  } else if (subCount > 0) {
+    setSelectedSubIndex(prev => (prev >= subCount - 1 ? 0 : prev + 1));
   } else {
-    if (subCount > 0) {
-      setSelectedSubIndex(prev => (prev >= subCount - 1 ? 0 : prev + 1));
-    } else {
-      setSelectedIndex(prev => (prev >= suggestions.length - 1 ? 0 : prev + 1));
-      setSelectedSubIndex(0);
-    }
+    setSelectedIndex(prev => (prev >= suggestions.length - 1 ? 0 : prev + 1));
+    setSelectedSubIndex(0);
   }
 };
 
@@ -452,6 +449,23 @@ interface HandleDropdownKeysOptions {
   setIsDropdownOpen: (open: boolean) => void;
 }
 
+const handleEnterDropdownKey = (
+  activeItem: SuggestionItem | undefined,
+  selectedSubIndex: number,
+  setCommandInput: (val: string) => void,
+  setIsDropdownOpen: (open: boolean) => void
+) => {
+  if (activeItem) {
+    if (activeItem.subItems && activeItem.subItems.length > 0) {
+      const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
+      setCommandInput(`kubectl logs ${podName}`);
+    } else {
+      setCommandInput(activeItem.value);
+    }
+    setIsDropdownOpen(false);
+  }
+};
+
 const handleDropdownKeys = (opts: HandleDropdownKeysOptions): boolean => {
   const {
     e,
@@ -464,7 +478,7 @@ const handleDropdownKeys = (opts: HandleDropdownKeysOptions): boolean => {
     setIsDropdownOpen,
   } = opts;
 
-  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const activeIndex = Math.max(0, selectedIndex);
   const activeItem = suggestions[activeIndex];
   const subCount = activeItem?.subItems?.length || 0;
 
@@ -494,15 +508,7 @@ const handleDropdownKeys = (opts: HandleDropdownKeysOptions): boolean => {
   }
   if (e.key === 'Enter' && selectedIndex >= 0) {
     e.preventDefault();
-    if (activeItem) {
-      if (activeItem.subItems && activeItem.subItems.length > 0) {
-        const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
-        setCommandInput(`kubectl logs ${podName}`);
-      } else {
-        setCommandInput(activeItem.value);
-      }
-      setIsDropdownOpen(false);
-    }
+    handleEnterDropdownKey(activeItem, selectedSubIndex, setCommandInput, setIsDropdownOpen);
     return true;
   }
   if (e.key === 'Escape') {
@@ -1380,16 +1386,27 @@ const useTerminalScroll = (
   };
 };
 
-const useTerminalLogs = (
-  terminalActiveTab: 'activity' | 'logs',
-  terminalSelectedResourceId: string | null,
-  setTerminalSelectedResourceId: (id: string | null) => void,
-  nodes: Node[],
-  activityLogs: string[],
-  terminalLogs: Record<string, string[]>,
-  searchQuery: string,
-  pageSize: number
-) => {
+export interface UseTerminalLogsOptions {
+  terminalActiveTab: 'activity' | 'logs';
+  terminalSelectedResourceId: string | null;
+  setTerminalSelectedResourceId: (id: string | null) => void;
+  nodes: Node[];
+  activityLogs: string[];
+  terminalLogs: Record<string, string[]>;
+  searchQuery: string;
+  pageSize: number;
+}
+
+const useTerminalLogs = ({
+  terminalActiveTab,
+  terminalSelectedResourceId,
+  setTerminalSelectedResourceId,
+  nodes,
+  activityLogs,
+  terminalLogs,
+  searchQuery,
+  pageSize,
+}: UseTerminalLogsOptions) => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filter workloads that can produce logs
@@ -1493,7 +1510,7 @@ export const TerminalPanel = () => {
     filteredLogs,
     totalPages,
     paginatedLogs,
-  } = useTerminalLogs(
+  } = useTerminalLogs({
     terminalActiveTab,
     terminalSelectedResourceId,
     setTerminalSelectedResourceId,
@@ -1501,8 +1518,8 @@ export const TerminalPanel = () => {
     activityLogs,
     terminalLogs,
     searchQuery,
-    PAGE_SIZE
-  );
+    pageSize: PAGE_SIZE,
+  });
 
   const {
     contentAreaRef,
