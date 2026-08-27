@@ -19,7 +19,7 @@ import { cn } from '../../lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
 
-type TabType = 'canvas' | 'settings' | 'history';
+type TabType = 'canvas' | 'settings';
 
 interface CanvasWidgetsPanelProps {
   nodes: any[];
@@ -297,19 +297,6 @@ export const SidebarTabBar = ({
         Settings
       </button>
 
-      <button
-        type="button"
-        onClick={() => setActiveTab('history')}
-        className={cn(
-          "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-          activeTab === 'history'
-            ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
-            : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
-        )}
-      >
-        <Clock size={14} />
-        History
-      </button>
     </div>
   );
 };
@@ -333,12 +320,14 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
   const canvasDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Switch to settings tab when a new element is selected (only if not viewing full history)
+  const isHistoryViewOpen = useFlowStore((state) => state.isHistoryViewOpen);
+
+  // Switch to settings tab when a new element is selected (only if not in history view)
   useEffect(() => {
-    if (isElementSelected && activeTab !== 'history') {
+    if (isElementSelected && !isHistoryViewOpen) {
       setActiveTab('settings');
     }
-  }, [isElementSelected, configuringNodeId, configuringEdgeId, activeTab]);
+  }, [isElementSelected, configuringNodeId, configuringEdgeId, isHistoryViewOpen]);
 
   // Handle click outside for canvas dropdown
   useEffect(() => {
@@ -365,40 +354,45 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
-      <SidebarTabBar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isCanvasDropdownOpen={isCanvasDropdownOpen}
-        setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
-        canvasDropdownRef={canvasDropdownRef}
-        canvasWidgets={canvasWidgets}
-        visibleWidgets={visibleWidgets}
-        toggleWidget={toggleWidget}
-        onExportYaml={onExportYaml}
-        colorMode={colorMode}
-      />
+      {!isHistoryViewOpen && (
+        <SidebarTabBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCanvasDropdownOpen={isCanvasDropdownOpen}
+          setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
+          canvasDropdownRef={canvasDropdownRef}
+          canvasWidgets={canvasWidgets}
+          visibleWidgets={visibleWidgets}
+          toggleWidget={toggleWidget}
+          onExportYaml={onExportYaml}
+          colorMode={colorMode}
+        />
+      )}
 
       {/* Content Area */}
       <div className="right-sidebar-content-area custom-scrollbar">
-        {activeTab === 'canvas' && (
-          <CanvasWidgetsPanel
-            nodes={nodes}
-            colorMode={colorMode}
-            visibleWidgets={visibleWidgets}
-          />
-        )}
-        {activeTab === 'settings' && (
-          <SettingsPanel
-            selectedNode={selectedNode}
-            selectedEdge={selectedEdge}
-            isElementSelected={isElementSelected}
-            colorMode={colorMode}
-          />
-        )}
-        {activeTab === 'history' && (
-          <div className="p-2">
+        {isHistoryViewOpen ? (
+          <div className="p-2 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />
           </div>
+        ) : (
+          <>
+            {activeTab === 'canvas' && (
+              <CanvasWidgetsPanel
+                nodes={nodes}
+                colorMode={colorMode}
+                visibleWidgets={visibleWidgets}
+              />
+            )}
+            {activeTab === 'settings' && (
+              <SettingsPanel
+                selectedNode={selectedNode}
+                selectedEdge={selectedEdge}
+                isElementSelected={isElementSelected}
+                colorMode={colorMode}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

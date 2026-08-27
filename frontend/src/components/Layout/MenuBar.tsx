@@ -44,6 +44,8 @@ export const MenuBar = ({
   const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
   const isSidebarVisible = useFlowStore((state: FlowState) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state: FlowState) => state.isRightSidebarVisible);
+  const isHistoryViewOpen = useFlowStore((state: FlowState) => state.isHistoryViewOpen);
+  const setHistoryViewOpen = useFlowStore((state: FlowState) => state.setHistoryViewOpen);
   const isAutofocusEnabled = useFlowStore((state: FlowState) => state.isAutofocusEnabled);
   const setSidebarVisible = useFlowStore((state: FlowState) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state: FlowState) => state.setRightSidebarVisible);
@@ -127,8 +129,14 @@ export const MenuBar = ({
           },
           {
             label: 'Utilities',
-            checked: isRightSidebarVisible,
-            onClick: () => setRightSidebarVisible(!isRightSidebarVisible)
+            checked: isRightSidebarVisible && !isHistoryViewOpen,
+            onClick: () => {
+              if (isHistoryViewOpen) {
+                setHistoryViewOpen(false);
+              } else {
+                setRightSidebarVisible(!isRightSidebarVisible);
+              }
+            }
           },
           {
             label: 'Autofocus',
@@ -142,14 +150,9 @@ export const MenuBar = ({
           },
           {
             label: 'History',
+            checked: isHistoryViewOpen,
             icon: Sliders,
-            onClick: () => {
-              if (!isRightSidebarVisible) setRightSidebarVisible(true);
-              setTimeout(() => {
-                const historyBtn = document.querySelector('#right-sidebar button:has(svg.lucide-clock)') as HTMLButtonElement | null;
-                historyBtn?.click();
-              }, 50);
-            }
+            onClick: () => setHistoryViewOpen(!isHistoryViewOpen)
           }
         ]
       },
