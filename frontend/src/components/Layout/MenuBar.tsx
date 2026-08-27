@@ -150,7 +150,6 @@ export const MenuBar = ({
           },
           {
             label: 'History',
-            checked: isHistoryViewOpen,
             icon: Sliders,
             onClick: () => setHistoryViewOpen(!isHistoryViewOpen)
           }

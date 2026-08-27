@@ -321,13 +321,17 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const canvasDropdownRef = useRef<HTMLDivElement>(null);
 
   const isHistoryViewOpen = useFlowStore((state) => state.isHistoryViewOpen);
+  const setHistoryViewOpen = useFlowStore((state) => state.setHistoryViewOpen);
 
-  // Switch to settings tab when a new element is selected (only if not in history view)
+  // Switch to settings tab when a new element is selected (exit history view if open)
   useEffect(() => {
-    if (isElementSelected && !isHistoryViewOpen) {
+    if (isElementSelected) {
+      if (isHistoryViewOpen) {
+        setHistoryViewOpen(false);
+      }
       setActiveTab('settings');
     }
-  }, [isElementSelected, configuringNodeId, configuringEdgeId, isHistoryViewOpen]);
+  }, [isElementSelected, configuringNodeId, configuringEdgeId]);
 
   // Handle click outside for canvas dropdown
   useEffect(() => {

@@ -131,7 +131,7 @@ describe('RightSidebar', () => {
     expect(screen.getByText('Activity Timeline')).toBeDefined();
   });
 
-  it('remains in history mode even when a node is selected', () => {
+  it('switches to settings panel when a node is selected while history view is open', () => {
     act(() => {
       useFlowStore.setState({ isHistoryViewOpen: true });
     });
@@ -142,8 +142,8 @@ describe('RightSidebar', () => {
       useFlowStore.setState({ configuringNodeId: 'node-1' });
     });
 
-    // Should stay in History view and not switch to NodeConfig
-    expect(screen.getByText('Activity Timeline')).toBeDefined();
-    expect(screen.queryByTestId('node-config')).toBeNull();
+    // Selecting a node should exit history view and show node config settings
+    expect(screen.getByTestId('node-config')).toBeDefined();
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
   });
 });
