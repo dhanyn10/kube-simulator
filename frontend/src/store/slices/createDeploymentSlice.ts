@@ -31,8 +31,12 @@ export const createDeploymentSlice: StateCreator<FlowState, [], [], DeploymentSl
     const state = get();
     const isSameNode = state.configuringNodeId === id;
     const isVisible = state.isRightSidebarVisible;
+    const isHistory = state.isHistoryViewOpen;
 
-    if (isSameNode && isVisible) {
+    if (isHistory) {
+      state.setHistoryViewOpen(false);
+      set({ configuringNodeId: id, configuringEdgeId: null });
+    } else if (isSameNode && isVisible) {
       state.setRightSidebarVisible(false);
       set({ configuringNodeId: null, configuringEdgeId: null });
     } else {
@@ -44,8 +48,12 @@ export const createDeploymentSlice: StateCreator<FlowState, [], [], DeploymentSl
     const state = get();
     const isSameEdge = state.configuringEdgeId === id;
     const isVisible = state.isRightSidebarVisible;
+    const isHistory = state.isHistoryViewOpen;
 
-    if (isSameEdge && isVisible) {
+    if (isHistory) {
+      state.setHistoryViewOpen(false);
+      set({ configuringEdgeId: id, configuringNodeId: null });
+    } else if (isSameEdge && isVisible) {
       state.setRightSidebarVisible(false);
       set({ configuringEdgeId: null, configuringNodeId: null });
     } else {
