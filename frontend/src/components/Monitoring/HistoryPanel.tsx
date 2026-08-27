@@ -34,7 +34,7 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
               key={`${log.timestamp}-${log.index}`}
               onClick={() => handleJumpToHistory(log.index)}
               className={cn(
-                'w-full text-left px-4 py-2.5 text-[10px] flex flex-col gap-1 transition-all border-l-2 border-transparent hover:border-violet-500',
+                'w-full text-left py-2.5 text-[10px] flex flex-col gap-1 transition-all border-l-2 border-transparent hover:border-violet-500',
                 colorMode === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-violet-50/50'
               )}
             >

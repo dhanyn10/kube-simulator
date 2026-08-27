@@ -372,7 +372,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       {/* Content Area */}
       <div className="right-sidebar-content-area custom-scrollbar">
         {isHistoryViewOpen ? (
-          <div className="p-2 h-full flex flex-col">
+          <div className="p-0 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />
           </div>
         ) : (
