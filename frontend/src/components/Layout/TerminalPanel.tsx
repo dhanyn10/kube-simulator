@@ -1010,7 +1010,7 @@ export const TerminalMinimizedTrigger = ({
 }: TerminalMinimizedTriggerProps) => {
   const isDark = colorMode === 'dark';
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[400]">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[50]">
       <button
         type="button"
         onClick={() => setTerminalOpen(true)}
