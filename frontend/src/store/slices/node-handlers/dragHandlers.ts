@@ -183,10 +183,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       const y2 = y1 + h;
       const label = finalNode.data?.label || finalNode.id;
       const logMsg = `[Canvas Action] Moved card '${label}' (${finalNode.type}) to coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`;
-      get().addActivityLog?.(logMsg);
-      if (globalThis.go?.main?.App?.WriteLog) {
-        globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
-      }
+      get().addLog('info', logMsg, 'UI');
 
       return {
         draggedNodeId: null,

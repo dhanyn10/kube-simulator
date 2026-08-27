@@ -20,7 +20,7 @@ describe('nodeActions', () => {
     expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].type).toBe('Pod');
     expect(state.lastActionName).toBe('Add Pod');
-    expect(state.activityLogs.some(l => l.includes('[Canvas Action]') && l.includes('x1:100'))).toBe(true);
+    expect(state.logs.some(l => l.message.includes('[Canvas Action]') && l.message.includes('x1:100'))).toBe(true);
   });
 
   it('deleteNodes removes nodes, connected edges, and logs activity', () => {
@@ -28,7 +28,7 @@ describe('nodeActions', () => {
     const node2 = { id: 'n2', type: 'Pod', position: { x: 50, y: 50 }, data: {} };
     const edge = { id: 'e1', source: 'n1', target: 'n2' };
 
-    useFlowStore.setState({ nodes: [node1, node2] as any, edges: [edge] as any, activityLogs: [] });
+    useFlowStore.setState({ nodes: [node1, node2] as any, edges: [edge] as any, logs: [] });
 
     const { deleteNodes } = useFlowStore.getState();
     deleteNodes([node1] as any);
@@ -37,7 +37,7 @@ describe('nodeActions', () => {
     expect(state.nodes).toHaveLength(1);
     expect(state.nodes[0].id).toBe('n2');
     expect(state.edges).toHaveLength(0);
-    expect(state.activityLogs.some(l => l.includes('Deleted card') && l.includes('from coordinates'))).toBe(true);
+    expect(state.logs.some(l => l.message.includes('Deleted card') && l.message.includes('from coordinates'))).toBe(true);
   });
 
   it('updateNodeData updates data and handles special workload logic', () => {
