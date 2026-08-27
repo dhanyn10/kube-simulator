@@ -15,11 +15,8 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
   }, [fetchHistoryLogs]);
 
   return (
-    <div className={cn(
-      'w-full flex flex-col rounded-xl overflow-hidden border shadow-sm',
-      colorMode === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-    )}>
-      <div className={cn('p-3 border-b flex items-center justify-between', colorMode === 'dark' ? 'bg-slate-950/50' : 'bg-slate-50')}>
+    <div className="w-full flex flex-col h-full">
+      <div className="pb-3 mb-2 border-b border-slate-800/50 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
           <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Activity Timeline</h3>
@@ -27,7 +24,7 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
         <span className="text-[9px] font-mono opacity-40">{historyLogs.length} events</span>
       </div>
 
-      <div className="max-h-[500px] overflow-y-auto py-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto py-1 custom-scrollbar">
         {historyLogs.length === 0 ? (
           <div className="p-8 text-center text-[10px] opacity-50 italic">No activity recorded</div>
         ) : (

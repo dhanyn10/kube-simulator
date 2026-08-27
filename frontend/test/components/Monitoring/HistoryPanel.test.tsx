@@ -40,13 +40,8 @@ describe('HistoryPanel', () => {
     expect(mockHandleJumpToHistory).toHaveBeenCalledWith(1);
   });
 
-  it('applies dark mode classes', () => {
+  it('renders history panel container element', () => {
     const { container } = render(<HistoryPanel colorMode="dark" />);
-    expect(container.firstChild).toHaveClass('bg-slate-900');
-  });
-
-  it('applies light mode classes', () => {
-    const { container } = render(<HistoryPanel colorMode="light" />);
-    expect(container.firstChild).toHaveClass('bg-white');
+    expect(container.firstChild).toHaveClass('w-full flex flex-col h-full');
   });
 });
