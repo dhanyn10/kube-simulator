@@ -115,4 +115,35 @@ describe('RightSidebar', () => {
 
     expect(screen.getByText('Enable widgets from the dropdown menu to see hardware and status info.')).toBeDefined();
   });
+
+  it('renders full history mode in right sidebar when isHistoryViewOpen is true', () => {
+    act(() => {
+      useFlowStore.setState({ isHistoryViewOpen: true });
+    });
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    // Tab bar should be hidden in full History view mode
+    expect(screen.queryByText('Canvas')).toBeNull();
+    expect(screen.queryByText('Settings')).toBeNull();
+
+    // History Timeline should be rendered
+    expect(screen.getByText('Activity Timeline')).toBeDefined();
+  });
+
+  it('remains in history mode even when a node is selected', () => {
+    act(() => {
+      useFlowStore.setState({ isHistoryViewOpen: true });
+    });
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    act(() => {
+      useFlowStore.setState({ configuringNodeId: 'node-1' });
+    });
+
+    // Should stay in History view and not switch to NodeConfig
+    expect(screen.getByText('Activity Timeline')).toBeDefined();
+    expect(screen.queryByTestId('node-config')).toBeNull();
+  });
 });
