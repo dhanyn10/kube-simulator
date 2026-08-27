@@ -139,6 +139,17 @@ export const MenuBar = ({
             label: 'Logs',
             icon: Bell,
             onClick: () => setLogModalOpen(true)
+          },
+          {
+            label: 'History',
+            icon: Sliders,
+            onClick: () => {
+              if (!isRightSidebarVisible) setRightSidebarVisible(true);
+              setTimeout(() => {
+                const historyBtn = document.querySelector('#right-sidebar button:has(svg.lucide-clock)') as HTMLButtonElement | null;
+                historyBtn?.click();
+              }, 50);
+            }
           }
         ]
       },

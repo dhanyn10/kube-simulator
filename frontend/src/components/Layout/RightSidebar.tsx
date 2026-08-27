@@ -10,14 +10,16 @@ import {
   Monitor,
   Check,
   ChevronDown,
-  MousePointer2
+  MousePointer2,
+  Clock
 } from 'lucide-react';
+import { HistoryPanel } from '../Monitoring/HistoryPanel';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
 
-type TabType = 'canvas' | 'settings';
+type TabType = 'canvas' | 'settings' | 'history';
 
 interface CanvasWidgetsPanelProps {
   nodes: any[];
@@ -294,6 +296,20 @@ export const SidebarTabBar = ({
         <Layout size={14} />
         Settings
       </button>
+
+      <button
+        type="button"
+        onClick={() => setActiveTab('history')}
+        className={cn(
+          "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
+          activeTab === 'history'
+            ? (colorMode === 'dark' ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900")
+            : (colorMode === 'dark' ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+        )}
+      >
+        <Clock size={14} />
+        History
+      </button>
     </div>
   );
 };
@@ -364,19 +380,25 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
 
       {/* Content Area */}
       <div className="right-sidebar-content-area custom-scrollbar">
-        {activeTab === 'canvas' ? (
+        {activeTab === 'canvas' && (
           <CanvasWidgetsPanel
             nodes={nodes}
             colorMode={colorMode}
             visibleWidgets={visibleWidgets}
           />
-        ) : (
+        )}
+        {activeTab === 'settings' && (
           <SettingsPanel
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}
             isElementSelected={isElementSelected}
             colorMode={colorMode}
           />
+        )}
+        {activeTab === 'history' && (
+          <div className="p-2">
+            <HistoryPanel colorMode={colorMode} />
+          </div>
         )}
       </div>
     </div>
