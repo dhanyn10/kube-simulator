@@ -54,11 +54,11 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
         >
           <SelectorGroup
             options={[
-              { label: 'Second', value: 'second' },
-              { label: 'Minute', value: 'minute' },
-              { label: 'Hour', value: 'hour' }
+              { label: 'ms', value: 'millisecond' },
+              { label: 'sec', value: 'second' },
+              { label: 'min', value: 'minute' }
             ]}
-            currentValue={data.durationUnit || 'minute'}
+            currentValue={data.durationUnit || 'second'}
             onSelect={(val) => performUpdate({ durationUnit: val })}
             colorMode={colorMode}
             className="grid grid-cols-3"

@@ -66,8 +66,8 @@ describe('InternetConfig', () => {
     );
 
     fireEvent.click(screen.getByText('Advanced Options'));
-    const hourBtn = screen.getByText('Hour');
-    fireEvent.click(hourBtn);
-    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'hour' });
+    const msBtn = screen.getByText('ms');
+    fireEvent.click(msBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'millisecond' });
   });
 });

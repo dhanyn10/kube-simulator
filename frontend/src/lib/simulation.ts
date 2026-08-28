@@ -134,7 +134,11 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
     const reachableNodes = ctx.internetReachableMap.get(node.id);
     if (!reachableNodes) continue;
 
-    const internetTraffic = (node.data as K8sNodeData).currentTraffic || 0;
+    const nData = node.data as K8sNodeData;
+    const internetTraffic = nData.currentTraffic || 0;
+    const unit = nData.durationUnit || 'second';
+    const multiplier = unit === 'millisecond' ? 1000 : unit === 'minute' ? 1 / 60 : 1;
+    const effectiveTraffic = internetTraffic * multiplier;
 
     let canReach = reachableNodes.has(dep.id);
     if (!canReach) {
@@ -148,7 +152,7 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
     }
 
     if (canReach) {
-      totalTraffic += internetTraffic;
+      totalTraffic += effectiveTraffic;
     }
   }
 

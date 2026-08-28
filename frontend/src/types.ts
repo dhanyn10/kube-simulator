@@ -41,7 +41,7 @@ export interface K8sNodeData {
 
   // Internet specific fields
   traffic?: number;
-  durationUnit?: 'second' | 'minute' | 'hour';
+  durationUnit?: 'millisecond' | 'second' | 'minute';
   parentReplicas?: number;
   displaySettings?: Record<string, boolean>;
   yamlSettings?: Record<string, boolean>;
