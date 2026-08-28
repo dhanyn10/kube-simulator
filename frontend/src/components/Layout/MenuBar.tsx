@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import './MenuBar.css';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders, Terminal } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -52,6 +52,8 @@ export const MenuBar = ({
   const toggleAutofocus = useFlowStore((state: FlowState) => state.toggleAutofocus);
   const logs = useFlowStore((state: FlowState) => state.logs);
   const setLogModalOpen = useFlowStore((state: FlowState) => state.setLogModalOpen);
+  const isTerminalOpen = useFlowStore((state: FlowState) => state.isTerminalOpen);
+  const setTerminalOpen = useFlowStore((state: FlowState) => state.setTerminalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -152,6 +154,12 @@ export const MenuBar = ({
             label: 'History',
             icon: Sliders,
             onClick: () => setHistoryViewOpen(!isHistoryViewOpen)
+          },
+          {
+            label: 'Terminal',
+            checked: isTerminalOpen,
+            icon: Terminal,
+            onClick: () => setTerminalOpen(!isTerminalOpen)
           }
         ]
       },
