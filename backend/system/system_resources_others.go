@@ -9,9 +9,11 @@ import (
 func GetSystemResources() map[string]interface{} {
 	cores := runtime.NumCPU()
 	
-	// Mock or simple fallback for non-windows platforms in this specific project context
+	// Fallback for non-windows platforms in sandbox/web context
 	return map[string]interface{}{
 		"cpuCores":      cores,
-		"totalMemoryGB": 16, 
+		"cpuUsage":      10,
+		"totalMemoryGB": 16,
+		"freeMemoryGB":  8.0,
 	}
 }
