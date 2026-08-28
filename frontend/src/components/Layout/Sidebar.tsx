@@ -3,6 +3,7 @@ import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight,
 import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
+import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -110,7 +111,10 @@ const SidebarSection = ({
 
 export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+  const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
+  const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     workloads: true,
@@ -158,11 +162,25 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   return (
     <div
       id="sidebar-components"
+      onContextMenu={handleContextMenu}
       className={cn(
-        "sidebar-container w-64 border-r",
+        "sidebar-container w-64 border-r relative",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
+      {contextMenu && (
+        <SidebarContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          colorMode={colorMode}
+          toggleColorMode={toggleColorMode}
+          onCloseSidebar={() => setSidebarVisible(false)}
+          onCloseContextMenu={closeContextMenu}
+          testId="left-sidebar-context-menu"
+          changeThemeTestId="left-sidebar-change-theme"
+          closeTestId="left-sidebar-close"
+        />
+      )}
       <div className={cn("sidebar-header-area", colorMode === 'dark' ? "border-slate-800" : "border-slate-200")}>
         <div className="flex items-center justify-between">
           <p className={cn("text-[10px] font-bold uppercase tracking-widest", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")}>

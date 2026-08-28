@@ -20,6 +20,8 @@ import {
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
+  isHistoryViewOpen: boolean;
+  setHistoryViewOpen: (open: boolean) => void;
   draggingSidebarItem: K8sResourceType | null;
   isAutosaveEnabled: boolean;
   isAutofocusEnabled: boolean;
@@ -628,6 +630,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   canvasBgVariant: 'dots',
   canvasBgColor: 'default',
   canvasBgOpacity: 0.6,
+  isHistoryViewOpen: false,
+  setHistoryViewOpen: (open) => set({ isHistoryViewOpen: open, isRightSidebarVisible: open }),
 
   // Terminal initial states & actions
   isTerminalOpen: false,

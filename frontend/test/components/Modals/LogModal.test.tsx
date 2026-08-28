@@ -33,7 +33,7 @@ describe('LogModal', () => {
 
     it('renders logs correctly', () => {
         render(<LogModal />);
-        expect(screen.getByText('Console Logs')).toBeDefined();
+        expect(screen.getByText('Logs')).toBeDefined();
         expect(screen.getByText(matchPre('Info log 1'))).toBeDefined();
         expect(screen.getByText(matchPre('Warn log 1'))).toBeDefined();
         expect(screen.getByText(matchPre('Error log 1'))).toBeDefined();

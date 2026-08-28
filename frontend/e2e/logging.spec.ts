@@ -35,7 +35,7 @@ test.describe('Error Reporting Feature', () => {
     });
 
     await page.getByTestId('bell-notification-btn').click();
-    await expect(page.getByText('Console Logs')).toBeVisible();
+    await expect(page.getByText('Logs', { exact: true })).toBeVisible();
     await expect(page.getByText('Modal Test Error')).toBeVisible();
   });
 
@@ -49,7 +49,7 @@ test.describe('Error Reporting Feature', () => {
     const clearAll = page.getByTestId('log-clear-all');
     await clearAll.click();
 
-    await expect(page.getByText('Console Logs')).not.toBeVisible();
+    await expect(page.getByText('Logs', { exact: true })).not.toBeVisible();
     await expect(page.getByTestId('bell-error-badge')).not.toBeVisible();
   });
 

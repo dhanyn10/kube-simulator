@@ -119,7 +119,7 @@ export const LogModal: React.FC = () => {
     <Modal
       isOpen={isOpen}
       onClose={() => setOpen(false)}
-      title="Console Logs"
+      title="Logs"
       subtitle="History of application events"
       icon={Bell}
       iconColorClass="text-slate-500"

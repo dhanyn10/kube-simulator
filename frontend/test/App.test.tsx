@@ -196,7 +196,7 @@ describe('App Component', () => {
     // Test opening Logs
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByText('Logs'));
-    expect(await screen.findByText('Console Logs')).toBeDefined();
+    expect(await screen.findByText('Logs')).toBeDefined();
     fireEvent.click(screen.getByLabelText('Close'));
 
     // Test opening Scenarios

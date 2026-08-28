@@ -133,10 +133,7 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const x2 = x1 + w;
   const y2 = y1 + h;
   const logMsg = `[Canvas Action] Placed card '${type}' (${id}) at coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px [Top-Left: (${x1}, ${y1}), Bottom-Right: (${x2}, ${y2})]`;
-  get().addActivityLog?.(logMsg);
-  if (globalThis.go?.main?.App?.WriteLog) {
-    globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
-  }
+  get().addLog('info', logMsg, 'UI');
 
   set({ nodes: collisionResolvedNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
 };
@@ -155,10 +152,7 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
     const y2 = y1 + h;
     const label = n.data?.label || n.id;
     const logMsg = `[Canvas Action] Deleted card '${label}' (${n.type}) from coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px`;
-    get().addActivityLog?.(logMsg);
-    if (globalThis.go?.main?.App?.WriteLog) {
-      globalThis.go.main.App.WriteLog('canvas', 'info', logMsg).catch(() => {});
-    }
+    get().addLog('info', logMsg, 'UI');
   });
 
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));

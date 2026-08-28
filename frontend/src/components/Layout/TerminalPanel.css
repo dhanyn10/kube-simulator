@@ -3,11 +3,11 @@
 /* Terminal Panel Component Styles */
 
 .terminal-trigger-btn {
-  @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[400] flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95;
+  @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95;
 }
 
 .terminal-panel-container {
-  @apply fixed bottom-0 left-0 right-0 h-64 border-t z-[900] flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
+  @apply fixed bottom-0 left-0 right-0 h-64 border-t z-[50] flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
 }
 
 .terminal-toolbar {

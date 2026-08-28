@@ -77,4 +77,27 @@ describe('Sidebar', () => {
     expect(mockDataTransfer.setData).toHaveBeenCalledWith('application/reactflow', 'Pod');
     expect(setDraggingSidebarItem).toHaveBeenCalledWith('Pod');
   });
+
+  it('shows custom context menu on right click with change theme and close options', () => {
+    const toggleColorModeSpy = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
+    const setSidebarVisibleSpy = vi.spyOn(useFlowStore.getState(), 'setSidebarVisible');
+
+    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+
+    const sidebarContainer = document.getElementById('sidebar-components')!;
+    fireEvent.contextMenu(sidebarContainer);
+
+    expect(screen.getByTestId('left-sidebar-context-menu')).toBeDefined();
+    expect(screen.getByTestId('left-sidebar-change-theme')).toBeDefined();
+    expect(screen.getByTestId('left-sidebar-close')).toBeDefined();
+
+    // Click change theme
+    fireEvent.click(screen.getByTestId('left-sidebar-change-theme'));
+    expect(toggleColorModeSpy).toHaveBeenCalled();
+
+    // Right click again and click close
+    fireEvent.contextMenu(sidebarContainer);
+    fireEvent.click(screen.getByTestId('left-sidebar-close'));
+    expect(setSidebarVisibleSpy).toHaveBeenCalledWith(false);
+  });
 });

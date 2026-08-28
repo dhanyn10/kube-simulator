@@ -397,7 +397,6 @@ export default function App() {
             >
               <Minimize size={16} />
             </button>
-            <HistoryPanel colorMode={colorMode} />
           </Panel>
 
           {/* Right Info Panel */}

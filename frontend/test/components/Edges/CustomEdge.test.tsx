@@ -81,4 +81,61 @@ describe('CustomEdge', () => {
     const edge = screen.getByTestId('base-edge');
     expect(edge.className).toContain('traffic-line');
   });
+
+  it('opens Kube Console and switches to logs when alert badge is clicked on target error', () => {
+    useFlowStore.setState({
+      activeSimulationEdges: ['e1'],
+      isTerminalOpen: false,
+      terminalActiveTab: 'activity',
+      terminalSelectedResourceId: null,
+      nodes: [
+        { id: 'n1', type: 'Service', data: { label: 'web-service' } },
+        { id: 'n2', type: 'Pod', data: { label: 'web-pod', status: 'pending' } },
+      ],
+      edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+    });
+
+    render(<CustomEdge {...defaultProps} source="n1" target="n2" />);
+
+    const badge = screen.getByTestId('edge-alert-badge');
+    expect(badge).toBeDefined();
+
+    fireEvent.click(badge);
+
+    const state = useFlowStore.getState();
+    expect(state.isTerminalOpen).toBe(true);
+    expect(state.terminalActiveTab).toBe('logs');
+    expect(state.terminalSelectedResourceId).toBe('n2');
+  });
+
+  it('opens Kube Console and switches to activity when alert badge is clicked on validation error without loggable target', () => {
+    useFlowStore.setState({
+      activeSimulationEdges: [],
+      isTerminalOpen: false,
+      terminalActiveTab: 'logs',
+      terminalSelectedResourceId: null,
+      nodes: [
+        { id: 'n1', type: 'Service', data: { label: 'svc-1' } },
+        { id: 'n2', type: 'Service', data: { label: 'svc-2' } },
+      ],
+      edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+    });
+
+    const props = {
+      ...defaultProps,
+      source: 'n1',
+      target: 'n2',
+      data: { validationError: 'Service cannot connect directly to Service' },
+    };
+
+    render(<CustomEdge {...props} />);
+
+    const badge = screen.getByTestId('edge-alert-badge');
+    fireEvent.click(badge);
+
+    const state = useFlowStore.getState();
+    expect(state.isTerminalOpen).toBe(true);
+    expect(state.terminalActiveTab).toBe('activity');
+    expect(state.activityLogs.some(line => line.includes('Service cannot connect directly to Service'))).toBe(true);
+  });
 });

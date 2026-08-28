@@ -115,4 +115,58 @@ describe('RightSidebar', () => {
 
     expect(screen.getByText('Enable widgets from the dropdown menu to see hardware and status info.')).toBeDefined();
   });
+
+  it('renders full history mode in right sidebar when isHistoryViewOpen is true', () => {
+    act(() => {
+      useFlowStore.setState({ isHistoryViewOpen: true });
+    });
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    // Tab bar should be hidden in full History view mode
+    expect(screen.queryByText('Canvas')).toBeNull();
+    expect(screen.queryByText('Settings')).toBeNull();
+
+    // History Timeline should be rendered
+    expect(screen.getByText('Activity Timeline')).toBeDefined();
+  });
+
+  it('switches to settings panel when a node is selected while history view is open', () => {
+    act(() => {
+      useFlowStore.setState({ isHistoryViewOpen: true });
+    });
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    act(() => {
+      useFlowStore.setState({ configuringNodeId: 'node-1' });
+    });
+
+    // Selecting a node should exit history view and show node config settings
+    expect(screen.getByTestId('node-config')).toBeDefined();
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
+  });
+
+  it('shows custom context menu on right click with change theme and close options', () => {
+    const toggleColorModeSpy = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
+    const setRightSidebarVisibleSpy = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    const sidebarContainer = document.getElementById('right-sidebar')!;
+    fireEvent.contextMenu(sidebarContainer);
+
+    expect(screen.getByTestId('right-sidebar-context-menu')).toBeDefined();
+    expect(screen.getByTestId('context-menu-change-theme')).toBeDefined();
+    expect(screen.getByTestId('context-menu-close-sidebar')).toBeDefined();
+
+    // Click change theme
+    fireEvent.click(screen.getByTestId('context-menu-change-theme'));
+    expect(toggleColorModeSpy).toHaveBeenCalled();
+
+    // Right click again and click close
+    fireEvent.contextMenu(sidebarContainer);
+    fireEvent.click(screen.getByTestId('context-menu-close-sidebar'));
+    expect(setRightSidebarVisibleSpy).toHaveBeenCalledWith(false);
+  });
 });

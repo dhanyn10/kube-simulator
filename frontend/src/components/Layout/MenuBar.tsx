@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import './MenuBar.css';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders, Terminal } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -44,12 +44,16 @@ export const MenuBar = ({
   const isMonitoringDetached = useFlowStore((state: FlowState) => state.isMonitoringDetached);
   const isSidebarVisible = useFlowStore((state: FlowState) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state: FlowState) => state.isRightSidebarVisible);
+  const isHistoryViewOpen = useFlowStore((state: FlowState) => state.isHistoryViewOpen);
+  const setHistoryViewOpen = useFlowStore((state: FlowState) => state.setHistoryViewOpen);
   const isAutofocusEnabled = useFlowStore((state: FlowState) => state.isAutofocusEnabled);
   const setSidebarVisible = useFlowStore((state: FlowState) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state: FlowState) => state.setRightSidebarVisible);
   const toggleAutofocus = useFlowStore((state: FlowState) => state.toggleAutofocus);
   const logs = useFlowStore((state: FlowState) => state.logs);
   const setLogModalOpen = useFlowStore((state: FlowState) => state.setLogModalOpen);
+  const isTerminalOpen = useFlowStore((state: FlowState) => state.isTerminalOpen);
+  const setTerminalOpen = useFlowStore((state: FlowState) => state.setTerminalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -127,8 +131,14 @@ export const MenuBar = ({
           },
           {
             label: 'Utilities',
-            checked: isRightSidebarVisible,
-            onClick: () => setRightSidebarVisible(!isRightSidebarVisible)
+            checked: isRightSidebarVisible && !isHistoryViewOpen,
+            onClick: () => {
+              if (isHistoryViewOpen) {
+                setHistoryViewOpen(false);
+              } else {
+                setRightSidebarVisible(!isRightSidebarVisible);
+              }
+            }
           },
           {
             label: 'Autofocus',
@@ -139,6 +149,16 @@ export const MenuBar = ({
             label: 'Logs',
             icon: Bell,
             onClick: () => setLogModalOpen(true)
+          },
+          {
+            label: 'History',
+            icon: Sliders,
+            onClick: () => setHistoryViewOpen(!isHistoryViewOpen)
+          },
+          {
+            label: 'Terminal',
+            icon: Terminal,
+            onClick: () => setTerminalOpen(!isTerminalOpen)
           }
         ]
       },

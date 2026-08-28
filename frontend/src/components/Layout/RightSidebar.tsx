@@ -12,10 +12,12 @@ import {
   ChevronDown,
   MousePointer2
 } from 'lucide-react';
+import { HistoryPanel } from '../Monitoring/HistoryPanel';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
+import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
 
 type TabType = 'canvas' | 'settings';
 
@@ -294,12 +296,15 @@ export const SidebarTabBar = ({
         <Layout size={14} />
         Settings
       </button>
+
     </div>
   );
 };
 
 export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+  const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
 
@@ -317,9 +322,17 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
   const canvasDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Switch to settings tab when a new element is selected
+  const isHistoryViewOpen = useFlowStore((state) => state.isHistoryViewOpen);
+  const setHistoryViewOpen = useFlowStore((state) => state.setHistoryViewOpen);
+
+  const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
+
+  // Switch to settings tab when a new element is selected (exit history view if open)
   useEffect(() => {
     if (isElementSelected) {
+      if (isHistoryViewOpen) {
+        setHistoryViewOpen(false);
+      }
       setActiveTab('settings');
     }
   }, [isElementSelected, configuringNodeId, configuringEdgeId]);
@@ -344,39 +357,69 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   return (
     <div
       id="right-sidebar"
+      onContextMenu={handleContextMenu}
       className={cn(
-        "right-sidebar-container w-72 border-l",
+        "right-sidebar-container w-72 border-l relative",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
-      <SidebarTabBar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isCanvasDropdownOpen={isCanvasDropdownOpen}
-        setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
-        canvasDropdownRef={canvasDropdownRef}
-        canvasWidgets={canvasWidgets}
-        visibleWidgets={visibleWidgets}
-        toggleWidget={toggleWidget}
-        onExportYaml={onExportYaml}
-        colorMode={colorMode}
-      />
+      {contextMenu && (
+        <SidebarContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          colorMode={colorMode}
+          toggleColorMode={toggleColorMode}
+          onCloseSidebar={() => {
+            if (isHistoryViewOpen) {
+              setHistoryViewOpen(false);
+            }
+            setRightSidebarVisible(false);
+          }}
+          onCloseContextMenu={closeContextMenu}
+          testId="right-sidebar-context-menu"
+          changeThemeTestId="context-menu-change-theme"
+          closeTestId="context-menu-close-sidebar"
+        />
+      )}
+      {!isHistoryViewOpen && (
+        <SidebarTabBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCanvasDropdownOpen={isCanvasDropdownOpen}
+          setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
+          canvasDropdownRef={canvasDropdownRef}
+          canvasWidgets={canvasWidgets}
+          visibleWidgets={visibleWidgets}
+          toggleWidget={toggleWidget}
+          onExportYaml={onExportYaml}
+          colorMode={colorMode}
+        />
+      )}
 
       {/* Content Area */}
       <div className="right-sidebar-content-area custom-scrollbar">
-        {activeTab === 'canvas' ? (
-          <CanvasWidgetsPanel
-            nodes={nodes}
-            colorMode={colorMode}
-            visibleWidgets={visibleWidgets}
-          />
+        {isHistoryViewOpen ? (
+          <div className="p-0 h-full flex flex-col">
+            <HistoryPanel colorMode={colorMode} />
+          </div>
         ) : (
-          <SettingsPanel
-            selectedNode={selectedNode}
-            selectedEdge={selectedEdge}
-            isElementSelected={isElementSelected}
-            colorMode={colorMode}
-          />
+          <>
+            {activeTab === 'canvas' && (
+              <CanvasWidgetsPanel
+                nodes={nodes}
+                colorMode={colorMode}
+                visibleWidgets={visibleWidgets}
+              />
+            )}
+            {activeTab === 'settings' && (
+              <SettingsPanel
+                selectedNode={selectedNode}
+                selectedEdge={selectedEdge}
+                isElementSelected={isElementSelected}
+                colorMode={colorMode}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

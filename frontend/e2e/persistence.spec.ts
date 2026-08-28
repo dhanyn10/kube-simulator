@@ -50,7 +50,8 @@ test.describe('Persistence & Projects', () => {
         state.addNode('Service');
     });
 
-    await page.locator("button[title='Activity Log (BadgerDB)']").click();
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    await page.getByRole('button', { name: 'History' }).click();
     await expect(page.getByText('Activity Timeline')).toBeVisible();
     await expect(page.getByText('Add Pod', { exact: false }).first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Add Service', { exact: false }).first()).toBeVisible({ timeout: 10000 });

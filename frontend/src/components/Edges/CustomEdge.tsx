@@ -47,8 +47,61 @@ const checkDownstreamErrorState = (
   return false;
 };
 
+export const findDownstreamUnreadyNode = (
+  targetId: string,
+  nodes: any[],
+  edges: any[],
+  activeSimulationEdges: string[]
+): any => {
+  const visited = new Set<string>();
+  const queue = [targetId];
+
+  while (queue.length > 0) {
+    const currentId = String(queue.shift()!);
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const node = nodes.find((n: any) => String(n.id) === currentId);
+    if (node && checkNodeUnready(node, nodes)) {
+      return node;
+    }
+
+    const outgoingEdges = edges.filter((e: any) =>
+      String(e.source) === currentId && activeSimulationEdges.some((eid) => String(eid) === String(e.id))
+    );
+
+    for (const edge of outgoingEdges) {
+      queue.push(String(edge.target));
+    }
+  }
+  return nodes.find((n: any) => String(n.id) === targetId) || null;
+};
+
+export const getTargetLoggableNode = (
+  targetId: string,
+  isTargetError: boolean,
+  nodes: any[],
+  edges: any[],
+  activeSimulationEdges: string[]
+): any => {
+  const targetNode = nodes.find((n: any) => String(n.id) === targetId);
+  const unreadyNode = isTargetError
+    ? findDownstreamUnreadyNode(targetId, nodes, edges, activeSimulationEdges)
+    : targetNode;
+
+  if (unreadyNode && ['Pod', 'Deployment', 'ReplicaSet'].includes(unreadyNode.type)) {
+    return unreadyNode;
+  }
+  if (targetNode && ['Pod', 'Deployment', 'ReplicaSet'].includes(targetNode.type)) {
+    return targetNode;
+  }
+  return null;
+};
+
 export default function CustomEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -59,7 +112,6 @@ export default function CustomEdge({
   markerEnd,
   selected,
   data,
-  target,
 }: EdgeProps) {
   const { setEdges } = useReactFlow();
   const toggleEdgeSettings = useFlowStore((state: any) => state.toggleEdgeSettings);
@@ -70,6 +122,10 @@ export default function CustomEdge({
   const edges = useFlowStore((state: any) => state.edges);
   const globalEdgeColor = useFlowStore((state: any) => state.globalEdgeColor);
   const globalEdgeErrorColor = useFlowStore((state: any) => state.globalEdgeErrorColor);
+  const setTerminalOpen = useFlowStore((state: any) => state.setTerminalOpen);
+  const setTerminalActiveTab = useFlowStore((state: any) => state.setTerminalActiveTab);
+  const setTerminalSelectedResourceId = useFlowStore((state: any) => state.setTerminalSelectedResourceId);
+  const addActivityLog = useFlowStore((state: any) => state.addActivityLog);
 
   const isConfiguring = String(configuringEdgeId) === String(id);
   const isSimulating = activeSimulationEdges.some((eid: any) => String(eid) === String(id));
@@ -111,6 +167,36 @@ export default function CustomEdge({
     toggleEdgeSettings(id);
   };
 
+  const hasAlert = Boolean(validationError || isTargetError);
+  const alertTooltip = validationError || 'Downstream target error / workload not ready';
+
+  const onAlertClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTerminalOpen(true);
+
+    const loggableNode = getTargetLoggableNode(target, isTargetError, nodes, edges, activeSimulationEdges);
+
+    if (loggableNode) {
+      setTerminalSelectedResourceId(loggableNode.id);
+      setTerminalActiveTab('logs');
+    } else {
+      setTerminalActiveTab('activity');
+    }
+
+    const targetNode = nodes.find((n: any) => String(n.id) === target);
+    const sourceNode = nodes.find((n: any) => String(n.id) === source);
+    const sLabel = sourceNode?.data?.label || source;
+    const tLabel = targetNode?.data?.label || target;
+
+    if (validationError) {
+      addActivityLog(`[Connection Alert] ${sLabel} -> ${tLabel}: ${validationError}`);
+    } else if (isTargetError) {
+      const unreadyNode = findDownstreamUnreadyNode(target, nodes, edges, activeSimulationEdges);
+      const uLabel = unreadyNode?.data?.label || unreadyNode?.id || target;
+      addActivityLog(`[Connection Alert] Downstream workload ${unreadyNode?.type?.toLowerCase() || 'resource'}/${uLabel} is not in ready state.`);
+    }
+  };
+
   return (
     <>
       <BaseEdge
@@ -135,13 +221,19 @@ export default function CustomEdge({
           }}
           className="flex flex-col items-center gap-2"
         >
-          {validationError && (
+          {hasAlert && (
             <div className="group relative flex items-center justify-center">
-              <div className="bg-red-500 text-white p-1 rounded-full shadow-lg animate-pulse cursor-help">
+              <button
+                type="button"
+                data-testid="edge-alert-badge"
+                onClick={onAlertClick}
+                title="View logs in Kube Console"
+                className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-full shadow-lg animate-pulse cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
                 <AlertCircle size={16} />
-              </div>
+              </button>
               <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-[1100]">
-                {validationError}
+                {alertTooltip}
               </div>
             </div>
           )}
