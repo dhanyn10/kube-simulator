@@ -16,7 +16,7 @@ import { EventsOn } from '../wailsjs/runtime';
 
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';
-import { HistoryPanel, MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
+import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal } from './components/Modals';
 import {
   PodNode,
@@ -71,7 +71,7 @@ function useAppInit(isDetachedMode: boolean, loadSettingsJson: () => void, setGl
     if (isDetachedMode) return;
     loadSettingsJson();
 
-    if (globalThis.go?.main?.App?.GetSetting) {
+    if (globalThis.go?.main?.App?.GetSetting !== undefined) {
       Promise.all([
         globalThis.go.main.App.GetSetting('globalEdgeColor'),
         globalThis.go.main.App.GetSetting('globalEdgeErrorColor')
@@ -86,7 +86,7 @@ function useAppInit(isDetachedMode: boolean, loadSettingsJson: () => void, setGl
     }
 
     const fetchResources = () => {
-      if (typeof globalThis.window !== 'undefined' && globalThis.window?.go?.main?.App?.GetSystemResources) {
+      if (globalThis.window?.go?.main?.App?.GetSystemResources !== undefined) {
         GetSystemResources().then((resources: any) => {
           if (resources) setSystemResources(resources);
         }).catch(err => {
@@ -135,7 +135,7 @@ export default function App() {
   }, [isDetachedMode]);
 
   // @ts-ignore
-  if (typeof globalThis !== 'undefined') globalThis.useFlowStore = useFlowStore;
+  if (globalThis !== undefined) globalThis.useFlowStore = useFlowStore;
 
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);

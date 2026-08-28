@@ -763,6 +763,16 @@ const getAccordionClass = (isSelected: boolean, isDark: boolean): string => {
   return isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200";
 };
 
+const getSubItemClass = (isSubSelected: boolean, isDark: boolean): string => {
+  if (isSubSelected) {
+    return "bg-blue-600 text-white border-blue-400 shadow-sm font-bold scale-105";
+  }
+  if (isDark) {
+    return "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white";
+  }
+  return "bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-600";
+};
+
 export const AutocompleteItem = ({
   item,
   index,
@@ -862,11 +872,7 @@ export const AutocompleteItem = ({
                 }}
                 className={cn(
                   "px-2 py-0.5 rounded font-mono text-[10px] transition-all inline-block border focus:outline-none",
-                  isSubSelected
-                    ? "bg-blue-600 text-white border-blue-400 shadow-sm font-bold scale-105"
-                    : isDark
-                      ? "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800 hover:text-white"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-blue-50 hover:text-blue-600"
+                  getSubItemClass(isSubSelected, isDark)
                 )}
               >
                 {subName}
