@@ -50,7 +50,7 @@ test.describe('Persistence & Projects', () => {
         state.addNode('Service');
     });
 
-    await page.getByRole('button', { name: 'View' }).click();
+    await page.getByRole('button', { name: 'View', exact: true }).click();
     await page.getByRole('button', { name: 'History' }).click();
     await expect(page.getByText('Activity Timeline')).toBeVisible();
     await expect(page.getByText('Add Pod', { exact: false }).first()).toBeVisible({ timeout: 10000 });
