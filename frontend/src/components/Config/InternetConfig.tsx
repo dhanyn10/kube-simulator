@@ -72,7 +72,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
               </div>
             </div>
 
-            <div className="relative pt-1 pb-4">
+            <div className="relative pt-1 pb-5">
               <input
                 type="range"
                 min="1"
@@ -83,8 +83,8 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
                 className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer custom-traffic-slider outline-none"
               />
 
-              {/* Interactive 4-part ruler scale perfectly aligned to track */}
-              <div className="relative w-full text-[8px] font-mono text-slate-500 h-6 mt-1">
+              {/* Interactive 4-part ruler scale with track padding offset matching 20px thumb center */}
+              <div className="relative w-full text-[8px] font-mono text-slate-500 h-6 mt-1 px-2.5">
                 {rulerTicks.map((tick, idx) => {
                   const pct = (idx / 4) * 100;
                   return (
@@ -94,7 +94,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
                       onClick={() => handleSliderChange(tick.val)}
                       data-testid={`ruler-tick-${tick.val}`}
                       title={`Set traffic to ${tick.val.toLocaleString()}`}
-                      style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
+                      style={{ left: `calc(10px + (100% - 20px) * ${idx / 4})`, transform: 'translateX(-50%)' }}
                       className="absolute top-0 flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
                     >
                       <div className="w-0.5 h-2 bg-slate-600 rounded-full group-hover:bg-blue-400" />
@@ -109,22 +109,23 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
               .custom-traffic-slider::-webkit-slider-thumb {
                 -webkit-appearance: none;
                 appearance: none;
-                width: 14px;
-                height: 18px;
+                width: 20px;
+                height: 28px;
                 background-color: #3b82f6;
-                clip-path: polygon(0% 0%, 100% 0%, 100% 65%, 60% 65%, 50% 100%, 40% 65%, 0% 65%);
+                clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);
                 cursor: pointer;
                 transition: background-color 0.15s ease;
+                margin-top: -10px;
               }
               .custom-traffic-slider::-webkit-slider-thumb:hover {
                 background-color: #60a5fa;
               }
               .custom-traffic-slider::-moz-range-thumb {
-                width: 14px;
-                height: 18px;
+                width: 20px;
+                height: 28px;
                 background-color: #3b82f6;
                 border: none;
-                clip-path: polygon(0% 0%, 100% 0%, 100% 65%, 60% 65%, 50% 100%, 40% 65%, 0% 65%);
+                clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);
                 cursor: pointer;
                 transition: background-color 0.15s ease;
               }
