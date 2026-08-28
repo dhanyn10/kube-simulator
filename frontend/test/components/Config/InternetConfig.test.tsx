@@ -53,7 +53,7 @@ describe('InternetConfig', () => {
       }
     };
 
-    render(
+    const { rerender } = render(
       <InternetConfig
         selectedNode={defaultNode}
         performUpdate={performUpdate}
@@ -62,14 +62,37 @@ describe('InternetConfig', () => {
     );
 
     fireEvent.click(screen.getByText('Advanced Options'));
-    const range = screen.getByRole('slider') as HTMLInputElement;
+    let range = screen.getByRole('slider') as HTMLInputElement;
     expect(range.min).toBe('1');
+    expect(range.max).toBe('1000');
     expect(screen.getByText('250')).toBeDefined();
     expect(screen.getByText('500')).toBeDefined();
     expect(screen.getByText('750')).toBeDefined();
 
-    fireEvent.change(range, { target: { value: '1000' } });
-    expect(performUpdate).toHaveBeenCalledWith({ traffic: 1000 });
+    // Rerender with higher traffic (2500 -> maxRange becomes 4000)
+    rerender(
+      <InternetConfig
+        selectedNode={{ ...defaultNode, data: { ...defaultNode.data, traffic: 2500 } }}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+    range = screen.getByRole('slider') as HTMLInputElement;
+    expect(range.max).toBe('4000');
+
+    // Rerender with lower traffic (300 -> maxRange shrinks back to 1000)
+    rerender(
+      <InternetConfig
+        selectedNode={{ ...defaultNode, data: { ...defaultNode.data, traffic: 300 } }}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+    range = screen.getByRole('slider') as HTMLInputElement;
+    expect(range.max).toBe('1000');
+
+    fireEvent.change(range, { target: { value: '500' } });
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 500 });
   });
 
   it('handles duration unit updates for ms, sec, and min', () => {

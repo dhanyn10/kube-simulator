@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFlowStore } from '../../store';
 import { Network, Layers } from 'lucide-react';
 import { ConfigSection, AdvancedSection } from '../UI/ConfigUI';
@@ -22,27 +22,18 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const data = selectedNode.data;
   const currentTraffic = Math.max(1, data.traffic || 1);
 
-  // Initialize maxRange based on current traffic (at least 1000)
-  const [maxRange, setMaxRange] = useState(() => {
+  // Calculate dynamic maxRange based on current traffic (minimum 1000)
+  const maxRange = useMemo(() => {
     let limit = 1000;
     while (currentTraffic >= limit) {
       limit *= 2;
     }
     return limit;
-  });
-
-  useEffect(() => {
-    if (currentTraffic >= maxRange) {
-      setMaxRange(currentTraffic * 2);
-    }
-  }, [currentTraffic, maxRange]);
+  }, [currentTraffic]);
 
   const handleSliderChange = (newVal: number) => {
     const val = Math.max(1, newVal);
     performUpdate({ traffic: val });
-    if (val >= maxRange) {
-      setMaxRange(maxRange * 2);
-    }
   };
 
   const rulerTicks = useMemo(() => {
