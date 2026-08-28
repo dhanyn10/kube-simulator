@@ -146,4 +146,27 @@ describe('RightSidebar', () => {
     expect(screen.getByTestId('node-config')).toBeDefined();
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
   });
+
+  it('shows custom context menu on right click with change theme and close options', () => {
+    const toggleColorModeSpy = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
+    const setRightSidebarVisibleSpy = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    const sidebarContainer = document.getElementById('right-sidebar')!;
+    fireEvent.contextMenu(sidebarContainer);
+
+    expect(screen.getByTestId('right-sidebar-context-menu')).toBeDefined();
+    expect(screen.getByTestId('context-menu-change-theme')).toBeDefined();
+    expect(screen.getByTestId('context-menu-close-sidebar')).toBeDefined();
+
+    // Click change theme
+    fireEvent.click(screen.getByTestId('context-menu-change-theme'));
+    expect(toggleColorModeSpy).toHaveBeenCalled();
+
+    // Right click again and click close
+    fireEvent.contextMenu(sidebarContainer);
+    fireEvent.click(screen.getByTestId('context-menu-close-sidebar'));
+    expect(setRightSidebarVisibleSpy).toHaveBeenCalledWith(false);
+  });
 });
