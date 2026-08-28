@@ -41,19 +41,35 @@ describe('InternetConfig', () => {
     expect(screen.getByText('Data Duration')).toBeDefined();
   });
 
-  it('handles traffic updates', () => {
+  it('handles traffic updates and slider min 1 and ruler ticks', () => {
+    const defaultNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: 100,
+        durationUnit: 'second',
+        displaySettings: { traffic: true, duration: true }
+      }
+    };
+
     render(
       <InternetConfig
-        selectedNode={selectedNode}
+        selectedNode={defaultNode}
         performUpdate={performUpdate}
         toggleVisibility={toggleVisibility}
       />
     );
 
     fireEvent.click(screen.getByText('Advanced Options'));
-    const range = screen.getByRole('slider');
-    fireEvent.change(range, { target: { value: '10000' } });
-    expect(performUpdate).toHaveBeenCalledWith({ traffic: 10000 });
+    const range = screen.getByRole('slider') as HTMLInputElement;
+    expect(range.min).toBe('1');
+    expect(screen.getByText('250')).toBeDefined();
+    expect(screen.getByText('500')).toBeDefined();
+    expect(screen.getByText('750')).toBeDefined();
+
+    fireEvent.change(range, { target: { value: '1000' } });
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 1000 });
   });
 
   it('handles duration unit updates for ms, sec, and min', () => {
