@@ -154,12 +154,27 @@ describe('simulation test suite', () => {
       expect(ctx.updatedNodes.find(n => n.id === 'pod1')?.data.status).toBe('ready');
   });
 
-  it('incoming traffic calculation', () => {
-    const ctx = getMockCtx({
-      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 5000 })],
+  it('incoming traffic calculation with durationUnit multipliers', () => {
+    // Default / 'second' durationUnit (multiplier 1)
+    const ctxSecond = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 3000, durationUnit: 'second' })],
       internetReachableMap: new Map([['i1', new Set(['d1'])]])
     });
-    expect(calculateIncomingTraffic(baseNodes[0], ctx).traffic).toBe(5000);
+    expect(calculateIncomingTraffic(baseNodes[0], ctxSecond).traffic).toBe(3000);
+
+    // 'millisecond' durationUnit (multiplier 1000)
+    const ctxMs = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 5, durationUnit: 'millisecond' })],
+      internetReachableMap: new Map([['i1', new Set(['d1'])]])
+    });
+    expect(calculateIncomingTraffic(baseNodes[0], ctxMs).traffic).toBe(5000);
+
+    // 'minute' durationUnit (multiplier 1/60)
+    const ctxMin = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 6000, durationUnit: 'minute' })],
+      internetReachableMap: new Map([['i1', new Set(['d1'])]])
+    });
+    expect(calculateIncomingTraffic(baseNodes[0], ctxMin).traffic).toBe(100);
   });
 
   it('hpa scaling execution - scale up', () => {

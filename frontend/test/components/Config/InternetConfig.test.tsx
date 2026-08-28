@@ -56,7 +56,7 @@ describe('InternetConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 10000 });
   });
 
-  it('handles duration unit updates', () => {
+  it('handles duration unit updates for ms, sec, and min', () => {
     render(
       <InternetConfig
         selectedNode={selectedNode}
@@ -66,8 +66,14 @@ describe('InternetConfig', () => {
     );
 
     fireEvent.click(screen.getByText('Advanced Options'));
-    const msBtn = screen.getByText('ms');
-    fireEvent.click(msBtn);
+
+    fireEvent.click(screen.getByText('ms'));
     expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'millisecond' });
+
+    fireEvent.click(screen.getByText('sec'));
+    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'second' });
+
+    fireEvent.click(screen.getByText('min'));
+    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'minute' });
   });
 });

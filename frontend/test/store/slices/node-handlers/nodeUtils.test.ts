@@ -45,6 +45,7 @@ describe('nodeUtils', () => {
 
     const netData = getInitialData('Internet', 'net1', get as any);
     expect(netData.type).toBe('Internet');
+    expect(netData.durationUnit).toBe('second');
 
     const pvcData = getInitialData('PVC', 'pvc1', get as any);
     expect(pvcData.type).toBe('PVC');
