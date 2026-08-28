@@ -59,9 +59,17 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
           <div className="px-1 py-2 space-y-2">
             <div className="flex justify-between items-center text-xs font-mono">
               <span className="text-[10px] text-slate-400 uppercase font-bold">Visits / Duration</span>
-              <span className="text-xs font-bold text-blue-500">
-                {currentTraffic.toLocaleString()} <span className="text-[9px] font-normal text-slate-400">visits</span>
-              </span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="1"
+                  value={currentTraffic}
+                  onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
+                  data-testid="traffic-numeric-input"
+                  className="w-20 text-right bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-bold text-blue-400 font-mono outline-none focus:border-blue-500"
+                />
+                <span className="text-[9px] font-normal text-slate-400">visits</span>
+              </div>
             </div>
 
             <input
@@ -74,13 +82,20 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
               className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
 
-            {/* 4-part ruler scale */}
+            {/* Interactive 4-part ruler scale */}
             <div className="flex justify-between items-center text-[8px] font-mono text-slate-500 relative pt-1">
               {rulerTicks.map((tick, idx) => (
-                <div key={`tick-${tick.label}-${idx}`} className="flex flex-col items-center gap-0.5">
-                  <div className="w-0.5 h-1.5 bg-slate-600 rounded-full" />
-                  <span>{tick.label}</span>
-                </div>
+                <button
+                  type="button"
+                  key={`tick-${tick.label}-${idx}`}
+                  onClick={() => handleSliderChange(tick.val)}
+                  data-testid={`ruler-tick-${tick.val}`}
+                  title={`Set traffic to ${tick.val.toLocaleString()}`}
+                  className="flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
+                >
+                  <div className="w-0.5 h-1.5 bg-slate-600 rounded-full group-hover:bg-blue-400" />
+                  <span className="font-bold">{tick.label}</span>
+                </button>
               ))}
             </div>
           </div>

@@ -34,9 +34,8 @@ describe('InternetConfig', () => {
 
     fireEvent.click(screen.getByText('Advanced Options'));
     expect(screen.getByText('Data Traffic')).toBeDefined();
-    // The component uses toLocaleString(), so it might be 5,000 or 5.000 depending on locale
-    // Use regex to be safe
-    expect(screen.getByText(/5[.,]000/)).toBeDefined();
+    const numInput = screen.getByTestId('traffic-numeric-input') as HTMLInputElement;
+    expect(numInput.value).toBe('5000');
     expect(screen.getByText('visits')).toBeDefined();
     expect(screen.getByText('Data Duration')).toBeDefined();
   });
@@ -93,6 +92,39 @@ describe('InternetConfig', () => {
 
     fireEvent.change(range, { target: { value: '500' } });
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 500 });
+  });
+
+  it('handles clicking ruler tick buttons and editing numeric input', () => {
+    const defaultNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: 100,
+        durationUnit: 'second',
+        displaySettings: { traffic: true, duration: true }
+      }
+    };
+
+    render(
+      <InternetConfig
+        selectedNode={defaultNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Advanced Options'));
+
+    // Click ruler tick 250
+    const tick250 = screen.getByTestId('ruler-tick-250');
+    fireEvent.click(tick250);
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 250 });
+
+    // Type value directly in numeric input
+    const numInput = screen.getByTestId('traffic-numeric-input');
+    fireEvent.change(numInput, { target: { value: '350' } });
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 350 });
   });
 
   it('handles duration unit updates for ms, sec, and min', () => {
