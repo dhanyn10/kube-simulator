@@ -72,32 +72,66 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
               </div>
             </div>
 
-            <input
-              type="range"
-              min="1"
-              max={maxRange}
-              step={maxRange > 10000 ? 50 : 1}
-              value={currentTraffic}
-              onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
-              className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
+            <div className="relative pt-1 pb-4">
+              <input
+                type="range"
+                min="1"
+                max={maxRange}
+                step={maxRange > 10000 ? 50 : 1}
+                value={currentTraffic}
+                onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
+                className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer custom-traffic-slider outline-none"
+              />
 
-            {/* Interactive 4-part ruler scale */}
-            <div className="flex justify-between items-center text-[8px] font-mono text-slate-500 relative pt-1">
-              {rulerTicks.map((tick, idx) => (
-                <button
-                  type="button"
-                  key={`tick-${tick.label}-${idx}`}
-                  onClick={() => handleSliderChange(tick.val)}
-                  data-testid={`ruler-tick-${tick.val}`}
-                  title={`Set traffic to ${tick.val.toLocaleString()}`}
-                  className="flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
-                >
-                  <div className="w-0.5 h-1.5 bg-slate-600 rounded-full group-hover:bg-blue-400" />
-                  <span className="font-bold">{tick.label}</span>
-                </button>
-              ))}
+              {/* Interactive 4-part ruler scale perfectly aligned to track */}
+              <div className="relative w-full text-[8px] font-mono text-slate-500 h-6 mt-1">
+                {rulerTicks.map((tick, idx) => {
+                  const pct = (idx / 4) * 100;
+                  return (
+                    <button
+                      type="button"
+                      key={`tick-${tick.label}-${idx}`}
+                      onClick={() => handleSliderChange(tick.val)}
+                      data-testid={`ruler-tick-${tick.val}`}
+                      title={`Set traffic to ${tick.val.toLocaleString()}`}
+                      style={{ left: `${pct}%`, transform: 'translateX(-50%)' }}
+                      className="absolute top-0 flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
+                    >
+                      <div className="w-0.5 h-2 bg-slate-600 rounded-full group-hover:bg-blue-400" />
+                      <span className="font-bold tracking-tighter whitespace-nowrap">{tick.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <style>{`
+              .custom-traffic-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 14px;
+                height: 18px;
+                background-color: #3b82f6;
+                clip-path: polygon(0% 0%, 100% 0%, 100% 65%, 60% 65%, 50% 100%, 40% 65%, 0% 65%);
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+              }
+              .custom-traffic-slider::-webkit-slider-thumb:hover {
+                background-color: #60a5fa;
+              }
+              .custom-traffic-slider::-moz-range-thumb {
+                width: 14px;
+                height: 18px;
+                background-color: #3b82f6;
+                border: none;
+                clip-path: polygon(0% 0%, 100% 0%, 100% 65%, 60% 65%, 50% 100%, 40% 65%, 0% 65%);
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+              }
+              .custom-traffic-slider::-moz-range-thumb:hover {
+                background-color: #60a5fa;
+              }
+            `}</style>
           </div>
         </ConfigSection>
 
