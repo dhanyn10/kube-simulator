@@ -1616,13 +1616,7 @@ export const TerminalPanel = () => {
   };
 
   if (!isTerminalOpen) {
-    return (
-      <TerminalMinimizedTrigger
-        setTerminalOpen={setTerminalOpen}
-        isSimulating={isSimulating}
-        colorMode={colorMode}
-      />
-    );
+    return null;
   }
 
   return (

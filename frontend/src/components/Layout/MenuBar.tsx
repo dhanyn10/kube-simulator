@@ -157,7 +157,6 @@ export const MenuBar = ({
           },
           {
             label: 'Terminal',
-            checked: isTerminalOpen,
             icon: Terminal,
             onClick: () => setTerminalOpen(!isTerminalOpen)
           }

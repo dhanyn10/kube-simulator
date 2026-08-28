@@ -23,9 +23,9 @@ describe('TerminalPanel', () => {
     });
   });
 
-  it('renders minimized button when isTerminalOpen is false', () => {
-    render(<TerminalPanel />);
-    expect(screen.getByText('Kube Terminal')).toBeInTheDocument();
+  it('renders null when isTerminalOpen is false', () => {
+    const { container } = render(<TerminalPanel />);
+    expect(container.firstChild).toBeNull();
     expect(screen.queryByTestId('terminal-container')).toBeNull();
   });
 
