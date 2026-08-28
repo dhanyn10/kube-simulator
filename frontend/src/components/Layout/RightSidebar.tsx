@@ -10,17 +10,14 @@ import {
   Monitor,
   Check,
   ChevronDown,
-  MousePointer2,
-  Clock,
-  Sun,
-  Moon,
-  X
+  MousePointer2
 } from 'lucide-react';
 import { HistoryPanel } from '../Monitoring/HistoryPanel';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
+import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
 
 type TabType = 'canvas' | 'settings';
 
@@ -328,19 +325,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const isHistoryViewOpen = useFlowStore((state) => state.isHistoryViewOpen);
   const setHistoryViewOpen = useFlowStore((state) => state.setHistoryViewOpen);
 
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY });
-  };
-
-  useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
-    window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
-  }, []);
+  const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
 
   // Switch to settings tab when a new element is selected (exit history view if open)
   useEffect(() => {
@@ -379,53 +364,22 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       )}
     >
       {contextMenu && (
-        <div
-          data-testid="right-sidebar-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          className={cn(
-            "fixed z-[3000] min-w-[150px] py-1 rounded-lg border shadow-2xl animate-in fade-in zoom-in-95 duration-100",
-            colorMode === 'dark'
-              ? "bg-slate-900 border-slate-800 text-slate-200"
-              : "bg-white border-slate-200 text-slate-800"
-          )}
-        >
-          <button
-            type="button"
-            data-testid="context-menu-change-theme"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleColorMode();
-              setContextMenu(null);
-            }}
-            className={cn(
-              "w-full px-3 py-1.5 text-xs font-medium flex items-center gap-2 transition-colors text-left",
-              colorMode === 'dark' ? "hover:bg-slate-800 hover:text-white" : "hover:bg-slate-100 hover:text-slate-900"
-            )}
-          >
-            {colorMode === 'dark' ? <Sun size={14} className="text-yellow-400" /> : <Moon size={14} className="text-blue-600" />}
-            Change Theme
-          </button>
-          <div className={cn("h-px my-1", colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200")} />
-          <button
-            type="button"
-            data-testid="context-menu-close-sidebar"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isHistoryViewOpen) {
-                setHistoryViewOpen(false);
-              }
-              setRightSidebarVisible(false);
-              setContextMenu(null);
-            }}
-            className={cn(
-              "w-full px-3 py-1.5 text-xs font-medium flex items-center gap-2 transition-colors text-left text-red-500",
-              colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
-            )}
-          >
-            <X size={14} />
-            Close
-          </button>
-        </div>
+        <SidebarContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          colorMode={colorMode}
+          toggleColorMode={toggleColorMode}
+          onCloseSidebar={() => {
+            if (isHistoryViewOpen) {
+              setHistoryViewOpen(false);
+            }
+            setRightSidebarVisible(false);
+          }}
+          onCloseContextMenu={closeContextMenu}
+          testId="right-sidebar-context-menu"
+          changeThemeTestId="context-menu-change-theme"
+          closeTestId="context-menu-close-sidebar"
+        />
       )}
       {!isHistoryViewOpen && (
         <SidebarTabBar
