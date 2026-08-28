@@ -147,4 +147,39 @@ describe('InternetConfig', () => {
     fireEvent.click(screen.getByText('min'));
     expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'minute' });
   });
+
+  it('handles large traffic values formatting and visibility toggles', () => {
+    const largeNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: 2000000,
+        durationUnit: 'second',
+        displaySettings: { traffic: true, duration: true }
+      }
+    };
+
+    render(
+      <InternetConfig
+        selectedNode={largeNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Advanced Options'));
+    expect(screen.getByTestId('ruler-tick-2048000')).toBeDefined();
+
+    const numInput = screen.getByTestId('traffic-numeric-input');
+    fireEvent.change(numInput, { target: { value: '1' } });
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
+
+    const eyeButtons = screen.getAllByTitle('Show/Hide on Card');
+    fireEvent.click(eyeButtons[0]);
+    expect(toggleVisibility).toHaveBeenCalledWith('traffic');
+
+    fireEvent.click(eyeButtons[1]);
+    expect(toggleVisibility).toHaveBeenCalledWith('duration');
+  });
 });
