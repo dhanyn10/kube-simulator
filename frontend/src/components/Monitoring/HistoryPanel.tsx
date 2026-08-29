@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { cn } from '../../lib/utils';
 import { useHistory } from '../../hooks/useHistory';
 
@@ -7,7 +7,6 @@ interface HistoryPanelProps {
 }
 
 export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
-  const [isOpen, setIsOpen] = useState(false);
   const { historyLogs, fetchHistoryLogs, handleJumpToHistory } = useHistory();
 
   useEffect(() => {

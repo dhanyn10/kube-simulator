@@ -56,8 +56,8 @@ export const ResourceBudget = () => {
   const totalCpuPercent = systemResources.cpuUsage;
   const totalMemPercent = (usedMemMiB / memLimit) * 100;
 
-  const isOverCpu = k8sCpuLimPercent > 90 || totalCpuPercent > 95;
-  const isOverMem = k8sMemLimPercent > 90 || totalMemPercent > 95;
+  const isOverCpu = k8sCpuLimPercent > 90 || (totalCpuPercent > 0 && totalCpuPercent > 95);
+  const isOverMem = k8sMemLimPercent > 90 || (totalMemPercent > 0 && totalMemPercent > 95);
 
   return (
     <div className="flex flex-col gap-4">
