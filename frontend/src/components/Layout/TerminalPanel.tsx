@@ -225,6 +225,14 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
     isAdmin = store.isAdminAuthenticated;
   }
 
+  if (isAdmin) {
+    addActivityLog('Admin CLI Commands:');
+    addActivityLog('  cheat update <version>                Simulate update notification button (e.g. cheat update 0.4.0)');
+    addActivityLog('  cheat clear                           Clear simulated update notification');
+    addActivityLog('  cheat status                          View secret mode status');
+    return true;
+  }
+
   addActivityLog('Available educational Kubernetes commands:');
   addActivityLog('  kubectl get pods                      List all pods on the canvas');
   addActivityLog('  kubectl get deployments               List deployments on the canvas');
@@ -241,13 +249,6 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
   addActivityLog('  history                               View command execution history with timestamps');
   addActivityLog('  clear                                 Clear the console log list');
-
-  if (isAdmin) {
-    addActivityLog('Secret Admin CLI Commands:');
-    addActivityLog('  cheat update <version>                Simulate update notification button (e.g. cheat update 0.4.0)');
-    addActivityLog('  cheat clear                           Clear simulated update notification');
-    addActivityLog('  cheat status                          View secret mode status');
-  }
 
   return true;
 };
