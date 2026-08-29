@@ -3,15 +3,15 @@ import { Sun, Moon, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface SidebarContextMenuProps {
-  x: number;
-  y: number;
-  colorMode: 'dark' | 'light';
-  toggleColorMode: () => void;
-  onCloseSidebar: () => void;
-  onCloseContextMenu: () => void;
-  testId?: string;
-  changeThemeTestId?: string;
-  closeTestId?: string;
+  readonly x: number;
+  readonly y: number;
+  readonly colorMode: 'dark' | 'light';
+  readonly toggleColorMode: () => void;
+  readonly onCloseSidebar: () => void;
+  readonly onCloseContextMenu: () => void;
+  readonly testId?: string;
+  readonly changeThemeTestId?: string;
+  readonly closeTestId?: string;
 }
 
 export function SidebarContextMenu({

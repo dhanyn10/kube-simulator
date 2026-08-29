@@ -98,7 +98,7 @@ function useAppInit(isDetachedMode: boolean, loadSettingsJson: () => void, setGl
     };
 
     fetchResources();
-    const interval = setInterval(fetchResources, 5000);
+    const interval = setInterval(fetchResources, 1000);
     return () => clearInterval(interval);
   }, [isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources]);
 }

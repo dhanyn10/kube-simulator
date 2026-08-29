@@ -35,6 +35,21 @@ func TestParseValueFromOutput(t *testing.T) {
 			input:    "LoadPercentage\n\n",
 			expected: 0,
 		},
+		{
+			name:     "Dirty Output with Leading Strings",
+			input:    "FreePhysicalMemory\n  invalid_token 1048576  \n",
+			expected: 1048576,
+		},
+		{
+			name:     "Multiple Lines with Empty Whitespaces",
+			input:    "   \n  \n  4294967296  \n",
+			expected: 4294967296,
+		},
+		{
+			name:     "Tab separated output",
+			input:    "TotalPhysicalMemory\t8589934592\t\n",
+			expected: 8589934592,
+		},
 	}
 
 	for _, tt := range tests {
@@ -65,9 +80,12 @@ func TestGetSystemResources(t *testing.T) {
 	}
 
 	if mem, ok := res["totalMemoryGB"].(uint64); !ok || mem == 0 {
-		// totalMemoryGB might be uint64 or int depending on OS file
 		if memInt, okInt := res["totalMemoryGB"].(int); !okInt || memInt == 0 {
 			t.Errorf("expected totalMemoryGB > 0, got %v", res["totalMemoryGB"])
 		}
+	}
+
+	if usage, ok := res["cpuUsage"].(int); !ok || usage < 0 || usage > 100 {
+		t.Errorf("expected cpuUsage between 0 and 100, got %v", res["cpuUsage"])
 	}
 }

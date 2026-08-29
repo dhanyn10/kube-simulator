@@ -3,28 +3,42 @@
 package system
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
+	"unsafe"
 )
 
-var wmicPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "wbem", "wmic.exe")
-
-func runWmic(arg ...string) ([]byte, error) {
-	cmd := exec.Command(wmicPath, arg...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Output()
+type memoryStatusEx struct {
+	cbSize                  uint32
+	dwMemoryLoad            uint32
+	ullTotalPhys            uint64
+	ullAvailPhys            uint64
+	ullTotalPageFile        uint64
+	ullAvailPageFile        uint64
+	ullTotalVirtual         uint64
+	ullAvailVirtual         uint64
+	ullAvailExtendedVirtual uint64
 }
 
-func runPowershell(script string) ([]byte, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script) // NOSONAR
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Output()
+type fileTime struct {
+	dwLowDateTime  uint32
+	dwHighDateTime uint32
 }
+
+var (
+	modkernel32              = syscall.NewLazyDLL("kernel32.dll")
+	procGlobalMemoryStatusEx = modkernel32.NewProc("GlobalMemoryStatusEx")
+	procGetSystemTimes       = modkernel32.NewProc("GetSystemTimes")
+
+	cpuMutex       sync.Mutex
+	prevIdleTime   uint64
+	prevKernelTime uint64
+	prevUserTime   uint64
+)
 
 func parseValueFromOutput(out []byte) uint64 {
 	lines := strings.Split(string(out), "\n")
@@ -43,68 +57,97 @@ func parseValueFromOutput(out []byte) uint64 {
 	return 0
 }
 
-func getTotalMemoryGB() uint64 {
-	totalOut, err := runWmic("computersystem", "get", "TotalPhysicalMemory")
-	val := uint64(0)
-	if err == nil {
-		val = parseValueFromOutput(totalOut)
-	}
-	if val == 0 {
-		psOut, psErr := runPowershell("(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory")
-		if psErr == nil {
-			val = parseValueFromOutput(psOut)
-		}
-	}
-	if val > 0 {
-		return (val + (1024 * 1024 * 1024) - 1) / (1024 * 1024 * 1024)
-	}
-	return 16
+func fileTimeToUint64(ft fileTime) uint64 {
+	return uint64(ft.dwHighDateTime)<<32 | uint64(ft.dwLowDateTime)
 }
 
-func getFreeMemoryGB() float64 {
-	freeOut, err := runWmic("os", "get", "FreePhysicalMemory")
-	valKB := uint64(0)
-	if err == nil {
-		valKB = parseValueFromOutput(freeOut)
+func getWinMemoryStats() (totalGB uint64, freeGB float64) {
+	var msx memoryStatusEx
+	msx.cbSize = uint32(unsafe.Sizeof(msx))
+	ret, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&msx)))
+	if ret != 0 {
+		totalGB = (msx.ullTotalPhys + (1024 * 1024 * 1024) - 1) / (1024 * 1024 * 1024)
+		rawFree := float64(msx.ullAvailPhys) / (1024 * 1024 * 1024)
+		freeGB = float64(int(rawFree*100+0.5)) / 100.0
+		return totalGB, freeGB
 	}
-	if valKB == 0 {
-		psOut, psErr := runPowershell("(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory")
-		if psErr == nil {
-			valKB = parseValueFromOutput(psOut)
-		}
-	}
-	if valKB > 0 {
-		return float64(valKB) / (1024 * 1024)
-	}
-	return 8.0
+	return 16, 8.0
 }
 
-func getCpuUsage() int {
-	cpuOut, err := runWmic("cpu", "get", "loadpercentage")
-	val := uint64(0)
-	if err == nil {
-		val = parseValueFromOutput(cpuOut)
+func getWinCpuUsage() int {
+	var idleTime, kernelTime, userTime fileTime
+	ret, _, _ := procGetSystemTimes.Call(
+		uintptr(unsafe.Pointer(&idleTime)),
+		uintptr(unsafe.Pointer(&kernelTime)),
+		uintptr(unsafe.Pointer(&userTime)),
+	)
+	if ret == 0 {
+		return 0
 	}
-	if val == 0 {
-		psOut, psErr := runPowershell("(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average")
-		if psErr == nil {
-			val = parseValueFromOutput(psOut)
+
+	currentIdle := fileTimeToUint64(idleTime)
+	currentKernel := fileTimeToUint64(kernelTime)
+	currentUser := fileTimeToUint64(userTime)
+
+	cpuMutex.Lock()
+	defer cpuMutex.Unlock()
+
+	if prevKernelTime == 0 && prevUserTime == 0 {
+		prevIdleTime = currentIdle
+		prevKernelTime = currentKernel
+		prevUserTime = currentUser
+
+		cpuMutex.Unlock()
+		time.Sleep(50 * time.Millisecond)
+		cpuMutex.Lock()
+
+		ret, _, _ = procGetSystemTimes.Call(
+			uintptr(unsafe.Pointer(&idleTime)),
+			uintptr(unsafe.Pointer(&kernelTime)),
+			uintptr(unsafe.Pointer(&userTime)),
+		)
+		if ret != 0 {
+			currentIdle = fileTimeToUint64(idleTime)
+			currentKernel = fileTimeToUint64(kernelTime)
+			currentUser = fileTimeToUint64(userTime)
 		}
 	}
-	return int(val)
+
+	deltaIdle := currentIdle - prevIdleTime
+	deltaKernel := currentKernel - prevKernelTime
+	deltaUser := currentUser - prevUserTime
+
+	prevIdleTime = currentIdle
+	prevKernelTime = currentKernel
+	prevUserTime = currentUser
+
+	deltaTotal := deltaKernel + deltaUser
+	if deltaTotal == 0 || deltaTotal < deltaIdle {
+		return 0
+	}
+
+	deltaBusy := deltaTotal - deltaIdle
+	usage := int((deltaBusy * 100) / deltaTotal)
+	if usage < 0 {
+		return 0
+	}
+	if usage > 100 {
+		return 100
+	}
+
+	return usage
 }
 
-// GetSystemResources returns the local CPU cores and total/available memory in GB using WMIC with PowerShell fallback
+// GetSystemResources returns the local CPU cores and total/available memory in GB using native Win32 API
 func GetSystemResources() map[string]interface{} {
 	cores := runtime.NumCPU()
-	totalMemoryGB := getTotalMemoryGB()
-	freeMemoryGB := getFreeMemoryGB()
-	cpuUsage := getCpuUsage()
+	totalMemoryGB, freeMemoryGB := getWinMemoryStats()
+	cpuUsage := getWinCpuUsage()
 
 	return map[string]interface{}{
-		"cpuCores":       cores,
-		"cpuUsage":       cpuUsage,
-		"totalMemoryGB":  totalMemoryGB,
-		"freeMemoryGB":   freeMemoryGB,
+		"cpuCores":      cores,
+		"cpuUsage":      cpuUsage,
+		"totalMemoryGB": totalMemoryGB,
+		"freeMemoryGB":  freeMemoryGB,
 	}
 }

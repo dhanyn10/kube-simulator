@@ -85,23 +85,20 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
               {/* Interactive 4-part ruler scale with track padding offset matching 20px thumb center */}
               <div className="relative w-full text-[8px] font-mono text-slate-500 h-6 mt-1 px-2.5">
-                {rulerTicks.map((tick, idx) => {
-                  const pct = (idx / 4) * 100;
-                  return (
-                    <button
-                      type="button"
-                      key={`tick-${tick.label}-${idx}`}
-                      onClick={() => handleSliderChange(tick.val)}
-                      data-testid={`ruler-tick-${tick.val}`}
-                      title={`Set traffic to ${tick.val.toLocaleString()}`}
-                      style={{ left: `calc(10px + (100% - 20px) * ${idx / 4})`, transform: 'translateX(-50%)' }}
-                      className="absolute top-0 flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
-                    >
-                      <div className="w-0.5 h-2 bg-slate-600 rounded-full group-hover:bg-blue-400" />
-                      <span className="font-bold tracking-tighter whitespace-nowrap">{tick.label}</span>
-                    </button>
-                  );
-                })}
+                {rulerTicks.map((tick, idx) => (
+                  <button
+                    type="button"
+                    key={`tick-${tick.label}-${idx}`}
+                    onClick={() => handleSliderChange(tick.val)}
+                    data-testid={`ruler-tick-${tick.val}`}
+                    title={`Set traffic to ${tick.val.toLocaleString()}`}
+                    style={{ left: `calc(10px + (100% - 20px) * ${idx / 4})`, transform: 'translateX(-50%)' }}
+                    className="absolute top-0 flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
+                  >
+                    <div className="w-0.5 h-2 bg-slate-600 rounded-full group-hover:bg-blue-400" />
+                    <span className="font-bold tracking-tighter whitespace-nowrap">{tick.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 

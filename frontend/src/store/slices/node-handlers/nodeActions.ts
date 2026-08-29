@@ -113,7 +113,7 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) 
 
 const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
-  const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 }; //nosonar
+  const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 };
 
   const newNode: Node = {
     id, type, position: finalPos, parentId,

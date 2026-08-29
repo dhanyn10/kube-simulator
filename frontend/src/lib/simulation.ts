@@ -125,10 +125,23 @@ export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   return { hasChanges, isBlocked: false };
 };
 
-export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
-  let totalTraffic = 0;
+const getTrafficMultiplier = (unit?: string): number => {
+  if (unit === 'millisecond') return 1000;
+  if (unit === 'minute') return 1 / 60;
+  return 1;
+};
 
+const canReachWorkload = (reachableNodes: Set<string>, depId: string, childPods?: Node[]): boolean => {
+  if (reachableNodes.has(depId)) return true;
+  const children = childPods || [];
+  return children.some(child => reachableNodes.has(child.id));
+};
+
+export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
   if (!ctx.internetNodes || !ctx.internetReachableMap) return { traffic: 0, hasChanges: false };
+
+  let totalTraffic = 0;
+  const children = ctx.childPodMap?.get(dep.id);
 
   for (const node of ctx.internetNodes) {
     const reachableNodes = ctx.internetReachableMap.get(node.id);
@@ -136,28 +149,10 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
 
     const nData = node.data as K8sNodeData;
     const internetTraffic = nData.currentTraffic || 0;
-    const unit = nData.durationUnit || 'second';
-
-    let multiplier = 1;
-    if (unit === 'millisecond') {
-      multiplier = 1000;
-    } else if (unit === 'minute') {
-      multiplier = 1 / 60;
-    }
+    const multiplier = getTrafficMultiplier(nData.durationUnit);
     const effectiveTraffic = internetTraffic * multiplier;
 
-    let canReach = reachableNodes.has(dep.id);
-    if (!canReach) {
-      const children = ctx.childPodMap?.get(dep.id) || [];
-      for (const child of children) {
-        if (reachableNodes.has(child.id)) {
-          canReach = true;
-          break;
-        }
-      }
-    }
-
-    if (canReach) {
+    if (canReachWorkload(reachableNodes, dep.id, children)) {
       totalTraffic += effectiveTraffic;
     }
   }

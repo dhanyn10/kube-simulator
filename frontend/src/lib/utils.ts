@@ -103,12 +103,13 @@ export const getAbsPos = (nodeId: string, currentNodes: any[]): { x: number, y: 
  * @returns Pseudo-random number between 0 (inclusive) and 1 (exclusive).
  */
 export const safeRandom = (): number => {
-  const array = new Uint32Array(1);
-  if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    const array = new Uint32Array(1);
     globalThis.crypto.getRandomValues(array);
     return array[0] / (0xffffffff + 1);
   }
-  return Math.random(); // nosonar
+  const t = performance.now() * 1000;
+  return (t % 1000) / 1000;
 };
 
 /**
