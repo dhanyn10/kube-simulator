@@ -1,5 +1,5 @@
 import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { cn, sanitizeSlug } from '../../lib/utils';
 import { Type, Terminal } from 'lucide-react';
 import { ConfigInput, ConfigLabel } from '../UI/ConfigUI';
 import {
@@ -139,7 +139,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         <ConfigInput
           value={data.label || ''}
           onChange={(e: any) => updateNodeData(selectedNode.id, {
-            label: e.target.value.toLowerCase().replace(/\s+/g, '-')
+            label: sanitizeSlug(e.target.value)
           })}
           placeholder="node-name"
           colorMode={colorMode}

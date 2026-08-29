@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
-import { cn, safeRandom } from '../../lib/utils';
+import { cn, safeRandom, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info } from 'lucide-react';
 import './TerminalPanel.css';
 import {
@@ -133,6 +133,8 @@ export const handleLogsCommand = (
   return true;
 };
 
+export { trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
+
 export const generateLogFilename = (
   projectName?: string | null,
   activeTab?: 'activity' | 'logs',
@@ -140,17 +142,16 @@ export const generateLogFilename = (
 ): string => {
   let prefix = activeTab === 'activity' ? 'activity-history' : 'resource-logs';
   if (projectName) {
-    const cleanProject = projectName.toLowerCase()
-      .replace(/^scenario:\s*/i, 'scenario-')
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const cleanProject = cleanProjectName(projectName);
     if (cleanProject) {
       prefix = `${prefix}-${cleanProject}`;
     }
   }
   if (activeTab === 'logs' && resourceName) {
-    const cleanResource = String(resourceName).toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
-    prefix = `${prefix}-${cleanResource}`;
+    const cleanResource = sanitizeSlug(String(resourceName).toLowerCase());
+    if (cleanResource) {
+      prefix = `${prefix}-${cleanResource}`;
+    }
   }
 
   const date = new Date();

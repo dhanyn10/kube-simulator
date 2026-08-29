@@ -1,6 +1,7 @@
 import { Node } from '@xyflow/react';
 import { K8sResourceType, K8sNodeData } from '../../../types';
 import { FlowState } from '../../types';
+import { sanitizeSlug } from '../../../lib/utils';
 
 export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onDelete: () => {
@@ -8,7 +9,7 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
     if (node) get().deleteNodes([node]);
   },
   onRename: (newName: string) => {
-    const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
+    const cleanName = sanitizeSlug(newName);
     get().updateNodeData(id, { label: cleanName });
   }
 });

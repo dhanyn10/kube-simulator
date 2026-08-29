@@ -9,6 +9,7 @@ import {
 } from './helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../lib/podSizing';
 import { syncWorkloadMetadata, getInitialData } from './slices/node-handlers/nodeUtils';
+import { sanitizeSlug } from '../lib/utils';
 
 export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
   onDelete: () => {
@@ -16,7 +17,7 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
     if (nodeToDelete) get().deleteNodes([nodeToDelete]);
   },
   onRename: (newName: string) => {
-    const cleanName = newName.toLowerCase().replace(/\s+/g, '-');
+    const cleanName = sanitizeSlug(newName);
     get().updateNodeData(nodeId, { label: cleanName });
   },
 });
