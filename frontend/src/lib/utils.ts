@@ -7,6 +7,57 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Trims leading and trailing dash characters without using regex backtracking.
+ */
+export const trimDashes = (str: string): string => {
+  let start = 0;
+  let end = str.length;
+  while (start < end && str.charCodeAt(start) === 45) {
+    start++;
+  }
+  while (end > start && str.charCodeAt(end - 1) === 45) {
+    end--;
+  }
+  return str.slice(start, end);
+};
+
+/**
+ * Sanitizes input string into a URL/file-safe slug without regex backtracking.
+ */
+export const sanitizeSlug = (input: string): string => {
+  let result = '';
+  let lastWasDash = false;
+
+  const lowerInput = input.toLowerCase();
+  for (let i = 0; i < lowerInput.length; i++) {
+    const ch = lowerInput[i];
+    const code = ch.charCodeAt(0);
+    const isValid = (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95 || code === 45;
+
+    if (isValid) {
+      result += ch;
+      lastWasDash = ch === '-';
+    } else if (!lastWasDash && result.length > 0) {
+      result += '-';
+      lastWasDash = true;
+    }
+  }
+
+  return trimDashes(result);
+};
+
+/**
+ * Sanitizes scenario and project names into slug strings without regex backtracking.
+ */
+export const cleanProjectName = (projectName: string): string => {
+  let lower = projectName.toLowerCase();
+  if (lower.startsWith('scenario:')) {
+    lower = 'scenario-' + lower.slice(9).trimStart();
+  }
+  return sanitizeSlug(lower);
+};
+
 export const getAbsPos = (nodeId: string, currentNodes: any[]): { x: number, y: number } => {
   const n = currentNodes.find(i => i.id === nodeId);
   if (!n?.position) return { x: 0, y: 0 };

@@ -1,4 +1,5 @@
 import { syncWorkloadMetadata } from './nodeUtils';
+import { sanitizeSlug } from '../../../lib/utils';
 
 /**
  * Checks if a node is a peer pod of the selected node.
@@ -53,7 +54,7 @@ export const getAutoNameUpdate = (nextData: any) => {
     } else {
       newLabel = nextData.webserver !== 'none' ? nextData.webserver : nextData.runtime;
     }
-    return { label: newLabel.toLowerCase().replace(/\s+/g, '-') };
+    return { label: sanitizeSlug(newLabel) };
   }
   if (nextData.status === 'pending') {
     return { image: undefined };

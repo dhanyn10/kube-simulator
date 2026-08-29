@@ -1,6 +1,6 @@
 
 import { Settings, Trash2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, sanitizeSlug } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
 export const NodeActionButtons = ({ 
@@ -67,7 +67,7 @@ export const NodeRenameInput = ({
       <input
         ref={inputRef}
         value={editValue}
-        onChange={(e) => setEditValue(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+        onChange={(e) => setEditValue(sanitizeSlug(e.target.value))}
         onBlur={handleRename}
         onKeyDown={onKeyDown}
         className={cn(

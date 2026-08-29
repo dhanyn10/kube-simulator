@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
-import { cn, safeRandom } from '../../lib/utils';
+import { cn, safeRandom, trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info } from 'lucide-react';
 import './TerminalPanel.css';
 import {
@@ -133,46 +133,7 @@ export const handleLogsCommand = (
   return true;
 };
 
-export const trimDashes = (str: string): string => {
-  let start = 0;
-  let end = str.length;
-  while (start < end && str.charCodeAt(start) === 45) {
-    start++;
-  }
-  while (end > start && str.charCodeAt(end - 1) === 45) {
-    end--;
-  }
-  return str.slice(start, end);
-};
-
-export const sanitizeSlug = (input: string): string => {
-  let result = '';
-  let lastWasDash = false;
-
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i];
-    const code = ch.charCodeAt(0);
-    const isValid = (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95 || code === 45;
-
-    if (isValid) {
-      result += ch;
-      lastWasDash = ch === '-';
-    } else if (!lastWasDash && result.length > 0) {
-      result += '-';
-      lastWasDash = true;
-    }
-  }
-
-  return trimDashes(result);
-};
-
-export const cleanProjectName = (projectName: string): string => {
-  let lower = projectName.toLowerCase();
-  if (lower.startsWith('scenario:')) {
-    lower = 'scenario-' + lower.slice(9).trimStart();
-  }
-  return sanitizeSlug(lower);
-};
+export { trimDashes, sanitizeSlug, cleanProjectName };
 
 export const generateLogFilename = (
   projectName?: string | null,
