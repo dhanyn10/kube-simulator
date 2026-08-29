@@ -6,6 +6,7 @@ import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquar
 import './TerminalPanel.css';
 import {
   CommandContext,
+  handleAdminAndCheatCommands,
   handleScaleCommand,
   handleSetImageCommand,
   handleRolloutStatusCommand,
@@ -609,6 +610,7 @@ export const executeKubectlCommand = (
   }
 
   const commandHandlers = [
+    handleAdminAndCheatCommands,
     handleGetAllCommand,
     handleScaleCommand,
     handleSetImageCommand,

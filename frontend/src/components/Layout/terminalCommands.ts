@@ -11,6 +11,79 @@ export interface CommandContext {
   setStoreState: (state: any) => void;
 }
 
+export const handleAdminAndCheatCommands = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const store = ctx.getStoreState();
+  const isAdminAuth = store.isAdminAuthenticated;
+  const isAwaitingPassword = store.isAwaitingAdminPassword;
+
+  // Handle password entry mode when awaiting admin password
+  if (isAwaitingPassword) {
+    const enteredPassword = cmd.trim();
+    // Default admin password or cheat password
+    if (enteredPassword === 'kubesim123' || enteredPassword === 'admin' || enteredPassword === 'admin123') {
+      ctx.addActivityLog(`[Access Granted] Admin privileges authenticated. Secret cheat mode unlocked!`);
+      ctx.addActivityLog(`Type "cheat update <version>" to simulate update, or "cheat clear" to clear.`);
+      ctx.setStoreState({ isAdminAuthenticated: true, isAwaitingAdminPassword: false });
+    } else {
+      ctx.addActivityLog(`[Access Denied] Incorrect password.`);
+      ctx.setStoreState({ isAwaitingAdminPassword: false });
+    }
+    return true;
+  }
+
+  const cmdLower = cmd.trim().toLowerCase();
+
+  // Initiate kubesim admin
+  if (cmdLower === 'kubesim admin') {
+    if (isAdminAuth) {
+      ctx.addActivityLog(`[Admin] Already authenticated in admin mode.`);
+    } else {
+      ctx.addActivityLog(`[Admin Authentication] Please enter admin password:`);
+      ctx.setStoreState({ isAwaitingAdminPassword: true });
+    }
+    return true;
+  }
+
+  // Handle cheat commands if admin authenticated
+  if (cmdLower.startsWith('cheat ')) {
+    if (!isAdminAuth) {
+      ctx.addActivityLog(`kubectl-mock: command not found: "${cmd}"`);
+      return true;
+    }
+
+    if (cmdLower === 'cheat update' || cmdLower.startsWith('cheat update ')) {
+      const parts = cmd.trim().split(/\s+/);
+      const targetVersion = parts[2] || '0.4.0';
+      const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
+
+      store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
+      ctx.addActivityLog(`[CHEAT ACTIVATED] GTA Style Cheat Enabled! Simulated New Version v${targetVersion} Available!`);
+      ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
+      return true;
+    }
+
+    if (cmdLower === 'cheat clear' || cmdLower === 'cheat update clear' || cmdLower === 'noupdate') {
+      store.setSimulatedUpdateInfo(null);
+      ctx.addActivityLog(`[CHEAT DEACTIVATED] Cleared simulated update notification.`);
+      return true;
+    }
+
+    if (cmdLower === 'cheat status') {
+      const updateInfo = store.simulatedUpdateInfo;
+      ctx.addActivityLog(`[Admin Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
+      return true;
+    }
+
+    ctx.addActivityLog(`Unknown cheat command. Available cheats: cheat update <version>, cheat clear, cheat status`);
+    return true;
+  }
+
+  return false;
+};
+
 export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
