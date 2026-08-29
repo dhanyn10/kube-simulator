@@ -110,6 +110,45 @@ func TestCheckForUpdates_Error(t *testing.T) {
 	}
 }
 
+func TestCheckForUpdates_InvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	originalBaseURL := apiBaseURL
+	apiBaseURL = server.URL
+	defer func() { apiBaseURL = originalBaseURL }()
+
+	_, err := CheckForUpdates("1.0.0")
+	if err == nil {
+		t.Error("Expected JSON decode error")
+	}
+}
+
+func TestCheckForUpdates_AllDrafts(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		releases := []GitHubRelease{
+			{TagName: "v1.3.0", HTMLURL: "https://example.com/1.3.0", Prerelease: false, Draft: true},
+		}
+		json.NewEncoder(w).Encode(releases)
+	}))
+	defer server.Close()
+
+	originalBaseURL := apiBaseURL
+	apiBaseURL = server.URL
+	defer func() { apiBaseURL = originalBaseURL }()
+
+	info, err := CheckForUpdates("1.0.0")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if info.LatestVersion != "" {
+		t.Errorf("Expected empty LatestVersion when all releases are drafts, got %s", info.LatestVersion)
+	}
+}
+
 func TestFindLatestRelease_Empty(t *testing.T) {
 	_, found := findLatestRelease([]GitHubRelease{})
 	if found {
