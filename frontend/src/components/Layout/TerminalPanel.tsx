@@ -1575,9 +1575,12 @@ export const TerminalPanel = () => {
     exportLogFile(activeLogs, filename);
   };
 
+  const isAdminAuthenticated = useFlowStore((state) => state.isAdminAuthenticated);
+  const isAwaitingAdminPassword = useFlowStore((state) => state.isAwaitingAdminPassword);
+
   const suggestions = useMemo(() => {
-    return getAutocompleteSuggestions(commandInput, nodes);
-  }, [commandInput, nodes]);
+    return getAutocompleteSuggestions(commandInput, nodes, isAdminAuthenticated, isAwaitingAdminPassword);
+  }, [commandInput, nodes, isAdminAuthenticated, isAwaitingAdminPassword]);
 
   useEffect(() => {
     if (suppressAutocompleteRef.current) {
