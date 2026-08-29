@@ -3,28 +3,12 @@
 package system
 
 import (
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"golang.org/x/sys/windows"
 )
-
-var wmicPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "wbem", "wmic.exe")
-
-func runWmic(arg ...string) ([]byte, error) {
-	cmd := exec.Command(wmicPath, arg...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Output()
-}
-
-func runPowershell(script string) ([]byte, error) {
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script) // NOSONAR
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Output()
-}
 
 func parseValueFromOutput(out []byte) uint64 {
 	lines := strings.Split(string(out), "\n")
@@ -43,68 +27,48 @@ func parseValueFromOutput(out []byte) uint64 {
 	return 0
 }
 
-func getTotalMemoryGB() uint64 {
-	totalOut, err := runWmic("computersystem", "get", "TotalPhysicalMemory")
-	val := uint64(0)
-	if err == nil {
-		val = parseValueFromOutput(totalOut)
-	}
-	if val == 0 {
-		psOut, psErr := runPowershell("(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory")
-		if psErr == nil {
-			val = parseValueFromOutput(psOut)
-		}
-	}
-	if val > 0 {
-		return (val + (1024 * 1024 * 1024) - 1) / (1024 * 1024 * 1024)
-	}
-	return 16
+func fileTimeToUint64(ft windows.Filetime) uint64 {
+	return uint64(ft.HighDateTime)<<32 | uint64(ft.LowDateTime)
 }
 
-func getFreeMemoryGB() float64 {
-	freeOut, err := runWmic("os", "get", "FreePhysicalMemory")
-	valKB := uint64(0)
+func getWinMemoryStats() (totalGB uint64, freeGB float64) {
+	var msx windows.MemoryStatusEx
+	msx.Length = uint32(windows.SizeofMemoryStatusEx)
+	err := windows.GlobalMemoryStatusEx(&msx)
 	if err == nil {
-		valKB = parseValueFromOutput(freeOut)
+		totalGB = (msx.TotalPhys + (1024 * 1024 * 1024) - 1) / (1024 * 1024 * 1024)
+		freeGB = float64(msx.AvailPhys) / (1024 * 1024 * 1024)
+		return totalGB, freeGB
 	}
-	if valKB == 0 {
-		psOut, psErr := runPowershell("(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory")
-		if psErr == nil {
-			valKB = parseValueFromOutput(psOut)
-		}
-	}
-	if valKB > 0 {
-		return float64(valKB) / (1024 * 1024)
-	}
-	return 8.0
+	return 16, 8.0
 }
 
-func getCpuUsage() int {
-	cpuOut, err := runWmic("cpu", "get", "loadpercentage")
-	val := uint64(0)
+func getWinCpuUsage() int {
+	var idleTime, kernelTime, userTime windows.Filetime
+	err := windows.GetSystemTimes(&idleTime, &kernelTime, &userTime)
 	if err == nil {
-		val = parseValueFromOutput(cpuOut)
-	}
-	if val == 0 {
-		psOut, psErr := runPowershell("(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average")
-		if psErr == nil {
-			val = parseValueFromOutput(psOut)
+		idle := fileTimeToUint64(idleTime)
+		kernel := fileTimeToUint64(kernelTime)
+		user := fileTimeToUint64(userTime)
+		total := kernel + user
+		if total > 0 {
+			busy := total - idle
+			return int((busy * 100) / total)
 		}
 	}
-	return int(val)
+	return 0
 }
 
-// GetSystemResources returns the local CPU cores and total/available memory in GB using WMIC with PowerShell fallback
+// GetSystemResources returns the local CPU cores and total/available memory in GB using native Win32 API via golang.org/x/sys/windows
 func GetSystemResources() map[string]interface{} {
 	cores := runtime.NumCPU()
-	totalMemoryGB := getTotalMemoryGB()
-	freeMemoryGB := getFreeMemoryGB()
-	cpuUsage := getCpuUsage()
+	totalMemoryGB, freeMemoryGB := getWinMemoryStats()
+	cpuUsage := getWinCpuUsage()
 
 	return map[string]interface{}{
-		"cpuCores":       cores,
-		"cpuUsage":       cpuUsage,
-		"totalMemoryGB":  totalMemoryGB,
-		"freeMemoryGB":   freeMemoryGB,
+		"cpuCores":      cores,
+		"cpuUsage":      cpuUsage,
+		"totalMemoryGB": totalMemoryGB,
+		"freeMemoryGB":  freeMemoryGB,
 	}
 }
