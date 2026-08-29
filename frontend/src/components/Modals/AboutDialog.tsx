@@ -111,7 +111,7 @@ const fetchAboutData = async (
 
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
-  const [appVersion, setAppVersion] = useState('0.1.0');
+  const [appVersion, setAppVersion] = useState('0.3.0');
   const [appName] = useState('Kube Simulator');
   const [appCopyright] = useState('Copyright 2026');
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);

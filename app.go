@@ -465,7 +465,7 @@ func (a *App) GetSystemInfo() map[string]string {
 		"os":        runtime.GOOS,
 		"arch":      runtime.GOARCH,
 		"goVersion": runtime.Version(),
-		"version":   "0.1.0",
+		"version":   "0.3.0",
 	}
 }
 
