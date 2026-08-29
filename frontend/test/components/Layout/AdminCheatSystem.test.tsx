@@ -51,7 +51,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     const handled = handleAdminAndCheatCommands('kubesim123', ctx);
     expect(handled).toBe(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
-    expect(logs.some(l => l.includes('Access Granted'))).toBe(true);
+    expect(logs.some(l => l.includes('Secret Mode Unlocked'))).toBe(true);
 
     // Now test cheat command
     handleAdminAndCheatCommands('cheat update 0.5.0', ctx);

@@ -211,8 +211,20 @@ export const handleHistoryCommand = (
   return true;
 };
 
-export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: string) => void): boolean => {
+export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line: string) => void) | CommandContext): boolean => {
   if (cmdLower !== 'help') return false;
+
+  let addActivityLog: (line: string) => void;
+  let isAdmin = false;
+
+  if (typeof addActivityLogOrCtx === 'function') {
+    addActivityLog = addActivityLogOrCtx;
+  } else {
+    addActivityLog = addActivityLogOrCtx.addActivityLog;
+    const store = addActivityLogOrCtx.getStoreState();
+    isAdmin = store.isAdminAuthenticated;
+  }
+
   addActivityLog('Available educational Kubernetes commands:');
   addActivityLog('  kubectl get pods                      List all pods on the canvas');
   addActivityLog('  kubectl get deployments               List deployments on the canvas');
@@ -229,6 +241,14 @@ export const handleHelpCommand = (cmdLower: string, addActivityLog: (line: strin
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
   addActivityLog('  history                               View command execution history with timestamps');
   addActivityLog('  clear                                 Clear the console log list');
+
+  if (isAdmin) {
+    addActivityLog('Secret Admin CLI Commands:');
+    addActivityLog('  cheat update <version>                Simulate update notification button (e.g. cheat update 0.4.0)');
+    addActivityLog('  cheat clear                           Clear simulated update notification');
+    addActivityLog('  cheat status                          View secret mode status');
+  }
+
   return true;
 };
 
@@ -601,7 +621,7 @@ export const executeKubectlCommand = (
 ) => {
   const cmdLower = cmd.toLowerCase();
 
-  if (handleHelpCommand(cmdLower, ctx.addActivityLog)) {
+  if (handleHelpCommand(cmdLower, ctx)) {
     return;
   }
 
@@ -937,10 +957,12 @@ export const TerminalCommandForm = ({
   onSelectSuggestion,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
+  const isAwaitingAdminPassword = useFlowStore((state) => state.isAwaitingAdminPassword);
+
   return (
     <div className="flex items-center justify-between gap-4 w-full relative">
       {/* Autocomplete Popup Dropdown */}
-      {isDropdownOpen && suggestions.length > 0 && (
+      {!isAwaitingAdminPassword && isDropdownOpen && suggestions.length > 0 && (
         <div
           data-testid="terminal-autocomplete-popup"
           className={cn(
@@ -973,7 +995,7 @@ export const TerminalCommandForm = ({
       )}>
         <span className={cn("font-bold select-none", isDark ? "text-cyan-400" : "text-cyan-600")}>$</span>
         <input
-          type="text"
+          type={isAwaitingAdminPassword ? "password" : "text"}
           value={commandInput}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={onKeyDown}
@@ -981,7 +1003,7 @@ export const TerminalCommandForm = ({
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          placeholder="Type kubectl command (e.g. 'help', 'kubectl get pods')..."
+          placeholder={isAwaitingAdminPassword ? "Enter admin password (input hidden)..." : "Type kubectl command (e.g. 'help', 'kubectl get pods')..."}
           className={cn(
             "flex-1 bg-transparent outline-none border-none font-mono text-[11px] p-0 focus:ring-0",
             isDark ? "text-slate-200 placeholder-slate-700" : "text-slate-800 placeholder-slate-300"

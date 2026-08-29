@@ -22,10 +22,9 @@ export const handleAdminAndCheatCommands = (
   // Handle password entry mode when awaiting admin password
   if (isAwaitingPassword) {
     const enteredPassword = cmd.trim();
-    // Default admin password or cheat password
     if (enteredPassword === 'kubesim123' || enteredPassword === 'admin' || enteredPassword === 'admin123') {
-      ctx.addActivityLog(`[Access Granted] Admin privileges authenticated. Secret cheat mode unlocked!`);
-      ctx.addActivityLog(`Type "cheat update <version>" to simulate update, or "cheat clear" to clear.`);
+      ctx.addActivityLog(`[Secret Mode Unlocked!] Admin privileges authenticated.`);
+      ctx.addActivityLog(`Type "help" to view all available commands including secret CLI tools.`);
       ctx.setStoreState({ isAdminAuthenticated: true, isAwaitingAdminPassword: false });
     } else {
       ctx.addActivityLog(`[Access Denied] Incorrect password.`);
