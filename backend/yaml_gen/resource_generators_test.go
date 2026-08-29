@@ -34,6 +34,94 @@ func TestResourceGenerators_HPAMetrics(t *testing.T) {
 	})
 }
 
+func TestResourceGenerators_DisabledFields(t *testing.T) {
+	t.Run("PVC Disabled Fields", func(t *testing.T) {
+		data := k8s.K8sNodeData{
+			StorageCapacity: "5Gi",
+			YamlSettings: map[string]bool{
+				"capacity":    false,
+				"accessModes": false,
+			},
+		}
+		res := generatePVC(data, "pvc-test", "default")
+		pvc := res.(k8s.PVC)
+		if pvc.Spec.Resources.Requests["storage"] != "5Gi" {
+			t.Errorf("Expected storage 5Gi, got %s", pvc.Spec.Resources.Requests["storage"])
+		}
+	})
+
+	t.Run("Deployment Disabled Replicas", func(t *testing.T) {
+		rep := 5
+		data := k8s.K8sNodeData{
+			Replicas: &rep,
+			YamlSettings: map[string]bool{
+				"replicas": false,
+			},
+		}
+		res := generateDeployment(data, "dep-test", "default", &GenContext{})
+		dep := res.(k8s.Deployment)
+		if dep.Spec.Replicas != 5 {
+			t.Errorf("Expected replicas 5, got %d", dep.Spec.Replicas)
+		}
+	})
+
+	t.Run("ReplicaSet Disabled Replicas", func(t *testing.T) {
+		rep := 5
+		data := k8s.K8sNodeData{
+			Replicas: &rep,
+			YamlSettings: map[string]bool{
+				"replicas": false,
+			},
+		}
+		res := generateReplicaSet(data, "rs-test", "default", &GenContext{})
+		rs := res.(k8s.ReplicaSet)
+		if rs.Spec.Replicas != 5 {
+			t.Errorf("Expected replicas 5, got %d", rs.Spec.Replicas)
+		}
+	})
+
+	t.Run("Service No Target Workload", func(t *testing.T) {
+		data := k8s.K8sNodeData{Port: 80}
+		ctx := &GenContext{}
+		res := generateService(data, "svc-no-target", "default", ctx)
+		svc := res.(k8s.Service)
+		if svc.Spec.Selector["app"] != "app-label" {
+			t.Errorf("Expected fallback app selector 'app-label', got %s", svc.Spec.Selector["app"])
+		}
+	})
+
+	t.Run("Ingress No Target Service", func(t *testing.T) {
+		data := k8s.K8sNodeData{IngressHost: "test.local"}
+		ctx := &GenContext{}
+		res := generateIngress(data, "ing-no-target", "default", ctx)
+		ing := res.(k8s.Ingress)
+		if ing.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name != "tbd-service" {
+			t.Errorf("Expected fallback service name 'tbd-service', got %s", ing.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name)
+		}
+	})
+
+	t.Run("HPA No Target Deployment", func(t *testing.T) {
+		minR := 2
+		maxR := 4
+		data := k8s.K8sNodeData{
+			MinReplicas: &minR,
+			MaxReplicas: &maxR,
+			YamlSettings: map[string]bool{
+				"replicas": false,
+			},
+		}
+		ctx := &GenContext{}
+		res := generateHPA(data, "hpa-no-target", "default", ctx)
+		hpa := res.(k8s.HPA)
+		if hpa.Spec.MinReplicas != 1 || hpa.Spec.MaxReplicas != 10 {
+			t.Errorf("Expected 1 and 10 when replicas is disabled, got %d and %d", hpa.Spec.MinReplicas, hpa.Spec.MaxReplicas)
+		}
+		if hpa.Spec.ScaleTargetRef.Name != "tbd-deployment" {
+			t.Errorf("Expected fallback scaleTargetRef 'tbd-deployment', got %s", hpa.Spec.ScaleTargetRef.Name)
+		}
+	})
+}
+
 func TestResourceGenerators_Ingress(t *testing.T) {
 	t.Run("Disabled Settings", func(t *testing.T) {
 		data := k8s.K8sNodeData{
