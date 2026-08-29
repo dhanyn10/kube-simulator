@@ -24,10 +24,10 @@ export function cn(...inputs: ClassValue[]) {
 export const trimDashes = (str: string): string => {
   let start = 0;
   let end = str.length;
-  while (start < end && str.charCodeAt(start) === 45) {
+  while (start < end && str.codePointAt(start) === 45) {
     start++;
   }
-  while (end > start && str.charCodeAt(end - 1) === 45) {
+  while (end > start && str.codePointAt(end - 1) === 45) {
     end--;
   }
   return str.slice(start, end);
@@ -47,10 +47,9 @@ export const sanitizeSlug = (input: string): string => {
   let lastWasDash = false;
 
   const lowerInput = input.toLowerCase();
-  for (let i = 0; i < lowerInput.length; i++) {
-    const ch = lowerInput[i];
-    const code = ch.charCodeAt(0);
-    const isValid = (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95 || code === 45;
+  for (const ch of lowerInput) {
+    const code = ch.codePointAt(0);
+    const isValid = code !== undefined && ((code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95 || code === 45);
 
     if (isValid) {
       result += ch;

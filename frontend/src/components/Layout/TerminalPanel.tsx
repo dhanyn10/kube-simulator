@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Node } from '@xyflow/react';
 import { useFlowStore } from '../../store';
-import { cn, safeRandom, trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
+import { cn, safeRandom, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 import { Terminal, X, Trash2, Search, Box, Layers, Play, Download, TerminalSquare, Info } from 'lucide-react';
 import './TerminalPanel.css';
 import {
@@ -133,7 +133,7 @@ export const handleLogsCommand = (
   return true;
 };
 
-export { trimDashes, sanitizeSlug, cleanProjectName };
+export { trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 
 export const generateLogFilename = (
   projectName?: string | null,
