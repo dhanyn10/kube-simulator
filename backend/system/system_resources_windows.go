@@ -6,7 +6,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -31,6 +33,11 @@ var (
 	modkernel32              = syscall.NewLazyDLL("kernel32.dll")
 	procGlobalMemoryStatusEx = modkernel32.NewProc("GlobalMemoryStatusEx")
 	procGetSystemTimes       = modkernel32.NewProc("GetSystemTimes")
+
+	cpuMutex       sync.Mutex
+	prevIdleTime   uint64
+	prevKernelTime uint64
+	prevUserTime   uint64
 )
 
 func parseValueFromOutput(out []byte) uint64 {
@@ -60,7 +67,8 @@ func getWinMemoryStats() (totalGB uint64, freeGB float64) {
 	ret, _, _ := procGlobalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&msx)))
 	if ret != 0 {
 		totalGB = (msx.ullTotalPhys + (1024 * 1024 * 1024) - 1) / (1024 * 1024 * 1024)
-		freeGB = float64(msx.ullAvailPhys) / (1024 * 1024 * 1024)
+		rawFree := float64(msx.ullAvailPhys) / (1024 * 1024 * 1024)
+		freeGB = float64(int(rawFree*100+0.5)) / 100.0
 		return totalGB, freeGB
 	}
 	return 16, 8.0
@@ -73,17 +81,61 @@ func getWinCpuUsage() int {
 		uintptr(unsafe.Pointer(&kernelTime)),
 		uintptr(unsafe.Pointer(&userTime)),
 	)
-	if ret != 0 {
-		idle := fileTimeToUint64(idleTime)
-		kernel := fileTimeToUint64(kernelTime)
-		user := fileTimeToUint64(userTime)
-		total := kernel + user
-		if total > 0 {
-			busy := total - idle
-			return int((busy * 100) / total)
+	if ret == 0 {
+		return 0
+	}
+
+	currentIdle := fileTimeToUint64(idleTime)
+	currentKernel := fileTimeToUint64(kernelTime)
+	currentUser := fileTimeToUint64(userTime)
+
+	cpuMutex.Lock()
+	defer cpuMutex.Unlock()
+
+	if prevKernelTime == 0 && prevUserTime == 0 {
+		prevIdleTime = currentIdle
+		prevKernelTime = currentKernel
+		prevUserTime = currentUser
+
+		cpuMutex.Unlock()
+		time.Sleep(50 * time.Millisecond)
+		cpuMutex.Lock()
+
+		ret, _, _ = procGetSystemTimes.Call(
+			uintptr(unsafe.Pointer(&idleTime)),
+			uintptr(unsafe.Pointer(&kernelTime)),
+			uintptr(unsafe.Pointer(&userTime)),
+		)
+		if ret != 0 {
+			currentIdle = fileTimeToUint64(idleTime)
+			currentKernel = fileTimeToUint64(kernelTime)
+			currentUser = fileTimeToUint64(userTime)
 		}
 	}
-	return 0
+
+	deltaIdle := currentIdle - prevIdleTime
+	deltaKernel := currentKernel - prevKernelTime
+	deltaUser := currentUser - prevUserTime
+
+	prevIdleTime = currentIdle
+	prevKernelTime = currentKernel
+	prevUserTime = currentUser
+
+	deltaTotal := deltaKernel + deltaUser
+	if deltaTotal == 0 || deltaTotal < deltaIdle {
+		return 0
+	}
+
+	deltaBusy := deltaTotal - deltaIdle
+	usage := int((deltaBusy * 100) / deltaTotal)
+	if usage < 0 {
+		return 0
+	}
+	if usage > 100 {
+		return 100
+	}
+
+	return usage
 }
 
 // GetSystemResources returns the local CPU cores and total/available memory in GB using native Win32 API
