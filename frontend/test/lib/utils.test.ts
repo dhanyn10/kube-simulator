@@ -1,7 +1,33 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn } from '@/lib/utils';
+import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName } from '@/lib/utils';
 
 describe('utils', () => {
+  describe('trimDashes', () => {
+    it('trims leading and trailing dashes from strings', () => {
+      expect(trimDashes('---hello-world---')).toBe('hello-world');
+      expect(trimDashes('-test-')).toBe('test');
+      expect(trimDashes('---')).toBe('');
+      expect(trimDashes('no-dashes')).toBe('no-dashes');
+    });
+  });
+
+  describe('sanitizeSlug', () => {
+    it('sanitizes input string into a clean slug', () => {
+      expect(sanitizeSlug('Hello World!!')).toBe('hello-world');
+      expect(sanitizeSlug('   my___test--app   ')).toBe('my___test--app');
+      expect(sanitizeSlug('Pod Name @ 123')).toBe('pod-name-123');
+      expect(sanitizeSlug('!@#$%')).toBe('');
+    });
+  });
+
+  describe('cleanProjectName', () => {
+    it('cleans project and scenario names correctly', () => {
+      expect(cleanProjectName('Scenario: Basic Deployment')).toBe('scenario-basic-deployment');
+      expect(cleanProjectName('scenario:   My  App!!!')).toBe('scenario-my-app');
+      expect(cleanProjectName('My Custom Project')).toBe('my-custom-project');
+    });
+  });
+
   describe('cn', () => {
     it('merges tailwind classes', () => {
       expect(cn('bg-red-500', 'p-4')).toBe('bg-red-500 p-4');
