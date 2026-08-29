@@ -11,31 +11,61 @@ export interface CommandContext {
   setStoreState: (state: any) => void;
 }
 
+const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean => {
+  const enteredPassword = cmd.trim();
+  const validPasswords = ['kubesim123', 'admin', 'admin123'];
+  if (validPasswords.includes(enteredPassword)) {
+    ctx.addActivityLog(`[Secret Mode Unlocked!] Admin privileges authenticated.`);
+    ctx.addActivityLog(`Type "help" to view all available commands including secret CLI tools.`);
+    ctx.setStoreState({ isAdminAuthenticated: true, isAwaitingAdminPassword: false });
+  } else {
+    ctx.addActivityLog(`[Access Denied] Incorrect password.`);
+    ctx.setStoreState({ isAwaitingAdminPassword: false });
+  }
+  return true;
+};
+
+const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext): boolean => {
+  const store = ctx.getStoreState();
+  if (cmdLower === 'cheat update' || cmdLower.startsWith('cheat update ')) {
+    const parts = cmd.trim().split(/\s+/);
+    const targetVersion = parts[2] || '0.4.0';
+    const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
+    store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
+    ctx.addActivityLog(`[CHEAT ACTIVATED] GTA Style Cheat Enabled! Simulated New Version v${targetVersion} Available!`);
+    ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
+    return true;
+  }
+
+  if (['cheat clear', 'cheat update clear', 'noupdate'].includes(cmdLower)) {
+    store.setSimulatedUpdateInfo(null);
+    ctx.addActivityLog(`[CHEAT DEACTIVATED] Cleared simulated update notification.`);
+    return true;
+  }
+
+  if (cmdLower === 'cheat status') {
+    const updateInfo = store.simulatedUpdateInfo;
+    ctx.addActivityLog(`[Admin Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
+    return true;
+  }
+
+  ctx.addActivityLog(`Unknown cheat command. Available cheats: cheat update <version>, cheat clear, cheat status, exit/logout`);
+  return true;
+};
+
 export const handleAdminAndCheatCommands = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
   const store = ctx.getStoreState();
   const isAdminAuth = store.isAdminAuthenticated;
-  const isAwaitingPassword = store.isAwaitingAdminPassword;
 
-  // Handle password entry mode when awaiting admin password
-  if (isAwaitingPassword) {
-    const enteredPassword = cmd.trim();
-    if (enteredPassword === 'kubesim123' || enteredPassword === 'admin' || enteredPassword === 'admin123') {
-      ctx.addActivityLog(`[Secret Mode Unlocked!] Admin privileges authenticated.`);
-      ctx.addActivityLog(`Type "help" to view all available commands including secret CLI tools.`);
-      ctx.setStoreState({ isAdminAuthenticated: true, isAwaitingAdminPassword: false });
-    } else {
-      ctx.addActivityLog(`[Access Denied] Incorrect password.`);
-      ctx.setStoreState({ isAwaitingAdminPassword: false });
-    }
-    return true;
+  if (store.isAwaitingAdminPassword) {
+    return processAdminPasswordEntry(cmd, ctx);
   }
 
   const cmdLower = cmd.trim().toLowerCase();
 
-  // Initiate kubesim admin
   if (cmdLower === 'kubesim admin') {
     if (isAdminAuth) {
       ctx.addActivityLog(`[Admin] Already authenticated in admin mode.`);
@@ -46,51 +76,21 @@ export const handleAdminAndCheatCommands = (
     return true;
   }
 
-  // Logout from admin mode
-  if (cmdLower === 'exit' || cmdLower === 'logout' || cmdLower === 'admin logout') {
-    if (isAdminAuth) {
-      ctx.setStoreState({ isAdminAuthenticated: false });
-      ctx.addActivityLog(`[Admin Session Closed] Logged out from admin mode. Returned to standard Kubernetes CLI mode.`);
-      return true;
-    }
+  if (['exit', 'logout', 'admin logout'].includes(cmdLower) && isAdminAuth) {
+    ctx.setStoreState({ isAdminAuthenticated: false });
+    ctx.addActivityLog(`[Admin Session Closed] Logged out from admin mode. Returned to standard Kubernetes CLI mode.`);
+    return true;
   }
 
-  // Handle cheat commands if admin authenticated
   if (cmdLower.startsWith('cheat ')) {
     if (!isAdminAuth) {
       ctx.addActivityLog(`[Warning] Admin mode is inactive. Standard Kubernetes CLI tools cannot execute cheat commands.`);
       ctx.addActivityLog(`Please authenticate first via "kubesim admin".`);
       return true;
     }
-
-    if (cmdLower === 'cheat update' || cmdLower.startsWith('cheat update ')) {
-      const parts = cmd.trim().split(/\s+/);
-      const targetVersion = parts[2] || '0.4.0';
-      const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
-
-      store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
-      ctx.addActivityLog(`[CHEAT ACTIVATED] GTA Style Cheat Enabled! Simulated New Version v${targetVersion} Available!`);
-      ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
-      return true;
-    }
-
-    if (cmdLower === 'cheat clear' || cmdLower === 'cheat update clear' || cmdLower === 'noupdate') {
-      store.setSimulatedUpdateInfo(null);
-      ctx.addActivityLog(`[CHEAT DEACTIVATED] Cleared simulated update notification.`);
-      return true;
-    }
-
-    if (cmdLower === 'cheat status') {
-      const updateInfo = store.simulatedUpdateInfo;
-      ctx.addActivityLog(`[Admin Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
-      return true;
-    }
-
-    ctx.addActivityLog(`Unknown cheat command. Available cheats: cheat update <version>, cheat clear, cheat status, exit/logout`);
-    return true;
+    return processCheatCommands(cmd, cmdLower, ctx);
   }
 
-  // If in Admin mode, block standard kubectl / user commands and warn to logout
   if (isAdminAuth) {
     ctx.addActivityLog(`[Warning] You are currently in Admin Mode. Standard Kubernetes user commands are disabled.`);
     ctx.addActivityLog(`Type "logout" or "exit" to leave Admin Mode and return to standard CLI.`);
