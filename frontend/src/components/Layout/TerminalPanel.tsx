@@ -133,6 +133,47 @@ export const handleLogsCommand = (
   return true;
 };
 
+export const trimDashes = (str: string): string => {
+  let start = 0;
+  let end = str.length;
+  while (start < end && str.charCodeAt(start) === 45) {
+    start++;
+  }
+  while (end > start && str.charCodeAt(end - 1) === 45) {
+    end--;
+  }
+  return str.slice(start, end);
+};
+
+export const sanitizeSlug = (input: string): string => {
+  let result = '';
+  let lastWasDash = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    const code = ch.charCodeAt(0);
+    const isValid = (code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95 || code === 45;
+
+    if (isValid) {
+      result += ch;
+      lastWasDash = ch === '-';
+    } else if (!lastWasDash && result.length > 0) {
+      result += '-';
+      lastWasDash = true;
+    }
+  }
+
+  return trimDashes(result);
+};
+
+export const cleanProjectName = (projectName: string): string => {
+  let lower = projectName.toLowerCase();
+  if (lower.startsWith('scenario:')) {
+    lower = 'scenario-' + lower.slice(9).trimStart();
+  }
+  return sanitizeSlug(lower);
+};
+
 export const generateLogFilename = (
   projectName?: string | null,
   activeTab?: 'activity' | 'logs',
@@ -140,17 +181,16 @@ export const generateLogFilename = (
 ): string => {
   let prefix = activeTab === 'activity' ? 'activity-history' : 'resource-logs';
   if (projectName) {
-    const cleanProject = projectName.toLowerCase()
-      .replace(/^scenario:\s*/i, 'scenario-')
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    const cleanProject = cleanProjectName(projectName);
     if (cleanProject) {
       prefix = `${prefix}-${cleanProject}`;
     }
   }
   if (activeTab === 'logs' && resourceName) {
-    const cleanResource = String(resourceName).toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
-    prefix = `${prefix}-${cleanResource}`;
+    const cleanResource = sanitizeSlug(String(resourceName).toLowerCase());
+    if (cleanResource) {
+      prefix = `${prefix}-${cleanResource}`;
+    }
   }
 
   const date = new Date();
