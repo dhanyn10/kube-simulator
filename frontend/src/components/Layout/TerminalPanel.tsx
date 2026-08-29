@@ -261,7 +261,7 @@ export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', 
   }
 
   const q = searchQuery.toLowerCase();
-  const escapedSearch = searchQuery.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const escapedSearch = searchQuery.replace(/[-/\\^$*+?.()|[\]{}]/g, String.raw`\$&`);
   const parts = line.split(new RegExp(`(${escapedSearch})`, 'gi'));
   const partsWithObjects = parts.map((part, index) => ({
     key: `highlight-part-${index}-${part}`,
