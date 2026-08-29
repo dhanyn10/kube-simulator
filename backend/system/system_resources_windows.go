@@ -20,7 +20,8 @@ func runWmic(arg ...string) ([]byte, error) {
 	return cmd.Output()
 }
 
-func runPowershell(script string) ([]byte, error) { // NOSONAR
+func runPowershell(script string) ([]byte, error) {
+	// NOSONAR
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return cmd.Output()
