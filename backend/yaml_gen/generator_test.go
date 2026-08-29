@@ -248,6 +248,26 @@ func TestGenerateWithEmptyLabel(t *testing.T) {
 	}
 }
 
+func TestGenerate_InvalidJSON(t *testing.T) {
+	result1 := Generate("invalid json", "[]")
+	if !strings.Contains(result1, "Error parsing nodes") {
+		t.Errorf("Expected Error parsing nodes, got: %s", result1)
+	}
+
+	result2 := Generate("[]", "invalid json")
+	if !strings.Contains(result2, "Error parsing edges") {
+		t.Errorf("Expected Error parsing edges, got: %s", result2)
+	}
+}
+
+func TestGenerate_UnknownNodeType(t *testing.T) {
+	nodesJson := `[{"id":"u1","type":"UnknownType","data":{"label":"Unknown"}}]`
+	result := Generate(nodesJson, "[]")
+	if result != "null" {
+		t.Errorf("Unknown node type should be skipped, got: %s", result)
+	}
+}
+
 func TestGenerate_Integration(t *testing.T) {
 	// A more complex setup to test Generate end-to-end with multiple resources
 	nodesJson := `[

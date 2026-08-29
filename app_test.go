@@ -617,3 +617,23 @@ func TestApp_DockerHubMethods_HardError(t *testing.T) {
 		t.Errorf("Expected nil for network failure, got %+v", upd)
 	}
 }
+
+func TestApp_OpenLogFile_EmptyPath(t *testing.T) {
+	app := NewApp()
+	ctx := context.WithValue(context.Background(), isTestKey, true)
+	ctx = context.WithValue(ctx, testFilePathKey, "")
+	appCtx = ctx
+	defer func() { appCtx = nil }()
+
+	// If GetLogFilePath returns a valid path default, OpenLogFile will succeed or use GetLogFilePath.
+	// Test directly
+	_ = app.OpenLogFile()
+}
+
+func TestApp_GetTargetScreen_Empty(t *testing.T) {
+	app := NewApp()
+	_, ok := app.GetTargetScreen([]wailsRuntime.Screen{})
+	if ok {
+		t.Error("Expected GetTargetScreen to return false for empty screens slice")
+	}
+}
