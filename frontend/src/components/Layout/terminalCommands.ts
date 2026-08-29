@@ -46,10 +46,20 @@ export const handleAdminAndCheatCommands = (
     return true;
   }
 
+  // Logout from admin mode
+  if (cmdLower === 'exit' || cmdLower === 'logout' || cmdLower === 'admin logout') {
+    if (isAdminAuth) {
+      ctx.setStoreState({ isAdminAuthenticated: false });
+      ctx.addActivityLog(`[Admin Session Closed] Logged out from admin mode. Returned to standard Kubernetes CLI mode.`);
+      return true;
+    }
+  }
+
   // Handle cheat commands if admin authenticated
   if (cmdLower.startsWith('cheat ')) {
     if (!isAdminAuth) {
-      ctx.addActivityLog(`kubectl-mock: command not found: "${cmd}"`);
+      ctx.addActivityLog(`[Warning] Admin mode is inactive. Standard Kubernetes CLI tools cannot execute cheat commands.`);
+      ctx.addActivityLog(`Please authenticate first via "kubesim admin".`);
       return true;
     }
 
@@ -76,7 +86,14 @@ export const handleAdminAndCheatCommands = (
       return true;
     }
 
-    ctx.addActivityLog(`Unknown cheat command. Available cheats: cheat update <version>, cheat clear, cheat status`);
+    ctx.addActivityLog(`Unknown cheat command. Available cheats: cheat update <version>, cheat clear, cheat status, exit/logout`);
+    return true;
+  }
+
+  // If in Admin mode, block standard kubectl / user commands and warn to logout
+  if (isAdminAuth) {
+    ctx.addActivityLog(`[Warning] You are currently in Admin Mode. Standard Kubernetes user commands are disabled.`);
+    ctx.addActivityLog(`Type "logout" or "exit" to leave Admin Mode and return to standard CLI.`);
     return true;
   }
 
