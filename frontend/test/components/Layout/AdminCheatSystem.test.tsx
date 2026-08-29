@@ -6,19 +6,23 @@ import { MenuBar } from '@/components/Layout/MenuBar';
 import { useFlowStore } from '@/store';
 import { handleAdminAndCheatCommands, CommandContext } from '@/components/Layout/terminalCommands';
 
+import { handleHelpCommand } from '@/components/Layout/TerminalPanel';
+import { getAutocompleteSuggestions } from '@/components/Layout/terminalAutocomplete';
+
 describe('Admin Authentication and GTA Cheat Code System', () => {
+  let logs: string[];
+  let ctx: CommandContext;
+
   beforeEach(() => {
+    logs = [];
     useFlowStore.setState({
       simulatedUpdateInfo: null,
       isAdminAuthenticated: false,
       isAwaitingAdminPassword: false,
       activityLogs: [],
     });
-  });
 
-  it('prompts for password when "kubesim admin" is executed', () => {
-    const logs: string[] = [];
-    const ctx: CommandContext = {
+    ctx = {
       nodes: [],
       isSimulating: false,
       updateNodeData: vi.fn(),
@@ -27,26 +31,24 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
       getStoreState: () => useFlowStore.getState(),
       setStoreState: (state) => useFlowStore.setState(state),
     };
+  });
 
+  it('prompts for password when "kubesim admin" is executed', () => {
     const handled = handleAdminAndCheatCommands('kubesim admin', ctx);
     expect(handled).toBe(true);
     expect(logs).toContain('[Admin Authentication] Please enter admin password:');
     expect(useFlowStore.getState().isAwaitingAdminPassword).toBe(true);
   });
 
+  it('handles already authenticated kubesim admin command', () => {
+    useFlowStore.setState({ isAdminAuthenticated: true });
+    const handled = handleAdminAndCheatCommands('kubesim admin', ctx);
+    expect(handled).toBe(true);
+    expect(logs.some(l => l.includes('Already authenticated'))).toBe(true);
+  });
+
   it('authenticates admin when correct password is submitted and unlocks cheats', () => {
     useFlowStore.setState({ isAwaitingAdminPassword: true });
-
-    const logs: string[] = [];
-    const ctx: CommandContext = {
-      nodes: [],
-      isSimulating: false,
-      updateNodeData: vi.fn(),
-      addActivityLog: (msg) => logs.push(msg),
-      deleteNodes: vi.fn(),
-      getStoreState: () => useFlowStore.getState(),
-      setStoreState: (state) => useFlowStore.setState(state),
-    };
 
     const handled = handleAdminAndCheatCommands('kubesim123', ctx);
     expect(handled).toBe(true);
@@ -56,6 +58,77 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     // Now test cheat command
     handleAdminAndCheatCommands('cheat update 0.5.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.5.0');
+  });
+
+  it('rejects authentication on wrong password', () => {
+    useFlowStore.setState({ isAwaitingAdminPassword: true });
+    const handled = handleAdminAndCheatCommands('wrongpass', ctx);
+    expect(handled).toBe(true);
+    expect(useFlowStore.getState().isAdminAuthenticated).toBe(false);
+    expect(logs.some(l => l.includes('Access Denied'))).toBe(true);
+  });
+
+  it('handles cheat clear, cheat status, noupdate, and unknown cheat commands', () => {
+    useFlowStore.setState({ isAdminAuthenticated: true });
+
+    // cheat update default
+    handleAdminAndCheatCommands('cheat update', ctx);
+    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.4.0');
+
+    // cheat status
+    handleAdminAndCheatCommands('cheat status', ctx);
+    expect(logs.some(l => l.includes('Admin Status'))).toBe(true);
+
+    // cheat clear
+    handleAdminAndCheatCommands('cheat clear', ctx);
+    expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
+
+    // unknown cheat
+    handleAdminAndCheatCommands('cheat invalidcmd', ctx);
+    expect(logs.some(l => l.includes('Unknown cheat command'))).toBe(true);
+  });
+
+  it('enforces mode isolation (blocks cheat in user mode & standard cmd in admin mode)', () => {
+    // User mode: block cheat command
+    handleAdminAndCheatCommands('cheat update 0.9.0', ctx);
+    expect(logs.some(l => l.includes('Admin mode is inactive'))).toBe(true);
+
+    // Admin mode: block standard user command
+    logs = [];
+    useFlowStore.setState({ isAdminAuthenticated: true });
+    handleAdminAndCheatCommands('kubectl get pods', ctx);
+    expect(logs.some(l => l.includes('You are currently in Admin Mode'))).toBe(true);
+  });
+
+  it('handles logout and exit commands in admin mode', () => {
+    useFlowStore.setState({ isAdminAuthenticated: true });
+    const handled = handleAdminAndCheatCommands('logout', ctx);
+    expect(handled).toBe(true);
+    expect(useFlowStore.getState().isAdminAuthenticated).toBe(false);
+    expect(logs.some(l => l.includes('Logged out from admin mode'))).toBe(true);
+  });
+
+  it('renders isolated help outputs depending on user vs admin mode', () => {
+    // Standard User Mode Help
+    handleHelpCommand('help', ctx);
+    expect(logs.some(l => l.includes('Available educational Kubernetes commands'))).toBe(true);
+    expect(logs.some(l => l.includes('cheat update'))).toBe(false);
+
+    // Admin Mode Help
+    logs = [];
+    useFlowStore.setState({ isAdminAuthenticated: true });
+    handleHelpCommand('help', ctx);
+    expect(logs.some(l => l.includes('Admin CLI Commands'))).toBe(true);
+    expect(logs.some(l => l.includes('kubectl get pods'))).toBe(false);
+  });
+
+  it('filters autocomplete suggestions based on admin state', () => {
+    // Awaiting password -> empty
+    expect(getAutocompleteSuggestions('k', [], false, true)).toEqual([]);
+
+    // Admin Mode -> admin cheat suggestions
+    const adminSugg = getAutocompleteSuggestions('ch', [], true, false);
+    expect(adminSugg.some(s => s.value.startsWith('cheat'))).toBe(true);
   });
 
   it('renders Update button in MenuBar when simulated update cheat is active', async () => {
