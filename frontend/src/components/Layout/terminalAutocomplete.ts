@@ -9,9 +9,9 @@ export interface SuggestionItem {
 }
 
 export const ADMIN_CHEAT_SUGGESTIONS: SuggestionItem[] = [
-  { value: 'cheat update 0.4.0', label: 'cheat update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
-  { value: 'cheat clear', label: 'cheat clear', category: 'Admin', description: 'Clear simulated update notification' },
-  { value: 'cheat status', label: 'cheat status', category: 'Admin', description: 'View secret mode status' },
+  { value: 'try update 0.4.0', label: 'try update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
+  { value: 'try clear', label: 'try clear', category: 'Admin', description: 'Clear simulated update notification' },
+  { value: 'try status', label: 'try status', category: 'Admin', description: 'View secret mode status' },
   { value: 'logout', label: 'logout', category: 'Admin', description: 'Exit Admin Mode and return to standard CLI' },
 ];
 

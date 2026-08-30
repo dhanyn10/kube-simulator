@@ -227,9 +227,9 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
 
   if (isAdmin) {
     addActivityLog('Admin CLI Commands:');
-    addActivityLog('  cheat update <version>                Simulate update notification button (e.g. cheat update 0.4.0)');
-    addActivityLog('  cheat clear                           Clear simulated update notification');
-    addActivityLog('  cheat status                          View secret mode status');
+    addActivityLog('  try update <version>                  Simulate update notification button (e.g. try update 0.4.0)');
+    addActivityLog('  try clear                             Clear simulated update notification');
+    addActivityLog('  try status                            View secret mode status');
     addActivityLog('  logout / exit                         Exit Admin Mode and return to standard CLI');
     return true;
   }

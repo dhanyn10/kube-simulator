@@ -47,7 +47,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(logs.some(l => l.includes('Already authenticated'))).toBe(true);
   });
 
-  it('authenticates admin when correct password is submitted and unlocks cheats', () => {
+  it('authenticates admin when correct password is submitted and unlocks try commands', () => {
     useFlowStore.setState({ isAwaitingAdminPassword: true });
 
     const handled = handleAdminAndCheatCommands('kubesim123', ctx);
@@ -55,8 +55,8 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
     expect(logs.some(l => l.includes('Secret Mode Unlocked'))).toBe(true);
 
-    // Now test cheat command
-    handleAdminAndCheatCommands('cheat update 0.5.0', ctx);
+    // Now test try command
+    handleAdminAndCheatCommands('try update 0.5.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.5.0');
   });
 
@@ -68,44 +68,44 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(logs.some(l => l.includes('Access Denied'))).toBe(true);
   });
 
-  it('handles cheat clear, cheat status, noupdate, and unknown cheat commands', () => {
+  it('handles try clear, try status, noupdate, and unknown try commands', () => {
     useFlowStore.setState({ isAdminAuthenticated: true });
 
-    // cheat update default
-    handleAdminAndCheatCommands('cheat update', ctx);
+    // try update default
+    handleAdminAndCheatCommands('try update', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.4.0');
 
-    // cheat status
-    handleAdminAndCheatCommands('cheat status', ctx);
-    expect(logs.some(l => l.includes('Admin Status'))).toBe(true);
+    // try status
+    handleAdminAndCheatCommands('try status', ctx);
+    expect(logs.some(l => l.includes('Dev-Mode Status'))).toBe(true);
 
-    // cheat clear
-    handleAdminAndCheatCommands('cheat clear', ctx);
+    // try clear
+    handleAdminAndCheatCommands('try clear', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
 
-    // unknown cheat
-    handleAdminAndCheatCommands('cheat invalidcmd', ctx);
-    expect(logs.some(l => l.includes('Unknown cheat command'))).toBe(true);
+    // unknown try
+    handleAdminAndCheatCommands('try invalidcmd', ctx);
+    expect(logs.some(l => l.includes('Unknown command'))).toBe(true);
   });
 
   it('rejects simulated update when target version is lower than or equal to current version', () => {
     useFlowStore.setState({ isAdminAuthenticated: true });
 
-    // cheat update to 0.2.0 (lower than 0.3.0)
-    handleAdminAndCheatCommands('cheat update 0.2.0', ctx);
+    // try update to 0.2.0 (lower than 0.3.0)
+    handleAdminAndCheatCommands('try update 0.2.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
 
-    // cheat update to 0.3.0 (equal to 0.3.0)
+    // try update to 0.3.0 (equal to 0.3.0)
     logs = [];
-    handleAdminAndCheatCommands('cheat update 0.3.0', ctx);
+    handleAdminAndCheatCommands('try update 0.3.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
   });
 
-  it('enforces mode isolation (blocks cheat in user mode & standard cmd in admin mode)', () => {
-    // User mode: block cheat command
-    handleAdminAndCheatCommands('cheat update 0.9.0', ctx);
+  it('enforces mode isolation (blocks try in user mode & standard cmd in admin mode)', () => {
+    // User mode: block try command
+    handleAdminAndCheatCommands('try update 0.9.0', ctx);
     expect(logs.some(l => l.includes('Admin mode is inactive'))).toBe(true);
 
     // Admin mode: block standard user command
@@ -127,7 +127,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     // Standard User Mode Help
     handleHelpCommand('help', ctx);
     expect(logs.some(l => l.includes('Available educational Kubernetes commands'))).toBe(true);
-    expect(logs.some(l => l.includes('cheat update'))).toBe(false);
+    expect(logs.some(l => l.includes('try update'))).toBe(false);
 
     // Admin Mode Help
     logs = [];
@@ -141,9 +141,9 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     // Awaiting password -> empty
     expect(getAutocompleteSuggestions('k', [], false, true)).toEqual([]);
 
-    // Admin Mode -> admin cheat suggestions
-    const adminSugg = getAutocompleteSuggestions('ch', [], true, false);
-    expect(adminSugg.some(s => s.value.startsWith('cheat'))).toBe(true);
+    // Admin Mode -> admin try suggestions
+    const adminSugg = getAutocompleteSuggestions('tr', [], true, false);
+    expect(adminSugg.some(s => s.value.startsWith('try'))).toBe(true);
   });
 
   it('renders Update button in MenuBar when simulated update cheat is active', async () => {

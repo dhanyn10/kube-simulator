@@ -43,37 +43,37 @@ const compareVersions = (v1: string, v2: string): number => {
 const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext): boolean => {
   const store = ctx.getStoreState();
 
-  if (cmdLower === 'cheat update' || cmdLower.startsWith('cheat update ')) {
+  if (cmdLower === 'try update' || cmdLower.startsWith('try update ')) {
     const parts = cmd.trim().split(/\s+/);
     const targetVersion = (parts[2] || '0.4.0').replace(/^v/i, '');
     const currentVersion = '0.3.0';
 
     if (compareVersions(targetVersion, currentVersion) <= 0) {
-      ctx.addActivityLog(`[Cheat Error] Target version (v${targetVersion}) must be higher than current version (v${currentVersion}).`);
+      ctx.addActivityLog(`[Dev-Mode Error] Target version (v${targetVersion}) must be higher than current version (v${currentVersion}).`);
       ctx.addActivityLog(`Update simulation cancelled.`);
       return true;
     }
 
     const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
     store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
-    ctx.addActivityLog(`[Cheat Activated] Simulated New Version v${targetVersion} Available!`);
+    ctx.addActivityLog(`[Dev-Mode Activated] Simulated New Version v${targetVersion} Available!`);
     ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
     return true;
   }
 
-  if (['cheat clear', 'cheat update clear', 'noupdate'].includes(cmdLower)) {
+  if (['try clear', 'try update clear', 'noupdate'].includes(cmdLower)) {
     store.setSimulatedUpdateInfo(null);
-    ctx.addActivityLog(`[Cheat Deactivated] Cleared simulated update notification.`);
+    ctx.addActivityLog(`[Dev-Mode Deactivated] Cleared simulated update notification.`);
     return true;
   }
 
-  if (cmdLower === 'cheat status') {
+  if (cmdLower === 'try status') {
     const updateInfo = store.simulatedUpdateInfo;
-    ctx.addActivityLog(`[Admin Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
+    ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
     return true;
   }
 
-  ctx.addActivityLog(`Unknown cheat command. Available cheats: cheat update <version>, cheat clear, cheat status, exit/logout`);
+  ctx.addActivityLog(`Unknown command. Available admin commands: try update <version>, try clear, try status, exit/logout`);
   return true;
 };
 
@@ -106,9 +106,9 @@ export const handleAdminAndCheatCommands = (
     return true;
   }
 
-  if (cmdLower.startsWith('cheat ')) {
+  if (cmdLower.startsWith('try ')) {
     if (!isAdminAuth) {
-      ctx.addActivityLog(`[Warning] Admin mode is inactive. Standard Kubernetes CLI tools cannot execute cheat commands.`);
+      ctx.addActivityLog(`[Warning] Admin mode is inactive. Standard Kubernetes CLI tools cannot execute try commands.`);
       ctx.addActivityLog(`Please authenticate first via "kubesim admin".`);
       return true;
     }
