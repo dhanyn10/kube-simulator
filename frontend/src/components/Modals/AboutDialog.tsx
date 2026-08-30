@@ -1,7 +1,6 @@
 import { logger } from '../../lib/logger';
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
-import { GetSystemInfo, CheckForUpdates } from '../../../wailsjs/go/main/App';
 import { X as CloseIcon, ExternalLink } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
@@ -90,27 +89,48 @@ const fetchAboutData = async (
   appVersion: string,
   setSystemInfo: (info: SystemInfo) => void,
   setAppVersion: (v: string) => void,
-  setUpdateInfo: (u: UpdateInfo) => void
+  setUpdateInfo: (u: UpdateInfo) => void,
+  simulatedUpdateInfo?: { latestVersion: string; releaseUrl: string } | null
 ) => {
-  const info = await GetSystemInfo();
-  const sys: SystemInfo = {
-    os: (info as any).os ?? '',
-    arch: (info as any).arch ?? '',
-    goVersion: (info as any).goVersion ?? '',
-    version: (info as any).version ?? '',
-  };
-  setSystemInfo(sys);
-  const effectiveVersion = sys.version || appVersion;
-  if (sys.version) {
-    setAppVersion(sys.version);
+  const app = globalThis.window?.go?.main?.App;
+  let sys: SystemInfo = { os: '', arch: '', goVersion: '', version: '' };
+
+  if (app?.GetSystemInfo) {
+    const info = await app.GetSystemInfo();
+    sys = {
+      os: (info as any).os ?? '',
+      arch: (info as any).arch ?? '',
+      goVersion: (info as any).goVersion ?? '',
+      version: (info as any).version ?? '',
+    };
+    setSystemInfo(sys);
+    if (sys.version) {
+      setAppVersion(sys.version);
+    }
   }
 
-  const update = await CheckForUpdates(effectiveVersion);
-  setUpdateInfo(update);
+  const effectiveVersion = sys.version || appVersion;
+
+  if (simulatedUpdateInfo) {
+    setUpdateInfo({
+      currentVersion: effectiveVersion,
+      latestVersion: simulatedUpdateInfo.latestVersion,
+      updateAvailable: true,
+      releaseUrl: simulatedUpdateInfo.releaseUrl,
+      isPrerelease: false,
+    });
+    return;
+  }
+
+  if (app?.CheckForUpdates) {
+    const update = await app.CheckForUpdates(effectiveVersion);
+    setUpdateInfo(update);
+  }
 };
 
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
+  const simulatedUpdateInfo = useFlowStore((state: any) => state.simulatedUpdateInfo);
   const [appVersion, setAppVersion] = useState('');
   const [appName] = useState('Kube Simulator');
   const [appCopyright] = useState('Copyright 2026');
@@ -123,10 +143,10 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return;
 
     setIsCheckingUpdate(true);
-    fetchAboutData(appVersion, setSystemInfo, setAppVersion, setUpdateInfo)
+    fetchAboutData(appVersion, setSystemInfo, setAppVersion, setUpdateInfo, simulatedUpdateInfo)
       .catch((error) => logger.error("Failed to fetch info:", error))
       .finally(() => setIsCheckingUpdate(false));
-  }, [isOpen, appVersion]);
+  }, [isOpen, appVersion, simulatedUpdateInfo]);
 
   const handleCopy = async () => {
     const textToCopy = `${appName} ${appVersion}
