@@ -88,6 +88,21 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(logs.some(l => l.includes('Unknown cheat command'))).toBe(true);
   });
 
+  it('rejects simulated update when target version is lower than or equal to current version', () => {
+    useFlowStore.setState({ isAdminAuthenticated: true });
+
+    // cheat update to 0.2.0 (lower than 0.3.0)
+    handleAdminAndCheatCommands('cheat update 0.2.0', ctx);
+    expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
+    expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
+
+    // cheat update to 0.3.0 (equal to 0.3.0)
+    logs = [];
+    handleAdminAndCheatCommands('cheat update 0.3.0', ctx);
+    expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
+    expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
+  });
+
   it('enforces mode isolation (blocks cheat in user mode & standard cmd in admin mode)', () => {
     // User mode: block cheat command
     handleAdminAndCheatCommands('cheat update 0.9.0', ctx);
