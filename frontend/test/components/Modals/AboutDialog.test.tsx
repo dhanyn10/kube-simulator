@@ -2,13 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import AboutDialog from '../../../src/components/Modals/AboutDialog';
 import { useFlowStore } from '../../../src/store';
-import * as AppBindings from '../../../wailsjs/go/main/App';
-
-// Mock Wails bindings
-vi.mock('../../../wailsjs/go/main/App', () => ({
-  GetSystemInfo: vi.fn(),
-  CheckForUpdates: vi.fn(),
-}));
 
 // Mock ResizeObserver for Headless UI Dialog
 global.ResizeObserver = class ResizeObserver {
@@ -20,20 +13,29 @@ global.ResizeObserver = class ResizeObserver {
 describe('AboutDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
+    useFlowStore.setState({ colorMode: 'dark', simulatedUpdateInfo: null });
 
-    (AppBindings.GetSystemInfo as any).mockResolvedValue({
+    const mockGetSystemInfo = vi.fn().mockResolvedValue({
       os: 'linux',
       arch: 'amd64',
       goVersion: 'go1.21.0',
       version: '1.2.3'
     });
 
-    (AppBindings.CheckForUpdates as any).mockResolvedValue({
+    const mockCheckForUpdates = vi.fn().mockResolvedValue({
       updateAvailable: false,
       currentVersion: '1.2.3',
       latestVersion: '1.2.3'
     });
+
+    (window as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: mockGetSystemInfo,
+          CheckForUpdates: mockCheckForUpdates,
+        }
+      }
+    };
   });
 
   it('renders correctly when open', async () => {
@@ -48,7 +50,7 @@ describe('AboutDialog', () => {
   });
 
   it('shows update available message', async () => {
-    (AppBindings.CheckForUpdates as any).mockResolvedValue({
+    (window as any).go.main.App.CheckForUpdates.mockResolvedValue({
       updateAvailable: true,
       latestVersion: '1.2.4',
       releaseUrl: 'https://github.com/test/release',
@@ -61,6 +63,18 @@ describe('AboutDialog', () => {
 
     expect(await screen.findByText(/New version available: v1.2.4/)).toBeDefined();
     expect(screen.getByText('Pre-release')).toBeDefined();
+  });
+
+  it('shows simulated update version when cheat code update is active', async () => {
+    useFlowStore.setState({
+      simulatedUpdateInfo: { latestVersion: '0.9.0', releaseUrl: 'https://example.com' }
+    });
+
+    await act(async () => {
+        render(<AboutDialog isOpen={true} onClose={() => {}} />);
+    });
+
+    expect(await screen.findByText(/New version available: v0.9.0/)).toBeDefined();
   });
 
   it('handles copy to clipboard', async () => {
@@ -95,7 +109,7 @@ describe('AboutDialog', () => {
   });
 
   it('handles fetch info error', async () => {
-    (AppBindings.GetSystemInfo as any).mockRejectedValue(new Error('Fetch failed'));
+    (window as any).go.main.App.GetSystemInfo.mockRejectedValue(new Error('Fetch failed'));
     render(<AboutDialog isOpen={true} onClose={() => {}} />);
     // Should not crash
   });
@@ -116,8 +130,8 @@ describe('AboutDialog', () => {
   });
 
   it('shows checking for updates state', async () => {
-    (AppBindings.GetSystemInfo as any).mockResolvedValue({ version: '1.2.3' });
-    (AppBindings.CheckForUpdates as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (window as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '1.2.3' });
+    (window as any).go.main.App.CheckForUpdates.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<AboutDialog isOpen={true} onClose={() => {}} />);
 

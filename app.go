@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +23,9 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+//go:embed wails.json
+var wailsConfigBytes []byte
 
 type contextKey string
 
@@ -461,11 +465,21 @@ func (a *App) Greet(name string) string {
 
 // GetSystemInfo returns basic system information
 func (a *App) GetSystemInfo() map[string]string {
+	version := "0.0.0"
+	var config struct {
+		Info struct {
+			ProductVersion string `json:"productVersion"`
+		} `json:"info"`
+	}
+	if err := json.Unmarshal(wailsConfigBytes, &config); err == nil && config.Info.ProductVersion != "" {
+		version = config.Info.ProductVersion
+	}
+
 	return map[string]string{
 		"os":        runtime.GOOS,
 		"arch":      runtime.GOARCH,
 		"goVersion": runtime.Version(),
-		"version":   "0.1.0",
+		"version":   version,
 	}
 }
 

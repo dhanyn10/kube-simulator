@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import './MenuBar.css';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders, Terminal } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders, Terminal, Download } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -8,7 +8,6 @@ import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
 import { validateHpaTargets } from '../../store/slices/simulationManager';
 import { startTour } from '../../lib/tour';
-import { BrowserOpenURL } from '@wailsjs/runtime/runtime';
 
 interface MenuBarProps {
   onExportYaml: () => void;
@@ -54,11 +53,47 @@ export const MenuBar = ({
   const setLogModalOpen = useFlowStore((state: FlowState) => state.setLogModalOpen);
   const isTerminalOpen = useFlowStore((state: FlowState) => state.isTerminalOpen);
   const setTerminalOpen = useFlowStore((state: FlowState) => state.setTerminalOpen);
+  const simulatedUpdateInfo = useFlowStore((state: FlowState) => state.simulatedUpdateInfo);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [updateAvailableInfo, setUpdateAvailableInfo] = useState<{ version: string; releaseUrl: string } | null>(null);
 
   const errorCount = logs.filter((l) => l.level === 'error' || l.level === 'fatal').length;
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Background update check on mount
+  useEffect(() => {
+    let isMounted = true;
+    const checkForUpdatesBg = async () => {
+      try {
+        const app = globalThis.window?.go?.main?.App;
+        if (app?.GetSystemInfo && app?.CheckForUpdates) {
+          const sysInfo = await app.GetSystemInfo();
+          const currentVer = sysInfo?.version || '';
+          const update = await app.CheckForUpdates(currentVer);
+          if (isMounted && update?.updateAvailable && update?.latestVersion) {
+            setUpdateAvailableInfo({
+              version: update.latestVersion,
+              releaseUrl: update.releaseUrl || 'https://github.com/dhanyn10/kube-simulator/releases',
+            });
+          }
+        }
+      } catch {
+        // Ignore background network check errors
+      }
+    };
+
+    checkForUpdatesBg();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Sync with simulated cheat update info if activated
+  const effectiveUpdateInfo = useMemo(() => {
+    if (simulatedUpdateInfo) {
+      return { version: simulatedUpdateInfo.latestVersion, releaseUrl: simulatedUpdateInfo.releaseUrl };
+    }
+    return updateAvailableInfo;
+  }, [simulatedUpdateInfo, updateAvailableInfo]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -239,6 +274,32 @@ export const MenuBar = ({
           hasHpaValidationError={hasHpaValidationError}
           colorMode={colorMode}
         />
+
+        {/* Update Available notification button (VS Code style) */}
+        {effectiveUpdateInfo && (
+          <button
+            type="button"
+            onClick={() => {
+              if (effectiveUpdateInfo.releaseUrl && typeof window !== 'undefined' && (window as any).runtime?.BrowserOpenURL) {
+                (window as any).runtime.BrowserOpenURL(effectiveUpdateInfo.releaseUrl);
+              } else {
+                onOpenAbout();
+              }
+            }}
+            style={{ '--wails-draggable': 'no-drag' }}
+            title={`Update v${effectiveUpdateInfo.version} is available! Click to view release.`}
+            data-testid="menubar-update-btn"
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold shadow-sm transition-all animate-in fade-in zoom-in duration-200 ml-1",
+              colorMode === 'dark'
+                ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/30"
+                : "bg-blue-600 hover:bg-blue-700 text-white border border-blue-500/30"
+            )}
+          >
+            <Download size={13} className="animate-bounce" />
+            <span>Update v{effectiveUpdateInfo.version}</span>
+          </button>
+        )}
 
         {/* Bell Notification button on the right side of Play button */}
         <button

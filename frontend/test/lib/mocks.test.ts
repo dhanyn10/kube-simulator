@@ -144,6 +144,7 @@ describe("initWailsMocks", () => {
       os: "windows",
       arch: "amd64",
       goVersion: "go1.25.0",
+      version: "0.3.0",
     });
 
     // Window controls

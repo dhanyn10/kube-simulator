@@ -3,10 +3,17 @@ import { Node } from '@xyflow/react';
 export interface SuggestionItem {
   value: string;
   label: string;
-  category: 'Command' | 'Subcommand' | 'Pod' | 'Deployment' | 'Service' | 'Utility';
+  category: 'Command' | 'Subcommand' | 'Pod' | 'Deployment' | 'Service' | 'Utility' | 'Admin';
   description?: string;
   subItems?: string[];
 }
+
+export const ADMIN_CHEAT_SUGGESTIONS: SuggestionItem[] = [
+  { value: 'try update 0.4.0', label: 'try update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
+  { value: 'try clear', label: 'try clear', category: 'Admin', description: 'Clear simulated update notification' },
+  { value: 'try status', label: 'try status', category: 'Admin', description: 'View secret mode status' },
+  { value: 'logout', label: 'logout', category: 'Admin', description: 'Exit Admin Mode and return to standard CLI' },
+];
 
 // Level 1: General subcommands when user types 'kubectl' or 'k'
 export const KUBECTL_TOP_COMMANDS: SuggestionItem[] = [
@@ -112,9 +119,24 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
   return list;
 };
 
-export const getAutocompleteSuggestions = (input: string, nodes: Node[]): SuggestionItem[] => {
+export const getAutocompleteSuggestions = (
+  input: string,
+  nodes: Node[],
+  isAdminAuthenticated = false,
+  isAwaitingAdminPassword = false
+): SuggestionItem[] => {
+  if (isAwaitingAdminPassword) return [];
+
   const trimmed = input.trim();
   if (!trimmed) return [];
+
+  if (isAdminAuthenticated) {
+    const inputLower = trimmed.toLowerCase();
+    return ADMIN_CHEAT_SUGGESTIONS.filter(item =>
+      item.value.toLowerCase().includes(inputLower) ||
+      item.label.toLowerCase().includes(inputLower)
+    );
+  }
 
   const inputLower = trimmed.toLowerCase();
   const tokens = inputLower.split(/\s+/);

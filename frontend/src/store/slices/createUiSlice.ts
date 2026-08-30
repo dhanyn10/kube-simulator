@@ -41,6 +41,14 @@ export interface UiSlice {
   canvasBgColor: string;
   canvasBgOpacity: number;
 
+  // Update check & cheat code state
+  simulatedUpdateInfo: { latestVersion: string; releaseUrl: string } | null;
+  isAdminAuthenticated: boolean;
+  isAwaitingAdminPassword?: boolean;
+  adminLoginAttempts: number;
+  setSimulatedUpdateInfo: (info: { latestVersion: string; releaseUrl: string } | null) => void;
+  setIsAdminAuthenticated: (isAdmin: boolean) => void;
+
   // Terminal state & actions
   isTerminalOpen: boolean;
   terminalActiveTab: 'activity' | 'logs';
@@ -631,6 +639,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   canvasBgColor: 'default',
   canvasBgOpacity: 0.6,
   isHistoryViewOpen: false,
+
+  // Update check & cheat code state
+  simulatedUpdateInfo: null,
+  isAdminAuthenticated: false,
+  isAwaitingAdminPassword: false,
+  adminLoginAttempts: 0,
+  setSimulatedUpdateInfo: (info) => set({ simulatedUpdateInfo: info }),
+  setIsAdminAuthenticated: (isAdmin) => set({ isAdminAuthenticated: isAdmin }),
   setHistoryViewOpen: (open) => set({ isHistoryViewOpen: open, isRightSidebarVisible: open }),
 
   // Terminal initial states & actions

@@ -11,6 +11,119 @@ export interface CommandContext {
   setStoreState: (state: any) => void;
 }
 
+const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean => {
+  const enteredPassword = cmd.trim();
+  const validPasswords = ['kubesim123', 'admin', 'admin123'];
+  if (validPasswords.includes(enteredPassword)) {
+    ctx.addActivityLog(`[Secret Mode Unlocked!] Admin privileges authenticated.`);
+    ctx.addActivityLog(`Type "help" to view all available commands including secret CLI tools.`);
+    ctx.setStoreState({ isAdminAuthenticated: true, isAwaitingAdminPassword: false });
+  } else {
+    ctx.addActivityLog(`[Access Denied] Incorrect password.`);
+    ctx.setStoreState({ isAwaitingAdminPassword: false });
+  }
+  return true;
+};
+
+const compareVersions = (v1: string, v2: string): number => {
+  const clean1 = v1.replace(/^v/i, '').split('-');
+  const clean2 = v2.replace(/^v/i, '').split('-');
+  const p1 = clean1[0].split('.').map(n => Number.parseInt(n, 10) || 0);
+  const p2 = clean2[0].split('.').map(n => Number.parseInt(n, 10) || 0);
+
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const val1 = p1[i] || 0;
+    const val2 = p2[i] || 0;
+    if (val1 > val2) return 1;
+    if (val1 < val2) return -1;
+  }
+  return 0;
+};
+
+const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext): boolean => {
+  const store = ctx.getStoreState();
+
+  if (cmdLower === 'try update' || cmdLower.startsWith('try update ')) {
+    const parts = cmd.trim().split(/\s+/);
+    const targetVersion = (parts[2] || '0.4.0').replace(/^v/i, '');
+    const currentVersion = '0.3.0';
+
+    if (compareVersions(targetVersion, currentVersion) <= 0) {
+      ctx.addActivityLog(`[Dev-Mode Error] Target version (v${targetVersion}) must be higher than current version (v${currentVersion}).`);
+      ctx.addActivityLog(`Update simulation cancelled.`);
+      return true;
+    }
+
+    const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
+    store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
+    ctx.addActivityLog(`[Dev-Mode Activated] Simulated New Version v${targetVersion} Available!`);
+    ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
+    return true;
+  }
+
+  if (['try clear', 'try update clear', 'noupdate'].includes(cmdLower)) {
+    store.setSimulatedUpdateInfo(null);
+    ctx.addActivityLog(`[Dev-Mode Deactivated] Cleared simulated update notification.`);
+    return true;
+  }
+
+  if (cmdLower === 'try status') {
+    const updateInfo = store.simulatedUpdateInfo;
+    ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
+    return true;
+  }
+
+  ctx.addActivityLog(`Unknown command. Available admin commands: try update <version>, try clear, try status, exit/logout`);
+  return true;
+};
+
+export const handleAdminAndCheatCommands = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const store = ctx.getStoreState();
+  const isAdminAuth = store.isAdminAuthenticated;
+
+  if (store.isAwaitingAdminPassword) {
+    return processAdminPasswordEntry(cmd, ctx);
+  }
+
+  const cmdLower = cmd.trim().toLowerCase();
+
+  if (cmdLower === 'kubesim admin') {
+    if (isAdminAuth) {
+      ctx.addActivityLog(`[Admin] Already authenticated in admin mode.`);
+    } else {
+      ctx.addActivityLog(`[Admin Authentication] Please enter admin password:`);
+      ctx.setStoreState({ isAwaitingAdminPassword: true });
+    }
+    return true;
+  }
+
+  if (['exit', 'logout', 'admin logout'].includes(cmdLower) && isAdminAuth) {
+    ctx.setStoreState({ isAdminAuthenticated: false });
+    ctx.addActivityLog(`[Admin Session Closed] Logged out from admin mode. Returned to standard Kubernetes CLI mode.`);
+    return true;
+  }
+
+  if (cmdLower.startsWith('try ')) {
+    if (!isAdminAuth) {
+      ctx.addActivityLog(`[Warning] Admin mode is inactive. Standard Kubernetes CLI tools cannot execute try commands.`);
+      ctx.addActivityLog(`Please authenticate first via "kubesim admin".`);
+      return true;
+    }
+    return processCheatCommands(cmd, cmdLower, ctx);
+  }
+
+  if (isAdminAuth) {
+    ctx.addActivityLog(`[Warning] You are currently in Admin Mode. Standard Kubernetes user commands are disabled.`);
+    ctx.addActivityLog(`Type "logout" or "exit" to leave Admin Mode and return to standard CLI.`);
+    return true;
+  }
+
+  return false;
+};
+
 export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
