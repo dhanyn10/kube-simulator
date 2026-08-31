@@ -107,22 +107,23 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(logs.some(l => l.includes('Unknown command'))).toBe(true);
   });
 
-  it('rejects simulated update when target version is lower than or equal to current version', () => {
-    useFlowStore.setState({ isAdminAuthenticated: true, simulatedCurrentVersion: '0.4.0' });
+  it('rejects simulated update and shows warning when target version is lower than or equal to current version', () => {
+    useFlowStore.setState({ isAdminAuthenticated: true, simulatedCurrentVersion: '0.8.0' });
 
-    // try version update to 0.2.0 (lower than 0.4.0)
-    handleAdminAndCheatCommands('try version update 0.2.0', ctx);
-    expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
-    expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
-
-    // try version update to 0.4.0 (equal to 0.4.0)
-    logs = [];
+    // try version update to 0.4.0 (lower than 0.8.0)
     handleAdminAndCheatCommands('try version update 0.4.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
-    expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
+    expect(logs.some(l => l.includes('Target update version (v0.4.0) cannot be equal or lower than current version (v0.8.0)'))).toBe(true);
+    expect(logs.some(l => l.includes('Please reinstall application if you need to use previous version'))).toBe(true);
+
+    // try version update to 0.8.0 (equal to 0.8.0)
+    logs = [];
+    handleAdminAndCheatCommands('try version update 0.8.0', ctx);
+    expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
+    expect(logs.some(l => l.includes('Target update version (v0.8.0) cannot be equal or lower than current version (v0.8.0)'))).toBe(true);
   });
 
-  it('warns and clears update info if current version is set higher than active update version', () => {
+  it('silently clears update info if current version is set higher than active update version', () => {
     useFlowStore.setState({
       isAdminAuthenticated: true,
       simulatedUpdateInfo: { latestVersion: '0.5.0', releaseUrl: 'https://example.com' },
@@ -131,7 +132,8 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     handleAdminAndCheatCommands('try version current 0.6.0', ctx);
     expect(useFlowStore.getState().simulatedCurrentVersion).toBe('0.6.0');
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
-    expect(logs.some(l => l.includes('Target update version (v0.5.0) cannot be equal or lower than current version (v0.6.0)'))).toBe(true);
+    expect(logs.some(l => l.includes('Current version set to v0.6.0'))).toBe(true);
+    expect(logs.some(l => l.includes('Warning'))).toBe(false);
   });
 
   it('enforces mode isolation (blocks try in user mode & standard cmd in admin mode)', () => {

@@ -45,7 +45,7 @@ const processVersionUpdateCmd = (parts: string[], store: any, ctx: CommandContex
   const currentVersion = store.simulatedCurrentVersion || '0.3.0';
 
   if (compareVersions(targetVersion, currentVersion) <= 0) {
-    ctx.addActivityLog(`[Dev-Mode Error] Target version (v${targetVersion}) must be higher than current version (v${currentVersion}).`);
+    ctx.addActivityLog(`[Dev-Mode Warning] Target update version (v${targetVersion}) cannot be equal or lower than current version (v${currentVersion}). Please reinstall application if you need to use previous version.`);
     ctx.addActivityLog(`Update simulation cancelled.`);
     return true;
   }
@@ -68,7 +68,6 @@ const processVersionCurrentCmd = (parts: string[], store: any, ctx: CommandConte
 
   const updateInfo = store.simulatedUpdateInfo;
   if (updateInfo && compareVersions(updateInfo.latestVersion, targetVersion) <= 0) {
-    ctx.addActivityLog(`[Dev-Mode Warning] Target update version (v${updateInfo.latestVersion}) cannot be equal or lower than current version (v${targetVersion}). Please reinstall application if you need to use previous version.`);
     store.setSimulatedUpdateInfo(null);
   }
 
