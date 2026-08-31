@@ -105,7 +105,8 @@ const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext
   if (cmdLower === 'try status') {
     const updateInfo = store.simulatedUpdateInfo;
     const currentVer = store.simulatedCurrentVersion || '0.3.0';
-    ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Current Version: v${currentVer} | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
+    const updateText = updateInfo ? 'v' + updateInfo.latestVersion : 'None';
+    ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Current Version: v${currentVer} | Simulated Update: ${updateText}`);
     return true;
   }
 
