@@ -17,6 +17,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     logs = [];
     useFlowStore.setState({
       simulatedUpdateInfo: null,
+      simulatedCurrentVersion: null,
       isAdminAuthenticated: false,
       isAwaitingAdminPassword: false,
       activityLogs: [],
@@ -55,8 +56,8 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
     expect(logs.some(l => l.includes('Secret Mode Unlocked'))).toBe(true);
 
-    // Now test try command
-    handleAdminAndCheatCommands('try update 0.5.0', ctx);
+    // Now test try version update command
+    handleAdminAndCheatCommands('try version update 0.5.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.5.0');
   });
 
@@ -68,20 +69,38 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(logs.some(l => l.includes('Access Denied'))).toBe(true);
   });
 
-  it('handles try clear, try status, noupdate, and unknown try commands', () => {
+  it('handles try version update, try version current, try version clear, try clear, try status, and unknown try commands', () => {
     useFlowStore.setState({ isAdminAuthenticated: true });
 
-    // try update default
-    handleAdminAndCheatCommands('try update', ctx);
+    // try version update default
+    handleAdminAndCheatCommands('try version update', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.4.0');
 
-    // try status
-    handleAdminAndCheatCommands('try status', ctx);
-    expect(logs.some(l => l.includes('Dev-Mode Status'))).toBe(true);
+    // try version current without arg (status check)
+    logs = [];
+    handleAdminAndCheatCommands('try version current', ctx);
+    expect(logs.some(l => l.includes('Current assumed version: v0.3.0'))).toBe(true);
 
-    // try clear
+    // try version current 0.5.0
+    logs = [];
+    handleAdminAndCheatCommands('try version current 0.5.0', ctx);
+    expect(useFlowStore.getState().simulatedCurrentVersion).toBe('0.5.0');
+    expect(logs.some(l => l.includes('Current version set to v0.5.0'))).toBe(true);
+
+    // try status
+    logs = [];
+    handleAdminAndCheatCommands('try status', ctx);
+    expect(logs.some(l => l.includes('Dev-Mode Status') && l.includes('v0.5.0'))).toBe(true);
+
+    // try version clear
+    handleAdminAndCheatCommands('try version clear', ctx);
+    expect(useFlowStore.getState().simulatedCurrentVersion).toBeNull();
+
+    // try clear resets both
+    useFlowStore.setState({ simulatedCurrentVersion: '0.6.0', simulatedUpdateInfo: { latestVersion: '0.7.0', releaseUrl: 'http://example.com' } });
     handleAdminAndCheatCommands('try clear', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
+    expect(useFlowStore.getState().simulatedCurrentVersion).toBeNull();
 
     // unknown try
     handleAdminAndCheatCommands('try invalidcmd', ctx);
@@ -89,23 +108,35 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
   });
 
   it('rejects simulated update when target version is lower than or equal to current version', () => {
-    useFlowStore.setState({ isAdminAuthenticated: true });
+    useFlowStore.setState({ isAdminAuthenticated: true, simulatedCurrentVersion: '0.4.0' });
 
-    // try update to 0.2.0 (lower than 0.3.0)
-    handleAdminAndCheatCommands('try update 0.2.0', ctx);
+    // try version update to 0.2.0 (lower than 0.4.0)
+    handleAdminAndCheatCommands('try version update 0.2.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
 
-    // try update to 0.3.0 (equal to 0.3.0)
+    // try version update to 0.4.0 (equal to 0.4.0)
     logs = [];
-    handleAdminAndCheatCommands('try update 0.3.0', ctx);
+    handleAdminAndCheatCommands('try version update 0.4.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('must be higher than current version'))).toBe(true);
   });
 
+  it('warns and clears update info if current version is set higher than active update version', () => {
+    useFlowStore.setState({
+      isAdminAuthenticated: true,
+      simulatedUpdateInfo: { latestVersion: '0.5.0', releaseUrl: 'https://example.com' },
+    });
+
+    handleAdminAndCheatCommands('try version current 0.6.0', ctx);
+    expect(useFlowStore.getState().simulatedCurrentVersion).toBe('0.6.0');
+    expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
+    expect(logs.some(l => l.includes('Target update version (v0.5.0) cannot be equal or lower than current version (v0.6.0)'))).toBe(true);
+  });
+
   it('enforces mode isolation (blocks try in user mode & standard cmd in admin mode)', () => {
     // User mode: block try command
-    handleAdminAndCheatCommands('try update 0.9.0', ctx);
+    handleAdminAndCheatCommands('try version update 0.9.0', ctx);
     expect(logs.some(l => l.includes('Admin mode is inactive'))).toBe(true);
 
     // Admin mode: block standard user command
@@ -127,13 +158,15 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     // Standard User Mode Help
     handleHelpCommand('help', ctx);
     expect(logs.some(l => l.includes('Available educational Kubernetes commands'))).toBe(true);
-    expect(logs.some(l => l.includes('try update'))).toBe(false);
+    expect(logs.some(l => l.includes('try version update'))).toBe(false);
 
     // Admin Mode Help
     logs = [];
     useFlowStore.setState({ isAdminAuthenticated: true });
     handleHelpCommand('help', ctx);
     expect(logs.some(l => l.includes('Admin CLI Commands'))).toBe(true);
+    expect(logs.some(l => l.includes('try version update'))).toBe(true);
+    expect(logs.some(l => l.includes('try version current'))).toBe(true);
     expect(logs.some(l => l.includes('kubectl get pods'))).toBe(false);
   });
 

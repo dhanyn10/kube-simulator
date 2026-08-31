@@ -131,6 +131,7 @@ const fetchAboutData = async (
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const simulatedUpdateInfo = useFlowStore((state: any) => state.simulatedUpdateInfo);
+  const simulatedCurrentVersion = useFlowStore((state: any) => state.simulatedCurrentVersion);
   const [appVersion, setAppVersion] = useState('');
   const [appName] = useState('Kube Simulator');
   const [appCopyright] = useState('Copyright 2026');
@@ -143,14 +144,16 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
     if (!isOpen) return;
 
     setIsCheckingUpdate(true);
-    fetchAboutData(appVersion, setSystemInfo, setAppVersion, setUpdateInfo, simulatedUpdateInfo)
+    fetchAboutData(appVersion, setSystemInfo, (v) => setAppVersion(simulatedCurrentVersion || v), setUpdateInfo, simulatedUpdateInfo)
       .catch((error) => logger.error("Failed to fetch info:", error))
       .finally(() => setIsCheckingUpdate(false));
-  }, [isOpen, appVersion, simulatedUpdateInfo]);
+  }, [isOpen, appVersion, simulatedUpdateInfo, simulatedCurrentVersion]);
+
+  const displayVersion = simulatedCurrentVersion || appVersion;
 
   const handleCopy = async () => {
-    const textToCopy = `${appName} ${appVersion}
-Build #KS-${appVersion}, built on ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+    const textToCopy = `${appName} ${displayVersion}
+Build #KS-${displayVersion}, built on ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
 Runtime version: ${systemInfo?.goVersion} ${systemInfo?.arch}
 VM: Go by Google
 Operating system: ${systemInfo?.os}
@@ -231,13 +234,13 @@ ${appCopyright}`;
                         "text-lg",
                         colorMode === 'dark' ? "text-[#a9a9a9]" : "text-gray-600"
                       )}>
-                        {appVersion || ""}
+                        {displayVersion || ""}
                       </span>
                     </div>
 
                     <div className="space-y-1 mb-6">
                       <p>
-                        <span className={cn(colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>Build #KS-</span>{appVersion || "Unknown"}
+                        <span className={cn(colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>Build #KS-</span>{displayVersion || "Unknown"}
                         <span className={cn(colorMode === 'dark' ? "text-[#808080]" : "text-gray-500")}>, built on </span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                       </p>
                       <p>
@@ -262,7 +265,7 @@ ${appCopyright}`;
                     <UpdateStatus
                       isChecking={isCheckingUpdate}
                       updateInfo={updateInfo}
-                      appVersion={appVersion}
+                      appVersion={displayVersion}
                       colorMode={colorMode}
                     />
 

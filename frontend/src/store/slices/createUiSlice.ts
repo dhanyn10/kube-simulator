@@ -43,10 +43,12 @@ export interface UiSlice {
 
   // Update check & cheat code state
   simulatedUpdateInfo: { latestVersion: string; releaseUrl: string } | null;
+  simulatedCurrentVersion: string | null;
   isAdminAuthenticated: boolean;
   isAwaitingAdminPassword?: boolean;
   adminLoginAttempts: number;
   setSimulatedUpdateInfo: (info: { latestVersion: string; releaseUrl: string } | null) => void;
+  setSimulatedCurrentVersion: (version: string | null) => void;
   setIsAdminAuthenticated: (isAdmin: boolean) => void;
 
   // Terminal state & actions
@@ -642,10 +644,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
 
   // Update check & cheat code state
   simulatedUpdateInfo: null,
+  simulatedCurrentVersion: null,
   isAdminAuthenticated: false,
   isAwaitingAdminPassword: false,
   adminLoginAttempts: 0,
   setSimulatedUpdateInfo: (info) => set({ simulatedUpdateInfo: info }),
+  setSimulatedCurrentVersion: (version) => set({ simulatedCurrentVersion: version }),
   setIsAdminAuthenticated: (isAdmin) => set({ isAdminAuthenticated: isAdmin }),
   setHistoryViewOpen: (open) => set({ isHistoryViewOpen: open, isRightSidebarVisible: open }),
 

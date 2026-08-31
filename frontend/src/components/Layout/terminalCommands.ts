@@ -40,40 +40,76 @@ const compareVersions = (v1: string, v2: string): number => {
   return 0;
 };
 
+const processVersionUpdateCmd = (parts: string[], store: any, ctx: CommandContext): boolean => {
+  const targetVersion = (parts[3] || '0.4.0').replace(/^v/i, '');
+  const currentVersion = store.simulatedCurrentVersion || '0.3.0';
+
+  if (compareVersions(targetVersion, currentVersion) <= 0) {
+    ctx.addActivityLog(`[Dev-Mode Error] Target version (v${targetVersion}) must be higher than current version (v${currentVersion}).`);
+    ctx.addActivityLog(`Update simulation cancelled.`);
+    return true;
+  }
+
+  const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
+  store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
+  ctx.addActivityLog(`[Dev-Mode Activated] Simulated New Version v${targetVersion} Available!`);
+  ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
+  return true;
+};
+
+const processVersionCurrentCmd = (parts: string[], store: any, ctx: CommandContext): boolean => {
+  const targetVersion = parts[3] ? parts[3].replace(/^v/i, '') : null;
+  const currentAssumed = store.simulatedCurrentVersion || '0.3.0';
+
+  if (!targetVersion) {
+    ctx.addActivityLog(`[Dev-Mode Status] Current assumed version: v${currentAssumed}`);
+    return true;
+  }
+
+  const updateInfo = store.simulatedUpdateInfo;
+  if (updateInfo && compareVersions(updateInfo.latestVersion, targetVersion) <= 0) {
+    ctx.addActivityLog(`[Dev-Mode Warning] Target update version (v${updateInfo.latestVersion}) cannot be equal or lower than current version (v${targetVersion}). Please reinstall application if you need to use previous version.`);
+    store.setSimulatedUpdateInfo(null);
+  }
+
+  store.setSimulatedCurrentVersion(targetVersion);
+  ctx.addActivityLog(`[Dev-Mode Activated] Current version set to v${targetVersion}.`);
+  return true;
+};
+
 const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext): boolean => {
   const store = ctx.getStoreState();
+  const parts = cmd.trim().split(/\s+/);
 
-  if (cmdLower === 'try update' || cmdLower.startsWith('try update ')) {
-    const parts = cmd.trim().split(/\s+/);
-    const targetVersion = (parts[2] || '0.4.0').replace(/^v/i, '');
-    const currentVersion = '0.3.0';
+  if (cmdLower === 'try version update' || cmdLower.startsWith('try version update ')) {
+    return processVersionUpdateCmd(parts, store, ctx);
+  }
 
-    if (compareVersions(targetVersion, currentVersion) <= 0) {
-      ctx.addActivityLog(`[Dev-Mode Error] Target version (v${targetVersion}) must be higher than current version (v${currentVersion}).`);
-      ctx.addActivityLog(`Update simulation cancelled.`);
-      return true;
-    }
+  if (cmdLower === 'try version current' || cmdLower.startsWith('try version current ')) {
+    return processVersionCurrentCmd(parts, store, ctx);
+  }
 
-    const releaseUrl = 'https://github.com/dhanyn10/kube-simulator/releases';
-    store.setSimulatedUpdateInfo({ latestVersion: targetVersion, releaseUrl });
-    ctx.addActivityLog(`[Dev-Mode Activated] Simulated New Version v${targetVersion} Available!`);
-    ctx.addActivityLog(`Check the top-right MenuBar for the new Update button.`);
+  if (cmdLower === 'try version clear') {
+    store.setSimulatedCurrentVersion(null);
+    ctx.addActivityLog(`[Dev-Mode Deactivated] Cleared simulated current version.`);
     return true;
   }
 
   if (['try clear', 'try update clear', 'noupdate'].includes(cmdLower)) {
     store.setSimulatedUpdateInfo(null);
-    ctx.addActivityLog(`[Dev-Mode Deactivated] Cleared simulated update notification.`);
+    store.setSimulatedCurrentVersion(null);
+    ctx.addActivityLog(`[Dev-Mode Deactivated] Cleared all simulated version settings.`);
     return true;
   }
 
   if (cmdLower === 'try status') {
     const updateInfo = store.simulatedUpdateInfo;
-    ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
+    const currentVer = store.simulatedCurrentVersion || '0.3.0';
+    ctx.addActivityLog(`[Dev-Mode Status] Authenticated: true | Current Version: v${currentVer} | Simulated Update: ${updateInfo ? `v${updateInfo.latestVersion}` : 'None'}`);
     return true;
   }
 
-  ctx.addActivityLog(`Unknown command. Available admin commands: try update <version>, try clear, try status, exit/logout`);
+  ctx.addActivityLog(`Unknown command. Available admin commands: try version update <version>, try version current <version>, try version clear, try clear, try status, exit/logout`);
   return true;
 };
 
