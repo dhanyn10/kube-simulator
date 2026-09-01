@@ -23,10 +23,6 @@ const RESOURCE_TYPE_MAP: Record<string, K8sResourceType> = {
 export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
-  const nodes = useFlowStore((state) => state.nodes);
-  const edges = useFlowStore((state) => state.edges);
-  const addNode = useFlowStore((state) => state.addNode);
-  const onConnect = useFlowStore((state) => state.onConnect);
   const rules: K8sRoleRule[] = data.rules || [];
 
   const handleAddRule = () => {
@@ -57,64 +53,6 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
     updateNodeData(nodeId, { rules: newRules });
   };
 
-  const handleToggleResource = (ruleIndex: number, res: string) => {
-    const newRules = [...rules];
-    const currentRes = newRules[ruleIndex].resources || [];
-
-    if (currentRes.includes(res)) {
-      newRules[ruleIndex].resources = currentRes.filter((r) => r !== res);
-      updateNodeData(nodeId, { rules: newRules });
-      return;
-    }
-
-    // Adding resource: Auto-spawn & connect if needed
-    const k8sKind = RESOURCE_TYPE_MAP[res];
-    if (k8sKind) {
-      const roleNode = nodes.find((n) => n.id === nodeId);
-      const rolePos = roleNode?.position || { x: 100, y: 100 };
-
-      // Find if target node of this type is already connected
-      const existingConnectedNode = nodes.find((n) => {
-        if (n.type !== k8sKind) return false;
-        return edges.some(
-          (e) => (e.source === nodeId && e.target === n.id) || (e.target === nodeId && e.source === n.id)
-        );
-      });
-
-      if (!existingConnectedNode) {
-        const existingNodeOfKind = nodes.find((n) => n.type === k8sKind && !n.parentId);
-        if (existingNodeOfKind) {
-          // Connect Role to existing node
-          onConnect({
-            source: nodeId,
-            target: existingNodeOfKind.id,
-            sourceHandle: 'right-s',
-            targetHandle: 'left-t',
-          });
-        } else {
-          // Auto-spawn new node & connect
-          const spawnPos = { x: rolePos.x + 300, y: rolePos.y };
-          addNode(k8sKind, spawnPos);
-          // Get the newly added node ID after state update
-          setTimeout(() => {
-            const currentNodes = useFlowStore.getState().nodes;
-            const newSpawned = currentNodes.find((n) => n.type === k8sKind && !n.parentId);
-            if (newSpawned) {
-              useFlowStore.getState().onConnect({
-                source: nodeId,
-                target: newSpawned.id,
-                sourceHandle: 'right-s',
-                targetHandle: 'left-t',
-              });
-            }
-          }, 50);
-        }
-      }
-    }
-
-    newRules[ruleIndex].resources = [...currentRes, res];
-    updateNodeData(nodeId, { rules: newRules });
-  };
 
   return (
     <div className="space-y-4">
@@ -160,28 +98,29 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
             </div>
 
             <div>
-              <label className={cn("block text-[9px] font-semibold mb-1", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
-                Resources:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={cn("block text-[9px] font-semibold", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
+                  Target Resources:
+                </label>
+                <span className="text-[8px] text-slate-500 italic">
+                  (Auto-synced from connected canvas nodes)
+                </span>
+              </div>
               <div className="flex flex-wrap gap-1">
-                {AVAILABLE_RESOURCES.map((res) => {
-                  const isSelected = rule.resources?.includes(res);
-                  return (
-                    <button
+                {rule.resources && rule.resources.length > 0 ? (
+                  rule.resources.map((res) => (
+                    <span
                       key={`res-${ruleIdx}-${res}`}
-                      type="button"
-                      onClick={() => handleToggleResource(ruleIdx, res)}
-                      className={cn(
-                        "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors",
-                        isSelected
-                          ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold"
-                          : colorMode === 'dark' ? "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600" : "bg-white border-slate-300 text-slate-600 hover:border-slate-400"
-                      )}
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded border bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold"
                     >
                       {res}
-                    </button>
-                  );
-                })}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-[9px] text-amber-400/80 italic">
+                    Connect Role to a target node on canvas (e.g. Deployment, Service, Pod)
+                  </span>
+                )}
               </div>
             </div>
 
