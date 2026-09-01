@@ -13,6 +13,7 @@ import {
 import { FlowState } from '../types';
 import { K8sNodeData } from '../../types';
 import { getConnectionError } from '../../constants/connections';
+import { getAbsPos } from '../helpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -164,21 +165,25 @@ const getGroupDragExtraChanges = (changes: NodeChange[], nodes: Node[]): NodeCha
   return extraChanges;
 };
 
-const getNodeCenter = (node: Node) => ({
-  x: node.position.x + (node.measured?.width || node.width || 150) / 2,
-  y: node.position.y + (node.measured?.height || node.height || 100) / 2,
-});
+const getNodeAbsCenter = (node: Node, nodes: Node[]) => {
+  const absPos = getAbsPos(node.id, nodes);
+  return {
+    x: absPos.x + (node.measured?.width || node.width || 150) / 2,
+    y: absPos.y + (node.measured?.height || node.height || 100) / 2,
+  };
+};
 
 const isNodeInDirection = (
   sourceNode: Node,
   targetNode: Node,
-  direction: QuickConnectDirection
+  direction: QuickConnectDirection,
+  nodes: Node[]
 ): boolean => {
-  if (targetNode.id === sourceNode.id || targetNode.parentId) return false;
+  if (targetNode.id === sourceNode.id) return false;
   if (sourceNode.type === 'HPA' && targetNode.type !== 'Deployment') return false;
 
-  const sourceCenter = getNodeCenter(sourceNode);
-  const targetCenter = getNodeCenter(targetNode);
+  const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
+  const targetCenter = getNodeAbsCenter(targetNode, nodes);
   const dx = targetCenter.x - sourceCenter.x;
   const dy = targetCenter.y - sourceCenter.y;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -276,12 +281,16 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const sourceNode = nodes.find((n) => n.id === nodeId);
     if (!sourceNode) return;
 
-    const candidates = nodes.filter((n) => isNodeInDirection(sourceNode, n, direction));
+    const candidates = nodes.filter((n) => isNodeInDirection(sourceNode, n, direction, nodes));
     if (candidates.length === 0) return;
 
+    const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
+
     candidates.sort((a, b) => {
-      const distA = Math.pow(a.position.x - sourceNode.position.x, 2) + Math.pow(a.position.y - sourceNode.position.y, 2);
-      const distB = Math.pow(b.position.x - sourceNode.position.x, 2) + Math.pow(b.position.y - sourceNode.position.y, 2);
+      const centerA = getNodeAbsCenter(a, nodes);
+      const centerB = getNodeAbsCenter(b, nodes);
+      const distA = Math.pow(centerA.x - sourceCenter.x, 2) + Math.pow(centerA.y - sourceCenter.y, 2);
+      const distB = Math.pow(centerB.x - sourceCenter.x, 2) + Math.pow(centerB.y - sourceCenter.y, 2);
       return distA - distB;
     });
 
