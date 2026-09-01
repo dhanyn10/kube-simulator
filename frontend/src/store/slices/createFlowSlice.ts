@@ -26,8 +26,6 @@ export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node
     if (node.type !== 'Role') return node;
 
     const connectedEdges = edges.filter((e) => e.source === node.id || e.target === node.id);
-    if (connectedEdges.length === 0) return node;
-
     const connectedNodeIds = new Set<string>();
     connectedEdges.forEach((e) => {
       if (e.source !== node.id) connectedNodeIds.add(e.source);
@@ -58,8 +56,6 @@ export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node
         derivedResourcesSet.add('replicasets');
       }
     });
-
-    if (derivedResourcesSet.size === 0) return node;
 
     const currentRules = (node.data.rules as any[]) || [{ apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] }];
     const firstRule = currentRules[0] || { apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] };

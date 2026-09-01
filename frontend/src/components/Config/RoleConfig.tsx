@@ -30,7 +30,7 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
       ...rules,
       {
         apiGroups: [''],
-        resources: ['pods'],
+        resources: [],
         verbs: ['get', 'list']
       }
     ];

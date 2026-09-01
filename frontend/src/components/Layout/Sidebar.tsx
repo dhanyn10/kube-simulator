@@ -20,8 +20,8 @@ const ITEM_STYLES: Record<string, { border: string, text: string }> = {
   PVC: { border: "border-l-orange-500 hover:border-orange-500", text: "text-orange-400" },
   Namespace: { border: "border-l-emerald-500 hover:border-emerald-500", text: "text-emerald-400" },
   ConfigMap: { border: "border-l-teal-500 hover:border-teal-500", text: "text-teal-400" },
-  Secret: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
-  Role: { border: "border-l-purple-500 hover:border-purple-500", text: "text-purple-400" },
+  Secret: { border: "border-l-rose-400 hover:border-rose-400", text: "text-rose-400" },
+  Role: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
 };
 
 const SECTIONS = [
