@@ -17,6 +17,72 @@ import { getConnectionError } from '../../constants/connections';
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
 
+export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node[] => {
+  const roleNodes = nodes.filter((n) => n.type === 'Role');
+  if (roleNodes.length === 0) return nodes;
+
+  let hasChanges = false;
+  const updatedNodes = nodes.map((node) => {
+    if (node.type !== 'Role') return node;
+
+    const connectedEdges = edges.filter((e) => e.source === node.id || e.target === node.id);
+    if (connectedEdges.length === 0) return node;
+
+    const connectedNodeIds = new Set<string>();
+    connectedEdges.forEach((e) => {
+      if (e.source !== node.id) connectedNodeIds.add(e.source);
+      if (e.target !== node.id) connectedNodeIds.add(e.target);
+    });
+
+    const connectedNodes = nodes.filter((n) => connectedNodeIds.has(n.id));
+    const derivedResourcesSet = new Set<string>();
+
+    connectedNodes.forEach((cn) => {
+      if (cn.type === 'Deployment') {
+        derivedResourcesSet.add('deployments');
+        const childPods = nodes.filter((p) => p.parentId === cn.id);
+        if (childPods.length > 0 || ((cn.data?.replicas as number) || 0) > 0) {
+          derivedResourcesSet.add('pods');
+        }
+      } else if (cn.type === 'Pod') {
+        derivedResourcesSet.add('pods');
+      } else if (cn.type === 'Service') {
+        derivedResourcesSet.add('services');
+      } else if (cn.type === 'PVC') {
+        derivedResourcesSet.add('persistentvolumeclaims');
+      } else if (cn.type === 'ConfigMap') {
+        derivedResourcesSet.add('configmaps');
+      } else if (cn.type === 'Secret') {
+        derivedResourcesSet.add('secrets');
+      } else if (cn.type === 'ReplicaSet') {
+        derivedResourcesSet.add('replicasets');
+      }
+    });
+
+    if (derivedResourcesSet.size === 0) return node;
+
+    const currentRules = (node.data.rules as any[]) || [{ apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] }];
+    const firstRule = currentRules[0] || { apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] };
+    const currentResources = (firstRule.resources as string[]) || [];
+
+    const newResources = Array.from(derivedResourcesSet);
+    const isSame = currentResources.length === newResources.length && newResources.every((r) => currentResources.includes(r));
+    if (isSame) return node;
+
+    hasChanges = true;
+    const updatedRule = { ...firstRule, resources: newResources };
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        rules: [updatedRule, ...currentRules.slice(1)],
+      },
+    };
+  });
+
+  return hasChanges ? updatedNodes : nodes;
+};
+
 export interface FlowSlice {
   nodes: Node[];
   edges: Edge[];
@@ -148,14 +214,18 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onNodesChange: (changes: NodeChange[]) => {
     const extraChanges = getGroupDragExtraChanges(changes, get().nodes);
-    set((state) => ({
-      nodes: applyNodeChanges([...changes, ...extraChanges], state.nodes),
-    }));
+    set((state) => {
+      const nextNodes = applyNodeChanges([...changes, ...extraChanges], state.nodes);
+      const syncedNodes = syncRoleRulesFromConnections(nextNodes, state.edges);
+      return { nodes: syncedNodes };
+    });
   },
   onEdgesChange: (changes: EdgeChange[]) => {
-    set((state) => ({
-      edges: applyEdgeChanges(changes, state.edges),
-    }));
+    set((state) => {
+      const nextEdges = applyEdgeChanges(changes, state.edges);
+      const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+      return { edges: nextEdges, nodes: syncedNodes };
+    });
   },
   validateEdge: (edge: Edge) => {
     const { nodes } = get();
@@ -192,9 +262,11 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       target: connection.target!,
     } as Edge);
 
-    set((state) => ({
-      edges: addEdge(newEdge, state.edges),
-    }));
+    set((state) => {
+      const nextEdges = addEdge(newEdge, state.edges);
+      const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+      return { edges: nextEdges, nodes: syncedNodes };
+    });
   },
   onReconnect: (oldEdge: Edge, newConnection: Connection) => {
     const { edges, validateEdge } = get();

@@ -12,7 +12,7 @@ import {
   Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { EventsOn } from '../wailsjs/runtime';
+import { EventsOn } from '@wailsjs/runtime';
 
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';

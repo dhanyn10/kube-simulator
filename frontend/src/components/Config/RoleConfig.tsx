@@ -1,7 +1,7 @@
 import { Shield, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
-import { K8sNodeData, K8sRoleRule } from '../../types';
+import { K8sNodeData, K8sRoleRule, K8sResourceType } from '../../types';
 
 interface RoleConfigProps {
   data: K8sNodeData;
@@ -11,9 +11,22 @@ interface RoleConfigProps {
 const AVAILABLE_VERBS = ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete'];
 const AVAILABLE_RESOURCES = ['pods', 'deployments', 'services', 'configmaps', 'secrets', 'persistentvolumeclaims'];
 
+const RESOURCE_TYPE_MAP: Record<string, K8sResourceType> = {
+  pods: 'Pod',
+  deployments: 'Deployment',
+  services: 'Service',
+  configmaps: 'ConfigMap',
+  secrets: 'Secret',
+  persistentvolumeclaims: 'PVC',
+};
+
 export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const addNode = useFlowStore((state) => state.addNode);
+  const onConnect = useFlowStore((state) => state.onConnect);
   const rules: K8sRoleRule[] = data.rules || [];
 
   const handleAddRule = () => {
@@ -47,11 +60,59 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const handleToggleResource = (ruleIndex: number, res: string) => {
     const newRules = [...rules];
     const currentRes = newRules[ruleIndex].resources || [];
+
     if (currentRes.includes(res)) {
-      newRules[ruleIndex].resources = currentRes.filter(r => r !== res);
-    } else {
-      newRules[ruleIndex].resources = [...currentRes, res];
+      newRules[ruleIndex].resources = currentRes.filter((r) => r !== res);
+      updateNodeData(nodeId, { rules: newRules });
+      return;
     }
+
+    // Adding resource: Auto-spawn & connect if needed
+    const k8sKind = RESOURCE_TYPE_MAP[res];
+    if (k8sKind) {
+      const roleNode = nodes.find((n) => n.id === nodeId);
+      const rolePos = roleNode?.position || { x: 100, y: 100 };
+
+      // Find if target node of this type is already connected
+      const existingConnectedNode = nodes.find((n) => {
+        if (n.type !== k8sKind) return false;
+        return edges.some(
+          (e) => (e.source === nodeId && e.target === n.id) || (e.target === nodeId && e.source === n.id)
+        );
+      });
+
+      if (!existingConnectedNode) {
+        const existingNodeOfKind = nodes.find((n) => n.type === k8sKind && !n.parentId);
+        if (existingNodeOfKind) {
+          // Connect Role to existing node
+          onConnect({
+            source: nodeId,
+            target: existingNodeOfKind.id,
+            sourceHandle: 'right-s',
+            targetHandle: 'left-t',
+          });
+        } else {
+          // Auto-spawn new node & connect
+          const spawnPos = { x: rolePos.x + 300, y: rolePos.y };
+          addNode(k8sKind, spawnPos);
+          // Get the newly added node ID after state update
+          setTimeout(() => {
+            const currentNodes = useFlowStore.getState().nodes;
+            const newSpawned = currentNodes.find((n) => n.type === k8sKind && !n.parentId);
+            if (newSpawned) {
+              useFlowStore.getState().onConnect({
+                source: nodeId,
+                target: newSpawned.id,
+                sourceHandle: 'right-s',
+                targetHandle: 'left-t',
+              });
+            }
+          }, 50);
+        }
+      }
+    }
+
+    newRules[ruleIndex].resources = [...currentRes, res];
     updateNodeData(nodeId, { rules: newRules });
   };
 

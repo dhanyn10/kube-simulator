@@ -1,5 +1,5 @@
 import { LogEntry } from '../../../store/types';
-import { OpenLogFile } from '../../../../wailsjs/go/main/App';
+import { OpenLogFile } from '@wailsjs/go/main/App';
 import { logger } from '../../../lib/logger';
 
 /**

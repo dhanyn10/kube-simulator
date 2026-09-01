@@ -6,7 +6,7 @@ import { hydrateNodes } from '../../store/nodeHelpers';
 import { Modal } from '../Modals/Modal';
 import { DEFAULT_REGISTRY_IMAGES } from '../../constants/config';
 import { useFitView } from '../../hooks/useFitView';
-import { FetchDockerHubPopular, SearchDockerHub, FetchDockerHubTags } from '../../../wailsjs/go/main/App';
+import { FetchDockerHubPopular, SearchDockerHub, FetchDockerHubTags } from '@wailsjs/go/main/App';
 
 interface Project {
   id: number;

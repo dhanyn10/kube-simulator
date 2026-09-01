@@ -5,6 +5,7 @@ import React from 'react';
 import { RoleNode } from '@/components/Nodes/Role';
 import { RoleConfig } from '@/components/Config/RoleConfig';
 import { VALID_CONNECTIONS } from '@/constants/connections';
+import { syncRoleRulesFromConnections } from '@/store/slices/createFlowSlice';
 import { handleGetRolesCommand, handleDescribeRoleCommand } from '@/components/Layout/terminalCommands';
 
 // React Flow Mock wrapper
@@ -62,6 +63,44 @@ describe('Role feature tests', () => {
       // Click to add rule
       const addRuleBtn = screen.getByText('Add Rule');
       fireEvent.click(addRuleBtn);
+    });
+  });
+
+  describe('Connection-driven RBAC rule sync', () => {
+    it('syncs Role resources from connected nodes', () => {
+      const initialNodes: any[] = [
+        {
+          id: 'role-1',
+          type: 'Role',
+          data: {
+            label: 'test-role',
+            rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }],
+          },
+        },
+        {
+          id: 'deploy-1',
+          type: 'Deployment',
+          data: { label: 'app-deploy', replicas: 2 },
+        },
+        {
+          id: 'svc-1',
+          type: 'Service',
+          data: { label: 'app-svc' },
+        },
+      ];
+
+      const edges: any[] = [
+        { id: 'e1', source: 'role-1', target: 'deploy-1' },
+        { id: 'e2', source: 'role-1', target: 'svc-1' },
+      ];
+
+      const syncedNodes = syncRoleRulesFromConnections(initialNodes, edges);
+      const updatedRole = syncedNodes.find((n) => n.id === 'role-1');
+      const syncedResources = updatedRole?.data.rules[0].resources;
+
+      expect(syncedResources).toContain('deployments');
+      expect(syncedResources).toContain('pods');
+      expect(syncedResources).toContain('services');
     });
   });
 
