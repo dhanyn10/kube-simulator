@@ -82,8 +82,24 @@ OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the inst
 InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}" # Default installing folder ($PROGRAMFILES is Program Files folder).
 ShowInstDetails show # This will always show the installation details.
 
+!include "WordFunc.nsh"
+!insertmacro VersionCompare
+
 Function .onInit
    !insertmacro wails.checkArchitecture
+
+   # Read currently installed version from Registry
+   SetRegView 64
+   ReadRegStr $0 HKLM "${UNINST_KEY}" "DisplayVersion"
+   ${If} $0 != ""
+      ${VersionCompare} "${INFO_PRODUCTVERSION}" "$0" $1
+      # $1 = 0 (versions are equal) or $1 = 2 (installer version is lower than installed version)
+      ${If} $1 == 0
+      ${OrIf} $1 == 2
+         MessageBox MB_OK|MB_ICONSTOP "Target update version (v${INFO_PRODUCTVERSION}) cannot be equal or lower than current version (v$0). Please reinstall application if you need to use previous version."
+         Quit
+      ${EndIf}
+   ${EndIf}
 FunctionEnd
 
 Section "Kube Simulator Application" SecApp
