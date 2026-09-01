@@ -19,7 +19,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {
   if (childType === 'Pod') return nodeType === 'Deployment' || nodeType === 'Namespace';
-  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA'].includes(childType)) return nodeType === 'Namespace';
+  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType)) return nodeType === 'Namespace';
   return false;
 };
 
@@ -110,6 +110,19 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       const centeredPosition = { x: position.x - offset.x, y: position.y - offset.y };
 
       const targetContainer = getTargetContainer(event.clientX, event.clientY, type);
+
+      if (type === 'Role' && (!targetContainer || targetContainer.type !== 'Namespace')) {
+        const existingNs = nodes.find((n) => n.type === 'Namespace');
+        if (!existingNs) {
+          useFlowStore.getState().addLog('warn', '[Canvas Action] Role requires a Namespace! Please drop Role inside a Namespace card.', 'UI');
+          setHoveredDeploymentId(null);
+          useFlowStore.setState((state) => ({
+            nodes: state.nodes.map((n) => ({ ...n, data: { ...n.data, isHovered: false } })),
+          }));
+          return;
+        }
+      }
+
       const finalPosition = computeFinalDropPosition(centeredPosition, targetContainer, nodes);
 
       setHoveredDeploymentId(null);

@@ -112,12 +112,25 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) 
 // -- ACTION IMPLEMENTATIONS --
 
 const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
+  let targetParentId = parentId;
+  const currentNodes = get().nodes;
+
+  if (type === 'Role' && !targetParentId) {
+    const nsNode = currentNodes.find((n) => n.type === 'Namespace');
+    if (nsNode) {
+      targetParentId = nsNode.id;
+    } else {
+      get().addLog('warn', '[Canvas Action] Cannot add Role without a Namespace! Please create or drag Role into a Namespace card.', 'UI');
+      return;
+    }
+  }
+
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
   const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 };
 
   const newNode: Node = {
-    id, type, position: finalPos, parentId,
-    extent: parentId ? 'parent' : undefined,
+    id, type, position: finalPos, parentId: targetParentId,
+    extent: targetParentId ? 'parent' : undefined,
     data: getInitialData(type, id, get),
     ...(type === 'Deployment' ? { width: 320, height: 160, style: { width: 320, height: 160 } } : {}),
     ...(type === 'Namespace' ? { width: 600, height: 400, style: { width: 600, height: 400 } } : {}),

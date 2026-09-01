@@ -9,7 +9,7 @@ export const getNodeData = (node: Node): K8sNodeData => {
 
 export const isAllowed = (parentType: string, childType: string): boolean => {
   if (parentType === 'Deployment') return childType === 'Pod';
-  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet', 'Ingress', 'HPA'].includes(childType);
+  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType);
   return false;
 };
 

@@ -77,6 +77,10 @@ const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, abs
       { ...node, parentId: undefined, position: absPos, extent: undefined }
     ];
   }
+  if (node.type === 'Role' && parent?.type === 'Namespace') {
+    get().addLog('warn', '[Canvas Action] Cannot detach Role outside of a Namespace!', 'UI');
+    return nextNodes.map(n => n.id === node.id ? { ...n, extent: 'parent' as const } : n);
+  }
   return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
 };
 
