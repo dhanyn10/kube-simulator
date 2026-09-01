@@ -6,5 +6,6 @@ export * from './InternetConfig';
 export * from './KeyValueConfig';
 export * from './NodeConfig';
 export * from './PVCConfig';
+export * from './RoleConfig';
 export * from './ServiceConfig';
 export * from './WorkloadConfig';

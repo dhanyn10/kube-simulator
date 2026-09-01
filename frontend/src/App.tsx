@@ -30,6 +30,7 @@ import {
   HPANode,
   PVCNode,
   ReplicaSetNode,
+  RoleNode,
 } from './components/Nodes';
 import { CustomEdge } from './components/Edges';
 import { generateYaml, cn, getAbsPos } from './lib/utils';
@@ -54,6 +55,7 @@ const nodeTypes = {
   ConfigMap: ConfigMapNode,
   Secret: SecretNode,
   ReplicaSet: ReplicaSetNode,
+  Role: RoleNode,
 };
 
 const edgeTypes = {

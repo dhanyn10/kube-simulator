@@ -12,6 +12,7 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
   ConfigMap: [],
   Secret: [],
   Namespace: [],
+  Role: ['Deployment', 'Pod', 'Service', 'ReplicaSet'],
 };
 
 export const getConnectionError = (sourceType: string, targetType: string): string | null => {
