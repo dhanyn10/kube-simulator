@@ -8,7 +8,7 @@ export interface SuggestionItem {
   subItems?: string[];
 }
 
-export const ADMIN_CHEAT_SUGGESTIONS: SuggestionItem[] = [
+export const ADMIN_SUGGESTIONS: SuggestionItem[] = [
   { value: 'try version update 0.4.0', label: 'try version update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
   { value: 'try version current 0.3.0', label: 'try version current <version>', category: 'Admin', description: 'Simulate current application version' },
   { value: 'try version clear', label: 'try version clear', category: 'Admin', description: 'Clear simulated current version' },
@@ -134,7 +134,7 @@ export const getAutocompleteSuggestions = (
 
   if (isAdminAuthenticated) {
     const inputLower = trimmed.toLowerCase();
-    return ADMIN_CHEAT_SUGGESTIONS.filter(item =>
+    return ADMIN_SUGGESTIONS.filter(item =>
       item.value.toLowerCase().includes(inputLower) ||
       item.label.toLowerCase().includes(inputLower)
     );

@@ -76,7 +76,7 @@ const processVersionCurrentCmd = (parts: string[], store: any, ctx: CommandConte
   return true;
 };
 
-const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext): boolean => {
+const processAdminCommands = (cmd: string, cmdLower: string, ctx: CommandContext): boolean => {
   const store = ctx.getStoreState();
   const parts = cmd.trim().split(/\s+/);
 
@@ -113,7 +113,7 @@ const processCheatCommands = (cmd: string, cmdLower: string, ctx: CommandContext
   return true;
 };
 
-export const handleAdminAndCheatCommands = (
+export const handleAdminCommands = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
@@ -148,7 +148,7 @@ export const handleAdminAndCheatCommands = (
       ctx.addActivityLog(`Please authenticate first via "kubesim admin".`);
       return true;
     }
-    return processCheatCommands(cmd, cmdLower, ctx);
+    return processAdminCommands(cmd, cmdLower, ctx);
   }
 
   if (isAdminAuth) {

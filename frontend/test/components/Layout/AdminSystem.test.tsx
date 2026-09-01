@@ -4,12 +4,12 @@ import '@testing-library/jest-dom';
 import React from 'react';
 import { MenuBar } from '@/components/Layout/MenuBar';
 import { useFlowStore } from '@/store';
-import { handleAdminAndCheatCommands, CommandContext } from '@/components/Layout/terminalCommands';
+import { handleAdminCommands, CommandContext } from '@/components/Layout/terminalCommands';
 
 import { handleHelpCommand } from '@/components/Layout/TerminalPanel';
 import { getAutocompleteSuggestions } from '@/components/Layout/terminalAutocomplete';
 
-describe('Admin Authentication and GTA Cheat Code System', () => {
+describe('Admin Authentication and Dev Commands System', () => {
   let logs: string[];
   let ctx: CommandContext;
 
@@ -35,7 +35,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
   });
 
   it('prompts for password when "kubesim admin" is executed', () => {
-    const handled = handleAdminAndCheatCommands('kubesim admin', ctx);
+    const handled = handleAdminCommands('kubesim admin', ctx);
     expect(handled).toBe(true);
     expect(logs).toContain('[Admin Authentication] Please enter admin password:');
     expect(useFlowStore.getState().isAwaitingAdminPassword).toBe(true);
@@ -43,7 +43,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
 
   it('handles already authenticated kubesim admin command', () => {
     useFlowStore.setState({ isAdminAuthenticated: true });
-    const handled = handleAdminAndCheatCommands('kubesim admin', ctx);
+    const handled = handleAdminCommands('kubesim admin', ctx);
     expect(handled).toBe(true);
     expect(logs.some(l => l.includes('Already authenticated'))).toBe(true);
   });
@@ -51,19 +51,19 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
   it('authenticates admin when correct password is submitted and unlocks try commands', () => {
     useFlowStore.setState({ isAwaitingAdminPassword: true });
 
-    const handled = handleAdminAndCheatCommands('kubesim123', ctx);
+    const handled = handleAdminCommands('kubesim123', ctx);
     expect(handled).toBe(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
     expect(logs.some(l => l.includes('Secret Mode Unlocked'))).toBe(true);
 
     // Now test try version update command
-    handleAdminAndCheatCommands('try version update 0.5.0', ctx);
+    handleAdminCommands('try version update 0.5.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.5.0');
   });
 
   it('rejects authentication on wrong password', () => {
     useFlowStore.setState({ isAwaitingAdminPassword: true });
-    const handled = handleAdminAndCheatCommands('wrongpass', ctx);
+    const handled = handleAdminCommands('wrongpass', ctx);
     expect(handled).toBe(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(false);
     expect(logs.some(l => l.includes('Access Denied'))).toBe(true);
@@ -73,37 +73,37 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     useFlowStore.setState({ isAdminAuthenticated: true });
 
     // try version update default
-    handleAdminAndCheatCommands('try version update', ctx);
+    handleAdminCommands('try version update', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.4.0');
 
     // try version current without arg (status check)
     logs = [];
-    handleAdminAndCheatCommands('try version current', ctx);
+    handleAdminCommands('try version current', ctx);
     expect(logs.some(l => l.includes('Current assumed version: v0.3.0'))).toBe(true);
 
     // try version current 0.5.0
     logs = [];
-    handleAdminAndCheatCommands('try version current 0.5.0', ctx);
+    handleAdminCommands('try version current 0.5.0', ctx);
     expect(useFlowStore.getState().simulatedCurrentVersion).toBe('0.5.0');
     expect(logs.some(l => l.includes('Current version set to v0.5.0'))).toBe(true);
 
     // try status
     logs = [];
-    handleAdminAndCheatCommands('try status', ctx);
+    handleAdminCommands('try status', ctx);
     expect(logs.some(l => l.includes('Dev-Mode Status') && l.includes('v0.5.0'))).toBe(true);
 
     // try version clear
-    handleAdminAndCheatCommands('try version clear', ctx);
+    handleAdminCommands('try version clear', ctx);
     expect(useFlowStore.getState().simulatedCurrentVersion).toBeNull();
 
     // try clear resets both
     useFlowStore.setState({ simulatedCurrentVersion: '0.6.0', simulatedUpdateInfo: { latestVersion: '0.7.0', releaseUrl: 'http://example.com' } });
-    handleAdminAndCheatCommands('try clear', ctx);
+    handleAdminCommands('try clear', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(useFlowStore.getState().simulatedCurrentVersion).toBeNull();
 
     // unknown try
-    handleAdminAndCheatCommands('try invalidcmd', ctx);
+    handleAdminCommands('try invalidcmd', ctx);
     expect(logs.some(l => l.includes('Unknown command'))).toBe(true);
   });
 
@@ -111,14 +111,14 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     useFlowStore.setState({ isAdminAuthenticated: true, simulatedCurrentVersion: '0.8.0' });
 
     // try version update to 0.4.0 (lower than 0.8.0)
-    handleAdminAndCheatCommands('try version update 0.4.0', ctx);
+    handleAdminCommands('try version update 0.4.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('Target update version (v0.4.0) cannot be equal or lower than current version (v0.8.0)'))).toBe(true);
     expect(logs.some(l => l.includes('Please reinstall application if you need to use previous version'))).toBe(true);
 
     // try version update to 0.8.0 (equal to 0.8.0)
     logs = [];
-    handleAdminAndCheatCommands('try version update 0.8.0', ctx);
+    handleAdminCommands('try version update 0.8.0', ctx);
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('Target update version (v0.8.0) cannot be equal or lower than current version (v0.8.0)'))).toBe(true);
   });
@@ -129,7 +129,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
       simulatedUpdateInfo: { latestVersion: '0.5.0', releaseUrl: 'https://example.com' },
     });
 
-    handleAdminAndCheatCommands('try version current 0.6.0', ctx);
+    handleAdminCommands('try version current 0.6.0', ctx);
     expect(useFlowStore.getState().simulatedCurrentVersion).toBe('0.6.0');
     expect(useFlowStore.getState().simulatedUpdateInfo).toBeNull();
     expect(logs.some(l => l.includes('Current version set to v0.6.0'))).toBe(true);
@@ -138,19 +138,19 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
 
   it('enforces mode isolation (blocks try in user mode & standard cmd in admin mode)', () => {
     // User mode: block try command
-    handleAdminAndCheatCommands('try version update 0.9.0', ctx);
+    handleAdminCommands('try version update 0.9.0', ctx);
     expect(logs.some(l => l.includes('Admin mode is inactive'))).toBe(true);
 
     // Admin mode: block standard user command
     logs = [];
     useFlowStore.setState({ isAdminAuthenticated: true });
-    handleAdminAndCheatCommands('kubectl get pods', ctx);
+    handleAdminCommands('kubectl get pods', ctx);
     expect(logs.some(l => l.includes('You are currently in Admin Mode'))).toBe(true);
   });
 
   it('handles logout and exit commands in admin mode', () => {
     useFlowStore.setState({ isAdminAuthenticated: true });
-    const handled = handleAdminAndCheatCommands('logout', ctx);
+    const handled = handleAdminCommands('logout', ctx);
     expect(handled).toBe(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(false);
     expect(logs.some(l => l.includes('Logged out from admin mode'))).toBe(true);
@@ -181,7 +181,7 @@ describe('Admin Authentication and GTA Cheat Code System', () => {
     expect(adminSugg.some(s => s.value.startsWith('try'))).toBe(true);
   });
 
-  it('renders Update button in MenuBar when simulated update cheat is active', async () => {
+  it('renders Update button in MenuBar when simulated update is active', async () => {
     useFlowStore.setState({
       simulatedUpdateInfo: { latestVersion: '0.5.0', releaseUrl: 'https://example.com' },
     });

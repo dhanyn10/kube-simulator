@@ -87,7 +87,7 @@ export const MenuBar = ({
     return () => { isMounted = false; };
   }, []);
 
-  // Sync with simulated cheat update info if activated
+  // Sync with simulated admin update info if activated
   const effectiveUpdateInfo = useMemo(() => {
     if (simulatedUpdateInfo) {
       return { version: simulatedUpdateInfo.latestVersion, releaseUrl: simulatedUpdateInfo.releaseUrl };

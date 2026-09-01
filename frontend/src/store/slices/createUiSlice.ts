@@ -41,7 +41,7 @@ export interface UiSlice {
   canvasBgColor: string;
   canvasBgOpacity: number;
 
-  // Update check & cheat code state
+  // Update check & admin state
   simulatedUpdateInfo: { latestVersion: string; releaseUrl: string } | null;
   simulatedCurrentVersion: string | null;
   isAdminAuthenticated: boolean;
