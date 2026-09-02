@@ -4,7 +4,11 @@ import { useHistory } from '@/hooks/useHistory';
 import { applyHistoryState } from '@/store';
 
 vi.mock('@/store', () => ({
-  applyHistoryState: vi.fn()
+  applyHistoryState: vi.fn(),
+  useFlowStore: {
+    setState: vi.fn(),
+    getState: vi.fn().mockReturnValue({}),
+  },
 }));
 
 describe('useHistory', () => {

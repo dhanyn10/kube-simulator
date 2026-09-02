@@ -10,7 +10,8 @@ import {
   Monitor,
   Check,
   ChevronDown,
-  MousePointer2
+  MousePointer2,
+  History
 } from 'lucide-react';
 import { HistoryPanel } from '../Monitoring/HistoryPanel';
 import { useFlowStore } from '../../store';
@@ -19,7 +20,7 @@ import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
 import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
 
-type TabType = 'canvas' | 'settings';
+type TabType = 'canvas' | 'settings' | 'history';
 
 interface CanvasWidgetsPanelProps {
   nodes: any[];
@@ -153,8 +154,8 @@ export const SettingsPanel = ({ selectedNode, selectedEdge, isElementSelected, c
 };
 
 interface SidebarTabBarProps {
-  activeTab: 'canvas' | 'settings';
-  setActiveTab: (tab: 'canvas' | 'settings') => void;
+  activeTab: TabType;
+  setActiveTab: (tab: TabType) => void;
   isCanvasDropdownOpen: boolean;
   setIsCanvasDropdownOpen: (open: boolean) => void;
   canvasDropdownRef: React.RefObject<HTMLDivElement | null>;
@@ -177,11 +178,11 @@ export const SidebarTabBar = ({
   onExportYaml,
   colorMode
 }: SidebarTabBarProps) => {
-  const getCanvasTabClassName = () => {
-    const isCanvas = activeTab === 'canvas';
+  const getTabClassName = (tab: TabType) => {
+    const isActive = activeTab === tab;
     const isDark = colorMode === 'dark';
 
-    if (isCanvas) {
+    if (isActive) {
       return isDark ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900";
     }
     return isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600";
@@ -197,32 +198,22 @@ export const SidebarTabBar = ({
     return isDark ? "text-slate-500 hover:text-slate-300 border-transparent" : "text-slate-400 hover:text-slate-600 border-transparent";
   };
 
-  const getSettingsTabClassName = () => {
-    const isSettings = activeTab === 'settings';
-    const isDark = colorMode === 'dark';
-
-    if (isSettings) {
-      return isDark ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900";
-    }
-    return isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600";
-  };
-
   return (
     <div className={cn(
-      "right-sidebar-tab-bar",
+      "right-sidebar-tab-bar flex items-center",
       colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-50/50 border-slate-200"
     )}>
-      <div className="flex-1 flex h-8 mx-1 relative" ref={canvasDropdownRef}>
+      <div className="flex-1 flex h-8 mx-0.5 relative" ref={canvasDropdownRef}>
         <button
           type="button"
           onClick={() => setActiveTab('canvas')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 rounded-l-md text-[10px] font-bold uppercase tracking-wider transition-all",
-            getCanvasTabClassName()
+            "flex-1 flex items-center justify-center gap-1 rounded-l-md text-[10px] font-bold uppercase tracking-wider transition-all px-1",
+            getTabClassName('canvas')
           )}
         >
-          <Layers size={14} />
-          Canvas
+          <Layers size={13} />
+          <span className="truncate">Canvas</span>
         </button>
         <button
           type="button"
@@ -232,11 +223,11 @@ export const SidebarTabBar = ({
             setActiveTab('canvas');
           }}
           className={cn(
-            "px-1.5 flex items-center justify-center border-l rounded-r-md transition-all",
+            "px-1 flex items-center justify-center border-l rounded-r-md transition-all",
             getDropdownToggleClassName()
           )}
         >
-          <ChevronDown size={12} className={cn("transition-transform", isCanvasDropdownOpen && "rotate-180")} />
+          <ChevronDown size={11} className={cn("transition-transform", isCanvasDropdownOpen && "rotate-180")} />
         </button>
 
         {isCanvasDropdownOpen && (
@@ -289,12 +280,24 @@ export const SidebarTabBar = ({
         type="button"
         onClick={() => setActiveTab('settings')}
         className={cn(
-          "flex-1 flex items-center justify-center gap-2 h-8 mx-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-          getSettingsTabClassName()
+          "flex-1 flex items-center justify-center gap-1 h-8 mx-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all px-1",
+          getTabClassName('settings')
         )}
       >
-        <Layout size={14} />
-        Settings
+        <Layout size={13} />
+        <span className="truncate">Settings</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setActiveTab('history')}
+        className={cn(
+          "flex-1 flex items-center justify-center gap-1 h-8 mx-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all px-1",
+          getTabClassName('history')
+        )}
+      >
+        <History size={13} />
+        <span className="truncate">History</span>
       </button>
 
     </div>
@@ -323,17 +326,30 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
   const canvasDropdownRef = useRef<HTMLDivElement>(null);
 
   const isHistoryViewOpen = useFlowStore((state) => state.isHistoryViewOpen);
-  const setHistoryViewOpen = useFlowStore((state) => state.setHistoryViewOpen);
 
   const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
 
-  // Switch to settings tab when a new element is selected (exit history view if open)
+  // Sync activeTab with isHistoryViewOpen store state
+  useEffect(() => {
+    if (isHistoryViewOpen) {
+      setActiveTab('history');
+    }
+  }, [isHistoryViewOpen]);
+
+  // Synchronize activeTab changes back to store for isHistoryViewOpen
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    if (tab === 'history') {
+      useFlowStore.setState({ isHistoryViewOpen: true });
+    } else if (isHistoryViewOpen) {
+      useFlowStore.setState({ isHistoryViewOpen: false });
+    }
+  };
+
+  // Switch to settings tab when a new element is selected or gear is clicked
   useEffect(() => {
     if (isElementSelected) {
-      if (isHistoryViewOpen) {
-        setHistoryViewOpen(false);
-      }
-      setActiveTab('settings');
+      handleTabChange('settings');
     }
   }, [isElementSelected, configuringNodeId, configuringEdgeId]);
 
@@ -381,45 +397,40 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           closeTestId="context-menu-close-sidebar"
         />
       )}
-      {!isHistoryViewOpen && (
-        <SidebarTabBar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isCanvasDropdownOpen={isCanvasDropdownOpen}
-          setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
-          canvasDropdownRef={canvasDropdownRef}
-          canvasWidgets={canvasWidgets}
-          visibleWidgets={visibleWidgets}
-          toggleWidget={toggleWidget}
-          onExportYaml={onExportYaml}
-          colorMode={colorMode}
-        />
-      )}
+      <SidebarTabBar
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        isCanvasDropdownOpen={isCanvasDropdownOpen}
+        setIsCanvasDropdownOpen={setIsCanvasDropdownOpen}
+        canvasDropdownRef={canvasDropdownRef}
+        canvasWidgets={canvasWidgets}
+        visibleWidgets={visibleWidgets}
+        toggleWidget={toggleWidget}
+        onExportYaml={onExportYaml}
+        colorMode={colorMode}
+      />
 
       {/* Content Area */}
       <div className="right-sidebar-content-area custom-scrollbar">
-        {isHistoryViewOpen ? (
+        {activeTab === 'history' && (
           <div className="p-0 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />
           </div>
-        ) : (
-          <>
-            {activeTab === 'canvas' && (
-              <CanvasWidgetsPanel
-                nodes={nodes}
-                colorMode={colorMode}
-                visibleWidgets={visibleWidgets}
-              />
-            )}
-            {activeTab === 'settings' && (
-              <SettingsPanel
-                selectedNode={selectedNode}
-                selectedEdge={selectedEdge}
-                isElementSelected={isElementSelected}
-                colorMode={colorMode}
-              />
-            )}
-          </>
+        )}
+        {activeTab === 'canvas' && (
+          <CanvasWidgetsPanel
+            nodes={nodes}
+            colorMode={colorMode}
+            visibleWidgets={visibleWidgets}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <SettingsPanel
+            selectedNode={selectedNode}
+            selectedEdge={selectedEdge}
+            isElementSelected={isElementSelected}
+            colorMode={colorMode}
+          />
         )}
       </div>
     </div>

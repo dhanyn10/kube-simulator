@@ -35,6 +35,7 @@ describe('RightSidebar', () => {
     render(<RightSidebar onExportYaml={vi.fn()} />);
     expect(screen.getByText('Canvas')).toBeDefined();
     expect(screen.getByText('Settings')).toBeDefined();
+    expect(screen.getByText('History')).toBeDefined();
   });
 
   it('switches tabs', () => {
@@ -44,6 +45,10 @@ describe('RightSidebar', () => {
     fireEvent.click(settingsTab);
 
     expect(screen.getByText('Select an element on the canvas to view and modify its properties.')).toBeDefined();
+
+    const historyTab = screen.getByText('History');
+    fireEvent.click(historyTab);
+    expect(screen.getByText('Activity Timeline')).toBeDefined();
 
     const canvasTab = screen.getByText('Canvas');
     fireEvent.click(canvasTab);
@@ -116,16 +121,17 @@ describe('RightSidebar', () => {
     expect(screen.getByText('Enable widgets from the dropdown menu to see hardware and status info.')).toBeDefined();
   });
 
-  it('renders full history mode in right sidebar when isHistoryViewOpen is true', () => {
+  it('renders history tab in right sidebar when isHistoryViewOpen is true', () => {
     act(() => {
       useFlowStore.setState({ isHistoryViewOpen: true });
     });
 
     render(<RightSidebar onExportYaml={vi.fn()} />);
 
-    // Tab bar should be hidden in full History view mode
-    expect(screen.queryByText('Canvas')).toBeNull();
-    expect(screen.queryByText('Settings')).toBeNull();
+    // Tab bar buttons remain visible
+    expect(screen.getByText('Canvas')).toBeDefined();
+    expect(screen.getByText('Settings')).toBeDefined();
+    expect(screen.getByText('History')).toBeDefined();
 
     // History Timeline should be rendered
     expect(screen.getByText('Activity Timeline')).toBeDefined();
