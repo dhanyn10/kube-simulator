@@ -3,6 +3,7 @@ import { applyHistoryState, useFlowStore } from '../store';
 
 export function useHistory() {
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [currentHistoryIndex, setCurrentHistoryIndex] = useState<number | null>(null);
 
   const openHistoryTab = useCallback(() => {
     useFlowStore.setState({
@@ -19,6 +20,12 @@ export function useHistory() {
       if (Array.isArray(logs)) {
         setHistoryLogs([...logs].reverse());
       }
+    }
+    // @ts-ignore
+    if (globalThis.go?.main?.App?.GetCurrentHistoryIndex) {
+      // @ts-ignore
+      const idx = await globalThis.go.main.App.GetCurrentHistoryIndex();
+      setCurrentHistoryIndex(idx);
     }
   }, []);
 
@@ -60,5 +67,5 @@ export function useHistory() {
     }
   }, [fetchHistoryLogs]);
 
-  return { historyLogs, fetchHistoryLogs, handleUndo, handleRedo, handleJumpToHistory };
+  return { historyLogs, currentHistoryIndex, fetchHistoryLogs, handleUndo, handleRedo, handleJumpToHistory };
 }

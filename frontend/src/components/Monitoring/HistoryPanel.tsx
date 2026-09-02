@@ -8,8 +8,7 @@ interface HistoryPanelProps {
 }
 
 export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
-  const { historyLogs, fetchHistoryLogs, handleJumpToHistory } = useHistory();
-  const lastActionName = useFlowStore((state) => state.lastActionName);
+  const { historyLogs, currentHistoryIndex, fetchHistoryLogs, handleJumpToHistory } = useHistory();
 
   useEffect(() => {
     fetchHistoryLogs();
@@ -29,8 +28,10 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
         {historyLogs.length === 0 ? (
           <div className="p-8 text-center text-[10px] opacity-50 italic">No activity recorded</div>
         ) : (
-          historyLogs.map((log) => {
-            const isCurrentStep = lastActionName === log.actionName || lastActionName === `Applied: ${log.actionName}`;
+          historyLogs.map((log, index) => {
+            const isCurrentStep = currentHistoryIndex !== null
+              ? log.index === currentHistoryIndex
+              : (index === 0);
             return (
               <button
                 type="button"

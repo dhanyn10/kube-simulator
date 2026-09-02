@@ -16,6 +16,7 @@ interface WailsApp {
   Undo(): Promise<string>;
   Redo(): Promise<string>;
   JumpToHistory(index: number): Promise<string>;
+  GetCurrentHistoryIndex(): Promise<number>;
   GetHistoryLogs(): Promise<HistoryLog[]>;
   SaveProject(name: string, content: string): Promise<number>;
   UpdateProject(id: number, content: string): Promise<boolean>;

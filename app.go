@@ -185,6 +185,10 @@ func (a *App) JumpToHistory(index int) string {
 	return a.history.JumpTo(index)
 }
 
+func (a *App) GetCurrentHistoryIndex() int {
+	return a.history.GetCurrentIndex()
+}
+
 func (a *App) GetHistoryLogs() []db.HistoryLog {
 	badgerDB := a.history.GetDB()
 	if badgerDB == nil {

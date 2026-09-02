@@ -114,6 +114,10 @@ func (h *HistoryManager) JumpTo(index int) string {
 	return state
 }
 
+func (h *HistoryManager) GetCurrentIndex() int {
+	return h.currentIndex
+}
+
 func (h *HistoryManager) GetMaxIndex() int {
 	return h.maxIndex
 }
