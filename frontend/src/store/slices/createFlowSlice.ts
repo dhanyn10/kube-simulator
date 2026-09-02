@@ -275,7 +275,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     set({ edges: newEdges });
   },
   setNodes: (nodes: Node[]) => set({ nodes }),
-  setEdges: (edges: Edge[]) => set({ edges }),
+  setEdges: (edges: Edge[]) => {
+    set((state) => {
+      const syncedNodes = syncRoleRulesFromConnections(state.nodes, edges);
+      return { edges, nodes: syncedNodes };
+    });
+  },
   onQuickConnect: (nodeId: string, direction: QuickConnectDirection) => {
     const { nodes, onConnect } = get();
     const sourceNode = nodes.find((n) => n.id === nodeId);

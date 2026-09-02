@@ -32,21 +32,48 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
 
   const handleDisconnectResource = (res: string) => {
     const k8sKind = RESOURCE_TYPE_MAP[res];
-    if (!k8sKind) return;
 
-    // Find connected edge to this resource type
-    const connectedEdge = edges.find((e) => {
+    // Find all connected edges to this resource type (or child pods if 'pods')
+    const connectedEdgeIds = new Set<string>();
+    edges.forEach((e) => {
       const sourceNode = nodes.find((n) => n.id === e.source);
       const targetNode = nodes.find((n) => n.id === e.target);
-      const isRoleSource = e.source === nodeId && targetNode?.type === k8sKind;
-      const isRoleTarget = e.target === nodeId && sourceNode?.type === k8sKind;
-      return isRoleSource || isRoleTarget;
+      const otherNode = e.source === nodeId ? targetNode : (e.target === nodeId ? sourceNode : null);
+
+      if (!otherNode) return;
+
+      if (res === 'pods') {
+        if (otherNode.type === 'Pod' || otherNode.type === 'Deployment') {
+          connectedEdgeIds.add(e.id);
+        }
+      } else if (res === 'deployments') {
+        if (otherNode.type === 'Deployment') {
+          connectedEdgeIds.add(e.id);
+        }
+      } else if (k8sKind && otherNode.type === k8sKind) {
+        connectedEdgeIds.add(e.id);
+      }
     });
 
-    if (connectedEdge) {
-      // Remove edge from store; syncRoleRulesFromConnections automatically updates rule.resources
-      setEdges(edges.filter((e) => e.id !== connectedEdge.id));
-      addLog('info', `[Canvas Action] Disconnected Role from ${k8sKind}`, 'UI');
+    if (connectedEdgeIds.size > 0) {
+      const nextEdges = edges.filter((e) => !connectedEdgeIds.has(e.id));
+      setEdges(nextEdges);
+
+      // Explicitly update rule.resources to remove res
+      const newRules = rules.map((rule) => ({
+        ...rule,
+        resources: (rule.resources || []).filter((r) => r !== res),
+      }));
+      updateNodeData(nodeId, { rules: newRules });
+
+      addLog('info', `[Canvas Action] Disconnected Role from ${res}`, 'UI');
+    } else {
+      // Fallback: remove res from rule.resources directly
+      const newRules = rules.map((rule) => ({
+        ...rule,
+        resources: (rule.resources || []).filter((r) => r !== res),
+      }));
+      updateNodeData(nodeId, { rules: newRules });
     }
   };
 
