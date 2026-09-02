@@ -57,13 +57,12 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
   const isInfoOpen = activeInfoIndex === idx;
   const isMeaningful = checkMeaningfulDescription(item);
 
-  const getCategoryClass = () => {
-    if (item.category === 'add to canvas') {
-      return isDark ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-amber-100 text-amber-800 border border-amber-300";
-    }
-    if (isSelected) return "bg-indigo-600 text-white";
-    return isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500";
-  };
+  let categoryClass = isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500";
+  if (item.category === 'add to canvas') {
+    categoryClass = isDark ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-amber-100 text-amber-800 border border-amber-300";
+  } else if (isSelected) {
+    categoryClass = "bg-indigo-600 text-white";
+  }
 
   return (
     <div
@@ -98,7 +97,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
           )}
 
           {item.category && (
-            <span className={cn("text-[8px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider", getCategoryClass())}>
+            <span className={cn("text-[8px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider", categoryClass)}>
               {item.category}
             </span>
           )}
