@@ -41,7 +41,18 @@ const TagInput: React.FC<TagInputProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [openUpward, setOpenUpward] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isFocused && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      setOpenUpward(spaceBelow < 170 && rect.top > 170);
+    }
+  }, [isFocused, inputValue]);
 
   const availableSuggestions = suggestions.filter((s) => {
     if (tags.includes(s)) return false;
@@ -100,7 +111,7 @@ const TagInput: React.FC<TagInputProps> = ({
   };
 
   return (
-    <div className="relative space-y-1">
+    <div ref={containerRef} className="relative space-y-1">
       <div
         onClick={() => inputRef.current?.focus()}
         className={cn(
@@ -159,7 +170,8 @@ const TagInput: React.FC<TagInputProps> = ({
       {isFocused && availableSuggestions.length > 0 && (
         <div
           className={cn(
-            "absolute left-0 right-0 top-full mt-1 z-50 max-h-40 overflow-y-auto rounded-lg border shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs",
+            "absolute left-0 right-0 z-50 max-h-40 overflow-y-auto rounded-lg border shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs",
+            openUpward ? "bottom-full mb-1" : "top-full mt-1",
             colorMode === 'dark' ? "bg-slate-900 border-slate-700/80 text-slate-200" : "bg-white border-slate-300 text-slate-800"
           )}
         >
@@ -404,7 +416,8 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Role & Permissions'}
       icon={ShieldCheck}
       iconColorClass="text-indigo-400"
-      widthClass="w-[580px]"
+      widthClass="w-[780px]"
+      maxHeightClass="h-[70vh]"
       footer={footer}
     >
       <div className="space-y-4">
