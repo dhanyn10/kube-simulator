@@ -88,9 +88,11 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
                 {item.category && (
                   <span className={cn(
                     "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
-                    isSelected
-                      ? "bg-indigo-600 text-white"
-                      : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
+                    item.category === 'add to canvas'
+                      ? (isDark ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-amber-100 text-amber-800 border border-amber-300")
+                      : isSelected
+                        ? "bg-indigo-600 text-white"
+                        : (isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500")
                   )}>
                     {item.category}
                   </span>

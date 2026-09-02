@@ -90,16 +90,31 @@ const TagInput: React.FC<TagInputProps> = ({
         const existsOnCanvas = targetType ? nodes.some((n) => n.type === targetType) : true;
 
         if (targetType && !existsOnCanvas) {
-          description = `Kubernetes resource: ${s} (add to canvas)`;
+          description = `Kubernetes resource: ${s}`;
         } else {
           description = `Kubernetes resource / RBAC item: ${s}`;
         }
       }
 
+      const category = (s !== '' && (() => {
+        const resourceToTypeMap: Record<string, string> = {
+          pods: 'Pod',
+          deployments: 'Deployment',
+          services: 'Service',
+          configmaps: 'ConfigMap',
+          secrets: 'Secret',
+          persistentvolumeclaims: 'PVC',
+          ingresses: 'Ingress',
+          horizontalpodautoscalers: 'HPA',
+        };
+        const targetType = resourceToTypeMap[s.toLowerCase()];
+        return targetType && !nodes.some((n) => n.type === targetType);
+      })()) ? 'add to canvas' : 'RBAC';
+
       return {
         label,
         value: s,
-        category: 'RBAC',
+        category,
         description,
       };
     })
