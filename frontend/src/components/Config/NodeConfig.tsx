@@ -12,6 +12,7 @@ import {
   DataResourceConfig,
   RoleConfig
 } from './';
+import { RoleSettingsSection } from './RoleSettingsSection';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../../store/slices/node-handlers/configUtils';
 
 interface NodeConfigProps {
@@ -151,6 +152,10 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
       </div>
 
       {renderConfig()}
+
+      {selectedNode.type !== 'Role' && (
+        <RoleSettingsSection data={data} nodeId={selectedNode.id} />
+      )}
 
       {['Pod', 'Deployment', 'ReplicaSet'].includes(selectedNode.type) && (
         <button

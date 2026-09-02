@@ -1,5 +1,6 @@
-import  { memo } from 'react';
+import { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
+import { Shield } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -103,11 +104,26 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
 
 
-      <div className={cn(
-        "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2 mt-2",
-        colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
-      )}>
-        Workload Zone
+      <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
+        {data.roles && data.roles.length > 0 && (
+          <div className="flex items-center gap-1 mb-1 px-2 py-1 rounded-md bg-indigo-950/40 border border-indigo-500/30 shadow-sm">
+            {data.roles.map((role: any) => (
+              <span
+                key={role.id || role.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
+                title={`Role: ${role.name}`}
+              >
+                <Shield size={12} />
+              </span>
+            ))}
+          </div>
+        )}
+        <div className={cn(
+          "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40",
+          colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
+        )}>
+          Workload Zone
+        </div>
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2 z-[50]" />

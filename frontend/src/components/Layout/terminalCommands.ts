@@ -442,31 +442,36 @@ export const handleGetRolesCommand = (
   const match = /^kubectl\s+get\s+(roles?|rolebindings?)\b/i.exec(cmd.trim());
   if (!match) return false;
 
+  const allRoles: { name: string; owner: string; rules: any[] }[] = [];
+  ctx.nodes.forEach((n) => {
+    if (n.data?.roles && Array.isArray(n.data.roles)) {
+      n.data.roles.forEach((r: any) => {
+        allRoles.push({ name: r.name, owner: n.data.label || n.id, rules: r.rules || [] });
+      });
+    }
+  });
+
   const resType = match[1].toLowerCase();
   if (resType.startsWith('rolebinding')) {
-    const roleNodes = ctx.nodes.filter(n => n.type === 'Role');
-    if (roleNodes.length === 0) {
+    if (allRoles.length === 0) {
       ctx.addActivityLog('No rolebindings found on the canvas.');
       return true;
     }
     ctx.addActivityLog(`${"NAME".padEnd(30)} ROLE                  SUBJECTS              AGE`);
-    roleNodes.forEach(r => {
-      const name = (r.data.label || r.id) + '-binding';
-      const roleName = r.data.label || r.id;
-      ctx.addActivityLog(`${String(name).padEnd(30)} ${String(roleName).padEnd(21)} ServiceAccount/default 2m`);
+    allRoles.forEach((r) => {
+      const bindingName = r.name + '-binding';
+      ctx.addActivityLog(`${String(bindingName).padEnd(30)} ${String(r.name).padEnd(21)} ServiceAccount/default 2m`);
     });
     return true;
   }
 
-  const roleNodes = ctx.nodes.filter(n => n.type === 'Role');
-  if (roleNodes.length === 0) {
+  if (allRoles.length === 0) {
     ctx.addActivityLog('No roles found on the canvas.');
     return true;
   }
-  ctx.addActivityLog(`${"NAME".padEnd(30)} CREATED AT`);
-  roleNodes.forEach(r => {
-    const name = r.data.label || r.id;
-    ctx.addActivityLog(`${String(name).padEnd(30)} 2m ago`);
+  ctx.addActivityLog(`${"NAME".padEnd(30)} ATTACHED TO           CREATED AT`);
+  allRoles.forEach((r) => {
+    ctx.addActivityLog(`${String(r.name).padEnd(30)} ${String(r.owner).padEnd(21)} 2m ago`);
   });
   return true;
 };
@@ -479,23 +484,26 @@ export const handleDescribeRoleCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Role' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  let foundRole: { name: string; owner: string; rules: any[] } | null = null;
 
-  if (foundNode) {
-    const name = foundNode.data.label || foundNode.id;
-    const rules = foundNode.data.rules || [];
+  ctx.nodes.forEach((n) => {
+    if (n.data?.roles && Array.isArray(n.data.roles)) {
+      n.data.roles.forEach((r: any) => {
+        if (r.name.toLowerCase() === targetName || (r.id && r.id.toLowerCase() === targetName)) {
+          foundRole = { name: r.name, owner: n.data.label || n.id, rules: r.rules || [] };
+        }
+      });
+    }
+  });
 
-    ctx.addActivityLog(`Name:         ${name}`);
+  if (foundRole) {
+    ctx.addActivityLog(`Name:         ${(foundRole as { name: string; owner: string; rules: any[] }).name}`);
     ctx.addActivityLog(`Namespace:    default`);
-    ctx.addActivityLog(`Labels:       <none>`);
-    ctx.addActivityLog(`Annotations:  <none>`);
+    ctx.addActivityLog(`Attached To:  ${(foundRole as { name: string; owner: string; rules: any[] }).owner}`);
     ctx.addActivityLog(`PolicyRule:`);
     ctx.addActivityLog(`  Resources  Group  Verbs`);
     ctx.addActivityLog(`  ---------  -----  -----`);
-    rules.forEach((rule: any) => {
+    (foundRole as { name: string; owner: string; rules: any[] }).rules.forEach((rule: any) => {
       const res = (rule.resources || []).join(', ');
       const grp = (rule.apiGroups || ['']).join(', ') || '""';
       const vrb = (rule.verbs || []).join(', ');

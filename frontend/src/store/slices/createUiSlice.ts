@@ -20,6 +20,8 @@ import {
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
+  roleModalTargetNode: { id: string; label: string } | null;
+  setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
   historyLogs: any[];
@@ -626,6 +628,8 @@ const handleStopSimulation = (
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
+  roleModalTargetNode: null,
+  setRoleModalTargetNode: (target) => set({ roleModalTargetNode: target }),
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,
