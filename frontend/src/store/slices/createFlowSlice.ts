@@ -225,7 +225,15 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     set((state) => {
       const nextEdges = applyEdgeChanges(changes, state.edges);
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
-      return { edges: nextEdges, nodes: syncedNodes };
+      const isRemoval = changes.some((c) => c.type === 'remove');
+      return {
+        edges: nextEdges,
+        nodes: syncedNodes,
+        ...(isRemoval ? {
+          lastActionId: `edge-remove-${Date.now()}`,
+          lastActionName: 'Delete Edge',
+        } : {}),
+      };
     });
   },
   validateEdge: (edge: Edge) => {
@@ -293,7 +301,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
       const nextEdges = addEdge(newEdge, state.edges);
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
-      return { edges: nextEdges, nodes: syncedNodes };
+      return {
+        edges: nextEdges,
+        nodes: syncedNodes,
+        lastActionId: `connect-${Date.now()}`,
+        lastActionName: 'Connect Nodes',
+      };
     });
   },
   onReconnect: (oldEdge: Edge, newConnection: Connection) => {
