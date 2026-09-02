@@ -142,24 +142,91 @@ const TagInput: React.FC<TagInputProps> = ({
   );
 };
 
+import { Node } from '@xyflow/react';
+
+const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: Node[]): string[] => {
+  if (!targetNode) return ['pods', 'deployments'];
+
+  const type = targetNode.type as string;
+
+  if (type === 'Deployment') {
+    const childPods = allNodes.filter((n) => n.parentId === targetNode.id && n.type === 'Pod');
+    const replicas = (targetNode.data?.replicas as number) ?? 0;
+    if (childPods.length > 0 || replicas > 0) {
+      return ['deployments', 'pods'];
+    }
+    return ['deployments'];
+  }
+
+  if (type === 'Namespace') {
+    const children = allNodes.filter((n) => n.parentId === targetNode.id);
+    const resSet = new Set<string>();
+    if (children.length === 0) {
+      return ['namespaces'];
+    }
+    for (const child of children) {
+      if (child.type === 'Deployment') {
+        resSet.add('deployments');
+        const grandChildren = allNodes.filter((n) => n.parentId === child.id && n.type === 'Pod');
+        const replicas = (child.data?.replicas as number) ?? 0;
+        if (grandChildren.length > 0 || replicas > 0) {
+          resSet.add('pods');
+        }
+      } else if (child.type === 'Pod') {
+        resSet.add('pods');
+      } else if (child.type === 'Service') {
+        resSet.add('services');
+      } else if (child.type === 'ConfigMap') {
+        resSet.add('configmaps');
+      } else if (child.type === 'Secret') {
+        resSet.add('secrets');
+      } else if (child.type === 'PVC') {
+        resSet.add('persistentvolumeclaims');
+      } else if (child.type === 'Ingress') {
+        resSet.add('ingresses');
+      } else if (child.type === 'HPA') {
+        resSet.add('horizontalpodautoscalers');
+      }
+    }
+    return resSet.size > 0 ? Array.from(resSet) : ['namespaces'];
+  }
+
+  const mapTypeToResource: Record<string, string> = {
+    Pod: 'pods',
+    Service: 'services',
+    ConfigMap: 'configmaps',
+    Secret: 'secrets',
+    PVC: 'persistentvolumeclaims',
+    Ingress: 'ingresses',
+    HPA: 'horizontalpodautoscalers',
+  };
+
+  if (mapTypeToResource[type]) {
+    return [mapTypeToResource[type]];
+  }
+
+  return [type.toLowerCase() + 's'];
+};
+
 const DEFAULT_API_GROUPS = [''];
-const DEFAULT_RESOURCES = ['pods', 'deployments', 'services'];
 const DEFAULT_VERBS = ['get', 'list', 'watch'];
 
 export const RoleModal: React.FC<RoleModalProps> = ({
   isOpen,
   onClose,
+  targetNodeId,
   targetNodeLabel,
   initialRole,
   onSave,
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const nodes = useFlowStore((state) => state.nodes);
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
       apiGroups: [...DEFAULT_API_GROUPS],
-      resources: [...DEFAULT_RESOURCES],
+      resources: ['deployments', 'pods'],
       verbs: [...DEFAULT_VERBS],
     },
   ]);
@@ -171,16 +238,19 @@ export const RoleModal: React.FC<RoleModalProps> = ({
         { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }
       ]);
     } else {
+      const targetNode = nodes.find((n) => n.id === targetNodeId);
+      const derivedResources = deriveResourcesFromTargetNode(targetNode, nodes);
+
       setRoleName(`role-${Math.floor(Math.random() * 899 + 100)}`);
       setRules([
         {
           apiGroups: [''],
-          resources: ['pods', 'deployments', 'services'],
+          resources: derivedResources,
           verbs: ['get', 'list', 'watch'],
         },
       ]);
     }
-  }, [initialRole, isOpen]);
+  }, [initialRole, isOpen, targetNodeId, nodes]);
 
   if (!isOpen) return null;
 
