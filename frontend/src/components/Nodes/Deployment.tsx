@@ -1,5 +1,6 @@
-import  { memo } from 'react';
+import { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
+import { Shield } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -82,8 +83,27 @@ export const DeploymentNode = memo((props: NodeProps) => {
         })}
       </div>
 
-      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
-        replicas: {data.replicas || 0}
+      <div className={cn("absolute top-3 left-6 flex items-center gap-2 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
+        <span>replicas: {data.replicas || 0}</span>
+        {data.roles && data.roles.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1">
+            {data.roles.map((role: any) => (
+              <span
+                key={role.id || role.name}
+                className={cn(
+                  "text-[8px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 font-sans border shadow-sm",
+                  colorMode === 'dark'
+                    ? "bg-indigo-950/80 border-indigo-500/50 text-indigo-300"
+                    : "bg-indigo-100 border-indigo-300 text-indigo-800"
+                )}
+                title={`Role: ${role.name}`}
+              >
+                <Shield size={10} className="text-indigo-400" />
+                <span>{role.name}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <NodeActionButtons
