@@ -70,46 +70,27 @@ const TagInput: React.FC<TagInputProps> = ({
     .filter((s) => !tags.includes(s))
     .map((s) => {
       const label = s === '' ? 'Core API' : s;
-      let description = '';
+      let description: string | undefined = undefined;
 
       if (s === '') {
         description = 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)';
-      } else {
-        const resourceToTypeMap: Record<string, string> = {
-          pods: 'Pod',
-          deployments: 'Deployment',
-          services: 'Service',
-          configmaps: 'ConfigMap',
-          secrets: 'Secret',
-          persistentvolumeclaims: 'PVC',
-          ingresses: 'Ingress',
-          horizontalpodautoscalers: 'HPA',
-        };
-
-        const targetType = resourceToTypeMap[s.toLowerCase()];
-        const existsOnCanvas = targetType ? nodes.some((n) => n.type === targetType) : true;
-
-        if (targetType && !existsOnCanvas) {
-          description = `Kubernetes resource: ${s}`;
-        } else {
-          description = `Kubernetes resource / RBAC item: ${s}`;
-        }
       }
 
-      const category = (s !== '' && (() => {
-        const resourceToTypeMap: Record<string, string> = {
-          pods: 'Pod',
-          deployments: 'Deployment',
-          services: 'Service',
-          configmaps: 'ConfigMap',
-          secrets: 'Secret',
-          persistentvolumeclaims: 'PVC',
-          ingresses: 'Ingress',
-          horizontalpodautoscalers: 'HPA',
-        };
-        const targetType = resourceToTypeMap[s.toLowerCase()];
-        return targetType && !nodes.some((n) => n.type === targetType);
-      })()) ? 'add to canvas' : 'RBAC';
+      const resourceToTypeMap: Record<string, string> = {
+        pods: 'Pod',
+        deployments: 'Deployment',
+        services: 'Service',
+        configmaps: 'ConfigMap',
+        secrets: 'Secret',
+        persistentvolumeclaims: 'PVC',
+        ingresses: 'Ingress',
+        horizontalpodautoscalers: 'HPA',
+      };
+
+      const targetType = resourceToTypeMap[s.toLowerCase()];
+      const isMissingFromCanvas = Boolean(targetType && !nodes.some((n) => n.type === targetType));
+
+      const category = isMissingFromCanvas ? 'add to canvas' : undefined;
 
       return {
         label,

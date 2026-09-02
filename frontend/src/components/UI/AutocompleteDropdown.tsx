@@ -52,6 +52,13 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
         const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
         const isInfoOpen = activeInfoIndex === idx;
 
+        const isMeaningfulDescription = Boolean(
+          item.description &&
+          item.description.trim() !== '' &&
+          item.description.toLowerCase().trim() !== item.label.toLowerCase().trim() &&
+          item.description.toLowerCase().trim() !== item.value.toLowerCase().trim()
+        );
+
         return (
           <div
             key={`sug-${item.value}-${idx}`}
@@ -79,15 +86,15 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
               </button>
 
               <div className="flex items-center gap-2 shrink-0 ml-2">
-                {item.description && (
-                  <span className={cn("text-[9px] truncate max-w-[120px] hidden sm:inline-block", isSelected ? "text-slate-300" : "text-slate-400")}>
+                {isMeaningfulDescription && (
+                  <span className={cn("text-[9px] truncate max-w-[140px] hidden sm:inline-block opacity-80", isSelected ? "text-slate-200" : "text-slate-400")}>
                     {item.description}
                   </span>
                 )}
 
                 {item.category && (
                   <span className={cn(
-                    "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+                    "text-[8px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider",
                     item.category === 'add to canvas'
                       ? (isDark ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-amber-100 text-amber-800 border border-amber-300")
                       : isSelected
@@ -98,7 +105,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
                   </span>
                 )}
 
-                {item.description && (
+                {isMeaningfulDescription && (
                   <button
                     type="button"
                     title="Toggle detailed description"
@@ -149,7 +156,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             )}
 
             {/* Info description accordion */}
-            {isInfoOpen && item.description && (
+            {isInfoOpen && isMeaningfulDescription && (
               <div className={cn(
                 "px-3 py-1.5 text-[10px] border-t leading-relaxed animate-in slide-in-from-top-1 duration-150",
                 isDark ? "bg-slate-950/80 text-slate-300 border-slate-800" : "bg-slate-100/90 text-slate-700 border-slate-200"
