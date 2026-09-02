@@ -91,4 +91,31 @@ describe('useHistory', () => {
     expect(globalThis.go.main.App.JumpToHistory).toHaveBeenCalledWith(1);
     expect(applyHistoryState).toHaveBeenCalledWith(mockState);
   });
+
+  it('handles null state or missing Wails App gracefully', async () => {
+    // @ts-ignore
+    globalThis.go.main.App.Undo.mockResolvedValue(null);
+    // @ts-ignore
+    globalThis.go.main.App.Redo.mockResolvedValue(null);
+    // @ts-ignore
+    globalThis.go.main.App.JumpToHistory.mockResolvedValue(null);
+
+    const { result } = renderHook(() => useHistory());
+
+    await act(async () => {
+      await result.current.handleUndo();
+      await result.current.handleRedo();
+      await result.current.handleJumpToHistory(0);
+    });
+
+    // @ts-ignore
+    delete globalThis.go;
+
+    await act(async () => {
+      await result.current.handleUndo();
+      await result.current.handleRedo();
+      await result.current.handleJumpToHistory(0);
+      await result.current.fetchHistoryLogs();
+    });
+  });
 });
