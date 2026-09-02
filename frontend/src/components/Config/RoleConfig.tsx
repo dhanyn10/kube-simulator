@@ -30,11 +30,11 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const addLog = useFlowStore((state) => state.addLog);
   const rules: K8sRoleRule[] = data.rules || [];
 
-  const handleToggleResource = (res: string) => {
+  const handleDisconnectResource = (res: string) => {
     const k8sKind = RESOURCE_TYPE_MAP[res];
     if (!k8sKind) return;
 
-    // Find if a connected card of this type already exists
+    // Find connected edge to this resource type
     const connectedEdge = edges.find((e) => {
       const sourceNode = nodes.find((n) => n.id === e.source);
       const targetNode = nodes.find((n) => n.id === e.target);
@@ -44,35 +44,9 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
     });
 
     if (connectedEdge) {
-      // Disconnect visual edge
+      // Remove edge from store; syncRoleRulesFromConnections automatically updates rule.resources
       setEdges(edges.filter((e) => e.id !== connectedEdge.id));
       addLog('info', `[Canvas Action] Disconnected Role from ${k8sKind}`, 'UI');
-    } else {
-      // Connect to an existing card of this type on canvas (prefer same Namespace)
-      const roleNode = nodes.find((n) => n.id === nodeId);
-      let targetNode = nodes.find((n) => n.type === k8sKind && n.parentId === roleNode?.parentId);
-      if (!targetNode) {
-        targetNode = nodes.find((n) => n.type === k8sKind);
-      }
-
-      if (targetNode) {
-        const rolePos = roleNode?.position || { x: 0, y: 0 };
-        const targetPos = targetNode.position || { x: 0, y: 0 };
-        const isRoleLeft = rolePos.x <= targetPos.x;
-
-        const sourceHandle = isRoleLeft ? 'right-s' : 'left-s';
-        const targetHandle = isRoleLeft ? 'left-t' : 'right-t';
-
-        onConnect({
-          source: nodeId,
-          target: targetNode.id,
-          sourceHandle,
-          targetHandle,
-        });
-        addLog('info', `[Canvas Action] Visually connected Role to ${k8sKind} (${targetNode.data?.label || targetNode.id})`, 'UI');
-      } else {
-        addLog('warn', `[Canvas Action] No ${k8sKind} card found on canvas! Drag a ${k8sKind} card onto the canvas first before connecting it to Role.`, 'UI');
-      }
     }
   };
 
@@ -154,28 +128,27 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
                   Target Resources:
                 </label>
                 <span className="text-[8px] text-slate-500 italic">
-                  (Click badge to toggle visual edge connection)
+                  (Click badge to disconnect edge)
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {AVAILABLE_RESOURCES.map((res) => {
-                  const isConnected = rule.resources?.includes(res);
-                  return (
+                {rule.resources && rule.resources.length > 0 ? (
+                  rule.resources.map((res) => (
                     <button
                       key={`res-${ruleIdx}-${res}`}
                       type="button"
-                      onClick={() => handleToggleResource(res)}
-                      className={cn(
-                        "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors cursor-pointer",
-                        isConnected
-                          ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold"
-                          : colorMode === 'dark' ? "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600" : "bg-white border-slate-300 text-slate-600 hover:border-slate-400"
-                      )}
+                      onClick={() => handleDisconnectResource(res)}
+                      title="Click to disconnect resource"
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded border bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold hover:bg-red-500/20 hover:border-red-500/50 hover:text-red-300 transition-colors cursor-pointer"
                     >
-                      {res}
+                      {res} ×
                     </button>
-                  );
-                })}
+                  ))
+                ) : (
+                  <span className="text-[9px] text-amber-400/80 italic">
+                    No target resources connected. Connect Role to a workload card on canvas.
+                  </span>
+                )}
               </div>
             </div>
 
