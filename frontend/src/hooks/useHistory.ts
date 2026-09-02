@@ -4,6 +4,7 @@ import { applyHistoryState, useFlowStore } from '../store';
 export function useHistory() {
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const openHistoryTab = useCallback(() => {
     useFlowStore.setState({
@@ -13,19 +14,24 @@ export function useHistory() {
   }, []);
 
   const fetchHistoryLogs = useCallback(async () => {
-    // @ts-ignore
-    if (globalThis.go?.main?.App?.GetHistoryLogs) {
+    setIsLoading(true);
+    try {
       // @ts-ignore
-      const logs = await globalThis.go.main.App.GetHistoryLogs();
-      if (Array.isArray(logs)) {
-        setHistoryLogs([...logs].reverse());
+      if (globalThis.go?.main?.App?.GetHistoryLogs) {
+        // @ts-ignore
+        const logs = await globalThis.go.main.App.GetHistoryLogs();
+        if (Array.isArray(logs)) {
+          setHistoryLogs([...logs].reverse());
+        }
       }
-    }
-    // @ts-ignore
-    if (globalThis.go?.main?.App?.GetCurrentHistoryIndex) {
       // @ts-ignore
-      const idx = await globalThis.go.main.App.GetCurrentHistoryIndex();
-      setCurrentHistoryIndex(idx);
+      if (globalThis.go?.main?.App?.GetCurrentHistoryIndex) {
+        // @ts-ignore
+        const idx = await globalThis.go.main.App.GetCurrentHistoryIndex();
+        setCurrentHistoryIndex(idx);
+      }
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -67,5 +73,5 @@ export function useHistory() {
     }
   }, [fetchHistoryLogs]);
 
-  return { historyLogs, currentHistoryIndex, fetchHistoryLogs, handleUndo, handleRedo, handleJumpToHistory };
+  return { historyLogs, currentHistoryIndex, isLoading, fetchHistoryLogs, handleUndo, handleRedo, handleJumpToHistory };
 }

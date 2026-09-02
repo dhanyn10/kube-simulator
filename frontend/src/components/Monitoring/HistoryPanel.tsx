@@ -8,11 +8,12 @@ interface HistoryPanelProps {
 }
 
 export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
-  const { historyLogs, currentHistoryIndex, fetchHistoryLogs, handleJumpToHistory } = useHistory();
+  const { historyLogs, currentHistoryIndex, isLoading, fetchHistoryLogs, handleJumpToHistory } = useHistory();
+  const lastActionId = useFlowStore((state) => state.lastActionId);
 
   useEffect(() => {
     fetchHistoryLogs();
-  }, [fetchHistoryLogs]);
+  }, [fetchHistoryLogs, lastActionId]);
 
   return (
     <div className="w-full flex flex-col h-full">
@@ -25,7 +26,19 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
       </div>
 
       <div className="flex-1 overflow-y-auto py-1 custom-scrollbar">
-        {historyLogs.length === 0 ? (
+        {isLoading && historyLogs.length === 0 ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={cn(
+                  'h-12 rounded animate-pulse',
+                  colorMode === 'dark' ? 'bg-slate-800/60' : 'bg-slate-200/60'
+                )}
+              />
+            ))}
+          </div>
+        ) : historyLogs.length === 0 ? (
           <div className="p-8 text-center text-[10px] opacity-50 italic">No activity recorded</div>
         ) : (
           historyLogs.map((log, index) => {
