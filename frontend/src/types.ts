@@ -6,6 +6,12 @@ export interface K8sRoleRule {
   verbs: string[];
 }
 
+export interface K8sRoleItem {
+  id: string;
+  name: string;
+  rules: K8sRoleRule[];
+}
+
 export interface K8sNodeData {
   [key: string]: any;
   label: string;
@@ -63,6 +69,7 @@ export interface K8sNodeData {
 
   // Role specific fields
   rules?: K8sRoleRule[];
+  roles?: K8sRoleItem[];
 }
 
 export interface K8sManifest {

@@ -3,16 +3,16 @@ import { K8sResourceType } from '../types';
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
   Internet: ['Ingress', 'Service', 'Deployment', 'Pod', 'ReplicaSet'],
   Ingress: ['Service'],
-  Service: ['Deployment', 'Pod', 'ReplicaSet', 'Service', 'Role'],
-  Deployment: ['Service', 'PVC', 'ConfigMap', 'Secret', 'Role'],
-  Pod: ['Service', 'PVC', 'ConfigMap', 'Secret', 'Role'],
-  ReplicaSet: ['Service', 'PVC', 'ConfigMap', 'Secret', 'Role'],
+  Service: ['Deployment', 'Pod', 'ReplicaSet', 'Service'],
+  Deployment: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  Pod: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  ReplicaSet: ['Service', 'PVC', 'ConfigMap', 'Secret'],
   HPA: ['Deployment', 'ReplicaSet'],
-  PVC: ['Role'],
-  ConfigMap: ['Role'],
-  Secret: ['Role'],
+  PVC: [],
+  ConfigMap: [],
+  Secret: [],
   Namespace: [],
-  Role: ['Deployment', 'Pod', 'Service', 'ReplicaSet', 'PVC', 'ConfigMap', 'Secret'],
+  Role: [],
 };
 
 export const getConnectionError = (sourceType: string, targetType: string): string | null => {

@@ -17,7 +17,8 @@ import { EventsOn } from '@wailsjs/runtime';
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
-import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal } from './components/Modals';
+import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal, RoleModal } from './components/Modals';
+import { K8sRoleItem } from './types';
 import {
   PodNode,
   ServiceNode,
@@ -177,8 +178,33 @@ export default function App() {
   const canvasBgOpacity = useFlowStore((state) => state.canvasBgOpacity);
   const loadSettingsJson = useFlowStore((state) => state.loadSettingsJson);
 
+  const roleModalTargetNode = useFlowStore((state) => state.roleModalTargetNode);
+  const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
+  const updateNodeData = useFlowStore((state) => state.updateNodeData);
+
   const defaultBgColor = colorMode === 'dark' ? '#334155' : '#E2E8F0';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
+
+  const handleRoleSave = (roleItem: K8sRoleItem) => {
+    if (!roleModalTargetNode) return;
+    const target = nodes.find((n) => n.id === roleModalTargetNode.id);
+    if (!target) return;
+
+    const existingRoles = target.data.roles || [];
+    const existingIndex = existingRoles.findIndex((r: K8sRoleItem) => r.id === roleItem.id);
+    let updatedRoles: K8sRoleItem[];
+
+    if (existingIndex >= 0) {
+      updatedRoles = [...existingRoles];
+      updatedRoles[existingIndex] = roleItem;
+    } else {
+      updatedRoles = [...existingRoles, roleItem];
+    }
+
+    updateNodeData(target.id, { roles: updatedRoles });
+    useFlowStore.getState().addLog('info', `[Role Attached] Attached role "${roleItem.name}" to card ${roleModalTargetNode.label}`, 'UI');
+    setRoleModalTargetNode(null);
+  };
 
   useAppInit(isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources);
 
@@ -433,6 +459,14 @@ export default function App() {
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
 
           <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+          <RoleModal
+            isOpen={roleModalTargetNode !== null}
+            onClose={() => setRoleModalTargetNode(null)}
+            targetNodeId={roleModalTargetNode?.id || null}
+            targetNodeLabel={roleModalTargetNode?.label}
+            onSave={handleRoleSave}
+          />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 

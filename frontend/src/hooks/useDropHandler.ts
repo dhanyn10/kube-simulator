@@ -106,22 +106,27 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       if (!type) return;
 
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+
+      // Handle Role drop onto existing canvas card
+      if (type === 'Role') {
+        const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(position, n, nodes));
+        if (!targetNode) {
+          useFlowStore.getState().addLog('warn', '[Canvas Action] Role must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach roles!', 'UI');
+        } else {
+          useFlowStore.setState({
+            roleModalTargetNode: { id: targetNode.id, label: targetNode.data.label || targetNode.id }
+          });
+        }
+        setHoveredDeploymentId(null);
+        useFlowStore.setState((state) => ({
+          nodes: state.nodes.map((n) => ({ ...n, data: { ...n.data, isHovered: false } })),
+        }));
+        return;
+      }
+
       const offset = CENTER_OFFSETS[type] || { x: 0, y: 0 };
       const centeredPosition = { x: position.x - offset.x, y: position.y - offset.y };
-
       const targetContainer = getTargetContainer(event.clientX, event.clientY, type);
-
-      if (type === 'Role' && (!targetContainer || targetContainer.type !== 'Namespace')) {
-        const existingNs = nodes.find((n) => n.type === 'Namespace');
-        if (!existingNs) {
-          useFlowStore.getState().addLog('warn', '[Canvas Action] Role requires a Namespace! Please drop Role inside a Namespace card.', 'UI');
-          setHoveredDeploymentId(null);
-          useFlowStore.setState((state) => ({
-            nodes: state.nodes.map((n) => ({ ...n, data: { ...n.data, isHovered: false } })),
-          }));
-          return;
-        }
-      }
 
       const finalPosition = computeFinalDropPosition(centeredPosition, targetContainer, nodes);
 
