@@ -68,39 +68,35 @@ const TagInput: React.FC<TagInputProps> = ({
 
   const nodes = useFlowStore((state) => state.nodes);
 
+  const buildSuggestionItem = (s: string): AutocompleteSuggestion => {
+    const label = s === '' ? 'Core API' : s;
+    const description = s === '' ? 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)' : undefined;
+
+    const resourceToTypeMap: Record<string, string> = {
+      pods: 'Pod',
+      deployments: 'Deployment',
+      services: 'Service',
+      configmaps: 'ConfigMap',
+      secrets: 'Secret',
+      persistentvolumeclaims: 'PVC',
+      ingresses: 'Ingress',
+      horizontalpodautoscalers: 'HPA',
+    };
+
+    const targetType = resourceToTypeMap[s.toLowerCase()];
+    const isMissingFromCanvas = Boolean(targetType && !nodes.some((n) => n.type === targetType));
+
+    return {
+      label,
+      value: s,
+      category: isMissingFromCanvas ? 'add to canvas' : undefined,
+      description,
+    };
+  };
+
   const availableSuggestions: AutocompleteSuggestion[] = suggestions
     .filter((s) => !tags.includes(s))
-    .map((s) => {
-      const label = s === '' ? 'Core API' : s;
-      let description: string | undefined = undefined;
-
-      if (s === '') {
-        description = 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)';
-      }
-
-      const resourceToTypeMap: Record<string, string> = {
-        pods: 'Pod',
-        deployments: 'Deployment',
-        services: 'Service',
-        configmaps: 'ConfigMap',
-        secrets: 'Secret',
-        persistentvolumeclaims: 'PVC',
-        ingresses: 'Ingress',
-        horizontalpodautoscalers: 'HPA',
-      };
-
-      const targetType = resourceToTypeMap[s.toLowerCase()];
-      const isMissingFromCanvas = Boolean(targetType && !nodes.some((n) => n.type === targetType));
-
-      const category = isMissingFromCanvas ? 'add to canvas' : undefined;
-
-      return {
-        label,
-        value: s,
-        category,
-        description,
-      };
-    })
+    .map(buildSuggestionItem)
     .filter((item) => {
       if (!inputValue.trim()) return true;
       const lowerInput = inputValue.toLowerCase().trim();
