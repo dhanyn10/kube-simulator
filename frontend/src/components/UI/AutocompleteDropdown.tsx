@@ -18,6 +18,7 @@ interface AutocompleteDropdownProps {
   onHoverIndex?: (index: number) => void;
   colorMode?: 'dark' | 'light';
   openUpward?: boolean;
+  showIcon?: boolean;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   onHoverIndex,
   colorMode = 'dark',
   openUpward = false,
+  showIcon = true,
   className,
 }) => {
   const isDark = colorMode === 'dark';
@@ -70,7 +72,9 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
                 }}
                 className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none cursor-pointer"
               >
-                <TerminalSquare size={12} className={isSelected ? "text-indigo-400 shrink-0" : "text-indigo-500 shrink-0"} />
+                {showIcon && (
+                  <TerminalSquare size={12} className={isSelected ? "text-indigo-400 shrink-0" : "text-indigo-500 shrink-0"} />
+                )}
                 <span className="font-semibold truncate text-[11px]">{item.label}</span>
               </button>
 

@@ -197,6 +197,7 @@ const TagInput: React.FC<TagInputProps> = ({
           onHoverIndex={(idx) => setSelectedIndex(idx)}
           colorMode={colorMode === 'dark' ? 'dark' : 'light'}
           openUpward={openUpward}
+          showIcon={false}
         />
       )}
     </div>
