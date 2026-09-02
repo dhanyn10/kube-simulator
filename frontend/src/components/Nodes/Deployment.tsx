@@ -83,27 +83,8 @@ export const DeploymentNode = memo((props: NodeProps) => {
         })}
       </div>
 
-      <div className={cn("absolute top-3 left-6 flex items-center gap-2 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
-        <span>replicas: {data.replicas || 0}</span>
-        {data.roles && data.roles.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1">
-            {data.roles.map((role: any) => (
-              <span
-                key={role.id || role.name}
-                className={cn(
-                  "text-[8px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 font-sans border shadow-sm",
-                  colorMode === 'dark'
-                    ? "bg-indigo-950/80 border-indigo-500/50 text-indigo-300"
-                    : "bg-indigo-100 border-indigo-300 text-indigo-800"
-                )}
-                title={`Role: ${role.name}`}
-              >
-                <Shield size={10} className="text-indigo-400" />
-                <span>{role.name}</span>
-              </span>
-            ))}
-          </div>
-        )}
+      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
+        replicas: {data.replicas || 0}
       </div>
 
       <NodeActionButtons
@@ -123,11 +104,26 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
 
 
-      <div className={cn(
-        "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 pb-2 mt-2",
-        colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
-      )}>
-        Workload Zone
+      <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
+        {data.roles && data.roles.length > 0 && (
+          <div className="flex items-center gap-1 mb-1 px-2 py-1 rounded-md bg-indigo-950/40 border border-indigo-500/30 shadow-sm">
+            {data.roles.map((role: any) => (
+              <span
+                key={role.id || role.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
+                title={`Role: ${role.name}`}
+              >
+                <Shield size={12} />
+              </span>
+            ))}
+          </div>
+        )}
+        <div className={cn(
+          "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40",
+          colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
+        )}>
+          Workload Zone
+        </div>
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2 z-[50]" />

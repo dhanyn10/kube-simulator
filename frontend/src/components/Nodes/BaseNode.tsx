@@ -117,18 +117,6 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             {isCrashing ? 'Crashing' : title || data.type}
           </span>
           <NodeStatusIndicator type={data.type} statusDotColor={statusDotColor} />
-          {data.roles && data.roles.length > 0 && (
-            <span
-              className={cn(
-                "text-[8px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap shrink-0 cursor-pointer shadow-sm",
-                colorMode === 'dark' ? "bg-indigo-500/30 text-indigo-300 border border-indigo-500/50" : "bg-indigo-600 text-white"
-              )}
-              title={data.roles.map((r: any) => r.name).join(', ')}
-            >
-              <Shield size={9} />
-              {data.roles.length} {data.roles.length === 1 ? 'Role' : 'Roles'}
-            </span>
-          )}
           {replicas > 1 && (
             <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0", colorMode === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-500 text-white")}>
               x{replicas}
@@ -154,6 +142,20 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
+
+        {data.roles && data.roles.length > 0 && (
+          <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-indigo-500/20">
+            {data.roles.map((role: any) => (
+              <span
+                key={role.id || role.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+                title={`Role: ${role.name}`}
+              >
+                <Shield size={11} />
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
