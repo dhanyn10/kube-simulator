@@ -48,9 +48,18 @@ const TagInput: React.FC<TagInputProps> = ({
   useEffect(() => {
     if (isFocused && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const spaceBelow = viewportHeight - rect.bottom;
-      setOpenUpward(spaceBelow < 170 && rect.top > 170);
+      const scrollParent = containerRef.current.closest('.custom-scrollbar') || containerRef.current.closest('.overflow-y-auto');
+
+      let spaceBelow = window.innerHeight - rect.bottom;
+      let spaceAbove = rect.top;
+
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        spaceBelow = parentRect.bottom - rect.bottom;
+        spaceAbove = rect.top - parentRect.top;
+      }
+
+      setOpenUpward(spaceBelow < 170 && spaceAbove > 120);
     }
   }, [isFocused, inputValue]);
 
