@@ -22,6 +22,7 @@ const COMMON_SUGGESTIONS: Record<string, string[]> = {
 };
 
 interface TagInputProps {
+  id?: string;
   tags: string[];
   onChange: (tags: string[]) => void;
   placeholder?: string;
@@ -32,6 +33,7 @@ interface TagInputProps {
 }
 
 const TagInput: React.FC<TagInputProps> = ({
+  id,
   tags,
   onChange,
   placeholder = 'Add tag...',
@@ -184,7 +186,6 @@ const TagInput: React.FC<TagInputProps> = ({
   return (
     <div ref={containerRef} className="relative space-y-1">
       <div
-        role="presentation"
         onClick={() => inputRef.current?.focus()}
         className={cn(
           "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
@@ -215,6 +216,7 @@ const TagInput: React.FC<TagInputProps> = ({
         ))}
 
         <input
+          id={id}
           ref={inputRef}
           type="text"
           value={inputValue}
@@ -344,6 +346,92 @@ const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: N
   return [type.toLowerCase() + 's'];
 };
 
+interface RuleCardRowProps {
+  rule: K8sRoleRule;
+  idx: number;
+  totalRules: number;
+  colorMode: string;
+  onRemoveRule: (index: number) => void;
+  onUpdateRuleTags: (index: number, field: 'apiGroups' | 'resources' | 'verbs', tags: string[]) => void;
+}
+
+const RuleCardRow: React.FC<RuleCardRowProps> = ({
+  rule,
+  idx,
+  totalRules,
+  colorMode,
+  onRemoveRule,
+  onUpdateRuleTags,
+}) => {
+  return (
+    <div
+      className={cn(
+        "p-3.5 rounded-xl border relative space-y-3",
+        colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
+      )}
+    >
+      {totalRules > 1 && (
+        <button
+          type="button"
+          onClick={() => onRemoveRule(idx)}
+          className="absolute top-2.5 right-2.5 text-red-400 hover:text-red-300 p-1 rounded transition-colors cursor-pointer"
+          title="Remove Rule"
+        >
+          <Trash2 size={13} />
+        </button>
+      )}
+
+      {/* API Groups Tagify Input */}
+      <div>
+        <label htmlFor={`api-groups-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          API Groups
+        </label>
+        <TagInput
+          id={`api-groups-input-${idx}`}
+          tags={rule.apiGroups}
+          onChange={(newTags) => onUpdateRuleTags(idx, 'apiGroups', newTags)}
+          placeholder='Type group (e.g. apps) and press Enter...'
+          suggestions={COMMON_SUGGESTIONS.apiGroups}
+          colorMode={colorMode}
+          tagBgClass="bg-purple-500/20 border-purple-500/40 text-purple-300"
+        />
+      </div>
+
+      {/* Resources Tagify Input */}
+      <div>
+        <label htmlFor={`resources-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          Resources
+        </label>
+        <TagInput
+          id={`resources-input-${idx}`}
+          tags={rule.resources}
+          onChange={(newTags) => onUpdateRuleTags(idx, 'resources', newTags)}
+          placeholder="Type resource (e.g. pods) and press Enter..."
+          suggestions={COMMON_SUGGESTIONS.resources}
+          colorMode={colorMode}
+          tagBgClass="bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+        />
+      </div>
+
+      {/* Verbs Tagify Input */}
+      <div>
+        <label htmlFor={`verbs-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+          Verbs (Permissions)
+        </label>
+        <TagInput
+          id={`verbs-input-${idx}`}
+          tags={rule.verbs}
+          onChange={(newTags) => onUpdateRuleTags(idx, 'verbs', newTags)}
+          placeholder="Type verb (e.g. get) and press Enter..."
+          suggestions={COMMON_SUGGESTIONS.verbs}
+          colorMode={colorMode}
+          tagBgClass="bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+        />
+      </div>
+    </div>
+  );
+};
+
 const DEFAULT_VERBS = ['get', 'list', 'watch'];
 
 export const RoleModal: React.FC<RoleModalProps> = ({
@@ -421,7 +509,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
   const handleSave = () => {
     const roleItem: K8sRoleItem = {
-      id: initialRole?.id || `role-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: initialRole?.id || `role-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(roleName) || 'unnamed-role',
       rules: rules.length > 0 ? rules : [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
     };
@@ -500,69 +588,15 @@ export const RoleModal: React.FC<RoleModalProps> = ({
           </div>
 
           {rules.map((rule, idx) => (
-            <div
+            <RuleCardRow
               key={`rule-spec-${rule.apiGroups.join('-')}-${rule.resources.join('-')}-${idx}`}
-              className={cn(
-                "p-3.5 rounded-xl border relative space-y-3",
-                colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
-              )}
-            >
-              {rules.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveRule(idx)}
-                  className="absolute top-2.5 right-2.5 text-red-400 hover:text-red-300 p-1 rounded transition-colors cursor-pointer"
-                  title="Remove Rule"
-                >
-                  <Trash2 size={13} />
-                </button>
-              )}
-
-              {/* API Groups Tagify Input */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  API Groups
-                </label>
-                <TagInput
-                  tags={rule.apiGroups}
-                  onChange={(newTags) => handleUpdateRuleTags(idx, 'apiGroups', newTags)}
-                  placeholder='Type group (e.g. apps) and press Enter...'
-                  suggestions={COMMON_SUGGESTIONS.apiGroups}
-                  colorMode={colorMode}
-                  tagBgClass="bg-purple-500/20 border-purple-500/40 text-purple-300"
-                />
-              </div>
-
-              {/* Resources Tagify Input */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Resources
-                </label>
-                <TagInput
-                  tags={rule.resources}
-                  onChange={(newTags) => handleUpdateRuleTags(idx, 'resources', newTags)}
-                  placeholder="Type resource (e.g. pods) and press Enter..."
-                  suggestions={COMMON_SUGGESTIONS.resources}
-                  colorMode={colorMode}
-                  tagBgClass="bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
-                />
-              </div>
-
-              {/* Verbs Tagify Input */}
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                  Verbs (Permissions)
-                </label>
-                <TagInput
-                  tags={rule.verbs}
-                  onChange={(newTags) => handleUpdateRuleTags(idx, 'verbs', newTags)}
-                  placeholder="Type verb (e.g. get) and press Enter..."
-                  suggestions={COMMON_SUGGESTIONS.verbs}
-                  colorMode={colorMode}
-                  tagBgClass="bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-                />
-              </div>
-            </div>
+              rule={rule}
+              idx={idx}
+              totalRules={rules.length}
+              colorMode={colorMode}
+              onRemoveRule={handleRemoveRule}
+              onUpdateRuleTags={handleUpdateRuleTags}
+            />
           ))}
         </div>
       </div>
