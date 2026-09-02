@@ -40,7 +40,16 @@ const TagInput: React.FC<TagInputProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const availableSuggestions = suggestions.filter((s) => {
+    if (tags.includes(s)) return false;
+    if (!inputValue.trim()) return true;
+    const lowerInput = inputValue.toLowerCase().trim();
+    const displayLabel = s === '' ? 'core api' : s.toLowerCase();
+    return displayLabel.includes(lowerInput) || s.toLowerCase().includes(lowerInput);
+  });
 
   const handleAddTag = (value: string) => {
     let trimmed = value.trim();
@@ -52,6 +61,7 @@ const TagInput: React.FC<TagInputProps> = ({
       onChange([...tags, trimmed]);
     }
     setInputValue('');
+    setSelectedIndex(0);
   };
 
   const handleRemoveTag = (indexToRemove: number) => {
@@ -59,18 +69,38 @@ const TagInput: React.FC<TagInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+    if (isFocused && availableSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev + 1) % availableSuggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex((prev) => (prev - 1 + availableSuggestions.length) % availableSuggestions.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        if (availableSuggestions[selectedIndex] !== undefined) {
+          e.preventDefault();
+          handleAddTag(availableSuggestions[selectedIndex]);
+          return;
+        }
+      }
+    }
+
+    if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       handleAddTag(inputValue);
     } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
       handleRemoveTag(tags.length - 1);
+    } else if (e.key === 'Escape') {
+      setIsFocused(false);
     }
   };
 
-  const availableSuggestions = suggestions.filter((s) => !tags.includes(s));
-
   return (
-    <div className="space-y-1.5">
+    <div className="relative space-y-1">
       <div
         onClick={() => inputRef.current?.focus()}
         className={cn(
@@ -105,13 +135,18 @@ const TagInput: React.FC<TagInputProps> = ({
           ref={inputRef}
           type="text"
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setSelectedIndex(0);
+          }}
           onKeyDown={handleKeyDown}
           onBlur={() => {
-            setIsFocused(false);
-            if (inputValue.trim()) handleAddTag(inputValue);
+            setTimeout(() => setIsFocused(false), 150);
           }}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            setIsFocused(true);
+            setSelectedIndex(0);
+          }}
           placeholder={tags.length === 0 ? placeholder : ''}
           className={cn(
             "flex-1 min-w-[120px] bg-transparent text-xs font-mono outline-none py-0.5 px-1",
@@ -120,25 +155,43 @@ const TagInput: React.FC<TagInputProps> = ({
         />
       </div>
 
-      {/* Quick Click Suggestion Pills */}
-      {availableSuggestions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 pt-0.5">
-          <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Quick Add:</span>
-          {availableSuggestions.map((sug) => (
-            <button
-              key={`sug-${sug}`}
-              type="button"
-              onClick={() => handleAddTag(sug)}
-              className={cn(
-                "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors cursor-pointer",
-                colorMode === 'dark'
-                  ? "bg-slate-800/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:border-slate-500"
-                  : "bg-slate-100 border-slate-300 text-slate-600 hover:text-slate-900"
-              )}
-            >
-              + {sug === '' ? 'Core API' : sug}
-            </button>
-          ))}
+      {/* CLI-Style Autocomplete Dropdown */}
+      {isFocused && availableSuggestions.length > 0 && (
+        <div
+          className={cn(
+            "absolute left-0 right-0 top-full mt-1 z-50 max-h-40 overflow-y-auto rounded-lg border shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs",
+            colorMode === 'dark' ? "bg-slate-900 border-slate-700/80 text-slate-200" : "bg-white border-slate-300 text-slate-800"
+          )}
+        >
+          {availableSuggestions.map((sug, idx) => {
+            const isSelected = idx === selectedIndex;
+            return (
+              <div
+                key={`autocomplete-${sug}-${idx}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleAddTag(sug);
+                }}
+                onMouseEnter={() => setSelectedIndex(idx)}
+                className={cn(
+                  "px-3 py-1.5 flex items-center justify-between cursor-pointer transition-colors",
+                  isSelected
+                    ? (colorMode === 'dark' ? "bg-indigo-600/30 text-indigo-200 font-bold" : "bg-indigo-100 text-indigo-900 font-bold")
+                    : (colorMode === 'dark' ? "hover:bg-slate-800/80" : "hover:bg-slate-100")
+                )}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="text-[10px] opacity-60">❯</span>
+                  <span>{sug === '' ? 'Core API' : sug}</span>
+                </span>
+                {isSelected && (
+                  <span className="text-[9px] font-sans px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+                    Press Enter / Tab
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
