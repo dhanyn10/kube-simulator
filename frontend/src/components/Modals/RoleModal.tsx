@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Plus, Trash2, X } from 'lucide-react';
 import { Modal } from './Modal';
-import { K8sRoleItem, K8sRoleRule } from '../../types';
+import { K8sRoleItem, K8sRoleRule, K8sResourceType } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
 import { AutocompleteDropdown, AutocompleteSuggestion } from '../UI/AutocompleteDropdown';
@@ -105,15 +105,41 @@ const TagInput: React.FC<TagInputProps> = ({
       return item.label.toLowerCase().includes(lowerInput) || item.value.toLowerCase().includes(lowerInput);
     });
 
+  const addNode = useFlowStore((state) => state.addNode);
+  const addLog = useFlowStore((state) => state.addLog);
+
   const handleAddTag = (value: string) => {
     let trimmed = value.trim();
     if (!trimmed) return;
     if (trimmed.toLowerCase() === 'core api' || trimmed.toLowerCase() === 'core') {
       trimmed = '';
     }
+
     if (!tags.includes(trimmed)) {
       onChange([...tags, trimmed]);
     }
+
+    // If item was marked as missing from canvas, instantiate card on canvas
+    const resourceToTypeMap: Record<string, K8sResourceType> = {
+      pods: 'Pod',
+      deployments: 'Deployment',
+      services: 'Service',
+      configmaps: 'ConfigMap',
+      secrets: 'Secret',
+      persistentvolumeclaims: 'PVC',
+      ingresses: 'Ingress',
+      horizontalpodautoscalers: 'HPA',
+    };
+
+    const targetType = resourceToTypeMap[trimmed.toLowerCase()];
+    if (targetType) {
+      const existsOnCanvas = nodes.some((n) => n.type === targetType);
+      if (!existsOnCanvas) {
+        addNode(targetType);
+        addLog('info', `[Role Modal Action] Instantiated missing resource '${targetType}' on canvas directly from Role suggestions`, 'UI');
+      }
+    }
+
     setInputValue('');
     setSelectedIndex(0);
   };
