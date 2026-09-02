@@ -242,8 +242,26 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onConnect: (connection: Connection) => {
     const { nodes, updateNodeData, validateEdge } = get();
-    const sourceNode = nodes.find((n) => n.id === connection.source);
-    const targetNode = nodes.find((n) => n.id === connection.target);
+    let sourceId = connection.source!;
+    let targetId = connection.target!;
+
+    let sourceNode = nodes.find((n) => n.id === sourceId);
+    let targetNode = nodes.find((n) => n.id === targetId);
+
+    // If connecting Role <-> child Pod inside a Deployment, reroute connection to parent Deployment
+    if (sourceNode?.type === 'Role' && targetNode?.type === 'Pod' && targetNode.parentId) {
+      const parentDep = nodes.find((n) => n.id === targetNode!.parentId && n.type === 'Deployment');
+      if (parentDep) {
+        targetId = parentDep.id;
+        targetNode = parentDep;
+      }
+    } else if (targetNode?.type === 'Role' && sourceNode?.type === 'Pod' && sourceNode.parentId) {
+      const parentDep = nodes.find((n) => n.id === sourceNode!.parentId && n.type === 'Deployment');
+      if (parentDep) {
+        sourceId = parentDep.id;
+        sourceNode = parentDep;
+      }
+    }
 
     if (sourceNode?.type === 'HPA' && targetNode?.type === 'Deployment') {
       const data = targetNode.data as K8sNodeData;
@@ -255,15 +273,24 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       }
     }
 
-    const newEdge = validateEdge({
+    const reroutedConnection = {
       ...connection,
-      id: `e${connection.source}-${connection.target}-${Date.now()}`,
+      source: sourceId,
+      target: targetId,
+    };
+
+    const newEdge = validateEdge({
+      ...reroutedConnection,
+      id: `e${sourceId}-${targetId}-${Date.now()}`,
       type: 'custom',
-      source: connection.source!,
-      target: connection.target!,
+      source: sourceId,
+      target: targetId,
     } as Edge);
 
     set((state) => {
+      const exists = state.edges.some((e) => e.source === sourceId && e.target === targetId);
+      if (exists) return state;
+
       const nextEdges = addEdge(newEdge, state.edges);
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
       return { edges: nextEdges, nodes: syncedNodes };
