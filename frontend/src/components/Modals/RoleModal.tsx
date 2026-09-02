@@ -64,13 +64,38 @@ const TagInput: React.FC<TagInputProps> = ({
     }
   }, [isFocused, inputValue]);
 
+  const nodes = useFlowStore((state) => state.nodes);
+
   const availableSuggestions: AutocompleteSuggestion[] = suggestions
     .filter((s) => !tags.includes(s))
     .map((s) => {
       const label = s === '' ? 'Core API' : s;
-      const description = s === ''
-        ? 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)'
-        : `Kubernetes RBAC item: ${s}`;
+      let description = '';
+
+      if (s === '') {
+        description = 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)';
+      } else {
+        const resourceToTypeMap: Record<string, string> = {
+          pods: 'Pod',
+          deployments: 'Deployment',
+          services: 'Service',
+          configmaps: 'ConfigMap',
+          secrets: 'Secret',
+          persistentvolumeclaims: 'PVC',
+          ingresses: 'Ingress',
+          horizontalpodautoscalers: 'HPA',
+        };
+
+        const targetType = resourceToTypeMap[s.toLowerCase()];
+        const existsOnCanvas = targetType ? nodes.some((n) => n.type === targetType) : true;
+
+        if (targetType && !existsOnCanvas) {
+          description = `Kubernetes resource: ${s} (add to canvas)`;
+        } else {
+          description = `Kubernetes resource / RBAC item: ${s}`;
+        }
+      }
+
       return {
         label,
         value: s,
