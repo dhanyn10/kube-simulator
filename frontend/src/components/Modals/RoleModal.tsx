@@ -148,26 +148,28 @@ const TagInput: React.FC<TagInputProps> = ({
     onChange(tags.filter((_, idx) => idx !== indexToRemove));
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (isFocused && availableSuggestions.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % availableSuggestions.length);
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + availableSuggestions.length) % availableSuggestions.length);
-        return;
-      }
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        if (availableSuggestions[selectedIndex] !== undefined) {
-          e.preventDefault();
-          handleAddTag(availableSuggestions[selectedIndex].value);
-          return;
-        }
-      }
+  const handleSuggestionNavKey = (e: React.KeyboardEvent<HTMLInputElement>): boolean => {
+    if (!isFocused || availableSuggestions.length === 0) return false;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % availableSuggestions.length);
+      return true;
     }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + availableSuggestions.length) % availableSuggestions.length);
+      return true;
+    }
+    if ((e.key === 'Enter' || e.key === 'Tab') && availableSuggestions[selectedIndex] !== undefined) {
+      e.preventDefault();
+      handleAddTag(availableSuggestions[selectedIndex].value);
+      return true;
+    }
+    return false;
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (handleSuggestionNavKey(e)) return;
 
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
@@ -182,6 +184,7 @@ const TagInput: React.FC<TagInputProps> = ({
   return (
     <div ref={containerRef} className="relative space-y-1">
       <div
+        role="presentation"
         onClick={() => inputRef.current?.focus()}
         className={cn(
           "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
@@ -374,7 +377,8 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       const derivedResources = deriveResourcesFromTargetNode(targetNode, nodes);
       const derivedApiGroups = deriveApiGroupsFromResources(derivedResources);
 
-      setRoleName(`role-${Math.floor(Math.random() * 899 + 100)}`);
+      const randomSuffix = crypto.randomUUID().split('-')[0];
+      setRoleName(`role-${randomSuffix}`);
       setRules([
         {
           apiGroups: derivedApiGroups,
@@ -464,10 +468,11 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       <div className="space-y-4">
         {/* Role Name */}
         <div>
-          <label className="block text-xs font-semibold mb-1 text-slate-400">
+          <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
             Role Name
           </label>
           <input
+            id="role-name-input"
             type="text"
             value={roleName}
             onChange={(e) => setRoleName(e.target.value)}
@@ -496,7 +501,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
           {rules.map((rule, idx) => (
             <div
-              key={`rule-spec-${idx}`}
+              key={`rule-spec-${rule.apiGroups.join('-')}-${rule.resources.join('-')}-${idx}`}
               className={cn(
                 "p-3.5 rounded-xl border relative space-y-3",
                 colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
