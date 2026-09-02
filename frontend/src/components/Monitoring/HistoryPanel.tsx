@@ -1,17 +1,88 @@
 import { useEffect } from 'react';
 import { cn } from '../../lib/utils';
 import { useHistory } from '../../hooks/useHistory';
+import { useFlowStore } from '../../store';
 
 interface HistoryPanelProps {
   colorMode: 'dark' | 'light';
 }
 
+const getItemClassName = (isCurrentStep: boolean, colorMode: 'dark' | 'light'): string => {
+  if (isCurrentStep) {
+    if (colorMode === 'dark') {
+      return 'bg-violet-950/40 border-violet-500 text-violet-300';
+    }
+    return 'bg-violet-50 border-violet-500 text-violet-900';
+  }
+  if (colorMode === 'dark') {
+    return 'border-transparent hover:bg-slate-800/50 text-slate-300';
+  }
+  return 'border-transparent hover:bg-violet-50/50 text-slate-700';
+};
+
 export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
-  const { historyLogs, fetchHistoryLogs, handleJumpToHistory } = useHistory();
+  const { historyLogs, currentHistoryIndex, isLoading, fetchHistoryLogs, handleJumpToHistory } = useHistory();
+  const lastActionId = useFlowStore((state) => state.lastActionId);
 
   useEffect(() => {
     fetchHistoryLogs();
-  }, [fetchHistoryLogs]);
+  }, [fetchHistoryLogs, lastActionId]);
+
+  const renderContent = () => {
+    if (isLoading && historyLogs.length === 0) {
+      return (
+        <div className="p-4 space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={cn(
+                'h-12 rounded animate-pulse',
+                colorMode === 'dark' ? 'bg-slate-800/60' : 'bg-slate-200/60'
+              )}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (historyLogs.length === 0) {
+      return <div className="p-8 text-center text-[10px] opacity-50 italic">No activity recorded</div>;
+    }
+
+    return historyLogs.map((log, index) => {
+      const isCurrentStep = currentHistoryIndex !== null
+        ? log.index === currentHistoryIndex
+        : (index === 0);
+      return (
+        <button
+          type="button"
+          key={`${log.timestamp}-${log.index}`}
+          onClick={() => handleJumpToHistory(log.index)}
+          className={cn(
+            'w-full text-left py-2.5 px-2 text-[10px] flex flex-col gap-1 transition-all border-l-2 hover:border-violet-500 rounded-sm my-0.5',
+            getItemClassName(isCurrentStep, colorMode)
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-bold tracking-tight flex items-center gap-1.5">
+              {log.actionName}
+              {isCurrentStep && (
+                <span className="px-1.5 py-0.2 rounded text-[8px] font-mono bg-violet-500/20 text-violet-400 font-bold uppercase tracking-wider">
+                  Current
+                </span>
+              )}
+            </span>
+            <span className="font-mono opacity-40 text-[8px]">IDX:{log.index.toString().padStart(3, '0')}</span>
+          </div>
+          <div className="flex items-center justify-between opacity-50">
+            <span className="text-[8px] uppercase tracking-wider">
+              {log.timestamp > 0 ? new Date(log.timestamp).toLocaleTimeString() : 'Recorded Snapshot'}
+            </span>
+          </div>
+        </button>
+      );
+    });
+  };
 
   return (
     <div className="w-full flex flex-col h-full">
@@ -24,33 +95,7 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
       </div>
 
       <div className="flex-1 overflow-y-auto py-1 custom-scrollbar">
-        {historyLogs.length === 0 ? (
-          <div className="p-8 text-center text-[10px] opacity-50 italic">No activity recorded</div>
-        ) : (
-          historyLogs.map((log) => (
-            <button
-              type="button"
-              key={`${log.timestamp}-${log.index}`}
-              onClick={() => handleJumpToHistory(log.index)}
-              className={cn(
-                'w-full text-left py-2.5 text-[10px] flex flex-col gap-1 transition-all border-l-2 border-transparent hover:border-violet-500',
-                colorMode === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-violet-50/50'
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span className={cn('font-bold tracking-tight', colorMode === 'dark' ? 'text-slate-200' : 'text-slate-700')}>
-                  {log.actionName}
-                </span>
-                <span className="font-mono opacity-30 text-[8px]">IDX:{log.index.toString().padStart(3, '0')}</span>
-              </div>
-              <div className="flex items-center justify-between opacity-50">
-                <span className="text-[8px] uppercase tracking-wider">
-                  {log.timestamp > 0 ? new Date(log.timestamp).toLocaleTimeString() : 'Recorded Snapshot'}
-                </span>
-              </div>
-            </button>
-          ))
-        )}
+        {renderContent()}
       </div>
     </div>
   );

@@ -188,7 +188,12 @@ export const MenuBar = ({
           {
             label: 'History',
             icon: Sliders,
-            onClick: () => setHistoryViewOpen(!isHistoryViewOpen)
+            onClick: () => {
+              if (!isRightSidebarVisible) {
+                setRightSidebarVisible(true);
+              }
+              setHistoryViewOpen(true);
+            }
           },
           {
             label: 'Terminal',

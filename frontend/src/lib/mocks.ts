@@ -61,6 +61,10 @@ export const initWailsMocks = () => {
                     const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
                     return history;
                 },
+                GetCurrentHistoryIndex: async () => {
+                    const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
+                    return history.length > 0 ? history.length - 1 : 0;
+                },
                 PushHistory: async (state: string) => {
                     const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
                     const data = JSON.parse(state);
