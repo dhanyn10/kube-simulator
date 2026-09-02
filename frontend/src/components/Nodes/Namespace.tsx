@@ -77,14 +77,14 @@ export const NamespaceNode = memo((props: NodeProps) => {
         Isolated Logic Cluster
       </div>
 
-      <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0" />
-      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!opacity-0" />
-      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0" />
-      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0" />
-      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0" />
+      <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0 !pointer-events-none" />
+      <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0 !pointer-events-none" />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className="!opacity-0 !pointer-events-none" />
+      <Handle type="source" position={Position.Bottom} id="bottom-s" className="!opacity-0 !pointer-events-none" />
+      <Handle type="target" position={Position.Left} id="left-t" className="!opacity-0 !pointer-events-none" />
+      <Handle type="source" position={Position.Left} id="left-s" className="!opacity-0 !pointer-events-none" />
+      <Handle type="target" position={Position.Right} id="right-t" className="!opacity-0 !pointer-events-none" />
+      <Handle type="source" position={Position.Right} id="right-s" className="!opacity-0 !pointer-events-none" />
     </div>
   );
 });

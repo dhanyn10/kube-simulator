@@ -48,14 +48,26 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
       setEdges(edges.filter((e) => e.id !== connectedEdge.id));
       addLog('info', `[Canvas Action] Disconnected Role from ${k8sKind}`, 'UI');
     } else {
-      // Connect to an existing card of this type on canvas
-      const targetNode = nodes.find((n) => n.type === k8sKind);
+      // Connect to an existing card of this type on canvas (prefer same Namespace)
+      const roleNode = nodes.find((n) => n.id === nodeId);
+      let targetNode = nodes.find((n) => n.type === k8sKind && n.parentId === roleNode?.parentId);
+      if (!targetNode) {
+        targetNode = nodes.find((n) => n.type === k8sKind);
+      }
+
       if (targetNode) {
+        const rolePos = roleNode?.position || { x: 0, y: 0 };
+        const targetPos = targetNode.position || { x: 0, y: 0 };
+        const isRoleLeft = rolePos.x <= targetPos.x;
+
+        const sourceHandle = isRoleLeft ? 'right-s' : 'left-s';
+        const targetHandle = isRoleLeft ? 'left-t' : 'right-t';
+
         onConnect({
           source: nodeId,
           target: targetNode.id,
-          sourceHandle: 'right-s',
-          targetHandle: 'left-t',
+          sourceHandle,
+          targetHandle,
         });
         addLog('info', `[Canvas Action] Visually connected Role to ${k8sKind} (${targetNode.data?.label || targetNode.id})`, 'UI');
       } else {

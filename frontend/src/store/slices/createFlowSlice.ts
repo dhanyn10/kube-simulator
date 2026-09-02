@@ -180,7 +180,7 @@ const isNodeInDirection = (
   nodes: Node[]
 ): boolean => {
   if (targetNode.id === sourceNode.id) return false;
-  if (sourceNode.type === 'HPA' && targetNode.type !== 'Deployment') return false;
+  if (getConnectionError(sourceNode.type || '', targetNode.type || '') !== null) return false;
 
   const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
   const targetCenter = getNodeAbsCenter(targetNode, nodes);
