@@ -22,6 +22,10 @@ export interface UiSlice {
   colorMode: 'dark' | 'light';
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
+  historyLogs: any[];
+  currentHistoryIndex: number | null;
+  isHistoryLoading: boolean;
+  fetchHistoryLogs: () => Promise<void>;
   draggingSidebarItem: K8sResourceType | null;
   isAutosaveEnabled: boolean;
   isAutofocusEnabled: boolean;
@@ -641,6 +645,26 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   canvasBgColor: 'default',
   canvasBgOpacity: 0.6,
   isHistoryViewOpen: false,
+  historyLogs: [],
+  currentHistoryIndex: null,
+  isHistoryLoading: false,
+  fetchHistoryLogs: async () => {
+    set({ isHistoryLoading: true });
+    try {
+      if (globalThis.go?.main?.App?.GetHistoryLogs) {
+        const logs = await globalThis.go.main.App.GetHistoryLogs();
+        if (Array.isArray(logs)) {
+          set({ historyLogs: [...logs].reverse() });
+        }
+      }
+      if (globalThis.go?.main?.App?.GetCurrentHistoryIndex) {
+        const idx = await globalThis.go.main.App.GetCurrentHistoryIndex();
+        set({ currentHistoryIndex: idx });
+      }
+    } finally {
+      set({ isHistoryLoading: false });
+    }
+  },
 
   // Update check & cheat code state
   simulatedUpdateInfo: null,

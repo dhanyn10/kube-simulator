@@ -57,7 +57,11 @@ flowStore.subscribe((state, prevState) => {
     
     // Push to Go Backend "Database"
     if (globalThis.go?.main?.App?.PushHistory) {
-      globalThis.go.main.App.PushHistory(snapshot);
+      Promise.resolve(globalThis.go.main.App.PushHistory(snapshot))
+        .then(() => {
+          state.fetchHistoryLogs?.();
+        })
+        .catch(() => {});
     }
 
     // Autosave logic
@@ -84,9 +88,11 @@ export const applyHistoryState = (json: string) => {
     flowStore.setState({
       nodes: data.nodes,
       edges: data.edges,
+      lastActionId: `history-apply-${Date.now()}`,
       lastActionName: `Applied: ${data.actionName}`
     });
     isApplyingHistory = false;
+    flowStore.getState().fetchHistoryLogs();
     logger.info(`[History] Applied state from log: ${data.actionName}`);
   } catch (e) {
     logger.error('[History] Failed to apply state:', e);

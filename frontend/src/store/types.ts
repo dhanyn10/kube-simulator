@@ -52,6 +52,14 @@ export interface FlowState {
   currentProject: { id: number, name: string } | null;
   lastSavedSnapshot: string | null;
 
+  // History state
+  historyLogs: any[];
+  currentHistoryIndex: number | null;
+  isHistoryLoading: boolean;
+  fetchHistoryLogs: () => Promise<void>;
+  isHistoryViewOpen: boolean;
+  setHistoryViewOpen: (open: boolean) => void;
+
   // Simulation state
   isSimulating: boolean;
   activeSimulationEdges: string[];

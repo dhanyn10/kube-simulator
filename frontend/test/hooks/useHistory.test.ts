@@ -3,13 +3,15 @@ import { renderHook, act } from '@testing-library/react';
 import { useHistory } from '@/hooks/useHistory';
 import { applyHistoryState } from '@/store';
 
-vi.mock('@/store', () => ({
-  applyHistoryState: vi.fn(),
-  useFlowStore: {
-    setState: vi.fn(),
-    getState: vi.fn().mockReturnValue({}),
-  },
-}));
+import { useFlowStore } from '@/store';
+
+vi.mock('@/store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/store')>();
+  return {
+    ...actual,
+    applyHistoryState: vi.fn(),
+  };
+});
 
 describe('useHistory', () => {
   beforeEach(() => {

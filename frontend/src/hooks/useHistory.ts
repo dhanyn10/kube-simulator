@@ -2,37 +2,16 @@ import { useCallback, useState } from 'react';
 import { applyHistoryState, useFlowStore } from '../store';
 
 export function useHistory() {
-  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
-  const [currentHistoryIndex, setCurrentHistoryIndex] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const historyLogs = useFlowStore((state) => state.historyLogs);
+  const currentHistoryIndex = useFlowStore((state) => state.currentHistoryIndex);
+  const isLoading = useFlowStore((state) => state.isHistoryLoading);
+  const fetchHistoryLogs = useFlowStore((state) => state.fetchHistoryLogs);
 
   const openHistoryTab = useCallback(() => {
     useFlowStore.setState({
       isRightSidebarVisible: true,
       isHistoryViewOpen: true,
     });
-  }, []);
-
-  const fetchHistoryLogs = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // @ts-ignore
-      if (globalThis.go?.main?.App?.GetHistoryLogs) {
-        // @ts-ignore
-        const logs = await globalThis.go.main.App.GetHistoryLogs();
-        if (Array.isArray(logs)) {
-          setHistoryLogs([...logs].reverse());
-        }
-      }
-      // @ts-ignore
-      if (globalThis.go?.main?.App?.GetCurrentHistoryIndex) {
-        // @ts-ignore
-        const idx = await globalThis.go.main.App.GetCurrentHistoryIndex();
-        setCurrentHistoryIndex(idx);
-      }
-    } finally {
-      setIsLoading(false);
-    }
   }, []);
 
   const handleUndo = useCallback(async () => {
