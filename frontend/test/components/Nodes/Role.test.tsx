@@ -105,8 +105,8 @@ describe('Role feature tests', () => {
   });
 
   describe('Role valid connections', () => {
-    it('allows Role connections to Deployment, Pod, Service, ReplicaSet', () => {
-      expect(VALID_CONNECTIONS.Role).toEqual(['Deployment', 'Pod', 'Service', 'ReplicaSet']);
+    it('allows Role connections to Deployment, Pod, Service, ReplicaSet, PVC, ConfigMap, Secret', () => {
+      expect(VALID_CONNECTIONS.Role).toEqual(['Deployment', 'Pod', 'Service', 'ReplicaSet', 'PVC', 'ConfigMap', 'Secret']);
     });
   });
 

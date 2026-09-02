@@ -23,7 +23,46 @@ const RESOURCE_TYPE_MAP: Record<string, K8sResourceType> = {
 export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
+  const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
+  const onConnect = useFlowStore((state) => state.onConnect);
+  const setEdges = useFlowStore((state) => state.setEdges);
+  const addLog = useFlowStore((state) => state.addLog);
   const rules: K8sRoleRule[] = data.rules || [];
+
+  const handleToggleResource = (res: string) => {
+    const k8sKind = RESOURCE_TYPE_MAP[res];
+    if (!k8sKind) return;
+
+    // Find if a connected card of this type already exists
+    const connectedEdge = edges.find((e) => {
+      const sourceNode = nodes.find((n) => n.id === e.source);
+      const targetNode = nodes.find((n) => n.id === e.target);
+      const isRoleSource = e.source === nodeId && targetNode?.type === k8sKind;
+      const isRoleTarget = e.target === nodeId && sourceNode?.type === k8sKind;
+      return isRoleSource || isRoleTarget;
+    });
+
+    if (connectedEdge) {
+      // Disconnect visual edge
+      setEdges(edges.filter((e) => e.id !== connectedEdge.id));
+      addLog('info', `[Canvas Action] Disconnected Role from ${k8sKind}`, 'UI');
+    } else {
+      // Connect to an existing card of this type on canvas
+      const targetNode = nodes.find((n) => n.type === k8sKind);
+      if (targetNode) {
+        onConnect({
+          source: nodeId,
+          target: targetNode.id,
+          sourceHandle: 'right-s',
+          targetHandle: 'left-t',
+        });
+        addLog('info', `[Canvas Action] Visually connected Role to ${k8sKind} (${targetNode.data?.label || targetNode.id})`, 'UI');
+      } else {
+        addLog('warn', `[Canvas Action] No ${k8sKind} card found on canvas! Drag a ${k8sKind} card onto the canvas first before connecting it to Role.`, 'UI');
+      }
+    }
+  };
 
   const handleAddRule = () => {
     const newRules = [
@@ -103,24 +142,28 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
                   Target Resources:
                 </label>
                 <span className="text-[8px] text-slate-500 italic">
-                  (Auto-synced from connected canvas nodes)
+                  (Click badge to toggle visual edge connection)
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {rule.resources && rule.resources.length > 0 ? (
-                  rule.resources.map((res) => (
-                    <span
+                {AVAILABLE_RESOURCES.map((res) => {
+                  const isConnected = rule.resources?.includes(res);
+                  return (
+                    <button
                       key={`res-${ruleIdx}-${res}`}
-                      className="text-[9px] font-mono px-1.5 py-0.5 rounded border bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold"
+                      type="button"
+                      onClick={() => handleToggleResource(res)}
+                      className={cn(
+                        "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors cursor-pointer",
+                        isConnected
+                          ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300 font-bold"
+                          : colorMode === 'dark' ? "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600" : "bg-white border-slate-300 text-slate-600 hover:border-slate-400"
+                      )}
                     >
                       {res}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-[9px] text-amber-400/80 italic">
-                    Connect Role to a target node on canvas (e.g. Deployment, Service, Pod)
-                  </span>
-                )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
