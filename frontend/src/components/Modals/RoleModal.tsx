@@ -43,8 +43,11 @@ const TagInput: React.FC<TagInputProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleAddTag = (value: string) => {
-    const trimmed = value.trim();
+    let trimmed = value.trim();
     if (!trimmed) return;
+    if (trimmed.toLowerCase() === 'core api' || trimmed.toLowerCase() === 'core') {
+      trimmed = '';
+    }
     if (!tags.includes(trimmed)) {
       onChange([...tags, trimmed]);
     }
@@ -84,7 +87,7 @@ const TagInput: React.FC<TagInputProps> = ({
               tagBgClass
             )}
           >
-            <span>{tag === '' ? '"" (core)' : tag}</span>
+            <span>{tag === '' ? 'Core API' : tag}</span>
             <button
               type="button"
               onClick={(e) => {
@@ -133,7 +136,7 @@ const TagInput: React.FC<TagInputProps> = ({
                   : "bg-slate-100 border-slate-300 text-slate-600 hover:text-slate-900"
               )}
             >
-              + {sug === '' ? '"" (core)' : sug}
+              + {sug === '' ? 'Core API' : sug}
             </button>
           ))}
         </div>
@@ -143,6 +146,30 @@ const TagInput: React.FC<TagInputProps> = ({
 };
 
 import { Node } from '@xyflow/react';
+
+const deriveApiGroupsFromResources = (resources: string[]): string[] => {
+  const groups = new Set<string>();
+  for (const res of resources) {
+    const r = res.toLowerCase();
+    if (['deployments', 'statefulsets', 'daemonsets', 'replicasets'].includes(r)) {
+      groups.add('apps');
+    } else if (['jobs', 'cronjobs'].includes(r)) {
+      groups.add('batch');
+    } else if (['ingresses', 'ingressclasses', 'networkpolicies'].includes(r)) {
+      groups.add('networking.k8s.io');
+    } else if (['horizontalpodautoscalers', 'hpa'].includes(r)) {
+      groups.add('autoscaling');
+    } else if (['storageclasses', 'volumeattachments'].includes(r)) {
+      groups.add('storage.k8s.io');
+    } else if (['roles', 'rolebindings', 'clusterroles', 'clusterrolebindings'].includes(r)) {
+      groups.add('rbac.authorization.k8s.io');
+    } else {
+      // Core API Group ("") for pods, services, configmaps, secrets, persistentvolumeclaims, namespaces, nodes, etc.
+      groups.add('');
+    }
+  }
+  return Array.from(groups);
+};
 
 const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: Node[]): string[] => {
   if (!targetNode) return ['pods', 'deployments'];
@@ -208,7 +235,6 @@ const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: N
   return [type.toLowerCase() + 's'];
 };
 
-const DEFAULT_API_GROUPS = [''];
 const DEFAULT_VERBS = ['get', 'list', 'watch'];
 
 export const RoleModal: React.FC<RoleModalProps> = ({
@@ -225,7 +251,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   const [roleName, setRoleName] = useState<string>('app-reader-role');
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
-      apiGroups: [...DEFAULT_API_GROUPS],
+      apiGroups: ['apps', ''],
       resources: ['deployments', 'pods'],
       verbs: [...DEFAULT_VERBS],
     },
@@ -240,11 +266,12 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     } else {
       const targetNode = nodes.find((n) => n.id === targetNodeId);
       const derivedResources = deriveResourcesFromTargetNode(targetNode, nodes);
+      const derivedApiGroups = deriveApiGroupsFromResources(derivedResources);
 
       setRoleName(`role-${Math.floor(Math.random() * 899 + 100)}`);
       setRules([
         {
-          apiGroups: [''],
+          apiGroups: derivedApiGroups,
           resources: derivedResources,
           verbs: ['get', 'list', 'watch'],
         },
@@ -273,7 +300,11 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     setRules((prev) =>
       prev.map((rule, idx) => {
         if (idx !== ruleIndex) return rule;
-        return { ...rule, [field]: newTags };
+        const updated = { ...rule, [field]: newTags };
+        if (field === 'resources') {
+          updated.apiGroups = deriveApiGroupsFromResources(newTags);
+        }
+        return updated;
       })
     );
   };
