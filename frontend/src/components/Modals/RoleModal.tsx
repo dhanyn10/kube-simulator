@@ -4,6 +4,7 @@ import { Modal } from './Modal';
 import { K8sRoleItem, K8sRoleRule } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
+import { AutocompleteDropdown, AutocompleteSuggestion } from '../UI/AutocompleteDropdown';
 
 interface RoleModalProps {
   isOpen: boolean;
@@ -63,13 +64,25 @@ const TagInput: React.FC<TagInputProps> = ({
     }
   }, [isFocused, inputValue]);
 
-  const availableSuggestions = suggestions.filter((s) => {
-    if (tags.includes(s)) return false;
-    if (!inputValue.trim()) return true;
-    const lowerInput = inputValue.toLowerCase().trim();
-    const displayLabel = s === '' ? 'core api' : s.toLowerCase();
-    return displayLabel.includes(lowerInput) || s.toLowerCase().includes(lowerInput);
-  });
+  const availableSuggestions: AutocompleteSuggestion[] = suggestions
+    .filter((s) => !tags.includes(s))
+    .map((s) => {
+      const label = s === '' ? 'Core API' : s;
+      const description = s === ''
+        ? 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)'
+        : `Kubernetes RBAC item: ${s}`;
+      return {
+        label,
+        value: s,
+        category: 'RBAC',
+        description,
+      };
+    })
+    .filter((item) => {
+      if (!inputValue.trim()) return true;
+      const lowerInput = inputValue.toLowerCase().trim();
+      return item.label.toLowerCase().includes(lowerInput) || item.value.toLowerCase().includes(lowerInput);
+    });
 
   const handleAddTag = (value: string) => {
     let trimmed = value.trim();
@@ -103,7 +116,7 @@ const TagInput: React.FC<TagInputProps> = ({
       if (e.key === 'Enter' || e.key === 'Tab') {
         if (availableSuggestions[selectedIndex] !== undefined) {
           e.preventDefault();
-          handleAddTag(availableSuggestions[selectedIndex]);
+          handleAddTag(availableSuggestions[selectedIndex].value);
           return;
         }
       }
@@ -175,45 +188,16 @@ const TagInput: React.FC<TagInputProps> = ({
         />
       </div>
 
-      {/* CLI-Style Autocomplete Dropdown */}
+      {/* Reusable CLI-Style Autocomplete Dropdown */}
       {isFocused && availableSuggestions.length > 0 && (
-        <div
-          className={cn(
-            "absolute left-0 right-0 z-50 max-h-40 overflow-y-auto rounded-lg border shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs",
-            openUpward ? "bottom-full mb-1" : "top-full mt-1",
-            colorMode === 'dark' ? "bg-slate-900 border-slate-700/80 text-slate-200" : "bg-white border-slate-300 text-slate-800"
-          )}
-        >
-          {availableSuggestions.map((sug, idx) => {
-            const isSelected = idx === selectedIndex;
-            return (
-              <div
-                key={`autocomplete-${sug}-${idx}`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleAddTag(sug);
-                }}
-                onMouseEnter={() => setSelectedIndex(idx)}
-                className={cn(
-                  "px-3 py-1.5 flex items-center justify-between cursor-pointer transition-colors",
-                  isSelected
-                    ? (colorMode === 'dark' ? "bg-indigo-600/30 text-indigo-200 font-bold" : "bg-indigo-100 text-indigo-900 font-bold")
-                    : (colorMode === 'dark' ? "hover:bg-slate-800/80" : "hover:bg-slate-100")
-                )}
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="text-[10px] opacity-60">❯</span>
-                  <span>{sug === '' ? 'Core API' : sug}</span>
-                </span>
-                {isSelected && (
-                  <span className="text-[9px] font-sans px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
-                    Press Enter / Tab
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <AutocompleteDropdown
+          suggestions={availableSuggestions}
+          selectedIndex={selectedIndex}
+          onSelect={(item) => handleAddTag(item.value)}
+          onHoverIndex={(idx) => setSelectedIndex(idx)}
+          colorMode={colorMode === 'dark' ? 'dark' : 'light'}
+          openUpward={openUpward}
+        />
       )}
     </div>
   );
