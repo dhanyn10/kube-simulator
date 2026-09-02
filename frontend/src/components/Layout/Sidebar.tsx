@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck } from 'lucide-react';
 import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -20,12 +20,14 @@ const ITEM_STYLES: Record<string, { border: string, text: string }> = {
   PVC: { border: "border-l-orange-500 hover:border-orange-500", text: "text-orange-400" },
   Namespace: { border: "border-l-emerald-500 hover:border-emerald-500", text: "text-emerald-400" },
   ConfigMap: { border: "border-l-teal-500 hover:border-teal-500", text: "text-teal-400" },
-  Secret: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
+  Secret: { border: "border-l-rose-400 hover:border-rose-400", text: "text-rose-400" },
+  Role: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
 };
 
 const SECTIONS = [
   { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
+  { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
   { id: 'configuration', title: 'Configuration', filter: (type: string) => type === 'ConfigMap' || type === 'Secret' },
   { id: 'scaling', title: 'Scaling', filter: (type: string) => type === 'HPA' },
   { id: 'others', title: 'Others', filter: (type: string) => type === 'Internet' || type === 'PVC' },
@@ -142,6 +144,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     { type: 'Ingress', icon: Globe, label: 'Ingress', desc: 'External Access' },
     { type: 'HPA', icon: Activity, label: 'HPA', desc: 'Auto-scaling' },
     { type: 'PVC', icon: Database, label: 'PVC', desc: 'Storage Claim' },
+    { type: 'Role', icon: ShieldCheck, label: 'Role', desc: 'RBAC Access Role' },
     { type: 'ConfigMap', icon: Settings, label: 'ConfigMap', desc: 'General Config' },
     { type: 'Secret', icon: Lock, label: 'Secret', desc: 'Sensitive Data' },
   ];

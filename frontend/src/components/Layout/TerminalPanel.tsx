@@ -14,7 +14,9 @@ import {
   handleRolloutUndoCommand,
   handleDeletePodCommand,
   handleGetAllCommand,
-  handleDescribeDeploymentCommand
+  handleDescribeDeploymentCommand,
+  handleGetRolesCommand,
+  handleDescribeRoleCommand
 } from './terminalCommands';
 import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomplete';
 
@@ -247,6 +249,9 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl rollout history deploy/<name> View rollout revision history');
   addActivityLog('  kubectl rollout undo deploy/<name>    Rollback to the previous deployment revision');
   addActivityLog('  kubectl delete pod <name>             Delete pod (triggers replica controller self-healing)');
+  addActivityLog('  kubectl get roles                     List all roles on the canvas');
+  addActivityLog('  kubectl get rolebindings              List role bindings on the canvas');
+  addActivityLog('  kubectl describe role <name>          Describe role specifications & rules');
   addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
   addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
@@ -643,6 +648,8 @@ export const executeKubectlCommand = (
     handleRolloutUndoCommand,
     handleDeletePodCommand,
     handleDescribeDeploymentCommand,
+    handleGetRolesCommand,
+    handleDescribeRoleCommand,
   ];
 
   for (const handler of commandHandlers) {

@@ -435,6 +435,78 @@ export const handleGetAllCommand = (
   return true;
 };
 
+export const handleGetRolesCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+get\s+(roles?|rolebindings?)\b/i.exec(cmd.trim());
+  if (!match) return false;
+
+  const resType = match[1].toLowerCase();
+  if (resType.startsWith('rolebinding')) {
+    const roleNodes = ctx.nodes.filter(n => n.type === 'Role');
+    if (roleNodes.length === 0) {
+      ctx.addActivityLog('No rolebindings found on the canvas.');
+      return true;
+    }
+    ctx.addActivityLog(`${"NAME".padEnd(30)} ROLE                  SUBJECTS              AGE`);
+    roleNodes.forEach(r => {
+      const name = (r.data.label || r.id) + '-binding';
+      const roleName = r.data.label || r.id;
+      ctx.addActivityLog(`${String(name).padEnd(30)} ${String(roleName).padEnd(21)} ServiceAccount/default 2m`);
+    });
+    return true;
+  }
+
+  const roleNodes = ctx.nodes.filter(n => n.type === 'Role');
+  if (roleNodes.length === 0) {
+    ctx.addActivityLog('No roles found on the canvas.');
+    return true;
+  }
+  ctx.addActivityLog(`${"NAME".padEnd(30)} CREATED AT`);
+  roleNodes.forEach(r => {
+    const name = r.data.label || r.id;
+    ctx.addActivityLog(`${String(name).padEnd(30)} 2m ago`);
+  });
+  return true;
+};
+
+export const handleDescribeRoleCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+describe\s+(roles?|rolebinding)\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[2].toLowerCase();
+  const foundNode = ctx.nodes.find(n =>
+    n.type === 'Role' &&
+    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
+  );
+
+  if (foundNode) {
+    const name = foundNode.data.label || foundNode.id;
+    const rules = foundNode.data.rules || [];
+
+    ctx.addActivityLog(`Name:         ${name}`);
+    ctx.addActivityLog(`Namespace:    default`);
+    ctx.addActivityLog(`Labels:       <none>`);
+    ctx.addActivityLog(`Annotations:  <none>`);
+    ctx.addActivityLog(`PolicyRule:`);
+    ctx.addActivityLog(`  Resources  Group  Verbs`);
+    ctx.addActivityLog(`  ---------  -----  -----`);
+    rules.forEach((rule: any) => {
+      const res = (rule.resources || []).join(', ');
+      const grp = (rule.apiGroups || ['']).join(', ') || '""';
+      const vrb = (rule.verbs || []).join(', ');
+      ctx.addActivityLog(`  ${res.padEnd(10)} ${grp.padEnd(6)} [${vrb}]`);
+    });
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): role "${targetName}" not found`);
+  }
+  return true;
+};
+
 export const handleDescribeDeploymentCommand = (
   cmd: string,
   ctx: CommandContext

@@ -145,8 +145,12 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+      <Handle type="source" position={Position.Top} id="top-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
+      <Handle type="target" position={Position.Bottom} id="bottom-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
       <Handle type="target" position={Position.Left} id="left-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+      <Handle type="source" position={Position.Left} id="left-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
+      <Handle type="target" position={Position.Right} id="right-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
       <Handle type="source" position={Position.Right} id="right-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
     </div>
   );

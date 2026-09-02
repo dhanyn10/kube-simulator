@@ -13,9 +13,72 @@ import {
 import { FlowState } from '../types';
 import { K8sNodeData } from '../../types';
 import { getConnectionError } from '../../constants/connections';
+import { getAbsPos } from '../helpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
+
+export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node[] => {
+  const roleNodes = nodes.filter((n) => n.type === 'Role');
+  if (roleNodes.length === 0) return nodes;
+
+  let hasChanges = false;
+  const updatedNodes = nodes.map((node) => {
+    if (node.type !== 'Role') return node;
+
+    const connectedEdges = edges.filter((e) => e.source === node.id || e.target === node.id);
+    const connectedNodeIds = new Set<string>();
+    connectedEdges.forEach((e) => {
+      if (e.source !== node.id) connectedNodeIds.add(e.source);
+      if (e.target !== node.id) connectedNodeIds.add(e.target);
+    });
+
+    const connectedNodes = nodes.filter((n) => connectedNodeIds.has(n.id));
+    const derivedResourcesSet = new Set<string>();
+
+    connectedNodes.forEach((cn) => {
+      if (cn.type === 'Deployment') {
+        derivedResourcesSet.add('deployments');
+        const childPods = nodes.filter((p) => p.parentId === cn.id);
+        if (childPods.length > 0 || ((cn.data?.replicas as number) || 0) > 0) {
+          derivedResourcesSet.add('pods');
+        }
+      } else if (cn.type === 'Pod') {
+        derivedResourcesSet.add('pods');
+      } else if (cn.type === 'Service') {
+        derivedResourcesSet.add('services');
+      } else if (cn.type === 'PVC') {
+        derivedResourcesSet.add('persistentvolumeclaims');
+      } else if (cn.type === 'ConfigMap') {
+        derivedResourcesSet.add('configmaps');
+      } else if (cn.type === 'Secret') {
+        derivedResourcesSet.add('secrets');
+      } else if (cn.type === 'ReplicaSet') {
+        derivedResourcesSet.add('replicasets');
+      }
+    });
+
+    const currentRules = (node.data.rules as any[]) || [{ apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] }];
+    const firstRule = currentRules[0] || { apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] };
+    const currentResources = (firstRule.resources as string[]) || [];
+
+    const newResources = Array.from(derivedResourcesSet);
+    const isSame = currentResources.length === newResources.length && newResources.every((r) => currentResources.includes(r));
+    if (isSame) return node;
+
+    hasChanges = true;
+    const updatedRule = { ...firstRule, resources: newResources };
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        rules: [updatedRule, ...currentRules.slice(1)],
+      },
+    };
+  });
+
+  return hasChanges ? updatedNodes : nodes;
+};
 
 export interface FlowSlice {
   nodes: Node[];
@@ -102,21 +165,25 @@ const getGroupDragExtraChanges = (changes: NodeChange[], nodes: Node[]): NodeCha
   return extraChanges;
 };
 
-const getNodeCenter = (node: Node) => ({
-  x: node.position.x + (node.measured?.width || node.width || 150) / 2,
-  y: node.position.y + (node.measured?.height || node.height || 100) / 2,
-});
+const getNodeAbsCenter = (node: Node, nodes: Node[]) => {
+  const absPos = getAbsPos(node.id, nodes);
+  return {
+    x: absPos.x + (node.measured?.width || node.width || 150) / 2,
+    y: absPos.y + (node.measured?.height || node.height || 100) / 2,
+  };
+};
 
 const isNodeInDirection = (
   sourceNode: Node,
   targetNode: Node,
-  direction: QuickConnectDirection
+  direction: QuickConnectDirection,
+  nodes: Node[]
 ): boolean => {
-  if (targetNode.id === sourceNode.id || targetNode.parentId) return false;
-  if (sourceNode.type === 'HPA' && targetNode.type !== 'Deployment') return false;
+  if (targetNode.id === sourceNode.id) return false;
+  if (getConnectionError(sourceNode.type || '', targetNode.type || '') !== null) return false;
 
-  const sourceCenter = getNodeCenter(sourceNode);
-  const targetCenter = getNodeCenter(targetNode);
+  const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
+  const targetCenter = getNodeAbsCenter(targetNode, nodes);
   const dx = targetCenter.x - sourceCenter.x;
   const dy = targetCenter.y - sourceCenter.y;
   const angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -148,14 +215,18 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onNodesChange: (changes: NodeChange[]) => {
     const extraChanges = getGroupDragExtraChanges(changes, get().nodes);
-    set((state) => ({
-      nodes: applyNodeChanges([...changes, ...extraChanges], state.nodes),
-    }));
+    set((state) => {
+      const nextNodes = applyNodeChanges([...changes, ...extraChanges], state.nodes);
+      const syncedNodes = syncRoleRulesFromConnections(nextNodes, state.edges);
+      return { nodes: syncedNodes };
+    });
   },
   onEdgesChange: (changes: EdgeChange[]) => {
-    set((state) => ({
-      edges: applyEdgeChanges(changes, state.edges),
-    }));
+    set((state) => {
+      const nextEdges = applyEdgeChanges(changes, state.edges);
+      const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+      return { edges: nextEdges, nodes: syncedNodes };
+    });
   },
   validateEdge: (edge: Edge) => {
     const { nodes } = get();
@@ -171,8 +242,26 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onConnect: (connection: Connection) => {
     const { nodes, updateNodeData, validateEdge } = get();
-    const sourceNode = nodes.find((n) => n.id === connection.source);
-    const targetNode = nodes.find((n) => n.id === connection.target);
+    let sourceId = connection.source!;
+    let targetId = connection.target!;
+
+    let sourceNode = nodes.find((n) => n.id === sourceId);
+    let targetNode = nodes.find((n) => n.id === targetId);
+
+    // If connecting Role <-> child Pod inside a Deployment, reroute connection to parent Deployment
+    if (sourceNode?.type === 'Role' && targetNode?.type === 'Pod' && targetNode.parentId) {
+      const parentDep = nodes.find((n) => n.id === targetNode!.parentId && n.type === 'Deployment');
+      if (parentDep) {
+        targetId = parentDep.id;
+        targetNode = parentDep;
+      }
+    } else if (targetNode?.type === 'Role' && sourceNode?.type === 'Pod' && sourceNode.parentId) {
+      const parentDep = nodes.find((n) => n.id === sourceNode!.parentId && n.type === 'Deployment');
+      if (parentDep) {
+        sourceId = parentDep.id;
+        sourceNode = parentDep;
+      }
+    }
 
     if (sourceNode?.type === 'HPA' && targetNode?.type === 'Deployment') {
       const data = targetNode.data as K8sNodeData;
@@ -184,17 +273,28 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       }
     }
 
-    const newEdge = validateEdge({
+    const reroutedConnection = {
       ...connection,
-      id: `e${connection.source}-${connection.target}-${Date.now()}`,
+      source: sourceId,
+      target: targetId,
+    };
+
+    const newEdge = validateEdge({
+      ...reroutedConnection,
+      id: `e${sourceId}-${targetId}-${Date.now()}`,
       type: 'custom',
-      source: connection.source!,
-      target: connection.target!,
+      source: sourceId,
+      target: targetId,
     } as Edge);
 
-    set((state) => ({
-      edges: addEdge(newEdge, state.edges),
-    }));
+    set((state) => {
+      const exists = state.edges.some((e) => e.source === sourceId && e.target === targetId);
+      if (exists) return state;
+
+      const nextEdges = addEdge(newEdge, state.edges);
+      const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+      return { edges: nextEdges, nodes: syncedNodes };
+    });
   },
   onReconnect: (oldEdge: Edge, newConnection: Connection) => {
     const { edges, validateEdge } = get();
@@ -202,18 +302,27 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     set({ edges: newEdges });
   },
   setNodes: (nodes: Node[]) => set({ nodes }),
-  setEdges: (edges: Edge[]) => set({ edges }),
+  setEdges: (edges: Edge[]) => {
+    set((state) => {
+      const syncedNodes = syncRoleRulesFromConnections(state.nodes, edges);
+      return { edges, nodes: syncedNodes };
+    });
+  },
   onQuickConnect: (nodeId: string, direction: QuickConnectDirection) => {
     const { nodes, onConnect } = get();
     const sourceNode = nodes.find((n) => n.id === nodeId);
     if (!sourceNode) return;
 
-    const candidates = nodes.filter((n) => isNodeInDirection(sourceNode, n, direction));
+    const candidates = nodes.filter((n) => isNodeInDirection(sourceNode, n, direction, nodes));
     if (candidates.length === 0) return;
 
+    const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
+
     candidates.sort((a, b) => {
-      const distA = Math.pow(a.position.x - sourceNode.position.x, 2) + Math.pow(a.position.y - sourceNode.position.y, 2);
-      const distB = Math.pow(b.position.x - sourceNode.position.x, 2) + Math.pow(b.position.y - sourceNode.position.y, 2);
+      const centerA = getNodeAbsCenter(a, nodes);
+      const centerB = getNodeAbsCenter(b, nodes);
+      const distA = Math.pow(centerA.x - sourceCenter.x, 2) + Math.pow(centerA.y - sourceCenter.y, 2);
+      const distB = Math.pow(centerB.x - sourceCenter.x, 2) + Math.pow(centerB.y - sourceCenter.y, 2);
       return distA - distB;
     });
 

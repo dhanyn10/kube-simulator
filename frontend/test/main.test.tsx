@@ -27,7 +27,7 @@ vi.mock('@/store', () => ({
 }));
 
 const mockEventsOn = vi.fn();
-vi.mock('../wailsjs/runtime', () => ({
+vi.mock('@wailsjs/runtime', () => ({
   EventsOn: mockEventsOn,
 }));
 

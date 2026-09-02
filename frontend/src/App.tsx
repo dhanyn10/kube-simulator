@@ -12,7 +12,7 @@ import {
   Edge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { EventsOn } from '../wailsjs/runtime';
+import { EventsOn } from '@wailsjs/runtime';
 
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';
@@ -30,6 +30,7 @@ import {
   HPANode,
   PVCNode,
   ReplicaSetNode,
+  RoleNode,
 } from './components/Nodes';
 import { CustomEdge } from './components/Edges';
 import { generateYaml, cn, getAbsPos } from './lib/utils';
@@ -54,6 +55,7 @@ const nodeTypes = {
   ConfigMap: ConfigMapNode,
   Secret: SecretNode,
   ReplicaSet: ReplicaSetNode,
+  Role: RoleNode,
 };
 
 const edgeTypes = {

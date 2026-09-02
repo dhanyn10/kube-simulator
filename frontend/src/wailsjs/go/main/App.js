@@ -5,3 +5,31 @@
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
+
+export function GetSystemResources() {
+  return window['go']['main']['App']['GetSystemResources']();
+}
+
+export function OpenLogFile(arg1) {
+  return window['go']['main']['App']['OpenLogFile'](arg1);
+}
+
+export function FetchDockerHubPopular() {
+  return window['go']['main']['App']['FetchDockerHubPopular']();
+}
+
+export function SearchDockerHub(arg1) {
+  return window['go']['main']['App']['SearchDockerHub'](arg1);
+}
+
+export function FetchDockerHubTags(arg1) {
+  return window['go']['main']['App']['FetchDockerHubTags'](arg1);
+}
+
+export function WriteLog(arg1, arg2, arg3) {
+  return window['go']['main']['App']['WriteLog'](arg1, arg2, arg3);
+}
+
+export function GetSetting(arg1) {
+  return window['go']['main']['App']['GetSetting'](arg1);
+}

@@ -11,5 +11,6 @@ export * from './PVC';
 export * from './Pod';
 export * from './QuickConnectArrows';
 export * from './ReplicaSet';
+export * from './Role';
 export * from './Secret';
 export * from './Service';

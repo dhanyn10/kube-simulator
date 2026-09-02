@@ -88,6 +88,19 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
         displaySettings: { data: false },
         yamlSettings: { data: true }
       };
+    case 'Role':
+      return {
+        ...base,
+        rules: [
+          {
+            apiGroups: [''],
+            resources: ['pods', 'services'],
+            verbs: ['get', 'list', 'watch']
+          }
+        ],
+        displaySettings: { rules: true },
+        yamlSettings: { rules: true }
+      };
     default:
       return base;
   }

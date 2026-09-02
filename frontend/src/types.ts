@@ -1,4 +1,10 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role';
+
+export interface K8sRoleRule {
+  apiGroups: string[];
+  resources: string[];
+  verbs: string[];
+}
 
 export interface K8sNodeData {
   [key: string]: any;
@@ -54,6 +60,9 @@ export interface K8sNodeData {
 
   // ConfigMap & Secret specific fields
   configData?: Array<{ key: string; value: string }>;
+
+  // Role specific fields
+  rules?: K8sRoleRule[];
 }
 
 export interface K8sManifest {

@@ -6,7 +6,7 @@ import App from './App.tsx';
 import './index.css';
 import { initWailsMocks } from './lib/mocks.ts';
 import { useFlowStore } from './store';
-import { EventsOn } from '../wailsjs/runtime';
+import { EventsOn } from '@wailsjs/runtime';
 
 const originalLog = (globalThis as any)._originalConsoleLog;
 const originalWarn = (globalThis as any)._originalConsoleWarn;

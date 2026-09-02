@@ -9,7 +9,8 @@ import {
   HPAConfig,
   InternetConfig,
   PVCConfig,
-  DataResourceConfig
+  DataResourceConfig,
+  RoleConfig
 } from './';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../../store/slices/node-handlers/configUtils';
 
@@ -121,13 +122,15 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
       case 'ConfigMap':
       case 'Secret':
         return <DataResourceConfig {...props} />;
+      case 'Role':
+        return <RoleConfig data={data} nodeId={selectedNode.id} />;
       default:
         return null;
     }
   };
 
   const isReady = data.status === 'ready' ||
-    ['Deployment', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret'].includes(selectedNode.type);
+    ['Deployment', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret', 'Role'].includes(selectedNode.type);
 
   return (
     <div className="space-y-4">
