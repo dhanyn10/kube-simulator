@@ -64,14 +64,26 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
     categoryClass = "bg-indigo-600 text-white";
   }
 
+  const getRowBgClass = () => {
+    if (isSelected) {
+      return isDark ? "bg-indigo-600/30 text-indigo-100 font-bold" : "bg-indigo-50 text-indigo-900 font-bold";
+    }
+    return isDark ? "hover:bg-slate-800/60 text-slate-300" : "hover:bg-slate-50 text-slate-700";
+  };
+
+  const getInfoBtnClass = () => {
+    if (isSelected) {
+      return "hover:bg-indigo-700 text-white";
+    }
+    return isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600";
+  };
+
   return (
     <div
       onMouseEnter={() => onHoverIndex?.(idx)}
       className={cn(
         "group flex flex-col transition-colors border-b last:border-b-0 border-slate-800/40",
-        isSelected
-          ? (isDark ? "bg-indigo-600/30 text-indigo-100 font-bold" : "bg-indigo-50 text-indigo-900 font-bold")
-          : (isDark ? "hover:bg-slate-800/60 text-slate-300" : "hover:bg-slate-50 text-slate-700")
+        getRowBgClass()
       )}
     >
       <div className="flex items-center justify-between px-3 py-1.5 w-full">
@@ -113,7 +125,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
               }}
               className={cn(
                 "p-0.5 rounded transition-all focus:outline-none opacity-0 group-hover:opacity-100",
-                isSelected ? "hover:bg-indigo-700 text-white" : (isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600")
+                getInfoBtnClass()
               )}
             >
               <Info size={12} />
@@ -129,6 +141,13 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
         )}>
           {item.subItems!.map((subName, subIdx) => {
             const isSubSelected = isSelected && selectedSubIndex === subIdx;
+            const getSubItemClass = () => {
+              if (isSubSelected) {
+                return "bg-indigo-600 text-white border-indigo-400 font-bold scale-105";
+              }
+              return isDark ? "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800" : "bg-white text-slate-700 border-slate-200 hover:bg-indigo-50";
+            };
+
             return (
               <button
                 type="button"
@@ -139,9 +158,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
                 }}
                 className={cn(
                   "px-2 py-0.5 rounded font-mono text-[10px] transition-all inline-block border focus:outline-none cursor-pointer",
-                  isSubSelected
-                    ? "bg-indigo-600 text-white border-indigo-400 font-bold scale-105"
-                    : (isDark ? "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800" : "bg-white text-slate-700 border-slate-200 hover:bg-indigo-50")
+                  getSubItemClass()
                 )}
               >
                 {subName}

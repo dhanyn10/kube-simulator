@@ -151,9 +151,9 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className={cn("block text-[9px] font-semibold", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
+                <span className={cn("block text-[9px] font-semibold", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
                   Target Resources:
-                </label>
+                </span>
                 <span className="text-[8px] text-slate-500 italic">
                   (Click badge to disconnect edge)
                 </span>
@@ -180,9 +180,9 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
             </div>
 
             <div>
-              <label className={cn("block text-[9px] font-semibold mb-1", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
+              <span className={cn("block text-[9px] font-semibold mb-1", colorMode === 'dark' ? "text-slate-400" : "text-slate-600")}>
                 Allowed Verbs:
-              </label>
+              </span>
               <div className="flex flex-wrap gap-1">
                 {AVAILABLE_VERBS.map((verb) => {
                   const isSelected = rule.verbs?.includes(verb);
