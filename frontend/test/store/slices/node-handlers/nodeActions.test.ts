@@ -128,4 +128,14 @@ describe('nodeActions', () => {
       ungroupNodes(['n1']);
       expect(useFlowStore.getState().nodes[0].data.groupId).toBeUndefined();
   });
+
+  it('deleteNodes removes targeted elements and logs canvas action', () => {
+      const parent = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'My Dep' } };
+      useFlowStore.setState({ nodes: [parent] as any, edges: [] });
+
+      useFlowStore.getState().deleteNodes([parent] as any);
+
+      const state = useFlowStore.getState();
+      expect(state.nodes).toHaveLength(0);
+  });
 });

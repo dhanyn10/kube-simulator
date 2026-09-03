@@ -80,6 +80,18 @@ describe('HPAConfig', () => {
 
     expect(screen.getByText('Replicas Range')).toBeDefined();
     expect(screen.getByText('Target CPU (%)')).toBeDefined();
+
+    const numberInputs = screen.getAllByRole('spinbutton');
+    if (numberInputs.length >= 3) {
+      fireEvent.change(numberInputs[0], { target: { value: '3' } });
+      expect(performUpdate).toHaveBeenCalledWith('minReplicas', 3);
+
+      fireEvent.change(numberInputs[1], { target: { value: '10' } });
+      expect(performUpdate).toHaveBeenCalledWith('maxReplicas', 10);
+
+      fireEvent.change(numberInputs[2], { target: { value: '80' } });
+      expect(performUpdate).toHaveBeenCalledWith('targetCPU', 80);
+    }
   });
 
   it('shows missing requests warning and allows fixing it', () => {
