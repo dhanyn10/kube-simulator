@@ -12,6 +12,12 @@ export interface K8sRoleItem {
   rules: K8sRoleRule[];
 }
 
+export interface K8sConfigMapItem {
+  id: string;
+  name: string;
+  configData: Array<{ key: string; value: string }>;
+}
+
 export interface K8sNodeData {
   [key: string]: any;
   label: string;
@@ -67,9 +73,10 @@ export interface K8sNodeData {
   // ConfigMap & Secret specific fields
   configData?: Array<{ key: string; value: string }>;
 
-  // Role specific fields
+  // Role & ConfigMap specific attached fields
   rules?: K8sRoleRule[];
   roles?: K8sRoleItem[];
+  configMaps?: K8sConfigMapItem[];
 }
 
 export interface K8sManifest {

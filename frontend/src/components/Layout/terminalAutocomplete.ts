@@ -35,6 +35,7 @@ export const GET_SUBCOMMANDS: SuggestionItem[] = [
   { value: 'kubectl get services', label: 'kubectl get services', category: 'Command', description: 'List services on canvas' },
   { value: 'kubectl get roles', label: 'kubectl get roles', category: 'Command', description: 'List roles on canvas' },
   { value: 'kubectl get rolebindings', label: 'kubectl get rolebindings', category: 'Command', description: 'List rolebindings on canvas' },
+  { value: 'kubectl get configmaps', label: 'kubectl get configmaps', category: 'Command', description: 'List configmaps on canvas' },
   { value: 'kubectl get all', label: 'kubectl get all', category: 'Command', description: 'List all resources on canvas' },
 ];
 
@@ -109,7 +110,8 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
     list.push(
       { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
       { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' },
-      { value: 'kubectl describe role ', label: 'kubectl describe role <name>', category: 'Subcommand', description: 'Describe role specs & rules' }
+      { value: 'kubectl describe role ', label: 'kubectl describe role <name>', category: 'Subcommand', description: 'Describe role specs & rules' },
+      { value: 'kubectl describe cm ', label: 'kubectl describe cm <name>', category: 'Subcommand', description: 'Describe configmap data' }
     );
   }
   if (sub === 'scale' || 'scale'.startsWith(sub)) {

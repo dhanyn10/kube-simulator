@@ -16,7 +16,9 @@ import {
   handleGetAllCommand,
   handleDescribeDeploymentCommand,
   handleGetRolesCommand,
-  handleDescribeRoleCommand
+  handleDescribeRoleCommand,
+  handleGetConfigMapsCommand,
+  handleDescribeConfigMapCommand
 } from './terminalCommands';
 import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomplete';
 
@@ -252,6 +254,8 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl get roles                     List all roles on the canvas');
   addActivityLog('  kubectl get rolebindings              List role bindings on the canvas');
   addActivityLog('  kubectl describe role <name>          Describe role specifications & rules');
+  addActivityLog('  kubectl get configmaps                List all configmaps on the canvas');
+  addActivityLog('  kubectl describe cm <name>            Describe configmap specifications & data');
   addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
   addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
@@ -650,6 +654,8 @@ export const executeKubectlCommand = (
     handleDescribeDeploymentCommand,
     handleGetRolesCommand,
     handleDescribeRoleCommand,
+    handleGetConfigMapsCommand,
+    handleDescribeConfigMapCommand,
   ];
 
   for (const handler of commandHandlers) {

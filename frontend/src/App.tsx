@@ -17,8 +17,8 @@ import { EventsOn } from '@wailsjs/runtime';
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { ContextMenu, ResourceManager } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
-import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal, RoleModal } from './components/Modals';
-import { K8sRoleItem } from './types';
+import { YamlModal, ScenarioModal, LogModal, AboutDialog, SettingsModal, RoleModal, ConfigMapModal } from './components/Modals';
+import { K8sRoleItem, K8sConfigMapItem } from './types';
 import {
   PodNode,
   ServiceNode,
@@ -180,6 +180,8 @@ export default function App() {
 
   const roleModalTargetNode = useFlowStore((state) => state.roleModalTargetNode);
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
+  const configMapModalTargetNode = useFlowStore((state) => state.configMapModalTargetNode);
+  const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
 
   const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
@@ -204,6 +206,35 @@ export default function App() {
     updateNodeData(target.id, { roles: updatedRoles });
     useFlowStore.getState().addLog('info', `[Role Attached] Attached role "${roleItem.name}" to card ${roleModalTargetNode.label}`, 'UI');
     setRoleModalTargetNode(null);
+
+    // Switch right sidebar to settings tab for target node
+    useFlowStore.setState({
+      configuringNodeId: target.id,
+      configuringEdgeId: null,
+      isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
+    });
+  };
+
+  const handleConfigMapSave = (cmItem: K8sConfigMapItem) => {
+    if (!configMapModalTargetNode) return;
+    const target = nodes.find((n) => n.id === configMapModalTargetNode.id);
+    if (!target) return;
+
+    const existingCMs = target.data.configMaps || [];
+    const existingIndex = existingCMs.findIndex((c: K8sConfigMapItem) => c.id === cmItem.id);
+    let updatedCMs: K8sConfigMapItem[];
+
+    if (existingIndex >= 0) {
+      updatedCMs = [...existingCMs];
+      updatedCMs[existingIndex] = cmItem;
+    } else {
+      updatedCMs = [...existingCMs, cmItem];
+    }
+
+    updateNodeData(target.id, { configMaps: updatedCMs });
+    useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${configMapModalTargetNode.label}`, 'UI');
+    setConfigMapModalTargetNode(null);
 
     // Switch right sidebar to settings tab for target node
     useFlowStore.setState({
@@ -474,6 +505,14 @@ export default function App() {
             targetNodeId={roleModalTargetNode?.id || null}
             targetNodeLabel={roleModalTargetNode?.label}
             onSave={handleRoleSave}
+          />
+
+          <ConfigMapModal
+            isOpen={configMapModalTargetNode !== null}
+            onClose={() => setConfigMapModalTargetNode(null)}
+            targetNodeId={configMapModalTargetNode?.id || null}
+            targetNodeLabel={configMapModalTargetNode?.label}
+            onSave={handleConfigMapSave}
           />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />

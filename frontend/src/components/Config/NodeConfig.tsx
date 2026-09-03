@@ -13,6 +13,7 @@ import {
   RoleConfig
 } from './';
 import { RoleSettingsSection } from './RoleSettingsSection';
+import { ConfigMapSettingsSection } from './ConfigMapSettingsSection';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../../store/slices/node-handlers/configUtils';
 
 interface NodeConfigProps {
@@ -155,6 +156,10 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
       {selectedNode.type !== 'Role' && (
         <RoleSettingsSection data={data} nodeId={selectedNode.id} />
+      )}
+
+      {selectedNode.type !== 'ConfigMap' && selectedNode.type !== 'Role' && (
+        <ConfigMapSettingsSection data={data} nodeId={selectedNode.id} />
       )}
 
       {['Pod', 'Deployment', 'ReplicaSet'].includes(selectedNode.type) && (
