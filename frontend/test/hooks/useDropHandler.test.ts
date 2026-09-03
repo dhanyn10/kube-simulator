@@ -182,4 +182,114 @@ describe('useDropHandler', () => {
 
     expect(addNode).toHaveBeenCalledWith('Pod', expect.any(Object), 'd1');
   });
+
+  describe('Role drag and drop handlers', () => {
+    it('onDragOver handles dragging a Role item over a card inside deployment', () => {
+      const setHoveredDeploymentId = vi.fn();
+      const depNode = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: {}
+      };
+      const podChild = {
+        id: 'pod1',
+        type: 'Pod',
+        parentId: 'dep1',
+        position: { x: 10, y: 10 },
+        width: 100,
+        height: 50,
+        data: {}
+      };
+
+      useFlowStore.setState({
+        draggingSidebarItem: 'Role' as any,
+        setHoveredDeploymentId,
+        nodes: [depNode, podChild] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 20,
+        clientY: 20,
+        dataTransfer: { dropEffect: '' }
+      } as any;
+
+      act(() => {
+        result.current.onDragOver(mockEvent);
+      });
+
+      expect(setHoveredDeploymentId).toHaveBeenCalledWith('dep1');
+      const updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes.find((n) => n.id === 'dep1')?.data?.isHovered).toBe(true);
+    });
+
+    it('onDrop handles dropping a Role onto a target workload', () => {
+      const depNode = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: { label: 'My Deployment' }
+      };
+
+      useFlowStore.setState({
+        nodes: [depNode] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('Role')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().roleModalTargetNode).toEqual({
+        id: 'dep1',
+        label: 'My Deployment'
+      });
+    });
+
+    it('onDrop logs warning when dropping Role on empty canvas space', () => {
+      const addLogSpy = vi.fn();
+      useFlowStore.setState({
+        nodes: [],
+        addLog: addLogSpy
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 500,
+        clientY: 500,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('Role')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'warn',
+        expect.stringContaining('Role must be dropped onto an existing card'),
+        'UI'
+      );
+    });
+  });
 });

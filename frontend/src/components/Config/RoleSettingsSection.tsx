@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ShieldCheck, Edit2, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { K8sNodeData, K8sRoleItem } from '../../types';
@@ -17,13 +17,9 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
 
   const [editingRole, setEditingRole] = useState<K8sRoleItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showRoleList, setShowRoleList] = useState(false);
 
   const roles: K8sRoleItem[] = data.roles || [];
-
-  const handleOpenAdd = () => {
-    setEditingRole(null);
-    setIsModalOpen(true);
-  };
 
   const handleOpenEdit = (role: K8sRoleItem) => {
     setEditingRole(role);
@@ -50,97 +46,74 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
     setIsModalOpen(false);
   };
 
+  if (roles.length === 0) return null;
+
   return (
-    <div className="space-y-3 pt-3 border-t border-slate-700/30">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Shield size={14} className="text-indigo-400" />
-          <h3 className={cn("text-xs font-bold uppercase tracking-wider", colorMode === 'dark' ? "text-slate-200" : "text-slate-700")}>
-            Attached Roles (Hero Items)
-          </h3>
-        </div>
-        <button
-          type="button"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-        >
-          <Plus size={11} /> Add Role
-        </button>
-      </div>
-
-      <div className="space-y-2">
-        {roles.map((role) => (
-          <div
-            key={`attached-role-${role.id}`}
+    <div className="pt-2 border-t border-slate-700/30">
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Single Role Hero Item Icon with Notification Count Badge */}
+        <div className="relative group inline-block">
+          <button
+            type="button"
+            onClick={() => setShowRoleList((prev) => !prev)}
             className={cn(
-              "p-2.5 rounded-xl border flex flex-col gap-1.5 relative group transition-all shadow-sm",
+              "p-2 rounded-md border flex items-center justify-center transition-all cursor-pointer relative shadow-sm hover:scale-105",
               colorMode === 'dark'
-                ? "bg-indigo-950/30 border-indigo-500/30 text-indigo-100"
-                : "bg-indigo-50/80 border-indigo-200 text-indigo-900"
+                ? "bg-slate-900/80 border-indigo-500/50 text-indigo-400 hover:border-indigo-400"
+                : "bg-indigo-50 border-indigo-200 text-indigo-600 hover:border-indigo-400"
             )}
+            title={`Attached Roles (${roles.length})`}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="p-1 rounded bg-indigo-500/20 text-indigo-400">
-                  <Shield size={12} />
-                </span>
-                <span className="text-xs font-bold font-mono tracking-tight">{role.name}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(role)}
-                  className="p-1 rounded text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 transition-colors"
-                  title="Edit Role"
-                >
-                  <Edit2 size={12} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteRole(role.id, role.name)}
-                  className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-colors"
-                  title="Remove Role"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
+            <ShieldCheck size={18} />
 
-            {role.rules && role.rules.length > 0 && (
-              <div className="space-y-1">
-                {role.rules.map((rule) => {
-                  const ruleKey = `rule-summary-${role.id}-${rule.resources?.join('_') || 'empty'}-${rule.verbs?.join('_') || 'none'}`;
-                  return (
-                  <div key={ruleKey} className="text-[10px] font-mono opacity-85 space-y-0.5">
-                    <div className="flex flex-wrap gap-1">
-                      <span className="font-semibold text-slate-400">res:</span>
-                      {rule.resources?.map((res) => (
-                        <span key={res} className="px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold">
-                          {res}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      <span className="font-semibold text-slate-400">verbs:</span>
-                      {rule.verbs?.map((verb) => (
-                        <span key={verb} className="px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                          {verb}
-                        </span>
-                      ))}
+            {/* Notification Badge with Number (Only rendered when count > 1) */}
+            {roles.length > 1 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold font-mono flex items-center justify-center shadow-md border border-slate-900 animate-in zoom-in-75 duration-150">
+                {roles.length}
+              </span>
+            )}
+          </button>
+
+          {/* Quick List Popover when clicking Role hero icon */}
+          {showRoleList && (
+            <div className={cn(
+              "absolute left-0 top-full mt-2 w-56 rounded-lg border shadow-xl z-50 p-2 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150",
+              colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+            )}>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 pb-1 border-b border-slate-700/30">
+                Attached Roles ({roles.length})
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+                {roles.map((role) => (
+                  <div
+                    key={`role-item-${role.id}`}
+                    className="flex items-center justify-between p-1.5 rounded-md hover:bg-slate-800/50 transition-colors text-xs font-mono"
+                  >
+                    <span className="truncate max-w-[120px] font-semibold">{role.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(role)}
+                        className="p-1 rounded text-slate-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                        title="Edit Role"
+                      >
+                        <Edit2 size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRole(role.id, role.name)}
+                        className="p-1 rounded text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                        title="Delete Role"
+                      >
+                        <Trash2 size={11} />
+                      </button>
                     </div>
                   </div>
-                );
-                })}
+                ))}
               </div>
-            )}
-          </div>
-        ))}
-
-        {roles.length === 0 && (
-          <div className="text-center py-3 text-slate-500 text-[10px] italic border border-dashed rounded-lg border-slate-700/40">
-            No roles attached yet. Drop Role from sidebar or click "+ Add Role".
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       <RoleModal

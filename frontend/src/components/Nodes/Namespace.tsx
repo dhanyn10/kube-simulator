@@ -11,7 +11,9 @@ import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
   const { transitionClasses } = useNodeStyles(props.id);
+  const isRoleDragging = draggingSidebarItem === 'Role';
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
@@ -26,7 +28,8 @@ export const NamespaceNode = memo((props: NodeProps) => {
       colorMode === 'dark' ? "bg-emerald-600/5 border-emerald-900/30 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]" : "bg-emerald-50/20 border-emerald-200 shadow-[inset_0_0_20px_rgba(16,185,129,0.02)]",
       props.selected ? "border-emerald-500/50 ring-4 ring-emerald-500/10" : "hover:border-emerald-400/50",
       data.isHovered && "border-solid border-violet-400 bg-violet-500/10 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
-      data.isDetaching && "border-solid border-red-500 bg-red-500/10 ring-8 ring-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+      data.isDetaching && "border-solid border-red-500 bg-red-500/10 ring-8 ring-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
+      isRoleDragging && data.isHovered && "role-drag-inside-ns"
     )}>
       <NodeResizer
         minWidth={400}

@@ -12,9 +12,14 @@ import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
   const { transitionClasses } = useNodeStyles(props.id);
+
+  const isRoleDragging = draggingSidebarItem === 'Role';
+  const currentNode = nodes.find((n) => n.id === props.id);
+  const isInsideNamespace = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId)?.type === 'Namespace' : false;
 
   // Check if targeted by HPA
   const isTargetedByHPA = edges.some(e => e.target === props.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
@@ -47,7 +52,8 @@ export const DeploymentNode = memo((props: NodeProps) => {
       colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
       borderClass,
       data.isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
-      data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+      data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
+      isRoleDragging && (isInsideNamespace ? (data.isHovered && "role-drag-inside-ns") : "role-drag-outside-ns")
     )}>
       <QuickConnectArrows nodeId={props.id} color="violet" />
       <NodeResizer

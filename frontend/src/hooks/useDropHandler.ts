@@ -40,6 +40,30 @@ const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes
   return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
 };
 
+const findRoleTargetNode = (
+  roleCenter: { x: number; y: number },
+  nodes: Node[]
+): Node | undefined => {
+  const candidates = nodes.filter((n) => isPositionInsideNode(roleCenter, n, nodes));
+
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    const areaA = (a.width || a.measured?.width || 200) * (a.height || a.measured?.height || 100);
+    const areaB = (b.width || b.measured?.width || 200) * (b.height || b.measured?.height || 100);
+    return areaA - areaB;
+  });
+
+  let targetNode = sortedCandidates[0];
+
+  if (targetNode && targetNode.type === 'Pod' && targetNode.parentId) {
+    const parentDep = nodes.find((p) => p.id === targetNode.parentId && p.type === 'Deployment');
+    if (parentDep) {
+      targetNode = parentDep;
+    }
+  }
+
+  return targetNode;
+};
+
 const computeFinalDropPosition = (
   centeredPosition: { x: number; y: number },
   targetContainer: Node | undefined,
@@ -86,6 +110,20 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (!draggingSidebarItem) return;
 
+      if (draggingSidebarItem === 'Role') {
+        const roleCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const targetNode = findRoleTargetNode(roleCenter, nodes);
+
+        setHoveredDeploymentId(targetNode?.id || null);
+        useFlowStore.setState((state) => ({
+          nodes: state.nodes.map((n) => ({
+            ...n,
+            data: { ...n.data, isHovered: n.id === targetNode?.id },
+          })),
+        }));
+        return;
+      }
+
       const target = getTargetContainer(event.clientX, event.clientY, draggingSidebarItem);
       setHoveredDeploymentId(target?.id || null);
 
@@ -96,7 +134,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
         })),
       }));
     },
-    [getTargetContainer, setHoveredDeploymentId, draggingSidebarItem]
+    [getTargetContainer, setHoveredDeploymentId, draggingSidebarItem, screenToFlowPosition, nodes]
   );
 
   const onDrop = useCallback(
@@ -109,7 +147,9 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       // Handle Role drop onto existing canvas card
       if (type === 'Role') {
-        const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(position, n, nodes));
+        const roleCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const targetNode = findRoleTargetNode(roleCenter, nodes);
+
         if (!targetNode) {
           useFlowStore.getState().addLog('warn', '[Canvas Action] Role must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach roles!', 'UI');
         } else {

@@ -49,6 +49,23 @@ describe('NamespaceNode', () => {
     useFlowStore.setState({ colorMode: 'dark' });
   });
 
+  it('applies role-drag-inside-ns when dragging Role from sidebar onto hovered namespace', () => {
+    useFlowStore.setState({ draggingSidebarItem: 'Role' });
+    const props = {
+      id: 'ns1',
+      type: 'Namespace',
+      data: { label: 'My Namespace', isHovered: true }
+    } as any;
+
+    const { container } = render(
+      <ReactFlowProvider>
+        <NamespaceNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect((container.firstChild as HTMLElement).className).toContain('role-drag-inside-ns');
+  });
+
   it('renders correctly with default data', () => {
     const props = {
       id: 'ns1',

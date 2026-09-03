@@ -329,14 +329,22 @@ const deriveNamespaceResources = (targetNode: Node, allNodes: Node[]): string[] 
 const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: Node[]): string[] => {
   if (!targetNode) return ['pods', 'deployments'];
 
-  const type = targetNode.type as string;
+  let effectiveTarget = targetNode;
+  if (targetNode.type === 'Pod' && targetNode.parentId) {
+    const parentDep = allNodes.find((n) => n.id === targetNode.parentId && n.type === 'Deployment');
+    if (parentDep) {
+      effectiveTarget = parentDep;
+    }
+  }
+
+  const type = effectiveTarget.type as string;
 
   if (type === 'Deployment') {
-    return deriveDeploymentResources(targetNode, allNodes);
+    return deriveDeploymentResources(effectiveTarget, allNodes);
   }
 
   if (type === 'Namespace') {
-    return deriveNamespaceResources(targetNode, allNodes);
+    return deriveNamespaceResources(effectiveTarget, allNodes);
   }
 
   const mappedResource = SINGLE_CHILD_TYPE_MAP[type];
