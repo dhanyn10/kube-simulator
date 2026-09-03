@@ -87,10 +87,16 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       if (!draggingSidebarItem) return;
 
       if (draggingSidebarItem === 'Role') {
-        const offset = CENTER_OFFSETS['Role'] || { x: 80, y: 50 };
-        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const centeredPos = { x: position.x - offset.x, y: position.y - offset.y };
-        const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(centeredPos, n, nodes));
+        const roleCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const candidates = nodes.filter((n) => isPositionInsideNode(roleCenter, n, nodes));
+
+        const sortedCandidates = [...candidates].sort((a, b) => {
+          const areaA = (a.width || a.measured?.width || 200) * (a.height || a.measured?.height || 100);
+          const areaB = (b.width || b.measured?.width || 200) * (b.height || b.measured?.height || 100);
+          return areaA - areaB;
+        });
+
+        let targetNode = sortedCandidates[0];
 
         // If target is a child Pod inside a Deployment, resolve target to the parent Deployment
         if (targetNode && targetNode.type === 'Pod' && targetNode.parentId) {
@@ -133,7 +139,17 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       // Handle Role drop onto existing canvas card
       if (type === 'Role') {
-        const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(position, n, nodes));
+        const roleCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const candidates = nodes.filter((n) => isPositionInsideNode(roleCenter, n, nodes));
+
+        const sortedCandidates = [...candidates].sort((a, b) => {
+          const areaA = (a.width || a.measured?.width || 200) * (a.height || a.measured?.height || 100);
+          const areaB = (b.width || b.measured?.width || 200) * (b.height || b.measured?.height || 100);
+          return areaA - areaB;
+        });
+
+        let targetNode = sortedCandidates[0];
+
         if (targetNode && targetNode.type === 'Pod' && targetNode.parentId) {
           const parentDep = nodes.find((p) => p.id === targetNode.parentId && p.type === 'Deployment');
           if (parentDep) {
