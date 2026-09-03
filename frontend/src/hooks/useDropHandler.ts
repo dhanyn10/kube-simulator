@@ -54,7 +54,7 @@ const findRoleTargetNode = (
 
   let targetNode = sortedCandidates[0];
 
-  if (targetNode && targetNode.type === 'Pod' && targetNode.parentId) {
+  if (targetNode?.type === 'Pod' && targetNode.parentId) {
     const parentDep = nodes.find((p) => p.id === targetNode.parentId && p.type === 'Deployment');
     if (parentDep) {
       targetNode = parentDep;
@@ -154,7 +154,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
           useFlowStore.getState().addLog('warn', '[Canvas Action] Role must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach roles!', 'UI');
         } else {
           useFlowStore.setState({
-            roleModalTargetNode: { id: targetNode.id, label: targetNode.data.label || targetNode.id }
+            roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
           });
         }
         setHoveredDeploymentId(null);

@@ -149,4 +149,35 @@ describe('createFlowSlice', () => {
     expect(state.lastActionId).toContain('layout-');
     expect(state.nodes).toHaveLength(2);
   });
+
+  it('onEdgesChange updates selected state and handles edge deletion', () => {
+    const edge: Edge = { id: 'e1', source: 'n1', target: 'n2', selected: false };
+    useFlowStore.setState({ edges: [edge] });
+
+    useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'select', selected: true }]);
+    expect(useFlowStore.getState().edges[0].selected).toBe(true);
+
+    useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'remove' }]);
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
+
+  it('onConnect handles invalid connection with error log and edge validation error', () => {
+    const internet = { id: 'i1', type: 'Internet', data: {} };
+    const pvc = { id: 'p1', type: 'PVC', data: {} };
+    useFlowStore.setState({ nodes: [internet, pvc] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'i1', target: 'p1' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    expect(edges[0].data?.validationError).toBeDefined();
+  });
+
+  it('onQuickConnect logs warning when no valid target node is found in given direction', () => {
+    const centerNode: Node = { id: 'center', type: 'Pod', position: { x: 100, y: 100 }, data: {} };
+    useFlowStore.setState({ nodes: [centerNode], edges: [] });
+
+    useFlowStore.getState().onQuickConnect('center', 'right');
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
 });

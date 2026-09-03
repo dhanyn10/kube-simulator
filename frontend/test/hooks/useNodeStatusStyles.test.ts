@@ -38,19 +38,40 @@ describe('useNodeStatus', () => {
 
 describe('useNodeContainerStyles', () => {
   it('returns base classes for light mode', () => {
-    const { result } = renderHook(() => useNodeContainerStyles(false, false, false, false, 'blue', 'light'));
+    const { result } = renderHook(() => useNodeContainerStyles({
+      selected: false,
+      isReady: false,
+      isPending: false,
+      isCrashing: false,
+      color: 'blue',
+      colorMode: 'light'
+    }));
     expect(result.current.containerClasses).toContain('bg-white');
     expect(result.current.containerClasses).toContain('border-slate-200');
   });
 
   it('returns selection classes when selected', () => {
-    const { result } = renderHook(() => useNodeContainerStyles(true, false, false, false, 'blue', 'dark'));
+    const { result } = renderHook(() => useNodeContainerStyles({
+      selected: true,
+      isReady: false,
+      isPending: false,
+      isCrashing: false,
+      color: 'blue',
+      colorMode: 'dark'
+    }));
     expect(result.current.containerClasses).toContain('border-blue-400');
     expect(result.current.containerClasses).toContain('ring-blue-400/20');
   });
 
   it('returns crashing classes', () => {
-    const { result } = renderHook(() => useNodeContainerStyles(false, false, false, true, 'blue', 'dark'));
+    const { result } = renderHook(() => useNodeContainerStyles({
+      selected: false,
+      isReady: false,
+      isPending: false,
+      isCrashing: true,
+      color: 'blue',
+      colorMode: 'dark'
+    }));
     expect(result.current.containerClasses).toContain('animate-crash-blink');
     expect(result.current.containerClasses).toContain('border-red-600');
   });

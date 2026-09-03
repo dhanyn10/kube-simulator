@@ -116,4 +116,40 @@ describe('ContextMenu', () => {
     fireEvent.keyDown(menu, { key: 'Escape' });
     expect(mockOnClose).toHaveBeenCalled();
   });
+
+  it('renders and clicks View logs when single workload card is selected', () => {
+    const mockSetTerminalOpen = vi.fn();
+    const mockSetTerminalActiveTab = vi.fn();
+    const mockSetTerminalSelectedResourceId = vi.fn();
+
+    (useFlowStore as any).mockImplementation((selector: any) => {
+      const state = {
+        colorMode: 'light',
+        nodes: [{ id: 'pod-1', type: 'Pod', selected: true, data: {} }],
+        groupNodes: mockGroupNodes,
+        ungroupNodes: mockUngroupNodes,
+        copyNodes: mockCopyNodes,
+        pasteNodes: mockPasteNodes,
+        setTerminalOpen: mockSetTerminalOpen,
+        setTerminalActiveTab: mockSetTerminalActiveTab,
+        setTerminalSelectedResourceId: mockSetTerminalSelectedResourceId,
+      };
+      return selector(state);
+    });
+
+    render(
+      <ContextMenu
+        x={100}
+        y={100}
+        onClose={mockOnClose}
+        onInspect={mockOnInspect}
+        onDelete={mockOnDelete}
+      />
+    );
+
+    fireEvent.click(screen.getByText('View logs (kubectl logs)'));
+    expect(mockSetTerminalSelectedResourceId).toHaveBeenCalledWith('pod-1');
+    expect(mockSetTerminalActiveTab).toHaveBeenCalledWith('logs');
+    expect(mockSetTerminalOpen).toHaveBeenCalledWith(true);
+  });
 });

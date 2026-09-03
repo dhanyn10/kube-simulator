@@ -98,4 +98,15 @@ describe('dragHandlers', () => {
     expect(updatedPod?.position).toEqual({ x: 20, y: 20 });
     expect(updatedPod?.parentId).toBe('ns1');
   });
+
+  it('onNodeDragStop logs move activity when standalone node is moved', () => {
+    const { onNodeDragStop } = useFlowStore.getState();
+    useFlowStore.setState({ logs: [] });
+
+    const node = { id: 'n1', type: 'Pod', position: { x: 200, y: 200 }, data: { label: 'pod-1' } } as any;
+    onNodeDragStop({} as any, node);
+
+    const state = useFlowStore.getState();
+    expect(state.logs.some(l => l.message.includes('[Canvas Action] Moved card'))).toBe(true);
+  });
 });
