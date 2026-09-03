@@ -110,19 +110,19 @@
 
   @keyframes water-ripple {
     0% {
-      transform: scale(0.98);
+      transform: scale(0.99);
       opacity: 0.9;
       box-shadow: 0 0 0 0px rgba(56, 189, 248, 0.8), 0 0 0 0px rgba(14, 165, 233, 0.5);
     }
     50% {
-      transform: scale(1.02);
+      transform: scale(1.01);
       opacity: 0.6;
-      box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.4), 0 0 0 24px rgba(14, 165, 233, 0.2);
+      box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.4), 0 0 0 12px rgba(14, 165, 233, 0.2);
     }
     100% {
-      transform: scale(1.04);
+      transform: scale(1.02);
       opacity: 0;
-      box-shadow: 0 0 0 25px rgba(56, 189, 248, 0), 0 0 0 45px rgba(14, 165, 233, 0);
+      box-shadow: 0 0 0 12px rgba(56, 189, 248, 0), 0 0 0 22px rgba(14, 165, 233, 0);
     }
   }
 
