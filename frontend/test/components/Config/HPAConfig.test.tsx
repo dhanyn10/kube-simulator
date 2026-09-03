@@ -16,8 +16,9 @@ describe('HPAConfig', () => {
       minReplicas: 2,
       maxReplicas: 5,
       targetCPU: 60,
-      displaySettings: { replicas: true, targetCPU: true },
-      yamlSettings: { replicas: true, targetCPU: true }
+      targetMemory: 70,
+      displaySettings: { replicas: true, targetCPU: true, targetMemory: true },
+      yamlSettings: { replicas: true, targetCPU: true, targetMemory: true }
     }
   };
 
@@ -44,9 +45,9 @@ describe('HPAConfig', () => {
 
   it('renders LINKED status when connected to deployment with requests', () => {
     const depNode = {
-        id: 'dep1',
-        type: 'Deployment',
-        data: { label: 'My Dep', cpuRequest: '100m', memoryRequest: '128Mi' }
+      id: 'dep1',
+      type: 'Deployment',
+      data: { label: 'My Dep', cpuRequest: '100m', memoryRequest: '128Mi' }
     };
     useFlowStore.setState({
       nodes: [selectedNode, depNode],
@@ -64,7 +65,7 @@ describe('HPAConfig', () => {
     expect(screen.getByText('LINKED TO MY DEP')).toBeDefined();
   });
 
-  it('handles replica range updates after opening advanced section', () => {
+  it('handles replica range and CPU/Mem updates and toggles after opening advanced section', () => {
     render(
       <HPAConfig
         selectedNode={selectedNode}
@@ -80,25 +81,35 @@ describe('HPAConfig', () => {
 
     expect(screen.getByText('Replicas Range')).toBeDefined();
     expect(screen.getByText('Target CPU (%)')).toBeDefined();
+    expect(screen.getByText('Target Mem (%)')).toBeDefined();
 
-    const numberInputs = screen.getAllByRole('spinbutton');
-    if (numberInputs.length >= 3) {
-      fireEvent.change(numberInputs[0], { target: { value: '3' } });
-      expect(performUpdate).toHaveBeenCalledWith('minReplicas', 3);
+    // Trigger toggle visibility and yaml on Replicas Range
+    const replicasHeader = screen.getByText('Replicas Range').closest('div');
+    const replicasButtons = replicasHeader?.querySelectorAll('button') || [];
+    replicasButtons.forEach((btn) => fireEvent.click(btn));
 
-      fireEvent.change(numberInputs[1], { target: { value: '10' } });
-      expect(performUpdate).toHaveBeenCalledWith('maxReplicas', 10);
+    expect(toggleVisibility).toHaveBeenCalledWith('replicas');
+    expect(toggleYaml).toHaveBeenCalledWith('replicas');
 
-      fireEvent.change(numberInputs[2], { target: { value: '80' } });
-      expect(performUpdate).toHaveBeenCalledWith('targetCPU', 80);
-    }
+    // Trigger toggle visibility and yaml on Target CPU (%)
+    const cpuHeader = screen.getByText('Target CPU (%)').closest('div');
+    const cpuButtons = cpuHeader?.querySelectorAll('button') || [];
+    cpuButtons.forEach((btn) => fireEvent.click(btn));
+
+    expect(toggleVisibility).toHaveBeenCalledWith('targetCPU');
+    expect(toggleYaml).toHaveBeenCalledWith('targetCPU');
+
+    // Select 80% on Target Mem (%) preset selector
+    const preset80Btns = screen.getAllByText('80%');
+    fireEvent.click(preset80Btns[preset80Btns.length - 1]);
+    expect(performUpdate).toHaveBeenCalledWith({ targetMemory: 80 });
   });
 
   it('shows missing requests warning and allows fixing it', () => {
     const depNode = {
-        id: 'dep1',
-        type: 'Deployment',
-        data: { label: 'My Dep' } // Missing requests
+      id: 'dep1',
+      type: 'Deployment',
+      data: { label: 'My Dep' }
     };
     useFlowStore.setState({
       nodes: [selectedNode, depNode],
