@@ -39,51 +39,68 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
   };
 };
 
+export interface NodeContainerStylesOptions {
+  selected?: boolean;
+  isReady: boolean;
+  isPending: boolean;
+  isCrashing: boolean;
+  color: string;
+  colorMode: 'dark' | 'light';
+  isRoleDragging?: boolean;
+  isInsideNamespace?: boolean;
+  isHovered?: boolean;
+}
+
+const getSelectionClasses = (selected: boolean | undefined, color: string, isDark: boolean): string => {
+  if (!selected) return `hover:border-${color}-500/50`;
+  return isDark
+    ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
+    : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg";
+};
+
+const getReadyClasses = (isReady: boolean, isDark: boolean): string => {
+  if (!isReady) return "";
+  return isDark
+    ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+    : "border-emerald-500/30";
+};
+
+const getRoleDragClasses = (isRoleDragging?: boolean, isInsideNamespace?: boolean, isHovered?: boolean): string => {
+  if (!isRoleDragging) return "";
+  if (!isInsideNamespace) return "role-drag-outside-ns";
+  return isHovered ? "role-drag-inside-ns" : "";
+};
+
 /**
  * Hook to calculate container styling classes.
  */
-export const useNodeContainerStyles = (
-  selected: boolean | undefined,
-  isReady: boolean,
-  isPending: boolean,
-  isCrashing: boolean,
-  color: string,
-  colorMode: 'dark' | 'light',
-  isRoleDragging?: boolean,
-  isInsideNamespace?: boolean,
-  isHovered?: boolean
-) => {
-  const containerBaseClasses = colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
-  let selectionClasses = `hover:border-${color}-500/50`;
-  if (selected) {
-    selectionClasses = colorMode === 'dark'
-      ? "border-blue-400 ring-4 ring-blue-400/20 shadow-[0_0_15px_rgba(56,189,248,0.3)]"
-      : "border-blue-500 ring-4 ring-blue-500/10 shadow-lg";
-  }
+export const useNodeContainerStyles = (options: NodeContainerStylesOptions) => {
+  const {
+    selected,
+    isReady,
+    isPending,
+    isCrashing,
+    color,
+    colorMode,
+    isRoleDragging,
+    isInsideNamespace,
+    isHovered
+  } = options;
 
-  let readyClasses = "";
-  if (isReady) {
-    readyClasses = colorMode === 'dark'
-      ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-      : "border-emerald-500/30";
-  }
+  const isDark = colorMode === 'dark';
+  const containerBaseClasses = isDark ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
+  const selectionClasses = getSelectionClasses(selected, color, isDark);
+  const readyClasses = getReadyClasses(isReady, isDark);
 
   const statusClasses = [
     isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",
     isCrashing && "border-red-600 ring-8 ring-red-600/30 animate-crash-blink shadow-[0_0_30px_rgba(220,38,38,0.6)]"
   ].filter(Boolean).join(' ');
 
-  let roleDragClasses = "";
-  if (isRoleDragging) {
-    if (isInsideNamespace) {
-      if (isHovered) roleDragClasses = "role-drag-inside-ns";
-    } else {
-      roleDragClasses = "role-drag-outside-ns";
-    }
-  }
+  const roleDragClasses = getRoleDragClasses(isRoleDragging, isInsideNamespace, isHovered);
 
   return {
     containerClasses: `group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0 ${containerBaseClasses} ${selectionClasses} ${readyClasses} ${statusClasses} ${roleDragClasses}`,
-    progressEmptyBgClass: colorMode === 'dark' ? "bg-slate-700" : "bg-slate-200"
+    progressEmptyBgClass: isDark ? "bg-slate-700" : "bg-slate-200"
   };
 };

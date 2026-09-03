@@ -20,6 +20,16 @@ const RESOURCE_TYPE_MAP: Record<string, K8sResourceType> = {
   persistentvolumeclaims: 'PVC',
 };
 
+const getVerbButtonStyles = (isSelected: boolean | undefined, colorMode: 'dark' | 'light'): string => {
+  if (isSelected) {
+    return "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold";
+  }
+  if (colorMode === 'dark') {
+    return "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600";
+  }
+  return "bg-white border-slate-300 text-slate-600 hover:border-slate-400";
+};
+
 export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
@@ -199,9 +209,7 @@ export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
                         onClick={() => handleToggleVerb(ruleIdx, verb)}
                         className={cn(
                           "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors",
-                          isSelected
-                            ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold"
-                            : colorMode === 'dark' ? "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600" : "bg-white border-slate-300 text-slate-600 hover:border-slate-400"
+                          getVerbButtonStyles(isSelected, colorMode)
                         )}
                       >
                         {verb}

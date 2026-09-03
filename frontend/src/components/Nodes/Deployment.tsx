@@ -9,6 +9,38 @@ import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 
+const checkIsInsideNamespace = (nodeId: string, nodes: any[]): boolean => {
+  const currentNode = nodes.find((n) => n.id === nodeId);
+  if (!currentNode?.parentId) return false;
+  const parentNode = nodes.find((n) => n.id === currentNode.parentId);
+  return parentNode?.type === 'Namespace';
+};
+
+const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], nodes: any[]): boolean => {
+  const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
+  if (hasRequests) return false;
+  return edges.some((e) => e.target === nodeId && nodes.find((n) => n.id === e.source)?.type === 'HPA');
+};
+
+const getRoleDragClass = (isRoleDragging: boolean, isInsideNamespace: boolean, isHovered?: boolean): string => {
+  if (!isRoleDragging) return '';
+  if (!isInsideNamespace) return 'role-drag-outside-ns';
+  return isHovered ? 'role-drag-inside-ns' : '';
+};
+
+const getDeploymentBorderClass = (selected: boolean | undefined, colorMode: 'dark' | 'light'): string => {
+  if (!selected) return 'hover:border-slate-700';
+  return colorMode === 'dark'
+    ? 'border-violet-500 ring-4 ring-violet-500/10'
+    : 'border-violet-400 ring-4 ring-violet-400/10';
+};
+
+const getBadgeColor = (data: K8sNodeData): string => {
+  if (data.isHovered) return 'bg-violet-400';
+  if (data.isDetaching) return 'bg-red-500';
+  return 'bg-violet-600';
+};
+
 export const DeploymentNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -17,43 +49,29 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const { transitionClasses } = useNodeStyles(props.id);
 
-  const isRoleDragging = draggingSidebarItem === 'Role';
-  const currentNode = nodes.find((n) => n.id === props.id);
-  const isInsideNamespace = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId)?.type === 'Namespace' : false;
-
-  // Check if targeted by HPA
-  const isTargetedByHPA = edges.some(e => e.target === props.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
-  const hasRequests = !!(data.cpuRequest && data.memoryRequest);
-  const showHPAWarning = isTargetedByHPA && !hasRequests;
+  const isInsideNamespace = checkIsInsideNamespace(props.id, nodes);
+  const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
+  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role', isInsideNamespace, data.isHovered);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
 
   const { handleNodeResize, handleNodeResizeStop } = useNodeResize(props.id, props.type);
 
-  const getBadgeColor = () => {
-    if (data.isHovered) return "bg-violet-400";
-    if (data.isDetaching) return "bg-red-500";
-    return "bg-violet-600";
-  };
-
-  let borderClass = "hover:border-slate-700";
-  if (props.selected) {
-    borderClass = colorMode === 'dark'
-      ? "border-violet-500 ring-4 ring-violet-500/10"
-      : "border-violet-400 ring-4 ring-violet-400/10";
-  }
+  const borderClass = getDeploymentBorderClass(props.selected, colorMode);
+  const badgeColor = getBadgeColor(data);
+  const isDarkMode = colorMode === 'dark';
 
   return (
     <div className={cn(
       "group relative border-2 border-dashed rounded-xl p-6 cursor-grab w-full h-full flex flex-col min-h-[140px]",
       transitionClasses,
       "transition-colors duration-200",
-      colorMode === 'dark' ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
+      isDarkMode ? "bg-violet-600/5 border-slate-800" : "bg-violet-50/30 border-slate-300",
       borderClass,
       data.isHovered && "border-solid border-violet-400 bg-violet-500/20 ring-8 ring-violet-500/30 shadow-[0_0_30px_rgba(139,92,246,0.4)]",
       data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
-      isRoleDragging && (isInsideNamespace ? (data.isHovered && "role-drag-inside-ns") : "role-drag-outside-ns")
+      roleDragClass
     )}>
       <QuickConnectArrows nodeId={props.id} color="violet" />
       <NodeResizer
@@ -69,7 +87,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       <div className="absolute -top-3 left-6 flex items-center gap-2">
         <span className={cn(
           "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
-          getBadgeColor()
+          badgeColor
         )}>
           DEPLOYMENT
         </span>
@@ -84,12 +102,12 @@ export const DeploymentNode = memo((props: NodeProps) => {
           onKeyDown,
           colorMode,
           label: data.label,
-          inputClassName: colorMode === 'dark' ? "text-violet-300 border-violet-500" : "text-violet-700 border-violet-400",
-          buttonClassName: colorMode === 'dark' ? "text-violet-300" : "text-violet-700"
+          inputClassName: isDarkMode ? "text-violet-300 border-violet-500" : "text-violet-700 border-violet-400",
+          buttonClassName: isDarkMode ? "text-violet-300" : "text-violet-700"
         })}
       </div>
 
-      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", colorMode === 'dark' ? "text-violet-400/60" : "text-violet-600/70")}>
+      <div className={cn("absolute top-3 left-6 text-[9px] font-mono", isDarkMode ? "text-violet-400/60" : "text-violet-600/70")}>
         replicas: {data.replicas || 0}
       </div>
 
