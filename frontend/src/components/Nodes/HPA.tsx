@@ -1,7 +1,7 @@
 import { memo, useCallback } from 'react';
 import { NodeProps, Handle, Position } from '@xyflow/react';
 import { Activity } from 'lucide-react';
-import { BaseNode } from './BaseNode';
+import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
@@ -39,7 +39,7 @@ export const HPANode = memo((props: NodeProps) => {
     : 'bg-emerald-500';
 
   return (
-    <BaseNode {...props} data={data} title="HPA" icon={Activity} color="fuchsia" id={props.id} type={props.type}>
+    <SimpleResourceNode {...props} title="HPA" icon={Activity} color="fuchsia">
       {showWarning && (
         <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[100]">
           <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
@@ -111,6 +111,6 @@ export const HPANode = memo((props: NodeProps) => {
         className={cn('!bg-fuchsia-500 !w-2 !h-2', !hasDeployment && 'opacity-20 pointer-events-none')}
         isValidConnection={isValidConnection}
       />
-    </BaseNode>
+    </SimpleResourceNode>
   );
 });
