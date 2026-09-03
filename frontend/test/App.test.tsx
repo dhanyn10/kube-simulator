@@ -222,11 +222,12 @@ describe('App Component', () => {
     expect(await screen.findByText('Kube Simulator')).toBeInTheDocument();
   });
 
-  it('handles role save callback from RoleModal', async () => {
+  it('handles role save callback from RoleModal and opens settings in right sidebar', async () => {
     const targetNode = { id: 'n1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'my-dep', roles: [] } };
     useFlowStore.setState({
       nodes: [targetNode],
       roleModalTargetNode: { id: 'n1', label: 'my-dep' },
+      isRightSidebarVisible: false,
     });
 
     await act(async () => {
@@ -241,6 +242,9 @@ describe('App Component', () => {
     });
 
     expect(useFlowStore.getState().roleModalTargetNode).toBeNull();
+    expect(useFlowStore.getState().configuringNodeId).toBe('n1');
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
   });
 
   it('passes correct background marker color in dark and light mode', async () => {

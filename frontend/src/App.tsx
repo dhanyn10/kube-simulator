@@ -204,6 +204,14 @@ export default function App() {
     updateNodeData(target.id, { roles: updatedRoles });
     useFlowStore.getState().addLog('info', `[Role Attached] Attached role "${roleItem.name}" to card ${roleModalTargetNode.label}`, 'UI');
     setRoleModalTargetNode(null);
+
+    // Switch right sidebar to settings tab for target node
+    useFlowStore.setState({
+      configuringNodeId: target.id,
+      configuringEdgeId: null,
+      isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
+    });
   };
 
   useAppInit(isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources);
