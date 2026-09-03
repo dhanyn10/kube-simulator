@@ -181,8 +181,8 @@ const TagInput: React.FC<TagInputProps> = ({
 
   return (
     <div ref={containerRef} className="relative space-y-1">
-      <div
-        onClick={() => inputRef.current?.focus()}
+      <label
+        htmlFor={id}
         className={cn(
           "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
           isFocused ? "ring-2 ring-indigo-500/50 border-indigo-500/80" : "border-slate-700/60",
@@ -234,7 +234,7 @@ const TagInput: React.FC<TagInputProps> = ({
             colorMode === 'dark' ? "text-slate-100 placeholder-slate-500" : "text-slate-800 placeholder-slate-400"
           )}
         />
-      </div>
+      </label>
 
       {/* Reusable CLI-Style Autocomplete Dropdown */}
       {isFocused && availableSuggestions.length > 0 && (
@@ -278,65 +278,70 @@ const deriveApiGroupsFromResources = (resources: string[]): string[] => {
   return Array.from(groups);
 };
 
+const deriveDeploymentResources = (targetNode: Node, allNodes: Node[]): string[] => {
+  const childPods = allNodes.filter((n) => n.parentId === targetNode.id && n.type === 'Pod');
+  const replicas = (targetNode.data?.replicas as number) ?? 0;
+  if (childPods.length > 0 || replicas > 0) {
+    return ['deployments', 'pods'];
+  }
+  return ['deployments'];
+};
+
+const SINGLE_CHILD_TYPE_MAP: Record<string, string> = {
+  Pod: 'pods',
+  Service: 'services',
+  ConfigMap: 'configmaps',
+  Secret: 'secrets',
+  PVC: 'persistentvolumeclaims',
+  Ingress: 'ingresses',
+  HPA: 'horizontalpodautoscalers',
+};
+
+const collectNamespaceChildResources = (child: Node, allNodes: Node[], resSet: Set<string>): void => {
+  if (child.type === 'Deployment') {
+    resSet.add('deployments');
+    const grandChildren = allNodes.filter((n) => n.parentId === child.id && n.type === 'Pod');
+    const replicas = (child.data?.replicas as number) ?? 0;
+    if (grandChildren.length > 0 || replicas > 0) {
+      resSet.add('pods');
+    }
+    return;
+  }
+
+  const resource = SINGLE_CHILD_TYPE_MAP[child.type || ''];
+  if (resource) {
+    resSet.add(resource);
+  }
+};
+
+const deriveNamespaceResources = (targetNode: Node, allNodes: Node[]): string[] => {
+  const children = allNodes.filter((n) => n.parentId === targetNode.id);
+  if (children.length === 0) {
+    return ['namespaces'];
+  }
+  const resSet = new Set<string>();
+  for (const child of children) {
+    collectNamespaceChildResources(child, allNodes, resSet);
+  }
+  return resSet.size > 0 ? Array.from(resSet) : ['namespaces'];
+};
+
 const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: Node[]): string[] => {
   if (!targetNode) return ['pods', 'deployments'];
 
   const type = targetNode.type as string;
 
   if (type === 'Deployment') {
-    const childPods = allNodes.filter((n) => n.parentId === targetNode.id && n.type === 'Pod');
-    const replicas = (targetNode.data?.replicas as number) ?? 0;
-    if (childPods.length > 0 || replicas > 0) {
-      return ['deployments', 'pods'];
-    }
-    return ['deployments'];
+    return deriveDeploymentResources(targetNode, allNodes);
   }
 
   if (type === 'Namespace') {
-    const children = allNodes.filter((n) => n.parentId === targetNode.id);
-    const resSet = new Set<string>();
-    if (children.length === 0) {
-      return ['namespaces'];
-    }
-    for (const child of children) {
-      if (child.type === 'Deployment') {
-        resSet.add('deployments');
-        const grandChildren = allNodes.filter((n) => n.parentId === child.id && n.type === 'Pod');
-        const replicas = (child.data?.replicas as number) ?? 0;
-        if (grandChildren.length > 0 || replicas > 0) {
-          resSet.add('pods');
-        }
-      } else if (child.type === 'Pod') {
-        resSet.add('pods');
-      } else if (child.type === 'Service') {
-        resSet.add('services');
-      } else if (child.type === 'ConfigMap') {
-        resSet.add('configmaps');
-      } else if (child.type === 'Secret') {
-        resSet.add('secrets');
-      } else if (child.type === 'PVC') {
-        resSet.add('persistentvolumeclaims');
-      } else if (child.type === 'Ingress') {
-        resSet.add('ingresses');
-      } else if (child.type === 'HPA') {
-        resSet.add('horizontalpodautoscalers');
-      }
-    }
-    return resSet.size > 0 ? Array.from(resSet) : ['namespaces'];
+    return deriveNamespaceResources(targetNode, allNodes);
   }
 
-  const mapTypeToResource: Record<string, string> = {
-    Pod: 'pods',
-    Service: 'services',
-    ConfigMap: 'configmaps',
-    Secret: 'secrets',
-    PVC: 'persistentvolumeclaims',
-    Ingress: 'ingresses',
-    HPA: 'horizontalpodautoscalers',
-  };
-
-  if (mapTypeToResource[type]) {
-    return [mapTypeToResource[type]];
+  const mappedResource = SINGLE_CHILD_TYPE_MAP[type];
+  if (mappedResource) {
+    return [mappedResource];
   }
 
   return [type.toLowerCase() + 's'];
