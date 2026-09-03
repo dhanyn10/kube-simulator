@@ -83,15 +83,22 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   statusOverride?: 'pending' | 'ready' | 'crashing';
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
+  const nodes = useFlowStore((state) => state.nodes);
   const { transitionClasses } = useNodeStyles(id);
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
+
+  const isRoleDragging = draggingSidebarItem === 'Role';
+  const currentNode = nodes.find((n) => n.id === id);
+  const parentNode = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId) : null;
+  const isInsideNamespace = currentNode?.parentId ? (parentNode?.type === 'Namespace' || Boolean(parentNode?.parentId && nodes.find((p) => p.id === parentNode.parentId)?.type === 'Namespace')) : false;
 
   const { isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
     useNodeStatus(data, statusOverride, color, colorMode);
 
   const { containerClasses, progressEmptyBgClass } =
-    useNodeContainerStyles(selected, isReady, isPending, isCrashing, color, colorMode);
+    useNodeContainerStyles(selected, isReady, isPending, isCrashing, color, colorMode, isRoleDragging, isInsideNamespace);
 
   const replicas = data.replicas || 1;
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || (replicas > 1 && !data.parentId));

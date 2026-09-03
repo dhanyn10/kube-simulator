@@ -67,6 +67,31 @@ describe('BaseNode', () => {
     expect(screen.getByText('x5')).toBeDefined();
   });
 
+  it('applies role-drag-inside-ns or role-drag-outside-ns when dragging Role from sidebar', () => {
+    useFlowStore.setState({
+      draggingSidebarItem: 'Role',
+      nodes: [
+        { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} },
+        { id: 'node-in-ns', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: { label: 'In NS' } },
+        { id: 'node-out-ns', type: 'Pod', position: { x: 100, y: 100 }, data: { label: 'Out NS' } }
+      ]
+    });
+
+    const { container: containerIn } = render(
+      <ReactFlowProvider>
+        <BaseNode {...defaultProps} id="node-in-ns" />
+      </ReactFlowProvider>
+    );
+    expect((containerIn.firstChild as HTMLElement).className).toContain('role-drag-inside-ns');
+
+    const { container: containerOut } = render(
+      <ReactFlowProvider>
+        <BaseNode {...defaultProps} id="node-out-ns" />
+      </ReactFlowProvider>
+    );
+    expect((containerOut.firstChild as HTMLElement).className).toContain('role-drag-outside-ns');
+  });
+
   it('renders BaseNode with crashing status override and mega replicas (100)', () => {
     render(
       <ReactFlowProvider>
