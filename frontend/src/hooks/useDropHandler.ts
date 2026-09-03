@@ -92,6 +92,14 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
         const centeredPos = { x: position.x - offset.x, y: position.y - offset.y };
         const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(centeredPos, n, nodes));
 
+        // If target is a child Pod inside a Deployment, resolve target to the parent Deployment
+        if (targetNode && targetNode.type === 'Pod' && targetNode.parentId) {
+          const parentDep = nodes.find((p) => p.id === targetNode.parentId && p.type === 'Deployment');
+          if (parentDep) {
+            targetNode = parentDep;
+          }
+        }
+
         setHoveredDeploymentId(targetNode?.id || null);
         useFlowStore.setState((state) => ({
           nodes: state.nodes.map((n) => ({
@@ -126,6 +134,13 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       // Handle Role drop onto existing canvas card
       if (type === 'Role') {
         const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(position, n, nodes));
+        if (targetNode && targetNode.type === 'Pod' && targetNode.parentId) {
+          const parentDep = nodes.find((p) => p.id === targetNode.parentId && p.type === 'Deployment');
+          if (parentDep) {
+            targetNode = parentDep;
+          }
+        }
+
         if (!targetNode) {
           useFlowStore.getState().addLog('warn', '[Canvas Action] Role must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach roles!', 'UI');
         } else {
