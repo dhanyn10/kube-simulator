@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import { RoleSettingsSection } from '@/components/Config/RoleSettingsSection';
+import { useFlowStore } from '../../../src/store';
 import { RoleNode } from '@/components/Nodes/Role';
 import { handleGetRolesCommand, handleDescribeRoleCommand } from '@/components/Layout/terminalCommands';
 
@@ -95,6 +96,39 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       expect(screen.getByText('deployments')).toBeInTheDocument();
       expect(screen.getByText('get')).toBeInTheDocument();
       expect(screen.getByText('list')).toBeInTheDocument();
+    });
+
+    it('handles adding, editing, and deleting roles in RoleSettingsSection', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      useFlowStore.setState({ updateNodeData, addLog });
+
+      const data = {
+        label: 'app-deployment',
+        type: 'Deployment' as const,
+        roles: [
+          {
+            id: 'role-item-1',
+            name: 'app-reader-role',
+            rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }],
+          },
+        ],
+      };
+
+      render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
+
+      // Click Remove Role
+      const removeBtn = screen.getByTitle('Remove Role');
+      fireEvent.click(removeBtn);
+      expect(updateNodeData).toHaveBeenCalledWith('deploy-1', { roles: [] });
+
+      // Click Edit Role
+      const editBtn = screen.getByTitle('Edit Role');
+      fireEvent.click(editBtn);
+
+      // Click Add Role
+      const addBtn = screen.getByText('Add Role');
+      fireEvent.click(addBtn);
     });
   });
 

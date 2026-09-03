@@ -1,14 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
 
+const initialAddLog = useFlowStore.getState().addLog;
+
 describe('nodeActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useFlowStore.setState({
       nodes: [],
       edges: [],
-      lastActionId: 'init'
+      logs: [],
+      lastActionId: 'init',
+      addLog: initialAddLog,
     });
+  });
+
+  it('addNode logs warning when adding Role without Namespace', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({ addLog: addLogSpy });
+
+    const { addNode } = useFlowStore.getState();
+    addNode('Role');
+
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Cannot add Role without a Namespace'), 'UI');
+
+    // Restore store addLog
+    useFlowStore.setState({ addLog: initialAddLog });
+  });
+
+  it('updateNodeData reverts ReplicaSet back to standalone Pod when replicas scaled down to 1', () => {
+    const rs = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, data: { replicas: 3 } };
+    const pod1 = { id: 'p1', type: 'Pod', parentId: 'rs1', position: { x: 20, y: 40 }, data: { replicas: 3 } };
+    useFlowStore.setState({ nodes: [rs, pod1] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { replicas: 1 });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.type === 'ReplicaSet')).toBe(false);
+    expect(state.nodes.find(n => n.id === 'p1')?.parentId).toBeUndefined();
   });
 
   it('addNode adds a new node, resolves collisions, and logs coordinates', () => {
