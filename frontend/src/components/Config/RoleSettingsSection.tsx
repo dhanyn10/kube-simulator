@@ -50,84 +50,87 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
     setIsModalOpen(false);
   };
 
+  const displayLimit = 12;
+  const visibleRoles = roles.slice(0, displayLimit);
+  const overflowCount = roles.length - displayLimit;
+
   return (
-    <div className="space-y-2 pt-3 border-t border-slate-700/30">
+    <div className="space-y-2.5 pt-3 border-t border-slate-700/30">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Shield size={13} className="text-indigo-400" />
-          <h3 className={cn("text-[11px] font-bold uppercase tracking-wider", colorMode === 'dark' ? "text-slate-300" : "text-slate-700")}>
+        <div className="flex items-center gap-2">
+          <h3 className={cn("text-sm font-bold tracking-tight flex items-center gap-1.5", colorMode === 'dark' ? "text-slate-100" : "text-slate-900")}>
             Attached Roles
           </h3>
-          <span className={cn("text-[10px] font-bold px-1.5 py-0.2 rounded-full", colorMode === 'dark' ? "bg-indigo-500/20 text-indigo-300" : "bg-indigo-100 text-indigo-700")}>
+          <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full font-mono", colorMode === 'dark' ? "bg-slate-800 text-slate-300 border border-slate-700" : "bg-slate-200 text-slate-700")}>
             {roles.length}
           </span>
         </div>
+      </div>
+
+      {/* Circular Avatar Grid / Wrap (GitHub Contributors style) */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        {visibleRoles.map((role) => (
+          <div key={`avatar-role-${role.id}`} className="relative group">
+            <button
+              type="button"
+              onClick={() => handleOpenEdit(role)}
+              className={cn(
+                "w-9 h-9 rounded-full border-2 flex items-center justify-center font-mono text-xs font-black uppercase transition-all transform hover:scale-110 shadow-sm cursor-pointer relative overflow-hidden",
+                colorMode === 'dark'
+                  ? "bg-indigo-950/80 border-indigo-500/60 text-indigo-300 hover:border-indigo-400 hover:ring-2 hover:ring-indigo-400/30"
+                  : "bg-indigo-100 border-indigo-300 text-indigo-800 hover:border-indigo-500 hover:ring-2 hover:ring-indigo-500/20"
+              )}
+              title={`Role: ${role.name} (Click to edit)`}
+            >
+              <span>{role.name.substring(0, 2)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteRole(role.id, role.name);
+              }}
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md cursor-pointer hover:bg-red-500"
+              title={`Delete role ${role.name}`}
+            >
+              <Trash2 size={9} />
+            </button>
+          </div>
+        ))}
+
+        {/* Circular Add Role Button */}
         <button
           type="button"
           onClick={handleOpenAdd}
-          className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+          className={cn(
+            "w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-all transform hover:scale-105 cursor-pointer shadow-sm",
+            colorMode === 'dark'
+              ? "border-slate-700 hover:border-indigo-400 text-slate-400 hover:text-indigo-300 bg-slate-900/50"
+              : "border-slate-300 hover:border-indigo-500 text-slate-500 hover:text-indigo-600 bg-slate-50"
+          )}
+          title="Add new role"
         >
-          <Plus size={11} /> Add Role
+          <Plus size={16} />
         </button>
       </div>
 
-      <div className="divide-y divide-slate-700/30 rounded-lg border border-slate-700/40 overflow-hidden bg-slate-900/40">
-        {roles.map((role) => {
-          const totalResources = role.rules?.reduce((acc, r) => acc + (r.resources?.length || 0), 0) || 0;
-          const totalVerbs = role.rules?.reduce((acc, r) => acc + (r.verbs?.length || 0), 0) || 0;
+      {overflowCount > 0 && (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={handleOpenAdd}
+            className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+          >
+            + {overflowCount} more roles
+          </button>
+        </div>
+      )}
 
-          return (
-            <div
-              key={`attached-role-${role.id}`}
-              className={cn(
-                "px-2.5 py-2 flex items-center justify-between gap-2 transition-colors hover:bg-slate-800/50",
-                colorMode === 'dark' ? "text-slate-200" : "text-slate-800 bg-white"
-              )}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center shrink-0 text-indigo-400 font-mono text-[10px] font-bold uppercase">
-                  {role.name.substring(0, 2)}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-mono font-bold truncate leading-none mb-1">
-                    {role.name}
-                  </div>
-                  <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1.5">
-                    <span>{totalResources} res</span>
-                    <span>•</span>
-                    <span>{totalVerbs} verbs</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(role)}
-                  className="p-1 rounded text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 transition-colors cursor-pointer"
-                  title="Edit Role"
-                >
-                  <Edit2 size={11} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteRole(role.id, role.name)}
-                  className="p-1 rounded text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
-                  title="Remove Role"
-                >
-                  <Trash2 size={11} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {roles.length === 0 && (
-          <div className="px-3 py-3 text-center text-slate-500 text-[10px] italic">
-            No roles attached. Drag Role from sidebar or click "+ Add Role".
-          </div>
-        )}
-      </div>
+      {roles.length === 0 && (
+        <div className="text-[11px] text-slate-500 italic pt-0.5">
+          No roles attached. Click <span className="font-semibold text-indigo-400">+</span> or drag Role from sidebar.
+        </div>
+      )}
 
       <RoleModal
         isOpen={isModalOpen}

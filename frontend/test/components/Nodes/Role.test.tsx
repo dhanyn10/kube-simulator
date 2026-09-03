@@ -68,10 +68,10 @@ describe('Role feature tests (Hero Items on Cards)', () => {
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
       expect(screen.getByText('Attached Roles')).toBeInTheDocument();
-      expect(screen.getByText('No roles attached. Drag Role from sidebar or click "+ Add Role".')).toBeInTheDocument();
+      expect(screen.getByText(/No roles attached/i)).toBeInTheDocument();
     });
 
-    it('renders attached roles with rules and action buttons', () => {
+    it('renders attached roles with avatar buttons', () => {
       const data = {
         label: 'app-deployment',
         type: 'Deployment' as const,
@@ -91,9 +91,8 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       };
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
-      expect(screen.getByText('app-reader-role')).toBeInTheDocument();
-      expect(screen.getByText('2 res')).toBeInTheDocument();
-      expect(screen.getByText('2 verbs')).toBeInTheDocument();
+      expect(screen.getByTitle('Role: app-reader-role (Click to edit)')).toBeInTheDocument();
+      expect(screen.getByText('ap')).toBeInTheDocument();
     });
 
     it('handles adding, editing, and deleting roles in RoleSettingsSection', () => {
@@ -115,17 +114,17 @@ describe('Role feature tests (Hero Items on Cards)', () => {
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
 
-      // Click Remove Role
-      const removeBtn = screen.getByTitle('Remove Role');
-      fireEvent.click(removeBtn);
+      // Click Delete Role
+      const deleteBtn = screen.getByTitle('Delete role app-reader-role');
+      fireEvent.click(deleteBtn);
       expect(updateNodeData).toHaveBeenCalledWith('deploy-1', { roles: [] });
 
       // Click Edit Role
-      const editBtn = screen.getByTitle('Edit Role');
-      fireEvent.click(editBtn);
+      const avatarBtn = screen.getByTitle('Role: app-reader-role (Click to edit)');
+      fireEvent.click(avatarBtn);
 
       // Click Add Role
-      const addBtn = screen.getByText('Add Role');
+      const addBtn = screen.getByTitle('Add new role');
       fireEvent.click(addBtn);
     });
   });
