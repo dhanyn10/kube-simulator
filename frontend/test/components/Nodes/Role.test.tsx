@@ -67,8 +67,8 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       };
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
-      expect(screen.getByText('Attached Roles (Hero Items)')).toBeInTheDocument();
-      expect(screen.getByText('No roles attached yet. Drop Role from sidebar or click "+ Add Role".')).toBeInTheDocument();
+      expect(screen.getByText('Attached Roles')).toBeInTheDocument();
+      expect(screen.getByText('No roles attached. Drag Role from sidebar or click "+ Add Role".')).toBeInTheDocument();
     });
 
     it('renders attached roles with rules and action buttons', () => {
@@ -92,10 +92,8 @@ describe('Role feature tests (Hero Items on Cards)', () => {
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
       expect(screen.getByText('app-reader-role')).toBeInTheDocument();
-      expect(screen.getByText('pods')).toBeInTheDocument();
-      expect(screen.getByText('deployments')).toBeInTheDocument();
-      expect(screen.getByText('get')).toBeInTheDocument();
-      expect(screen.getByText('list')).toBeInTheDocument();
+      expect(screen.getByText('2 res')).toBeInTheDocument();
+      expect(screen.getByText('2 verbs')).toBeInTheDocument();
     });
 
     it('handles adding, editing, and deleting roles in RoleSettingsSection', () => {
