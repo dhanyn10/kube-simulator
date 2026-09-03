@@ -24,6 +24,7 @@ vi.mock('../src/wailsjs/runtime', () => ({
 }));
 
 let capturedMiniMapNodeColor: any = null;
+let capturedBackgroundColor: any = null;
 vi.mock('@xyflow/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@xyflow/react')>();
   return {
@@ -53,7 +54,10 @@ vi.mock('@xyflow/react', async (importOriginal) => {
       capturedMiniMapNodeColor = nodeColor;
       return <div>MiniMap</div>;
     },
-    Background: () => <div>Background</div>,
+    Background: ({ color }: any) => {
+      capturedBackgroundColor = color;
+      return <div data-testid="background-mock" data-color={color}>Background</div>;
+    },
     ReactFlowProvider: ({ children }: any) => <div>{children}</div>,
   };
 });
@@ -237,6 +241,19 @@ describe('App Component', () => {
     });
 
     expect(useFlowStore.getState().roleModalTargetNode).toBeNull();
+  });
+
+  it('passes correct background marker color in dark and light mode', async () => {
+    const { rerender } = render(<App />);
+
+    expect(capturedBackgroundColor).toBe('#334155');
+
+    useFlowStore.setState({ colorMode: 'light' });
+    await act(async () => {
+      rerender(<App />);
+    });
+
+    expect(capturedBackgroundColor).toBe('#94A3B8');
   });
 
   it('tests MiniMap nodeColor helper function for various node types in dark and light modes', async () => {

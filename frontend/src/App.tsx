@@ -182,7 +182,7 @@ export default function App() {
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
 
-  const defaultBgColor = colorMode === 'dark' ? '#334155' : '#E2E8F0';
+  const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
 
   const handleRoleSave = (roleItem: K8sRoleItem) => {
