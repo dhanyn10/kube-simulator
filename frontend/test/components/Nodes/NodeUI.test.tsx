@@ -17,14 +17,17 @@ describe('NodeUI', () => {
       expect(buttons.length).toBe(2);
     });
 
-    it('calls toggleNodeSettings when settings button is clicked', () => {
+    it('calls toggleNodeSettings when settings button is clicked in light and dark mode', () => {
       const toggleNodeSettingsSpy = vi.spyOn(useFlowStore.getState(), 'toggleNodeSettings');
-      render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" />);
+      const { rerender } = render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" />);
 
       const buttons = screen.getAllByRole('button');
       fireEvent.click(buttons[0]); // Settings button
 
       expect(toggleNodeSettingsSpy).toHaveBeenCalledWith('n1');
+
+      rerender(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="light" />);
+      fireEvent.click(screen.getAllByRole('button')[0]);
     });
 
     it('calls onDelete when delete button is clicked', () => {
@@ -37,9 +40,9 @@ describe('NodeUI', () => {
     });
 
     it('hides settings button if hideSettings is true', () => {
-        render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" hideSettings={true} />);
-        const buttons = screen.getAllByRole('button');
-        expect(buttons.length).toBe(1);
+      render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" hideSettings={true} />);
+      const buttons = screen.getAllByRole('button');
+      expect(buttons.length).toBe(1);
     });
   });
 
@@ -60,16 +63,23 @@ describe('NodeUI', () => {
       expect(screen.getByText('my-node')).toBeDefined();
     });
 
-    it('enters editing mode on double click', () => {
+    it('enters editing mode on double click or Enter/Space keydown', () => {
       render(
         <NodeRenameInput
           isEditing={false}
           setIsEditing={mockSetIsEditing}
           label="my-node"
-          colorMode="dark"
+          colorMode="light"
         />
       );
-      fireEvent.doubleClick(screen.getByText('my-node'));
+      const labelBtn = screen.getByText('my-node');
+      fireEvent.doubleClick(labelBtn);
+      expect(mockSetIsEditing).toHaveBeenCalledWith(true);
+
+      fireEvent.keyDown(labelBtn, { key: 'Enter' });
+      expect(mockSetIsEditing).toHaveBeenCalledWith(true);
+
+      fireEvent.keyDown(labelBtn, { key: ' ' });
       expect(mockSetIsEditing).toHaveBeenCalledWith(true);
     });
 
@@ -88,17 +98,17 @@ describe('NodeUI', () => {
     });
 
     it('updates edit value on change and slugifies it', () => {
-        render(
-            <NodeRenameInput
-              isEditing={true}
-              editValue=""
-              setEditValue={mockSetEditValue}
-              colorMode="dark"
-            />
-          );
-          const input = screen.getByRole('textbox');
-          fireEvent.change(input, { target: { value: 'New Name' } });
-          expect(mockSetEditValue).toHaveBeenCalledWith('new-name');
+      render(
+        <NodeRenameInput
+          isEditing={true}
+          editValue=""
+          setEditValue={mockSetEditValue}
+          colorMode="light"
+        />
+      );
+      const input = screen.getByRole('textbox');
+      fireEvent.change(input, { target: { value: 'New Name' } });
+      expect(mockSetEditValue).toHaveBeenCalledWith('new-name');
     });
   });
 });

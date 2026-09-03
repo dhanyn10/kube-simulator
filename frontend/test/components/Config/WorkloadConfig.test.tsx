@@ -32,18 +32,20 @@ describe('WorkloadConfig', () => {
 
     expect(screen.getByText('Replicas')).toBeDefined();
     expect(screen.getByDisplayValue('3')).toBeDefined();
-    // Pod specific settings should NOT be visible
     expect(screen.queryByText('Container Image')).toBeNull();
   });
 
-  it('renders correctly for Pod', () => {
+  it('renders correctly for Pod and handles toggling visibility / YAML for image, webserver, and runtime', () => {
     const selectedNode = {
       id: 'p1',
       type: 'Pod',
       data: {
         label: 'My Pod',
         image: 'nginx',
-        displaySettings: { image: true, webserver: true, runtime: true }
+        webserver: 'nginx',
+        runtime: 'nodejs',
+        displaySettings: { image: true, webserver: true, runtime: true },
+        yamlSettings: { image: true, webserver: true, runtime: true }
       }
     };
     useFlowStore.setState({ nodes: [selectedNode] as any });
@@ -60,6 +62,27 @@ describe('WorkloadConfig', () => {
     expect(screen.getByText('Container Image')).toBeDefined();
     expect(screen.getByText('Web Server')).toBeDefined();
     expect(screen.getByText('App Runtime')).toBeDefined();
+
+    // Trigger toggle buttons on Container Image section
+    const imgHeader = screen.getByText('Container Image').closest('div');
+    const imgButtons = imgHeader?.querySelectorAll('button') || [];
+    imgButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('image');
+    expect(toggleYaml).toHaveBeenCalledWith('image');
+
+    // Trigger toggle buttons on Web Server section
+    const wsHeader = screen.getByText('Web Server').closest('div');
+    const wsButtons = wsHeader?.querySelectorAll('button') || [];
+    wsButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('webserver');
+    expect(toggleYaml).toHaveBeenCalledWith('webserver');
+
+    // Trigger toggle buttons on App Runtime section
+    const rtHeader = screen.getByText('App Runtime').closest('div');
+    const rtButtons = rtHeader?.querySelectorAll('button') || [];
+    rtButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('runtime');
+    expect(toggleYaml).toHaveBeenCalledWith('runtime');
   });
 
   it('handles replica updates for Deployment', () => {
@@ -94,41 +117,40 @@ describe('WorkloadConfig', () => {
     const pod = { id: 'p1', type: 'Pod', parentId: 'd1', data: { label: 'pod-a', replicas: 1 } };
 
     useFlowStore.setState({
-        updateNodeData,
-        nodes: [parentDep, pod] as any
+      updateNodeData,
+      nodes: [parentDep, pod] as any
     });
 
     render(
-        <WorkloadConfig
-          selectedNode={pod}
-          performUpdate={performUpdate}
-          toggleVisibility={toggleVisibility}
-          toggleYaml={toggleYaml}
-        />
+      <WorkloadConfig
+        selectedNode={pod}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
     );
 
     const input = screen.getByDisplayValue('1');
     fireEvent.change(input, { target: { value: '2' } });
 
-    // Should update the parent deployment
     expect(updateNodeData).toHaveBeenCalledWith('d1', { replicas: 2 });
   });
 
   it('handles runtime updates for Pod', () => {
     const selectedNode = {
-        id: 'p1',
-        type: 'Pod',
-        data: { label: 'My Pod', displaySettings: { runtime: true } }
+      id: 'p1',
+      type: 'Pod',
+      data: { label: 'My Pod', displaySettings: { runtime: true } }
     };
     useFlowStore.setState({ nodes: [selectedNode] as any });
 
     render(
-        <WorkloadConfig
-          selectedNode={selectedNode}
-          performUpdate={performUpdate}
-          toggleVisibility={toggleVisibility}
-          toggleYaml={toggleYaml}
-        />
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
     );
 
     const select = screen.getByDisplayValue('None');

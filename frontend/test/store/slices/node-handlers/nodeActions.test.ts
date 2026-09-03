@@ -15,7 +15,7 @@ describe('nodeActions', () => {
     });
   });
 
-  it('addNode logs warning when adding Role without Namespace', () => {
+  it('addNode logs warning when adding Role without Namespace, or attaches to existing Namespace', () => {
     const addLogSpy = vi.fn();
     useFlowStore.setState({ addLog: addLogSpy });
 
@@ -24,8 +24,38 @@ describe('nodeActions', () => {
 
     expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Cannot add Role without a Namespace'), 'UI');
 
-    // Restore store addLog
+    // With Namespace existing
+    const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.setState({ nodes: [nsNode] as any });
+
+    addNode('Role');
+    const state = useFlowStore.getState();
+    const roleNode = state.nodes.find(n => n.type === 'Role');
+    expect(roleNode?.parentId).toBe('ns1');
+
     useFlowStore.setState({ addLog: initialAddLog });
+  });
+
+  it('addNode sets default dimensions for Namespace nodes', () => {
+    const { addNode } = useFlowStore.getState();
+    addNode('Namespace', { x: 10, y: 10 });
+
+    const state = useFlowStore.getState();
+    const nsNode = state.nodes.find(n => n.type === 'Namespace');
+    expect(nsNode?.width).toBe(600);
+    expect(nsNode?.height).toBe(400);
+  });
+
+  it('updateNodeData sets isAutoImage to false when image is explicitly set', () => {
+    const pod = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'my-pod', isAutoImage: true } };
+    useFlowStore.setState({ nodes: [pod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { image: 'custom-image:v1' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes[0].data.image).toBe('custom-image:v1');
+    expect(state.nodes[0].data.isAutoImage).toBe(false);
   });
 
   it('updateNodeData reverts ReplicaSet back to standalone Pod when replicas scaled down to 1', () => {
@@ -82,60 +112,59 @@ describe('nodeActions', () => {
   });
 
   it('updateNodeData triggers ReplicaSet transform for standalone Pod with replicas > 1', () => {
-      const pod = { id: 'p1', type: 'Pod', position: { x: 100, y: 100 }, data: { label: 'standalone', replicas: 1 } };
-      useFlowStore.setState({ nodes: [pod] as any });
+    const pod = { id: 'p1', type: 'Pod', position: { x: 100, y: 100 }, data: { label: 'standalone', replicas: 1 } };
+    useFlowStore.setState({ nodes: [pod] as any });
 
-      const { updateNodeData } = useFlowStore.getState();
-      updateNodeData('p1', { replicas: 3 });
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { replicas: 3 });
 
-      const state = useFlowStore.getState();
-      // Should find a ReplicaSet and Pods
-      expect(state.nodes.some(n => n.type === 'ReplicaSet')).toBe(true);
-      expect(state.nodes.filter(n => n.type === 'Pod')).toHaveLength(3);
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.type === 'ReplicaSet')).toBe(true);
+    expect(state.nodes.filter(n => n.type === 'Pod')).toHaveLength(3);
   });
 
   it('onNodeClick updates configured node state', () => {
-      const node = { id: 'n1', type: 'Deployment', data: {} } as any;
-      const { onNodeClick } = useFlowStore.getState();
+    const node = { id: 'n1', type: 'Deployment', data: {} } as any;
+    const { onNodeClick } = useFlowStore.getState();
 
-      onNodeClick({} as any, node);
+    onNodeClick({} as any, node);
 
-      const state = useFlowStore.getState();
-      expect(state.configuringNodeId).toBe('n1');
-      expect(state.activeDeploymentId).toBe('n1');
+    const state = useFlowStore.getState();
+    expect(state.configuringNodeId).toBe('n1');
+    expect(state.activeDeploymentId).toBe('n1');
   });
 
   it('onPaneClick clears selection', () => {
-      useFlowStore.setState({ configuringNodeId: 'n1', activeDeploymentId: 'n1' });
-      const { onPaneClick } = useFlowStore.getState();
+    useFlowStore.setState({ configuringNodeId: 'n1', activeDeploymentId: 'n1' });
+    const { onPaneClick } = useFlowStore.getState();
 
-      onPaneClick();
+    onPaneClick();
 
-      const state = useFlowStore.getState();
-      expect(state.configuringNodeId).toBeNull();
-      expect(state.activeDeploymentId).toBeNull();
+    const state = useFlowStore.getState();
+    expect(state.configuringNodeId).toBeNull();
+    expect(state.activeDeploymentId).toBeNull();
   });
 
   it('groupNodes and ungroupNodes', () => {
-      const node = { id: 'n1', position: { x: 0, y: 0 }, data: {} } as any;
-      useFlowStore.setState({ nodes: [node] });
+    const node = { id: 'n1', position: { x: 0, y: 0 }, data: {} } as any;
+    useFlowStore.setState({ nodes: [node] });
 
-      const { groupNodes, ungroupNodes } = useFlowStore.getState();
+    const { groupNodes, ungroupNodes } = useFlowStore.getState();
 
-      groupNodes(['n1']);
-      expect(useFlowStore.getState().nodes[0].data.groupId).toBeDefined();
+    groupNodes(['n1']);
+    expect(useFlowStore.getState().nodes[0].data.groupId).toBeDefined();
 
-      ungroupNodes(['n1']);
-      expect(useFlowStore.getState().nodes[0].data.groupId).toBeUndefined();
+    ungroupNodes(['n1']);
+    expect(useFlowStore.getState().nodes[0].data.groupId).toBeUndefined();
   });
 
   it('deleteNodes removes targeted elements and logs canvas action', () => {
-      const parent = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'My Dep' } };
-      useFlowStore.setState({ nodes: [parent] as any, edges: [] });
+    const parent = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'My Dep' } };
+    useFlowStore.setState({ nodes: [parent] as any, edges: [] });
 
-      useFlowStore.getState().deleteNodes([parent] as any);
+    useFlowStore.getState().deleteNodes([parent] as any);
 
-      const state = useFlowStore.getState();
-      expect(state.nodes).toHaveLength(0);
+    const state = useFlowStore.getState();
+    expect(state.nodes).toHaveLength(0);
   });
 });

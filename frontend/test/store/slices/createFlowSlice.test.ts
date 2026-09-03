@@ -28,19 +28,61 @@ describe('createFlowSlice', () => {
     expect(n2?.position).toEqual({ x: 60, y: 60 });
   });
 
-  it('syncRoleRulesFromConnections syncs rules when Role is connected to ReplicaSet and other workloads', () => {
+  it('syncRoleRulesFromConnections syncs rules for all connected workload types', () => {
     const roleNode: Node = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: { rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }] } };
-    const rsNode: Node = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 0 }, data: { label: 'my-rs' } };
-    const edge: Edge = { id: 'e1', source: 'role1', target: 'rs1' };
+    const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 100, y: 0 }, data: { replicas: 1 } };
+    const podNode: Node = { id: 'pod1', type: 'Pod', position: { x: 200, y: 0 }, data: {} };
+    const svcNode: Node = { id: 'svc1', type: 'Service', position: { x: 300, y: 0 }, data: {} };
+    const pvcNode: Node = { id: 'pvc1', type: 'PVC', position: { x: 400, y: 0 }, data: {} };
+    const cmNode: Node = { id: 'cm1', type: 'ConfigMap', position: { x: 500, y: 0 }, data: {} };
+    const secNode: Node = { id: 'sec1', type: 'Secret', position: { x: 600, y: 0 }, data: {} };
+    const rsNode: Node = { id: 'rs1', type: 'ReplicaSet', position: { x: 700, y: 0 }, data: {} };
 
-    useFlowStore.setState({ nodes: [roleNode, rsNode], edges: [] });
+    const edges: Edge[] = [
+      { id: 'e1', source: 'role1', target: 'dep1' },
+      { id: 'e2', source: 'role1', target: 'pod1' },
+      { id: 'e3', source: 'role1', target: 'svc1' },
+      { id: 'e4', source: 'role1', target: 'pvc1' },
+      { id: 'e5', source: 'role1', target: 'cm1' },
+      { id: 'e6', source: 'role1', target: 'sec1' },
+      { id: 'e7', source: 'role1', target: 'rs1' },
+    ];
+
+    useFlowStore.setState({
+      nodes: [roleNode, depNode, podNode, svcNode, pvcNode, cmNode, secNode, rsNode],
+      edges: [],
+    });
 
     const { setEdges } = useFlowStore.getState();
-    setEdges([edge]);
+    setEdges(edges);
 
     const state = useFlowStore.getState();
     const updatedRole = state.nodes.find(n => n.id === 'role1');
-    expect(updatedRole?.data.rules[0].resources).toContain('replicasets');
+    const resources = updatedRole?.data.rules[0].resources;
+    expect(resources).toEqual(expect.arrayContaining([
+      'deployments', 'pods', 'services', 'persistentvolumeclaims', 'configmaps', 'secrets', 'replicasets'
+    ]));
+  });
+
+  it('onConnect reroutes connections between Role and child Pod in Deployment', () => {
+    const roleNode = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+    const depNode = { id: 'dep1', type: 'Deployment', position: { x: 100, y: 0 }, data: {} };
+    const childPod = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 120, y: 40 }, data: {} };
+
+    useFlowStore.setState({ nodes: [roleNode, depNode, childPod] as any, edges: [] });
+
+    // Connect Role -> child Pod
+    useFlowStore.getState().onConnect({ source: 'role1', target: 'pod1' });
+    let edges = useFlowStore.getState().edges;
+    expect(edges[0].target).toBe('dep1');
+
+    // Reset edges
+    useFlowStore.setState({ edges: [] });
+
+    // Connect child Pod -> Role
+    useFlowStore.getState().onConnect({ source: 'pod1', target: 'role1' });
+    edges = useFlowStore.getState().edges;
+    expect(edges[0].source).toBe('dep1');
   });
 
   it('onConnect validates edges and handles HPA auto-config', () => {
@@ -135,14 +177,14 @@ describe('createFlowSlice', () => {
     expect(useFlowStore.getState().edges.some((e) => e.target === 'bottomN')).toBe(true);
   });
 
-  it('autoLayout triggers dagre layout', () => {
+  it('autoLayout triggers dagre layout in LR and TB directions', () => {
     const node1 = { id: 'n1', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
     const node2 = { id: 'n2', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
     const edge = { id: 'e1', source: 'n1', target: 'n2' };
     useFlowStore.setState({ nodes: [node1, node2] as any, edges: [edge] as any });
 
     const { autoLayout } = useFlowStore.getState();
-    autoLayout();
+    autoLayout('TB');
 
     const state = useFlowStore.getState();
     expect(state.lastActionName).toBe('Auto Layout');
