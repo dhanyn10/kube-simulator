@@ -49,12 +49,12 @@ describe('NamespaceNode', () => {
     useFlowStore.setState({ colorMode: 'dark' });
   });
 
-  it('applies role-drag-inside-ns when dragging Role from sidebar', () => {
+  it('applies role-drag-inside-ns when dragging Role from sidebar onto hovered namespace', () => {
     useFlowStore.setState({ draggingSidebarItem: 'Role' });
     const props = {
       id: 'ns1',
       type: 'Namespace',
-      data: { label: 'My Namespace' }
+      data: { label: 'My Namespace', isHovered: true }
     } as any;
 
     const { container } = render(

@@ -86,6 +86,22 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (!draggingSidebarItem) return;
 
+      if (draggingSidebarItem === 'Role') {
+        const offset = CENTER_OFFSETS['Role'] || { x: 80, y: 50 };
+        const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const centeredPos = { x: position.x - offset.x, y: position.y - offset.y };
+        const targetNode = [...nodes].reverse().find((n) => isPositionInsideNode(centeredPos, n, nodes));
+
+        setHoveredDeploymentId(targetNode?.id || null);
+        useFlowStore.setState((state) => ({
+          nodes: state.nodes.map((n) => ({
+            ...n,
+            data: { ...n.data, isHovered: n.id === targetNode?.id },
+          })),
+        }));
+        return;
+      }
+
       const target = getTargetContainer(event.clientX, event.clientY, draggingSidebarItem);
       setHoveredDeploymentId(target?.id || null);
 
@@ -96,7 +112,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
         })),
       }));
     },
-    [getTargetContainer, setHoveredDeploymentId, draggingSidebarItem]
+    [getTargetContainer, setHoveredDeploymentId, draggingSidebarItem, screenToFlowPosition, nodes]
   );
 
   const onDrop = useCallback(

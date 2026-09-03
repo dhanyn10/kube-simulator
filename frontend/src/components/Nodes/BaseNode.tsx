@@ -98,7 +98,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     useNodeStatus(data, statusOverride, color, colorMode);
 
   const { containerClasses, progressEmptyBgClass } =
-    useNodeContainerStyles(selected, isReady, isPending, isCrashing, color, colorMode, isRoleDragging, isInsideNamespace);
+    useNodeContainerStyles(selected, isReady, isPending, isCrashing, color, colorMode, isRoleDragging, isInsideNamespace, data.isHovered);
 
   const replicas = data.replicas || 1;
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || (replicas > 1 && !data.parentId));

@@ -72,14 +72,14 @@ describe('BaseNode', () => {
       draggingSidebarItem: 'Role',
       nodes: [
         { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} },
-        { id: 'node-in-ns', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: { label: 'In NS' } },
+        { id: 'node-in-ns', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: { label: 'In NS', isHovered: true } },
         { id: 'node-out-ns', type: 'Pod', position: { x: 100, y: 100 }, data: { label: 'Out NS' } }
       ]
     });
 
     const { container: containerIn } = render(
       <ReactFlowProvider>
-        <BaseNode {...defaultProps} id="node-in-ns" />
+        <BaseNode {...defaultProps} id="node-in-ns" data={{ ...defaultProps.data, isHovered: true }} />
       </ReactFlowProvider>
     );
     expect((containerIn.firstChild as HTMLElement).className).toContain('role-drag-inside-ns');

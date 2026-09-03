@@ -42,7 +42,17 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
 /**
  * Hook to calculate container styling classes.
  */
-export const useNodeContainerStyles = (selected: boolean | undefined, isReady: boolean, isPending: boolean, isCrashing: boolean, color: string, colorMode: 'dark' | 'light', isRoleDragging?: boolean, isInsideNamespace?: boolean) => {
+export const useNodeContainerStyles = (
+  selected: boolean | undefined,
+  isReady: boolean,
+  isPending: boolean,
+  isCrashing: boolean,
+  color: string,
+  colorMode: 'dark' | 'light',
+  isRoleDragging?: boolean,
+  isInsideNamespace?: boolean,
+  isHovered?: boolean
+) => {
   const containerBaseClasses = colorMode === 'dark' ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
   let selectionClasses = `hover:border-${color}-500/50`;
   if (selected) {
@@ -63,9 +73,14 @@ export const useNodeContainerStyles = (selected: boolean | undefined, isReady: b
     isCrashing && "border-red-600 ring-8 ring-red-600/30 animate-crash-blink shadow-[0_0_30px_rgba(220,38,38,0.6)]"
   ].filter(Boolean).join(' ');
 
-  const roleDragClasses = isRoleDragging
-    ? (isInsideNamespace ? "role-drag-inside-ns" : "role-drag-outside-ns")
-    : "";
+  let roleDragClasses = "";
+  if (isRoleDragging) {
+    if (isInsideNamespace) {
+      if (isHovered) roleDragClasses = "role-drag-inside-ns";
+    } else {
+      roleDragClasses = "role-drag-outside-ns";
+    }
+  }
 
   return {
     containerClasses: `group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0 ${containerBaseClasses} ${selectionClasses} ${readyClasses} ${statusClasses} ${roleDragClasses}`,
