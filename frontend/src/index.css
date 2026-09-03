@@ -110,24 +110,28 @@
 
   @keyframes wave-pulse {
     0% {
-      box-shadow: 0 0 0 0px rgba(56, 189, 248, 0.6), inset 0 0 10px rgba(56, 189, 248, 0.2);
+      box-shadow: 0 0 0 0px rgba(56, 189, 248, 0.9), inset 0 0 12px rgba(56, 189, 248, 0.4);
+      border-color: #38bdf8;
     }
     50% {
-      box-shadow: 0 0 0 10px rgba(56, 189, 248, 0), inset 0 0 25px rgba(56, 189, 248, 0.4);
+      box-shadow: 0 0 20px 8px rgba(56, 189, 248, 0.6), inset 0 0 35px rgba(56, 189, 248, 0.6);
+      border-color: #0284c7;
     }
     100% {
-      box-shadow: 0 0 0 0px rgba(56, 189, 248, 0), inset 0 0 10px rgba(56, 189, 248, 0.2);
+      box-shadow: 0 0 0 0px rgba(56, 189, 248, 0.9), inset 0 0 12px rgba(56, 189, 248, 0.4);
+      border-color: #38bdf8;
     }
   }
 
   .role-drag-inside-ns {
-    animation: wave-pulse 1.8s infinite ease-in-out !important;
+    animation: wave-pulse 0.7s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
     border-color: #38bdf8 !important;
+    transition: all 0.05s ease-out !important;
   }
 
   .role-drag-outside-ns {
-    opacity: 0.25 !important;
-    transition: opacity 0.2s ease-in-out !important;
+    opacity: 0.2 !important;
+    transition: opacity 0.1s ease-in-out !important;
   }
 }
 
