@@ -59,19 +59,18 @@ describe('Role feature tests (Hero Items on Cards)', () => {
   });
 
   describe('RoleSettingsSection component', () => {
-    it('renders empty role state in Settings section', () => {
+    it('renders empty role state in Settings section (returns null when no roles attached)', () => {
       const data = {
         label: 'my-deployment',
         type: 'Deployment' as const,
         roles: [],
       };
 
-      render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
-      expect(screen.getByText('Attached Roles')).toBeInTheDocument();
-      expect(screen.getByText(/No roles attached/i)).toBeInTheDocument();
+      const { container } = render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
+      expect(container.firstChild).toBeNull();
     });
 
-    it('renders attached roles with avatar buttons', () => {
+    it('renders attached role hero item icon with count badge and popover list', () => {
       const data = {
         label: 'app-deployment',
         type: 'Deployment' as const,
@@ -91,11 +90,15 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       };
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
-      expect(screen.getByTitle('Role: app-reader-role (Click to edit)')).toBeInTheDocument();
-      expect(screen.getByText('ap')).toBeInTheDocument();
+      expect(screen.getByTitle('Attached Roles (1)')).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument();
+
+      // Open popover list
+      fireEvent.click(screen.getByTitle('Attached Roles (1)'));
+      expect(screen.getByText('app-reader-role')).toBeInTheDocument();
     });
 
-    it('handles adding, editing, and deleting roles in RoleSettingsSection', () => {
+    it('handles editing and deleting roles in RoleSettingsSection', () => {
       const updateNodeData = vi.fn();
       const addLog = vi.fn();
       useFlowStore.setState({ updateNodeData, addLog });
@@ -114,18 +117,17 @@ describe('Role feature tests (Hero Items on Cards)', () => {
 
       render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
 
-      // Click Delete Role
-      const deleteBtn = screen.getByTitle('Delete role app-reader-role');
+      // Toggle popover list
+      fireEvent.click(screen.getByTitle('Attached Roles (1)'));
+
+      // Click Delete Role in popover
+      const deleteBtn = screen.getByTitle('Delete Role');
       fireEvent.click(deleteBtn);
       expect(updateNodeData).toHaveBeenCalledWith('deploy-1', { roles: [] });
 
-      // Click Edit Role
-      const avatarBtn = screen.getByTitle('Role: app-reader-role (Click to edit)');
-      fireEvent.click(avatarBtn);
-
-      // Click Add Role
-      const addBtn = screen.getByTitle('Add new role');
-      fireEvent.click(addBtn);
+      // Click Edit Role in popover
+      const editBtn = screen.getByTitle('Edit Role');
+      fireEvent.click(editBtn);
     });
   });
 
