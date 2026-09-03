@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../src/components/Layout/TerminalPanel';
+import { TerminalPanel, TerminalMinimizedTrigger, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../src/components/Layout/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 
@@ -27,6 +27,42 @@ describe('TerminalPanel', () => {
     const { container } = render(<TerminalPanel />);
     expect(container.firstChild).toBeNull();
     expect(screen.queryByTestId('terminal-container')).toBeNull();
+  });
+
+  it('renders TerminalMinimizedTrigger when isTerminalOpen is false and opens terminal on click', () => {
+    const setTerminalOpen = vi.fn();
+    render(<TerminalMinimizedTrigger setTerminalOpen={setTerminalOpen} isSimulating={true} colorMode="dark" />);
+
+    const btn = screen.getByText(/Kube Terminal/i);
+    expect(btn).toBeInTheDocument();
+    fireEvent.click(btn);
+    expect(setTerminalOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('renders No Loggable Resources when Kube Logs tab is open without loggable nodes', () => {
+    act(() => {
+      useFlowStore.setState({
+        isTerminalOpen: true,
+        terminalActiveTab: 'logs',
+        nodes: []
+      });
+    });
+
+    render(<TerminalPanel />);
+    expect(screen.getByText('No Loggable Resources')).toBeInTheDocument();
+  });
+
+  it('handles describe pod not found', () => {
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input');
+    fireEvent.change(input, { target: { value: 'kubectl describe pod missing-pod' } });
+    fireEvent.submit(input.closest('form')!);
+
+    expect(screen.getByText(/Error from server \(NotFound\): pod "missing-pod" not found/)).toBeInTheDocument();
   });
 
   it('renders full terminal panel when isTerminalOpen is true', () => {
