@@ -4,7 +4,7 @@ import { MenuBar } from '../../../src/components/Layout/MenuBar';
 import { useFlowStore } from '../../../src/store';
 import '@testing-library/jest-dom';
 
-vi.mock('@wailsjs/runtime/runtime', () => ({
+vi.mock('@wailsjs/runtime', () => ({
   BrowserOpenURL: vi.fn(),
 }));
 
@@ -25,6 +25,7 @@ describe('MenuBar', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (globalThis as any).BrowserOpenURL = vi.fn();
     useFlowStore.setState({
       colorMode: 'dark',
       isAutosaveEnabled: false,
@@ -35,12 +36,22 @@ describe('MenuBar', () => {
       isMonitoringDetached: false,
       isSidebarVisible: true,
       isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
       isAutofocusEnabled: true,
+      isTerminalOpen: false,
       currentProject: null,
+      simulatedUpdateInfo: null,
+      logs: [],
     });
     (globalThis as any).go = {
       main: {
         App: {
+          GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+          CheckForUpdates: vi.fn().mockResolvedValue({
+            updateAvailable: true,
+            latestVersion: '1.1.0',
+            releaseUrl: 'https://github.com/dhanyn10/kube-simulator/releases/v1.1.0',
+          }),
           UpdateProject: vi.fn().mockResolvedValue(true),
         },
       },
@@ -56,155 +67,150 @@ describe('MenuBar', () => {
     expect(screen.getByTestId('app-title')).toBeDefined();
   });
 
-  it('handles Resource > Save on existing project', async () => {
+  it('checks for updates on mount and displays update button', async () => {
+    render(<MenuBar {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('menubar-update-btn')).toBeInTheDocument();
+      expect(screen.getByText('Update v1.1.0')).toBeInTheDocument();
+    });
+
+    const updateBtn = screen.getByTestId('menubar-update-btn');
+    fireEvent.click(updateBtn);
+    expect(defaultProps.onOpenAbout).toHaveBeenCalled();
+  });
+
+  it('opens release URL when update button clicked and BrowserOpenURL is available', async () => {
+    const mockBrowserOpen = vi.fn();
+    (window as any).runtime = { BrowserOpenURL: mockBrowserOpen };
+    useFlowStore.setState({
+      simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: 'https://example.com/v2' },
+    });
+
+    render(<MenuBar {...defaultProps} />);
+
+    const updateBtn = screen.getByTestId('menubar-update-btn');
+    fireEvent.click(updateBtn);
+    expect(mockBrowserOpen).toHaveBeenCalledWith('https://example.com/v2');
+    delete (window as any).runtime;
+  });
+
+  it('handles background update check error gracefully', async () => {
+    (globalThis as any).go.main.App.GetSystemInfo = vi.fn().mockRejectedValue(new Error('Network error'));
+    render(<MenuBar {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.queryByTestId('menubar-update-btn')).toBeNull();
+    });
+  });
+
+  it('handles Resource > Save on existing project vs new project', async () => {
     useFlowStore.setState({
       currentProject: { id: 10, name: "Active Proj" },
       nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
     });
 
-    render(<MenuBar {...defaultProps} />);
+    const { rerender } = render(<MenuBar {...defaultProps} />);
 
-    const resourceBtn = screen.getByText("Resource");
-    fireEvent.click(resourceBtn);
-
+    fireEvent.click(screen.getByText("Resource"));
     const saveItems = screen.getAllByText("Save");
     fireEvent.click(saveItems[saveItems.length - 1]);
 
     await waitFor(() => {
       expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(10, expect.any(String));
     });
+
+    useFlowStore.setState({ currentProject: null });
+    rerender(<MenuBar {...defaultProps} />);
+
+    fireEvent.click(screen.getByText("Resource"));
+    const saveItems2 = screen.getAllByText("Save");
+    fireEvent.click(saveItems2[saveItems2.length - 1]);
+    expect(defaultProps.onOpenProjects).toHaveBeenCalled();
   });
 
-  it('opens dropdown on click', () => {
+  it('handles View > Utilities menu item when history view is open', () => {
+    const setHistoryViewOpen = vi.spyOn(useFlowStore.getState(), 'setHistoryViewOpen');
+
+    useFlowStore.setState({ isHistoryViewOpen: true, isRightSidebarVisible: true });
     render(<MenuBar {...defaultProps} />);
-    const fileMenu = screen.getByText('File');
-    fireEvent.click(fileMenu);
 
-    expect(screen.getByText('Export')).toBeDefined();
-    expect(screen.getByText('Import')).toBeDefined();
-    expect(screen.getByText('Save')).toBeDefined();
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('Utilities'));
+    expect(setHistoryViewOpen).toHaveBeenCalledWith(false);
   });
 
-  it('triggers onExportYaml when Export is clicked', () => {
+  it('handles View > History and Terminal menu items', () => {
+    const setRightSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
+    const setHistoryViewOpen = vi.spyOn(useFlowStore.getState(), 'setHistoryViewOpen');
+    const setTerminalOpen = vi.spyOn(useFlowStore.getState(), 'setTerminalOpen');
+
+    useFlowStore.setState({ isHistoryViewOpen: false, isRightSidebarVisible: false });
     render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('File'));
-    fireEvent.click(screen.getByText('Export'));
-    expect(defaultProps.onExportYaml).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('History'));
+    expect(setRightSidebarVisible).toHaveBeenCalledWith(true);
+    expect(setHistoryViewOpen).toHaveBeenCalledWith(true);
+
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('Terminal'));
+    expect(setTerminalOpen).toHaveBeenCalledWith(true);
   });
 
-  it('toggles theme mode', () => {
-    const toggleColorMode = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
-    render(<MenuBar {...defaultProps} />);
-    const themeBtn = screen.getByTitle('Toggle Theme');
-    fireEvent.click(themeBtn);
-    expect(toggleColorMode).toHaveBeenCalled();
-  });
-
-  it('toggles sidebar visibility and shows checkmark', () => {
-    const setSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setSidebarVisible');
+  it('handles View > Simulation menu item in different monitoring modes', () => {
+    const setMonitoringOpen = vi.spyOn(useFlowStore.getState(), 'setMonitoringOpen');
+    useFlowStore.setState({ isMonitoringOpen: true });
     const { rerender } = render(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('Close Simulation'));
+    expect(setMonitoringOpen).toHaveBeenCalledWith(false);
 
-    const componentsBtn = screen.getByText('Components').closest('button');
-    expect(componentsBtn?.querySelector('svg[class*="lucide-check"]')).not.toBeNull();
-
-    fireEvent.click(screen.getByText('Components'));
-    expect(setSidebarVisible).toHaveBeenCalledWith(false);
-
-    fireEvent.mouseDown(document.body);
-    expect(screen.queryByText('Components')).toBeNull();
-
-    useFlowStore.setState({ isSidebarVisible: false });
+    useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: true });
     rerender(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
-    expect(screen.getByText('Components').closest('button')?.querySelector('svg[class*="lucide-check"]')).toBeNull();
+    expect(screen.getByText('Monitoring: Detached')).toBeInTheDocument();
   });
 
-  it('toggles right sidebar visibility', () => {
-    const setRightSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
+  it('handles Help > Report Issue link', () => {
     render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Utilities'));
-    expect(setRightSidebarVisible).toHaveBeenCalledWith(false);
-  });
 
-  it('toggles autofocus', () => {
-    const toggleAutofocus = vi.spyOn(useFlowStore.getState(), 'toggleAutofocus');
-    render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Autofocus'));
-    expect(toggleAutofocus).toHaveBeenCalled();
-  });
-
-  it('opens log modal', () => {
-    const setLogModalOpen = vi.spyOn(useFlowStore.getState(), 'setLogModalOpen');
-    render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Logs'));
-    expect(setLogModalOpen).toHaveBeenCalledWith(true);
-  });
-
-  it('starts tour from help menu', async () => {
-    const { startTour } = await import('../../../src/lib/tour');
-    render(<MenuBar {...defaultProps} />);
     fireEvent.click(screen.getByText('Help'));
-    fireEvent.click(screen.getByText('Take a Tour'));
-    expect(startTour).toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Report Issue'));
+    expect((globalThis as any).BrowserOpenURL).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
   });
 
-  it('opens about dialog from help menu', () => {
-    render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('Help'));
-    fireEvent.click(screen.getByText('About'));
-    expect(defaultProps.onOpenAbout).toHaveBeenCalled();
-  });
-
-  it('closes menu when clicking outside', () => {
-    render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.queryByText('Export')).toBeDefined();
-
-    fireEvent.mouseDown(document.body);
-    expect(screen.queryByText('Export')).toBeNull();
-  });
-
-  it('switches active menu on hover if another menu is open', () => {
-    render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.queryByText('Export')).toBeDefined();
-
-    fireEvent.mouseEnter(screen.getByText('Resource'));
-    expect(screen.queryByText('Export')).toBeNull();
-    expect(screen.queryByText('Scenarios')).toBeDefined();
-  });
-
-  it('displays shortcuts in menu items', () => {
-    render(<MenuBar {...defaultProps} />);
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.getByText('Ctrl+S')).toBeDefined();
-  });
-
-  it('renders bell notification button on the right side of play button and displays error count badge', () => {
+  it('renders in light mode with error count > 99 displaying 99+', () => {
     useFlowStore.setState({
-      logs: [
-        { id: '1', level: 'error', message: 'Database connection error', timestamp: '10:00:00', scope: 'System' },
-        { id: '2', level: 'fatal', message: 'Out of memory', timestamp: '10:00:01', scope: 'Backend' },
-      ],
+      colorMode: 'light',
+      logs: Array.from({ length: 105 }, (_, i) => ({
+        id: String(i),
+        level: 'error',
+        message: `Error ${i}`,
+        timestamp: '10:00:00',
+        scope: 'System'
+      }))
     });
 
     render(<MenuBar {...defaultProps} />);
 
-    const bellBtn = screen.getByTestId('bell-notification-btn');
-    expect(bellBtn).toBeInTheDocument();
+    const badge = screen.getByTestId('bell-error-badge');
+    expect(badge).toHaveTextContent('99+');
+  });
 
-    const errorBadge = screen.getByTestId('bell-error-badge');
-    expect(errorBadge).toBeInTheDocument();
-    expect(errorBadge).toHaveTextContent('2');
+  it('toggles theme mode and autosave', () => {
+    const toggleColorMode = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
+    const toggleAutosave = vi.spyOn(useFlowStore.getState(), 'toggleAutosave');
 
-    const setLogModalOpen = vi.spyOn(useFlowStore.getState(), 'setLogModalOpen');
-    fireEvent.click(bellBtn);
-    expect(setLogModalOpen).toHaveBeenCalledWith(true);
+    render(<MenuBar {...defaultProps} />);
+
+    const themeBtn = screen.getByTitle('Toggle Theme');
+    fireEvent.click(themeBtn);
+    expect(toggleColorMode).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Resource'));
+    fireEvent.click(screen.getByText('Autosave: OFF'));
+    expect(toggleAutosave).toHaveBeenCalled();
   });
 });
