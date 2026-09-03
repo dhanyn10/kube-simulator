@@ -108,6 +108,8 @@ describe('useHistory', () => {
       await result.current.handleJumpToHistory(0);
     });
 
+    expect(applyHistoryState).not.toHaveBeenCalled();
+
     // @ts-ignore
     delete globalThis.go;
 
@@ -117,5 +119,8 @@ describe('useHistory', () => {
       await result.current.handleJumpToHistory(0);
       await result.current.fetchHistoryLogs();
     });
+
+    expect(result.current.historyLogs).toBeDefined();
+    expect(applyHistoryState).not.toHaveBeenCalled();
   });
 });

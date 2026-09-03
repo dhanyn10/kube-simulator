@@ -16,16 +16,19 @@ export const RoleNode = memo((props: NodeProps) => {
             Rules ({rules.length})
           </div>
           <div className="space-y-1">
-            {rules.slice(0, 2).map((rule, idx) => (
-              <div key={`rule-${idx}`} className="text-[9px] font-mono bg-indigo-950/40 p-1 rounded border border-indigo-900/40">
-                <div className="text-indigo-300 font-semibold truncate">
-                  Res: {rule.resources.join(', ')}
+            {rules.slice(0, 2).map((rule) => {
+              const ruleKey = `rule-preview-${rule.resources.join('_') || 'empty'}-${rule.verbs.join('_') || 'none'}`;
+              return (
+                <div key={ruleKey} className="text-[9px] font-mono bg-indigo-950/40 p-1 rounded border border-indigo-900/40">
+                  <div className="text-indigo-300 font-semibold truncate">
+                    Res: {rule.resources.join(', ')}
+                  </div>
+                  <div className="text-indigo-400/80 text-[8px] truncate">
+                    Verbs: {rule.verbs.join(', ')}
+                  </div>
                 </div>
-                <div className="text-indigo-400/80 text-[8px] truncate">
-                  Verbs: {rule.verbs.join(', ')}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {rules.length > 2 && (
               <div className="text-[8px] italic text-slate-500">
                 + {rules.length - 2} more rule(s)...
