@@ -40,24 +40,38 @@ describe('dragHandlers', () => {
     onNodeDrag({} as any, nodeOverDep);
     expect(useFlowStore.getState().hoveredDeploymentId).toBe('d1');
 
-    // 2. Detaching from a Deployment (requires parentId and low overlap)
-    // We mock the overlap calculation behavior by moving it just slightly inside but with low overlap percentage
-    // Since we can't easily control internal getAbsPos without complex node setups, we test the logic via state
+    // 2. Detaching from a Deployment
     const nodeDetaching = { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 10, y: 10 }, data: {} } as any;
     onNodeDrag({} as any, nodeDetaching);
-    // Based on findHoveredContainer logic, if it's already a child, it checks for < 20% overlap
-    // With x:10, y:10 relative to d1 (100,100), the abs pos is 110, 110. It is inside d1.
+  });
+
+  it('onNodeDragStop prevents detaching Role outside of a Namespace', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({
+      addLog: addLogSpy,
+      nodes: [
+        { id: 'role1', type: 'Role', parentId: 'ns1', position: { x: 10, y: 10 }, data: {} },
+        { id: 'ns1', type: 'Namespace', position: { x: 500, y: 500 }, width: 400, height: 400, data: {} }
+      ] as any,
+      detachingDeploymentId: 'ns1',
+    });
+
+    const { onNodeDragStop } = useFlowStore.getState();
+    const roleNode = { id: 'role1', type: 'Role', parentId: 'ns1', position: { x: -100, y: -100 }, data: {} } as any;
+
+    onNodeDragStop({} as any, roleNode);
+
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Cannot detach Role outside of a Namespace'), 'UI');
   });
 
   it('onNodeDragStop handles detachment from Deployment', () => {
     const { onNodeDragStop } = useFlowStore.getState();
-    // Setup state: n1 is child of d1, but currently detaching
     useFlowStore.setState({
-        nodes: [
-            { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 10, y: 10 }, data: { replicas: 1 } },
-            { id: 'd1', type: 'Deployment', position: { x: 100, y: 100 }, data: { replicas: 1 } }
-        ] as any,
-        detachingDeploymentId: 'd1'
+      nodes: [
+        { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 10, y: 10 }, data: { replicas: 1 } },
+        { id: 'd1', type: 'Deployment', position: { x: 100, y: 100 }, data: { replicas: 1 } }
+      ] as any,
+      detachingDeploymentId: 'd1'
     });
 
     const node = { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: -50, y: -50 }, data: { replicas: 1 } } as any;
@@ -66,7 +80,6 @@ describe('dragHandlers', () => {
     const state = useFlowStore.getState();
     const updatedPod = state.nodes.find(n => n.id === 'n1');
     expect(updatedPod?.parentId).toBeUndefined();
-    // Deployment should have replicas updated (from 1 to 0 in this simplified sync logic)
   });
 
   it('onNodeDragStop handles re-parenting to Namespace', () => {
@@ -84,10 +97,10 @@ describe('dragHandlers', () => {
   it('onNodeDragStop handles move within container', () => {
     const { onNodeDragStop } = useFlowStore.getState();
     useFlowStore.setState({
-        nodes: [
-            { id: 'n1', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: {} },
-            { id: 'ns1', type: 'Namespace', position: { x: 500, y: 500 }, width: 400, height: 400, data: {} }
-        ] as any
+      nodes: [
+        { id: 'n1', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: {} },
+        { id: 'ns1', type: 'Namespace', position: { x: 500, y: 500 }, width: 400, height: 400, data: {} }
+      ] as any
     });
 
     const node = { id: 'n1', type: 'Pod', parentId: 'ns1', position: { x: 20, y: 20 }, data: {} } as any;
@@ -100,13 +113,13 @@ describe('dragHandlers', () => {
   });
 
   it('onNodeDragStop logs move activity when standalone node is moved', () => {
-    const { onNodeDragStop } = useFlowStore.getState();
-    useFlowStore.setState({ logs: [] });
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({ addLog: addLogSpy });
 
+    const { onNodeDragStop } = useFlowStore.getState();
     const node = { id: 'n1', type: 'Pod', position: { x: 200, y: 200 }, data: { label: 'pod-1' } } as any;
     onNodeDragStop({} as any, node);
 
-    const state = useFlowStore.getState();
-    expect(state.logs.some(l => l.message.includes('[Canvas Action] Moved card'))).toBe(true);
+    expect(addLogSpy).toHaveBeenCalledWith('info', expect.stringContaining('[Canvas Action] Moved card'), 'UI');
   });
 });

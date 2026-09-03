@@ -54,7 +54,6 @@ describe('CustomEdge', () => {
     render(<CustomEdge {...defaultProps} selected={true} />);
     fireEvent.click(screen.getByTitle('Remove'));
 
-    // setEdges is called with a function that filters edges
     expect(mockSetEdges).toHaveBeenCalled();
     const updateFn = mockSetEdges.mock.calls[0][0];
     const edges = [{ id: 'e1' }, { id: 'e2' }];
@@ -80,6 +79,33 @@ describe('CustomEdge', () => {
     render(<CustomEdge {...defaultProps} />);
     const edge = screen.getByTestId('base-edge');
     expect(edge.className).toContain('traffic-line');
+  });
+
+  it('detects unready child pod in Deployment and opens Kube Console logs on alert click', () => {
+    useFlowStore.setState({
+      activeSimulationEdges: ['e1'],
+      isTerminalOpen: false,
+      terminalActiveTab: 'activity',
+      terminalSelectedResourceId: null,
+      nodes: [
+        { id: 'svc1', type: 'Service', data: { label: 'my-svc' } },
+        { id: 'dep1', type: 'Deployment', data: { label: 'my-dep', status: 'ready' } },
+        { id: 'pod1', type: 'Pod', parentId: 'dep1', data: { label: 'my-pod', status: 'pending' } },
+      ],
+      edges: [{ id: 'e1', source: 'svc1', target: 'dep1' }],
+    });
+
+    render(<CustomEdge {...defaultProps} source="svc1" target="dep1" />);
+
+    const badge = screen.getByTestId('edge-alert-badge');
+    expect(badge).toBeDefined();
+
+    fireEvent.click(badge);
+
+    const state = useFlowStore.getState();
+    expect(state.isTerminalOpen).toBe(true);
+    expect(state.terminalActiveTab).toBe('logs');
+    expect(state.terminalSelectedResourceId).toBe('dep1');
   });
 
   it('opens Kube Console and switches to logs when alert badge is clicked on target error', () => {
