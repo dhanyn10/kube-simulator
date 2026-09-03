@@ -4,8 +4,6 @@ package system
 
 import (
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -39,23 +37,6 @@ var (
 	prevKernelTime uint64
 	prevUserTime   uint64
 )
-
-func parseValueFromOutput(out []byte) uint64 {
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.EqualFold(trimmed, "TotalPhysicalMemory") || strings.EqualFold(trimmed, "FreePhysicalMemory") || strings.EqualFold(trimmed, "LoadPercentage") {
-			continue
-		}
-		fields := strings.Fields(trimmed)
-		for _, f := range fields {
-			if val, err := strconv.ParseUint(f, 10, 64); err == nil {
-				return val
-			}
-		}
-	}
-	return 0
-}
 
 func fileTimeToUint64(ft fileTime) uint64 {
 	return uint64(ft.dwHighDateTime)<<32 | uint64(ft.dwLowDateTime)
