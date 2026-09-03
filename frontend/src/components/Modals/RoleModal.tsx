@@ -29,7 +29,6 @@ interface TagInputProps {
   suggestions?: string[];
   colorMode: string;
   tagBgClass?: string;
-  tagTextClass?: string;
 }
 
 const TagInput: React.FC<TagInputProps> = ({
