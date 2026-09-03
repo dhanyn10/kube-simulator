@@ -182,7 +182,7 @@ export default function App() {
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
 
-  const defaultBgColor = colorMode === 'dark' ? '#334155' : '#E2E8F0';
+  const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
 
   const handleRoleSave = (roleItem: K8sRoleItem) => {
@@ -204,6 +204,14 @@ export default function App() {
     updateNodeData(target.id, { roles: updatedRoles });
     useFlowStore.getState().addLog('info', `[Role Attached] Attached role "${roleItem.name}" to card ${roleModalTargetNode.label}`, 'UI');
     setRoleModalTargetNode(null);
+
+    // Switch right sidebar to settings tab for target node
+    useFlowStore.setState({
+      configuringNodeId: target.id,
+      configuringEdgeId: null,
+      isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
+    });
   };
 
   useAppInit(isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources);
