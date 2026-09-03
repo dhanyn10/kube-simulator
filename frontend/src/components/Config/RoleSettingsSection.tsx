@@ -66,8 +66,8 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
           >
             <ShieldCheck size={18} />
 
-            {/* Notification Badge with Number */}
-            {roles.length > 0 && (
+            {/* Notification Badge with Number (Only rendered when count > 1) */}
+            {roles.length > 1 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold font-mono flex items-center justify-center shadow-md border border-slate-900 animate-in zoom-in-75 duration-150">
                 {roles.length}
               </span>

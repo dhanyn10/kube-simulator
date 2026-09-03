@@ -70,32 +70,35 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it('renders attached role hero item icon with count badge and popover list', () => {
-      const data = {
+    it('renders attached role hero item icon without badge when count is 1, and with badge when count > 1', () => {
+      const singleRoleData = {
         label: 'app-deployment',
         type: 'Deployment' as const,
         roles: [
           {
             id: 'role-item-1',
             name: 'app-reader-role',
-            rules: [
-              {
-                apiGroups: [''],
-                resources: ['pods', 'deployments'],
-                verbs: ['get', 'list'],
-              },
-            ],
+            rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }],
           },
         ],
       };
 
-      render(<RoleSettingsSection data={data as any} nodeId="deploy-1" />);
+      const { rerender } = render(<RoleSettingsSection data={singleRoleData as any} nodeId="deploy-1" />);
       expect(screen.getByTitle('Attached Roles (1)')).toBeInTheDocument();
-      expect(screen.getByText('1')).toBeInTheDocument();
+      expect(screen.queryByText('1')).not.toBeInTheDocument();
 
-      // Open popover list
-      fireEvent.click(screen.getByTitle('Attached Roles (1)'));
-      expect(screen.getByText('app-reader-role')).toBeInTheDocument();
+      const multiRoleData = {
+        label: 'app-deployment',
+        type: 'Deployment' as const,
+        roles: [
+          { id: 'role-item-1', name: 'role-1', rules: [] },
+          { id: 'role-item-2', name: 'role-2', rules: [] },
+        ],
+      };
+
+      rerender(<RoleSettingsSection data={multiRoleData as any} nodeId="deploy-1" />);
+      expect(screen.getByTitle('Attached Roles (2)')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
     });
 
     it('handles editing and deleting roles in RoleSettingsSection', () => {
