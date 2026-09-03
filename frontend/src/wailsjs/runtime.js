@@ -1,2 +1,2 @@
 export function EventsOn() { return () => {}; };
-export function WindowSetTitle() {};
+export function WindowSetTitle() { return; };

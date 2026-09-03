@@ -166,6 +166,58 @@ describe('createUiSlice', () => {
     );
   });
 
+  it('handles invalid JSON in loadSettingsJson gracefully', async () => {
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockResolvedValue('invalid-json{');
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+
+    await new Promise(process.nextTick);
+    // Should not crash and keep current state
+    expect(useFlowStore.getState().isSidebarVisible).toBe(true);
+  });
+
+  it('fetches history logs and index via Wails backend', async () => {
+    (globalThis as any).go.main.App.GetHistoryLogs = vi.fn().mockResolvedValue(['log1', 'log2']);
+    (globalThis as any).go.main.App.GetCurrentHistoryIndex = vi.fn().mockResolvedValue(1);
+
+    const { fetchHistoryLogs } = useFlowStore.getState();
+    await fetchHistoryLogs();
+
+    const state = useFlowStore.getState();
+    expect(state.historyLogs).toEqual(['log2', 'log1']);
+    expect(state.currentHistoryIndex).toBe(1);
+    expect(state.isHistoryLoading).toBe(false);
+  });
+
+  it('logs OOM and CPU throttled messages when simulation metrics indicate errors', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 100 } },
+        { id: 'pod-oom', type: 'Pod', data: { label: 'oom-pod', status: 'ready', memoryLimit: '1Mi' } },
+        { id: 'pod-throttled', type: 'Pod', data: { label: 'throttled-pod', status: 'ready', cpuLimit: '1m' } }
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'i1', target: 'pod-oom' },
+        { id: 'e2', source: 'i1', target: 'pod-throttled' }
+      ] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Advance timers so tick runs and calculates metrics
+    vi.advanceTimersByTime(2000);
+
+    const logsOOM = useFlowStore.getState().terminalLogs['pod-oom'] || [];
+    const logsThrottled = useFlowStore.getState().terminalLogs['pod-throttled'] || [];
+
+    expect(logsOOM.length + logsThrottled.length).toBeGreaterThan(0);
+
+    vi.useRealTimers();
+  });
+
   it('loads valid settings from app_settings_json', async () => {
     const mockJson = JSON.stringify({
       isSidebarVisible: false,

@@ -28,6 +28,21 @@ describe('createFlowSlice', () => {
     expect(n2?.position).toEqual({ x: 60, y: 60 });
   });
 
+  it('syncRoleRulesFromConnections syncs rules when Role is connected to ReplicaSet and other workloads', () => {
+    const roleNode: Node = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: { rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }] } };
+    const rsNode: Node = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 0 }, data: { label: 'my-rs' } };
+    const edge: Edge = { id: 'e1', source: 'role1', target: 'rs1' };
+
+    useFlowStore.setState({ nodes: [roleNode, rsNode], edges: [] });
+
+    const { setEdges } = useFlowStore.getState();
+    setEdges([edge]);
+
+    const state = useFlowStore.getState();
+    const updatedRole = state.nodes.find(n => n.id === 'role1');
+    expect(updatedRole?.data.rules[0].resources).toContain('replicasets');
+  });
+
   it('onConnect validates edges and handles HPA auto-config', () => {
     const hpa = { id: 'h1', type: 'HPA', data: {} };
     const dep = { id: 'd1', type: 'Deployment', data: { label: 'dep' } };

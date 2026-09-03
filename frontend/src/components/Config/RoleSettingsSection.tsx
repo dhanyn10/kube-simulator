@@ -108,8 +108,10 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
 
             {role.rules && role.rules.length > 0 && (
               <div className="space-y-1">
-                {role.rules.map((rule, ruleIdx) => (
-                  <div key={`rule-summary-${role.id}-${ruleIdx}`} className="text-[10px] font-mono opacity-85 space-y-0.5">
+                {role.rules.map((rule) => {
+                  const ruleKey = `rule-summary-${role.id}-${rule.resources?.join('_') || 'empty'}-${rule.verbs?.join('_') || 'none'}`;
+                  return (
+                  <div key={ruleKey} className="text-[10px] font-mono opacity-85 space-y-0.5">
                     <div className="flex flex-wrap gap-1">
                       <span className="font-semibold text-slate-400">res:</span>
                       {rule.resources?.map((res) => (
@@ -127,7 +129,8 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
                       ))}
                     </div>
                   </div>
-                ))}
+                );
+                })}
               </div>
             )}
           </div>

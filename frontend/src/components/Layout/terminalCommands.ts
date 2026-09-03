@@ -58,7 +58,7 @@ const processVersionUpdateCmd = (parts: string[], store: any, ctx: CommandContex
 };
 
 const processVersionCurrentCmd = (parts: string[], store: any, ctx: CommandContext): boolean => {
-  const targetVersion = parts[3] ? parts[3].replace(/^v/i, '') : null;
+  const targetVersion = parts[3]?.replace(/^v/i, '') || null;
   const currentAssumed = store.simulatedCurrentVersion || '0.3.0';
 
   if (!targetVersion) {
@@ -327,7 +327,7 @@ export const handleDeletePodCommand = (
 
     if (foundNode.parentId) {
       const parent = ctx.nodes.find(n => n.id === foundNode.parentId);
-      if (parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet')) {
+      if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
         ctx.addActivityLog(`[self-healing] ReplicaSet controller detected 1 terminated pod!`);
         ctx.addActivityLog(`[self-healing] Creating a new replacement pod automatically to satisfy desired replicas...`);
 
@@ -444,9 +444,9 @@ export const handleGetRolesCommand = (
 
   const allRoles: { name: string; owner: string; rules: any[] }[] = [];
   ctx.nodes.forEach((n) => {
-    if (n.data?.roles && Array.isArray(n.data.roles)) {
+    if (Array.isArray(n.data?.roles)) {
       n.data.roles.forEach((r: any) => {
-        allRoles.push({ name: r.name, owner: n.data.label || n.id, rules: r.rules || [] });
+        allRoles.push({ name: r.name, owner: n.data?.label || n.id, rules: r.rules || [] });
       });
     }
   });
@@ -487,10 +487,10 @@ export const handleDescribeRoleCommand = (
   let foundRole: { name: string; owner: string; rules: any[] } | null = null;
 
   ctx.nodes.forEach((n) => {
-    if (n.data?.roles && Array.isArray(n.data.roles)) {
+    if (Array.isArray(n.data?.roles)) {
       n.data.roles.forEach((r: any) => {
-        if (r.name.toLowerCase() === targetName || (r.id && r.id.toLowerCase() === targetName)) {
-          foundRole = { name: r.name, owner: n.data.label || n.id, rules: r.rules || [] };
+        if (r.name.toLowerCase() === targetName || r.id?.toLowerCase() === targetName) {
+          foundRole = { name: r.name, owner: n.data?.label || n.id, rules: r.rules || [] };
         }
       });
     }

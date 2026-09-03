@@ -112,4 +112,49 @@ describe('createLogSlice', () => {
     expect(log.scope).toBe('System');
     expect(log.message).toBe('System initialization completed');
   });
+
+  it('should migrate legacy localStorage logs and invoke Wails WriteLog if available', async () => {
+    localStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: 'legacy-1', message: 'legacy' }]));
+    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: 'stored-1', message: 'stored' }]));
+
+    const mockWriteLog = vi.fn().mockRejectedValue(new Error('Wails offline'));
+    (globalThis as any).go = {
+      main: {
+        App: {
+          WriteLog: mockWriteLog,
+        },
+      },
+    };
+
+    const newStore = createStore<any>()((...a) => ({
+      ...createLogSlice(...a),
+    }));
+
+    expect(localStorage.getItem('k8s_sim_logs')).toBeNull();
+    expect(newStore.getState().logs).toHaveLength(1);
+
+    newStore.getState().addLog('info', 'Test Wails Log', 'KubeConsole');
+    expect(mockWriteLog).toHaveBeenCalledWith('KubeConsole', 'info', 'Test Wails Log');
+
+    delete (globalThis as any).go;
+  });
+
+  it('should handle storage errors gracefully', () => {
+    const originalGetItem = sessionStorage.getItem;
+    const originalConsoleError = (globalThis as any)._originalConsoleError;
+    (globalThis as any)._originalConsoleError = vi.fn();
+
+    vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+      throw new Error('Storage disabled');
+    });
+
+    const newStore = createStore<any>()((...a) => ({
+      ...createLogSlice(...a),
+    }));
+
+    expect(newStore.getState().logs).toEqual([]);
+
+    sessionStorage.getItem = originalGetItem;
+    delete (globalThis as any)._originalConsoleError;
+  });
 });
