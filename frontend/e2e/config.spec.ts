@@ -7,9 +7,11 @@ test.describe('ConfigMap and Secret', () => {
   });
 
   test('can add and attach ConfigMap to Deployment via store', async ({ page }) => {
-    // Add a Deployment card first
-    await page.getByRole('button', { name: 'Workloads' }).click();
-    await page.getByRole('button', { name: 'Deployment' }).click();
+    // Add a Deployment card via store directly
+    await page.evaluate(() => {
+      const store = (globalThis as any).useFlowStore.getState();
+      store.addNode('Deployment');
+    });
 
     const deploymentNode = page.locator('.react-flow__node-Deployment');
     await expect(deploymentNode).toBeVisible();
