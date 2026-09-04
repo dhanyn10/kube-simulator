@@ -160,7 +160,12 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     setDraggingSidebarItem(nodeType);
   };
 
-  const onDragEnd = () => setDraggingSidebarItem(null);
+  const onDragEnd = () => {
+    setDraggingSidebarItem(null);
+    useFlowStore.setState((state) => ({
+      nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
+    }));
+  };
 
   return (
     <div

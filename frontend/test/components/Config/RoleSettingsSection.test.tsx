@@ -21,7 +21,7 @@ describe('RoleSettingsSection', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders attached role badge with count > 1 in light mode and opens popover list', () => {
+  it('renders attached role badge with count > 1 in light mode and opens list modal', () => {
     useFlowStore.setState({ colorMode: 'light' });
 
     const data = {
@@ -37,19 +37,20 @@ describe('RoleSettingsSection', () => {
     expect(screen.getByTitle('Attached Roles (2)')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
 
-    // Toggle popover list
+    // Open list modal
     const btn = screen.getByTitle('Attached Roles (2)');
     fireEvent.click(btn);
 
+    expect(screen.getByText('Attached RBAC Roles')).toBeInTheDocument();
     expect(screen.getByText('reader-role')).toBeInTheDocument();
     expect(screen.getByText('writer-role')).toBeInTheDocument();
 
-    // Click again to toggle off
-    fireEvent.click(btn);
-    expect(screen.queryByText('reader-role')).not.toBeInTheDocument();
+    // Close list modal
+    fireEvent.click(screen.getByText('Close'));
+    expect(screen.queryByText('Attached RBAC Roles')).not.toBeInTheDocument();
   });
 
-  it('handles editing and deleting roles in popover list', () => {
+  it('handles editing and deleting roles from list modal', () => {
     const updateNodeData = vi.fn();
     const addLog = vi.fn();
     useFlowStore.setState({ updateNodeData, addLog });
@@ -63,16 +64,23 @@ describe('RoleSettingsSection', () => {
 
     render(<RoleSettingsSection data={data as any} nodeId="node-1" />);
 
-    // Open popover list
+    // Open list modal
     fireEvent.click(screen.getByTitle('Attached Roles (1)'));
 
-    // Click Edit Role button
+    // Click Delete Role button in list modal
+    const deleteBtn = screen.getByTitle('Delete Role');
+    fireEvent.click(deleteBtn);
+
+    expect(updateNodeData).toHaveBeenCalledWith('node-1', { roles: [] });
+    expect(addLog).toHaveBeenCalledWith('info', expect.stringContaining('Removed role'), 'UI');
+
+    // Click Edit Role button in list modal
     const editBtn = screen.getByTitle('Edit Role');
     fireEvent.click(editBtn);
 
     expect(screen.getByText('Edit Role')).toBeInTheDocument();
 
-    // Save role in modal
+    // Save role in edit modal
     const saveBtn = screen.getByText('Update Role');
     fireEvent.click(saveBtn);
 
@@ -80,13 +88,6 @@ describe('RoleSettingsSection', () => {
       roles: [expect.objectContaining({ id: 'r1', name: 'reader-role' })],
     });
     expect(addLog).toHaveBeenCalledWith('info', expect.stringContaining('Updated role'), 'UI');
-
-    // Click Delete Role button in popover list (popover list is still open)
-    const deleteBtn = screen.getByTitle('Delete Role');
-    fireEvent.click(deleteBtn);
-
-    expect(updateNodeData).toHaveBeenCalledWith('node-1', { roles: [] });
-    expect(addLog).toHaveBeenCalledWith('info', expect.stringContaining('Removed role'), 'UI');
   });
 
   it('handles handleSaveRole updating or adding roles in modal', () => {
@@ -102,7 +103,7 @@ describe('RoleSettingsSection', () => {
 
     render(<RoleSettingsSection data={data as any} nodeId="node-1" />);
 
-    // Open popover
+    // Open list modal
     fireEvent.click(screen.getByTitle('Attached Roles (1)'));
 
     // Open edit modal for r1

@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { AlertCircle, CheckCircle2, Shield } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Shield, Settings } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -89,7 +89,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
 
-  const isRoleDragging = draggingSidebarItem === 'Role';
+  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap';
   const currentNode = nodes.find((n) => n.id === id);
   const parentNode = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId) : null;
   const isInsideNamespace = currentNode?.parentId ? (parentNode?.type === 'Namespace' || Boolean(parentNode?.parentId && nodes.find((p) => p.id === parentNode.parentId)?.type === 'Namespace')) : false;
@@ -106,6 +106,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       color,
       colorMode,
       isRoleDragging,
+      nodeType: data.type,
       isInsideNamespace,
       isHovered: data.isHovered
     });
@@ -160,15 +161,24 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
 
-        {data.roles && data.roles.length > 0 && (
-          <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-indigo-500/20">
-            {data.roles.map((role: any) => (
+        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0)) && (
+          <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-slate-500/20">
+            {data.roles && data.roles.map((role: any) => (
               <span
                 key={role.id || role.name}
                 className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
                 title={`Role: ${role.name}`}
               >
                 <Shield size={11} />
+              </span>
+            ))}
+            {data.configMaps && data.configMaps.map((cm: any) => (
+              <span
+                key={cm.id || cm.name}
+                className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm"
+                title={`ConfigMap: ${cm.name}`}
+              >
+                <Settings size={11} />
               </span>
             ))}
           </div>

@@ -22,6 +22,8 @@ export interface UiSlice {
   colorMode: 'dark' | 'light';
   roleModalTargetNode: { id: string; label: string } | null;
   setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
+  configMapModalTargetNode: { id: string; label: string } | null;
+  setConfigMapModalTargetNode: (target: { id: string; label: string } | null) => void;
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
   historyLogs: any[];
@@ -630,6 +632,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   colorMode: 'dark',
   roleModalTargetNode: null,
   setRoleModalTargetNode: (target) => set({ roleModalTargetNode: target }),
+  configMapModalTargetNode: null,
+  setConfigMapModalTargetNode: (target) => set({ configMapModalTargetNode: target }),
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,
@@ -766,7 +770,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
     }
   },
-  setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
+  setDraggingSidebarItem: (item) => {
+    set({ draggingSidebarItem: item });
+    if (!item) {
+      set((state) => ({
+        nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
+      }));
+    }
+  },
   toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
   toggleAutofocus: () => {
     set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled }));

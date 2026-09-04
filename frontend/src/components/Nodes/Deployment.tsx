@@ -22,9 +22,10 @@ const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], no
   return edges.some((e) => e.target === nodeId && nodes.find((n) => n.id === e.source)?.type === 'HPA');
 };
 
-const getRoleDragClass = (isRoleDragging: boolean, isInsideNamespace: boolean, isHovered?: boolean): string => {
+const getRoleDragClass = (isRoleDragging: boolean, nodeType: string, isHovered?: boolean): string => {
   if (!isRoleDragging) return '';
-  if (!isInsideNamespace) return 'role-drag-outside-ns';
+  const isCompatible = ['Pod', 'Deployment', 'Service', 'Namespace', 'Ingress', 'HPA', 'PVC'].includes(nodeType);
+  if (!isCompatible) return 'role-drag-outside-ns';
   return isHovered ? 'role-drag-inside-ns' : '';
 };
 
@@ -51,7 +52,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   const isInsideNamespace = checkIsInsideNamespace(props.id, nodes);
   const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
-  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role', isInsideNamespace, data.isHovered);
+  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap', 'Deployment', data.isHovered);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);

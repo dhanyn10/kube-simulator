@@ -28,8 +28,8 @@ export const Modal = ({
   iconColorClass = "text-blue-500",
   children,
   footer,
-  widthClass = "w-[600px]",
-  maxHeightClass = "max-h-[85vh]",
+  widthClass = "w-full max-w-3xl",
+  maxHeightClass = "max-h-[85vh] h-[70vh]",
   alignClass = "items-center",
   disableScroll = false,
   compactHeader = true

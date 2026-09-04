@@ -110,9 +110,9 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (!draggingSidebarItem) return;
 
-      if (draggingSidebarItem === 'Role') {
-        const roleCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const targetNode = findRoleTargetNode(roleCenter, nodes);
+      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap') {
+        const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const targetNode = findRoleTargetNode(itemCenter, nodes);
 
         setHoveredDeploymentId(targetNode?.id || null);
         useFlowStore.setState((state) => ({
@@ -145,17 +145,23 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
-      // Handle Role drop onto existing canvas card
-      if (type === 'Role') {
-        const roleCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const targetNode = findRoleTargetNode(roleCenter, nodes);
+      // Handle Role or ConfigMap drop onto existing canvas card
+      if (type === 'Role' || type === 'ConfigMap') {
+        const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        const targetNode = findRoleTargetNode(itemCenter, nodes);
 
         if (!targetNode) {
-          useFlowStore.getState().addLog('warn', '[Canvas Action] Role must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach roles!', 'UI');
+          useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach ${type.toLowerCase()}s!`, 'UI');
         } else {
-          useFlowStore.setState({
-            roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
-          });
+          if (type === 'Role') {
+            useFlowStore.setState({
+              roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+            });
+          } else {
+            useFlowStore.setState({
+              configMapModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+            });
+          }
         }
         setHoveredDeploymentId(null);
         useFlowStore.setState((state) => ({
@@ -180,5 +186,17 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
     [screenToFlowPosition, addNode, getTargetContainer, setHoveredDeploymentId, nodes]
   );
 
-  return { onDragOver, onDrop };
+  const onDragLeave = useCallback(
+    (event: React.DragEvent) => {
+      if (event.currentTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
+        setHoveredDeploymentId(null);
+        useFlowStore.setState((state) => ({
+          nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
+        }));
+      }
+    },
+    [setHoveredDeploymentId]
+  );
+
+  return { onDragOver, onDragLeave, onDrop };
 }

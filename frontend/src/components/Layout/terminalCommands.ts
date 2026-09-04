@@ -25,6 +25,80 @@ const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean =>
   return true;
 };
 
+export const handleGetConfigMapsCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+get\s+(configmaps?|cm)\b/i.exec(cmd.trim());
+  if (!match) return false;
+
+  const allConfigMaps: { name: string; owner: string; dataCount: number }[] = [];
+  ctx.nodes.forEach((n) => {
+    if (Array.isArray(n.data?.configMaps)) {
+      n.data.configMaps.forEach((cm: any) => {
+        allConfigMaps.push({
+          name: cm.name,
+          owner: n.data?.label || n.id,
+          dataCount: Array.isArray(cm.configData) ? cm.configData.length : 0,
+        });
+      });
+    }
+  });
+
+  if (allConfigMaps.length === 0) {
+    ctx.addActivityLog('No configmaps found on the canvas.');
+    return true;
+  }
+
+  ctx.addActivityLog(`${"NAME".padEnd(30)} DATA   ATTACHED TO           CREATED AT`);
+  allConfigMaps.forEach((cm) => {
+    ctx.addActivityLog(`${String(cm.name).padEnd(30)} ${String(cm.dataCount).padEnd(6)} ${String(cm.owner).padEnd(21)} 2m ago`);
+  });
+  return true;
+};
+
+export const handleDescribeConfigMapCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+describe\s+(configmaps?|cm)\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[2].toLowerCase();
+  let foundCM: { name: string; owner: string; configData: any[] } | null = null;
+
+  ctx.nodes.forEach((n) => {
+    if (Array.isArray(n.data?.configMaps)) {
+      n.data.configMaps.forEach((cm: any) => {
+        if (cm.name.toLowerCase() === targetName || cm.id?.toLowerCase() === targetName) {
+          foundCM = { name: cm.name, owner: n.data?.label || n.id, configData: cm.configData || [] };
+        }
+      });
+    }
+  });
+
+  if (foundCM) {
+    const cm = foundCM as { name: string; owner: string; configData: any[] };
+    ctx.addActivityLog(`Name:         ${cm.name}`);
+    ctx.addActivityLog(`Namespace:    default`);
+    ctx.addActivityLog(`Attached To:  ${cm.owner}`);
+    ctx.addActivityLog(`Data`);
+    ctx.addActivityLog(`====`);
+    if (cm.configData.length === 0) {
+      ctx.addActivityLog(`<none>`);
+    } else {
+      cm.configData.forEach((kv: any) => {
+        ctx.addActivityLog(`${kv.key}:`);
+        ctx.addActivityLog(`----`);
+        ctx.addActivityLog(`${kv.value}`);
+      });
+    }
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): configmap "${targetName}" not found`);
+  }
+  return true;
+};
+
 const compareVersions = (v1: string, v2: string): number => {
   const clean1 = v1.replace(/^v/i, '').split('-');
   const clean2 = v2.replace(/^v/i, '').split('-');
