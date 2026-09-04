@@ -87,7 +87,6 @@ export const useNodeContainerStyles = (options: NodeContainerStylesOptions) => {
     color,
     colorMode,
     isRoleDragging,
-    isInsideNamespace,
     isHovered
   } = options;
 

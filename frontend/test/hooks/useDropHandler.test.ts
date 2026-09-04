@@ -183,7 +183,7 @@ describe('useDropHandler', () => {
     expect(addNode).toHaveBeenCalledWith('Pod', expect.any(Object), 'd1');
   });
 
-  describe('Role drag and drop handlers', () => {
+  describe('Role & ConfigMap drag and drop handlers', () => {
     it('onDragOver handles dragging a Role item over a card inside deployment', () => {
       const setHoveredDeploymentId = vi.fn();
       const depNode = {
@@ -226,6 +226,41 @@ describe('useDropHandler', () => {
       expect(setHoveredDeploymentId).toHaveBeenCalledWith('dep1');
       const updatedNodes = useFlowStore.getState().nodes;
       expect(updatedNodes.find((n) => n.id === 'dep1')?.data?.isHovered).toBe(true);
+    });
+
+    it('onDrop handles dropping a ConfigMap onto a target workload', () => {
+      const depNode = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: { label: 'My Deployment' }
+      };
+
+      useFlowStore.setState({
+        nodes: [depNode] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('ConfigMap')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().configMapModalTargetNode).toEqual({
+        id: 'dep1',
+        label: 'My Deployment'
+      });
     });
 
     it('onDrop handles dropping a Role onto a target workload', () => {
@@ -290,6 +325,31 @@ describe('useDropHandler', () => {
         expect.stringContaining('Role must be dropped onto an existing card'),
         'UI'
       );
+    });
+
+    it('onDragLeave clears hovered deployment and node hovered state when leaving target container', () => {
+      const setHoveredDeploymentId = vi.fn();
+      useFlowStore.setState({
+        setHoveredDeploymentId,
+        nodes: [
+          { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { isHovered: true } } as any
+        ]
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockContainer = { contains: vi.fn().mockReturnValue(false) };
+      const mockEvent = {
+        currentTarget: mockContainer,
+        relatedTarget: {}
+      } as any;
+
+      act(() => {
+        result.current.onDragLeave(mockEvent);
+      });
+
+      expect(setHoveredDeploymentId).toHaveBeenCalledWith(null);
+      expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
     });
   });
 });

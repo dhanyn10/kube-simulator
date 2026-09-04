@@ -14,6 +14,12 @@ interface ConfigMapModalProps {
   onSave: (configMapItem: K8sConfigMapItem) => void;
 }
 
+interface ConfigDataItem {
+  id: string;
+  key: string;
+  value: string;
+}
+
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   isOpen,
   onClose,
@@ -25,9 +31,9 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const [cmName, setCmName] = useState<string>('app-config');
-  const [dataItems, setDataItems] = useState<Array<{ key: string; value: string }>>([
-    { key: 'API_URL', value: 'https://api.example.com' },
-    { key: 'LOG_LEVEL', value: 'info' },
+  const [dataItems, setDataItems] = useState<ConfigDataItem[]>([
+    { id: 'cm-kv-1', key: 'API_URL', value: 'https://api.example.com' },
+    { id: 'cm-kv-2', key: 'LOG_LEVEL', value: 'info' },
   ]);
 
   useEffect(() => {
@@ -35,15 +41,19 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       setCmName(initialConfigMap.name || 'app-config');
       setDataItems(
         initialConfigMap.configData && initialConfigMap.configData.length > 0
-          ? initialConfigMap.configData
-          : [{ key: 'API_URL', value: 'https://api.example.com' }]
+          ? initialConfigMap.configData.map((item) => ({
+              id: `cm-kv-${crypto.randomUUID().split('-')[0]}`,
+              key: item.key,
+              value: item.value,
+            }))
+          : [{ id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_URL', value: 'https://api.example.com' }]
       );
     } else {
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setCmName(`cm-${randomSuffix}`);
       setDataItems([
-        { key: 'API_URL', value: 'https://api.example.com' },
-        { key: 'LOG_LEVEL', value: 'info' },
+        { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_URL', value: 'https://api.example.com' },
+        { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'LOG_LEVEL', value: 'info' },
       ]);
     }
   }, [initialConfigMap, isOpen, targetNodeId]);
@@ -51,21 +61,23 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   if (!isOpen) return null;
 
   const handleAddField = () => {
-    setDataItems((prev) => [...prev, { key: '', value: '' }]);
+    setDataItems((prev) => [...prev, { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: '', value: '' }]);
   };
 
-  const handleRemoveField = (index: number) => {
-    setDataItems((prev) => prev.filter((_, i) => i !== index));
+  const handleRemoveField = (id: string) => {
+    setDataItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleUpdateField = (index: number, field: 'key' | 'value', value: string) => {
+  const handleUpdateField = (id: string, field: 'key' | 'value', value: string) => {
     setDataItems((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
   };
 
   const handleSave = () => {
-    const validData = dataItems.filter((item) => item.key.trim() !== '');
+    const validData = dataItems
+      .filter((item) => item.key.trim() !== '')
+      .map(({ key, value }) => ({ key, value }));
     const configMapItem: K8sConfigMapItem = {
       id: initialConfigMap?.id || `cm-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(cmName) || 'unnamed-configmap',
@@ -146,9 +158,9 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           </div>
 
           <div className="space-y-2">
-            {dataItems.map((item, idx) => (
+            {dataItems.map((item) => (
               <div
-                key={`cm-kv-${idx}`}
+                key={item.id}
                 className={cn(
                   "flex items-center gap-2 p-2 rounded-lg border",
                   colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
@@ -157,7 +169,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                 <input
                   type="text"
                   value={item.key}
-                  onChange={(e) => handleUpdateField(idx, 'key', e.target.value)}
+                  onChange={(e) => handleUpdateField(item.id, 'key', e.target.value)}
                   placeholder="KEY (e.g. API_URL)"
                   className={cn(
                     "flex-1 px-2.5 py-1.5 rounded-md border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500",
@@ -168,7 +180,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                 <input
                   type="text"
                   value={item.value}
-                  onChange={(e) => handleUpdateField(idx, 'value', e.target.value)}
+                  onChange={(e) => handleUpdateField(item.id, 'value', e.target.value)}
                   placeholder="Value"
                   className={cn(
                     "flex-1 px-2.5 py-1.5 rounded-md border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500",
@@ -178,7 +190,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                 {dataItems.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => handleRemoveField(idx)}
+                    onClick={() => handleRemoveField(item.id)}
                     className="p-1.5 text-red-400 hover:text-red-300 rounded transition-colors cursor-pointer"
                     title="Remove Pair"
                   >

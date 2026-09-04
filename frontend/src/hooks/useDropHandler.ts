@@ -152,16 +152,14 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
         if (!targetNode) {
           useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach ${type.toLowerCase()}s!`, 'UI');
+        } else if (type === 'Role') {
+          useFlowStore.setState({
+            roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+          });
         } else {
-          if (type === 'Role') {
-            useFlowStore.setState({
-              roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
-            });
-          } else {
-            useFlowStore.setState({
-              configMapModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
-            });
-          }
+          useFlowStore.setState({
+            configMapModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+          });
         }
         setHoveredDeploymentId(null);
         useFlowStore.setState((state) => ({

@@ -46,13 +46,10 @@ vi.mock('@/init-console', () => ({
 describe('main.tsx entry point', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    // Reset modules to allow re-importing main.tsx
     vi.resetModules();
 
-    // Setup DOM
     document.body.innerHTML = '<div id="root"></div>';
 
-    // We need to use globalThis because main.tsx uses it
     (globalThis as any)._originalConsoleLog = vi.fn();
     (globalThis as any)._originalConsoleWarn = vi.fn();
     (globalThis as any)._originalConsoleError = vi.fn();
@@ -62,7 +59,6 @@ describe('main.tsx entry point', () => {
     const { createRoot } = await import('react-dom/client');
     const { initWailsMocks } = await import('@/lib/mocks');
 
-    // Import main.tsx to trigger its side effects
     await import('@/main');
 
     expect(initWailsMocks).toHaveBeenCalled();
@@ -71,7 +67,6 @@ describe('main.tsx entry point', () => {
   });
 
   it('captures console logs and adds them to the store', async () => {
-    // Ensure main is loaded
     await import('@/main');
 
     console.log('test log');
@@ -94,7 +89,7 @@ describe('main.tsx entry point', () => {
     expect(lastCall[1]).toContain('Error: boom');
   });
 
-  it('handles unserializable objects in logs', async () => {
+  it('handles unserializable objects in logs and fallback errors', async () => {
     await import('@/main');
 
     const circular: any = {};
@@ -103,12 +98,42 @@ describe('main.tsx entry point', () => {
     console.log(circular);
     const lastCall = addLogSpy.mock.calls.at(-1);
     expect(lastCall[1]).toBe('[Unserializable Object]');
+
+    // Test log failure error fallback handling
+    addLogSpy.mockImplementationOnce(() => {
+      throw new Error('store addLog failed');
+    });
+
+    console.error('failing error log');
+    expect((globalThis as any)._originalConsoleError).toHaveBeenCalledWith(
+      'Failed to capture error log:',
+      expect.any(Error)
+    );
+
+    addLogSpy.mockImplementationOnce(() => {
+      throw new Error('store addLog failed');
+    });
+
+    console.warn('failing warn log');
+    expect((globalThis as any)._originalConsoleError).toHaveBeenCalledWith(
+      'Failed to capture warn log:',
+      expect.any(Error)
+    );
+
+    addLogSpy.mockImplementationOnce(() => {
+      throw new Error('store addLog failed');
+    });
+
+    console.log('failing info log');
+    expect((globalThis as any)._originalConsoleError).toHaveBeenCalledWith(
+      'Failed to capture info log:',
+      expect.any(Error)
+    );
   });
 
   it('handles backend log events', async () => {
     await import('@/main');
 
-    // Get the callback passed to EventsOn
     const callback = mockEventsOn.mock.calls.find((call: any) => call[0] === 'backend-log')[1];
 
     callback({ level: 'info', message: 'backend message' });

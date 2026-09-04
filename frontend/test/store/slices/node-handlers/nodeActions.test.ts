@@ -46,6 +46,17 @@ describe('nodeActions', () => {
     expect(nsNode?.height).toBe(400);
   });
 
+  it('addNode handles adding a Pod into a Deployment container parent', () => {
+    const depNode = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 1 } };
+    useFlowStore.setState({ nodes: [depNode] as any });
+
+    const { addNode } = useFlowStore.getState();
+    addNode('Pod', { x: 20, y: 20 }, 'dep1');
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.parentId === 'dep1' && n.type === 'Pod')).toBe(true);
+  });
+
   it('updateNodeData sets isAutoImage to false when image is explicitly set', () => {
     const pod = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'my-pod', isAutoImage: true } };
     useFlowStore.setState({ nodes: [pod] as any });
@@ -56,6 +67,29 @@ describe('nodeActions', () => {
     const state = useFlowStore.getState();
     expect(state.nodes[0].data.image).toBe('custom-image:v1');
     expect(state.nodes[0].data.isAutoImage).toBe(false);
+  });
+
+  it('updateNodeData returns early if target node is missing or data has no changes', () => {
+    const pod = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'my-pod' } };
+    useFlowStore.setState({ nodes: [pod] as any, lastActionName: 'init' });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('missing-node', { label: 'new' });
+    expect(useFlowStore.getState().lastActionName).toBe('init');
+
+    updateNodeData('p1', { label: 'my-pod' });
+    expect(useFlowStore.getState().lastActionName).toBe('init');
+  });
+
+  it('updateNodeData handles Pod parent sync when parent node is missing in store', () => {
+    const pod = { id: 'p1', type: 'Pod', parentId: 'missing-dep', position: { x: 0, y: 0 }, data: { replicas: 1 } };
+    useFlowStore.setState({ nodes: [pod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { replicas: 2 });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 'p1')?.data.replicas).toBe(2);
   });
 
   it('updateNodeData reverts ReplicaSet back to standalone Pod when replicas scaled down to 1', () => {

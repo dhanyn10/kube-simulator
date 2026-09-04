@@ -9,13 +9,6 @@ import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 
-const checkIsInsideNamespace = (nodeId: string, nodes: any[]): boolean => {
-  const currentNode = nodes.find((n) => n.id === nodeId);
-  if (!currentNode?.parentId) return false;
-  const parentNode = nodes.find((n) => n.id === currentNode.parentId);
-  return parentNode?.type === 'Namespace';
-};
-
 const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], nodes: any[]): boolean => {
   const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
   if (hasRequests) return false;
@@ -50,7 +43,6 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const { transitionClasses } = useNodeStyles(props.id);
 
-  const isInsideNamespace = checkIsInsideNamespace(props.id, nodes);
   const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
   const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap', 'Deployment', data.isHovered);
 
@@ -126,8 +118,6 @@ export const DeploymentNode = memo((props: NodeProps) => {
           </div>
         </div>
       )}
-
-
 
       <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
         {data.roles && data.roles.length > 0 && (

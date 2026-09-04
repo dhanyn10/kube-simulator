@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BaseNode } from '../../../src/components/Nodes/BaseNode';
-import { useFlowStore } from '../../../src/store';
+import '@testing-library/jest-dom';
+import { BaseNode } from '@/components/Nodes/BaseNode';
+import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Box } from 'lucide-react';
 
 describe('BaseNode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
+    useFlowStore.setState({ colorMode: 'dark', draggingSidebarItem: null, nodes: [] });
   });
 
   const defaultProps = {
@@ -27,8 +28,8 @@ describe('BaseNode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText('Test Node')).toBeDefined();
-    expect(screen.getByText('Node Label')).toBeDefined();
+    expect(screen.getByText('Test Node')).toBeInTheDocument();
+    expect(screen.getByText('Node Label')).toBeInTheDocument();
   });
 
   it('handles renaming and sanitizes name', () => {
@@ -64,7 +65,7 @@ describe('BaseNode', () => {
         <BaseNode {...props} />
       </ReactFlowProvider>
     );
-    expect(screen.getByText('x5')).toBeDefined();
+    expect(screen.getByText('x5')).toBeInTheDocument();
   });
 
   it('applies role-drag-inside-ns or role-drag-outside-ns when dragging Role from sidebar', () => {
@@ -115,7 +116,38 @@ describe('BaseNode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText('Crashing')).toBeDefined();
-    expect(screen.getByText('x100')).toBeDefined();
+    expect(screen.getByText('Crashing')).toBeInTheDocument();
+    expect(screen.getByText('x100')).toBeInTheDocument();
+  });
+
+  it('renders roles and configMaps attached section at bottom', () => {
+    render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          data={{
+            ...defaultProps.data,
+            roles: [{ id: 'r1', name: 'my-role' }],
+            configMaps: [{ id: 'c1', name: 'my-cm' }],
+          }}
+        />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByTitle('Role: my-role')).toBeInTheDocument();
+    expect(screen.getByTitle('ConfigMap: my-cm')).toBeInTheDocument();
+  });
+
+  it('renders status indicators correctly for Internet and PVC node types', () => {
+    const { container } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          data={{ label: 'Internet Node', type: 'Internet' }}
+        />
+      </ReactFlowProvider>
+    );
+
+    expect(container.querySelector('.rounded-full.w-1\\.5')).toBeNull();
   });
 });
