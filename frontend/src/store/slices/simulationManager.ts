@@ -98,23 +98,19 @@ export const checkEmergencyStop = (params: {
  * @returns boolean True if all HPA targets are valid.
  */
 export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
-    const hpaNodes = nodes.filter(n => n.type === 'HPA');
-    if (hpaNodes.length === 0) return true;
+    const workloads = nodes.filter(n => n.type === 'Deployment' || (n.type === 'Pod' && !n.parentId));
 
-    return !hpaNodes.some(hpa => {
-        const outgoingEdges = edges.filter(e => e.source === hpa.id);
-        const targets = nodes.filter(n => outgoingEdges.some(e => e.target === n.id));
-        return targets.some(target => {
-            const data = target.data as K8sNodeData;
-            const isWorkload = target.type === 'Deployment' || (target.type === 'Pod' && !target.parentId);
-            if (!isWorkload) return false;
+    for (const target of workloads) {
+      const data = target.data as K8sNodeData;
+      const hasAttachedHpa = Array.isArray(data.hpas) && data.hpas.length > 0;
+      const hasConnectedHpa = edges.some(e => e.target === target.id && nodes.find(n => n.id === e.source)?.type === 'HPA');
 
-            // HPA requires limits to be set
-            if (!data.cpuLimit || !data.memoryLimit) return true;
-
-            return validateResourceLimits(data).hasError;
-        });
-    });
+      if (hasAttachedHpa || hasConnectedHpa) {
+        if (!data.cpuLimit || !data.memoryLimit) return false;
+        if (validateResourceLimits(data).hasError) return false;
+      }
+    }
+    return true;
 };
 
 /**

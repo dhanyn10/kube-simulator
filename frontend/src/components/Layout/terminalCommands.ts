@@ -498,11 +498,28 @@ export const handleGetAllCommand = (
   }
 
   const hpas = ctx.nodes.filter(n => n.type === 'HPA');
-  if (hpas.length > 0) {
+  const attachedHpas: { name: string; owner: string; min: number; max: number }[] = [];
+  ctx.nodes.forEach(n => {
+    if (Array.isArray(n.data?.hpas)) {
+      n.data.hpas.forEach((h: any) => {
+        attachedHpas.push({
+          name: h.name,
+          owner: n.data?.label || n.id,
+          min: h.minReplicas || 1,
+          max: h.maxReplicas || 10,
+        });
+      });
+    }
+  });
+
+  if (hpas.length > 0 || attachedHpas.length > 0) {
     ctx.addActivityLog(`\n${"NAME".padEnd(38)} REFERENCE               TARGETS         MINPODS   MAXPODS   REPLICAS   AGE`);
     hpas.forEach(h => {
       const name = h.data.label || h.id;
       ctx.addActivityLog(`horizontalpodautoscaler.autoscaling/${String(name).padEnd(2)} Deployment/api-dep     12%/50%         ${h.data.minReplicas || 1}         ${h.data.maxReplicas || 10}        3          5m`);
+    });
+    attachedHpas.forEach(ah => {
+      ctx.addActivityLog(`horizontalpodautoscaler.autoscaling/${String(ah.name).padEnd(2)} Deployment/${ah.owner.padEnd(10)} 12%/50%         ${ah.min}         ${ah.max}        3          5m`);
     });
   }
 

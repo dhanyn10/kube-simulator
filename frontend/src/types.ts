@@ -18,6 +18,15 @@ export interface K8sConfigMapItem {
   configData: Array<{ key: string; value: string }>;
 }
 
+export interface K8sHpaItem {
+  id: string;
+  name: string;
+  minReplicas: number;
+  maxReplicas: number;
+  targetCPU: number;
+  targetMemory?: number;
+}
+
 export interface K8sNodeData {
   [key: string]: any;
   label: string;
@@ -73,10 +82,11 @@ export interface K8sNodeData {
   // ConfigMap & Secret specific fields
   configData?: Array<{ key: string; value: string }>;
 
-  // Role & ConfigMap specific attached fields
+  // Role, ConfigMap & HPA specific attached fields
   rules?: K8sRoleRule[];
   roles?: K8sRoleItem[];
   configMaps?: K8sConfigMapItem[];
+  hpas?: K8sHpaItem[];
 }
 
 export interface K8sManifest {

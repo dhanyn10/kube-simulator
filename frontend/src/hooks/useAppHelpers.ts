@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '../store';
-import { K8sRoleItem, K8sConfigMapItem } from '../types';
+import { K8sRoleItem, K8sConfigMapItem, K8sHpaItem } from '../types';
 import { logger } from '../lib/logger';
 
 export function useAppInit(
@@ -66,6 +66,8 @@ export function useAttachmentHandlers() {
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const configMapModalTargetNode = useFlowStore((state) => state.configMapModalTargetNode);
   const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
+  const hpaModalTargetNode = useFlowStore((state) => state.hpaModalTargetNode);
+  const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
 
   const handleRoleSave = (roleItem: K8sRoleItem) => {
     if (!roleModalTargetNode) return;
@@ -123,12 +125,43 @@ export function useAttachmentHandlers() {
     });
   };
 
+  const handleHpaSave = (hpaItem: K8sHpaItem) => {
+    if (!hpaModalTargetNode) return;
+    const target = nodes.find((n) => n.id === hpaModalTargetNode.id);
+    if (!target) return;
+
+    const existingHpas = target.data.hpas || [];
+    const existingIndex = existingHpas.findIndex((h: K8sHpaItem) => h.id === hpaItem.id);
+    let updatedHpas: K8sHpaItem[];
+
+    if (existingIndex >= 0) {
+      updatedHpas = [...existingHpas];
+      updatedHpas[existingIndex] = hpaItem;
+    } else {
+      updatedHpas = [...existingHpas, hpaItem];
+    }
+
+    updateNodeData(target.id, { hpas: updatedHpas });
+    useFlowStore.getState().addLog('info', `[HPA Attached] Attached HPA "${hpaItem.name}" to card ${hpaModalTargetNode.label}`, 'UI');
+    setHpaModalTargetNode(null);
+
+    useFlowStore.setState({
+      configuringNodeId: target.id,
+      configuringEdgeId: null,
+      isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
+    });
+  };
+
   return {
     roleModalTargetNode,
     setRoleModalTargetNode,
     configMapModalTargetNode,
     setConfigMapModalTargetNode,
+    hpaModalTargetNode,
+    setHpaModalTargetNode,
     handleRoleSave,
     handleConfigMapSave,
+    handleHpaSave,
   };
 }

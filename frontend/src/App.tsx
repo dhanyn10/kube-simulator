@@ -22,6 +22,7 @@ import {
   SettingsModal,
   RoleModal,
   ConfigMapModal,
+  HPAModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -144,8 +145,11 @@ export default function App() {
     setRoleModalTargetNode,
     configMapModalTargetNode,
     setConfigMapModalTargetNode,
+    hpaModalTargetNode,
+    setHpaModalTargetNode,
     handleRoleSave,
     handleConfigMapSave,
+    handleHpaSave,
   } = useAttachmentHandlers();
 
   useKeyboardShortcuts({
@@ -294,6 +298,14 @@ export default function App() {
             targetNodeId={configMapModalTargetNode?.id || null}
             targetNodeLabel={configMapModalTargetNode?.label}
             onSave={handleConfigMapSave}
+          />
+
+          <HPAModal
+            isOpen={hpaModalTargetNode !== null}
+            onClose={() => setHpaModalTargetNode(null)}
+            targetNodeId={hpaModalTargetNode?.id || null}
+            targetNodeLabel={hpaModalTargetNode?.label}
+            onSave={handleHpaSave}
           />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />

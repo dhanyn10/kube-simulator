@@ -286,24 +286,6 @@
           "height": 120
         },
         {
-          "id": "hpa-adv",
-          "type": "HPA",
-          "parentId": "ns-adv",
-          "position": {
-            "x": 810,
-            "y": 60
-          },
-          "data": {
-            "label": "api-hpa",
-            "type": "HPA",
-            "minReplicas": 2,
-            "maxReplicas": 20,
-            "targetCPU": 70
-          },
-          "width": 180,
-          "height": 140
-        },
-        {
           "id": "deployment-adv",
           "type": "Deployment",
           "parentId": "ns-adv",
@@ -317,8 +299,19 @@
             "replicas": 2,
             "runtime": "python",
             "status": "ready",
+            "cpuRequest": "100m",
             "cpuLimit": "500m",
-            "memoryLimit": "512Mi"
+            "memoryRequest": "128Mi",
+            "memoryLimit": "512Mi",
+            "hpas": [
+              {
+                "id": "hpa-adv-item",
+                "name": "api-hpa",
+                "minReplicas": 2,
+                "maxReplicas": 20,
+                "targetCPU": 70
+              }
+            ]
           },
           "width": 400,
           "height": 300
@@ -347,14 +340,6 @@
           "target": "deployment-adv",
           "sourceHandle": "right-s",
           "targetHandle": "left-t",
-          "type": "custom"
-        },
-        {
-          "id": "e-adv-3",
-          "source": "hpa-adv",
-          "target": "deployment-adv",
-          "sourceHandle": "bottom-s",
-          "targetHandle": "top-t",
           "type": "custom"
         }
       ]

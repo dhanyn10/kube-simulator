@@ -110,7 +110,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (!draggingSidebarItem) return;
 
-      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap') {
+      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const targetNode = findRoleTargetNode(itemCenter, nodes);
 
@@ -145,8 +145,8 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
-      // Handle Role or ConfigMap drop onto existing canvas card
-      if (type === 'Role' || type === 'ConfigMap') {
+      // Handle Role, ConfigMap, or HPA drop onto existing canvas card
+      if (type === 'Role' || type === 'ConfigMap' || type === 'HPA') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const targetNode = findRoleTargetNode(itemCenter, nodes);
 
@@ -156,9 +156,13 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
           useFlowStore.setState({
             roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
           });
-        } else {
+        } else if (type === 'ConfigMap') {
           useFlowStore.setState({
             configMapModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+          });
+        } else {
+          useFlowStore.setState({
+            hpaModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
           });
         }
         setHoveredDeploymentId(null);
