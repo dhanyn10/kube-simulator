@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { EdgeConfig } from '@/components/Config/EdgeConfig';
 import { useFlowStore } from '@/store';
 
@@ -12,43 +13,75 @@ describe('EdgeConfig', () => {
       edges: [mockEdge],
       colorMode: 'dark',
       globalEdgeColor: 'var(--color-mat-indigo)',
-      globalEdgeErrorColor: 'var(--color-mat-red)'
+      globalEdgeErrorColor: 'var(--color-mat-red)',
+      setGlobalEdgeColors: (color: string, errorColor: string) => {
+        useFlowStore.setState({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });
+      },
+      setEdges: (edges: any) => {
+        useFlowStore.setState({ edges });
+      },
     } as any);
   });
 
-  it('updates edge width', () => {
+  it('updates edge width and handles default data fallback when width is undefined', () => {
     const setEdgesSpy = vi.spyOn(useFlowStore.getState(), 'setEdges');
-    render(<EdgeConfig selectedEdge={mockEdge} />);
+    render(<EdgeConfig selectedEdge={{ id: 'e1' }} />);
 
     const slider = screen.getByRole('slider');
+    expect(slider).toHaveValue('2'); // fallback default width 2
+
     fireEvent.change(slider, { target: { value: '8' } });
 
     expect(setEdgesSpy).toHaveBeenCalledWith(expect.arrayContaining([
-        expect.objectContaining({ data: expect.objectContaining({ width: 8 }) })
+      expect.objectContaining({ data: expect.objectContaining({ width: 8 }) })
     ]));
   });
 
-  it('changes running color', () => {
-    const setGlobalEdgeColorsSpy = vi.spyOn(useFlowStore.getState(), 'setGlobalEdgeColors');
+  it('changes running color and handles color swaps when selected color equals error color', () => {
     render(<EdgeConfig selectedEdge={mockEdge} />);
 
-    // MATERIAL_COLORS has many colors. We can find by title.
-    // Let's pick 'Blue' from the first palette (Running Color)
-    const colorBtn = screen.getAllByTitle('Blue')[0];
-    fireEvent.click(colorBtn);
+    // Pick 'Red' color for running color which matches globalEdgeErrorColor 'var(--color-mat-red)'
+    const redColorBtn = screen.getAllByTitle('Red')[0];
+    fireEvent.click(redColorBtn);
 
-    expect(setGlobalEdgeColorsSpy).toHaveBeenCalled();
+    expect(useFlowStore.getState().globalEdgeColor).toBe('var(--color-mat-red)');
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('var(--color-mat-indigo)');
+
+    // Pick 'Blue' color for running color
+    const blueColorBtn = screen.getAllByTitle('Blue')[0];
+    fireEvent.click(blueColorBtn);
+
+    expect(useFlowStore.getState().globalEdgeColor).toBe('var(--color-mat-blue)');
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('var(--color-mat-indigo)');
   });
 
-  it('resets colors to default', () => {
-    const setGlobalEdgeColorsSpy = vi.spyOn(useFlowStore.getState(), 'setGlobalEdgeColors');
+  it('changes error color and handles color swaps when selected color equals running color', () => {
+    render(<EdgeConfig selectedEdge={mockEdge} />);
+
+    // Pick 'Indigo' color for error color which matches globalEdgeColor 'var(--color-mat-indigo)'
+    const indigoColorBtn = screen.getAllByTitle('Indigo')[1];
+    fireEvent.click(indigoColorBtn);
+
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('var(--color-mat-indigo)');
+    expect(useFlowStore.getState().globalEdgeColor).toBe('var(--color-mat-red)');
+
+    // Pick 'Amber' color for error color
+    const amberColorBtn = screen.getAllByTitle('Amber')[1];
+    fireEvent.click(amberColorBtn);
+
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('var(--color-mat-amber)');
+    expect(useFlowStore.getState().globalEdgeColor).toBe('var(--color-mat-red)');
+  });
+
+  it('resets colors to default and renders in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
     render(<EdgeConfig selectedEdge={mockEdge} />);
 
     const resetBtns = screen.getAllByTitle('Reset to default');
     fireEvent.click(resetBtns[0]); // Reset Running
-    expect(setGlobalEdgeColorsSpy).toHaveBeenCalledWith('var(--color-mat-indigo)', expect.any(String));
+    expect(useFlowStore.getState().globalEdgeColor).toBe('var(--color-mat-indigo)');
 
     fireEvent.click(resetBtns[1]); // Reset Error
-    expect(setGlobalEdgeColorsSpy).toHaveBeenCalledWith(expect.any(String), 'var(--color-mat-red)');
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('var(--color-mat-red)');
   });
 });
