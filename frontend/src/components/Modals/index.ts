@@ -5,4 +5,6 @@ export * from './ScenarioModal';
 export * from './YamlModal';
 export * from './SettingsModal';
 export * from './RoleModal';
+export * from './RoleListModal';
 export * from './ConfigMapModal';
+export * from './ConfigMapListModal';

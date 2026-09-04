@@ -21,7 +21,7 @@ describe('ConfigMapSettingsSection', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders attached configmap badge with count > 1 in light mode and opens popover list', () => {
+  it('renders attached configmap badge with count > 1 in light mode and opens list modal', () => {
     useFlowStore.setState({ colorMode: 'light' });
 
     const data = {
@@ -37,19 +37,20 @@ describe('ConfigMapSettingsSection', () => {
     expect(screen.getByTitle('Attached ConfigMaps (2)')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
 
-    // Toggle popover list
+    // Open list modal
     const btn = screen.getByTitle('Attached ConfigMaps (2)');
     fireEvent.click(btn);
 
+    expect(screen.getByText('Attached ConfigMaps')).toBeInTheDocument();
     expect(screen.getByText('app-config')).toBeInTheDocument();
     expect(screen.getByText('db-config')).toBeInTheDocument();
 
-    // Click again to toggle off
-    fireEvent.click(btn);
-    expect(screen.queryByText('app-config')).not.toBeInTheDocument();
+    // Close list modal
+    fireEvent.click(screen.getByText('Close'));
+    expect(screen.queryByText('Attached ConfigMaps')).not.toBeInTheDocument();
   });
 
-  it('handles editing and deleting configmaps in popover list', () => {
+  it('handles editing and deleting configmaps in list modal', () => {
     const updateNodeData = vi.fn();
     const addLog = vi.fn();
     useFlowStore.setState({ updateNodeData, addLog });
@@ -63,16 +64,23 @@ describe('ConfigMapSettingsSection', () => {
 
     render(<ConfigMapSettingsSection data={data as any} nodeId="node-1" />);
 
-    // Open popover list
+    // Open list modal
     fireEvent.click(screen.getByTitle('Attached ConfigMaps (1)'));
 
-    // Click Edit ConfigMap button
+    // Click Delete ConfigMap button in list modal
+    const deleteBtn = screen.getByTitle('Delete ConfigMap');
+    fireEvent.click(deleteBtn);
+
+    expect(updateNodeData).toHaveBeenCalledWith('node-1', { configMaps: [] });
+    expect(addLog).toHaveBeenCalledWith('info', expect.stringContaining('Removed ConfigMap'), 'UI');
+
+    // Click Edit ConfigMap button in list modal
     const editBtn = screen.getByTitle('Edit ConfigMap');
     fireEvent.click(editBtn);
 
     expect(screen.getByText('Edit ConfigMap')).toBeInTheDocument();
 
-    // Save configmap in modal
+    // Save configmap in edit modal
     const saveBtn = screen.getByText('Update ConfigMap');
     fireEvent.click(saveBtn);
 
@@ -80,12 +88,5 @@ describe('ConfigMapSettingsSection', () => {
       configMaps: [expect.objectContaining({ id: 'cm1', name: 'app-config' })],
     });
     expect(addLog).toHaveBeenCalledWith('info', expect.stringContaining('Updated ConfigMap'), 'UI');
-
-    // Click Delete ConfigMap button in popover list
-    const deleteBtn = screen.getByTitle('Delete ConfigMap');
-    fireEvent.click(deleteBtn);
-
-    expect(updateNodeData).toHaveBeenCalledWith('node-1', { configMaps: [] });
-    expect(addLog).toHaveBeenCalledWith('info', expect.stringContaining('Removed ConfigMap'), 'UI');
   });
 });
