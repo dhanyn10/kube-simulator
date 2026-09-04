@@ -16,12 +16,14 @@ describe('ContextMenu', () => {
   const mockUngroupNodes = vi.fn();
   const mockCopyNodes = vi.fn();
   const mockPasteNodes = vi.fn();
+  const mockToggleColorMode = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     (useFlowStore as any).mockImplementation((selector: any) => {
       const state = {
         colorMode: 'dark',
+        toggleColorMode: mockToggleColorMode,
         nodes: [{ id: '1', selected: true, data: {} }],
         groupNodes: mockGroupNodes,
         ungroupNodes: mockUngroupNodes,
@@ -38,6 +40,37 @@ describe('ContextMenu', () => {
     );
     expect(screen.getByRole('menu')).toBeInTheDocument();
     expect(screen.getByText('Inspect YAML')).toBeInTheDocument();
+    expect(screen.getByText('Change Theme')).toBeInTheDocument();
+  });
+
+  it('disables Inspect YAML when canvas is empty', () => {
+    (useFlowStore as any).mockImplementation((selector: any) => {
+      const state = {
+        colorMode: 'dark',
+        toggleColorMode: mockToggleColorMode,
+        nodes: [],
+        groupNodes: mockGroupNodes,
+        ungroupNodes: mockUngroupNodes,
+        copyNodes: mockCopyNodes,
+        pasteNodes: mockPasteNodes,
+      };
+      return selector(state);
+    });
+
+    render(
+      <ContextMenu x={100} y={100} onClose={mockOnClose} onInspect={mockOnInspect} onDelete={mockOnDelete} />
+    );
+    const inspectBtn = screen.getByText('Inspect YAML').closest('button');
+    expect(inspectBtn).toBeDisabled();
+  });
+
+  it('calls toggleColorMode and onClose when Change Theme is clicked', () => {
+    render(
+      <ContextMenu x={100} y={100} onClose={mockOnClose} onInspect={mockOnInspect} onDelete={mockOnDelete} />
+    );
+    fireEvent.click(screen.getByText('Change Theme'));
+    expect(mockToggleColorMode).toHaveBeenCalled();
+    expect(mockOnClose).toHaveBeenCalled();
   });
 
   it('calls onInspect and onClose when Inspect YAML is clicked', () => {

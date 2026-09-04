@@ -1,6 +1,6 @@
 
 import { useEffect, useRef } from 'react';
-import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal } from 'lucide-react';
+import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
@@ -14,6 +14,7 @@ interface ContextMenuProps {
 
 export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuProps) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
+  const toggleColorMode = useFlowStore((state: any) => state.toggleColorMode);
   const nodes = useFlowStore((state: any) => state.nodes);
   const groupNodes = useFlowStore((state: any) => state.groupNodes);
   const ungroupNodes = useFlowStore((state: any) => state.ungroupNodes);
@@ -97,7 +98,8 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           type="button"
           role="menuitem"
           onClick={() => { onInspect(); onClose(); }}
-          className={itemClass}
+          disabled={nodes.length === 0}
+          className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <FileCode size={14} className="text-blue-500" />
           <span className="font-medium">Inspect YAML</span>
@@ -119,6 +121,24 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
             <span className="font-medium">View logs (kubectl logs)</span>
           </button>
         )}
+
+        {/* Change Theme */}
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            toggleColorMode();
+            onClose();
+          }}
+          className={itemClass}
+        >
+          {colorMode === 'dark' ? (
+            <Sun size={14} className="text-yellow-400" />
+          ) : (
+            <Moon size={14} className="text-blue-600" />
+          )}
+          <span className="font-medium">Change Theme</span>
+        </button>
 
         <div className={dividerClass} />
 
