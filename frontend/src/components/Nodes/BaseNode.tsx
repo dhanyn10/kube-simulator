@@ -89,7 +89,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
 
-  const isRoleDragging = draggingSidebarItem === 'Role';
+  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap';
   const currentNode = nodes.find((n) => n.id === id);
   const parentNode = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId) : null;
   const isInsideNamespace = currentNode?.parentId ? (parentNode?.type === 'Namespace' || Boolean(parentNode?.parentId && nodes.find((p) => p.id === parentNode.parentId)?.type === 'Namespace')) : false;

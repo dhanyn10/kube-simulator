@@ -51,7 +51,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
 
   const isInsideNamespace = checkIsInsideNamespace(props.id, nodes);
   const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
-  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role', isInsideNamespace, data.isHovered);
+  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap', isInsideNamespace, data.isHovered);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
