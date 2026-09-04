@@ -1,6 +1,6 @@
 
 import { useEffect, useRef } from 'react';
-import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal } from 'lucide-react';
+import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
@@ -14,7 +14,9 @@ interface ContextMenuProps {
 
 export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuProps) => {
   const colorMode = useFlowStore((state: any) => state.colorMode);
+  const toggleColorMode = useFlowStore((state: any) => state.toggleColorMode);
   const nodes = useFlowStore((state: any) => state.nodes);
+  const clipboard = useFlowStore((state: any) => state.clipboard);
   const groupNodes = useFlowStore((state: any) => state.groupNodes);
   const ungroupNodes = useFlowStore((state: any) => state.ungroupNodes);
   const copyNodes = useFlowStore((state: any) => state.copyNodes);
@@ -33,6 +35,12 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   const hasSelection = selectedIds.length > 0;
   const canGroup = selectedIds.length > 1;
   const isGrouped = selectedNodes.some((n: any) => n.data?.groupId);
+  const canPaste = Boolean(
+    clipboard &&
+      Array.isArray(clipboard.nodes) &&
+      clipboard.nodes.length > 0 &&
+      clipboard.nodes.every((n: any) => n && typeof n === 'object' && n.id && n.type)
+  );
 
   // Focus first menu item on open
   useEffect(() => {
@@ -97,7 +105,8 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           type="button"
           role="menuitem"
           onClick={() => { onInspect(); onClose(); }}
-          className={itemClass}
+          disabled={nodes.length === 0}
+          className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <FileCode size={14} className="text-blue-500" />
           <span className="font-medium">Inspect YAML</span>
@@ -120,6 +129,24 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           </button>
         )}
 
+        {/* Change Theme */}
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            toggleColorMode();
+            onClose();
+          }}
+          className={itemClass}
+        >
+          {colorMode === 'dark' ? (
+            <Sun size={14} className="text-yellow-400" />
+          ) : (
+            <Moon size={14} className="text-blue-600" />
+          )}
+          <span className="font-medium">Change Theme</span>
+        </button>
+
         <div className={dividerClass} />
 
         {/* Copy / Paste */}
@@ -141,7 +168,8 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           type="button"
           role="menuitem"
           onClick={() => { pasteNodes(); onClose(); }}
-          className={itemClass}
+          disabled={!canPaste}
+          className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <Clipboard size={14} />
           <div className="flex-1 flex justify-between items-center">
