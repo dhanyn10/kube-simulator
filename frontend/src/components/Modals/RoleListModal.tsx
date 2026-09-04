@@ -63,8 +63,8 @@ export const RoleListModal: React.FC<RoleListModalProps> = ({
       subtitle={targetNodeLabel ? `Node: ${targetNodeLabel}` : 'Manage attached roles'}
       icon={ShieldCheck}
       iconColorClass="text-indigo-400"
-      widthClass="w-[540px]"
-      maxHeightClass="h-[60vh]"
+      widthClass="w-full max-w-2xl"
+      maxHeightClass="h-[70vh]"
       footer={footer}
     >
       <div className="space-y-3">

@@ -107,7 +107,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Key-Value Data'}
       icon={Settings}
       iconColorClass="text-teal-400"
-      widthClass="w-[780px]"
+      widthClass="w-full max-w-3xl"
       maxHeightClass="h-[70vh]"
       footer={footer}
     >

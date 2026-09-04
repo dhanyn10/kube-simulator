@@ -63,8 +63,8 @@ export const ConfigMapListModal: React.FC<ConfigMapListModalProps> = ({
       subtitle={targetNodeLabel ? `Node: ${targetNodeLabel}` : 'Manage attached ConfigMaps'}
       icon={Settings}
       iconColorClass="text-teal-400"
-      widthClass="w-[540px]"
-      maxHeightClass="h-[60vh]"
+      widthClass="w-full max-w-2xl"
+      maxHeightClass="h-[70vh]"
       footer={footer}
     >
       <div className="space-y-3">

@@ -557,7 +557,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Role & Permissions'}
       icon={ShieldCheck}
       iconColorClass="text-indigo-400"
-      widthClass="w-[780px]"
+      widthClass="w-full max-w-3xl"
       maxHeightClass="h-[70vh]"
       footer={footer}
     >
