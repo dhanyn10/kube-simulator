@@ -77,35 +77,40 @@ export const ConfigMapSettingsSection: React.FC<ConfigMapSettingsSectionProps> =
           {/* Quick List Popover when clicking ConfigMap hero icon */}
           {showConfigMapList && (
             <div className={cn(
-              "absolute left-0 top-full mt-2 w-56 rounded-lg border shadow-xl z-50 p-2 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150",
+              "absolute left-0 top-full mt-2 w-64 rounded-lg border shadow-xl z-50 p-2 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150",
               colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-800"
             )}>
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 pb-1 border-b border-slate-700/30">
                 Attached ConfigMaps ({configMaps.length})
               </div>
-              <div className="max-h-48 overflow-y-auto space-y-1 custom-scrollbar">
+              <div className="max-h-48 overflow-y-auto flex flex-wrap gap-1.5 p-0.5 custom-scrollbar">
                 {configMaps.map((cm) => (
                   <div
                     key={`cm-item-${cm.id}`}
-                    className="flex items-center justify-between p-1.5 rounded-md hover:bg-slate-800/50 transition-colors text-xs font-mono"
+                    className={cn(
+                      "inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-mono transition-colors shadow-xs",
+                      colorMode === 'dark'
+                        ? "bg-slate-800/90 border-slate-700 text-teal-300 hover:border-teal-500/50"
+                        : "bg-teal-50/80 border-teal-200 text-teal-800 hover:border-teal-300"
+                    )}
                   >
-                    <span className="truncate max-w-[120px] font-semibold">{cm.name}</span>
-                    <div className="flex items-center gap-1">
+                    <span className="truncate max-w-[100px] font-semibold">{cm.name}</span>
+                    <div className="flex items-center gap-0.5 ml-0.5 border-l pl-1 border-slate-600/30">
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(cm)}
-                        className="p-1 rounded text-slate-400 hover:text-teal-300 transition-colors cursor-pointer"
+                        className="p-0.5 rounded text-slate-400 hover:text-teal-300 transition-colors cursor-pointer"
                         title="Edit ConfigMap"
                       >
-                        <Edit2 size={11} />
+                        <Edit2 size={10} />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteConfigMap(cm.id, cm.name)}
-                        className="p-1 rounded text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                        className="p-0.5 rounded text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
                         title="Delete ConfigMap"
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={10} />
                       </button>
                     </div>
                   </div>
