@@ -49,10 +49,9 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
   if (roles.length === 0) return null;
 
   return (
-    <div className="pt-2 border-t border-slate-700/30">
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Single Role Hero Item Icon with Notification Count Badge */}
-        <div className="relative group inline-block">
+    <>
+      {/* Single Role Hero Item Icon with Notification Count Badge */}
+      <div className="relative group inline-block">
           <button
             type="button"
             onClick={() => setShowRoleList((prev) => !prev)}
@@ -118,7 +117,6 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
               </div>
             </div>
           )}
-        </div>
       </div>
 
       <RoleModal
@@ -129,6 +127,6 @@ export const RoleSettingsSection: React.FC<RoleSettingsSectionProps> = ({ data, 
         initialRole={editingRole}
         onSave={handleSaveRole}
       />
-    </div>
+    </>
   );
 };

@@ -49,10 +49,9 @@ export const ConfigMapSettingsSection: React.FC<ConfigMapSettingsSectionProps> =
   if (configMaps.length === 0) return null;
 
   return (
-    <div className="pt-2 border-t border-slate-700/30">
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Single ConfigMap Hero Item Icon with Notification Count Badge */}
-        <div className="relative group inline-block">
+    <>
+      {/* Single ConfigMap Hero Item Icon with Notification Count Badge */}
+      <div className="relative group inline-block">
           <button
             type="button"
             onClick={() => setShowConfigMapList((prev) => !prev)}
@@ -118,7 +117,6 @@ export const ConfigMapSettingsSection: React.FC<ConfigMapSettingsSectionProps> =
               </div>
             </div>
           )}
-        </div>
       </div>
 
       <ConfigMapModal
@@ -129,6 +127,6 @@ export const ConfigMapSettingsSection: React.FC<ConfigMapSettingsSectionProps> =
         initialConfigMap={editingConfigMap}
         onSave={handleSaveConfigMap}
       />
-    </div>
+    </>
   );
 };
