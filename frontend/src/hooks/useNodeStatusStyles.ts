@@ -47,6 +47,7 @@ export interface NodeContainerStylesOptions {
   color: string;
   colorMode: 'dark' | 'light';
   isRoleDragging?: boolean;
+  nodeType?: string;
   isInsideNamespace?: boolean;
   isHovered?: boolean;
 }
@@ -65,9 +66,12 @@ const getReadyClasses = (isReady: boolean, isDark: boolean): string => {
     : "border-emerald-500/30";
 };
 
-const getRoleDragClasses = (isRoleDragging?: boolean, isInsideNamespace?: boolean, isHovered?: boolean): string => {
+export const COMPATIBLE_ATTACHMENT_TARGETS = ['Pod', 'Deployment', 'Service', 'Namespace', 'Ingress', 'HPA', 'PVC'];
+
+export const getRoleDragClasses = (isRoleDragging?: boolean, nodeType?: string, isHovered?: boolean): string => {
   if (!isRoleDragging) return "";
-  if (!isInsideNamespace) return "role-drag-outside-ns";
+  const isCompatible = nodeType ? COMPATIBLE_ATTACHMENT_TARGETS.includes(nodeType) : true;
+  if (!isCompatible) return "role-drag-outside-ns";
   return isHovered ? "role-drag-inside-ns" : "";
 };
 
@@ -97,7 +101,7 @@ export const useNodeContainerStyles = (options: NodeContainerStylesOptions) => {
     isCrashing && "border-red-600 ring-8 ring-red-600/30 animate-crash-blink shadow-[0_0_30px_rgba(220,38,38,0.6)]"
   ].filter(Boolean).join(' ');
 
-  const roleDragClasses = getRoleDragClasses(isRoleDragging, isInsideNamespace, isHovered);
+  const roleDragClasses = getRoleDragClasses(isRoleDragging, options.nodeType, isHovered);
 
   return {
     containerClasses: `group relative border-2 rounded-lg p-3 cursor-grab w-auto min-w-[140px] h-auto flex flex-col min-w-0 ${containerBaseClasses} ${selectionClasses} ${readyClasses} ${statusClasses} ${roleDragClasses}`,

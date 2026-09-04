@@ -73,7 +73,7 @@ describe('BaseNode', () => {
       nodes: [
         { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} },
         { id: 'node-in-ns', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: { label: 'In NS', isHovered: true } },
-        { id: 'node-out-ns', type: 'Pod', position: { x: 100, y: 100 }, data: { label: 'Out NS' } }
+        { id: 'node-incompatible', type: 'Internet', position: { x: 100, y: 100 }, data: { label: 'Internet' } }
       ]
     });
 
@@ -86,7 +86,7 @@ describe('BaseNode', () => {
 
     const { container: containerOut } = render(
       <ReactFlowProvider>
-        <BaseNode {...defaultProps} id="node-out-ns" />
+        <BaseNode {...defaultProps} id="node-incompatible" data={{ ...defaultProps.data, type: 'Internet' }} />
       </ReactFlowProvider>
     );
     expect((containerOut.firstChild as HTMLElement).className).toContain('role-drag-outside-ns');

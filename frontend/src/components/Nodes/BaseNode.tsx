@@ -106,6 +106,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
       color,
       colorMode,
       isRoleDragging,
+      nodeType: data.type,
       isInsideNamespace,
       isHovered: data.isHovered
     });
