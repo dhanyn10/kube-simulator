@@ -186,5 +186,17 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
     [screenToFlowPosition, addNode, getTargetContainer, setHoveredDeploymentId, nodes]
   );
 
-  return { onDragOver, onDrop };
+  const onDragLeave = useCallback(
+    (event: React.DragEvent) => {
+      if (event.currentTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
+        setHoveredDeploymentId(null);
+        useFlowStore.setState((state) => ({
+          nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
+        }));
+      }
+    },
+    [setHoveredDeploymentId]
+  );
+
+  return { onDragOver, onDragLeave, onDrop };
 }

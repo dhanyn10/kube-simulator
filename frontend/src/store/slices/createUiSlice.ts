@@ -770,7 +770,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
     }
   },
-  setDraggingSidebarItem: (item) => set({ draggingSidebarItem: item }),
+  setDraggingSidebarItem: (item) => {
+    set({ draggingSidebarItem: item });
+    if (!item) {
+      set((state) => ({
+        nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
+      }));
+    }
+  },
   toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
   toggleAutofocus: () => {
     set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled }));

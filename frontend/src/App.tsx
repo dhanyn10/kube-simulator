@@ -260,7 +260,7 @@ export default function App() {
   const fitView = useFitView();
   const { handleUndo, handleRedo } = useHistory();
   const { handleExportFile, handleImportFile } = useFileSystem(nodes, edges);
-  const { onDragOver, onDrop } = useDropHandler(screenToFlowPosition);
+  const { onDragOver, onDragLeave, onDrop } = useDropHandler(screenToFlowPosition);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number } | null>(null);
 
@@ -408,6 +408,7 @@ export default function App() {
           onPaneContextMenu={onPaneContextMenu}
           onDrop={onDrop}
           onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
           onNodesDelete={deleteNodes}
           deleteKeyCode={['Backspace', 'Delete']}
           nodeTypes={nodeTypes}
