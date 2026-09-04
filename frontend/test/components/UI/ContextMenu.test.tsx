@@ -25,6 +25,7 @@ describe('ContextMenu', () => {
         colorMode: 'dark',
         toggleColorMode: mockToggleColorMode,
         nodes: [{ id: '1', selected: true, data: {} }],
+        clipboard: { nodes: [{ id: '1', type: 'Pod' }], edges: [] },
         groupNodes: mockGroupNodes,
         ungroupNodes: mockUngroupNodes,
         copyNodes: mockCopyNodes,
@@ -80,6 +81,28 @@ describe('ContextMenu', () => {
     fireEvent.click(screen.getByText('Inspect YAML'));
     expect(mockOnInspect).toHaveBeenCalled();
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('disables Paste when clipboard is empty or invalid', () => {
+    (useFlowStore as any).mockImplementation((selector: any) => {
+      const state = {
+        colorMode: 'dark',
+        toggleColorMode: mockToggleColorMode,
+        nodes: [{ id: '1', selected: true, data: {} }],
+        clipboard: null,
+        groupNodes: mockGroupNodes,
+        ungroupNodes: mockUngroupNodes,
+        copyNodes: mockCopyNodes,
+        pasteNodes: mockPasteNodes,
+      };
+      return selector(state);
+    });
+
+    render(
+      <ContextMenu x={100} y={100} onClose={mockOnClose} onInspect={mockOnInspect} onDelete={mockOnDelete} />
+    );
+    const pasteBtn = screen.getByText('Paste').closest('button');
+    expect(pasteBtn).toBeDisabled();
   });
 
   it('calls copyNodes and onClose when Copy is clicked', () => {

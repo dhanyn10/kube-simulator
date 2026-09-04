@@ -16,6 +16,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   const colorMode = useFlowStore((state: any) => state.colorMode);
   const toggleColorMode = useFlowStore((state: any) => state.toggleColorMode);
   const nodes = useFlowStore((state: any) => state.nodes);
+  const clipboard = useFlowStore((state: any) => state.clipboard);
   const groupNodes = useFlowStore((state: any) => state.groupNodes);
   const ungroupNodes = useFlowStore((state: any) => state.ungroupNodes);
   const copyNodes = useFlowStore((state: any) => state.copyNodes);
@@ -34,6 +35,12 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
   const hasSelection = selectedIds.length > 0;
   const canGroup = selectedIds.length > 1;
   const isGrouped = selectedNodes.some((n: any) => n.data?.groupId);
+  const canPaste = Boolean(
+    clipboard &&
+      Array.isArray(clipboard.nodes) &&
+      clipboard.nodes.length > 0 &&
+      clipboard.nodes.every((n: any) => n && typeof n === 'object' && n.id && n.type)
+  );
 
   // Focus first menu item on open
   useEffect(() => {
@@ -161,7 +168,8 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           type="button"
           role="menuitem"
           onClick={() => { pasteNodes(); onClose(); }}
-          className={itemClass}
+          disabled={!canPaste}
+          className={cn(itemClass, "disabled:opacity-30 disabled:pointer-events-none")}
         >
           <Clipboard size={14} />
           <div className="flex-1 flex justify-between items-center">
