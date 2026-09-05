@@ -128,4 +128,28 @@ describe('NodeConfig', () => {
     rerender(<NodeConfig selectedNode={notReadyNode} />);
     expect(screen.getByText(/Configuration Required/i)).toBeDefined();
   });
+
+  it('renders View Logs button for Pod/Deployment/ReplicaSet and opens terminal on click', () => {
+    const setTerminalOpen = vi.fn();
+    const setTerminalActiveTab = vi.fn();
+    const setTerminalSelectedResourceId = vi.fn();
+
+    useFlowStore.setState({
+      setTerminalOpen,
+      setTerminalActiveTab,
+      setTerminalSelectedResourceId,
+    });
+
+    const podNode = { id: 'pod-1', type: 'Pod', data: { label: 'my-pod' } };
+    render(<NodeConfig selectedNode={podNode} />);
+
+    const logsBtn = screen.getByText('View Logs (kubectl logs)');
+    expect(logsBtn).toBeDefined();
+
+    fireEvent.click(logsBtn);
+
+    expect(setTerminalSelectedResourceId).toHaveBeenCalledWith('pod-1');
+    expect(setTerminalActiveTab).toHaveBeenCalledWith('logs');
+    expect(setTerminalOpen).toHaveBeenCalledWith(true);
+  });
 });

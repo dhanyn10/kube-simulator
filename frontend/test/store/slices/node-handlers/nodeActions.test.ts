@@ -201,4 +201,29 @@ describe('nodeActions', () => {
     const state = useFlowStore.getState();
     expect(state.nodes).toHaveLength(0);
   });
+
+  it('deleteNodes cascade deletes child pods when parent Deployment is deleted', () => {
+    const depNode = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'My Dep' } };
+    const childPod = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, data: { label: 'Child Pod' } };
+
+    useFlowStore.setState({ nodes: [depNode, childPod] as any, edges: [] });
+
+    useFlowStore.getState().deleteNodes([depNode] as any);
+
+    const state = useFlowStore.getState();
+    expect(state.nodes).toHaveLength(0);
+  });
+
+  it('deleteNodes handles deleting a child Pod inside ReplicaSet or Deployment parent', () => {
+    const rsNode = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: { label: 'My RS', replicas: 2 } };
+    const pod1 = { id: 'pod1', type: 'Pod', parentId: 'rs1', position: { x: 10, y: 10 }, data: { label: 'Pod 1', replicas: 2 } };
+    const pod2 = { id: 'pod2', type: 'Pod', parentId: 'rs1', position: { x: 50, y: 10 }, data: { label: 'Pod 2', replicas: 2 } };
+
+    useFlowStore.setState({ nodes: [rsNode, pod1, pod2] as any, edges: [] });
+
+    useFlowStore.getState().deleteNodes([pod1] as any);
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.id === 'pod1')).toBe(false);
+  });
 });
