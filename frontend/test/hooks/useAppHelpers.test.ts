@@ -253,5 +253,48 @@ describe('useAppHelpers', () => {
       updatedNodes = useFlowStore.getState().nodes;
       expect(updatedNodes[0].data.configMaps).toEqual([updatedCm, newCm]);
     });
+
+    it('handleHpaSave returns early or attaches new/updated HPA', () => {
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      // Return early when hpaModalTargetNode is null or non-existent
+      act(() => {
+        result.current.handleHpaSave({ id: 'hpa-1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 });
+      });
+
+      act(() => {
+        result.current.setHpaModalTargetNode({ id: 'non-existent', label: 'NonExistent' });
+      });
+
+      act(() => {
+        result.current.handleHpaSave({ id: 'hpa-1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 });
+      });
+
+      // Valid target node save
+      act(() => {
+        result.current.setHpaModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      const hpa1 = { id: 'hpa-1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 };
+      act(() => {
+        result.current.handleHpaSave(hpa1);
+      });
+
+      let updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.hpas).toEqual([hpa1]);
+
+      // Update existing HPA
+      act(() => {
+        result.current.setHpaModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      const hpa1Updated = { id: 'hpa-1', name: 'updated-hpa', minReplicas: 2, maxReplicas: 10, targetCPU: 75 };
+      act(() => {
+        result.current.handleHpaSave(hpa1Updated);
+      });
+
+      updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.hpas).toEqual([hpa1Updated]);
+    });
   });
 });

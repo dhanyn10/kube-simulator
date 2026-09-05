@@ -263,6 +263,70 @@ describe('useDropHandler', () => {
       });
     });
 
+    it('onDrop handles dropping an HPA onto a target workload', () => {
+      const depNode = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: { label: 'My Deployment' }
+      };
+
+      useFlowStore.setState({
+        nodes: [depNode] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('HPA')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().hpaModalTargetNode).toEqual({
+        id: 'dep1',
+        label: 'My Deployment'
+      });
+    });
+
+    it('onDrop logs warning when dropping HPA on empty canvas space', () => {
+      const addLogSpy = vi.fn();
+      useFlowStore.setState({
+        nodes: [],
+        addLog: addLogSpy
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 500,
+        clientY: 500,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('HPA')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'warn',
+        expect.stringContaining('HPA must be dropped onto an existing card'),
+        'UI'
+      );
+    });
+
     it('onDrop handles dropping a Role onto a target workload', () => {
       const depNode = {
         id: 'dep1',
