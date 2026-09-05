@@ -56,4 +56,48 @@ describe('DetachedMonitoring', () => {
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
+
+  it('handles Wails runtime events and renders throttled and OOM risk badges', async () => {
+    const eventsOnMap: Record<string, (data: any) => void> = {};
+    const mockEventsEmit = vi.fn();
+    (globalThis as any).runtime = {
+      EventsOn: (eventName: string, callback: (data: any) => void) => {
+        eventsOnMap[eventName] = callback;
+      },
+      EventsEmit: mockEventsEmit,
+    };
+
+    const { unmount } = render(<DetachedMonitoring />);
+
+    expect(mockEventsEmit).toHaveBeenCalledWith('detached-open');
+
+    // Trigger metrics-update via runtime event
+    await act(async () => {
+      eventsOnMap['metrics-update'](JSON.stringify({
+        deployments: [{ id: 'dep-1', label: 'throttled-dep', replicas: 2 }],
+        metrics: {
+          'dep-1': [{ cpuPercent: 95, memoryPercent: 90, isThrottled: true, isOOM: true }]
+        }
+      }));
+    });
+
+    expect(screen.getByText('throttled-dep')).toBeDefined();
+    expect(screen.getByText('Throttled')).toBeDefined();
+    expect(screen.getByText('OOM Risk')).toBeDefined();
+
+    // Trigger invalid json metrics-update
+    await act(async () => {
+      eventsOnMap['metrics-update']('invalid-json-data');
+    });
+
+    // Trigger theme-sync via runtime event
+    await act(async () => {
+      eventsOnMap['theme-sync']('light');
+    });
+
+    unmount();
+    expect(mockEventsEmit).toHaveBeenCalledWith('detached-closed');
+
+    delete (globalThis as any).runtime;
+  });
 });

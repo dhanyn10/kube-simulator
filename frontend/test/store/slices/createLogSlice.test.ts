@@ -113,6 +113,32 @@ describe('createLogSlice', () => {
     expect(log.message).toBe('System initialization completed');
   });
 
+  it('should set isLogToastVisible based on stored log levels and handle non-important logs', () => {
+    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([
+      { id: '1', level: 'warn', message: 'Warning log', timestamp: Date.now(), scope: 'System' }
+    ]));
+
+    const warnStore = createStore<any>()((...a) => ({
+      ...createLogSlice(...a),
+    }));
+
+    expect(warnStore.getState().isLogToastVisible).toBe(true);
+
+    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([
+      { id: '2', level: 'info', message: 'Info log', timestamp: Date.now(), scope: 'System' }
+    ]));
+
+    const infoStore = createStore<any>()((...a) => ({
+      ...createLogSlice(...a),
+    }));
+
+    expect(infoStore.getState().isLogToastVisible).toBe(false);
+
+    // Adding non-important log does not show toast
+    infoStore.getState().addLog('info', 'Another info message');
+    expect(infoStore.getState().isLogToastVisible).toBe(false);
+  });
+
   it('should migrate legacy localStorage logs and invoke Wails WriteLog if available', async () => {
     localStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: 'legacy-1', message: 'legacy' }]));
     sessionStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: 'stored-1', message: 'stored' }]));

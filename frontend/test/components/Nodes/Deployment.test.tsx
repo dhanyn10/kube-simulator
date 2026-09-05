@@ -137,4 +137,37 @@ describe('DeploymentNode', () => {
 
     expect(screen.queryByText('HPA ACTIVE: REQUESTS REQUIRED')).toBeNull();
   });
+
+  it('shows HPA warning when attached HPAs exist without requests and handles non-HPA edges', () => {
+    const podNode = { id: 'pod1', type: 'Pod', data: {} };
+    const edge = { id: 'e1', source: 'pod1', target: 'd1' };
+    const edge2 = { id: 'e2', source: 'missing-source', target: 'd1' };
+
+    useFlowStore.setState({
+      nodes: [podNode] as any,
+      edges: [edge, edge2] as any
+    });
+
+    const props = {
+      id: 'd1',
+      type: 'Deployment',
+      data: {
+        label: 'My Dep',
+        hpas: [{ id: 'h1', name: 'autoscale' }],
+        configMaps: [{ id: 'c1', name: 'my-cm' }],
+        secrets: [{ id: 's1', name: 'my-sec' }],
+      }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <DeploymentNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('HPA ACTIVE: REQUESTS REQUIRED')).toBeDefined();
+    expect(screen.getByTitle('ConfigMap: my-cm')).toBeDefined();
+    expect(screen.getByTitle('Secret: my-sec')).toBeDefined();
+    expect(screen.getByTitle('HPA: autoscale')).toBeDefined();
+  });
 });
