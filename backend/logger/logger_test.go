@@ -63,3 +63,54 @@ func TestAppendCategorizedLog(t *testing.T) {
 		t.Errorf("Expected content to contain kubeconsole category, got: %s", content)
 	}
 }
+
+func TestLoggerCategoriesAndPaths(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "kube-logger-categories-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Test clearing custom log file path
+	SetLogFilePath("")
+	path := GetLogFilePath()
+	if path == "" {
+		t.Error("GetLogFilePath returned empty string")
+	}
+
+	SetLogFilePath(filepath.Join(tmpDir, "custom_app.jsonl"))
+
+	AppendCategorizedLog("history", "info", "History step")
+	AppendCategorizedLog("terminal", "warn", "Terminal warn")
+	AppendCategorizedLog("console", "error", "Console error")
+	AppendCategorizedLog("simulation", "info", "Simulation tick")
+	AppendCategorizedLog("unknown_cat", "info", "Default category")
+
+	content, err := os.ReadFile(GetLogFilePath())
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, `"category":"history"`) {
+		t.Error("Missing history category in log file")
+	}
+	if !strings.Contains(contentStr, `"category":"terminal"`) {
+		t.Error("Missing terminal category in log file")
+	}
+	if !strings.Contains(contentStr, `"category":"simulation"`) {
+		t.Error("Missing simulation category in log file")
+	}
+}
+
+func TestAppendToLogFile_InvalidPath(t *testing.T) {
+	// Point to an invalid file path (e.g., a directory)
+	tmpDir, err := os.MkdirTemp("", "kube-logger-invalid-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	SetLogFilePath(tmpDir) // directory instead of file
+	appendToLogFile("test line") // Should not panic or fail ungracefully
+}

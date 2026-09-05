@@ -164,6 +164,53 @@ func TestGenerateHPA(t *testing.T) {
 	if !strings.Contains(result, "2") || !strings.Contains(result, "5") || !strings.Contains(result, "60") || !strings.Contains(result, "80") {
 		t.Errorf("Generate failed to include HPA metrics: %s", result)
 	}
+
+	// Test HPA with YamlSettings disabled
+	nodesJson2 := `[
+		{"id":"h1","type":"HPA","data":{"label":"My HPA","yamlSettings":{"replicas":false,"targetCPU":false,"targetMemory":false},"targetMemory":80}},
+		{"id":"d1","type":"Deployment","data":{"label":"My Dep"}}
+	]`
+	result2 := Generate(nodesJson2, edgesJson)
+	if !strings.Contains(result2, "HorizontalPodAutoscaler") {
+		t.Errorf("Generate failed for HPA with disabled YamlSettings: %s", result2)
+	}
+}
+
+func TestGenerateServiceDisabledTargetPort(t *testing.T) {
+	nodesJson := `[{"id":"s1","type":"Service","data":{"label":"My Svc","port":80,"targetPort":8080,"yamlSettings":{"targetPort":false}}}]`
+	result := Generate(nodesJson, "[]")
+	if strings.Contains(result, "8080") {
+		t.Errorf("Expected targetPort to be disabled, got: %s", result)
+	}
+}
+
+func TestGenerateIngressDisabledPath(t *testing.T) {
+	nodesJson := `[{"id":"i1","type":"Ingress","data":{"label":"My Ing","ingressPath":"/custom","yamlSettings":{"path":false}}}]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "\"path\":\"/\"") {
+		t.Errorf("Expected path fallback to '/', got: %s", result)
+	}
+}
+
+func TestGeneratePodInNonNamespaceParent(t *testing.T) {
+	nodesJson := `[
+		{"id":"p1","type":"Pod","data":{"label":"My Pod"},"parentId":"nonExistent"}
+	]`
+	result := Generate(nodesJson, "[]")
+	if result != "null" {
+		t.Errorf("Pod with invalid parentId should be skipped, got: %s", result)
+	}
+}
+
+func TestDeploymentWithChildPodData(t *testing.T) {
+	nodesJson := `[
+		{"id":"d1","type":"Deployment","data":{"id":"d1","label":"My Dep"}},
+		{"id":"p1","type":"Pod","data":{"label":"Child Pod","image":"custom-image:v1","port":9090},"parentId":"d1"}
+	]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "custom-image:v1") || !strings.Contains(result, "9090") {
+		t.Errorf("Deployment failed to inherit child pod data: %s", result)
+	}
 }
 
 func TestGeneratePVC(t *testing.T) {
