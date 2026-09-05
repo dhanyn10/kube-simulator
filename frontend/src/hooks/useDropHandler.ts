@@ -29,12 +29,10 @@ const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes
 
   let absX = n.position.x;
   let absY = n.position.y;
-  if (n.parentId) {
-    const parent = nodes.find((p) => p.id === n.parentId);
-    if (parent) {
-      absX += parent.position.x;
-      absY += parent.position.y;
-    }
+  const parent = n.parentId ? nodes.find((p) => p.id === n.parentId) : undefined;
+  if (parent) {
+    absX += parent.position.x;
+    absY += parent.position.y;
   }
 
   return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
@@ -82,12 +80,10 @@ const computeFinalDropPosition = (
 
   let absX = targetContainer.position.x;
   let absY = targetContainer.position.y;
-  if (targetContainer.parentId) {
-    const p = nodes.find((n) => n.id === targetContainer.parentId);
-    if (p) {
-      absX += p.position.x;
-      absY += p.position.y;
-    }
+  const p = targetContainer.parentId ? nodes.find((n) => n.id === targetContainer.parentId) : undefined;
+  if (p) {
+    absX += p.position.x;
+    absY += p.position.y;
   }
   return { x: centeredPosition.x - absX, y: centeredPosition.y - absY };
 };

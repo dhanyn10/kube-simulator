@@ -10,22 +10,22 @@ export interface BaseAttachedItem {
 }
 
 export interface AttachedResourceListModalProps<T extends BaseAttachedItem> {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  icon: LucideIcon;
-  iconColorClass?: string;
-  buttonBgColorClass?: string;
-  hoverIconColorClass?: string;
-  items: T[];
-  emptyText: string;
-  addLabel: string;
-  itemTypeName?: string;
-  renderItemDetails: (item: T) => React.ReactNode;
-  onEditItem: (item: T) => void;
-  onDeleteItem: (itemId: string, itemName: string) => void;
-  onAddNewItem: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly title: string;
+  readonly subtitle?: string;
+  readonly icon: LucideIcon;
+  readonly iconColorClass?: string;
+  readonly buttonBgColorClass?: string;
+  readonly hoverIconColorClass?: string;
+  readonly items: readonly T[];
+  readonly emptyText: string;
+  readonly addLabel: string;
+  readonly itemTypeName?: string;
+  readonly renderItemDetails: (item: T) => React.ReactNode;
+  readonly onEditItem: (item: T) => void;
+  readonly onDeleteItem: (itemId: string, itemName: string) => void;
+  readonly onAddNewItem: () => void;
 }
 
 export function AttachedResourceListModal<T extends BaseAttachedItem>({
