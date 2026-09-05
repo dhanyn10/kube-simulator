@@ -104,15 +104,24 @@ describe("initWailsMocks", () => {
     expect(deleted).toBe(true);
     expect(await app.GetProjects()).toEqual([]);
 
-    // GetHistoryLogs on empty
+    // GetHistoryLogs and GetCurrentHistoryIndex on empty
     let history = await app.GetHistoryLogs();
     expect(history).toEqual([]);
+    expect(await app.GetCurrentHistoryIndex()).toBe(0);
 
-    // PushHistory
+    // PushHistory with timestamp
     await app.PushHistory(JSON.stringify({ actionName: "Add Node", timestamp: 123456789 }));
     history = await app.GetHistoryLogs();
     expect(history).toHaveLength(1);
     expect(history[0].actionName).toBe("Add Node");
+    expect(await app.GetCurrentHistoryIndex()).toBe(0);
+
+    // PushHistory without timestamp (fallback to Date.now())
+    await app.PushHistory(JSON.stringify({ actionName: "Delete Node" }));
+    history = await app.GetHistoryLogs();
+    expect(history).toHaveLength(2);
+    expect(history[1].timestamp).toBeGreaterThan(0);
+    expect(await app.GetCurrentHistoryIndex()).toBe(1);
 
     // JumpToHistory
     const targetState = await app.JumpToHistory(0);

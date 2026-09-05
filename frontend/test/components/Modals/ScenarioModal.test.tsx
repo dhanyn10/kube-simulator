@@ -80,4 +80,31 @@ describe('ScenarioModal', () => {
       expect(screen.getAllByText(scenario.level).length).toBeGreaterThan(0);
     });
   });
+
+  it('handles default scenario level fallback icon and background', () => {
+    // Inject a scenario with unknown level to test default branch
+    const mockScenario = {
+      id: 'custom-scenario',
+      name: 'Custom Level Scenario',
+      level: 'Expert' as any,
+      description: 'Test custom scenario level',
+      data: { nodes: [], edges: [] }
+    };
+
+    scenarios.push(mockScenario);
+
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+    expect(screen.getByText('Custom Level Scenario')).toBeDefined();
+
+    scenarios.pop();
+  });
+
+  it('does not render when isOpen is false and renders in light mode', () => {
+    const { container } = render(<ScenarioModal isOpen={false} onClose={() => {}} />);
+    expect(container.firstChild).toBeNull();
+
+    useFlowStore.setState({ colorMode: 'light' });
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+    expect(screen.getByText('Learning Scenarios')).toBeDefined();
+  });
 });
