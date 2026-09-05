@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '../store';

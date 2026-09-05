@@ -137,7 +137,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
               type="number"
               min={1}
               value={minReplicas}
-              onChange={(e) => setMinReplicas(parseInt(e.target.value, 10) || 1)}
+              onChange={(e) => setMinReplicas(Number.parseInt(e.target.value, 10) || 1)}
               className={cn(
                 "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-fuchsia-500/50 transition-all",
                 colorMode === 'dark'
@@ -155,7 +155,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
               type="number"
               min={minReplicas}
               value={maxReplicas}
-              onChange={(e) => setMaxReplicas(parseInt(e.target.value, 10) || 10)}
+              onChange={(e) => setMaxReplicas(Number.parseInt(e.target.value, 10) || 10)}
               className={cn(
                 "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-fuchsia-500/50 transition-all",
                 colorMode === 'dark'
@@ -178,7 +178,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
               min={1}
               max={100}
               value={targetCPU}
-              onChange={(e) => setTargetCPU(parseInt(e.target.value, 10) || 80)}
+              onChange={(e) => setTargetCPU(Number.parseInt(e.target.value, 10) || 80)}
               className={cn(
                 "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-fuchsia-500/50 transition-all",
                 colorMode === 'dark'
@@ -199,7 +199,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
               value={targetMemory ?? ''}
               onChange={(e) => {
                 const val = e.target.value;
-                setTargetMemory(val === '' ? undefined : parseInt(val, 10));
+                setTargetMemory(val === '' ? undefined : Number.parseInt(val, 10));
               }}
               placeholder="e.g. 80"
               className={cn(

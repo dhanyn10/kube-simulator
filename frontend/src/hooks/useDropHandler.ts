@@ -40,7 +40,7 @@ const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes
   return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
 };
 
-const WORKLOAD_ATTACHMENT_TARGETS = ['Deployment', 'ReplicaSet', 'Pod'];
+const WORKLOAD_ATTACHMENT_TARGETS = new Set(['Deployment', 'ReplicaSet', 'Pod']);
 
 const findRoleTargetNode = (
   roleCenter: { x: number; y: number },
@@ -50,7 +50,7 @@ const findRoleTargetNode = (
   const candidates = nodes.filter((n) => {
     if (!isPositionInsideNode(roleCenter, n, nodes)) return false;
     if (itemType === 'HPA') {
-      return WORKLOAD_ATTACHMENT_TARGETS.includes(n.type || '');
+      return WORKLOAD_ATTACHMENT_TARGETS.has(n.type || '');
     }
     return true;
   });
