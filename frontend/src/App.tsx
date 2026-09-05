@@ -12,7 +12,7 @@ import '@xyflow/react/dist/style.css';
 import { logger } from './lib/logger';
 import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
 import { CanvasControlsPanel } from './components/Layout/CanvasControlsPanel';
-import { ContextMenu, ResourceManager } from './components/UI';
+import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import {
   YamlModal,
@@ -119,6 +119,28 @@ export default function App() {
 
   const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
+
+  const [defaultContextMenu, setDefaultContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest && target.closest('#canvas-main')) {
+        return;
+      }
+      e.preventDefault();
+      setDefaultContextMenu({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleClose = () => setDefaultContextMenu(null);
+
+    window.addEventListener('contextmenu', handleGlobalContextMenu);
+    window.addEventListener('click', handleClose);
+    return () => {
+      window.removeEventListener('contextmenu', handleGlobalContextMenu);
+      window.removeEventListener('click', handleClose);
+    };
+  }, []);
 
   useAppInit(isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen);
 
@@ -317,6 +339,19 @@ export default function App() {
 
         {isRightSidebarVisible && <RightSidebar onExportYaml={handleExport} />}
       </div>
+
+      {defaultContextMenu && (
+        <SidebarContextMenu
+          x={defaultContextMenu.x}
+          y={defaultContextMenu.y}
+          colorMode={colorMode}
+          toggleColorMode={useFlowStore.getState().toggleColorMode}
+          onCloseContextMenu={() => setDefaultContextMenu(null)}
+          testId="global-default-context-menu"
+          changeThemeTestId="global-change-theme"
+          closeTestId="global-close"
+        />
+      )}
     </div>
   );
 }
