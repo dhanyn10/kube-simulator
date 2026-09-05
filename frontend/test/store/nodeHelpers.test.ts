@@ -52,6 +52,25 @@ describe('nodeHelpers', () => {
       expect(hydrated[0].data.yamlSettings).toBeDefined();
     });
 
+    it('migrates legacy standalone Secret cards into attached secret items on target nodes during hydration', () => {
+      const nodes = [
+        { id: 'd1', type: 'Deployment', data: { label: 'dep-1', secrets: [] } },
+        { id: 's1', type: 'Secret', parentId: 'd1', data: { label: 'legacy-secret', configData: [{ key: 'DB_PASS', value: 'secret123' }] } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+
+      const deployment = hydrated.find(n => n.id === 'd1');
+      expect(deployment.data.secrets).toHaveLength(1);
+      expect(deployment.data.secrets[0]).toEqual({
+        id: 's1',
+        name: 'legacy-secret',
+        type: 'Opaque',
+        secretData: [{ key: 'DB_PASS', value: 'secret123' }],
+      });
+    });
+
     it('syncs deployments and replicasets during hydration', () => {
         const nodes = [
             { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 1 } },

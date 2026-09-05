@@ -23,11 +23,12 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
 });
 
 export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
-  let nextNodes = nodes.map(node => {
-    // Migration Converter: Convert legacy standalone Secret cards into attached secret items on target nodes
+  // Pre-pass Migration Converter: Convert legacy standalone Secret cards into attached secret items on target nodes
+  const preparedNodes = nodes.map(n => ({ ...n, data: { ...n.data } }));
+  preparedNodes.forEach((node) => {
     if (node.type === 'Secret' && node.data?.configData && Array.isArray(node.data.configData)) {
       const parentId = node.parentId;
-      const targetNode = parentId ? nodes.find(n => n.id === parentId) : null;
+      const targetNode = parentId ? preparedNodes.find(n => n.id === parentId) : null;
       if (targetNode) {
         const legacySecretItem = {
           id: node.id,
@@ -35,13 +36,15 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
           type: 'Opaque',
           secretData: node.data.configData,
         };
-        targetNode.data = {
-          ...targetNode.data,
-          secrets: [...(targetNode.data.secrets || []), legacySecretItem],
-        };
+        const existing = targetNode.data.secrets || [];
+        if (!existing.some((s: any) => s.id === legacySecretItem.id)) {
+          targetNode.data.secrets = [...existing, legacySecretItem];
+        }
       }
     }
+  });
 
+  let nextNodes = preparedNodes.map(node => {
     const handlers = attachHandlers(node.id, get);
     
     const defaultInitialData = getInitialData(node.type, node.id, get);
