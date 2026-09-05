@@ -449,6 +449,7 @@ describe('createUiSlice', () => {
       clearTerminalLogs,
       setRoleModalTargetNode,
       setConfigMapModalTargetNode,
+      setSecretModalTargetNode,
       setHpaModalTargetNode,
       setHistoryViewOpen,
       setSimulatedUpdateInfo,
@@ -480,6 +481,9 @@ describe('createUiSlice', () => {
 
     setConfigMapModalTargetNode({ id: 'n2', label: 'Node 2' });
     expect(useFlowStore.getState().configMapModalTargetNode).toEqual({ id: 'n2', label: 'Node 2' });
+
+    setSecretModalTargetNode({ id: 'n2-secret', label: 'Secret Node 2' });
+    expect(useFlowStore.getState().secretModalTargetNode).toEqual({ id: 'n2-secret', label: 'Secret Node 2' });
 
     setHpaModalTargetNode({ id: 'n3', label: 'Node 3' });
     expect(useFlowStore.getState().hpaModalTargetNode).toEqual({ id: 'n3', label: 'Node 3' });
