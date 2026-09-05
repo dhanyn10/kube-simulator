@@ -105,4 +105,24 @@ describe('createDeploymentSlice', () => {
     expect(setRightSidebarVisible).toHaveBeenCalledWith(false);
     expect(set).toHaveBeenCalledWith({ configuringEdgeId: null, configuringNodeId: null });
   });
+
+  it('should close history view when toggling node or edge settings if history view is open', () => {
+    const setHistoryViewOpen = vi.fn();
+    get.mockReturnValue({
+      configuringNodeId: null,
+      configuringEdgeId: null,
+      isHistoryViewOpen: true,
+      setHistoryViewOpen,
+    });
+
+    const slice = createDeploymentSlice(set, get, {} as any);
+
+    slice.toggleNodeSettings('node-1');
+    expect(setHistoryViewOpen).toHaveBeenCalledWith(false);
+    expect(set).toHaveBeenCalledWith({ configuringNodeId: 'node-1', configuringEdgeId: null });
+
+    slice.toggleEdgeSettings('edge-1');
+    expect(setHistoryViewOpen).toHaveBeenCalledWith(false);
+    expect(set).toHaveBeenCalledWith({ configuringEdgeId: 'edge-1', configuringNodeId: null });
+  });
 });

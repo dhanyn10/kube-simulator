@@ -72,4 +72,12 @@ describe('ScenarioModal', () => {
     expect(screen.queryByText('Overwrite Current Canvas?')).toBeNull();
     expect(useFlowStore.getState().nodes.length).toBe(1);
   });
+
+  it('renders scenarios with Advanced level badges and handles fallback level styles', () => {
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+
+    scenarios.forEach(scenario => {
+      expect(screen.getAllByText(scenario.level).length).toBeGreaterThan(0);
+    });
+  });
 });

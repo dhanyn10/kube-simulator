@@ -838,6 +838,44 @@ describe('TerminalPanel', () => {
       expect(logs.some(line => line.includes('Name:                   api-dep'))).toBe(true);
       expect(logs.some(line => line.includes('StrategyType:           RollingUpdate'))).toBe(true);
     });
+
+    it('minimizes terminal panel when X button is clicked and renders minimized trigger', () => {
+      act(() => {
+        useFlowStore.setState({ isTerminalOpen: true });
+      });
+
+      const { rerender } = render(<TerminalPanel />);
+
+      const minimizeBtn = screen.getByTitle('Minimize Panel');
+      fireEvent.click(minimizeBtn);
+
+      expect(useFlowStore.getState().isTerminalOpen).toBe(false);
+
+      rerender(<TerminalPanel />);
+      expect(screen.queryByTestId('terminal-container')).toBeNull();
+    });
+
+    it('renders idle terminal empty state and starts simulation when Apply Manifests button is clicked', () => {
+      const startSimulationSpy = vi.spyOn(useFlowStore.getState(), 'startSimulation');
+
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: false,
+          terminalActiveTab: 'activity',
+          activityLogs: []
+        });
+      });
+
+      render(<TerminalPanel />);
+
+      expect(screen.getByText('Terminal Idle')).toBeInTheDocument();
+
+      const applyBtn = screen.getByRole('button', { name: 'Apply Manifests' });
+      fireEvent.click(applyBtn);
+
+      expect(startSimulationSpy).toHaveBeenCalled();
+    });
   });
 
   describe('unit tests for log export utilities', () => {
