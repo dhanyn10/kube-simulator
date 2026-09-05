@@ -24,6 +24,24 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
 
 export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   let nextNodes = nodes.map(node => {
+    // Migration Converter: Convert legacy standalone Secret cards into attached secret items on target nodes
+    if (node.type === 'Secret' && node.data?.configData && Array.isArray(node.data.configData)) {
+      const parentId = node.parentId;
+      const targetNode = parentId ? nodes.find(n => n.id === parentId) : null;
+      if (targetNode) {
+        const legacySecretItem = {
+          id: node.id,
+          name: node.data.label || node.id,
+          type: 'Opaque',
+          secretData: node.data.configData,
+        };
+        targetNode.data = {
+          ...targetNode.data,
+          secrets: [...(targetNode.data.secrets || []), legacySecretItem],
+        };
+      }
+    }
+
     const handlers = attachHandlers(node.id, get);
     
     const defaultInitialData = getInitialData(node.type, node.id, get);
