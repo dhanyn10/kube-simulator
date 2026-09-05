@@ -14,6 +14,7 @@ import {
 } from './';
 import { RoleSettingsSection } from './RoleSettingsSection';
 import { ConfigMapSettingsSection } from './ConfigMapSettingsSection';
+import { SecretSettingsSection } from './SecretSettingsSection';
 import { HPASettingsSection } from './HPASettingsSection';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../../store/slices/node-handlers/configUtils';
 
@@ -155,7 +156,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
       {renderConfig()}
 
-      {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.hpas && data.hpas.length > 0)) && (
+      {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
         <div className="pt-2 border-t border-slate-700/30 flex flex-wrap items-center gap-2">
           {selectedNode.type !== 'Role' && (
             <RoleSettingsSection data={data} nodeId={selectedNode.id} />
@@ -163,6 +164,10 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
           {selectedNode.type !== 'ConfigMap' && selectedNode.type !== 'Role' && (
             <ConfigMapSettingsSection data={data} nodeId={selectedNode.id} />
+          )}
+
+          {selectedNode.type !== 'Secret' && selectedNode.type !== 'Role' && (
+            <SecretSettingsSection data={data} nodeId={selectedNode.id} />
           )}
 
           <HPASettingsSection data={data} nodeId={selectedNode.id} />

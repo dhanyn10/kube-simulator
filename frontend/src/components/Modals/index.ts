@@ -8,5 +8,7 @@ export * from './RoleModal';
 export * from './RoleListModal';
 export * from './ConfigMapModal';
 export * from './ConfigMapListModal';
+export * from './SecretModal';
+export * from './SecretListModal';
 export * from './HPAModal';
 export * from './HPAListModal';

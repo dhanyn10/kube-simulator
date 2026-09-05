@@ -25,6 +25,80 @@ const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean =>
   return true;
 };
 
+export const handleGetSecretsCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+get\s+(secrets?)\b/i.exec(cmd.trim());
+  if (!match) return false;
+
+  const allSecrets: { name: string; type: string; owner: string; dataCount: number }[] = [];
+  ctx.nodes.forEach((n) => {
+    if (Array.isArray(n.data?.secrets)) {
+      n.data.secrets.forEach((s: any) => {
+        allSecrets.push({
+          name: s.name,
+          type: s.type || 'Opaque',
+          owner: n.data?.label || n.id,
+          dataCount: Array.isArray(s.secretData) ? s.secretData.length : 0,
+        });
+      });
+    }
+  });
+
+  if (allSecrets.length === 0) {
+    ctx.addActivityLog('No secrets found on the canvas.');
+    return true;
+  }
+
+  ctx.addActivityLog(`${"NAME".padEnd(30)} TYPE                      DATA   ATTACHED TO           CREATED AT`);
+  allSecrets.forEach((sec) => {
+    ctx.addActivityLog(`${String(sec.name).padEnd(30)} ${String(sec.type).padEnd(25)} ${String(sec.dataCount).padEnd(6)} ${String(sec.owner).padEnd(21)} 2m ago`);
+  });
+  return true;
+};
+
+export const handleDescribeSecretCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+describe\s+(secrets?)\s+([a-z0-9-]+)/i.exec(cmd);
+  if (!match) return false;
+
+  const targetName = match[2].toLowerCase();
+  let foundSecret: { name: string; type: string; owner: string; secretData: any[] } | null = null;
+
+  ctx.nodes.forEach((n) => {
+    if (Array.isArray(n.data?.secrets)) {
+      n.data.secrets.forEach((s: any) => {
+        if (s.name.toLowerCase() === targetName || s.id?.toLowerCase() === targetName) {
+          foundSecret = { name: s.name, type: s.type || 'Opaque', owner: n.data?.label || n.id, secretData: s.secretData || [] };
+        }
+      });
+    }
+  });
+
+  if (foundSecret) {
+    const sec = foundSecret as { name: string; type: string; owner: string; secretData: any[] };
+    ctx.addActivityLog(`Name:         ${sec.name}`);
+    ctx.addActivityLog(`Namespace:    default`);
+    ctx.addActivityLog(`Type:         ${sec.type}`);
+    ctx.addActivityLog(`Attached To:  ${sec.owner}`);
+    ctx.addActivityLog(`Data`);
+    ctx.addActivityLog(`====`);
+    if (sec.secretData.length === 0) {
+      ctx.addActivityLog(`<none>`);
+    } else {
+      sec.secretData.forEach((kv: any) => {
+        ctx.addActivityLog(`${kv.key}: ${kv.value ? `${kv.value.length} bytes` : '0 bytes'}`);
+      });
+    }
+  } else {
+    ctx.addActivityLog(`Error from server (NotFound): secret "${targetName}" not found`);
+  }
+  return true;
+};
+
 export const handleGetConfigMapsCommand = (
   cmd: string,
   ctx: CommandContext

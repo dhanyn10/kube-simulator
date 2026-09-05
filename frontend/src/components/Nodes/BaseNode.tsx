@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { AlertCircle, CheckCircle2, Shield, Settings, Activity } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Shield, Settings, Lock, Activity } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -161,7 +161,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
 
-        {((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0) && (
+        {((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0) && (
           <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-slate-500/20">
             {data.roles?.map((role: any) => (
               <span
@@ -179,6 +179,15 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                 title={`ConfigMap: ${cm.name}`}
               >
                 <Settings size={11} />
+              </span>
+            ))}
+            {data.secrets?.map((sec: any) => (
+              <span
+                key={sec.id || sec.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+                title={`Secret: ${sec.name}`}
+              >
+                <Lock size={11} />
               </span>
             ))}
             {data.hpas?.map((hpa: any) => (

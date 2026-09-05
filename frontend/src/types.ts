@@ -18,6 +18,13 @@ export interface K8sConfigMapItem {
   configData: Array<{ key: string; value: string }>;
 }
 
+export interface K8sSecretItem {
+  id: string;
+  name: string;
+  secretData: Array<{ key: string; value: string }>;
+  type?: string;
+}
+
 export interface K8sHpaItem {
   id: string;
   name: string;
@@ -82,10 +89,11 @@ export interface K8sNodeData {
   // ConfigMap & Secret specific fields
   configData?: Array<{ key: string; value: string }>;
 
-  // Role, ConfigMap & HPA specific attached fields
+  // Role, ConfigMap, Secret & HPA specific attached fields
   rules?: K8sRoleRule[];
   roles?: K8sRoleItem[];
   configMaps?: K8sConfigMapItem[];
+  secrets?: K8sSecretItem[];
   hpas?: K8sHpaItem[];
 }
 

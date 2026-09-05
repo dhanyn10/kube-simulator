@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Shield, Settings, Activity } from 'lucide-react';
+import { Shield, Settings, Lock, Activity } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -122,7 +122,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       )}
 
       <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
-        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.hpas && data.hpas.length > 0)) && (
+        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
           <div className="flex items-center gap-1 mb-1 px-2 py-1 rounded-md bg-indigo-950/40 border border-indigo-500/30 shadow-sm">
             {data.roles?.map((role: any) => (
               <span
@@ -140,6 +140,15 @@ export const DeploymentNode = memo((props: NodeProps) => {
                 title={`ConfigMap: ${cm.name}`}
               >
                 <Settings size={12} />
+              </span>
+            ))}
+            {data.secrets?.map((sec: any) => (
+              <span
+                key={sec.id || sec.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
+                title={`Secret: ${sec.name}`}
+              >
+                <Lock size={12} />
               </span>
             ))}
             {data.hpas?.map((hpa: any) => (

@@ -24,6 +24,8 @@ export interface UiSlice {
   setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
   configMapModalTargetNode: { id: string; label: string } | null;
   setConfigMapModalTargetNode: (target: { id: string; label: string } | null) => void;
+  secretModalTargetNode: { id: string; label: string } | null;
+  setSecretModalTargetNode: (target: { id: string; label: string } | null) => void;
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
   isHistoryViewOpen: boolean;
@@ -636,6 +638,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setRoleModalTargetNode: (target) => set({ roleModalTargetNode: target }),
   configMapModalTargetNode: null,
   setConfigMapModalTargetNode: (target) => set({ configMapModalTargetNode: target }),
+  secretModalTargetNode: null,
+  setSecretModalTargetNode: (target) => set({ secretModalTargetNode: target }),
   hpaModalTargetNode: null,
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
   globalEdgeColor: 'var(--color-mat-indigo)',

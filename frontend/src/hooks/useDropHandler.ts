@@ -19,7 +19,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {
   if (childType === 'Pod') return nodeType === 'Deployment' || nodeType === 'Namespace';
-  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType)) return nodeType === 'Namespace';
+  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role', 'ConfigMap', 'Secret'].includes(childType)) return nodeType === 'Namespace';
   return false;
 };
 
@@ -119,7 +119,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (!draggingSidebarItem) return;
 
-      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA') {
+      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'Secret' || draggingSidebarItem === 'HPA') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const targetNode = findRoleTargetNode(itemCenter, nodes, draggingSidebarItem);
 
@@ -154,8 +154,8 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
-      // Handle Role, ConfigMap, or HPA drop onto existing canvas card
-      if (type === 'Role' || type === 'ConfigMap' || type === 'HPA') {
+      // Handle Role, ConfigMap, Secret, or HPA drop onto existing canvas card
+      if (type === 'Role' || type === 'ConfigMap' || type === 'Secret' || type === 'HPA') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const targetNode = findRoleTargetNode(itemCenter, nodes, type);
 
@@ -169,6 +169,10 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
         } else if (type === 'ConfigMap') {
           useFlowStore.setState({
             configMapModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+          });
+        } else if (type === 'Secret') {
+          useFlowStore.setState({
+            secretModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
           });
         } else {
           useFlowStore.setState({
