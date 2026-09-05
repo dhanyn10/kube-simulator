@@ -13,7 +13,7 @@ export const NamespaceNode = memo((props: NodeProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
   const { transitionClasses } = useNodeStyles(props.id);
-  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA';
+  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap';
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);

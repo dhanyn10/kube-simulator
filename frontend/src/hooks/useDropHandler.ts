@@ -40,11 +40,20 @@ const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes
   return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
 };
 
+const WORKLOAD_ATTACHMENT_TARGETS = ['Deployment', 'ReplicaSet', 'Pod'];
+
 const findRoleTargetNode = (
   roleCenter: { x: number; y: number },
-  nodes: Node[]
+  nodes: Node[],
+  itemType?: K8sResourceType | null
 ): Node | undefined => {
-  const candidates = nodes.filter((n) => isPositionInsideNode(roleCenter, n, nodes));
+  const candidates = nodes.filter((n) => {
+    if (!isPositionInsideNode(roleCenter, n, nodes)) return false;
+    if (itemType === 'HPA') {
+      return WORKLOAD_ATTACHMENT_TARGETS.includes(n.type || '');
+    }
+    return true;
+  });
 
   const sortedCandidates = [...candidates].sort((a, b) => {
     const areaA = (a.width || a.measured?.width || 200) * (a.height || a.measured?.height || 100);
@@ -55,7 +64,7 @@ const findRoleTargetNode = (
   let targetNode = sortedCandidates[0];
 
   if (targetNode?.type === 'Pod' && targetNode.parentId) {
-    const parentDep = nodes.find((p) => p.id === targetNode.parentId && p.type === 'Deployment');
+    const parentDep = nodes.find((p) => p.id === targetNode.parentId && (p.type === 'Deployment' || p.type === 'ReplicaSet'));
     if (parentDep) {
       targetNode = parentDep;
     }
@@ -112,7 +121,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const targetNode = findRoleTargetNode(itemCenter, nodes);
+        const targetNode = findRoleTargetNode(itemCenter, nodes, draggingSidebarItem);
 
         setHoveredDeploymentId(targetNode?.id || null);
         useFlowStore.setState((state) => ({
@@ -148,10 +157,11 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
       // Handle Role, ConfigMap, or HPA drop onto existing canvas card
       if (type === 'Role' || type === 'ConfigMap' || type === 'HPA') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-        const targetNode = findRoleTargetNode(itemCenter, nodes);
+        const targetNode = findRoleTargetNode(itemCenter, nodes, type);
 
         if (!targetNode) {
-          useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. Deployment, Pod, Service) to attach ${type.toLowerCase()}s!`, 'UI');
+          const targetCardText = type === 'HPA' ? 'Deployment or ReplicaSet' : 'Deployment, Pod, Service';
+          useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. ${targetCardText}) to attach ${type.toLowerCase()}s!`, 'UI');
         } else if (type === 'Role') {
           useFlowStore.setState({
             roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
