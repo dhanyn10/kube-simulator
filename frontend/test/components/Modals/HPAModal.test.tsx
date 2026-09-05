@@ -90,4 +90,25 @@ describe('HPAModal', () => {
     render(<HPAModal {...defaultProps} />);
     expect(screen.getByRole('heading', { name: 'Attach HPA Autoscaling' })).toBeInTheDocument();
   });
+
+  it('handles clearing memory target and fallback initial values, and cancel button click', () => {
+    const props = {
+      ...defaultProps,
+      targetNodeLabel: undefined,
+      initialHpa: { id: 'h1', name: '' } as K8sHpaItem,
+    };
+
+    render(<HPAModal {...props} />);
+
+    expect(screen.getByText('Configure HorizontalPodAutoscaler')).toBeInTheDocument();
+
+    const memInput = screen.getByLabelText(/Target Memory Utilization/);
+    fireEvent.change(memInput, { target: { value: '50' } });
+    fireEvent.change(memInput, { target: { value: '' } });
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelButton);
+
+    expect(defaultProps.onClose).toHaveBeenCalled();
+  });
 });

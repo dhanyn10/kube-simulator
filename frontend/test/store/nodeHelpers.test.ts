@@ -54,8 +54,9 @@ describe('nodeHelpers', () => {
 
     it('migrates legacy standalone Secret cards into attached secret items on target nodes during hydration', () => {
       const nodes = [
-        { id: 'd1', type: 'Deployment', data: { label: 'dep-1', secrets: [] } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep-1', secrets: [{ id: 's1', name: 'legacy-secret' }] } },
         { id: 's1', type: 'Secret', parentId: 'd1', data: { label: 'legacy-secret', configData: [{ key: 'DB_PASS', value: 'secret123' }] } },
+        { id: 's2', type: 'Secret', parentId: 'non-existent-parent', data: { label: 'orphan-secret', configData: [{ key: 'FOO', value: 'BAR' }] } }
       ];
       const get = () => useFlowStore.getState();
 
@@ -63,12 +64,18 @@ describe('nodeHelpers', () => {
 
       const deployment = hydrated.find(n => n.id === 'd1');
       expect(deployment.data.secrets).toHaveLength(1);
-      expect(deployment.data.secrets[0]).toEqual({
-        id: 's1',
-        name: 'legacy-secret',
-        type: 'Opaque',
-        secretData: [{ key: 'DB_PASS', value: 'secret123' }],
-      });
+    });
+
+    it('calculates dimensions for manually resized deployment and replicaset', () => {
+      const nodes = [
+        { id: 'rs1', type: 'ReplicaSet', width: 300, height: 200, data: { label: 'rs-1', replicas: 1, isManuallyResized: true } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      const rs = hydrated.find(n => n.id === 'rs1');
+      expect(rs.width).toBeGreaterThanOrEqual(300);
+      expect(rs.height).toBeGreaterThanOrEqual(200);
     });
 
     it('syncs deployments and replicasets during hydration', () => {

@@ -177,11 +177,35 @@ describe('simulation test suite', () => {
     expect(calculateIncomingTraffic(baseNodes[0], ctxMin).traffic).toBe(100);
   });
 
-  it('hpa scaling execution - scale up', () => {
+  it('hpa scaling execution - scale up with attached hpas array or node config', () => {
     const ctx = getMockCtx();
     ctx.targetEdgeMap!.set('d1', [{ id: 'ehpa', source: 'h1', target: 'd1' } as Edge]);
     expect(handleHpaScaling(baseNodes[0], 100, ctx)).toBe(true);
     expect(ctx.updatedNodes.find(n => n.id === 'd1')?.data.replicas).toBe(2);
+
+    // Attached HPAs array on deployment
+    const depWithHpaArray = createNode('d2', 'Deployment', {
+      replicas: 1,
+      hpas: [{ minReplicas: 1, maxReplicas: 5, targetCPU: 50 }]
+    });
+    const ctx2 = getMockCtx();
+    ctx2.updatedNodes.push(depWithHpaArray);
+    ctx2.nodeIndexMap?.set('d2', ctx2.updatedNodes.length - 1);
+
+    expect(handleHpaScaling(depWithHpaArray, 100, ctx2)).toBe(true);
+
+    // Deployment with minReplicas & maxReplicas directly
+    const depWithMinMax = createNode('d3', 'Deployment', {
+      replicas: 1,
+      minReplicas: 1,
+      maxReplicas: 5,
+      targetCPU: 50
+    });
+    const ctx3 = getMockCtx();
+    ctx3.updatedNodes.push(depWithMinMax);
+    ctx3.nodeIndexMap?.set('d3', ctx3.updatedNodes.length - 1);
+
+    expect(handleHpaScaling(depWithMinMax, 100, ctx3)).toBe(true);
   });
 
   it('hpa scaling execution - update currentCPU', () => {

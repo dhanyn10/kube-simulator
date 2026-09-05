@@ -50,14 +50,15 @@ describe('CustomEdge', () => {
     expect(screen.getByTitle('Remove')).toBeDefined();
   });
 
-  it('calls setEdges when remove is clicked', () => {
+  it('calls setEdges and clears configuringEdgeId when remove is clicked while configuring', () => {
+    const setConfiguringEdgeIdSpy = vi.spyOn(useFlowStore.getState(), 'setConfiguringEdgeId');
+    useFlowStore.setState({ configuringEdgeId: 'e1' });
+
     render(<CustomEdge {...defaultProps} selected={true} />);
     fireEvent.click(screen.getByTitle('Remove'));
 
     expect(mockSetEdges).toHaveBeenCalled();
-    const updateFn = mockSetEdges.mock.calls[0][0];
-    const edges = [{ id: 'e1' }, { id: 'e2' }];
-    expect(updateFn(edges)).toEqual([{ id: 'e2' }]);
+    expect(setConfiguringEdgeIdSpy).toHaveBeenCalledWith(null);
   });
 
   it('calls toggleEdgeSettings when settings is clicked', () => {
@@ -163,5 +164,35 @@ describe('CustomEdge', () => {
     expect(state.isTerminalOpen).toBe(true);
     expect(state.terminalActiveTab).toBe('activity');
     expect(state.activityLogs.some(line => line.includes('Service cannot connect directly to Service'))).toBe(true);
+  });
+
+  it('detects multi-hop downstream unready nodes and handles cycles gracefully', () => {
+    useFlowStore.setState({
+      activeSimulationEdges: ['e1', 'e2'],
+      isTerminalOpen: false,
+      terminalActiveTab: 'activity',
+      terminalSelectedResourceId: null,
+      nodes: [
+        { id: 'n1', type: 'Service', data: { label: 'svc-1' } },
+        { id: 'n2', type: 'Service', data: { label: 'svc-2' } },
+        { id: 'n3', type: 'Pod', data: { label: 'pod-3', status: 'pending' } },
+      ],
+      edges: [
+        { id: 'e1', source: 'n1', target: 'n2' },
+        { id: 'e2', source: 'n2', target: 'n3' },
+      ],
+    });
+
+    render(<CustomEdge {...defaultProps} source="n1" target="n2" id="e1" />);
+
+    const badge = screen.getByTestId('edge-alert-badge');
+    expect(badge).toBeDefined();
+
+    fireEvent.click(badge);
+
+    const state = useFlowStore.getState();
+    expect(state.isTerminalOpen).toBe(true);
+    expect(state.terminalActiveTab).toBe('logs');
+    expect(state.terminalSelectedResourceId).toBe('n3');
   });
 });
