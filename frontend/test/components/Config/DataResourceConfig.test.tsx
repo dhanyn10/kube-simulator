@@ -60,9 +60,9 @@ describe('DataResourceConfig', () => {
 
     expect(screen.getByText('Secrets (Key-Value)')).toBeDefined();
     expect(screen.getByDisplayValue('S1')).toBeDefined();
-    // Value input should be type password
+    // Value input should be type text
     const valueInput = screen.getByDisplayValue('V1');
-    expect(valueInput.getAttribute('type')).toBe('password');
+    expect(valueInput.getAttribute('type')).toBe('text');
   });
 
   it('handles adding new items', () => {

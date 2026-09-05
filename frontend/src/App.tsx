@@ -22,6 +22,7 @@ import {
   SettingsModal,
   RoleModal,
   ConfigMapModal,
+  SecretModal,
   HPAModal,
 } from './components/Modals';
 import {
@@ -167,10 +168,13 @@ export default function App() {
     setRoleModalTargetNode,
     configMapModalTargetNode,
     setConfigMapModalTargetNode,
+    secretModalTargetNode,
+    setSecretModalTargetNode,
     hpaModalTargetNode,
     setHpaModalTargetNode,
     handleRoleSave,
     handleConfigMapSave,
+    handleSecretSave,
     handleHpaSave,
   } = useAttachmentHandlers();
 
@@ -320,6 +324,14 @@ export default function App() {
             targetNodeId={configMapModalTargetNode?.id || null}
             targetNodeLabel={configMapModalTargetNode?.label}
             onSave={handleConfigMapSave}
+          />
+
+          <SecretModal
+            isOpen={secretModalTargetNode !== null}
+            onClose={() => setSecretModalTargetNode(null)}
+            targetNodeId={secretModalTargetNode?.id || null}
+            targetNodeLabel={secretModalTargetNode?.label}
+            onSave={handleSecretSave}
           />
 
           <HPAModal

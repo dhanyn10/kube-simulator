@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '../store';
-import { K8sRoleItem, K8sConfigMapItem, K8sHpaItem } from '../types';
+import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem } from '../types';
 import { logger } from '../lib/logger';
 
 export function useAppInit(
@@ -66,6 +66,8 @@ export function useAttachmentHandlers() {
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const configMapModalTargetNode = useFlowStore((state) => state.configMapModalTargetNode);
   const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
+  const secretModalTargetNode = useFlowStore((state) => state.secretModalTargetNode);
+  const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
   const hpaModalTargetNode = useFlowStore((state) => state.hpaModalTargetNode);
   const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
 
@@ -88,6 +90,34 @@ export function useAttachmentHandlers() {
     updateNodeData(target.id, { roles: updatedRoles });
     useFlowStore.getState().addLog('info', `[Role Attached] Attached role "${roleItem.name}" to card ${roleModalTargetNode.label}`, 'UI');
     setRoleModalTargetNode(null);
+
+    useFlowStore.setState({
+      configuringNodeId: target.id,
+      configuringEdgeId: null,
+      isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
+    });
+  };
+
+  const handleSecretSave = (secretItem: K8sSecretItem) => {
+    if (!secretModalTargetNode) return;
+    const target = nodes.find((n) => n.id === secretModalTargetNode.id);
+    if (!target) return;
+
+    const existingSecrets = target.data.secrets || [];
+    const existingIndex = existingSecrets.findIndex((s: K8sSecretItem) => s.id === secretItem.id);
+    let updatedSecrets: K8sSecretItem[];
+
+    if (existingIndex >= 0) {
+      updatedSecrets = [...existingSecrets];
+      updatedSecrets[existingIndex] = secretItem;
+    } else {
+      updatedSecrets = [...existingSecrets, secretItem];
+    }
+
+    updateNodeData(target.id, { secrets: updatedSecrets });
+    useFlowStore.getState().addLog('info', `[Secret Attached] Attached Secret "${secretItem.name}" to card ${secretModalTargetNode.label}`, 'UI');
+    setSecretModalTargetNode(null);
 
     useFlowStore.setState({
       configuringNodeId: target.id,
@@ -158,10 +188,13 @@ export function useAttachmentHandlers() {
     setRoleModalTargetNode,
     configMapModalTargetNode,
     setConfigMapModalTargetNode,
+    secretModalTargetNode,
+    setSecretModalTargetNode,
     hpaModalTargetNode,
     setHpaModalTargetNode,
     handleRoleSave,
     handleConfigMapSave,
+    handleSecretSave,
     handleHpaSave,
   };
 }

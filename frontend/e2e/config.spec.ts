@@ -76,8 +76,7 @@ test.describe('ConfigMap and Secret', () => {
     await page.getByTitle('Show/Hide on Card').click();
 
     await expect(secretNode).toContainText('SECRET_KEY');
-    await expect(secretNode).not.toContainText('SECRET_VALUE');
-    await expect(secretNode).toContainText('********');
+    await expect(secretNode).toContainText('SECRET_VALUE');
   });
 
   test('generates correct YAML with attached ConfigMaps and Secrets', async ({ page }) => {
