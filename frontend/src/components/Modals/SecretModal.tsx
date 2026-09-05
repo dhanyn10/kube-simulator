@@ -178,7 +178,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
           onUpdateField={handleUpdateField}
           keyPlaceholder="KEY (e.g. DB_PASSWORD)"
           valuePlaceholder="Secret Value"
-          valueInputType="password"
+          valueInputType="text"
           sectionTitle="Secret Data (Key - Value Pairs)"
         />
       </div>

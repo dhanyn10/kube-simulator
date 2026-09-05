@@ -17,7 +17,7 @@ export const SecretNode = memo((props: NodeProps) => {
           <div className="space-y-0.5">
             {data.configData.slice(0, 3).map((item) => (
               <div key={item.key} className="text-[9px] font-mono truncate text-slate-400">
-                <span className="text-indigo-500/80">{item.key}:</span> ********
+                <span className="text-indigo-500/80">{item.key}:</span> {item.value}
               </div>
             ))}
             {data.configData.length > 3 && (
