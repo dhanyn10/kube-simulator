@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { AlertCircle, CheckCircle2, Shield, Settings } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Shield, Settings, Activity } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -89,7 +89,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
 
-  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap';
+  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA';
   const currentNode = nodes.find((n) => n.id === id);
   const parentNode = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId) : null;
   const isInsideNamespace = currentNode?.parentId ? (parentNode?.type === 'Namespace' || Boolean(parentNode?.parentId && nodes.find((p) => p.id === parentNode.parentId)?.type === 'Namespace')) : false;
@@ -161,7 +161,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
 
-        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0)) && (
+        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.hpas && data.hpas.length > 0)) && (
           <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-slate-500/20">
             {data.roles && data.roles.map((role: any) => (
               <span
@@ -179,6 +179,15 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
                 title={`ConfigMap: ${cm.name}`}
               >
                 <Settings size={11} />
+              </span>
+            ))}
+            {data.hpas && data.hpas.map((hpa: any) => (
+              <span
+                key={hpa.id || hpa.name}
+                className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm"
+                title={`HPA: ${hpa.name} (Min: ${hpa.minReplicas}, Max: ${hpa.maxReplicas}, CPU: ${hpa.targetCPU}%)`}
+              >
+                <Activity size={11} />
               </span>
             ))}
           </div>

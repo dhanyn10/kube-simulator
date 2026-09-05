@@ -270,13 +270,40 @@ const calculateDesiredReplicas = (
 };
 
 export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
-  const connectedHPA = findConnectedHPA(dep.id, ctx);
-  if (!connectedHPA) return false;
+  const depData = dep.data as K8sNodeData;
+  let hpaConfig: { minReplicas: number; maxReplicas: number; targetCPU: number } | null = null;
+  let connectedHPA: Node | undefined = undefined;
+
+  if (Array.isArray(depData.hpas) && depData.hpas.length > 0) {
+    const first = depData.hpas[0];
+    hpaConfig = {
+      minReplicas: first.minReplicas || 1,
+      maxReplicas: first.maxReplicas || 10,
+      targetCPU: first.targetCPU || 50,
+    };
+  } else {
+    connectedHPA = findConnectedHPA(dep.id, ctx);
+    if (connectedHPA) {
+      const hData = connectedHPA.data as K8sNodeData;
+      hpaConfig = {
+        minReplicas: hData.minReplicas || 1,
+        maxReplicas: hData.maxReplicas || 10,
+        targetCPU: hData.targetCPU || 50,
+      };
+    } else if (depData.minReplicas && depData.maxReplicas) {
+      hpaConfig = {
+        minReplicas: depData.minReplicas,
+        maxReplicas: depData.maxReplicas,
+        targetCPU: depData.targetCPU || 50,
+      };
+    }
+  }
+
+  if (!hpaConfig) return false;
 
   let hasChanges = false;
-  const hpaData = connectedHPA.data as K8sNodeData;
-  const replicas = (dep.data as K8sNodeData).replicas || 1;
-  const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaData);
+  const replicas = depData.replicas || 1;
+  const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any);
 
   if (desiredReplicas !== replicas) {
     const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(n => n.id === dep.id);
@@ -292,7 +319,7 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
     }
   }
 
-  if (updateNodeData(ctx, connectedHPA.id, { currentCPU: Math.round(cpuPercent) })) {
+  if (connectedHPA && updateNodeData(ctx, connectedHPA.id, { currentCPU: Math.round(cpuPercent) })) {
     hasChanges = true;
   }
 

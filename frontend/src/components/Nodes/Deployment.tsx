@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Shield } from 'lucide-react';
+import { Shield, Settings, Activity } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -12,7 +12,9 @@ import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], nodes: any[]): boolean => {
   const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
   if (hasRequests) return false;
-  return edges.some((e) => e.target === nodeId && nodes.find((n) => n.id === e.source)?.type === 'HPA');
+  const hasAttachedHpa = Array.isArray(data.hpas) && data.hpas.length > 0;
+  const hasConnectedHpa = edges.some((e) => e.target === nodeId && nodes.find((n) => n.id === e.source)?.type === 'HPA');
+  return hasAttachedHpa || hasConnectedHpa;
 };
 
 const getRoleDragClass = (isRoleDragging: boolean, nodeType: string, isHovered?: boolean): string => {
@@ -44,7 +46,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const { transitionClasses } = useNodeStyles(props.id);
 
   const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
-  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap', 'Deployment', data.isHovered);
+  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA', 'Deployment', data.isHovered);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);
@@ -120,15 +122,33 @@ export const DeploymentNode = memo((props: NodeProps) => {
       )}
 
       <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
-        {data.roles && data.roles.length > 0 && (
+        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.hpas && data.hpas.length > 0)) && (
           <div className="flex items-center gap-1 mb-1 px-2 py-1 rounded-md bg-indigo-950/40 border border-indigo-500/30 shadow-sm">
-            {data.roles.map((role: any) => (
+            {data.roles?.map((role: any) => (
               <span
                 key={role.id || role.name}
                 className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
                 title={`Role: ${role.name}`}
               >
                 <Shield size={12} />
+              </span>
+            ))}
+            {data.configMaps?.map((cm: any) => (
+              <span
+                key={cm.id || cm.name}
+                className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer"
+                title={`ConfigMap: ${cm.name}`}
+              >
+                <Settings size={12} />
+              </span>
+            ))}
+            {data.hpas?.map((hpa: any) => (
+              <span
+                key={hpa.id || hpa.name}
+                className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer"
+                title={`HPA: ${hpa.name}`}
+              >
+                <Activity size={12} />
               </span>
             ))}
           </div>

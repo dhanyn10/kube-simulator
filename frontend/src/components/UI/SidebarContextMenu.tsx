@@ -7,7 +7,7 @@ interface SidebarContextMenuProps {
   readonly y: number;
   readonly colorMode: 'dark' | 'light';
   readonly toggleColorMode: () => void;
-  readonly onCloseSidebar: () => void;
+  readonly onCloseSidebar?: () => void;
   readonly onCloseContextMenu: () => void;
   readonly testId?: string;
   readonly changeThemeTestId?: string;
@@ -58,7 +58,9 @@ export function SidebarContextMenu({
         data-testid={closeTestId}
         onClick={(e) => {
           e.stopPropagation();
-          onCloseSidebar();
+          if (onCloseSidebar) {
+            onCloseSidebar();
+          }
           onCloseContextMenu();
         }}
         className={cn(
