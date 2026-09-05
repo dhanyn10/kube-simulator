@@ -101,27 +101,47 @@ describe('ResourceManager', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('handles updating an active project', async () => {
-    const project = { id: 1, name: 'Project 1' };
+  it('handles updating an active project and overwrite confirmation flow', async () => {
+    const project = { id: 1, name: 'Project 1', content: JSON.stringify({ nodes: [{ id: 'n2' }], edges: [] }), updatedAt: Date.now()/1000 };
     useFlowStore.setState({
-        currentProject: project,
+        currentProject: { id: 2, name: 'Project 2' },
         nodes: [{ id: 'n1', type: 'Pod', data: {} } as any],
         lastSavedSnapshot: JSON.stringify({ nodes: [], edges: [] })
     });
-    mockGetProjects.mockResolvedValue([{ ...project, updatedAt: Date.now()/1000 }]);
+    mockGetProjects.mockResolvedValue([project]);
 
     await act(async () => {
         render(<ResourceManager isOpen={true} onClose={() => {}} />);
     });
 
-    await waitFor(() => screen.getByText('Update'));
-    const updateButton = screen.getByText('Update');
+    await waitFor(() => screen.getByText('Overwrite'));
+    fireEvent.click(screen.getByText('Overwrite'));
 
+    expect(screen.getByText('OVERWRITE?')).toBeDefined();
+
+    // Cancel overwrite
+    fireEvent.click(screen.getByText('NO'));
+    expect(screen.queryByText('OVERWRITE?')).toBeNull();
+
+    // Confirm overwrite
+    fireEvent.click(screen.getByText('Overwrite'));
+    fireEvent.click(screen.getByText('YES'));
+    expect(mockUpdateProject).toHaveBeenCalledWith(1, expect.any(String));
+  });
+
+  it('filters sidebar tabs using search input', async () => {
     await act(async () => {
-        fireEvent.click(updateButton);
+        render(<ResourceManager isOpen={true} onClose={() => {}} />);
     });
 
-    expect(mockUpdateProject).toHaveBeenCalledWith(1, expect.any(String));
+    const searchInput = screen.getByPlaceholderText('Search tabs...');
+    fireEvent.change(searchInput, { target: { value: 'Docker' } });
+
+    expect(screen.getByText('Docker Hub Registry')).toBeDefined();
+    expect(screen.queryByText('Saved Architectures')).toBeNull();
+
+    fireEvent.change(searchInput, { target: { value: 'NonexistentTab' } });
+    expect(screen.getByText('No categories found')).toBeDefined();
   });
 
   it('handles deleting a project', async () => {

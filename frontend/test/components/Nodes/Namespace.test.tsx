@@ -66,14 +66,16 @@ describe('NamespaceNode', () => {
     expect((container.firstChild as HTMLElement).className).toContain('role-drag-inside-ns');
   });
 
-  it('renders correctly with default data', () => {
+  it('renders correctly with default data and isDetaching styling in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
     const props = {
       id: 'ns1',
       type: 'Namespace',
-      data: { label: 'My Namespace' }
+      selected: true,
+      data: { label: 'My Namespace', isHovered: true, isDetaching: true }
     } as any;
 
-    render(
+    const { container } = render(
       <ReactFlowProvider>
         <NamespaceNode {...props} />
       </ReactFlowProvider>
@@ -83,5 +85,6 @@ describe('NamespaceNode', () => {
     expect(screen.getByText('My Namespace')).toBeDefined();
     expect(screen.getByText('Isolated Logic Cluster')).toBeDefined();
     expect(screen.getByTestId('node-resizer')).toBeDefined();
+    expect((container.firstChild as HTMLElement).className).toContain('border-red-500');
   });
 });

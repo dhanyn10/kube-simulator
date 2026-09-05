@@ -132,8 +132,27 @@ describe('LogModal', () => {
 
         // Select error
         fireEvent.click(screen.getByTestId('log-select-error'));
-
         expect(screen.getByText('1 selected')).toBeDefined();
+
+        // Select warn
+        fireEvent.click(screen.getByTestId('log-select-dropdown'));
+        fireEvent.click(screen.getByTestId('log-select-warn'));
+        expect(screen.getByText('1 selected')).toBeDefined();
+
+        // Select info
+        fireEvent.click(screen.getByTestId('log-select-dropdown'));
+        fireEvent.click(screen.getByTestId('log-select-info'));
+        expect(screen.getByText('1 selected')).toBeDefined();
+
+        // Select all
+        fireEvent.click(screen.getByTestId('log-select-dropdown'));
+        fireEvent.click(screen.getByTestId('log-select-all'));
+        expect(screen.getByText('3 selected')).toBeDefined();
+
+        // Select none
+        fireEvent.click(screen.getByTestId('log-select-dropdown'));
+        fireEvent.click(screen.getByTestId('log-select-none'));
+        expect(screen.queryByText(/selected/)).toBeNull();
     });
 
     it('toggles log expansion', () => {
