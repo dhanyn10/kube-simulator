@@ -254,6 +254,49 @@ describe('useAppHelpers', () => {
       expect(updatedNodes[0].data.configMaps).toEqual([updatedCm, newCm]);
     });
 
+    it('handleSecretSave returns early or attaches new/updated Secret', () => {
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      // Return early when secretModalTargetNode is null or non-existent
+      act(() => {
+        result.current.handleSecretSave({ id: 'sec-1', name: 'my-secret', secretType: 'Opaque', secretData: [] });
+      });
+
+      act(() => {
+        result.current.setSecretModalTargetNode({ id: 'non-existent', label: 'NonExistent' });
+      });
+
+      act(() => {
+        result.current.handleSecretSave({ id: 'sec-1', name: 'my-secret', secretType: 'Opaque', secretData: [] });
+      });
+
+      // Valid target node save
+      act(() => {
+        result.current.setSecretModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      const sec1 = { id: 'sec-1', name: 'my-secret', secretType: 'Opaque', secretData: [] };
+      act(() => {
+        result.current.handleSecretSave(sec1);
+      });
+
+      let updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.secrets).toEqual([sec1]);
+
+      // Update existing secret
+      act(() => {
+        result.current.setSecretModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      const sec1Updated = { id: 'sec-1', name: 'updated-secret', secretType: 'Opaque', secretData: [{ key: 'K', value: 'V' }] };
+      act(() => {
+        result.current.handleSecretSave(sec1Updated);
+      });
+
+      updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.secrets).toEqual([sec1Updated]);
+    });
+
     it('handleHpaSave returns early or attaches new/updated HPA', () => {
       const { result } = renderHook(() => useAttachmentHandlers());
 
