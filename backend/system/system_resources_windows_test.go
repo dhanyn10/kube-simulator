@@ -93,3 +93,29 @@ func TestGetWinCpuUsage_Concurrent(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestGetSystemResources_Windows(t *testing.T) {
+	res := GetSystemResources()
+	if res == nil {
+		t.Fatal("expected non-nil system resources")
+	}
+
+	keys := []string{"cpuCores", "cpuUsage", "totalMemoryGB", "freeMemoryGB"}
+	for _, key := range keys {
+		if _, ok := res[key]; !ok {
+			t.Errorf("expected %s in system resources", key)
+		}
+	}
+
+	if cores, ok := res["cpuCores"].(int); !ok || cores <= 0 {
+		t.Errorf("expected cpuCores > 0, got %v", res["cpuCores"])
+	}
+
+	if mem, ok := res["totalMemoryGB"].(uint64); !ok || mem == 0 {
+		t.Errorf("expected totalMemoryGB > 0, got %v", res["totalMemoryGB"])
+	}
+
+	if usage, ok := res["cpuUsage"].(int); !ok || usage < 0 || usage > 100 {
+		t.Errorf("expected cpuUsage between 0 and 100, got %v", res["cpuUsage"])
+	}
+}
