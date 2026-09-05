@@ -271,6 +271,20 @@ describe('terminalCommands', () => {
       // Logout
       handleAdminCommands('exit', mockCtx);
       expect(storeState.isAdminAuthenticated).toBe(false);
+
+      // Re-login and test logout keyword
+      storeState.isAdminAuthenticated = true;
+      handleAdminCommands('logout', mockCtx);
+      expect(storeState.isAdminAuthenticated).toBe(false);
+    });
+
+    it('handles admin error cases for invalid semver and unknown try commands', () => {
+      storeState.isAdminAuthenticated = true;
+
+      // Unknown try subcommand
+      activityLogs = [];
+      handleAdminCommands('try unknown-subcommand', mockCtx);
+      expect(activityLogs.some(l => l.includes('Unknown command'))).toBe(true);
     });
 
     it('blocks try commands when unauthenticated', () => {

@@ -60,10 +60,16 @@ describe('PVCConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ storageCapacity: '1Gi' });
   });
 
-  it('handles access mode selection', () => {
+  it('handles access mode selection and light mode styling', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
     render(
       <PVCConfig
-        selectedNode={selectedNode}
+        selectedNode={{
+          id: 'pvc1',
+          type: 'PVC',
+          data: { label: 'My PVC', storageCapacity: '', accessMode: 'ReadOnlyMany' }
+        }}
         performUpdate={performUpdate}
         toggleVisibility={toggleVisibility}
         toggleYaml={toggleYaml}
@@ -73,6 +79,10 @@ describe('PVCConfig', () => {
     const roxBtn = screen.getByText('ROX');
     fireEvent.click(roxBtn);
     expect(performUpdate).toHaveBeenCalledWith({ accessMode: 'ReadOnlyMany' });
+
+    const rwxBtn = screen.getByText('RWX');
+    fireEvent.click(rwxBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ accessMode: 'ReadWriteMany' });
   });
 
   it('handles storage class updates', () => {

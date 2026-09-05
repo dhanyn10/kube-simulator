@@ -438,4 +438,63 @@ describe('createUiSlice', () => {
 
     vi.useRealTimers();
   });
+
+  it('manages terminal tabs, modal targets, and terminal logs', () => {
+    const {
+      setTerminalOpen,
+      setTerminalActiveTab,
+      setTerminalSelectedResourceId,
+      addTerminalLog,
+      addActivityLog,
+      clearTerminalLogs,
+      setRoleModalTargetNode,
+      setConfigMapModalTargetNode,
+      setHpaModalTargetNode,
+      setHistoryViewOpen,
+      setSimulatedUpdateInfo,
+      setSimulatedCurrentVersion,
+      setIsAdminAuthenticated,
+    } = useFlowStore.getState();
+
+    setTerminalOpen(true);
+    expect(useFlowStore.getState().isTerminalOpen).toBe(true);
+
+    setTerminalActiveTab('logs');
+    expect(useFlowStore.getState().terminalActiveTab).toBe('logs');
+
+    setTerminalSelectedResourceId('res-1');
+    expect(useFlowStore.getState().terminalSelectedResourceId).toBe('res-1');
+
+    addTerminalLog('res-1', 'test log line');
+    expect(useFlowStore.getState().terminalLogs['res-1']).toContain('test log line');
+
+    addActivityLog('User created Pod pod-1');
+    expect(useFlowStore.getState().activityLogs).toContain('User created Pod pod-1');
+
+    clearTerminalLogs();
+    expect(useFlowStore.getState().terminalLogs).toEqual({});
+    expect(useFlowStore.getState().activityLogs).toEqual([]);
+
+    setRoleModalTargetNode({ id: 'n1', label: 'Node 1' });
+    expect(useFlowStore.getState().roleModalTargetNode).toEqual({ id: 'n1', label: 'Node 1' });
+
+    setConfigMapModalTargetNode({ id: 'n2', label: 'Node 2' });
+    expect(useFlowStore.getState().configMapModalTargetNode).toEqual({ id: 'n2', label: 'Node 2' });
+
+    setHpaModalTargetNode({ id: 'n3', label: 'Node 3' });
+    expect(useFlowStore.getState().hpaModalTargetNode).toEqual({ id: 'n3', label: 'Node 3' });
+
+    setHistoryViewOpen(true);
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+
+    setSimulatedUpdateInfo({ latestVersion: '1.2.3', releaseUrl: 'https://example.com' });
+    expect(useFlowStore.getState().simulatedUpdateInfo).toEqual({ latestVersion: '1.2.3', releaseUrl: 'https://example.com' });
+
+    setSimulatedCurrentVersion('1.0.0');
+    expect(useFlowStore.getState().simulatedCurrentVersion).toBe('1.0.0');
+
+    setIsAdminAuthenticated(true);
+    expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
+  });
 });

@@ -132,12 +132,40 @@ describe('ContextMenu', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it('calls onClose when backdrop is clicked', () => {
+  it('calls onClose when backdrop is clicked or right-clicked', () => {
     render(
       <ContextMenu x={100} y={100} onClose={mockOnClose} onInspect={mockOnInspect} onDelete={mockOnDelete} />
     );
-    fireEvent.click(screen.getByLabelText('Close context menu'));
+    const backdrop = screen.getByLabelText('Close context menu');
+    fireEvent.contextMenu(backdrop);
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('calls groupNodes and ungroupNodes when buttons are clicked', () => {
+    (useFlowStore as any).mockImplementation((selector: any) => {
+      const state = {
+        colorMode: 'dark',
+        nodes: [
+          { id: '1', selected: true, data: { groupId: 'g1' } },
+          { id: '2', selected: true, data: { groupId: 'g1' } },
+        ],
+        groupNodes: mockGroupNodes,
+        ungroupNodes: mockUngroupNodes,
+        copyNodes: mockCopyNodes,
+        pasteNodes: mockPasteNodes,
+      };
+      return selector(state);
+    });
+
+    render(
+      <ContextMenu x={100} y={100} onClose={mockOnClose} onInspect={mockOnInspect} onDelete={mockOnDelete} />
+    );
+
+    fireEvent.click(screen.getByText('Group'));
+    expect(mockGroupNodes).toHaveBeenCalledWith(['1', '2']);
+
+    fireEvent.click(screen.getByText('Ungroup'));
+    expect(mockUngroupNodes).toHaveBeenCalledWith(['1', '2']);
   });
 
   it('handles keyboard navigation - ArrowDown', () => {

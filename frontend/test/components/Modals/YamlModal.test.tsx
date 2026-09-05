@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { YamlModal } from '@/components/Modals/YamlModal';
+import '@testing-library/jest-dom';
 
 describe('YamlModal', () => {
   const content = 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod';
@@ -40,9 +41,30 @@ describe('YamlModal', () => {
     });
   });
 
-  it('closes on Escape key', () => {
-    render(<YamlModal content={content} colorMode="dark" onClose={mockOnClose} />);
+  it('closes on Escape key or backdrop click', () => {
+    render(<YamlModal content={content} colorMode="light" onClose={mockOnClose} />);
+
+    // Click backdrop
+    const backdrop = document.querySelector('button.fixed.inset-0');
+    if (backdrop) fireEvent.click(backdrop);
+    expect(mockOnClose).toHaveBeenCalled();
+
     fireEvent.keyDown(globalThis, { key: 'Escape' });
     expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('renders default message when content is empty and handles copy failure', async () => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockRejectedValue(new Error('Clipboard write error')),
+      },
+    });
+
+    render(<YamlModal content="" colorMode="light" onClose={mockOnClose} />);
+    expect(screen.getByText('# No resources generated yet.')).toBeDefined();
+
+    const copyBtn = screen.getByText('Copy');
+    fireEvent.click(copyBtn);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('');
   });
 });

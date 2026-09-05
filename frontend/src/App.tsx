@@ -125,7 +125,7 @@ export default function App() {
   useEffect(() => {
     const handleGlobalContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && target.closest && target.closest('#canvas-main')) {
+      if (target?.closest?.('#canvas-main')) {
         return;
       }
       e.preventDefault();

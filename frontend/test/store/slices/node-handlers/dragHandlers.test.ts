@@ -82,16 +82,42 @@ describe('dragHandlers', () => {
     expect(updatedPod?.parentId).toBeUndefined();
   });
 
-  it('onNodeDragStop handles re-parenting to Namespace', () => {
+  it('onNodeDragStop handles re-parenting to Namespace and Deployment', () => {
     const { onNodeDragStop } = useFlowStore.getState();
-    useFlowStore.setState({ hoveredDeploymentId: 'ns1' });
 
+    // Re-parent to Namespace
+    useFlowStore.setState({ hoveredDeploymentId: 'ns1' });
     const node = { id: 'n1', type: 'Pod', position: { x: 550, y: 550 }, data: {} } as any;
+    onNodeDragStop({} as any, node);
+
+    let state = useFlowStore.getState();
+    let updatedPod = state.nodes.find(n => n.id === 'n1');
+    expect(updatedPod?.parentId).toBe('ns1');
+
+    // Re-parent Pod to Deployment
+    useFlowStore.setState({ hoveredDeploymentId: 'd1' });
+    onNodeDragStop({} as any, node);
+
+    state = useFlowStore.getState();
+    updatedPod = state.nodes.find(n => n.id === 'n1');
+    expect(updatedPod?.parentId).toBe('d1');
+  });
+
+  it('onNodeDragStop handles internal move inside Deployment', () => {
+    const { onNodeDragStop } = useFlowStore.getState();
+    useFlowStore.setState({
+      nodes: [
+        { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 10, y: 10 }, data: { replicas: 1 } },
+        { id: 'd1', type: 'Deployment', position: { x: 100, y: 100 }, width: 320, height: 160, data: { replicas: 1 } }
+      ] as any
+    });
+
+    const node = { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 20, y: 20 }, data: { replicas: 1 } } as any;
     onNodeDragStop({} as any, node);
 
     const state = useFlowStore.getState();
     const updatedPod = state.nodes.find(n => n.id === 'n1');
-    expect(updatedPod?.parentId).toBe('ns1');
+    expect(updatedPod?.parentId).toBe('d1');
   });
 
   it('onNodeDragStop handles move within container', () => {
