@@ -10,36 +10,36 @@ export interface BaseResourceItem {
 }
 
 export interface AttachedResourceSettingsSectionProps<T extends BaseResourceItem> {
-  data: K8sNodeData;
-  nodeId: string;
-  resourceKey: keyof K8sNodeData;
-  resourceName: string;
-  logResourceName?: string;
-  icon: LucideIcon;
-  badgeBgColorClass?: string;
-  darkBorderColorClass?: string;
-  darkTextColorClass?: string;
-  darkHoverBorderClass?: string;
-  lightBgColorClass?: string;
-  lightBorderColorClass?: string;
-  lightTextColorClass?: string;
-  lightHoverBorderClass?: string;
-  renderListModal: (props: {
-    isOpen: boolean;
-    onClose: () => void;
-    targetNodeLabel: string;
-    items: T[];
-    onEditItem: (item: T) => void;
-    onDeleteItem: (itemId: string, itemName: string) => void;
-    onAddNewItem: () => void;
+  readonly data: K8sNodeData;
+  readonly nodeId: string;
+  readonly resourceKey: keyof K8sNodeData;
+  readonly resourceName: string;
+  readonly logResourceName?: string;
+  readonly icon: LucideIcon;
+  readonly badgeBgColorClass?: string;
+  readonly darkBorderColorClass?: string;
+  readonly darkTextColorClass?: string;
+  readonly darkHoverBorderClass?: string;
+  readonly lightBgColorClass?: string;
+  readonly lightBorderColorClass?: string;
+  readonly lightTextColorClass?: string;
+  readonly lightHoverBorderClass?: string;
+  readonly renderListModal: (props: {
+    readonly isOpen: boolean;
+    readonly onClose: () => void;
+    readonly targetNodeLabel: string;
+    readonly items: readonly T[];
+    readonly onEditItem: (item: T) => void;
+    readonly onDeleteItem: (itemId: string, itemName: string) => void;
+    readonly onAddNewItem: () => void;
   }) => React.ReactElement;
-  renderEditModal: (props: {
-    isOpen: boolean;
-    onClose: () => void;
-    targetNodeId: string;
-    targetNodeLabel: string;
-    initialItem: T | null;
-    onSave: (item: T) => void;
+  readonly renderEditModal: (props: {
+    readonly isOpen: boolean;
+    readonly onClose: () => void;
+    readonly targetNodeId: string;
+    readonly targetNodeLabel: string;
+    readonly initialItem: T | null;
+    readonly onSave: (item: T) => void;
   }) => React.ReactElement;
 }
 

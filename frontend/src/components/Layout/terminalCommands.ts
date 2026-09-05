@@ -90,7 +90,8 @@ export const handleDescribeSecretCommand = (
       ctx.addActivityLog(`<none>`);
     } else {
       sec.secretData.forEach((kv: any) => {
-        ctx.addActivityLog(`${kv.key}: ${kv.value ? `${kv.value.length} bytes` : '0 bytes'}`);
+        const valSizeStr = kv.value ? `${kv.value.length} bytes` : '0 bytes';
+        ctx.addActivityLog(`${kv.key}: ${valSizeStr}`);
       });
     }
   } else {

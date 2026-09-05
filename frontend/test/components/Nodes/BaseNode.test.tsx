@@ -139,7 +139,7 @@ describe('BaseNode', () => {
   });
 
   it('renders status indicators correctly for Internet and PVC node types', () => {
-    const { container } = render(
+    const { container: c1 } = render(
       <ReactFlowProvider>
         <BaseNode
           {...defaultProps}
@@ -148,6 +148,46 @@ describe('BaseNode', () => {
       </ReactFlowProvider>
     );
 
-    expect(container.querySelector('.rounded-full.w-1\\.5')).toBeNull();
+    expect(c1.querySelector('.rounded-full.w-1\\.5')).toBeNull();
+
+    const { container: c2 } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          data={{ label: 'PVC Node', type: 'PVC' }}
+        />
+      </ReactFlowProvider>
+    );
+
+    expect(c2.querySelector('.rounded-full.w-1\\.5')).toBeNull();
+  });
+
+  it('renders secrets, hpas, light mode, and nested namespace parent container styles', () => {
+    useFlowStore.setState({
+      colorMode: 'light',
+      nodes: [
+        { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} },
+        { id: 'p1', type: 'Deployment', parentId: 'ns1', position: { x: 0, y: 0 }, data: {} },
+        { id: 'child-pod', type: 'Pod', parentId: 'p1', position: { x: 0, y: 0 }, data: {} },
+      ]
+    });
+
+    render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          id="child-pod"
+          statusOverride="pending"
+          data={{
+            ...defaultProps.data,
+            secrets: [{ id: 's1', name: 'my-sec' }],
+            hpas: [{ id: 'h1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 }],
+          }}
+        />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByTitle('Secret: my-sec')).toBeInTheDocument();
+    expect(screen.getByTitle('HPA: my-hpa (Min: 1, Max: 5, CPU: 80%)')).toBeInTheDocument();
   });
 });

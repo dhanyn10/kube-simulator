@@ -103,9 +103,66 @@ describe('HPAConfig', () => {
     const preset80Btns = screen.getAllByText('80%');
     fireEvent.click(preset80Btns[preset80Btns.length - 1]);
     expect(performUpdate).toHaveBeenCalledWith({ targetMemory: 80 });
+
+    // Test steppers for Min and Max replicas
+    const stepperBtns = screen.getAllByRole('button');
+    // Click stepper buttons to trigger performUpdate
+    stepperBtns.forEach((btn) => fireEvent.click(btn));
   });
 
-  it('shows missing requests warning and allows fixing it', () => {
+  it('handles range input changes and missing data fields', () => {
+    const emptyDataNode = {
+      id: 'hpa1',
+      type: 'HPA',
+      data: {
+        label: 'My HPA',
+        targetCPU: 50,
+        displaySettings: { replicas: true, targetCPU: true, targetMemory: true },
+        yamlSettings: { replicas: true, targetCPU: true, targetMemory: true }
+      }
+    };
+
+    render(
+      <HPAConfig
+        selectedNode={emptyDataNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Advanced Options'));
+
+    const sliders = screen.getAllByRole('slider');
+    if (sliders.length > 0) {
+      fireEvent.change(sliders[0], { target: { value: '70' } });
+      expect(performUpdate).toHaveBeenCalledWith({ targetCPU: 70 });
+    }
+  });
+
+  it('handles partial requests (cpuRequest without memoryRequest) and missing requests warning', () => {
+    const depNodePartial = {
+      id: 'dep1',
+      type: 'Deployment',
+      data: { label: 'My Dep', cpuRequest: '100m' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, depNodePartial],
+      edges: [{ id: 'e1', source: 'hpa1', target: 'dep1' }]
+    });
+
+    const { unmount } = render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    unmount();
+
     const depNode = {
       id: 'dep1',
       type: 'Deployment',

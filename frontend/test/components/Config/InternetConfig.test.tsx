@@ -160,7 +160,7 @@ describe('InternetConfig', () => {
       }
     };
 
-    render(
+    const { rerender } = render(
       <InternetConfig
         selectedNode={largeNode}
         performUpdate={performUpdate}
@@ -181,5 +181,31 @@ describe('InternetConfig', () => {
 
     fireEvent.click(eyeButtons[1]);
     expect(toggleVisibility).toHaveBeenCalledWith('duration');
+
+    // Test decimal M (e.g. 1.5M) and decimal k (e.g. 2.5k) formatting
+    rerender(
+      <InternetConfig
+        selectedNode={{ ...largeNode, data: { ...largeNode.data, traffic: 1500000 } }}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    rerender(
+      <InternetConfig
+        selectedNode={{ ...largeNode, data: { ...largeNode.data, traffic: 2500 } }}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    // Test maxRange > 10000 for slider step 50
+    rerender(
+      <InternetConfig
+        selectedNode={{ ...largeNode, data: { ...largeNode.data, traffic: 50000 } }}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
   });
 });

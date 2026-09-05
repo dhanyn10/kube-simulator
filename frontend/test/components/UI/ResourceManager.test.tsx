@@ -101,6 +101,57 @@ describe('ResourceManager', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('handles active project without changes (no Update button) and updating active project with changes', async () => {
+    const activeContent = JSON.stringify({ nodes: [], edges: [] });
+    const project1 = { id: 1, name: 'Project 1', content: activeContent, updatedAt: Date.now()/1000 };
+    useFlowStore.setState({
+      currentProject: { id: 1, name: 'Project 1' },
+      nodes: [],
+      edges: [],
+      lastSavedSnapshot: activeContent
+    });
+    mockGetProjects.mockResolvedValue([project1]);
+
+    const { rerender } = render(<ResourceManager isOpen={true} onClose={() => {}} />);
+
+    await waitFor(() => screen.getByText('Project 1'));
+    // Active project with no changes should NOT display the Update button
+    expect(screen.queryByText('Update')).toBeNull();
+
+    // Now introduce changes so hasChanges becomes true
+    const newContent = JSON.stringify({ nodes: [{ id: 'n1', type: 'Pod', data: {} }], edges: [] });
+    act(() => {
+      useFlowStore.setState({
+        nodes: [{ id: 'n1', type: 'Pod', data: {} } as any]
+      });
+    });
+
+    rerender(<ResourceManager isOpen={true} onClose={() => {}} />);
+
+    await waitFor(() => screen.getByText('Update'));
+    fireEvent.click(screen.getByText('Update'));
+    expect(mockUpdateProject).toHaveBeenCalledWith(1, newContent);
+  });
+
+  it('handles inactive project when canvas is empty or matching content (no Overwrite button)', async () => {
+    const matchingContent = JSON.stringify({ nodes: [], edges: [] });
+    const project = { id: 1, name: 'Project 1', content: matchingContent, updatedAt: Date.now()/1000 };
+    useFlowStore.setState({
+      currentProject: null,
+      nodes: [],
+      edges: [],
+      lastSavedSnapshot: matchingContent
+    });
+    mockGetProjects.mockResolvedValue([project]);
+
+    await act(async () => {
+      render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    });
+
+    await waitFor(() => screen.getByText('Project 1'));
+    expect(screen.queryByText('Overwrite')).toBeNull();
+  });
+
   it('handles updating an active project and overwrite confirmation flow', async () => {
     const project = { id: 1, name: 'Project 1', content: JSON.stringify({ nodes: [{ id: 'n2' }], edges: [] }), updatedAt: Date.now()/1000 };
     useFlowStore.setState({

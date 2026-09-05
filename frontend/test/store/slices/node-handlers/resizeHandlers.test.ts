@@ -56,4 +56,38 @@ describe('resizeHandlers', () => {
     expect(state.lastActionName).toBe('Resize Element');
     expect(state.lastActionId).toContain('resize-');
   });
+
+  it('handles edge cases in onNodeResize for standalone pods, missing parents, and non-workload nodes', () => {
+    const { onNodeResize } = useFlowStore.getState();
+
+    // 1. Non-existent node
+    onNodeResize({}, { id: 'non-existent', width: 200, height: 100 } as any);
+
+    // 2. Standalone pod without parentId
+    useFlowStore.setState({
+      nodes: [
+        { id: 'p-standalone', type: 'Pod', position: { x: 0, y: 0 }, width: 140, height: 80, data: {} }
+      ] as any
+    });
+    onNodeResize({}, { id: 'p-standalone', width: 180, height: 90 } as any);
+
+    // 3. Pod with missing parent in state
+    useFlowStore.setState({
+      nodes: [
+        { id: 'p-orphan', type: 'Pod', parentId: 'missing-dep', position: { x: 0, y: 0 }, width: 140, height: 80, data: {} }
+      ] as any
+    });
+    onNodeResize({}, { id: 'p-orphan', width: 180, height: 90 } as any);
+
+    // 4. Resizing a Service card
+    useFlowStore.setState({
+      nodes: [
+        { id: 'svc-1', type: 'Service', position: { x: 0, y: 0 }, width: 100, height: 60, data: {} }
+      ] as any
+    });
+    onNodeResize({}, { id: 'svc-1', width: 150, height: 80 } as any);
+
+    const updatedSvc = useFlowStore.getState().nodes.find(n => n.id === 'svc-1');
+    expect(updatedSvc?.width).toBe(150);
+  });
 });

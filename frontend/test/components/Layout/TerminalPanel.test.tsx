@@ -828,7 +828,7 @@ describe('TerminalPanel', () => {
       expect(logs.some(line => line.includes('deployment.apps/api-dep'))).toBe(true);
     });
 
-    it('handles describe deployment command', () => {
+    it('handles describe deployment command and missing deployment error', () => {
       render(<TerminalPanel />);
       const input = screen.getByTestId('terminal-cli-input');
       fireEvent.change(input, { target: { value: 'kubectl describe deployment api-dep' } });
@@ -837,6 +837,36 @@ describe('TerminalPanel', () => {
       const logs = useFlowStore.getState().activityLogs;
       expect(logs.some(line => line.includes('Name:                   api-dep'))).toBe(true);
       expect(logs.some(line => line.includes('StrategyType:           RollingUpdate'))).toBe(true);
+
+      fireEvent.change(input, { target: { value: 'kubectl describe deploy non-existent-dep' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const updatedLogs = useFlowStore.getState().activityLogs;
+      expect(updatedLogs.some(line => line.includes('Error from server (NotFound): deployment "non-existent-dep" not found'))).toBe(true);
+    });
+
+    it('handles kubectl get deploy, kubectl get svc, and admin help commands', () => {
+      render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input');
+
+      fireEvent.change(input, { target: { value: 'kubectl get deploy' } });
+      fireEvent.submit(input.closest('form')!);
+
+      fireEvent.change(input, { target: { value: 'kubectl get svc' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const logs = useFlowStore.getState().activityLogs;
+      expect(logs.some(line => line.includes('api-dep'))).toBe(true);
+
+      act(() => {
+        useFlowStore.setState({ isAdminAuthenticated: true });
+      });
+
+      fireEvent.change(input, { target: { value: 'help' } });
+      fireEvent.submit(input.closest('form')!);
+
+      const adminLogs = useFlowStore.getState().activityLogs;
+      expect(adminLogs.some(line => line.includes('Admin CLI Commands:'))).toBe(true);
     });
 
     it('minimizes terminal panel when X button is clicked and renders minimized trigger', () => {
