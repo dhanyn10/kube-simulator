@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Plus, Trash2 } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sConfigMapItem } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
+import { KeyValueFormSection, KeyValueItem } from './KeyValueFormSection';
 
 interface ConfigMapModalProps {
   isOpen: boolean;
@@ -12,12 +13,6 @@ interface ConfigMapModalProps {
   targetNodeLabel?: string;
   initialConfigMap?: K8sConfigMapItem | null;
   onSave: (configMapItem: K8sConfigMapItem) => void;
-}
-
-interface ConfigDataItem {
-  id: string;
-  key: string;
-  value: string;
 }
 
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
@@ -31,7 +26,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const [cmName, setCmName] = useState<string>('app-config');
-  const [dataItems, setDataItems] = useState<ConfigDataItem[]>([
+  const [dataItems, setDataItems] = useState<KeyValueItem[]>([
     { id: 'cm-kv-1', key: 'API_URL', value: 'https://api.example.com' },
     { id: 'cm-kv-2', key: 'LOG_LEVEL', value: 'info' },
   ]);
@@ -93,7 +88,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
         type="button"
         onClick={onClose}
         className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border",
+          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
           colorMode === 'dark'
             ? "border-slate-700 hover:bg-slate-800 text-slate-300"
             : "border-slate-300 hover:bg-slate-100 text-slate-700"
@@ -104,7 +99,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       <button
         type="button"
         onClick={handleSave}
-        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-md transition-all"
+        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-md transition-all cursor-pointer"
       >
         {initialConfigMap ? 'Update ConfigMap' : 'Attach ConfigMap'}
       </button>
@@ -145,62 +140,18 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
         </div>
 
         {/* Key-Value Data Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">ConfigMap Data (Key - Value Pairs)</span>
-            <button
-              type="button"
-              onClick={handleAddField}
-              className="flex items-center gap-1 text-[11px] font-semibold text-teal-400 hover:text-teal-300 transition-colors cursor-pointer"
-            >
-              <Plus size={13} /> Add Key-Value
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {dataItems.map((item) => (
-              <div
-                key={item.id}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-lg border",
-                  colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
-                )}
-              >
-                <input
-                  type="text"
-                  value={item.key}
-                  onChange={(e) => handleUpdateField(item.id, 'key', e.target.value)}
-                  placeholder="KEY (e.g. API_URL)"
-                  className={cn(
-                    "flex-1 px-2.5 py-1.5 rounded-md border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500",
-                    colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-                  )}
-                />
-                <span className="text-slate-500 font-mono text-xs">=</span>
-                <input
-                  type="text"
-                  value={item.value}
-                  onChange={(e) => handleUpdateField(item.id, 'value', e.target.value)}
-                  placeholder="Value"
-                  className={cn(
-                    "flex-1 px-2.5 py-1.5 rounded-md border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500",
-                    colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-                  )}
-                />
-                {dataItems.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveField(item.id)}
-                    className="p-1.5 text-red-400 hover:text-red-300 rounded transition-colors cursor-pointer"
-                    title="Remove Pair"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <KeyValueFormSection
+          items={dataItems}
+          colorMode={colorMode}
+          accentColor="teal"
+          onAddField={handleAddField}
+          onRemoveField={handleRemoveField}
+          onUpdateField={handleUpdateField}
+          keyPlaceholder="KEY (e.g. API_URL)"
+          valuePlaceholder="Value"
+          valueInputType="text"
+          sectionTitle="ConfigMap Data (Key - Value Pairs)"
+        />
       </div>
     </Modal>
   );

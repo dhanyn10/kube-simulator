@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Plus, Trash2 } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sSecretItem } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
+import { KeyValueFormSection, KeyValueItem } from './KeyValueFormSection';
 
 interface SecretModalProps {
   isOpen: boolean;
@@ -12,12 +13,6 @@ interface SecretModalProps {
   targetNodeLabel?: string;
   initialSecret?: K8sSecretItem | null;
   onSave: (secretItem: K8sSecretItem) => void;
-}
-
-interface SecretDataItem {
-  id: string;
-  key: string;
-  value: string;
 }
 
 export const SecretModal: React.FC<SecretModalProps> = ({
@@ -32,7 +27,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
   const [secretName, setSecretName] = useState<string>('app-secret');
   const [secretType, setSecretType] = useState<string>('Opaque');
-  const [dataItems, setDataItems] = useState<SecretDataItem[]>([
+  const [dataItems, setDataItems] = useState<KeyValueItem[]>([
     { id: 'sec-kv-1', key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
     { id: 'sec-kv-2', key: 'API_KEY', value: 'secret-token-xyz' },
   ]);
@@ -174,62 +169,18 @@ export const SecretModal: React.FC<SecretModalProps> = ({
         </div>
 
         {/* Key-Value Data Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Secret Data (Key - Value Pairs)</span>
-            <button
-              type="button"
-              onClick={handleAddField}
-              className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-            >
-              <Plus size={13} /> Add Key-Value
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {dataItems.map((item) => (
-              <div
-                key={item.id}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-lg border",
-                  colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
-                )}
-              >
-                <input
-                  type="text"
-                  value={item.key}
-                  onChange={(e) => handleUpdateField(item.id, 'key', e.target.value)}
-                  placeholder="KEY (e.g. DB_PASSWORD)"
-                  className={cn(
-                    "flex-1 px-2.5 py-1.5 rounded-md border text-xs font-mono outline-none focus:ring-1 focus:ring-indigo-500",
-                    colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-                  )}
-                />
-                <span className="text-slate-500 font-mono text-xs">=</span>
-                <input
-                  type="password"
-                  value={item.value}
-                  onChange={(e) => handleUpdateField(item.id, 'value', e.target.value)}
-                  placeholder="Secret Value"
-                  className={cn(
-                    "flex-1 px-2.5 py-1.5 rounded-md border text-xs font-mono outline-none focus:ring-1 focus:ring-indigo-500",
-                    colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-                  )}
-                />
-                {dataItems.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveField(item.id)}
-                    className="p-1.5 text-red-400 hover:text-red-300 rounded transition-colors cursor-pointer"
-                    title="Remove Pair"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <KeyValueFormSection
+          items={dataItems}
+          colorMode={colorMode}
+          accentColor="indigo"
+          onAddField={handleAddField}
+          onRemoveField={handleRemoveField}
+          onUpdateField={handleUpdateField}
+          keyPlaceholder="KEY (e.g. DB_PASSWORD)"
+          valuePlaceholder="Secret Value"
+          valueInputType="password"
+          sectionTitle="Secret Data (Key - Value Pairs)"
+        />
       </div>
     </Modal>
   );
