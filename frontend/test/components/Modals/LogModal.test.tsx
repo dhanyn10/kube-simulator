@@ -155,7 +155,7 @@ describe('LogModal', () => {
         expect(screen.queryByText(/selected/)).toBeNull();
     });
 
-    it('toggles log expansion', () => {
+    it('toggles log expansion on and off', () => {
         render(<LogModal />);
         const element = screen.getByText(matchPre('Info log 1'));
         const logItem = element.closest('button');
@@ -164,6 +164,34 @@ describe('LogModal', () => {
         expect(logItem.getAttribute('aria-expanded')).toBe('false');
         fireEvent.click(logItem);
         expect(logItem.getAttribute('aria-expanded')).toBe('true');
+        fireEvent.click(logItem);
+        expect(logItem.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('toggles individual log selection on and off via checkbox', () => {
+        render(<LogModal />);
+        const checkboxes = screen.getAllByRole('checkbox');
+        // Checkboxes: master checkbox is index 0, log checkboxes are index 1..N
+        const firstLogCheckbox = checkboxes[1];
+
+        fireEvent.click(firstLogCheckbox);
+        expect(screen.getByText('1 selected')).toBeDefined();
+
+        fireEvent.click(firstLogCheckbox);
+        expect(screen.queryByText(/selected/)).toBeNull();
+    });
+
+    it('includes custom scope in availableScopes', () => {
+        useFlowStore.setState({
+            logs: [
+                { id: 'custom-1', level: 'info', scope: 'CustomScope' as any, message: 'Custom log', timestamp: Date.now() },
+            ],
+            isLogModalOpen: true,
+        });
+
+        render(<LogModal />);
+        const scopeSelect = screen.getByTestId('log-scope-filter');
+        expect(scopeSelect.textContent).toContain('CustomScope');
     });
 
     it('shows empty state when no logs match filter', () => {

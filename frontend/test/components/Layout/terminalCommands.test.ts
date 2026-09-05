@@ -13,6 +13,8 @@ import {
   handleDescribeDeploymentCommand,
   handleGetConfigMapsCommand,
   handleDescribeConfigMapCommand,
+  handleGetSecretsCommand,
+  handleDescribeSecretCommand,
   CommandContext
 } from '@/components/Layout/terminalCommands';
 
@@ -38,6 +40,8 @@ describe('terminalCommands', () => {
         { id: 'deploy-1', type: 'Deployment', data: { label: 'my-dep', replicas: 3, image: 'nginx:latest' } },
         { id: 'role-node', type: 'Pod', data: { label: 'app-pod', roles: [{ name: 'reader-role', rules: [{ resources: ['pods'], apiGroups: [''], verbs: ['get'] }] }] } },
         { id: 'cm-node', type: 'Deployment', data: { label: 'cm-dep', configMaps: [{ name: 'app-cm', configData: [{ key: 'ENV', value: 'prod' }] }, { name: 'empty-cm', configData: [] }] } },
+        { id: 'secret-node', type: 'Deployment', data: { label: 'sec-dep', secrets: [{ name: 'app-sec', secretType: 'Opaque', secretData: [{ key: 'PASS', value: 'secret123' }] }, { name: 'empty-sec', secretType: 'Opaque', secretData: [] }] } },
+        { id: 'hpa-node', type: 'Deployment', data: { label: 'hpa-dep', hpas: [{ name: 'app-hpa', minReplicas: 2, maxReplicas: 10, targetCPU: 80 }] } },
         { id: 'svc-1', type: 'Service', data: { label: 'my-svc', port: 8080 } },
         { id: 'ing-1', type: 'Ingress', data: { label: 'my-ing', ingressHost: 'app.test' } },
         { id: 'hpa-1', type: 'HPA', data: { label: 'my-hpa', minReplicas: 2, maxReplicas: 8 } },
@@ -50,6 +54,36 @@ describe('terminalCommands', () => {
       setStoreState: (newState: any) => { Object.assign(storeState, newState); },
     };
   });
+
+  describe('Secrets Commands', () => {
+    it('handleGetSecretsCommand displays secrets or empty message', () => {
+      let handled = handleGetSecretsCommand('kubectl get secret', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('app-sec'))).toBe(true);
+
+      mockCtx.nodes = [];
+      activityLogs = [];
+      handled = handleGetSecretsCommand('kubectl get secrets', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No secrets found'))).toBe(true);
+    });
+
+    it('handleDescribeSecretCommand describes secret with key-value data or not found', () => {
+      let handled = handleDescribeSecretCommand('kubectl describe secret app-sec', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('Name:         app-sec'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('PASS:'))).toBe(true);
+
+      handled = handleDescribeSecretCommand('kubectl describe secret empty-sec', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('<none>'))).toBe(true);
+
+      handled = handleDescribeSecretCommand('kubectl describe secret missing-sec', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('secret "missing-sec" not found'))).toBe(true);
+    });
+  });
+
 
   describe('ConfigMap Commands', () => {
     it('handleGetConfigMapsCommand displays configmaps or empty message', () => {

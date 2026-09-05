@@ -157,4 +157,21 @@ describe('createLogSlice', () => {
     sessionStorage.getItem = originalGetItem;
     delete (globalThis as any)._originalConsoleError;
   });
+
+  it('should handle setItem error in sessionStorage gracefully', () => {
+    const testStore = createStore<any>()((...a) => ({
+      ...createLogSlice(...a),
+    }));
+
+    const spy = vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+      throw new Error('QuotaExceededError');
+    });
+
+    expect(() => {
+      testStore.getState().addLog('error', 'Trigger save error');
+    }).not.toThrow();
+
+    expect(testStore.getState().logs).toHaveLength(1);
+    spy.mockRestore();
+  });
 });
