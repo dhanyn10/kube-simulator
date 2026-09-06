@@ -21,12 +21,12 @@ export const verifyInternetToPodConnection = (): { success: boolean; hint?: stri
 
   const internetNode = nodes.find((n) => n.type === 'Internet');
   if (!internetNode) {
-    return { success: false, hint: 'Please drag an Internet node onto the canvas from the sidebar.' };
+    return { success: false, hint: 'Please drag an Internet node onto the canvas from the highlighted sidebar card.' };
   }
 
   const targetNode = nodes.find((n) => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'Service');
   if (!targetNode) {
-    return { success: false, hint: 'Please drag a Pod, Service, or Deployment card onto the canvas.' };
+    return { success: false, hint: 'Please drag a Pod or Workload card onto the canvas.' };
   }
 
   // Position check: targetNode must be to the right of internetNode (x coordinate)
@@ -34,7 +34,7 @@ export const verifyInternetToPodConnection = (): { success: boolean; hint?: stri
   if (!isToTheRight) {
     return {
       success: false,
-      hint: `Position check: Move '${targetNode.data?.label || targetNode.type}' to the right side of 'Internet' card.`,
+      hint: `Positioning Check: Move '${targetNode.data?.label || targetNode.type}' to the RIGHT side of the 'Internet' card.`,
     };
   }
 
@@ -48,7 +48,7 @@ export const verifyInternetToPodConnection = (): { success: boolean; hint?: stri
   if (!isConnected) {
     return {
       success: false,
-      hint: `Connection check: Connect an edge line from 'Internet' handle to '${targetNode.data?.label || targetNode.type}'.`,
+      hint: `Connection Check: Connect a line/edge from the 'Internet' handle to '${targetNode.data?.label || targetNode.type}'.`,
     };
   }
 
@@ -63,13 +63,13 @@ export const verifyRbacRoleAttachment = (): { success: boolean; hint?: string } 
 
   const nodeWithRole = nodes.find((n) => Array.isArray(n.data?.roles) && n.data.roles.length > 0);
   if (!nodeWithRole) {
-    return { success: false, hint: 'Please drag a Role item from Security & Access sidebar and drop it onto a canvas card.' };
+    return { success: false, hint: 'Please drag the highlighted Role item from the sidebar and drop it onto a canvas card.' };
   }
 
   const roleItem = nodeWithRole.data.roles[0];
   const hasUser = Boolean(roleItem.userName || roleItem.subjects?.[0]?.name);
   if (!hasUser) {
-    return { success: false, hint: 'In the Role Modal, specify a User / Subject Name (e.g. alice) before attaching.' };
+    return { success: false, hint: 'In the Role Modal, specify a User / Subject Name (e.g. alice) before saving.' };
   }
 
   return { success: true };
@@ -83,7 +83,7 @@ export const verifyHpaAttachment = (): { success: boolean; hint?: string } => {
 
   const nodeWithHpa = nodes.find((n) => Array.isArray(n.data?.hpas) && n.data.hpas.length > 0);
   if (!nodeWithHpa) {
-    return { success: false, hint: 'Please drag an HPA from Compute & Workloads sidebar and drop it onto a Deployment card.' };
+    return { success: false, hint: 'Please drag the highlighted HPA item from the sidebar and drop it onto a Deployment card.' };
   }
 
   return { success: true };
@@ -100,7 +100,7 @@ export const verifyConfigBinding = (): { success: boolean; hint?: string } => {
   );
 
   if (!nodeWithConfig) {
-    return { success: false, hint: 'Please drag a ConfigMap or Secret item from Configuration & Storage and drop it onto a card.' };
+    return { success: false, hint: 'Please drag a ConfigMap or Secret item from the highlighted sidebar and drop it onto a card.' };
   }
 
   return { success: true };
@@ -128,24 +128,31 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
   if (tourType === 'arch') {
     steps = [
       {
-        id: 'arch-intro',
-        title: '🌐 Web App Architecture Scenario',
-        text: 'In this guided scenario, you will connect an Internet traffic node to a Pod/Workload node positioned on its right side.',
-        element: '#sidebar-components',
+        id: 'arch-step1',
+        title: '🌐 Step 1: Pick Up the Internet Node',
+        text: "Game Mission: Drag this highlighted 'Internet' card from the sidebar and drop it onto the canvas on the left side.",
+        element: '#sidebar-item-Internet',
+        on: 'right',
+      },
+      {
+        id: 'arch-step2',
+        title: '📦 Step 2: Pick Up the Pod Card',
+        text: "Drag this highlighted 'Pod' card and place it on the RIGHT side of your Internet node on the canvas.",
+        element: '#sidebar-item-Pod',
         on: 'right',
       },
       {
         id: 'arch-verify',
-        title: '📍 Step 1: Drag Nodes & Connect Edge',
-        text: "Drag an 'Internet' node and a 'Pod' (or 'Service'/'Deployment') onto the canvas. Ensure the Pod is on the RIGHT side of the Internet card, and connect them with an Edge line.",
+        title: '🔗 Step 3: Connect & Verify Architecture',
+        text: "Connect an edge line from 'Internet' to 'Pod' (placed on its right). Once done, click 'Verify Action ✓'.",
         element: '#canvas-main',
         on: 'bottom',
         verify: verifyInternetToPodConnection,
       },
       {
         id: 'arch-complete',
-        title: '🎉 Architecture Complete!',
-        text: 'Great job! Your Internet node is connected to the workload on its right side. Click Start Simulation in the top bar to test traffic flow.',
+        title: '🎉 Level 1 Complete!',
+        text: 'Great job! Your Internet traffic node is connected to the workload on its right side. Click Start Simulation in the top bar to watch traffic flow.',
         element: '#simulation-controls',
         on: 'bottom',
       },
@@ -153,23 +160,23 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
   } else if (tourType === 'rbac') {
     steps = [
       {
-        id: 'rbac-intro',
-        title: '🛡️ RBAC User & Security Scenario',
-        text: 'In this scenario, you will create a custom User (e.g. alice), configure permission toggles, and attach the Role to a canvas card.',
-        element: '#sidebar-components',
+        id: 'rbac-step1',
+        title: '🛡️ Step 1: Highlighted Role Card',
+        text: "Game Mission: Drag this highlighted 'Role' item and drop it onto any card on the canvas (e.g. Deployment or Pod).",
+        element: '#sidebar-item-Role',
         on: 'right',
       },
       {
         id: 'rbac-verify',
-        title: '🔒 Step 1: Assign User & Attach Role',
-        text: "Drag a 'Role' item from 'Security & Access' and drop it onto a card. In the modal, specify a User Name (e.g. 'alice') and check permission toggles (Read, Write, Delete).",
+        title: '👤 Step 2: Assign User Name & Toggles',
+        text: "In the modal, type a User / Subject Name (e.g. 'alice') and check permission toggles (Read, Write, Delete). Then click 'Attach Role' and press 'Verify Action ✓'.",
         element: '#canvas-main',
         on: 'bottom',
         verify: verifyRbacRoleAttachment,
       },
       {
         id: 'rbac-complete',
-        title: '🎉 RBAC Security Complete!',
+        title: '🎉 Security Level Complete!',
         text: "Role and User attached successfully! Hover over the shield icon on the card or run 'kubectl get roles' in the Kube Console terminal to inspect permissions.",
         element: '#right-sidebar',
         on: 'left',
@@ -178,16 +185,16 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
   } else if (tourType === 'hpa') {
     steps = [
       {
-        id: 'hpa-intro',
-        title: '📈 Horizontal Pod Autoscaler Scenario',
-        text: 'Learn how to attach an HPA to dynamically scale workload replicas based on CPU traffic.',
-        element: '#sidebar-components',
+        id: 'hpa-step1',
+        title: '📈 Step 1: Pick Up HPA Card',
+        text: "Game Mission: Drag this highlighted 'HPA' card from the sidebar and drop it onto a Deployment card.",
+        element: '#sidebar-item-HPA',
         on: 'right',
       },
       {
         id: 'hpa-verify',
-        title: '⚡ Step 1: Attach HPA to Workload',
-        text: "Drag an 'HPA' item from 'Compute & Workloads' and drop it onto a Deployment card. Configure Min/Max Replicas and target CPU percentage.",
+        title: '⚡ Step 2: Configure Autoscaling',
+        text: "Configure Min/Max Replicas and Target CPU threshold in the modal, then click 'Verify Action ✓'.",
         element: '#canvas-main',
         on: 'bottom',
         verify: verifyHpaAttachment,
@@ -195,7 +202,7 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
       {
         id: 'hpa-complete',
         title: '🎉 HPA Auto-scaling Active!',
-        text: "HPA attached! During active simulation, the workload will automatically scale replicas up or down depending on CPU load.",
+        text: "HPA attached! During active simulation, workload replicas will scale automatically based on CPU traffic load.",
         element: '#simulation-controls',
         on: 'bottom',
       },
@@ -203,16 +210,16 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
   } else if (tourType === 'config') {
     steps = [
       {
-        id: 'config-intro',
-        title: '🔒 ConfigMaps & Secrets Binding',
-        text: 'Learn how to bind environment variables and secrets to workloads.',
-        element: '#sidebar-components',
+        id: 'config-step1',
+        title: '🔒 Step 1: Select ConfigMap or Secret',
+        text: "Game Mission: Drag this highlighted 'ConfigMap' or 'Secret' card from the sidebar and drop it onto a workload card.",
+        element: '#sidebar-item-ConfigMap',
         on: 'right',
       },
       {
         id: 'config-verify',
-        title: '🔑 Step 1: Attach ConfigMap or Secret',
-        text: "Drag a 'ConfigMap' or 'Secret' item from 'Configuration & Storage' and drop it onto a canvas workload card.",
+        title: '🔑 Step 2: Save Data & Verify',
+        text: "Set Key-Value configuration data and save, then click 'Verify Action ✓'.",
         element: '#canvas-main',
         on: 'bottom',
         verify: verifyConfigBinding,
@@ -220,7 +227,7 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
       {
         id: 'config-complete',
         title: '🎉 Config Binding Complete!',
-        text: "ConfigMap/Secret attached! Click on the card to inspect attached data in the RightSidebar or run 'kubectl get configmaps' in Kube Console.",
+        text: "ConfigMap/Secret bound successfully! Click the card to view settings or run 'kubectl get configmaps' in the terminal.",
         element: '#right-sidebar',
         on: 'left',
       },

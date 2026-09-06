@@ -77,12 +77,13 @@ const SidebarSection = ({
             <button
               type="button"
               key={type}
+              id={`sidebar-item-${type}`}
               onClick={() => onAddNode(type)}
               onDragStart={(event) => onDragStart(event, type)}
               onDragEnd={onDragEnd}
               draggable
               className={cn(
-                "sidebar-item-card group",
+                "sidebar-item-card group transition-all duration-200",
                 colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
                 style.border
               )}
@@ -119,10 +120,11 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     workloads: true,
-    networking: false,
-    configuration: false,
-    scaling: false,
-    others: false,
+    networking: true,
+    security: true,
+    configuration: true,
+    scaling: true,
+    others: true,
   });
 
   const toggleSection = (section: string) => {
