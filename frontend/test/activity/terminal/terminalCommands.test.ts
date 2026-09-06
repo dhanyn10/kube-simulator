@@ -28,7 +28,7 @@ describe('terminalCommands', () => {
     storeState = {
       isAdminAuthenticated: false,
       isAwaitingAdminPassword: false,
-      simulatedCurrentVersion: '0.3.0',
+      simulatedCurrentVersion: '0.4.0',
       simulatedUpdateInfo: null,
       setSimulatedUpdateInfo: (info: any) => { storeState.simulatedUpdateInfo = info; },
       setSimulatedCurrentVersion: (ver: any) => { storeState.simulatedCurrentVersion = ver; },
@@ -283,17 +283,17 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
 
       // Update to higher version
-      handleAdminCommands('try version update 0.5.0', mockCtx);
-      expect(storeState.simulatedUpdateInfo?.latestVersion).toBe('0.5.0');
+      handleAdminCommands('try version update 0.6.0', mockCtx);
+      expect(storeState.simulatedUpdateInfo?.latestVersion).toBe('0.6.0');
 
       // Set current version
-      handleAdminCommands('try version current 0.4.0', mockCtx);
-      expect(storeState.simulatedCurrentVersion).toBe('0.4.0');
+      handleAdminCommands('try version current 0.5.0', mockCtx);
+      expect(storeState.simulatedCurrentVersion).toBe('0.5.0');
 
       // Check status
       activityLogs = [];
       handleAdminCommands('try status', mockCtx);
-      expect(activityLogs.some(l => l.includes('Current Version: v0.4.0'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('Current Version: v0.5.0'))).toBe(true);
 
       // Clear versions
       handleAdminCommands('try version clear', mockCtx);

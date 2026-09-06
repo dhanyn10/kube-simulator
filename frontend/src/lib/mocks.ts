@@ -94,7 +94,7 @@ export const initWailsMocks = () => {
                     os: 'windows',
                     arch: 'amd64',
                     goVersion: 'go1.25.0',
-                    version: '0.3.0'
+                    version: '0.4.0'
                 }),
                 MinimizeWindow: async () => (globalThis as any)._originalConsoleLog('Minimize Window'),
                 MaximizeWindow: async () => (globalThis as any)._originalConsoleLog('Maximize Window'),
