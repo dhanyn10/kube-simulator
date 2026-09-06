@@ -12,7 +12,7 @@ test.describe('Persistence & Projects', () => {
     await expect(page.locator('.react-flow__node-Pod')).toBeVisible();
 
     // 2. Save project
-    await page.getByRole('button', { name: 'Resource' }).click();
+    await page.getByRole('button', { name: 'Resource', exact: true }).click();
     await page.getByText('Resource Manager').click();
 
     const projectName = `TS-Test-${Date.now()}`;
@@ -34,7 +34,7 @@ test.describe('Persistence & Projects', () => {
     await page.reload();
     await expect(page.locator('.react-flow__node-Pod')).not.toBeVisible();
 
-    await page.getByRole('button', { name: 'Resource' }).click();
+    await page.getByRole('button', { name: 'Resource', exact: true }).click();
     await page.getByText('Resource Manager').click();
     await page.getByText(projectName).locator('..').locator('..').locator('..').getByRole('button', { name: 'Open' }).click();
 
@@ -58,7 +58,7 @@ test.describe('Persistence & Projects', () => {
   });
 
   test('Loading Architecture Scenarios', async ({ page }) => {
-    await page.getByRole('button', { name: 'Resource' }).click();
+    await page.getByRole('button', { name: 'Resource', exact: true }).click();
     await page.getByText('Scenarios').click();
 
     await page.getByText('Simple Web Service').click();
