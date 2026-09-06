@@ -1,4 +1,12 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
+
+export interface KubeIAMUser {
+  id: string;
+  username: string;
+  accessType?: 'Full' | 'Read-Only' | 'Custom';
+  description?: string;
+  createdAt: number;
+}
 
 export interface K8sRoleRule {
   apiGroups: string[];
@@ -9,6 +17,8 @@ export interface K8sRoleRule {
 export interface K8sRoleItem {
   id: string;
   name: string;
+  assignedUser?: string;
+  accessLevel?: 'Full' | 'Read-Only' | 'Custom';
   rules: K8sRoleRule[];
 }
 

@@ -452,21 +452,33 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
+  const iamUsers = useFlowStore((state) => state.iamUsers);
+  const setIamModalOpen = useFlowStore((state) => state.setIamModalOpen);
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
+  const [assignedUser, setAssignedUser] = useState<string>('');
+  const [accessLevel, setAccessLevel] = useState<'Full' | 'Read-Only' | 'Custom'>('Full');
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
-      apiGroups: ['apps', ''],
-      resources: ['deployments', 'pods'],
-      verbs: [...DEFAULT_VERBS],
+      apiGroups: ['*'],
+      resources: ['*'],
+      verbs: ['*'],
     },
   ]);
 
   useEffect(() => {
+    if (iamUsers.length > 0 && !assignedUser) {
+      setAssignedUser(iamUsers[0].username);
+    }
+  }, [iamUsers, assignedUser]);
+
+  useEffect(() => {
     if (initialRole) {
       setRoleName(initialRole.name || 'app-reader-role');
+      setAssignedUser(initialRole.assignedUser || (iamUsers[0]?.username || 'admin-user'));
+      setAccessLevel(initialRole.accessLevel || 'Full');
       setRules(initialRole.rules && initialRole.rules.length > 0 ? initialRole.rules : [
-        { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }
+        { apiGroups: ['*'], resources: ['*'], verbs: ['*'] }
       ]);
     } else {
       const targetNode = nodes.find((n) => n.id === targetNodeId);
@@ -475,6 +487,8 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setRoleName(`role-${randomSuffix}`);
+      setAssignedUser(iamUsers[0]?.username || 'admin-user');
+      setAccessLevel('Custom');
       setRules([
         {
           apiGroups: derivedApiGroups,
@@ -483,7 +497,16 @@ export const RoleModal: React.FC<RoleModalProps> = ({
         },
       ]);
     }
-  }, [initialRole, isOpen, targetNodeId, nodes]);
+  }, [initialRole, isOpen, targetNodeId, nodes, iamUsers]);
+
+  const handlePresetSelect = (preset: 'Full' | 'Read-Only' | 'Custom') => {
+    setAccessLevel(preset);
+    if (preset === 'Full') {
+      setRules([{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }]);
+    } else if (preset === 'Read-Only') {
+      setRules([{ apiGroups: ['apps', ''], resources: ['deployments', 'pods', 'services'], verbs: ['get', 'list', 'watch'] }]);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -519,7 +542,9 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     const roleItem: K8sRoleItem = {
       id: initialRole?.id || `role-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(roleName) || 'unnamed-role',
-      rules: rules.length > 0 ? rules : [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
+      assignedUser: assignedUser || iamUsers[0]?.username || 'admin-user',
+      accessLevel,
+      rules: rules.length > 0 ? rules : [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }],
     };
     onSave(roleItem);
     onClose();
@@ -562,6 +587,87 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       footer={footer}
     >
       <div className="space-y-4">
+        {/* Assigned IAM User Selection */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="role-assigned-user" className="text-xs font-semibold text-slate-400">
+              Assigned IAM Account / User *
+            </label>
+            <button
+              type="button"
+              onClick={() => setIamModalOpen(true)}
+              className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+            >
+              + Manage Kube IAM Users
+            </button>
+          </div>
+          <select
+            id="role-assigned-user"
+            value={assignedUser}
+            onChange={(e) => setAssignedUser(e.target.value)}
+            className={cn(
+              "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer",
+              colorMode === 'dark'
+                ? "bg-slate-950 border-slate-800 text-slate-100"
+                : "bg-slate-50 border-slate-300 text-slate-900"
+            )}
+          >
+            {iamUsers.map((u) => (
+              <option key={u.id} value={u.username}>
+                {u.username} ({u.accessType || 'Full'} Access)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Access Level Presets */}
+        <div>
+          <label className="block text-xs font-semibold mb-1 text-slate-400">
+            Access Level / Permission Preset
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => handlePresetSelect('Full')}
+              className={cn(
+                "px-3 py-2 rounded-lg border text-xs font-semibold flex flex-col items-center gap-0.5 transition-all cursor-pointer",
+                accessLevel === 'Full'
+                  ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30"
+                  : colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+              )}
+            >
+              <span>Full Access</span>
+              <span className="text-[9px] font-mono opacity-80">All Resources (*)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePresetSelect('Read-Only')}
+              className={cn(
+                "px-3 py-2 rounded-lg border text-xs font-semibold flex flex-col items-center gap-0.5 transition-all cursor-pointer",
+                accessLevel === 'Read-Only'
+                  ? "bg-blue-500/20 border-blue-500 text-blue-300 ring-2 ring-blue-500/30"
+                  : colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+              )}
+            >
+              <span>Read-Only Access</span>
+              <span className="text-[9px] font-mono opacity-80">get, list, watch</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePresetSelect('Custom')}
+              className={cn(
+                "px-3 py-2 rounded-lg border text-xs font-semibold flex flex-col items-center gap-0.5 transition-all cursor-pointer",
+                accessLevel === 'Custom'
+                  ? "bg-purple-500/20 border-purple-500 text-purple-300 ring-2 ring-purple-500/30"
+                  : colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+              )}
+            >
+              <span>Custom Access</span>
+              <span className="text-[9px] font-mono opacity-80">Specific Resources</span>
+            </button>
+          </div>
+        </div>
+
         {/* Role Name */}
         <div>
           <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">

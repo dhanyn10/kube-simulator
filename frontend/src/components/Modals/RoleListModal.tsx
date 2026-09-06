@@ -37,14 +37,20 @@ export const RoleListModal: React.FC<RoleListModalProps> = ({
       addLabel="Add Role"
       itemTypeName="Role"
       renderItemDetails={(role) => (
-        <div className="text-[11px] text-slate-400 font-mono">
+        <div className="text-[11px] text-slate-400 font-mono space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-400 font-bold">User: {role.assignedUser || 'admin-user'}</span>
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              {role.accessLevel || 'Full'} Access
+            </span>
+          </div>
           {role.rules && role.rules.length > 0 ? (
-            <span>
+            <div>
               {role.rules.length} rule{role.rules.length > 1 ? 's' : ''} (
               {role.rules.map((r) => r.resources.join(', ')).join('; ')})
-            </span>
+            </div>
           ) : (
-            <span>No rules defined</span>
+            <div>No rules defined</div>
           )}
         </div>
       )}

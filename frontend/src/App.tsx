@@ -25,6 +25,7 @@ import {
   ConfigMapModal,
   SecretModal,
   HPAModal,
+  KubeIAMModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -113,6 +114,8 @@ export default function App() {
   const canvasBgColor = useFlowStore((state) => state.canvasBgColor);
   const canvasBgOpacity = useFlowStore((state) => state.canvasBgOpacity);
   const loadSettingsJson = useFlowStore((state) => state.loadSettingsJson);
+  const isIamModalOpen = useFlowStore((state) => state.isIamModalOpen);
+  const setIamModalOpen = useFlowStore((state) => state.setIamModalOpen);
 
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
@@ -341,6 +344,11 @@ export default function App() {
             targetNodeId={hpaModalTargetNode?.id || null}
             targetNodeLabel={hpaModalTargetNode?.label}
             onSave={handleHpaSave}
+          />
+
+          <KubeIAMModal
+            isOpen={isIamModalOpen}
+            onClose={() => setIamModalOpen(false)}
           />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
