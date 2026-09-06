@@ -1,5 +1,6 @@
 import { Node } from '@xyflow/react';
 import { syncDeployment } from '../../store/nodeHelpers';
+import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
 
 export interface CommandContext {
   nodes: Node[];
@@ -32,28 +33,17 @@ export const handleGetSecretsCommand = (
   const match = /^kubectl\s+get\s+(secrets?)\b/i.exec(cmd.trim());
   if (!match) return false;
 
-  const allSecrets: { name: string; type: string; owner: string; dataCount: number }[] = [];
-  ctx.nodes.forEach((n) => {
-    if (Array.isArray(n.data?.secrets)) {
-      n.data.secrets.forEach((s: any) => {
-        allSecrets.push({
-          name: s.name,
-          type: s.type || 'Opaque',
-          owner: n.data?.label || n.id,
-          dataCount: Array.isArray(s.secretData) ? s.secretData.length : 0,
-        });
-      });
-    }
-  });
-
-  if (allSecrets.length === 0) {
+  const attached = extractAttachedResources<any>(ctx.nodes, 'secrets');
+  if (attached.length === 0) {
     ctx.addActivityLog('No secrets found on the canvas.');
     return true;
   }
 
   ctx.addActivityLog(`${"NAME".padEnd(30)} TYPE                      DATA   ATTACHED TO           CREATED AT`);
-  allSecrets.forEach((sec) => {
-    ctx.addActivityLog(`${String(sec.name).padEnd(30)} ${String(sec.type).padEnd(25)} ${String(sec.dataCount).padEnd(6)} ${String(sec.owner).padEnd(21)} 2m ago`);
+  attached.forEach(({ item: s, ownerLabel }) => {
+    const dataCount = Array.isArray(s.secretData) ? s.secretData.length : 0;
+    const type = s.type || 'Opaque';
+    ctx.addActivityLog(`${String(s.name).padEnd(30)} ${String(type).padEnd(25)} ${String(dataCount).padEnd(6)} ${String(ownerLabel).padEnd(21)} 2m ago`);
   });
   return true;
 };
@@ -107,27 +97,16 @@ export const handleGetConfigMapsCommand = (
   const match = /^kubectl\s+get\s+(configmaps?|cm)\b/i.exec(cmd.trim());
   if (!match) return false;
 
-  const allConfigMaps: { name: string; owner: string; dataCount: number }[] = [];
-  ctx.nodes.forEach((n) => {
-    if (Array.isArray(n.data?.configMaps)) {
-      n.data.configMaps.forEach((cm: any) => {
-        allConfigMaps.push({
-          name: cm.name,
-          owner: n.data?.label || n.id,
-          dataCount: Array.isArray(cm.configData) ? cm.configData.length : 0,
-        });
-      });
-    }
-  });
-
-  if (allConfigMaps.length === 0) {
+  const attached = extractAttachedResources<any>(ctx.nodes, 'configMaps');
+  if (attached.length === 0) {
     ctx.addActivityLog('No configmaps found on the canvas.');
     return true;
   }
 
   ctx.addActivityLog(`${"NAME".padEnd(30)} DATA   ATTACHED TO           CREATED AT`);
-  allConfigMaps.forEach((cm) => {
-    ctx.addActivityLog(`${String(cm.name).padEnd(30)} ${String(cm.dataCount).padEnd(6)} ${String(cm.owner).padEnd(21)} 2m ago`);
+  attached.forEach(({ item: cm, ownerLabel }) => {
+    const dataCount = Array.isArray(cm.configData) ? cm.configData.length : 0;
+    ctx.addActivityLog(`${String(cm.name).padEnd(30)} ${String(dataCount).padEnd(6)} ${String(ownerLabel).padEnd(21)} 2m ago`);
   });
   return true;
 };
@@ -319,10 +298,7 @@ export const handleScaleCommand = (
   const targetName = match[2].toLowerCase();
   const replicasNum = Number.parseInt(match[3], 10);
 
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Deployment' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
     const prevReplicas = foundNode.data.replicas || 0;
@@ -345,10 +321,7 @@ export const handleSetImageCommand = (
   const targetName = match[2].toLowerCase();
   const targetImage = match[4];
 
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Deployment' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
     const currentImage = foundNode.data.image || 'nginx:latest';
@@ -379,10 +352,7 @@ export const handleRolloutStatusCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Deployment' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
     if (foundNode.data.isRollingUpdate) {
@@ -404,10 +374,7 @@ export const handleRolloutHistoryCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Deployment' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
     const revisions = foundNode.data.rolloutRevisions || [foundNode.data.image || 'nginx:latest'];
@@ -429,10 +396,7 @@ export const handleRolloutUndoCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Deployment' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
     const revisions = foundNode.data.rolloutRevisions || [];
@@ -466,10 +430,7 @@ export const handleDeletePodCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Pod' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Pod');
 
   if (foundNode) {
     ctx.addActivityLog(`pod "${foundNode.data.label || foundNode.id}" deleted`);
@@ -530,14 +491,7 @@ export const handleGetAllCommand = (
   const pods = ctx.nodes.filter(n => n.type === 'Pod');
   pods.forEach(p => {
     const name = p.data.label || p.id;
-    const status = p.data.status || (ctx.isSimulating ? 'Running' : 'Pending');
-    const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
-    let displayStatus = status;
-    if (status === 'ready') {
-      displayStatus = 'Running';
-    } else if (status === 'pending') {
-      displayStatus = 'Pending';
-    }
+    const { ready, displayStatus } = getPodDisplayStatus(p.data.status, ctx.isSimulating);
     ctx.addActivityLog(`pod/${String(name).padEnd(34)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          1m`);
   });
 
@@ -608,14 +562,12 @@ export const handleGetRolesCommand = (
   const match = /^kubectl\s+get\s+(roles?|rolebindings?)\b/i.exec(cmd.trim());
   if (!match) return false;
 
-  const allRoles: { name: string; owner: string; rules: any[] }[] = [];
-  ctx.nodes.forEach((n) => {
-    if (Array.isArray(n.data?.roles)) {
-      n.data.roles.forEach((r: any) => {
-        allRoles.push({ name: r.name, owner: n.data?.label || n.id, rules: r.rules || [] });
-      });
-    }
-  });
+  const attached = extractAttachedResources<any>(ctx.nodes, 'roles');
+  const allRoles = attached.map(({ item: r, ownerLabel }) => ({
+    name: r.name,
+    owner: ownerLabel,
+    rules: r.rules || [],
+  }));
 
   const resType = match[1].toLowerCase();
   if (resType.startsWith('rolebinding')) {
@@ -689,10 +641,7 @@ export const handleDescribeDeploymentCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  const foundNode = ctx.nodes.find(n =>
-    n.type === 'Deployment' &&
-    (n.id.toLowerCase() === targetName || (n.data.label && String(n.data.label).toLowerCase() === targetName))
-  );
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
     const name = foundNode.data.label || foundNode.id;

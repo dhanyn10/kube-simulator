@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import './RightSidebar.css';
 import {
   Settings,
   Activity,

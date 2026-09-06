@@ -4,4 +4,3 @@ export * from './RightSidebar';
 export * from './Sidebar';
 export * from './SimulationControls';
 export * from './WindowControls';
-export * from './TerminalPanel';

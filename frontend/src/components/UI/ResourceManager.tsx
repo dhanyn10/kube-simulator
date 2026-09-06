@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, FolderOpen, Trash2, Plus, Database, Settings, Search, Globe, Box, Check } from 'lucide-react';
+import { FolderOpen, Plus, Database, Settings, Search, Box, Check } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { hydrateNodes } from '../../store/nodeHelpers';
@@ -8,344 +8,15 @@ import { DEFAULT_REGISTRY_IMAGES } from '../../constants/config';
 import { useFitView } from '../../hooks/useFitView';
 import { FetchDockerHubPopular, SearchDockerHub, FetchDockerHubTags } from '@wailsjs/go/main/App';
 
-interface Project {
-  id: number;
-  name: string;
-  content: string;
-  createdAt: number;
-  updatedAt: number;
-}
+import { ArchitectureRow, Project } from './ResourceManager/ArchitectureRow';
+import { DockerImageCard, parseDockerResults, LocalImageRow } from './ResourceManager/DockerImageRow';
+import { ProjectsTab } from './ResourceManager/ProjectsTab';
+import { mapProjectNodes, mapProjectEdges, generateTimestampedProjectName } from './ResourceManager/resourceManagerHelpers';
 
 interface ResourceManagerProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-interface ArchitectureRowProps {
-  p: Project;
-  isActive: boolean;
-  hasChanges: boolean;
-  isCanvasEmpty: boolean;
-  currentContent: string;
-  confirmOverwriteId: number | null;
-  setConfirmOverwriteId: (id: number | null) => void;
-  onOverwrite: (id: number) => void;
-  onUpdate: () => void;
-  onLoad: (id: number, name: string) => void;
-  onDelete: (id: number) => void;
-  colorMode: 'dark' | 'light';
-}
-
-const ArchitectureRow = ({
-  p,
-  isActive,
-  hasChanges,
-  isCanvasEmpty,
-  currentContent,
-  confirmOverwriteId,
-  setConfirmOverwriteId,
-  onOverwrite,
-  onUpdate,
-  onLoad,
-  onDelete,
-  colorMode
-}: ArchitectureRowProps) => {
-  const isConfirming = confirmOverwriteId === p.id;
-
-  const renderActions = () => {
-    if (isConfirming) {
-      return (
-        <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shrink-0">
-          <span className="text-[9px] font-black text-red-500 uppercase tracking-wider shrink-0">OVERWRITE?</span>
-          <button type="button" onClick={() => onOverwrite(p.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors shrink-0">YES</button>
-          <button type="button" onClick={() => setConfirmOverwriteId(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors shrink-0">NO</button>
-        </div>
-      );
-    }
-
-    const deleteButton = (
-      <button
-        type="button"
-        onClick={() => onDelete(p.id)}
-        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors shrink-0"
-        title="Delete project"
-      >
-        <Trash2 size={13} />
-      </button>
-    );
-
-    if (isActive) {
-      return (
-        <div className="flex items-center gap-2 shrink-0">
-          {hasChanges && (
-            <button
-              type="button"
-              onClick={onUpdate}
-              className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20 shrink-0"
-            >
-              <Save size={12} /> Update
-            </button>
-          )}
-          {deleteButton}
-        </div>
-      );
-    }
-
-    const showOverwrite = !isCanvasEmpty && p.content !== currentContent;
-
-    return (
-      <div className="flex items-center gap-2 shrink-0">
-        {showOverwrite && (
-          <button
-            type="button"
-            onClick={() => setConfirmOverwriteId(p.id)}
-            className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20 shrink-0"
-          >
-            Overwrite
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => onLoad(p.id, p.name)}
-          className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20 shrink-0"
-        >
-          Open
-        </button>
-        {deleteButton}
-      </div>
-    );
-  };
-  
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md min-w-0 gap-3",
-        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
-        isActive && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="font-semibold text-xs flex items-center gap-1.5 min-w-0">
-          <span className="truncate flex-1" title={p.name}>{p.name}</span>
-          {isActive && (
-            <span className="text-[9px] bg-blue-500 text-white px-1 py-0.2 rounded uppercase tracking-wider font-bold shrink-0">Active</span>
-          )}
-        </div>
-        <div className="text-[9px] text-slate-500 font-mono mt-0.5 shrink-0">
-          {new Date(p.updatedAt * 1000).toLocaleString()}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        {renderActions()}
-      </div>
-    </div>
-  );
-};
-
-interface DockerImageCardProps {
-  img: { name: string; desc: string };
-  colorMode: 'dark' | 'light';
-  onClick: () => void;
-}
-
-const DockerImageCard = ({ img, colorMode, onClick }: DockerImageCardProps) => {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "p-3 rounded-lg border flex flex-col justify-between transition-all text-left hover:shadow-md min-w-0 outline-none focus:ring-1 focus:ring-blue-500/30",
-        colorMode === 'dark' ? "bg-slate-950/20 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
-      )}
-    >
-      <div className="min-w-0 w-full">
-        <div className="flex items-center gap-1.5 mb-1.5 min-w-0 w-full">
-          <Globe size={11} className="shrink-0 text-blue-500" />
-          <span className="font-semibold text-xs font-mono truncate" title={img.name}>{img.name}</span>
-        </div>
-        <p className="text-[9px] text-slate-500 leading-tight line-clamp-2">{img.desc}</p>
-      </div>
-      <div className="mt-2 flex items-center justify-between border-t border-slate-800/20 pt-1.5 shrink-0 w-full">
-        <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0">PUBLIC REGISTRY</span>
-        <span className="text-[8px] text-blue-500 font-bold shrink-0 uppercase tracking-wider hover:text-blue-600 transition-colors">
-          VIEW TAGS &rarr;
-        </span>
-      </div>
-    </button>
-  );
-};
-
-/**
- * Parses raw JSON results from Docker Hub.
- * Handles the differences in property names between popular list response and search results
- * to ensure consistent data structure downstream.
- *
- * @param rawData - Raw JSON string from backend API
- * @param isSearch - Indicates whether the data comes from a search query or popular lists
- * @returns Array of formatted image objects with name and description
- */
-const parseDockerResults = (rawData: string, isSearch: boolean): { name: string; desc: string }[] => {
-  const data = JSON.parse(rawData);
-  return (data.results || []).map((r: any) => ({
-    name: isSearch ? r.repo_name : r.name,
-    desc: (isSearch ? r.short_description : r.description) || ''
-  }));
-};
-
-interface LocalImageRowProps {
-  img: string;
-  onDelete: (img: string) => void;
-  colorMode: 'dark' | 'light';
-}
-
-const LocalImageRow = ({ img, onDelete, colorMode }: LocalImageRowProps) => {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between p-2.5 px-3.5 rounded-lg border transition-all duration-150 min-w-0 gap-3",
-        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
-      )}
-    >
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <Box size={12} className="text-emerald-500 shrink-0" />
-        <span className="font-semibold text-xs font-mono truncate flex-1" title={img}>{img}</span>
-      </div>
-
-      <div className="flex items-center gap-3 shrink-0">
-        <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0">LOCAL CACHE</span>
-        <button
-          type="button"
-          onClick={() => onDelete(img)}
-          className="p-1 text-red-500 hover:bg-red-500/10 rounded transition-colors shrink-0"
-          title="Delete image option"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const mapProjectNodes = (nodes: any[]): any[] => {
-  return (nodes || []).map((n: any) => ({ 
-    ...n, 
-    id: String(n.id), 
-    parentId: n.parentId ? String(n.parentId) : undefined 
-  }));
-};
-
-const mapProjectEdges = (edges: any[]): any[] => {
-  return (edges || []).map((e: any) => ({ 
-    ...e, 
-    id: String(e.id), 
-    source: String(e.source), 
-    target: String(e.target), 
-    type: 'custom' 
-  }));
-};
-
-const generateTimestampedProjectName = (): string => {
-  const d = new Date();
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const dmyhis = `${pad(d.getDate())}${pad(d.getMonth() + 1)}${d.getFullYear()}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  return `Project-${dmyhis}`;
-};
-
-interface ProjectsTabProps {
-  projectName: string;
-  setProjectName: (name: string) => void;
-  handleSave: () => void;
-  projects: Project[];
-  currentProject: { id: number; name: string } | null;
-  hasChanges: boolean;
-  isCanvasEmpty: boolean;
-  currentContent: string;
-  confirmOverwriteId: number | null;
-  setConfirmOverwriteId: (id: number | null) => void;
-  handleOverwrite: (id: number) => void;
-  handleUpdate: () => void;
-  handleLoad: (id: number, name: string) => void;
-  handleDelete: (id: number) => void;
-  colorMode: 'dark' | 'light';
-}
-
-const ProjectsTab = ({
-  projectName,
-  setProjectName,
-  handleSave,
-  projects,
-  currentProject,
-  hasChanges,
-  isCanvasEmpty,
-  currentContent,
-  confirmOverwriteId,
-  setConfirmOverwriteId,
-  handleOverwrite,
-  handleUpdate,
-  handleLoad,
-  handleDelete,
-  colorMode
-}: ProjectsTabProps) => (
-  <div className="space-y-4">
-    <div>
-      <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Architecture Archives</h3>
-      <p className="text-[10px] text-slate-500 leading-tight">Create, update, restore, or manage local Kubernetes system architectures.</p>
-    </div>
-
-    <div className={cn(
-      "p-3 rounded-lg border flex gap-3 items-center",
-      colorMode === 'dark' ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"
-    )}>
-      <div className="flex-1">
-        <input
-          type="text"
-          placeholder="Enter new architecture name..."
-          value={projectName}
-          onChange={(e) => setProjectName(e.target.value)}
-          className={cn(
-            "w-full px-3 py-1.5 text-xs outline-none rounded border focus:ring-1 focus:ring-blue-500/50",
-            colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-200"
-          )}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={!projectName.trim()}
-        className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
-      >
-        <Plus size={14} /> Save New
-      </button>
-    </div>
-
-    <div className="space-y-2">
-      {projects.length === 0 ? (
-        <div className={cn("text-center py-12 rounded-xl border border-dashed", colorMode === 'dark' ? "border-slate-800 text-slate-600" : "border-slate-200 text-slate-400")}>
-          No saved architectures found
-        </div>
-      ) : (
-        projects.map((p) => (
-          <ArchitectureRow
-            key={p.id}
-            p={p}
-            isActive={currentProject?.id === p.id}
-            hasChanges={hasChanges}
-            isCanvasEmpty={isCanvasEmpty}
-            currentContent={currentContent}
-            confirmOverwriteId={confirmOverwriteId}
-            setConfirmOverwriteId={setConfirmOverwriteId}
-            onOverwrite={handleOverwrite}
-            onUpdate={handleUpdate}
-            onLoad={handleLoad}
-            onDelete={handleDelete}
-            colorMode={colorMode}
-          />
-        ))
-      )}
-    </div>
-  </div>
-);
 
 interface TagsViewProps {
   repoName: string;
@@ -477,7 +148,6 @@ const TagsView = ({
 
   return (
     <div className="space-y-4">
-      {/* Header with Back button */}
       <div className="flex items-center gap-3 pb-2 border-b border-dashed border-slate-700/20">
         <button
           type="button"
@@ -511,13 +181,6 @@ interface DockerRegistryTabProps {
   deleteCustomImage: (img: string) => void;
 }
 
-/**
- * DockerRegistryTab Component
- *
- * Manages fetching, searching, and displaying images from Docker Hub.
- * Features an optimized debounce mechanism for the search field and
- * clean state transition handling.
- */
 const DockerRegistryTab = ({
   dockerSearch,
   setDockerSearch,
@@ -536,7 +199,6 @@ const DockerRegistryTab = ({
     setIsLoading(true);
     setError(null);
 
-    // Asynchronously fetch images from backend (which calls Docker Hub)
     const fetchImages = async () => {
       try {
         const isSearch = dockerSearch.trim().length > 0;
@@ -574,7 +236,6 @@ const DockerRegistryTab = ({
       }
     };
 
-    // Debounce the fetch call
     const timer = setTimeout(() => {
       fetchImages();
     }, 400);
@@ -598,9 +259,6 @@ const DockerRegistryTab = ({
     );
   }
 
-  // Chained and nested ternary operations in JSX increase cognitive complexity.
-  // We extract them into a clean, sequential if-else statement to compute 'content'
-  // independently before rendering. This satisfies SonarQube complexity constraints.
   let content;
   if (isLoading) {
     content = (
@@ -735,11 +393,8 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const [projectName, setProjectName] = useState('');
   const [newCustomImage, setNewCustomImage] = useState('');
   
-  // Settings Tab selection
   const [activeTab, setActiveTab] = useState<'projects' | 'docker' | 'local'>('projects');
-  // Left sidebar settings filter search
   const [sidebarSearch, setSidebarSearch] = useState('');
-  // Content filters
   const [dockerSearch, setDockerSearch] = useState('');
 
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -854,7 +509,6 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     setNewCustomImage('');
   };
 
-  // Sidebar categories with search filtering
   const sidebarItems = [
     { id: 'projects', label: 'Saved Architectures', icon: FolderOpen },
     { id: 'docker', label: 'Docker Hub Registry', icon: Database },
@@ -884,15 +538,11 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
         </div>
       }
     >
-      {/* Settings Pane Layout */}
       <div className="flex h-[calc(100%+2rem)] -mx-4 -my-4 overflow-hidden">
-        
-        {/* LEFT COLUMN: Sleek Settings Navigation Sidebar */}
         <div className={cn(
           "w-44 flex flex-col border-r h-full p-4 select-none shrink-0 space-y-1",
           colorMode === 'dark' ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"
         )}>
-          {/* Settings Search Input */}
           <div className="relative mb-2 shrink-0">
             <Search size={12} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
             <input
@@ -909,7 +559,6 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
             />
           </div>
 
-          {/* Settings Category List */}
           <div className="space-y-1 flex-1 overflow-y-auto pr-1">
             {filteredSidebarItems.map((item) => {
               const isActive = activeTab === item.id;
@@ -948,9 +597,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Settings Details content panel */}
         <div className="flex-1 p-6 overflow-y-auto h-full custom-scrollbar">
-          
           {activeTab === 'projects' && (
             <ProjectsTab
               projectName={projectName}
@@ -992,7 +639,6 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
               colorMode={colorMode}
             />
           )}
-
         </div>
       </div>
     </Modal>

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TerminalToolbar } from '../../../src/components/Layout/TerminalPanel';
+import { TerminalToolbar } from '../../../src/activity/terminal/TerminalPanel';
 import '@testing-library/jest-dom';
 
 describe('TerminalToolbar', () => {
