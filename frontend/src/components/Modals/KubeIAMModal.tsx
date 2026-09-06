@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserCheck, Plus, Trash2, Shield, UserPlus, FileCode2, KeyRound, Check, ChevronRight, ArrowLeft } from 'lucide-react';
+import { UserCheck, Plus, Trash2, Shield, UserPlus, KeyRound, Check, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Modal } from './Modal';
 import { KubeIAMUser } from '../../types';
 import { useFlowStore } from '../../store';
@@ -16,11 +16,6 @@ interface IAMPolicyTemplate {
   accessType: 'Full' | 'Read-Only' | 'Custom';
   category: string;
   description: string;
-  statement: {
-    Effect: string;
-    Action: string[];
-    Resource: string[];
-  };
 }
 
 const AWS_IAM_POLICY_TEMPLATES: IAMPolicyTemplate[] = [
@@ -28,67 +23,37 @@ const AWS_IAM_POLICY_TEMPLATES: IAMPolicyTemplate[] = [
     name: 'AdministratorAccess',
     accessType: 'Full',
     category: 'AWS Managed Policy',
-    description: 'Provides full access to all Kubernetes resources and cluster API groups.',
-    statement: {
-      Effect: 'Allow',
-      Action: ['k8s:*'],
-      Resource: ['*'],
-    },
+    description: 'Full access to all Kubernetes resources and cluster API groups.',
   },
   {
     name: 'ReadOnlyAccess',
     accessType: 'Read-Only',
     category: 'AWS Managed Policy',
-    description: 'Grants read-only permissions across Pods, Deployments, Services, ConfigMaps, and Secrets.',
-    statement: {
-      Effect: 'Allow',
-      Action: ['k8s:get', 'k8s:list', 'k8s:watch'],
-      Resource: ['pods', 'deployments', 'services', 'configmaps', 'secrets'],
-    },
+    description: 'Read-only permissions across Pods, Deployments, Services, ConfigMaps, and Secrets.',
   },
   {
     name: 'PowerUserAccess',
     accessType: 'Custom',
     category: 'AWS Managed Policy',
-    description: 'Provides full CRUD permissions for Workloads & Services without cluster admin rights.',
-    statement: {
-      Effect: 'Allow',
-      Action: ['k8s:get', 'k8s:list', 'k8s:watch', 'k8s:create', 'k8s:update', 'k8s:delete'],
-      Resource: ['pods', 'deployments', 'services', 'configmaps'],
-    },
+    description: 'Full CRUD permissions for Workloads & Services without cluster admin rights.',
   },
   {
     name: 'ContainerDeveloperPolicy',
     accessType: 'Custom',
     category: 'Job Function Policy',
     description: 'Developer access for deploying and inspecting application containers and logs.',
-    statement: {
-      Effect: 'Allow',
-      Action: ['k8s:get', 'k8s:list', 'k8s:watch', 'k8s:create', 'k8s:update', 'k8s:logs'],
-      Resource: ['pods', 'deployments'],
-    },
   },
   {
     name: 'NetworkingAdminPolicy',
     accessType: 'Custom',
     category: 'Job Function Policy',
     description: 'Full management of network endpoints, Services, Ingresses, and routing.',
-    statement: {
-      Effect: 'Allow',
-      Action: ['k8s:*'],
-      Resource: ['services', 'ingresses'],
-    },
   },
   {
     name: 'StorageAdminPolicy',
     accessType: 'Custom',
     category: 'Job Function Policy',
     description: 'Storage administrator access for PersistentVolumeClaims and Volumes.',
-    statement: {
-      Effect: 'Allow',
-      Action: ['k8s:*'],
-      Resource: ['persistentvolumeclaims'],
-    },
   },
 ];
 
@@ -103,17 +68,21 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const [username, setUsername] = useState('');
-  const [selectedPolicyName, setSelectedPolicyName] = useState('AdministratorAccess');
-  const [description, setDescription] = useState('');
+  const [selectedPolicyName, setSelectedPolicyName] = useState('');
 
-  // Policy Search & Autocomplete state
-  const [policyInputValue, setPolicyInputValue] = useState('AdministratorAccess');
+  // Policy Search & Autocomplete state - initially empty
+  const [policyInputValue, setPolicyInputValue] = useState('');
   const [isPolicyFocused, setIsPolicyFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [openUpward, setOpenUpward] = useState(false);
   const policyContainerRef = useRef<HTMLDivElement>(null);
 
-  const currentPolicy = AWS_IAM_POLICY_TEMPLATES.find((p) => p.name === selectedPolicyName) || AWS_IAM_POLICY_TEMPLATES[0];
+  const currentPolicy = AWS_IAM_POLICY_TEMPLATES.find((p) => p.name.toLowerCase() === selectedPolicyName.toLowerCase()) || {
+    name: selectedPolicyName || 'CustomAccess',
+    accessType: 'Custom' as const,
+    category: 'Custom Policy',
+    description: 'Custom access policy assigned to user',
+  };
 
   useEffect(() => {
     if (isPolicyFocused && policyContainerRef.current) {
@@ -135,25 +104,24 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
 
   if (!isOpen) return null;
 
-  const policySuggestions: AutocompleteSuggestion[] = AWS_IAM_POLICY_TEMPLATES
-    .map((p) => ({
-      label: p.name,
-      value: p.name,
-      category: p.category,
-      description: p.description,
-    }))
-    .filter((item) => {
-      if (!policyInputValue.trim()) return true;
-      const lower = policyInputValue.toLowerCase().trim();
-      return item.label.toLowerCase().includes(lower) || (item.description && item.description.toLowerCase().includes(lower));
-    });
+  // Show suggestions ONLY when the user starts typing (matching CLI console experience)
+  const policySuggestions: AutocompleteSuggestion[] = !policyInputValue.trim()
+    ? []
+    : AWS_IAM_POLICY_TEMPLATES
+        .map((p) => ({
+          label: p.name,
+          value: p.name,
+          category: p.category,
+          description: p.description,
+        }))
+        .filter((item) => {
+          const lower = policyInputValue.toLowerCase().trim();
+          return item.label.toLowerCase().includes(lower) || (item.description && item.description.toLowerCase().includes(lower));
+        });
 
   const handleSelectPolicy = (policyName: string) => {
-    const found = AWS_IAM_POLICY_TEMPLATES.find((p) => p.name === policyName);
-    if (found) {
-      setSelectedPolicyName(found.name);
-      setPolicyInputValue(found.name);
-    }
+    setSelectedPolicyName(policyName);
+    setPolicyInputValue(policyName);
     setIsPolicyFocused(false);
   };
 
@@ -170,18 +138,16 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
       id: `iam-user-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       username: cleanUsername,
       accessType: currentPolicy.accessType,
-      description: description.trim() || `${currentPolicy.name} policy attached`,
       createdAt: Date.now(),
     };
 
     addIamUser(newUser);
-    addLog('info', `[Kube IAM] Created IAM User "${cleanUsername}" with AWS Policy ${currentPolicy.name}`, 'UI');
+    addLog('info', `[Kube IAM] Created IAM User "${cleanUsername}" with Policy ${currentPolicy.name}`, 'UI');
 
     // Reset wizard
     setUsername('');
-    setDescription('');
-    setSelectedPolicyName('AdministratorAccess');
-    setPolicyInputValue('AdministratorAccess');
+    setSelectedPolicyName('');
+    setPolicyInputValue('');
     setCurrentStep(1);
   };
 
@@ -195,11 +161,11 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
       isOpen={isOpen}
       onClose={onClose}
       title="Kube IAM (Identity & Access Management)"
-      subtitle="AWS IAM Step-by-Step Creation Wizard: Create User -> Attach Policy -> Review"
+      subtitle="AWS IAM Step-by-Step Creation Wizard: Create User -> Attach Access Policy -> Review"
       icon={UserCheck}
       iconColorClass="text-blue-400"
       widthClass="w-full max-w-3xl"
-      maxHeightClass="h-[80vh]"
+      maxHeightClass="h-[75vh]"
     >
       <div className="space-y-5">
         {/* AWS IAM Stepper Header */}
@@ -248,23 +214,6 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
               />
             </div>
 
-            <div>
-              <label htmlFor="iam-description-input" className="block text-[11px] font-semibold text-slate-400 mb-1">
-                Description / User Role Purpose (Optional)
-              </label>
-              <input
-                id="iam-description-input"
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. Developer access for backend application workloads"
-                className={cn(
-                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500/50",
-                  colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-300 text-slate-900"
-                )}
-              />
-            </div>
-
             <div className="flex justify-end pt-2">
               <button
                 type="button"
@@ -285,7 +234,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
               <div className="flex items-center gap-2">
                 <Shield size={16} className="text-blue-400" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Step 2: Attach Permission Policies
+                  Step 2: Attach Permission Policy
                 </h4>
               </div>
               <span className="text-[11px] font-mono text-blue-400 font-bold">
@@ -293,10 +242,10 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
               </span>
             </div>
 
-            {/* AWS IAM Searchable Policy Dropdown */}
+            {/* AWS IAM Interactive Type & Autocomplete Dropdown */}
             <div ref={policyContainerRef} className="relative">
               <label htmlFor="iam-policy-autocomplete" className="block text-[11px] font-semibold text-slate-400 mb-1">
-                Select Managed Policy *
+                Type Policy Name (Start typing to view autocomplete options) *
               </label>
               <div className="relative">
                 <input
@@ -304,7 +253,9 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
                   type="text"
                   value={policyInputValue}
                   onChange={(e) => {
-                    setPolicyInputValue(e.target.value);
+                    const val = e.target.value;
+                    setPolicyInputValue(val);
+                    setSelectedPolicyName(val);
                     setSelectedIndex(0);
                     setIsPolicyFocused(true);
                   }}
@@ -330,7 +281,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
                       setIsPolicyFocused(false);
                     }
                   }}
-                  placeholder="Search AWS IAM policies..."
+                  placeholder="e.g. Type 'Admin', 'ReadOnly', or 'Developer'..."
                   className={cn(
                     "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500/50",
                     colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-300 text-slate-900"
@@ -351,24 +302,6 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
               </div>
             </div>
 
-            {/* AWS IAM JSON Policy Preview Card */}
-            <div className={cn("p-3 rounded-lg border space-y-2 font-mono text-xs", colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-white border-slate-200")}>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="flex items-center gap-1.5 font-bold text-blue-400">
-                  <FileCode2 size={13} /> {currentPolicy.name} Policy Document
-                </span>
-                <span className={cn("px-2 py-0.5 rounded text-[10px] font-semibold border", currentPolicy.accessType === 'Full' ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : currentPolicy.accessType === 'Read-Only' ? "bg-blue-500/20 text-blue-300 border-blue-500/40" : "bg-purple-500/20 text-purple-300 border-purple-500/40")}>
-                  {currentPolicy.accessType} Access
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">{currentPolicy.description}</p>
-              <div className={cn("p-2 rounded border text-[10px] space-y-1 overflow-x-auto", colorMode === 'dark' ? "bg-slate-900/90 border-slate-800 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-800")}>
-                <div><span className="text-purple-400 font-bold">Effect:</span> {currentPolicy.statement.Effect}</div>
-                <div><span className="text-indigo-400 font-bold">Action:</span> [{currentPolicy.statement.Action.join(', ')}]</div>
-                <div><span className="text-emerald-400 font-bold">Resource:</span> [{currentPolicy.statement.Resource.join(', ')}]</div>
-              </div>
-            </div>
-
             <div className="flex justify-between pt-2">
               <button
                 type="button"
@@ -379,8 +312,9 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
               </button>
               <button
                 type="button"
+                disabled={!policyInputValue.trim()}
                 onClick={() => setCurrentStep(3)}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 Next: Review <ChevronRight size={14} />
               </button>
@@ -404,19 +338,13 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
                 <span className="font-bold text-blue-400">{username}</span>
               </div>
               <div className="flex justify-between items-center border-b border-slate-800/60 pb-2">
-                <span className="text-slate-400">Attached AWS Policy:</span>
+                <span className="text-slate-400">Attached Policy:</span>
                 <span className="font-bold text-indigo-400">{currentPolicy.name}</span>
               </div>
-              <div className="flex justify-between items-center border-b border-slate-800/60 pb-2">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400">Access Scope:</span>
                 <span className="font-bold text-emerald-400">{currentPolicy.accessType} Access</span>
               </div>
-              {description && (
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Description:</span>
-                  <span className="text-slate-300 truncate max-w-xs">{description}</span>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-between pt-2">
@@ -446,21 +374,18 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
             </h4>
           </div>
 
-          <div className="grid gap-2 max-h-[160px] overflow-y-auto pr-1 custom-scrollbar">
+          <div className="grid gap-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
             {iamUsers.map((u) => (
               <div
                 key={u.id}
                 className={cn("p-2.5 rounded-xl border flex items-center justify-between transition-colors", colorMode === 'dark' ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200")}
               >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <KeyRound size={13} className="text-blue-400" />
-                    <span className="text-xs font-mono font-bold text-blue-400">{u.username}</span>
-                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-semibold border", u.accessType === 'Full' ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : u.accessType === 'Read-Only' ? "bg-blue-500/20 text-blue-300 border-blue-500/40" : "bg-purple-500/20 text-purple-300 border-purple-500/40")}>
-                      {u.accessType || 'Full'} Access
-                    </span>
-                  </div>
-                  {u.description && <p className="text-[11px] text-slate-400 truncate max-w-md">{u.description}</p>}
+                <div className="flex items-center gap-2">
+                  <KeyRound size={13} className="text-blue-400" />
+                  <span className="text-xs font-mono font-bold text-blue-400">{u.username}</span>
+                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-semibold border", u.accessType === 'Full' ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : u.accessType === 'Read-Only' ? "bg-blue-500/20 text-blue-300 border-blue-500/40" : "bg-purple-500/20 text-purple-300 border-purple-500/40")}>
+                    {u.accessType || 'Full'} Access
+                  </span>
                 </div>
 
                 <button
