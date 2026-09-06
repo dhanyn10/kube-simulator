@@ -74,12 +74,12 @@ describe('Admin Authentication and Dev Commands System', () => {
 
     // try version update default
     handleAdminCommands('try version update', ctx);
-    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.4.0');
+    expect(useFlowStore.getState().simulatedUpdateInfo?.latestVersion).toBe('0.5.0');
 
     // try version current without arg (status check)
     logs = [];
     handleAdminCommands('try version current', ctx);
-    expect(logs.some(l => l.includes('Current assumed version: v0.3.0'))).toBe(true);
+    expect(logs.some(l => l.includes('Current assumed version: v0.4.0'))).toBe(true);
 
     // try version current 0.5.0
     logs = [];

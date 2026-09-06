@@ -9,8 +9,8 @@ export interface SuggestionItem {
 }
 
 export const ADMIN_SUGGESTIONS: SuggestionItem[] = [
-  { value: 'try version update 0.4.0', label: 'try version update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
-  { value: 'try version current 0.3.0', label: 'try version current <version>', category: 'Admin', description: 'Simulate current application version' },
+  { value: 'try version update 0.5.0', label: 'try version update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
+  { value: 'try version current 0.4.0', label: 'try version current <version>', category: 'Admin', description: 'Simulate current application version' },
   { value: 'try version clear', label: 'try version clear', category: 'Admin', description: 'Clear simulated current version' },
   { value: 'try clear', label: 'try clear', category: 'Admin', description: 'Clear all simulated version settings' },
   { value: 'try status', label: 'try status', category: 'Admin', description: 'View secret mode status' },

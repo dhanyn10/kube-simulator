@@ -198,8 +198,8 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
 
   if (isAdmin) {
     addActivityLog('Admin CLI Commands:');
-    addActivityLog('  try version update <version>          Simulate update notification button (e.g. try version update 0.4.0)');
-    addActivityLog('  try version current <version>         Simulate current application version (e.g. try version current 0.3.0)');
+    addActivityLog('  try version update <version>          Simulate update notification button (e.g. try version update 0.5.0)');
+    addActivityLog('  try version current <version>         Simulate current application version (e.g. try version current 0.4.0)');
     addActivityLog('  try version clear                     Clear simulated current version');
     addActivityLog('  try clear                             Clear all simulated version settings');
     addActivityLog('  try status                            View secret mode status');
