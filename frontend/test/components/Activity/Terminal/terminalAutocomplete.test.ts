@@ -6,7 +6,7 @@ import {
   UTILITY_COMMANDS,
   getResourceSuggestions,
   getAutocompleteSuggestions
-} from '../../../src/components/Layout/terminalAutocomplete';
+} from '../../../../src/components/Activity/Terminal/terminalAutocomplete';
 import { Node } from '@xyflow/react';
 
 describe('terminalAutocomplete', () => {

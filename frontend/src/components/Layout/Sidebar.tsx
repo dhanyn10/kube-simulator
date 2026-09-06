@@ -4,7 +4,6 @@ import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
-import './Sidebar.css';
 
 interface SidebarProps {
   onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;

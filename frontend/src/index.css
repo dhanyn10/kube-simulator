@@ -154,6 +154,120 @@
   }
 }
 
+@layer components {
+  /* Terminal Panel Component Styles */
+  .terminal-trigger-btn {
+    @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95;
+  }
+
+  .terminal-panel-container {
+    @apply fixed bottom-0 left-0 right-0 h-64 border-t z-[50] flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
+  }
+
+  .terminal-toolbar {
+    @apply h-9 border-b flex items-center justify-between px-4 shrink-0 select-none;
+  }
+
+  .terminal-content-area {
+    @apply flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed select-text space-y-0.5 relative;
+  }
+
+  .terminal-footer {
+    @apply shrink-0 border-t px-4 py-2 select-none font-mono z-10 relative;
+  }
+
+  .terminal-pagination-bar {
+    @apply flex items-center justify-between text-[10px] select-none font-mono;
+  }
+
+  .terminal-pagination-btn {
+    @apply px-2 py-0.5 border rounded text-[10px] uppercase font-bold transition-colors disabled:opacity-30 disabled:pointer-events-none;
+  }
+
+  .terminal-empty-state {
+    @apply h-full flex flex-col items-center justify-center text-center py-6 space-y-2;
+  }
+
+  .terminal-action-btn {
+    @apply p-1 rounded transition-colors shrink-0;
+  }
+
+  .terminal-autocomplete-popup {
+    @apply absolute bottom-full left-4 mb-1 w-[420px] max-h-60 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-50 divide-y;
+  }
+
+  .terminal-autocomplete-item {
+    @apply flex flex-col transition-colors border-b last:border-b-0;
+  }
+
+  /* RightSidebar Component Styles */
+  .right-sidebar-container {
+    @apply w-72 border-l flex flex-col h-full shrink-0 z-10 transition-colors overflow-hidden;
+  }
+
+  .right-sidebar-tab-bar {
+    @apply h-10 border-b flex items-center px-1 shrink-0;
+  }
+
+  .right-sidebar-content-area {
+    @apply flex-1 overflow-y-auto p-4 space-y-8 overscroll-contain;
+  }
+
+  .right-sidebar-card {
+    @apply p-4 rounded-xl border;
+  }
+
+  .right-sidebar-stat-card {
+    @apply p-3 rounded-xl border flex items-center justify-between;
+  }
+
+  .right-sidebar-dropdown-menu {
+    @apply absolute top-full left-0 mt-1 w-56 rounded-lg shadow-xl border py-1 z-[100];
+  }
+
+  /* MenuBar Component Styles */
+  .menubar-container {
+    @apply h-10 border-b flex items-center px-3 justify-between z-50 select-none relative;
+  }
+
+  .menubar-dropdown-btn {
+    @apply px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors;
+  }
+
+  .menubar-dropdown-panel {
+    @apply absolute top-full left-0 mt-1 w-48 rounded-lg shadow-2xl border py-1.5 z-[100];
+  }
+
+  .menubar-dropdown-item {
+    @apply w-full px-3 py-1.5 text-xs flex items-center justify-between transition-colors text-left font-medium;
+  }
+
+  /* Sidebar Component Styles */
+  .sidebar-container {
+    @apply w-64 border-r flex flex-col h-full shrink-0 z-10 transition-colors;
+  }
+
+  .sidebar-header-area {
+    @apply p-5 border-b flex flex-col gap-4;
+  }
+
+  .sidebar-search-input {
+    @apply w-full pl-8 pr-2 py-1.5 text-[10px] rounded-md border outline-none transition-all font-medium;
+  }
+
+  .sidebar-content-scroll {
+    @apply flex-1 overflow-y-auto p-3 space-y-2 overscroll-contain;
+  }
+
+  .sidebar-section-toggle-btn {
+    @apply w-full flex items-center justify-between text-[10px] uppercase font-bold py-2 px-1 tracking-wider transition-colors;
+  }
+
+  .sidebar-item-card {
+    @apply flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200 hover:shadow-lg active:cursor-grabbing;
+  }
+}
+
 
 /* Shepherd.js Theme Customization */
 .shepherd-element {

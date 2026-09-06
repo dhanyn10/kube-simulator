@@ -16,7 +16,7 @@ import {
   handleGetSecretsCommand,
   handleDescribeSecretCommand,
   CommandContext
-} from '@/components/Layout/terminalCommands';
+} from '@/components/Activity/Terminal/terminalCommands';
 
 describe('terminalCommands', () => {
   let mockCtx: CommandContext;
