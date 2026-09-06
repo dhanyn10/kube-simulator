@@ -5,22 +5,15 @@ import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomple
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';
-import { TerminalMinimizedTrigger } from './TerminalMinimizedTrigger';
 import { TerminalToolbar } from './TerminalToolbar';
-import { useTerminalCommandSubmit, executeKubectlCommand } from './useTerminalCommandSubmit';
+import { useTerminalCommandSubmit } from './useTerminalCommandSubmit';
 import { handleTerminalKeyDown } from './terminalKeyDown';
 import { useTerminalLogs, getTabClass } from './useTerminalLogs';
 import { useTerminalScroll } from './useTerminalScroll';
-import {
-  formatCommandTimestamp,
-  makeDivider,
-  generateLogFilename,
-  exportLogFile,
-  getLogLineColorClass,
-  formatLogLineContent,
-  CommandHistoryEntry,
-} from './terminalLogUtils';
-import {
+import { generateLogFilename, exportLogFile } from './terminalLogUtils';
+
+// Re-export utilities and handlers for backwards compatibility and tests
+export {
   handleGetPods,
   handleGetDeployments,
   handleGetServices,
@@ -30,36 +23,29 @@ import {
   handleHelpCommand,
   handleDescribeCommand,
 } from './terminalHandlers';
-
-// Re-export utilities and handlers for backwards compatibility and tests
 export {
-  handleGetPods,
-  handleGetDeployments,
-  handleGetServices,
-  handleGetCommands,
-  handleLogsCommand,
-  generateLogFilename,
-  makeDivider,
-  exportLogFile,
   formatCommandTimestamp,
-  handleHistoryCommand,
-  handleHelpCommand,
+  makeDivider,
   getLogLineColorClass,
   formatLogLineContent,
+} from './terminalLogUtils';
+export type { CommandHistoryEntry } from './terminalLogUtils';
+export { executeKubectlCommand } from './useTerminalCommandSubmit';
+export { TerminalMinimizedTrigger } from './TerminalMinimizedTrigger';
+
+export {
+  generateLogFilename,
+  exportLogFile,
   TerminalLogBody,
   handleTerminalKeyDown,
-  executeKubectlCommand,
   getTabClass,
   TerminalPaginationBar,
   TerminalCommandForm,
-  TerminalMinimizedTrigger,
   TerminalToolbar,
-  handleDescribeCommand,
   useTerminalCommandSubmit,
   useTerminalLogs,
   useTerminalScroll,
 };
-export type { CommandHistoryEntry };
 export { trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 
 export const TerminalPanel = () => {

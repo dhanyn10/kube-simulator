@@ -8,7 +8,7 @@ import { DEFAULT_REGISTRY_IMAGES } from '../../constants/config';
 import { useFitView } from '../../hooks/useFitView';
 import { FetchDockerHubPopular, SearchDockerHub, FetchDockerHubTags } from '@wailsjs/go/main/App';
 
-import { ArchitectureRow, Project } from './ResourceManager/ArchitectureRow';
+import { Project } from './ResourceManager/ArchitectureRow';
 import { DockerImageCard, parseDockerResults, LocalImageRow } from './ResourceManager/DockerImageRow';
 import { ProjectsTab } from './ResourceManager/ProjectsTab';
 import { mapProjectNodes, mapProjectEdges, generateTimestampedProjectName } from './ResourceManager/resourceManagerHelpers';

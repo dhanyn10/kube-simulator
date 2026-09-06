@@ -17,7 +17,10 @@ export const findNodeByTargetName = (
   filterType?: string | string[]
 ): Node | undefined => {
   const normalized = targetName.toLowerCase();
-  const types = filterType ? (Array.isArray(filterType) ? filterType : [filterType]) : null;
+  let types: string[] | null = null;
+  if (filterType) {
+    types = Array.isArray(filterType) ? filterType : [filterType];
+  }
 
   return nodes.find((n) => {
     if (types && !types.includes(n.type)) return false;
@@ -94,7 +97,7 @@ export const generateLogFilename = (
 
   const date = new Date();
   const dateStr = date.toISOString().slice(0, 10);
-  const timeStr = date.toTimeString().slice(0, 8).replace(/:/g, '-');
+  const timeStr = date.toTimeString().slice(0, 8).replaceAll(':', '-');
   return `${prefix}_${dateStr}_${timeStr}.log`;
 };
 
