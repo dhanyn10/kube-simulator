@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
 import { safeRandom } from '../../lib/utils';
 import { CommandContext } from './terminalCommands';
-import { CommandHistoryEntry } from './terminalLogUtils';
+import { CommandHistoryEntry, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
 
 export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
   const workloads = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
@@ -12,14 +12,7 @@ export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Nod
   addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
   workloads.forEach(w => {
     const name = (w.data?.label as string) || w.id;
-    const status = (w.data?.status as string) || (isSimulating ? 'Running' : 'Pending');
-    const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
-    let displayStatus = status;
-    if (status === 'ready') {
-      displayStatus = 'Running';
-    } else if (status === 'pending') {
-      displayStatus = 'Pending';
-    }
+    const { ready, displayStatus } = getPodDisplayStatus(w.data?.status as string, isSimulating);
     addActivityLog(`${String(name).padEnd(38)} ${ready.padEnd(7)} ${displayStatus.padEnd(19)} 0          45s`);
   });
 };
@@ -105,7 +98,7 @@ export const handleLogsCommand = (
   if (!logsMatch) return false;
 
   const targetName = cleanLogTargetName(logsMatch[1]);
-  const foundNode = nodes.find(n => isLoggableNode(n, targetName));
+  const foundNode = findNodeByTargetName(nodes, targetName, ['Pod', 'Deployment', 'ReplicaSet']);
 
   if (foundNode) {
     setTerminalSelectedResourceId(foundNode.id);
@@ -236,7 +229,8 @@ export const handleDescribeCommand = (
   const type = describeMatch[1].toLowerCase();
   const targetName = describeMatch[2].toLowerCase();
 
-  const foundNode = nodes.find(n => isTargetNode(n, type, targetName));
+  const nodeTypes = type === 'pod' ? ['Pod'] : ['Deployment'];
+  const foundNode = findNodeByTargetName(nodes, targetName, nodeTypes);
 
   if (foundNode) {
     printNodeDescription(foundNode, isSimulating, addActivityLog);

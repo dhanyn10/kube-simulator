@@ -1,4 +1,5 @@
 import React from 'react';
+import { Node } from '@xyflow/react';
 import { cleanProjectName, sanitizeSlug } from '../../lib/utils';
 
 export interface CommandHistoryEntry {
@@ -6,6 +7,58 @@ export interface CommandHistoryEntry {
   command: string;
   timestamp: string;
 }
+
+/**
+ * Finds a canvas node matching by ID or label case-insensitively.
+ */
+export const findNodeByTargetName = (
+  nodes: Node[],
+  targetName: string,
+  filterType?: string | string[]
+): Node | undefined => {
+  const normalized = targetName.toLowerCase();
+  const types = filterType ? (Array.isArray(filterType) ? filterType : [filterType]) : null;
+
+  return nodes.find((n) => {
+    if (types && !types.includes(n.type)) return false;
+    const label = n.data?.label ? String(n.data.label).toLowerCase() : '';
+    return n.id.toLowerCase() === normalized || label === normalized;
+  });
+};
+
+/**
+ * Extract attached resources (e.g. secrets, configMaps, roles, hpas) from all nodes.
+ */
+export const extractAttachedResources = <T>(
+  nodes: Node[],
+  key: string
+): { item: T; ownerLabel: string }[] => {
+  const result: { item: T; ownerLabel: string }[] = [];
+  nodes.forEach((n) => {
+    const list = n.data?.[key];
+    if (Array.isArray(list)) {
+      list.forEach((item: T) => {
+        result.push({ item, ownerLabel: (n.data?.label as string) || n.id });
+      });
+    }
+  });
+  return result;
+};
+
+/**
+ * Computes standard K8s pod ready string and display status.
+ */
+export const getPodDisplayStatus = (
+  rawStatus: string | undefined,
+  isSimulating: boolean
+): { ready: string; displayStatus: string } => {
+  const status = rawStatus || (isSimulating ? 'Running' : 'Pending');
+  const ready = status === 'ready' || status === 'Running' ? '1/1' : '0/1';
+  let displayStatus = status;
+  if (status === 'ready') displayStatus = 'Running';
+  if (status === 'pending') displayStatus = 'Pending';
+  return { ready, displayStatus };
+};
 
 export const formatCommandTimestamp = (d = new Date()): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
