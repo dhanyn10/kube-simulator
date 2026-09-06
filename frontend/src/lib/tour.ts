@@ -109,6 +109,9 @@ export const verifyConfigBinding = (): { success: boolean; hint?: string } => {
 export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType = 'intro') => {
   const isDark = colorMode === 'dark';
 
+  // Ensure sidebar is visible when tour starts
+  useFlowStore.getState().setSidebarVisible(true);
+
   const tour = new Shepherd.Tour({
     useModalOverlay: true,
     defaultStepOptions: {
@@ -300,12 +303,30 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
       });
     }
 
+    const beforeShowHook = function (this: Shepherd.Step) {
+      if (step.element?.startsWith('#sidebar-item-')) {
+        useFlowStore.getState().setSidebarVisible(true);
+        setTimeout(() => {
+          const el = document.querySelector(step.element!);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+    };
+
     tour.addStep({
       id: step.id,
       title: step.title,
       text: step.text,
       attachTo: step.element ? { element: step.element, on: step.on || 'bottom' } : undefined,
       buttons,
+      beforeShowPromise: function () {
+        return new Promise((resolve) => {
+          beforeShowHook.call(this);
+          setTimeout(resolve, 150);
+        });
+      },
     });
   });
 
