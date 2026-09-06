@@ -1,6 +1,6 @@
 import { Node } from '@xyflow/react';
 import { Terminal, Search, Download, Trash2, X } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '../../lib/utils';
 
 export interface TerminalToolbarProps {
   terminalActiveTab: 'activity' | 'logs';

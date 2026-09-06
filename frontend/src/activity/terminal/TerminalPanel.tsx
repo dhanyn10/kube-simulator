@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useFlowStore } from '../../../store';
-import { cn } from '../../../lib/utils';
+import { useFlowStore } from '../../store';
+import { cn } from '../../lib/utils';
 import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomplete';
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
@@ -60,7 +60,7 @@ export {
   useTerminalScroll,
 };
 export type { CommandHistoryEntry };
-export { trimDashes, sanitizeSlug, cleanProjectName } from '../../../lib/utils';
+export { trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 
 export const TerminalPanel = () => {
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);

@@ -1,6 +1,6 @@
 import React from 'react';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
+import { cn } from '../../lib/utils';
+import { useFlowStore } from '../../store';
 import { SuggestionItem } from './terminalAutocomplete';
 import { AutocompleteItem } from './AutocompleteItem';
 

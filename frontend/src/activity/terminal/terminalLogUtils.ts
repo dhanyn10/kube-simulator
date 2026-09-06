@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanProjectName, sanitizeSlug } from '../../../lib/utils';
+import { cleanProjectName, sanitizeSlug } from '../../lib/utils';
 
 export interface CommandHistoryEntry {
   id: string;

@@ -4,10 +4,10 @@ import '@testing-library/jest-dom';
 import React from 'react';
 import { MenuBar } from '@/components/Layout/MenuBar';
 import { useFlowStore } from '@/store';
-import { handleAdminCommands, CommandContext } from '@/components/Activity/Terminal/terminalCommands';
+import { handleAdminCommands, CommandContext } from '@/activity/terminal/terminalCommands';
 
-import { handleHelpCommand } from '@/components/Activity/Terminal/TerminalPanel';
-import { getAutocompleteSuggestions } from '@/components/Activity/Terminal/terminalAutocomplete';
+import { handleHelpCommand } from '@/activity/terminal/TerminalPanel';
+import { getAutocompleteSuggestions } from '@/activity/terminal/terminalAutocomplete';
 
 describe('Admin Authentication and Dev Commands System', () => {
   let logs: string[];

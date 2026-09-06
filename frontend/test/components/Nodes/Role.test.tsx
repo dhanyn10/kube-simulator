@@ -5,7 +5,7 @@ import React from 'react';
 import { RoleSettingsSection } from '@/components/Config/RoleSettingsSection';
 import { useFlowStore } from '../../../src/store';
 import { RoleNode } from '@/components/Nodes/Role';
-import { handleGetRolesCommand, handleDescribeRoleCommand } from '@/components/Activity/Terminal/terminalCommands';
+import { handleGetRolesCommand, handleDescribeRoleCommand } from '@/activity/terminal/terminalCommands';
 
 // React Flow Mock wrapper
 vi.mock('@xyflow/react', async (importOriginal) => {

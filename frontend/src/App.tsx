@@ -11,7 +11,7 @@ import '@xyflow/react/dist/style.css';
 
 import { logger } from './lib/logger';
 import { Sidebar, RightSidebar, MenuBar } from './components/Layout';
-import { TerminalPanel } from './components/Activity/Terminal';
+import { TerminalPanel } from './activity/terminal';
 import { CanvasControlsPanel } from './components/Layout/CanvasControlsPanel';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';

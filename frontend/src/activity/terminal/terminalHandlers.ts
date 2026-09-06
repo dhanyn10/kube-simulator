@@ -1,5 +1,5 @@
 import { Node } from '@xyflow/react';
-import { safeRandom } from '../../../lib/utils';
+import { safeRandom } from '../../lib/utils';
 import { CommandContext } from './terminalCommands';
 import { CommandHistoryEntry } from './terminalLogUtils';
 

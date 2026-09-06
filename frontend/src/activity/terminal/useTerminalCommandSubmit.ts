@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Node } from '@xyflow/react';
-import { useFlowStore } from '../../../store';
+import { useFlowStore } from '../../store';
 import {
   CommandContext,
   handleAdminCommands,

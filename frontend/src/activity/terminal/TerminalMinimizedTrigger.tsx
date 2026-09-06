@@ -1,5 +1,5 @@
 import { Terminal } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '../../lib/utils';
 
 export interface TerminalMinimizedTriggerProps {
   setTerminalOpen: (open: boolean) => void;

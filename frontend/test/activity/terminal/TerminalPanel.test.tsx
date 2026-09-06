@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../../src/components/Activity/Terminal/TerminalPanel';
-import { useFlowStore } from '../../../../src/store/useFlowStore';
+import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../src/activity/terminal/TerminalPanel';
+import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 
 // Simple mock for scrollIntoView as it doesn't exist in jsdom
