@@ -74,15 +74,25 @@ const SidebarSection = ({
       )}>
         {items.map(({ type, icon: Icon, label, desc }) => {
           const style = ITEM_STYLES[type] || ITEM_STYLES.Namespace;
-          
+          const isIAM = type === 'IAM';
+
+          const handleDragStart = (event: React.DragEvent) => {
+            if (isIAM) {
+              event.preventDefault();
+              onAddNode(type);
+              return;
+            }
+            onDragStart(event, type);
+          };
+
           return (
             <button
               type="button"
               key={type}
               onClick={() => onAddNode(type)}
-              onDragStart={(event) => onDragStart(event, type)}
+              onDragStart={handleDragStart}
               onDragEnd={onDragEnd}
-              draggable
+              draggable={!isIAM}
               className={cn(
                 "sidebar-item-card group",
                 colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
