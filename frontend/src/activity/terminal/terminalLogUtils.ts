@@ -112,27 +112,32 @@ export const exportLogFile = (logs: string[], filename: string) => {
   URL.revokeObjectURL(url);
 };
 
+type LogCategory = 'success' | 'error' | 'warn' | 'cmd' | 'divider' | 'resource' | 'default';
+
+const getLogCategory = (line: string): LogCategory => {
+  if (line.includes('[SUCCESS]') || line.includes('READY')) return 'success';
+  if (line.includes('[ERROR]') || line.includes('[FATAL]') || line.includes('Err') || line.includes('Failed')) return 'error';
+  if (line.includes('[WARN]') || line.includes('[WARNING]') || line.includes('Pending')) return 'warn';
+  if (line.startsWith('$') || line.startsWith('>')) return 'cmd';
+  if (line.includes('===') || line.includes('---')) return 'divider';
+  if (line.includes('POD:') || line.includes('DEPLOYMENT:') || line.includes('SERVICE:')) return 'resource';
+  return 'default';
+};
+
+const LOG_COLOR_MAP: Record<LogCategory, { dark: string; light: string }> = {
+  success: { dark: 'text-emerald-400 font-semibold', light: 'text-emerald-600 font-semibold' },
+  error: { dark: 'text-rose-400 font-semibold', light: 'text-rose-600 font-semibold' },
+  warn: { dark: 'text-amber-400', light: 'text-amber-600' },
+  cmd: { dark: 'text-cyan-400 font-bold', light: 'text-cyan-600 font-bold' },
+  divider: { dark: 'text-slate-500 font-bold', light: 'text-slate-400 font-bold' },
+  resource: { dark: 'text-purple-400 font-semibold', light: 'text-purple-600 font-semibold' },
+  default: { dark: 'text-slate-300', light: 'text-slate-700' },
+};
+
 export const getLogLineColorClass = (line: string, colorMode: 'dark' | 'light'): string => {
-  const isDark = colorMode === 'dark';
-  if (line.includes('[SUCCESS]') || line.includes('READY')) {
-    return isDark ? 'text-emerald-400 font-semibold' : 'text-emerald-600 font-semibold';
-  }
-  if (line.includes('[ERROR]') || line.includes('[FATAL]') || line.includes('Err') || line.includes('Failed')) {
-    return isDark ? 'text-rose-400 font-semibold' : 'text-rose-600 font-semibold';
-  }
-  if (line.includes('[WARN]') || line.includes('[WARNING]') || line.includes('Pending')) {
-    return isDark ? 'text-amber-400' : 'text-amber-600';
-  }
-  if (line.startsWith('$') || line.startsWith('>')) {
-    return isDark ? 'text-cyan-400 font-bold' : 'text-cyan-600 font-bold';
-  }
-  if (line.includes('===') || line.includes('---')) {
-    return isDark ? 'text-slate-500 font-bold' : 'text-slate-400 font-bold';
-  }
-  if (line.includes('POD:') || line.includes('DEPLOYMENT:') || line.includes('SERVICE:')) {
-    return isDark ? 'text-purple-400 font-semibold' : 'text-purple-600 font-semibold';
-  }
-  return isDark ? 'text-slate-300' : 'text-slate-700';
+  const category = getLogCategory(line);
+  const modeKey = colorMode === 'dark' ? 'dark' : 'light';
+  return LOG_COLOR_MAP[category][modeKey];
 };
 
 export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', searchQuery: string): React.ReactNode => {
