@@ -57,8 +57,8 @@ describe('DeploymentNode', () => {
     );
 
     expect(screen.getByText('DEPLOYMENT')).toBeDefined();
-    expect(screen.getByTitle('Role: admin-role')).toBeDefined();
-    expect(screen.getByTitle('Role: viewer-role')).toBeDefined();
+    expect(screen.getByTitle(/Role: admin-role/)).toBeDefined();
+    expect(screen.getByTitle(/Role: viewer-role/)).toBeDefined();
   });
 
   it('handles role dragging inside and outside namespace', () => {

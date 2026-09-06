@@ -134,7 +134,7 @@ describe('BaseNode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByTitle('Role: my-role')).toBeInTheDocument();
+    expect(screen.getByTitle(/Role: my-role/)).toBeInTheDocument();
     expect(screen.getByTitle('ConfigMap: my-cm')).toBeInTheDocument();
   });
 

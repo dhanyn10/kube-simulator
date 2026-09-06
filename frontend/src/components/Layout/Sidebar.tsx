@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, UserCheck } from 'lucide-react';
 import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -10,6 +10,7 @@ interface SidebarProps {
 }
 
 const ITEM_STYLES: Record<string, { border: string, text: string }> = {
+  IAM: { border: "border-l-blue-600 hover:border-blue-600", text: "text-blue-400" },
   Deployment: { border: "border-l-violet-500 hover:border-violet-500", text: "text-violet-400" },
   Pod: { border: "border-l-cyan-500 hover:border-cyan-500", text: "text-cyan-400" },
   Service: { border: "border-l-amber-500 hover:border-amber-500", text: "text-amber-400" },
@@ -24,6 +25,7 @@ const ITEM_STYLES: Record<string, { border: string, text: string }> = {
 };
 
 const SECTIONS = [
+  { id: 'useful-resources', title: 'Useful Resources', filter: (type: string) => type === 'IAM' },
   { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
   { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
@@ -72,15 +74,25 @@ const SidebarSection = ({
       )}>
         {items.map(({ type, icon: Icon, label, desc }) => {
           const style = ITEM_STYLES[type] || ITEM_STYLES.Namespace;
-          
+          const isIAM = type === 'IAM';
+
+          const handleDragStart = (event: React.DragEvent) => {
+            if (isIAM) {
+              event.preventDefault();
+              onAddNode(type);
+              return;
+            }
+            onDragStart(event, type);
+          };
+
           return (
             <button
               type="button"
               key={type}
               onClick={() => onAddNode(type)}
-              onDragStart={(event) => onDragStart(event, type)}
+              onDragStart={handleDragStart}
               onDragEnd={onDragEnd}
-              draggable
+              draggable={!isIAM}
               className={cn(
                 "sidebar-item-card group",
                 colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
@@ -125,16 +137,27 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     others: false,
   });
 
+  const setIamModalOpen = useFlowStore((state) => state.setIamModalOpen);
+
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const isCurrentlyExpanded = prev[section];
-      const newState = { workloads: false, networking: false, configuration: false, scaling: false, others: false };
+      const newState = { 'useful-resources': false, workloads: false, networking: false, configuration: false, scaling: false, others: false };
       newState[section as keyof typeof newState] = !isCurrentlyExpanded;
       return newState;
     });
   };
 
+  const handleItemClick = (type: K8sResourceType) => {
+    if (type === 'IAM') {
+      setIamModalOpen(true);
+      return;
+    }
+    onAddNode(type);
+  };
+
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
+    { type: 'IAM', icon: UserCheck, label: 'Kube IAM', desc: 'Identity & Access Mgmt' },
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
@@ -217,7 +240,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
             items={filteredItems.filter(i => section.filter(i.type))}
             isExpanded={expandedSections[section.id]}
             onToggle={() => toggleSection(section.id)}
-            onAddNode={onAddNode}
+            onAddNode={handleItemClick}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             colorMode={colorMode}

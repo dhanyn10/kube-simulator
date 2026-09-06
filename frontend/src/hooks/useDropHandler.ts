@@ -15,6 +15,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   PVC: { x: 90, y: 60 },
   ConfigMap: { x: 80, y: 50 },
   Secret: { x: 80, y: 50 },
+  IAM: { x: 80, y: 50 },
 };
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {

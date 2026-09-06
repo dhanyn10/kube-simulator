@@ -2,7 +2,7 @@ import { logger } from '../../lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sResourceType } from '../../types';
+import { K8sResourceType, KubeIAMUser } from '../../types';
 import { safeRandom } from '../../lib/utils';
 import {
   processWorkloadSimulation,
@@ -28,6 +28,14 @@ export interface UiSlice {
   setSecretModalTargetNode: (target: { id: string; label: string } | null) => void;
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
+
+  // Kube IAM User state & actions
+  iamUsers: KubeIAMUser[];
+  isIamModalOpen: boolean;
+  setIamModalOpen: (open: boolean) => void;
+  addIamUser: (user: KubeIAMUser) => void;
+  updateIamUser: (user: KubeIAMUser) => void;
+  deleteIamUser: (userId: string) => void;
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
   historyLogs: any[];
@@ -642,6 +650,21 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSecretModalTargetNode: (target) => set({ secretModalTargetNode: target }),
   hpaModalTargetNode: null,
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
+
+  // Kube IAM User initial state & actions
+  iamUsers: [
+    { id: 'iam-admin-default', username: 'admin-user', accessType: 'Full', description: 'Default administrator with full access', createdAt: Date.now() - 3600000 },
+    { id: 'iam-dev-default', username: 'dev-user', accessType: 'Custom', description: 'Developer account for application pods & deployments', createdAt: Date.now() - 1800000 },
+  ],
+  isIamModalOpen: false,
+  setIamModalOpen: (open) => set({ isIamModalOpen: open }),
+  addIamUser: (user) => set((state) => ({ iamUsers: [...state.iamUsers, user] })),
+  updateIamUser: (user) => set((state) => ({
+    iamUsers: state.iamUsers.map((u) => (u.id === user.id ? user : u))
+  })),
+  deleteIamUser: (userId) => set((state) => ({
+    iamUsers: state.iamUsers.filter((u) => u.id !== userId)
+  })),
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,

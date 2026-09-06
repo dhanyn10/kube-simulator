@@ -565,6 +565,8 @@ export const handleGetRolesCommand = (
   const attached = extractAttachedResources<any>(ctx.nodes, 'roles');
   const allRoles = attached.map(({ item: r, ownerLabel }) => ({
     name: r.name,
+    assignedUser: r.assignedUser || 'admin-user',
+    accessLevel: r.accessLevel || 'Full',
     owner: ownerLabel,
     rules: r.rules || [],
   }));
@@ -575,10 +577,10 @@ export const handleGetRolesCommand = (
       ctx.addActivityLog('No rolebindings found on the canvas.');
       return true;
     }
-    ctx.addActivityLog(`${"NAME".padEnd(30)} ROLE                  SUBJECTS              AGE`);
+    ctx.addActivityLog(`${"NAME".padEnd(30)} ROLE                  SUBJECT (IAM USER)    AGE`);
     allRoles.forEach((r) => {
       const bindingName = r.name + '-binding';
-      ctx.addActivityLog(`${String(bindingName).padEnd(30)} ${String(r.name).padEnd(21)} ServiceAccount/default 2m`);
+      ctx.addActivityLog(`${String(bindingName).padEnd(30)} ${String(r.name).padEnd(21)} User/${r.assignedUser.padEnd(20)} 2m`);
     });
     return true;
   }
@@ -587,9 +589,9 @@ export const handleGetRolesCommand = (
     ctx.addActivityLog('No roles found on the canvas.');
     return true;
   }
-  ctx.addActivityLog(`${"NAME".padEnd(30)} ATTACHED TO           CREATED AT`);
+  ctx.addActivityLog(`${"NAME".padEnd(30)} ASSIGNED IAM USER    ACCESS LEVEL   ATTACHED TO           CREATED AT`);
   allRoles.forEach((r) => {
-    ctx.addActivityLog(`${String(r.name).padEnd(30)} ${String(r.owner).padEnd(21)} 2m ago`);
+    ctx.addActivityLog(`${String(r.name).padEnd(30)} ${String(r.assignedUser).padEnd(20)} ${String(r.accessLevel).padEnd(14)} ${String(r.owner).padEnd(21)} 2m ago`);
   });
   return true;
 };
@@ -602,26 +604,35 @@ export const handleDescribeRoleCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  let foundRole: { name: string; owner: string; rules: any[] } | null = null;
+  let foundRole: { name: string; assignedUser: string; accessLevel: string; owner: string; rules: any[] } | null = null;
 
   ctx.nodes.forEach((n) => {
     if (Array.isArray(n.data?.roles)) {
       n.data.roles.forEach((r: any) => {
         if (r.name.toLowerCase() === targetName || r.id?.toLowerCase() === targetName) {
-          foundRole = { name: r.name, owner: n.data?.label || n.id, rules: r.rules || [] };
+          foundRole = {
+            name: r.name,
+            assignedUser: r.assignedUser || 'admin-user',
+            accessLevel: r.accessLevel || 'Full',
+            owner: n.data?.label || n.id,
+            rules: r.rules || [],
+          };
         }
       });
     }
   });
 
   if (foundRole) {
-    ctx.addActivityLog(`Name:         ${(foundRole as { name: string; owner: string; rules: any[] }).name}`);
+    const role = foundRole as { name: string; assignedUser: string; accessLevel: string; owner: string; rules: any[] };
+    ctx.addActivityLog(`Name:         ${role.name}`);
     ctx.addActivityLog(`Namespace:    default`);
-    ctx.addActivityLog(`Attached To:  ${(foundRole as { name: string; owner: string; rules: any[] }).owner}`);
+    ctx.addActivityLog(`Assigned User:${role.assignedUser} (IAM User)`);
+    ctx.addActivityLog(`Access Level: ${role.accessLevel}`);
+    ctx.addActivityLog(`Attached To:  ${role.owner}`);
     ctx.addActivityLog(`PolicyRule:`);
     ctx.addActivityLog(`  Resources  Group  Verbs`);
     ctx.addActivityLog(`  ---------  -----  -----`);
-    (foundRole as { name: string; owner: string; rules: any[] }).rules.forEach((rule: any) => {
+    role.rules.forEach((rule: any) => {
       const res = (rule.resources || []).join(', ');
       const grp = (rule.apiGroups || ['']).join(', ') || '""';
       const vrb = (rule.verbs || []).join(', ');

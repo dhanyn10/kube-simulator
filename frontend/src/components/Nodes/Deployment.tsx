@@ -128,7 +128,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
               <span
                 key={role.id || role.name}
                 className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
-                title={`Role: ${role.name}`}
+                title={`Role: ${role.name} (${role.assignedUser || 'admin-user'} - ${role.accessLevel || 'Full'})`}
               >
                 <Shield size={12} />
               </span>
