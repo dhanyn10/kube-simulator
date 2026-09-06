@@ -81,4 +81,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-Built with ❤️ by [Dhany Nurdiansyah (dhanyn10)](https://github.com/dhanyn10)
+Built with ❤️ by [Dhany N (dhanyn10)](https://github.com/dhanyn10)
