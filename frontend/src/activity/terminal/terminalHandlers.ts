@@ -3,6 +3,13 @@ import { safeRandom } from '../../lib/utils';
 import { CommandContext } from './terminalCommands';
 import { CommandHistoryEntry, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
 
+/**
+ * Handles the 'kubectl get pods' command by printing all workload pods present on the canvas.
+ *
+ * @param addActivityLog - Function callback to append a log line to terminal history.
+ * @param nodes - Array of active React Flow canvas nodes.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ */
 export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
   const workloads = nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet');
   if (workloads.length === 0) {
@@ -17,6 +24,13 @@ export const handleGetPods = (addActivityLog: (line: string) => void, nodes: Nod
   });
 };
 
+/**
+ * Handles the 'kubectl get deployments' command by printing all deployment workloads on the canvas.
+ *
+ * @param addActivityLog - Function callback to append a log line to terminal history.
+ * @param nodes - Array of active React Flow canvas nodes.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ */
 export const handleGetDeployments = (addActivityLog: (line: string) => void, nodes: Node[], isSimulating: boolean) => {
   const deploys = nodes.filter(n => n.type === 'Deployment');
   if (deploys.length === 0) {
@@ -32,6 +46,12 @@ export const handleGetDeployments = (addActivityLog: (line: string) => void, nod
   });
 };
 
+/**
+ * Handles the 'kubectl get services' command by printing all service resources on the canvas.
+ *
+ * @param addActivityLog - Function callback to append a log line to terminal history.
+ * @param nodes - Array of active React Flow canvas nodes.
+ */
 export const handleGetServices = (addActivityLog: (line: string) => void, nodes: Node[]) => {
   const svcs = nodes.filter(n => n.type === 'Service');
   if (svcs.length === 0) {
@@ -46,6 +66,15 @@ export const handleGetServices = (addActivityLog: (line: string) => void, nodes:
   });
 };
 
+/**
+ * Evaluates and dispatches 'kubectl get' sub-commands for pods, deployments, and services.
+ *
+ * @param cmdLower - Normalized lowercase CLI command string.
+ * @param addActivityLog - Function callback to append log lines.
+ * @param nodes - Array of active canvas nodes.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ * @returns True if command was matched and handled; false otherwise.
+ */
 export const handleGetCommands = (
   cmdLower: string,
   addActivityLog: (line: string) => void,
@@ -73,6 +102,12 @@ export const handleGetCommands = (
   return false;
 };
 
+/**
+ * Sanitizes resource prefixes (e.g. 'pod/', 'deployment/', 'deploy/') from target log command resource strings.
+ *
+ * @param rawName - Raw resource target string.
+ * @returns Cleaned resource target name.
+ */
 const cleanLogTargetName = (rawName: string): string => {
   const name = rawName.toLowerCase();
   if (name.startsWith('pod/')) return name.substring(4);
@@ -81,6 +116,16 @@ const cleanLogTargetName = (rawName: string): string => {
   return name;
 };
 
+/**
+ * Handles 'kubectl logs <resource>' commands, switching the console output stream tab to live stdout logs.
+ *
+ * @param cmd - Raw input command string.
+ * @param addActivityLog - Function callback to append log lines.
+ * @param nodes - Array of active canvas nodes.
+ * @param setTerminalSelectedResourceId - Callback to select target node ID for log streaming.
+ * @param setTerminalActiveTab - Callback to switch terminal active tab view.
+ * @returns True if command was matched and processed; false otherwise.
+ */
 export const handleLogsCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -104,6 +149,14 @@ export const handleLogsCommand = (
   return true;
 };
 
+/**
+ * Handles the 'history' command by outputting past CLI execution commands with timestamps.
+ *
+ * @param cmdLower - Normalized lowercase command string.
+ * @param historyEntries - Array of recorded command history entries.
+ * @param addActivityLog - Function callback to append log lines.
+ * @returns True if command was matched and handled; false otherwise.
+ */
 export const handleHistoryCommand = (
   cmdLower: string,
   historyEntries: CommandHistoryEntry[],
@@ -121,6 +174,14 @@ export const handleHistoryCommand = (
   return true;
 };
 
+/**
+ * Handles the 'help' command by printing educational Kubernetes CLI reference commands,
+ * or Admin test CLI commands if secret dev mode is unlocked.
+ *
+ * @param cmdLower - Normalized lowercase command string.
+ * @param addActivityLogOrCtx - Log callback function or execution command context.
+ * @returns True if command was matched and handled; false otherwise.
+ */
 export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line: string) => void) | CommandContext): boolean => {
   if (cmdLower !== 'help') return false;
 
@@ -173,6 +234,13 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   return true;
 };
 
+/**
+ * Prints detailed resource specifications and scheduled events for a matched canvas node.
+ *
+ * @param foundNode - Matched node instance.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ * @param addActivityLog - Function callback to append log lines.
+ */
 const printNodeDescription = (
   foundNode: Node,
   isSimulating: boolean,
@@ -204,6 +272,15 @@ const printNodeDescription = (
   addActivityLog(`  Normal  Started    44s   kubelet            Started container app-container`);
 };
 
+/**
+ * Handles 'kubectl describe <pod|deploy> <name>' commands, outputting specifications and event logs.
+ *
+ * @param cmd - Raw input command string.
+ * @param addActivityLog - Function callback to append log lines.
+ * @param nodes - Array of active canvas nodes.
+ * @param isSimulating - Flag indicating whether simulation loop is actively running.
+ * @returns True if command was matched and handled; false otherwise.
+ */
 export const handleDescribeCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,

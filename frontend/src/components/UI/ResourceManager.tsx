@@ -13,20 +13,37 @@ import { DockerImageCard, parseDockerResults, LocalImageRow } from './ResourceMa
 import { ProjectsTab } from './ResourceManager/ProjectsTab';
 import { mapProjectNodes, mapProjectEdges, generateTimestampedProjectName } from './ResourceManager/resourceManagerHelpers';
 
+/** Props interface for the ResourceManager modal component. */
 interface ResourceManagerProps {
+  /** Controls modal visibility state. */
   isOpen: boolean;
+  /** Callback fired when the modal is closed. */
   onClose: () => void;
 }
 
+/** Props interface for the TagsView subcomponent. */
 interface TagsViewProps {
+  /** Docker repository name to fetch tags for (e.g. 'library/nginx'). */
   repoName: string;
+  /** Callback to navigate back to the main registry list view. */
   onBack: () => void;
+  /** Active application theme mode. */
   colorMode: 'dark' | 'light';
+  /** Array of currently registered custom docker image strings. */
   customImages: string[];
+  /** Callback to add a new custom docker image. */
   addCustomImage: (img: string) => void;
+  /** Callback to delete an existing custom docker image. */
   deleteCustomImage: (img: string) => void;
 }
 
+/**
+ * TagsView component renders available image tags for a selected Docker Hub repository,
+ * allowing users to selectively register specific container image tags into the simulator.
+ *
+ * @param props - Subcomponent props.
+ * @returns Renderable React node element.
+ */
 const TagsView = ({
   repoName,
   onBack,
@@ -172,15 +189,29 @@ const TagsView = ({
   );
 };
 
+/** Props interface for the DockerRegistryTab subcomponent. */
 interface DockerRegistryTabProps {
+  /** Live search input string for filtering Docker Hub images. */
   dockerSearch: string;
+  /** Callback to update the docker search state string. */
   setDockerSearch: (val: string) => void;
+  /** Active theme mode string. */
   colorMode: 'dark' | 'light';
+  /** Array of registered custom image strings. */
   customImages: string[];
+  /** Callback to add a new custom image string. */
   addCustomImage: (img: string) => void;
+  /** Callback to delete a custom image string. */
   deleteCustomImage: (img: string) => void;
 }
 
+/**
+ * DockerRegistryTab renders the real-time Docker Hub search interface, allowing users
+ * to search for enterprise libraries or popular Docker registry images.
+ *
+ * @param props - Subcomponent props.
+ * @returns Renderable React element for the Docker Hub tab.
+ */
 const DockerRegistryTab = ({
   dockerSearch,
   setDockerSearch,
@@ -319,15 +350,28 @@ const DockerRegistryTab = ({
   );
 };
 
+/** Props interface for the LocalImagesTab subcomponent. */
 interface LocalImagesTabProps {
+  /** Form text value for adding a new custom local docker image tag. */
   newCustomImage: string;
+  /** Callback to update the custom image input state string. */
   setNewCustomImage: (val: string) => void;
+  /** Callback to process form submission for adding a custom image. */
   handleAddCustomImageSubmit: () => void;
+  /** Array of currently registered custom local image strings. */
   customImages: string[];
+  /** Callback to delete an existing custom image tag string. */
   deleteCustomImage: (img: string) => void;
+  /** Active theme mode string. */
   colorMode: 'dark' | 'light';
 }
 
+/**
+ * LocalImagesTab renders the custom local & enterprise private docker image management panel.
+ *
+ * @param props - Subcomponent props.
+ * @returns Renderable React element for local image registration.
+ */
 const LocalImagesTab = ({
   newCustomImage,
   setNewCustomImage,
@@ -387,6 +431,13 @@ const LocalImagesTab = ({
   </div>
 );
 
+/**
+ * ResourceManager is the primary modal component for managing saved architecture projects,
+ * searching Docker Hub registry libraries, and registering custom local container images.
+ *
+ * @param props - Modal visibility and callback props.
+ * @returns Renderable React modal element or null if closed.
+ */
 export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const fitView = useFitView();
   const [projects, setProjects] = useState<Project[]>([]);
