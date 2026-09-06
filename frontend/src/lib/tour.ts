@@ -12,6 +12,20 @@ interface TourStep {
   verify?: () => { success: boolean; hint?: string };
 }
 
+const RESOURCE_TO_SECTION_MAP: Record<string, string> = {
+  Internet: 'others',
+  PVC: 'others',
+  Pod: 'workloads',
+  Deployment: 'workloads',
+  Service: 'networking',
+  Namespace: 'networking',
+  Ingress: 'networking',
+  Role: 'security',
+  ConfigMap: 'configuration',
+  Secret: 'configuration',
+  HPA: 'scaling',
+};
+
 /**
  * Checks if a Pod/Workload node is positioned to the right of an Internet node
  * and connected by a valid ReactFlow Edge.
@@ -303,16 +317,28 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
       });
     }
 
-    const beforeShowHook = function (this: Shepherd.Step) {
-      if (step.element?.startsWith('#sidebar-item-')) {
-        useFlowStore.getState().setSidebarVisible(true);
-        setTimeout(() => {
-          const el = document.querySelector(step.element!);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 100);
+    const prepareStepElement = () => {
+      if (!step.element?.startsWith('#sidebar-item-')) return;
+
+      useFlowStore.getState().setSidebarVisible(true);
+
+      const itemType = step.element.replace('#sidebar-item-', '');
+      const sectionId = RESOURCE_TO_SECTION_MAP[itemType];
+
+      const targetEl = document.querySelector(step.element);
+      if (!targetEl && sectionId) {
+        const sectionToggle = document.querySelector(`#sidebar-section-${sectionId}`) as HTMLButtonElement | null;
+        if (sectionToggle) {
+          sectionToggle.click();
+        }
       }
+
+      setTimeout(() => {
+        const updatedEl = document.querySelector(step.element!);
+        if (updatedEl) {
+          updatedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
     };
 
     tour.addStep({
@@ -323,8 +349,8 @@ export const startTour = (colorMode: 'dark' | 'light', tourType: GuidedTourType 
       buttons,
       beforeShowPromise: function () {
         return new Promise((resolve) => {
-          beforeShowHook.call(this);
-          setTimeout(resolve, 150);
+          prepareStepElement();
+          setTimeout(resolve, 200);
         });
       },
     });

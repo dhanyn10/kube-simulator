@@ -33,6 +33,7 @@ const SECTIONS = [
 ];
 
 const SidebarSection = ({ 
+  id,
   title, 
   items, 
   isExpanded, 
@@ -42,6 +43,7 @@ const SidebarSection = ({
   onDragEnd, 
   colorMode 
 }: { 
+  id: string;
   title: string; 
   items: any[]; 
   isExpanded: boolean; 
@@ -57,6 +59,7 @@ const SidebarSection = ({
     <section>
       <button
         type="button"
+        id={`sidebar-section-${id}`}
         onClick={onToggle}
         className={cn(
           "sidebar-section-toggle-btn",
@@ -215,6 +218,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
         {SECTIONS.map(section => (
           <SidebarSection 
             key={section.id}
+            id={section.id}
             title={section.title} 
             items={filteredItems.filter(i => section.filter(i.type))}
             isExpanded={expandedSections[section.id]}
