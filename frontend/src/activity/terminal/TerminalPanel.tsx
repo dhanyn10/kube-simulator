@@ -5,22 +5,17 @@ import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomple
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';
-import { TerminalMinimizedTrigger } from './TerminalMinimizedTrigger';
 import { TerminalToolbar } from './TerminalToolbar';
-import { useTerminalCommandSubmit, executeKubectlCommand } from './useTerminalCommandSubmit';
+import { useTerminalCommandSubmit } from './useTerminalCommandSubmit';
 import { handleTerminalKeyDown } from './terminalKeyDown';
 import { useTerminalLogs, getTabClass } from './useTerminalLogs';
 import { useTerminalScroll } from './useTerminalScroll';
-import {
-  formatCommandTimestamp,
-  makeDivider,
-  generateLogFilename,
-  exportLogFile,
-  getLogLineColorClass,
-  formatLogLineContent,
-  CommandHistoryEntry,
-} from './terminalLogUtils';
-import {
+import { generateLogFilename, exportLogFile } from './terminalLogUtils';
+
+/**
+ * Re-exported sub-command handlers and utility functions for backward compatibility and test suites.
+ */
+export {
   handleGetPods,
   handleGetDeployments,
   handleGetServices,
@@ -30,38 +25,37 @@ import {
   handleHelpCommand,
   handleDescribeCommand,
 } from './terminalHandlers';
-
-// Re-export utilities and handlers for backwards compatibility and tests
 export {
-  handleGetPods,
-  handleGetDeployments,
-  handleGetServices,
-  handleGetCommands,
-  handleLogsCommand,
-  generateLogFilename,
-  makeDivider,
-  exportLogFile,
   formatCommandTimestamp,
-  handleHistoryCommand,
-  handleHelpCommand,
+  makeDivider,
   getLogLineColorClass,
   formatLogLineContent,
+} from './terminalLogUtils';
+export type { CommandHistoryEntry } from './terminalLogUtils';
+export { executeKubectlCommand } from './useTerminalCommandSubmit';
+export { TerminalMinimizedTrigger } from './TerminalMinimizedTrigger';
+
+export {
+  generateLogFilename,
+  exportLogFile,
   TerminalLogBody,
   handleTerminalKeyDown,
-  executeKubectlCommand,
   getTabClass,
   TerminalPaginationBar,
   TerminalCommandForm,
-  TerminalMinimizedTrigger,
   TerminalToolbar,
-  handleDescribeCommand,
   useTerminalCommandSubmit,
   useTerminalLogs,
   useTerminalScroll,
 };
-export type { CommandHistoryEntry };
 export { trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 
+/**
+ * TerminalPanel renders the interactive Kubernetes Console (Kube Terminal) drawer panel.
+ * It provides mock CLI execution, auto-completing suggestion menus, and live stdout log streaming.
+ *
+ * @returns Renderable React component for the terminal panel or null if closed.
+ */
 export const TerminalPanel = () => {
   const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setTerminalOpen = useFlowStore((state) => state.setTerminalOpen);
@@ -134,6 +128,7 @@ export const TerminalPanel = () => {
     filteredLogs
   );
 
+  /** Exports the currently active log lines to a client-side file download. */
   const handleExportLogs = () => {
     const selectedNode = nodes.find(n => n.id === terminalSelectedResourceId);
     const resourceLabel = selectedNode ? ((selectedNode.data?.label as string) || selectedNode.id) : undefined;
@@ -162,6 +157,7 @@ export const TerminalPanel = () => {
     }
   }, [commandInput, suggestions]);
 
+  /** Handles raw text input changes and unsuppresses autocomplete menus. */
   const handleInputChange = (val: string) => {
     suppressAutocompleteRef.current = false;
     setCommandInput(val);
@@ -170,10 +166,12 @@ export const TerminalPanel = () => {
   const activityTabClass = useMemo(() => getTabClass('activity', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
   const logsTabClass = useMemo(() => getTabClass('logs', terminalActiveTab, colorMode), [terminalActiveTab, colorMode]);
 
+  /** Sets whether history traversal is active to suppress autocomplete dropdown. */
   const setIsNavigatingHistory = useCallback((navigating: boolean) => {
     suppressAutocompleteRef.current = navigating;
   }, []);
 
+  /** Applies a selected autocomplete suggestion to the CLI command input. */
   const handleSelectSuggestion = useCallback((item: SuggestionItem, podName?: string) => {
     suppressAutocompleteRef.current = true;
     if (podName) {
@@ -187,6 +185,7 @@ export const TerminalPanel = () => {
     setIsDropdownOpen(false);
   }, [selectedSubIndex, setCommandInput]);
 
+  /** Custom state setter for autocomplete dropdown visibility. */
   const setDropdownOpenCustom = useCallback((open: boolean) => {
     if (!open) {
       suppressAutocompleteRef.current = true;
@@ -194,6 +193,7 @@ export const TerminalPanel = () => {
     setIsDropdownOpen(open);
   }, []);
 
+  /** Handles keydown keyboard events for navigation, autocomplete cycling, and history traversal. */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleTerminalKeyDown({
       e,
@@ -212,6 +212,7 @@ export const TerminalPanel = () => {
     });
   };
 
+  /** Handles terminal form submission on Enter key or button press. */
   const handleCommandSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     processCommandSubmit(commandInput, setDropdownOpenCustom, setIsNavigatingHistory);
