@@ -7,8 +7,8 @@
   "frontend:dev:watcher": "pnpm run dev",
   "frontend:dev:serverUrl": "http://127.0.0.1:3000",
   "author": {
-    "name": "google-labs-jules[bot]",
-    "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+    "name": "Dhany Nurdiansyah",
+    "email": "dhanyn.dhan@gmail.com"
   },
   "info": {
     "productName": "Kube Simulator",
