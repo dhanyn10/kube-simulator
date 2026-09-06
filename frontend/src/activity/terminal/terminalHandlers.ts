@@ -81,12 +81,6 @@ const cleanLogTargetName = (rawName: string): string => {
   return name;
 };
 
-const isLoggableNode = (n: Node, targetName: string): boolean => {
-  if (!['Pod', 'Deployment', 'ReplicaSet'].includes(n.type)) return false;
-  const label = n.data?.label ? String(n.data.label).toLowerCase() : '';
-  return n.id.toLowerCase() === targetName || label === targetName;
-};
-
 export const handleLogsCommand = (
   cmd: string,
   addActivityLog: (line: string) => void,
@@ -177,13 +171,6 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  clear                                 Clear the console log list');
 
   return true;
-};
-
-const isTargetNode = (n: Node, type: string, targetName: string): boolean => {
-  const matchesType = n.type.toLowerCase() === type || (type === 'deploy' && n.type === 'Deployment');
-  if (!matchesType) return false;
-  const label = n.data?.label ? String(n.data.label).toLowerCase() : '';
-  return n.id.toLowerCase() === targetName || label === targetName;
 };
 
 const printNodeDescription = (
