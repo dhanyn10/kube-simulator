@@ -363,6 +363,10 @@ interface RuleCardRowProps {
   onUpdateRuleTags: (index: number, field: 'apiGroups' | 'resources' | 'verbs', tags: string[]) => void;
 }
 
+const READ_VERBS = ['get', 'list', 'watch'];
+const WRITE_VERBS = ['create', 'update', 'patch'];
+const DELETE_VERBS = ['delete', 'deletecollection'];
+
 const RuleCardRow: React.FC<RuleCardRowProps> = ({
   rule,
   idx,
@@ -371,6 +375,32 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
   onRemoveRule,
   onUpdateRuleTags,
 }) => {
+  const isReadChecked = READ_VERBS.every((v) => rule.verbs.includes(v));
+  const isWriteChecked = WRITE_VERBS.every((v) => rule.verbs.includes(v));
+  const isDeleteChecked = DELETE_VERBS.every((v) => rule.verbs.includes(v));
+  const isFullChecked = rule.verbs.includes('*');
+
+  const toggleVerbGroup = (groupVerbs: string[], shouldAdd: boolean) => {
+    let nextVerbs = [...rule.verbs];
+    if (shouldAdd) {
+      for (const v of groupVerbs) {
+        if (!nextVerbs.includes(v)) nextVerbs.push(v);
+      }
+      nextVerbs = nextVerbs.filter((v) => v !== '*');
+    } else {
+      nextVerbs = nextVerbs.filter((v) => !groupVerbs.includes(v));
+    }
+    onUpdateRuleTags(idx, 'verbs', nextVerbs);
+  };
+
+  const toggleFullAccess = (shouldAdd: boolean) => {
+    if (shouldAdd) {
+      onUpdateRuleTags(idx, 'verbs', ['*']);
+    } else {
+      onUpdateRuleTags(idx, 'verbs', ['get', 'list']);
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -421,10 +451,58 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
         />
       </div>
 
+      {/* Quick Permission Toggles */}
+      <div>
+        <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+          Access Options / Permission Toggles
+        </span>
+        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+          <label className="flex items-center gap-1.5 cursor-pointer text-emerald-400 hover:text-emerald-300">
+            <input
+              type="checkbox"
+              checked={isReadChecked}
+              onChange={(e) => toggleVerbGroup(READ_VERBS, e.target.checked)}
+              className="rounded border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"
+            />
+            <span>Read (get, list, watch)</span>
+          </label>
+
+          <label className="flex items-center gap-1.5 cursor-pointer text-blue-400 hover:text-blue-300">
+            <input
+              type="checkbox"
+              checked={isWriteChecked}
+              onChange={(e) => toggleVerbGroup(WRITE_VERBS, e.target.checked)}
+              className="rounded border-slate-700 text-blue-500 focus:ring-0 cursor-pointer"
+            />
+            <span>Write (create, update, patch)</span>
+          </label>
+
+          <label className="flex items-center gap-1.5 cursor-pointer text-rose-400 hover:text-rose-300">
+            <input
+              type="checkbox"
+              checked={isDeleteChecked}
+              onChange={(e) => toggleVerbGroup(DELETE_VERBS, e.target.checked)}
+              className="rounded border-slate-700 text-rose-500 focus:ring-0 cursor-pointer"
+            />
+            <span>Delete (delete)</span>
+          </label>
+
+          <label className="flex items-center gap-1.5 cursor-pointer text-amber-400 hover:text-amber-300">
+            <input
+              type="checkbox"
+              checked={isFullChecked}
+              onChange={(e) => toggleFullAccess(e.target.checked)}
+              className="rounded border-slate-700 text-amber-500 focus:ring-0 cursor-pointer"
+            />
+            <span>Full Access (*)</span>
+          </label>
+        </div>
+      </div>
+
       {/* Verbs Tagify Input */}
       <div>
         <label htmlFor={`verbs-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-          Verbs (Permissions)
+          Verbs (Custom Tags)
         </label>
         <TagInput
           id={`verbs-input-${idx}`}
@@ -454,6 +532,8 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   const nodes = useFlowStore((state) => state.nodes);
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
+  const [userName, setUserName] = useState<string>('dev-user');
+  const [subjectKind, setSubjectKind] = useState<'User' | 'Group' | 'ServiceAccount'>('User');
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
       apiGroups: ['apps', ''],
@@ -465,6 +545,8 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   useEffect(() => {
     if (initialRole) {
       setRoleName(initialRole.name || 'app-reader-role');
+      setUserName(initialRole.userName || initialRole.subjects?.[0]?.name || 'dev-user');
+      setSubjectKind(initialRole.subjects?.[0]?.kind || 'User');
       setRules(initialRole.rules && initialRole.rules.length > 0 ? initialRole.rules : [
         { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }
       ]);
@@ -475,6 +557,8 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setRoleName(`role-${randomSuffix}`);
+      setUserName(`user-${randomSuffix}`);
+      setSubjectKind('User');
       setRules([
         {
           apiGroups: derivedApiGroups,
@@ -516,9 +600,12 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   };
 
   const handleSave = () => {
+    const cleanedUserName = sanitizeSlug(userName) || 'unnamed-user';
     const roleItem: K8sRoleItem = {
       id: initialRole?.id || `role-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(roleName) || 'unnamed-role',
+      userName: cleanedUserName,
+      subjects: [{ kind: subjectKind, name: cleanedUserName }],
       rules: rules.length > 0 ? rules : [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
     };
     onSave(roleItem);
@@ -562,24 +649,61 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       footer={footer}
     >
       <div className="space-y-4">
-        {/* Role Name */}
-        <div>
-          <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
-            Role Name
-          </label>
-          <input
-            id="role-name-input"
-            type="text"
-            value={roleName}
-            onChange={(e) => setRoleName(e.target.value)}
-            placeholder="e.g. app-reader-role"
-            className={cn(
-              "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
-              colorMode === 'dark'
-                ? "bg-slate-950 border-slate-800 text-slate-100"
-                : "bg-slate-50 border-slate-300 text-slate-900"
-            )}
-          />
+        {/* User Name & Role Name Inputs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="user-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              User / Subject Name
+            </label>
+            <div className="flex gap-1.5">
+              <select
+                value={subjectKind}
+                onChange={(e) => setSubjectKind(e.target.value as any)}
+                className={cn(
+                  "px-2 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all shrink-0",
+                  colorMode === 'dark'
+                    ? "bg-slate-950 border-slate-800 text-slate-100"
+                    : "bg-slate-50 border-slate-300 text-slate-900"
+                )}
+              >
+                <option value="User">User</option>
+                <option value="Group">Group</option>
+                <option value="ServiceAccount">ServiceAccount</option>
+              </select>
+              <input
+                id="user-name-input"
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="e.g. john-developer or dev-team"
+                className={cn(
+                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
+                  colorMode === 'dark'
+                    ? "bg-slate-950 border-slate-800 text-slate-100"
+                    : "bg-slate-50 border-slate-300 text-slate-900"
+                )}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              Role Name
+            </label>
+            <input
+              id="role-name-input"
+              type="text"
+              value={roleName}
+              onChange={(e) => setRoleName(e.target.value)}
+              placeholder="e.g. app-reader-role"
+              className={cn(
+                "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
+                colorMode === 'dark'
+                  ? "bg-slate-950 border-slate-800 text-slate-100"
+                  : "bg-slate-50 border-slate-300 text-slate-900"
+              )}
+            />
+          </div>
         </div>
 
         {/* Rules Section */}

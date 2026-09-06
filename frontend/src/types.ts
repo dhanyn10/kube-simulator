@@ -6,9 +6,16 @@ export interface K8sRoleRule {
   verbs: string[];
 }
 
+export interface K8sRoleSubject {
+  kind?: 'User' | 'Group' | 'ServiceAccount';
+  name: string;
+}
+
 export interface K8sRoleItem {
   id: string;
   name: string;
+  userName?: string;
+  subjects?: K8sRoleSubject[];
   rules: K8sRoleRule[];
 }
 

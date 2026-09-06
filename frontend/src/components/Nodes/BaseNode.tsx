@@ -167,7 +167,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
               <span
                 key={role.id || role.name}
                 className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
-                title={`Role: ${role.name}`}
+                title={role.userName ? `Role: ${role.name} (User: ${role.userName})` : `Role: ${role.name}`}
               >
                 <Shield size={11} />
               </span>
