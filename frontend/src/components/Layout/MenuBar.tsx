@@ -16,6 +16,7 @@ interface MenuBarProps {
   onOpenScenarios: () => void;
   onOpenAbout: () => void;
   onOpenSettings: () => void;
+  onOpenTour?: () => void;
 }
 
 export const MenuBar = ({
@@ -25,7 +26,8 @@ export const MenuBar = ({
   onOpenProjects,
   onOpenScenarios,
   onOpenAbout,
-  onOpenSettings
+  onOpenSettings,
+  onOpenTour,
 }: MenuBarProps) => {
   const colorMode = useFlowStore((state: FlowState) => state.colorMode);
   const toggleColorMode = useFlowStore((state: FlowState) => state.toggleColorMode);
@@ -204,7 +206,7 @@ export const MenuBar = ({
       {
         label: 'Help',
         items: [
-          { label: 'Take a Tour', icon: PlayCircle, onClick: () => startTour(colorMode) },
+          { label: 'Take a Tour', icon: PlayCircle, onClick: () => (onOpenTour ? onOpenTour() : startTour(colorMode)) },
           { label: 'About', icon: Info, onClick: onOpenAbout },
           { label: 'Report Issue', icon: Bug, onClick: () => BrowserOpenURL('https://github.com/dhanyn10/kube-simulator/issues') },
         ]

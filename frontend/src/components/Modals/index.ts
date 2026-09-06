@@ -12,3 +12,4 @@ export * from './SecretModal';
 export * from './SecretListModal';
 export * from './HPAModal';
 export * from './HPAListModal';
+export * from './TourSelectionModal';

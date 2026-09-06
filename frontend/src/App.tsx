@@ -25,7 +25,9 @@ import {
   ConfigMapModal,
   SecretModal,
   HPAModal,
+  TourSelectionModal,
 } from './components/Modals';
+import { startTour } from './lib/tour';
 import {
   PodNode,
   ServiceNode,
@@ -118,6 +120,7 @@ export default function App() {
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTourSelectionOpen, setIsTourSelectionOpen] = useState(false);
 
   const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
@@ -213,6 +216,7 @@ export default function App() {
         onOpenScenarios={() => setIsScenarioOpen(true)}
         onOpenAbout={() => setIsAboutDialogOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenTour={() => setIsTourSelectionOpen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -310,6 +314,12 @@ export default function App() {
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
 
           <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+          <TourSelectionModal
+            isOpen={isTourSelectionOpen}
+            onClose={() => setIsTourSelectionOpen(false)}
+            onSelectTour={(selectedTour) => startTour(colorMode, selectedTour)}
+          />
 
           <RoleModal
             isOpen={roleModalTargetNode !== null}
