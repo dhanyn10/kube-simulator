@@ -2,7 +2,7 @@ import { logger } from '../../lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sResourceType } from '../../types';
+import { K8sResourceType, KubeIAMUser } from '../../types';
 import { safeRandom } from '../../lib/utils';
 import {
   processWorkloadSimulation,
@@ -28,6 +28,14 @@ export interface UiSlice {
   setSecretModalTargetNode: (target: { id: string; label: string } | null) => void;
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
+
+  // Kube IAM Modal state & actions
+  isKubeIamModalOpen: boolean;
+  setKubeIamModalOpen: (open: boolean) => void;
+  iamUsers: KubeIAMUser[];
+  addIamUser: (user: Omit<KubeIAMUser, 'id' | 'createdAt'>) => void;
+  deleteIamUser: (id: string) => void;
+
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
   historyLogs: any[];
@@ -642,6 +650,23 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSecretModalTargetNode: (target) => set({ secretModalTargetNode: target }),
   hpaModalTargetNode: null,
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
+
+  // Kube IAM initial state & actions
+  isKubeIamModalOpen: false,
+  setKubeIamModalOpen: (open) => set({ isKubeIamModalOpen: open }),
+  iamUsers: [],
+  addIamUser: (userData) => set((state) => {
+    const newUser: KubeIAMUser = {
+      ...userData,
+      id: `user-${Date.now()}-${Math.floor(safeRandom() * 1000)}`,
+      createdAt: Date.now(),
+    };
+    return { iamUsers: [...state.iamUsers, newUser] };
+  }),
+  deleteIamUser: (id) => set((state) => ({
+    iamUsers: state.iamUsers.filter((u) => u.id !== id),
+  })),
+
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,

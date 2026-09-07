@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, UserCheck } from 'lucide-react';
 import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -21,9 +21,11 @@ const ITEM_STYLES: Record<string, { border: string, text: string }> = {
   ConfigMap: { border: "border-l-teal-500 hover:border-teal-500", text: "text-teal-400" },
   Secret: { border: "border-l-rose-400 hover:border-rose-400", text: "text-rose-400" },
   Role: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
+  IAM: { border: "border-l-emerald-400 hover:border-emerald-400", text: "text-emerald-400" },
 };
 
 const SECTIONS = [
+  { id: 'useful-resources', title: 'Useful Resources', filter: (type: string) => type === 'IAM' },
   { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
   { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
@@ -72,15 +74,24 @@ const SidebarSection = ({
       )}>
         {items.map(({ type, icon: Icon, label, desc }) => {
           const style = ITEM_STYLES[type] || ITEM_STYLES.Namespace;
-          
+          const isNonDraggable = type === 'IAM';
+
           return (
             <button
               type="button"
               key={type}
+              id={`sidebar-item-${type}`}
               onClick={() => onAddNode(type)}
-              onDragStart={(event) => onDragStart(event, type)}
+              onDragStart={(event) => {
+                if (isNonDraggable) {
+                  event.preventDefault();
+                  onAddNode(type);
+                } else {
+                  onDragStart(event, type);
+                }
+              }}
               onDragEnd={onDragEnd}
-              draggable
+              draggable={!isNonDraggable}
               className={cn(
                 "sidebar-item-card group",
                 colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
@@ -115,9 +126,11 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
+  const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    'useful-resources': true,
     workloads: true,
     networking: false,
     configuration: false,
@@ -128,13 +141,14 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const isCurrentlyExpanded = prev[section];
-      const newState = { workloads: false, networking: false, configuration: false, scaling: false, others: false };
+      const newState = { 'useful-resources': false, workloads: false, networking: false, configuration: false, scaling: false, others: false };
       newState[section as keyof typeof newState] = !isCurrentlyExpanded;
       return newState;
     });
   };
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
+    { type: 'IAM', icon: UserCheck, label: 'Kube IAM', desc: 'IAM User Management' },
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
@@ -152,6 +166,14 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     item.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.desc.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleAddNode = (type: K8sResourceType) => {
+    if (type === 'IAM') {
+      setKubeIamModalOpen(true);
+      return;
+    }
+    onAddNode(type);
+  };
 
   const onDragStart = (event: React.DragEvent, nodeType: K8sResourceType) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -217,7 +239,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
             items={filteredItems.filter(i => section.filter(i.type))}
             isExpanded={expandedSections[section.id]}
             onToggle={() => toggleSection(section.id)}
-            onAddNode={onAddNode}
+            onAddNode={handleAddNode}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             colorMode={colorMode}
