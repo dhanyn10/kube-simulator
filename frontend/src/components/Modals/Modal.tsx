@@ -1,5 +1,5 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
 
@@ -35,8 +35,12 @@ export const Modal = ({
   compactHeader = true
 }: ModalProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  
-  React.useEffect(() => {
+  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -46,11 +50,34 @@ export const Modal = ({
     return () => globalThis.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    if (contextMenu) {
+      globalThis.addEventListener('click', handleClickOutside);
+      globalThis.addEventListener('contextmenu', handleClickOutside);
+    }
+    return () => {
+      globalThis.removeEventListener('click', handleClickOutside);
+      globalThis.removeEventListener('contextmenu', handleClickOutside);
+    };
+  }, [contextMenu]);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
   if (!isOpen) return null;
 
   return (
     <dialog
       open
+      onContextMenu={handleContextMenu}
       className={cn(
         "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none",
         alignClass
@@ -110,6 +137,56 @@ export const Modal = ({
           </div>
         )}
       </div>
+
+      {/* Unified Context Menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          className={cn(
+            "fixed z-[200] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100",
+            colorMode === 'dark'
+              ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
+              : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              toggleColorMode();
+              setContextMenu(null);
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
+              colorMode === 'dark'
+                ? "hover:bg-slate-800 text-slate-200"
+                : "hover:bg-slate-100 text-slate-700"
+            )}
+          >
+            {colorMode === 'dark' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
+            <span>Change Theme</span>
+          </button>
+
+          <div className={cn("my-1 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")} />
+
+          <button
+            type="button"
+            onClick={() => {
+              setContextMenu(null);
+              onClose();
+            }}
+            className={cn(
+              "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
+              colorMode === 'dark'
+                ? "hover:bg-slate-800"
+                : "hover:bg-slate-100"
+            )}
+          >
+            <X size={14} />
+            <span>Close</span>
+          </button>
+        </div>
+      )}
     </dialog>
   );
 };
