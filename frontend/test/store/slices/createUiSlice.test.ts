@@ -501,4 +501,22 @@ describe('createUiSlice', () => {
     setIsAdminAuthenticated(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
   });
+
+  it('manages Kube IAM users and IAM modal state', () => {
+    const { addIamUser, updateIamUser, deleteIamUser, setIamModalOpen } = useFlowStore.getState();
+
+    setIamModalOpen(true);
+    expect(useFlowStore.getState().isIamModalOpen).toBe(true);
+
+    const newUser = { id: 'u1', username: 'test-user', accessType: 'Full' as const, createdAt: Date.now() };
+    addIamUser(newUser);
+    expect(useFlowStore.getState().iamUsers).toContainEqual(newUser);
+
+    const updatedUser = { ...newUser, accessType: 'Read-Only' as const };
+    updateIamUser(updatedUser);
+    expect(useFlowStore.getState().iamUsers.find((u) => u.id === 'u1')?.accessType).toBe('Read-Only');
+
+    deleteIamUser('u1');
+    expect(useFlowStore.getState().iamUsers.some((u) => u.id === 'u1')).toBe(false);
+  });
 });
