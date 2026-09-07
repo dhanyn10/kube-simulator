@@ -467,13 +467,10 @@ export const KubeIAMModal: React.FC = () => {
                                   if (!isDisabled) togglePolicy(p.name);
                                 }}
                                 className={cn(
-                                  "text-xs transition-colors",
-                                  isDisabled
-                                    ? "opacity-40 cursor-not-allowed bg-slate-900/20"
-                                    : "cursor-pointer",
-                                  !isDisabled && isSelected
+                                  "text-xs transition-colors cursor-pointer",
+                                  isSelected
                                     ? colorMode === 'dark' ? "bg-emerald-500/10 text-slate-200" : "bg-emerald-50 text-slate-900"
-                                    : !isDisabled && (colorMode === 'dark' ? "hover:bg-slate-800/40 text-slate-300" : "hover:bg-slate-50 text-slate-700")
+                                    : colorMode === 'dark' ? "hover:bg-slate-800/40 text-slate-300" : "hover:bg-slate-50 text-slate-700"
                                 )}
                               >
                                 <td className="py-2 px-3 text-center">
@@ -482,7 +479,7 @@ export const KubeIAMModal: React.FC = () => {
                                     checked={isSelected}
                                     disabled={isDisabled}
                                     onChange={() => {}}
-                                    className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+                                    className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
                                   />
                                 </td>
                                 <td className="py-2 px-3 font-semibold text-emerald-400">
