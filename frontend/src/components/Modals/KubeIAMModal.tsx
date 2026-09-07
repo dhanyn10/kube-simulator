@@ -110,12 +110,27 @@ export const KubeIAMModal: React.FC = () => {
     resetWizard();
   };
 
+  const isAdminSelected = selectedPolicies.includes('AdministratorAccess');
+  const isOtherSelected = selectedPolicies.some((p) => p !== 'AdministratorAccess');
+
   const togglePolicy = (policyName: string) => {
-    setSelectedPolicies((prev) =>
-      prev.includes(policyName)
-        ? prev.filter((p) => p !== policyName)
-        : [...prev, policyName]
-    );
+    // If selecting AdministratorAccess, uncheck all others
+    if (policyName === 'AdministratorAccess') {
+      if (isAdminSelected) {
+        setSelectedPolicies([]);
+      } else {
+        setSelectedPolicies(['AdministratorAccess']);
+      }
+      return;
+    }
+
+    // If selecting another policy and AdministratorAccess is selected, replace AdministratorAccess
+    setSelectedPolicies((prev) => {
+      const withoutAdmin = prev.filter((p) => p !== 'AdministratorAccess');
+      return withoutAdmin.includes(policyName)
+        ? withoutAdmin.filter((p) => p !== policyName)
+        : [...withoutAdmin, policyName];
+    });
   };
 
   const filteredUsers = iamUsers.filter((u) =>
@@ -441,23 +456,33 @@ export const KubeIAMModal: React.FC = () => {
                         <tbody className="divide-y divide-slate-700/30">
                           {filteredPolicies.map((p) => {
                             const isSelected = selectedPolicies.includes(p.name);
+                            const isDisabled = p.name === 'AdministratorAccess'
+                              ? isOtherSelected
+                              : isAdminSelected;
+
                             return (
                               <tr
                                 key={p.name}
-                                onClick={() => togglePolicy(p.name)}
+                                onClick={() => {
+                                  if (!isDisabled) togglePolicy(p.name);
+                                }}
                                 className={cn(
-                                  "text-xs cursor-pointer transition-colors",
-                                  isSelected
+                                  "text-xs transition-colors",
+                                  isDisabled
+                                    ? "opacity-40 cursor-not-allowed bg-slate-900/20"
+                                    : "cursor-pointer",
+                                  !isDisabled && isSelected
                                     ? colorMode === 'dark' ? "bg-emerald-500/10 text-slate-200" : "bg-emerald-50 text-slate-900"
-                                    : colorMode === 'dark' ? "hover:bg-slate-800/40 text-slate-300" : "hover:bg-slate-50 text-slate-700"
+                                    : !isDisabled && (colorMode === 'dark' ? "hover:bg-slate-800/40 text-slate-300" : "hover:bg-slate-50 text-slate-700")
                                 )}
                               >
                                 <td className="py-2 px-3 text-center">
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
+                                    disabled={isDisabled}
                                     onChange={() => {}}
-                                    className="rounded accent-emerald-500 cursor-pointer"
+                                    className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
                                   />
                                 </td>
                                 <td className="py-2 px-3 font-semibold text-emerald-400">
