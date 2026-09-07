@@ -563,13 +563,18 @@ export const handleGetRolesCommand = (
   if (!match) return false;
 
   const attached = extractAttachedResources<any>(ctx.nodes, 'roles');
-  const allRoles = attached.map(({ item: r, ownerLabel }) => ({
-    name: r.name,
-    assignedUser: r.assignedUser || 'admin-user',
-    accessLevel: r.accessLevel || 'Full',
-    owner: ownerLabel,
-    rules: r.rules || [],
-  }));
+  const allRoles = attached.map(({ item: r, ownerLabel }) => {
+    const users = r.assignedUsers && r.assignedUsers.length > 0
+      ? r.assignedUsers.join(', ')
+      : (r.assignedUser || 'admin-user');
+    return {
+      name: r.name,
+      assignedUsers: users,
+      accessLevel: r.accessLevel || 'Full',
+      owner: ownerLabel,
+      rules: r.rules || [],
+    };
+  });
 
   const resType = match[1].toLowerCase();
   if (resType.startsWith('rolebinding')) {
@@ -577,10 +582,10 @@ export const handleGetRolesCommand = (
       ctx.addActivityLog('No rolebindings found on the canvas.');
       return true;
     }
-    ctx.addActivityLog(`${"NAME".padEnd(30)} ROLE                  SUBJECT (IAM USER)    AGE`);
+    ctx.addActivityLog(`${"NAME".padEnd(30)} ROLE                  SUBJECTS (IAM USERS)  AGE`);
     allRoles.forEach((r) => {
       const bindingName = r.name + '-binding';
-      ctx.addActivityLog(`${String(bindingName).padEnd(30)} ${String(r.name).padEnd(21)} User/${r.assignedUser.padEnd(20)} 2m`);
+      ctx.addActivityLog(`${String(bindingName).padEnd(30)} ${String(r.name).padEnd(21)} User/${r.assignedUsers.padEnd(20)} 2m`);
     });
     return true;
   }
@@ -589,9 +594,9 @@ export const handleGetRolesCommand = (
     ctx.addActivityLog('No roles found on the canvas.');
     return true;
   }
-  ctx.addActivityLog(`${"NAME".padEnd(30)} ASSIGNED IAM USER    ACCESS LEVEL   ATTACHED TO           CREATED AT`);
+  ctx.addActivityLog(`${"NAME".padEnd(30)} ASSIGNED IAM USERS   ACCESS LEVEL   ATTACHED TO           CREATED AT`);
   allRoles.forEach((r) => {
-    ctx.addActivityLog(`${String(r.name).padEnd(30)} ${String(r.assignedUser).padEnd(20)} ${String(r.accessLevel).padEnd(14)} ${String(r.owner).padEnd(21)} 2m ago`);
+    ctx.addActivityLog(`${String(r.name).padEnd(30)} ${String(r.assignedUsers).padEnd(20)} ${String(r.accessLevel).padEnd(14)} ${String(r.owner).padEnd(21)} 2m ago`);
   });
   return true;
 };
@@ -604,15 +609,18 @@ export const handleDescribeRoleCommand = (
   if (!match) return false;
 
   const targetName = match[2].toLowerCase();
-  let foundRole: { name: string; assignedUser: string; accessLevel: string; owner: string; rules: any[] } | null = null;
+  let foundRole: { name: string; assignedUsers: string; accessLevel: string; owner: string; rules: any[] } | null = null;
 
   ctx.nodes.forEach((n) => {
     if (Array.isArray(n.data?.roles)) {
       n.data.roles.forEach((r: any) => {
         if (r.name.toLowerCase() === targetName || r.id?.toLowerCase() === targetName) {
+          const users = r.assignedUsers && r.assignedUsers.length > 0
+            ? r.assignedUsers.join(', ')
+            : (r.assignedUser || 'admin-user');
           foundRole = {
             name: r.name,
-            assignedUser: r.assignedUser || 'admin-user',
+            assignedUsers: users,
             accessLevel: r.accessLevel || 'Full',
             owner: n.data?.label || n.id,
             rules: r.rules || [],
@@ -623,12 +631,12 @@ export const handleDescribeRoleCommand = (
   });
 
   if (foundRole) {
-    const role = foundRole as { name: string; assignedUser: string; accessLevel: string; owner: string; rules: any[] };
-    ctx.addActivityLog(`Name:         ${role.name}`);
-    ctx.addActivityLog(`Namespace:    default`);
-    ctx.addActivityLog(`Assigned User:${role.assignedUser} (IAM User)`);
-    ctx.addActivityLog(`Access Level: ${role.accessLevel}`);
-    ctx.addActivityLog(`Attached To:  ${role.owner}`);
+    const role = foundRole as { name: string; assignedUsers: string; accessLevel: string; owner: string; rules: any[] };
+    ctx.addActivityLog(`Name:           ${role.name}`);
+    ctx.addActivityLog(`Namespace:      default`);
+    ctx.addActivityLog(`Assigned Users: ${role.assignedUsers} (IAM Users)`);
+    ctx.addActivityLog(`Access Level:   ${role.accessLevel}`);
+    ctx.addActivityLog(`Attached To:    ${role.owner}`);
     ctx.addActivityLog(`PolicyRule:`);
     ctx.addActivityLog(`  Resources  Group  Verbs`);
     ctx.addActivityLog(`  ---------  -----  -----`);

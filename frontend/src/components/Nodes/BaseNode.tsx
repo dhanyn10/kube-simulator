@@ -163,15 +163,20 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
 
         {((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0) && (
           <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-slate-500/20">
-            {data.roles?.map((role: any) => (
-              <span
-                key={role.id || role.name}
-                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
-                title={`Role: ${role.name} (${role.assignedUser || 'admin-user'} - ${role.accessLevel || 'Full'})`}
-              >
-                <Shield size={11} />
-              </span>
-            ))}
+            {data.roles?.map((role: any) => {
+              const usersText = role.assignedUsers && role.assignedUsers.length > 0
+                ? role.assignedUsers.join(', ')
+                : (role.assignedUser || 'admin-user');
+              return (
+                <span
+                  key={role.id || role.name}
+                  className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+                  title={`Role: ${role.name} (${usersText} - ${role.accessLevel || 'Full'})`}
+                >
+                  <Shield size={11} />
+                </span>
+              );
+            })}
             {data.configMaps?.map((cm: any) => (
               <span
                 key={cm.id || cm.name}

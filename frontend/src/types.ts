@@ -18,6 +18,7 @@ export interface K8sRoleItem {
   id: string;
   name: string;
   assignedUser?: string;
+  assignedUsers?: string[];
   accessLevel?: 'Full' | 'Read-Only' | 'Custom';
   rules: K8sRoleRule[];
 }

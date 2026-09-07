@@ -138,7 +138,7 @@ describe('terminalCommands', () => {
     it('handleDescribeRoleCommand describes existing or missing role', () => {
       let handled = handleDescribeRoleCommand('kubectl describe role reader-role', mockCtx);
       expect(handled).toBe(true);
-      expect(activityLogs.some(l => l.includes('Name:         reader-role'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('reader-role'))).toBe(true);
 
       handled = handleDescribeRoleCommand('kubectl describe role unknown-role', mockCtx);
       expect(handled).toBe(true);

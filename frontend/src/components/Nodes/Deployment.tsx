@@ -124,15 +124,20 @@ export const DeploymentNode = memo((props: NodeProps) => {
       <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
         {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
           <div className="flex items-center gap-1 mb-1 px-2 py-1 rounded-md bg-indigo-950/40 border border-indigo-500/30 shadow-sm">
-            {data.roles?.map((role: any) => (
-              <span
-                key={role.id || role.name}
-                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
-                title={`Role: ${role.name} (${role.assignedUser || 'admin-user'} - ${role.accessLevel || 'Full'})`}
-              >
-                <Shield size={12} />
-              </span>
-            ))}
+            {data.roles?.map((role: any) => {
+              const usersText = role.assignedUsers && role.assignedUsers.length > 0
+                ? role.assignedUsers.join(', ')
+                : (role.assignedUser || 'admin-user');
+              return (
+                <span
+                  key={role.id || role.name}
+                  className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
+                  title={`Role: ${role.name} (${usersText} - ${role.accessLevel || 'Full'})`}
+                >
+                  <Shield size={12} />
+                </span>
+              );
+            })}
             {data.configMaps?.map((cm: any) => (
               <span
                 key={cm.id || cm.name}

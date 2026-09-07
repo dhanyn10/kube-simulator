@@ -456,7 +456,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   const setIamModalOpen = useFlowStore((state) => state.setIamModalOpen);
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
-  const [assignedUser, setAssignedUser] = useState<string>('');
+  const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
   const [accessLevel, setAccessLevel] = useState<'Full' | 'Read-Only' | 'Custom'>('Full');
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
@@ -467,15 +467,18 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   ]);
 
   useEffect(() => {
-    if (iamUsers.length > 0 && !assignedUser) {
-      setAssignedUser(iamUsers[0].username);
+    if (iamUsers.length > 0 && assignedUsers.length === 0) {
+      setAssignedUsers([iamUsers[0].username]);
     }
-  }, [iamUsers, assignedUser]);
+  }, [iamUsers, assignedUsers]);
 
   useEffect(() => {
     if (initialRole) {
       setRoleName(initialRole.name || 'app-reader-role');
-      setAssignedUser(initialRole.assignedUser || (iamUsers[0]?.username || 'admin-user'));
+      const initialUsers = initialRole.assignedUsers && initialRole.assignedUsers.length > 0
+        ? initialRole.assignedUsers
+        : (initialRole.assignedUser ? [initialRole.assignedUser] : (iamUsers[0] ? [iamUsers[0].username] : ['admin-user']));
+      setAssignedUsers(initialUsers);
       setAccessLevel(initialRole.accessLevel || 'Full');
       setRules(initialRole.rules && initialRole.rules.length > 0 ? initialRole.rules : [
         { apiGroups: ['*'], resources: ['*'], verbs: ['*'] }
@@ -487,7 +490,10 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setRoleName(`role-${randomSuffix}`);
-      setAssignedUser(iamUsers[0]?.username || 'admin-user');
+
+      // Auto-select users with Full Access preset by default
+      const fullUsers = iamUsers.filter((u) => u.accessType === 'Full').map((u) => u.username);
+      setAssignedUsers(fullUsers.length > 0 ? fullUsers : (iamUsers[0] ? [iamUsers[0].username] : ['admin-user']));
       setAccessLevel('Custom');
       setRules([
         {
@@ -499,8 +505,21 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     }
   }, [initialRole, isOpen, targetNodeId, nodes, iamUsers]);
 
+  const toggleUserSelection = (uname: string) => {
+    setAssignedUsers((prev) =>
+      prev.includes(uname) ? prev.filter((u) => u !== uname) : [...prev, uname]
+    );
+  };
+
   const handlePresetSelect = (preset: 'Full' | 'Read-Only' | 'Custom') => {
     setAccessLevel(preset);
+
+    // Auto-select IAM users that match this access level preset
+    const matchingUsers = iamUsers.filter((u) => u.accessType === preset).map((u) => u.username);
+    if (matchingUsers.length > 0) {
+      setAssignedUsers(matchingUsers);
+    }
+
     if (preset === 'Full') {
       setRules([{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }]);
     } else if (preset === 'Read-Only') {
@@ -539,10 +558,12 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   };
 
   const handleSave = () => {
+    const finalUsers = assignedUsers.length > 0 ? assignedUsers : [iamUsers[0]?.username || 'admin-user'];
     const roleItem: K8sRoleItem = {
       id: initialRole?.id || `role-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(roleName) || 'unnamed-role',
-      assignedUser: assignedUser || iamUsers[0]?.username || 'admin-user',
+      assignedUser: finalUsers[0],
+      assignedUsers: finalUsers,
       accessLevel,
       rules: rules.length > 0 ? rules : [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }],
     };
@@ -587,11 +608,11 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       footer={footer}
     >
       <div className="space-y-4">
-        {/* Assigned IAM User Selection */}
+        {/* Multi-Select Assigned IAM Users */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label htmlFor="role-assigned-user" className="text-xs font-semibold text-slate-400">
-              Assigned IAM Account / User *
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-slate-400">
+              Assigned IAM Accounts / Users (Multiple Select) *
             </label>
             <button
               type="button"
@@ -601,23 +622,42 @@ export const RoleModal: React.FC<RoleModalProps> = ({
               + Manage Kube IAM Users
             </button>
           </div>
-          <select
-            id="role-assigned-user"
-            value={assignedUser}
-            onChange={(e) => setAssignedUser(e.target.value)}
+
+          <div
             className={cn(
-              "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer",
-              colorMode === 'dark'
-                ? "bg-slate-950 border-slate-800 text-slate-100"
-                : "bg-slate-50 border-slate-300 text-slate-900"
+              "p-2.5 rounded-lg border min-h-[44px] flex flex-wrap items-center gap-1.5 transition-all",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-300"
             )}
           >
-            {iamUsers.map((u) => (
-              <option key={u.id} value={u.username}>
-                {u.username} ({u.accessType || 'Full'} Access)
-              </option>
-            ))}
-          </select>
+            {iamUsers.map((u) => {
+              const isSelected = assignedUsers.includes(u.username);
+              return (
+                <button
+                  type="button"
+                  key={u.id}
+                  onClick={() => toggleUserSelection(u.username)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md text-xs font-mono font-semibold flex items-center gap-1.5 border transition-all cursor-pointer",
+                    isSelected
+                      ? "bg-blue-600/30 text-blue-200 border-blue-500 shadow-sm"
+                      : colorMode === 'dark'
+                      ? "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <span>{u.username}</span>
+                  <span className="text-[9px] opacity-70">({u.accessType || 'Full'})</span>
+                  {isSelected && <X size={12} className="text-blue-400 hover:text-blue-200" />}
+                </button>
+              );
+            })}
+
+            {iamUsers.length === 0 && (
+              <span className="text-xs text-slate-500 font-mono italic">
+                No IAM Users created yet. Click "+ Manage Kube IAM Users" to create accounts.
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Access Level Presets */}

@@ -36,24 +36,29 @@ export const RoleListModal: React.FC<RoleListModalProps> = ({
       emptyText="No roles attached to this node."
       addLabel="Add Role"
       itemTypeName="Role"
-      renderItemDetails={(role) => (
-        <div className="text-[11px] text-slate-400 font-mono space-y-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-blue-400 font-bold">User: {role.assignedUser || 'admin-user'}</span>
-            <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              {role.accessLevel || 'Full'} Access
-            </span>
-          </div>
-          {role.rules && role.rules.length > 0 ? (
-            <div>
-              {role.rules.length} rule{role.rules.length > 1 ? 's' : ''} (
-              {role.rules.map((r) => r.resources.join(', ')).join('; ')})
+      renderItemDetails={(role) => {
+        const usersText = role.assignedUsers && role.assignedUsers.length > 0
+          ? role.assignedUsers.join(', ')
+          : (role.assignedUser || 'admin-user');
+        return (
+          <div className="text-[11px] text-slate-400 font-mono space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-400 font-bold">Users: {usersText}</span>
+              <span className="px-1.5 py-0.2 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {role.accessLevel || 'Full'} Access
+              </span>
             </div>
-          ) : (
-            <div>No rules defined</div>
-          )}
-        </div>
-      )}
+            {role.rules && role.rules.length > 0 ? (
+              <div>
+                {role.rules.length} rule{role.rules.length > 1 ? 's' : ''} (
+                {role.rules.map((r) => r.resources.join(', ')).join('; ')})
+              </div>
+            ) : (
+              <div>No rules defined</div>
+            )}
+          </div>
+        );
+      }}
       onEditItem={onEditRole}
       onDeleteItem={onDeleteRole}
       onAddNewItem={onAddNewRole}
