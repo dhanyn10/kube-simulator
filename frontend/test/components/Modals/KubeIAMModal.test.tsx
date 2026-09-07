@@ -28,7 +28,7 @@ describe('KubeIAMModal', () => {
 
   it('renders correctly when open and lists active IAM users', () => {
     render(<KubeIAMModal isOpen={true} onClose={vi.fn()} />);
-    expect(screen.getByText('AWS IAM Management (Kube IAM)')).toBeDefined();
+    expect(screen.getByText('Kube IAM Management')).toBeDefined();
     expect(screen.getByText('admin-user')).toBeDefined();
     expect(screen.getByText('AdministratorAccess')).toBeDefined();
   });

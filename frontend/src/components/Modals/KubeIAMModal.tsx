@@ -14,19 +14,19 @@ const PRESET_IAM_ROLES: AutocompleteSuggestion[] = [
   {
     label: 'AdministratorAccess',
     value: 'AdministratorAccess',
-    category: 'AWS Managed',
+    category: 'System Policy',
     description: 'Provides full access to Kubernetes cluster resources and services.',
   },
   {
     label: 'ReadOnlyAccess',
     value: 'ReadOnlyAccess',
-    category: 'AWS Managed',
+    category: 'System Policy',
     description: 'Provides read-only access to view workloads and configurations.',
   },
   {
     label: 'PowerUserAccess',
     value: 'PowerUserAccess',
-    category: 'AWS Managed',
+    category: 'System Policy',
     description: 'Provides full access except user management and administrative controls.',
   },
   {
@@ -106,7 +106,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
     <div className="flex items-center justify-between">
       <div className="text-[11px] text-amber-500 font-mono flex items-center gap-1.5">
         <Shield size={13} />
-        <span>AWS IAM Simulator Integration</span>
+        <span>Kube IAM Integration</span>
       </div>
       <div className="flex items-center gap-2">
         <button
@@ -139,7 +139,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="AWS IAM Management (Kube IAM)"
+      title="Kube IAM Management"
       subtitle="Identity & Access Management for Kubernetes Clusters"
       icon={Key}
       iconColorClass="text-amber-400"
@@ -206,7 +206,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs font-bold text-amber-400">{user.username}</span>
-                        <span className="text-[10px] font-mono text-slate-500">arn:aws:iam::{user.accountId}:user/{user.username}</span>
+                        <span className="text-[10px] font-mono text-slate-500">iam::{user.accountId}:user/{user.username}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {user.attachedPolicies.map((pol) => (
@@ -257,7 +257,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
                   />
                 </div>
                 <div>
-                  <label htmlFor="iam-account-input" className="block text-xs text-slate-400 mb-1">AWS Account ID</label>
+                  <label htmlFor="iam-account-input" className="block text-xs text-slate-400 mb-1">Account ID</label>
                   <input
                     id="iam-account-input"
                     type="text"
@@ -337,7 +337,7 @@ export const KubeIAMModal: React.FC<KubeIAMModalProps> = ({ isOpen, onClose }) =
             <div className={cn("p-3 rounded-xl border space-y-1.5", colorMode === 'dark' ? "bg-slate-950/50 border-slate-800" : "bg-slate-100/60 border-slate-200")}>
               <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
                 <CheckCircle size={14} />
-                <span>AWS IAM Summary</span>
+                <span>Kube IAM Summary</span>
               </div>
               <p className="text-[11px] text-slate-400">
                 Creating user <span className="font-mono text-amber-300">{usernameInput || '(unnamed)'}</span> under account <span className="font-mono text-slate-300">{accountIdInput || '123456789012'}</span> with {selectedPolicies.length} attached policy rules.

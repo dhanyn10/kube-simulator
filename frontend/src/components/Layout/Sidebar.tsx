@@ -148,7 +148,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   };
 
   const items: { type: string; icon: any; label: string; desc: string }[] = [
-    { type: 'IAM', icon: Key, label: 'Kube IAM', desc: 'AWS IAM Roles & Users' },
+    { type: 'IAM', icon: Key, label: 'Kube IAM', desc: 'IAM Roles & Users' },
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
