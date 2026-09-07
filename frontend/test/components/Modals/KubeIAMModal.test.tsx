@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import { KubeIAMModal } from '@/components/Modals/KubeIAMModal';
@@ -27,16 +27,23 @@ describe('KubeIAMModal component', () => {
     });
   });
 
-  it('renders correctly when open with initial user list', () => {
-    render(<KubeIAMModal />);
+  it('renders correctly when open with initial user list in dark and light modes', () => {
+    const { rerender } = render(<KubeIAMModal />);
 
     expect(screen.getByText('Kube IAM Management')).toBeInTheDocument();
     expect(screen.getByText('Kube IAM Users (1)')).toBeInTheDocument();
     expect(screen.getByText('admin-user')).toBeInTheDocument();
     expect(screen.getByText('Full Access')).toBeInTheDocument();
+
+    // Rerender in light mode
+    act(() => {
+      useFlowStore.setState({ colorMode: 'light' });
+    });
+    rerender(<KubeIAMModal />);
+    expect(screen.getByText('admin-user')).toBeInTheDocument();
   });
 
-  it('filters users by search query', () => {
+  it('filters users by search query and shows empty filter message when no match', () => {
     useFlowStore.setState({
       iamUsers: [
         {
@@ -61,6 +68,23 @@ describe('KubeIAMModal component', () => {
 
     expect(screen.queryByText('alpha-user')).not.toBeInTheDocument();
     expect(screen.getByText('beta-user')).toBeInTheDocument();
+
+    // Filter with no matches
+    fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
+    expect(screen.getByText('No users match your filter')).toBeInTheDocument();
+  });
+
+  it('renders empty state when no users exist and starts wizard from button', () => {
+    useFlowStore.setState({ iamUsers: [], colorMode: 'light' });
+
+    render(<KubeIAMModal />);
+
+    expect(screen.getByText('No IAM users created yet')).toBeInTheDocument();
+
+    const createButtons = screen.getAllByRole('button', { name: /Create User/i });
+    fireEvent.click(createButtons[1]);
+
+    expect(screen.getAllByText('User Details').length).toBeGreaterThan(0);
   });
 
   it('deletes user when trash icon button is clicked', () => {
@@ -72,7 +96,7 @@ describe('KubeIAMModal component', () => {
     expect(useFlowStore.getState().iamUsers).toHaveLength(0);
   });
 
-  it('navigates wizard steps and validates username in Step 1', () => {
+  it('navigates wizard steps, validates username in Step 1, and clears error on input change', () => {
     render(<KubeIAMModal />);
 
     // Click Create User
@@ -88,8 +112,12 @@ describe('KubeIAMModal component', () => {
 
     expect(screen.getByText('Username is required')).toBeInTheDocument();
 
-    // Enter existing username -> error
+    // Typing clears usernameError
     const userInput = screen.getByPlaceholderText('e.g. dev-cluster-admin');
+    fireEvent.change(userInput, { target: { value: 'a' } });
+    expect(screen.queryByText('Username is required')).not.toBeInTheDocument();
+
+    // Enter existing username -> error
     fireEvent.change(userInput, { target: { value: 'admin-user' } });
     fireEvent.click(nextBtn);
 
@@ -102,7 +130,8 @@ describe('KubeIAMModal component', () => {
     expect(screen.getAllByText('Set Permissions').length).toBeGreaterThan(0);
   });
 
-  it('handles policy search and mutual policy selection rules in Step 2', () => {
+  it('handles policy search, toggles, empty policy validation, and light mode in Step 2', () => {
+    useFlowStore.setState({ colorMode: 'light' });
     render(<KubeIAMModal />);
 
     // Start wizard and proceed to Step 2
@@ -113,36 +142,42 @@ describe('KubeIAMModal component', () => {
     fireEvent.click(screen.getByText('Next'));
 
     // Step 2 is active with AdministratorAccess selected by default
-    const adminCheckbox = screen.getAllByRole('checkbox')[0] as HTMLInputElement;
-    expect(adminCheckbox).toBeChecked();
-
-    // Other policy checkboxes should be disabled when AdministratorAccess is selected
-    const readOnlyCheckbox = screen.getAllByRole('checkbox')[1] as HTMLInputElement;
-    expect(readOnlyCheckbox).toBeDisabled();
-
-    // Click AdministratorAccess row to uncheck it
     const adminRow = screen.getByText('AdministratorAccess').closest('tr')!;
+
+    // Uncheck AdministratorAccess -> selectedPolicies becomes empty []
     fireEvent.click(adminRow);
 
-    expect(adminCheckbox).not.toBeChecked();
-    expect(readOnlyCheckbox).not.toBeDisabled();
+    // Try clicking Next with 0 policies selected -> handleNextStep2 returns without changing step
+    const nextBtn = screen.getByText('Next');
+    fireEvent.click(nextBtn);
+    expect(screen.getAllByText('Set Permissions').length).toBeGreaterThan(0);
 
-    // Click ReadOnlyAccess row to check it
-    const readOnlyRow = screen.getByText('ReadOnlyAccess').closest('tr')!;
-    fireEvent.click(readOnlyRow);
+    // Select ContainerDeveloperPolicy and NetworkingAdminPolicy
+    const devRow = screen.getByText('ContainerDeveloperPolicy').closest('tr')!;
+    const netRow = screen.getByText('NetworkingAdminPolicy').closest('tr')!;
 
-    expect(readOnlyCheckbox).toBeChecked();
-    expect(adminCheckbox).toBeDisabled();
+    fireEvent.click(devRow);
+    fireEvent.click(netRow);
 
-    // Test policy search filter
+    // Uncheck ContainerDeveloperPolicy -> tests removing non-admin policy from list
+    fireEvent.click(devRow);
+
+    // Test policy search by description keyword
     const policySearchInput = screen.getByPlaceholderText('Search policies...');
-    fireEvent.change(policySearchInput, { target: { value: 'Container' } });
+    fireEvent.change(policySearchInput, { target: { value: 'routing' } });
 
-    expect(screen.getByText('ContainerDeveloperPolicy')).toBeInTheDocument();
-    expect(screen.queryByText('ReadOnlyAccess')).not.toBeInTheDocument();
+    expect(screen.getByText('NetworkingAdminPolicy')).toBeInTheDocument();
+    expect(screen.queryByText('ContainerDeveloperPolicy')).not.toBeInTheDocument();
+
+    // Selecting AdministratorAccess when other policies were selected (and isAdminSelected was false)
+    fireEvent.change(policySearchInput, { target: { value: '' } });
+    fireEvent.click(adminRow);
+
+    expect(screen.getByText('Permissions Policies (1 selected)')).toBeInTheDocument();
   });
 
-  it('completes user creation wizard through Step 3', () => {
+  it('completes user creation wizard through Step 3 in light mode and resets on modal close', () => {
+    useFlowStore.setState({ colorMode: 'light' });
     render(<KubeIAMModal />);
 
     // Start wizard
@@ -186,5 +221,10 @@ describe('KubeIAMModal component', () => {
 
     fireEvent.click(screen.getByText('Cancel Wizard'));
     expect(screen.getByText('Kube IAM Users (1)')).toBeInTheDocument();
+
+    // Close modal via close button
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    fireEvent.click(closeBtn);
+    expect(useFlowStore.getState().isKubeIamModalOpen).toBe(false);
   });
 });

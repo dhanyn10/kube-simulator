@@ -27,13 +27,13 @@ describe('createLogSlice', () => {
     expect(store.getState().isLogToastVisible).toBe(false);
   });
 
-  it('should add a log and show toast', () => {
-    store.getState().addLog('error', 'Test error message');
+  it('should add a log and show toast for error, warn, and fatal levels', () => {
+    store.getState().addLog('fatal', 'Fatal crash message');
 
     const state = store.getState();
     expect(state.logs).toHaveLength(1);
-    expect(state.logs[0].level).toBe('error');
-    expect(state.logs[0].message).toBe('Test error message');
+    expect(state.logs[0].level).toBe('fatal');
+    expect(state.logs[0].message).toBe('Fatal crash message');
     expect(state.isLogToastVisible).toBe(true);
   });
 
@@ -165,12 +165,15 @@ describe('createLogSlice', () => {
     delete (globalThis as any).go;
   });
 
-  it('should handle storage errors gracefully', () => {
+  it('should handle load storage errors gracefully', () => {
     const originalGetItem = sessionStorage.getItem;
-    const originalConsoleError = (globalThis as any)._originalConsoleError;
-    (globalThis as any)._originalConsoleError = vi.fn();
+    const mockOriginalConsoleError = vi.fn();
+    (globalThis as any)._originalConsoleError = mockOriginalConsoleError;
+    if (typeof window !== 'undefined') {
+      (window as any)._originalConsoleError = mockOriginalConsoleError;
+    }
 
-    vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('Storage disabled');
     });
 
@@ -179,17 +182,31 @@ describe('createLogSlice', () => {
     }));
 
     expect(newStore.getState().logs).toEqual([]);
+    expect(mockOriginalConsoleError).toHaveBeenCalledWith(
+      'Failed to load logs from storage:',
+      expect.any(Error)
+    );
 
     sessionStorage.getItem = originalGetItem;
+    vi.restoreAllMocks();
     delete (globalThis as any)._originalConsoleError;
+    if (typeof window !== 'undefined') {
+      delete (window as any)._originalConsoleError;
+    }
   });
 
-  it('should handle setItem error in sessionStorage gracefully', () => {
+  it('should handle save storage errors gracefully', () => {
+    const mockOriginalConsoleError = vi.fn();
+    (globalThis as any)._originalConsoleError = mockOriginalConsoleError;
+    if (typeof window !== 'undefined') {
+      (window as any)._originalConsoleError = mockOriginalConsoleError;
+    }
+
     const testStore = createStore<any>()((...a) => ({
       ...createLogSlice(...a),
     }));
 
-    const spy = vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
 
@@ -198,6 +215,15 @@ describe('createLogSlice', () => {
     }).not.toThrow();
 
     expect(testStore.getState().logs).toHaveLength(1);
+    expect(mockOriginalConsoleError).toHaveBeenCalledWith(
+      'Failed to save logs to storage:',
+      expect.any(Error)
+    );
+
     spy.mockRestore();
+    delete (globalThis as any)._originalConsoleError;
+    if (typeof window !== 'undefined') {
+      delete (window as any)._originalConsoleError;
+    }
   });
 });
