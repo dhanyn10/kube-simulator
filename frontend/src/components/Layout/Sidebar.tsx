@@ -52,6 +52,8 @@ const SidebarSection = ({
   onDragEnd: () => void;
   colorMode: string;
 }) => {
+  const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
+
   if (items.length === 0) return null;
 
   return (
@@ -86,12 +88,15 @@ const SidebarSection = ({
                 }
               }}
               onDragStart={(event) => {
-                if (type !== 'IAM') {
+                if (type === 'IAM') {
+                  event.preventDefault();
+                  setKubeIamModalOpen(true);
+                } else {
                   onDragStart(event, type as K8sResourceType);
                 }
               }}
               onDragEnd={onDragEnd}
-              draggable={type !== 'IAM'}
+              draggable
               className={cn(
                 "sidebar-item-card group",
                 type === 'IAM' ? "border-l-amber-500 hover:border-amber-500" : (style?.border || "border-l-slate-500"),
