@@ -1,4 +1,18 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
+
+export interface KubeIAMPolicy {
+  name: string;
+  type: 'Default' | 'Custom';
+  description: string;
+}
+
+export interface KubeIAMUser {
+  id: string;
+  username: string;
+  accessType: 'Full Access' | 'Managed Access';
+  policies: KubeIAMPolicy[];
+  createdAt: number;
+}
 
 export interface K8sRoleRule {
   apiGroups: string[];
