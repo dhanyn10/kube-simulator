@@ -51,54 +51,72 @@ describe('ResourceManager', () => {
     });
   });
 
-  it('renders and fetches projects on open', async () => {
+  it('returns null when isOpen is false', () => {
+    const { container } = render(<ResourceManager isOpen={false} onClose={() => {}} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders and fetches projects on open in dark and light modes', async () => {
     mockGetProjects.mockResolvedValueOnce([{ id: 1, name: 'Project 1', updatedAt: Date.now() / 1000 }]);
 
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    const { rerender } = render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     await waitFor(() => {
       expect(screen.getByText('Project 1')).toBeDefined();
     });
     expect(mockGetProjects).toHaveBeenCalled();
+
+    // Rerender in light mode
+    act(() => {
+      useFlowStore.setState({ colorMode: 'light' });
+    });
+    rerender(<ResourceManager isOpen={true} onClose={() => {}} />);
+    expect(screen.getByText('Project 1')).toBeDefined();
   });
 
-  it('handles saving a new project', async () => {
+  it('handles saving a new project and handles empty project name', async () => {
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
+
+    const saveButton = screen.getByText('Save New');
+    // Save with empty input -> returns early
     await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+      fireEvent.click(saveButton);
     });
+    expect(mockSaveProject).not.toHaveBeenCalled();
 
     const input = screen.getByPlaceholderText('Enter new architecture name...');
     fireEvent.change(input, { target: { value: 'My New Project' } });
 
-    const saveButton = screen.getByText('Save New');
     await act(async () => {
-        fireEvent.click(saveButton);
+      fireEvent.click(saveButton);
     });
 
     expect(mockSaveProject).toHaveBeenCalledWith('My New Project', expect.any(String));
   });
 
-  it('handles loading a project', async () => {
+  it('handles loading a project and handles empty project content gracefully', async () => {
     const project = { id: 1, name: 'Project 1', content: JSON.stringify({ nodes: [], edges: [] }), updatedAt: Date.now() / 1000 };
     mockGetProjects.mockResolvedValue([project]);
     mockLoadProject.mockResolvedValue(project);
 
     const onClose = vi.fn();
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={onClose} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={onClose} />);
 
     await waitFor(() => screen.getByText('Open'));
     const openButton = screen.getByText('Open');
 
     await act(async () => {
-        fireEvent.click(openButton);
+      fireEvent.click(openButton);
     });
 
     expect(mockLoadProject).toHaveBeenCalledWith(1);
     expect(onClose).toHaveBeenCalled();
+
+    // Test load returning null/falsy content
+    mockLoadProject.mockResolvedValueOnce(null);
+    await act(async () => {
+      render(<ResourceManager isOpen={true} onClose={onClose} />);
+    });
   });
 
   it('handles active project without changes (no Update button) and updating active project with changes', async () => {
@@ -115,7 +133,6 @@ describe('ResourceManager', () => {
     const { rerender } = render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     await waitFor(() => screen.getByText('Project 1'));
-    // Active project with no changes should NOT display the Update button
     expect(screen.queryByText('Update')).toBeNull();
 
     // Now introduce changes so hasChanges becomes true
@@ -144,9 +161,7 @@ describe('ResourceManager', () => {
     });
     mockGetProjects.mockResolvedValue([project]);
 
-    await act(async () => {
-      render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     await waitFor(() => screen.getByText('Project 1'));
     expect(screen.queryByText('Overwrite')).toBeNull();
@@ -155,15 +170,13 @@ describe('ResourceManager', () => {
   it('handles updating an active project and overwrite confirmation flow', async () => {
     const project = { id: 1, name: 'Project 1', content: JSON.stringify({ nodes: [{ id: 'n2' }], edges: [] }), updatedAt: Date.now()/1000 };
     useFlowStore.setState({
-        currentProject: { id: 2, name: 'Project 2' },
-        nodes: [{ id: 'n1', type: 'Pod', data: {} } as any],
-        lastSavedSnapshot: JSON.stringify({ nodes: [], edges: [] })
+      currentProject: { id: 2, name: 'Project 2' },
+      nodes: [{ id: 'n1', type: 'Pod', data: {} } as any],
+      lastSavedSnapshot: JSON.stringify({ nodes: [], edges: [] })
     });
     mockGetProjects.mockResolvedValue([project]);
 
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     await waitFor(() => screen.getByText('Overwrite'));
     fireEvent.click(screen.getByText('Overwrite'));
@@ -181,43 +194,44 @@ describe('ResourceManager', () => {
   });
 
   it('filters sidebar tabs using search input', async () => {
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     const searchInput = screen.getByPlaceholderText('Search tabs...');
     fireEvent.change(searchInput, { target: { value: 'Docker' } });
 
-    expect(screen.getByText('Docker Hub Registry')).toBeDefined();
+    expect(screen.getAllByText('Docker Hub Registry').length).toBeGreaterThan(0);
     expect(screen.queryByText('Saved Architectures')).toBeNull();
 
     fireEvent.change(searchInput, { target: { value: 'NonexistentTab' } });
     expect(screen.getByText('No categories found')).toBeDefined();
   });
 
-  it('handles deleting a project', async () => {
+  it('handles deleting a project and resets current project if active project deleted', async () => {
     mockGetProjects.mockResolvedValue([{ id: 1, name: 'Project 1', updatedAt: Date.now() / 1000 }]);
-
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
+    useFlowStore.setState({
+      currentProject: { id: 1, name: 'Project 1' },
+      lastSavedSnapshot: 'content',
     });
+
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     await waitFor(() => screen.getByTitle('Delete project'));
     const deleteButton = screen.getByTitle('Delete project');
 
     await act(async () => {
-        fireEvent.click(deleteButton);
+      fireEvent.click(deleteButton);
     });
 
     expect(mockDeleteProject).toHaveBeenCalledWith(1);
+    expect(useFlowStore.getState().currentProject).toBeNull();
+    expect(useFlowStore.getState().lastSavedSnapshot).toBeNull();
   });
 
-  it('switches between tabs', async () => {
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+  it('switches between tabs in light and dark modes', async () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Search Docker Hub...')).toBeDefined();
     });
@@ -226,17 +240,20 @@ describe('ResourceManager', () => {
     expect(screen.getByText('Local & Private Images')).toBeDefined();
   });
 
-  it('manages custom images', async () => {
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+  it('manages custom images and prevents empty custom image submission', async () => {
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
     fireEvent.click(screen.getByText('Local & Custom Images'));
+
+    const addButton = screen.getByText('Add Image');
+    // Clicking add with empty input
+    fireEvent.click(addButton);
+    expect(useFlowStore.getState().customImages).toHaveLength(0);
 
     const input = screen.getByPlaceholderText(/e.g. my-app/);
     fireEvent.change(input, { target: { value: 'custom-img:v1' } });
 
-    fireEvent.click(screen.getByText('Add Image'));
+    fireEvent.click(addButton);
 
     expect(useFlowStore.getState().customImages).toContain('custom-img:v1');
 
@@ -246,13 +263,13 @@ describe('ResourceManager', () => {
     expect(useFlowStore.getState().customImages).not.toContain('custom-img:v1');
   });
 
-  it('filters docker images', async () => {
+  it('filters docker images and handles null/empty API responses', async () => {
     vi.useFakeTimers();
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    (globalThis as any).go.main.App.FetchDockerHubPopular = vi.fn().mockResolvedValue(null);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
+
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await act(async () => {
       vi.advanceTimersByTime(400);
@@ -260,8 +277,10 @@ describe('ResourceManager', () => {
 
     const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
 
+    (globalThis as any).go.main.App.SearchDockerHub = vi.fn().mockResolvedValue(null);
+
     await act(async () => {
-        fireEvent.change(searchInput, { target: { value: 'nginx' } });
+      fireEvent.change(searchInput, { target: { value: 'nginx' } });
     });
 
     await act(async () => {
@@ -271,11 +290,15 @@ describe('ResourceManager', () => {
     vi.useRealTimers();
 
     await waitFor(() => {
-      expect(screen.getAllByText(/nginx/i).length).toBeGreaterThan(0);
+      expect(screen.getByText('Offline / API Limit Exceeded')).toBeDefined();
     });
   });
 
-  it('handles viewing tags and registering tags for docker images', async () => {
+  it('handles viewing tags and registering tags for docker images in light mode', async () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    (globalThis as any).go.main.App.FetchDockerHubPopular = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{ name: 'nginx', description: 'Nginx image' }]
+    }));
     (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
       results: [
         { name: 'latest' },
@@ -283,11 +306,9 @@ describe('ResourceManager', () => {
       ]
     }));
 
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await waitFor(() => {
       expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
@@ -295,7 +316,7 @@ describe('ResourceManager', () => {
 
     const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
     await act(async () => {
-        fireEvent.click(viewTagsBtn);
+      fireEvent.click(viewTagsBtn);
     });
 
     await waitFor(() => {
@@ -307,28 +328,26 @@ describe('ResourceManager', () => {
 
     const addBtn = screen.getAllByText('+ ADD OPTION')[0];
     await act(async () => {
-        fireEvent.click(addBtn);
+      fireEvent.click(addBtn);
     });
 
     expect(useFlowStore.getState().customImages).toContain('nginx:latest');
+
+    // Click Back button
+    const backBtn = screen.getByRole('button', { name: /Back/i });
+    fireEvent.click(backBtn);
+    expect(screen.getAllByText('Docker Hub Registry').length).toBeGreaterThan(0);
   });
 
-  it('handles already added tags and deletes them in TagsView', async () => {
-    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
-      results: [
-        { name: 'latest' }
-      ]
+  it('handles null rawData from FetchDockerHubTags in TagsView', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubPopular = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{ name: 'nginx', description: 'Nginx image' }]
     }));
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(null);
 
-    useFlowStore.setState({
-      customImages: ['nginx:latest']
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
-
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await waitFor(() => {
       expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
@@ -336,7 +355,38 @@ describe('ResourceManager', () => {
 
     const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
     await act(async () => {
-        fireEvent.click(viewTagsBtn);
+      fireEvent.click(viewTagsBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load tags')).toBeDefined();
+      expect(screen.getByText('Failed to retrieve tags from backend')).toBeDefined();
+    });
+  });
+
+  it('handles already added tags and deletes them in TagsView', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubPopular = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{ name: 'nginx', description: 'Nginx image' }]
+    }));
+    (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{ name: 'latest' }]
+    }));
+
+    useFlowStore.setState({
+      customImages: ['nginx:latest']
+    });
+
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
+
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
+    });
+
+    const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
+    await act(async () => {
+      fireEvent.click(viewTagsBtn);
     });
 
     await waitFor(() => {
@@ -345,20 +395,21 @@ describe('ResourceManager', () => {
 
     const addedBtn = screen.getByText('ADDED');
     await act(async () => {
-        fireEvent.click(addedBtn);
+      fireEvent.click(addedBtn);
     });
 
     expect(useFlowStore.getState().customImages).not.toContain('nginx:latest');
   });
 
   it('handles API errors in TagsView gracefully', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubPopular = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{ name: 'nginx', description: 'Nginx image' }]
+    }));
     (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockRejectedValue(new Error('Network failure'));
 
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await waitFor(() => {
       expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
@@ -366,7 +417,7 @@ describe('ResourceManager', () => {
 
     const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
     await act(async () => {
-        fireEvent.click(viewTagsBtn);
+      fireEvent.click(viewTagsBtn);
     });
 
     await waitFor(() => {
@@ -375,15 +426,16 @@ describe('ResourceManager', () => {
   });
 
   it('handles empty tags from Docker Hub in TagsView gracefully', async () => {
+    (globalThis as any).go.main.App.FetchDockerHubPopular = vi.fn().mockResolvedValue(JSON.stringify({
+      results: [{ name: 'nginx', description: 'Nginx image' }]
+    }));
     (globalThis as any).go.main.App.FetchDockerHubTags = vi.fn().mockResolvedValue(JSON.stringify({
       results: []
     }));
 
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await waitFor(() => {
       expect(screen.getAllByText('VIEW TAGS →').length).toBeGreaterThan(0);
@@ -391,7 +443,7 @@ describe('ResourceManager', () => {
 
     const viewTagsBtn = screen.getAllByText('VIEW TAGS →')[0];
     await act(async () => {
-        fireEvent.click(viewTagsBtn);
+      fireEvent.click(viewTagsBtn);
     });
 
     await waitFor(() => {
@@ -405,11 +457,9 @@ describe('ResourceManager', () => {
     }));
 
     vi.useFakeTimers();
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await act(async () => {
       vi.advanceTimersByTime(400);
@@ -417,7 +467,7 @@ describe('ResourceManager', () => {
 
     const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
     await act(async () => {
-        fireEvent.change(searchInput, { target: { value: 'nonexistent-app-xyz' } });
+      fireEvent.change(searchInput, { target: { value: 'nonexistent-app-xyz' } });
     });
 
     await act(async () => {
@@ -435,11 +485,9 @@ describe('ResourceManager', () => {
     (globalThis as any).go.main.App.SearchDockerHub = vi.fn().mockRejectedValue(new Error('API Rate Limit Exceeded'));
 
     vi.useFakeTimers();
-    await act(async () => {
-        render(<ResourceManager isOpen={true} onClose={() => {}} />);
-    });
+    render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
-    fireEvent.click(screen.getByText('Docker Hub Registry'));
+    fireEvent.click(screen.getAllByText('Docker Hub Registry')[0]);
 
     await act(async () => {
       vi.advanceTimersByTime(400);
@@ -447,7 +495,7 @@ describe('ResourceManager', () => {
 
     const searchInput = screen.getByPlaceholderText('Search Docker Hub...');
     await act(async () => {
-        fireEvent.change(searchInput, { target: { value: 'error-trigger' } });
+      fireEvent.change(searchInput, { target: { value: 'error-trigger' } });
     });
 
     await act(async () => {
