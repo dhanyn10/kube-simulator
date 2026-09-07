@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, Plus, Trash2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, X } from 'lucide-react';
 import { Modal } from './Modal';
-import { K8sRoleItem, K8sRoleRule, K8sResourceType } from '../../types';
+import { K8sRoleItem } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
-import { AutocompleteDropdown, AutocompleteSuggestion } from '../UI/AutocompleteDropdown';
 
 interface RoleModalProps {
   isOpen: boolean;
@@ -15,433 +14,6 @@ interface RoleModalProps {
   onSave: (roleItem: K8sRoleItem) => void;
 }
 
-const COMMON_SUGGESTIONS: Record<string, string[]> = {
-  resources: ['pods', 'deployments', 'services', 'configmaps', 'secrets', 'persistentvolumeclaims', '*'],
-  verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete', '*'],
-  apiGroups: ['', 'apps', 'batch', 'storage.k8s.io', '*'],
-};
-
-interface TagInputProps {
-  id?: string;
-  tags: string[];
-  onChange: (tags: string[]) => void;
-  placeholder?: string;
-  suggestions?: string[];
-  colorMode: string;
-  tagBgClass?: string;
-}
-
-const TagInput: React.FC<TagInputProps> = ({
-  id,
-  tags,
-  onChange,
-  placeholder = 'Add tag...',
-  suggestions = [],
-  colorMode,
-  tagBgClass = 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300',
-}) => {
-  const [inputValue, setInputValue] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState<number>(0);
-  const [openUpward, setOpenUpward] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isFocused && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const scrollParent = containerRef.current.closest('.custom-scrollbar') || containerRef.current.closest('.overflow-y-auto');
-
-      let spaceBelow = window.innerHeight - rect.bottom;
-      let spaceAbove = rect.top;
-
-      if (scrollParent) {
-        const parentRect = scrollParent.getBoundingClientRect();
-        spaceBelow = parentRect.bottom - rect.bottom;
-        spaceAbove = rect.top - parentRect.top;
-      }
-
-      setOpenUpward(spaceBelow < 170 && spaceAbove > 120);
-    }
-  }, [isFocused, inputValue]);
-
-  const nodes = useFlowStore((state) => state.nodes);
-
-  const buildSuggestionItem = (s: string): AutocompleteSuggestion => {
-    const label = s === '' ? 'Core API' : s;
-    const description = s === '' ? 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)' : undefined;
-
-    const resourceToTypeMap: Record<string, string> = {
-      pods: 'Pod',
-      deployments: 'Deployment',
-      services: 'Service',
-      configmaps: 'ConfigMap',
-      secrets: 'Secret',
-      persistentvolumeclaims: 'PVC',
-      ingresses: 'Ingress',
-      horizontalpodautoscalers: 'HPA',
-    };
-
-    const targetType = resourceToTypeMap[s.toLowerCase()];
-    const isMissingFromCanvas = Boolean(targetType && !nodes.some((n) => n.type === targetType));
-
-    return {
-      label,
-      value: s,
-      category: isMissingFromCanvas ? 'add to canvas' : undefined,
-      description,
-    };
-  };
-
-  const availableSuggestions: AutocompleteSuggestion[] = suggestions
-    .filter((s) => !tags.includes(s))
-    .map(buildSuggestionItem)
-    .filter((item) => {
-      if (!inputValue.trim()) return true;
-      const lowerInput = inputValue.toLowerCase().trim();
-      return item.label.toLowerCase().includes(lowerInput) || item.value.toLowerCase().includes(lowerInput);
-    });
-
-  const addNode = useFlowStore((state) => state.addNode);
-  const addLog = useFlowStore((state) => state.addLog);
-
-  const handleAddTag = (value: string) => {
-    let trimmed = value.trim();
-    if (!trimmed) return;
-    if (trimmed.toLowerCase() === 'core api' || trimmed.toLowerCase() === 'core') {
-      trimmed = '';
-    }
-
-    if (!tags.includes(trimmed)) {
-      onChange([...tags, trimmed]);
-    }
-
-    // If item was marked as missing from canvas, instantiate card on canvas
-    const resourceToTypeMap: Record<string, K8sResourceType> = {
-      pods: 'Pod',
-      deployments: 'Deployment',
-      services: 'Service',
-      configmaps: 'ConfigMap',
-      secrets: 'Secret',
-      persistentvolumeclaims: 'PVC',
-      ingresses: 'Ingress',
-      horizontalpodautoscalers: 'HPA',
-    };
-
-    const targetType = resourceToTypeMap[trimmed.toLowerCase()];
-    if (targetType) {
-      const existsOnCanvas = nodes.some((n) => n.type === targetType);
-      if (!existsOnCanvas) {
-        addNode(targetType);
-        addLog('info', `[Role Modal Action] Instantiated missing resource '${targetType}' on canvas directly from Role suggestions`, 'UI');
-      }
-    }
-
-    setInputValue('');
-    setSelectedIndex(0);
-  };
-
-  const handleRemoveTag = (indexToRemove: number) => {
-    onChange(tags.filter((_, idx) => idx !== indexToRemove));
-  };
-
-  const handleSuggestionNavKey = (e: React.KeyboardEvent<HTMLInputElement>): boolean => {
-    if (!isFocused || availableSuggestions.length === 0) return false;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % availableSuggestions.length);
-      return true;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + availableSuggestions.length) % availableSuggestions.length);
-      return true;
-    }
-    if ((e.key === 'Enter' || e.key === 'Tab') && availableSuggestions[selectedIndex] !== undefined) {
-      e.preventDefault();
-      handleAddTag(availableSuggestions[selectedIndex].value);
-      return true;
-    }
-    return false;
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (handleSuggestionNavKey(e)) return;
-
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      handleAddTag(inputValue);
-    } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
-      handleRemoveTag(tags.length - 1);
-    } else if (e.key === 'Escape') {
-      setIsFocused(false);
-    }
-  };
-
-  return (
-    <div ref={containerRef} className="relative space-y-1">
-      <label
-        htmlFor={id}
-        className={cn(
-          "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-          isFocused ? "ring-2 ring-indigo-500/50 border-indigo-500/80" : "border-slate-700/60",
-          colorMode === 'dark' ? "bg-slate-900" : "bg-white"
-        )}
-      >
-        {tags.map((tag, idx) => (
-          <span
-            key={`tag-${tag}-${idx}`}
-            className={cn(
-              "px-2 py-0.5 rounded-md text-xs font-mono font-semibold flex items-center gap-1 border shadow-xs transition-all animate-in fade-in zoom-in-95 duration-150",
-              tagBgClass
-            )}
-          >
-            <span>{tag === '' ? 'Core API' : tag}</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRemoveTag(idx);
-              }}
-              className="hover:opacity-80 p-0.5 rounded-full transition-opacity cursor-pointer"
-            >
-              <X size={10} />
-            </button>
-          </span>
-        ))}
-
-        <input
-          id={id}
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-            setSelectedIndex(0);
-          }}
-          onKeyDown={handleKeyDown}
-          onBlur={() => {
-            setTimeout(() => setIsFocused(false), 150);
-          }}
-          onFocus={() => {
-            setIsFocused(true);
-            setSelectedIndex(0);
-          }}
-          placeholder={tags.length === 0 ? placeholder : ''}
-          className={cn(
-            "flex-1 min-w-[120px] bg-transparent text-xs font-mono outline-none py-0.5 px-1",
-            colorMode === 'dark' ? "text-slate-100 placeholder-slate-500" : "text-slate-800 placeholder-slate-400"
-          )}
-        />
-      </label>
-
-      {/* Reusable CLI-Style Autocomplete Dropdown */}
-      {isFocused && availableSuggestions.length > 0 && (
-        <AutocompleteDropdown
-          suggestions={availableSuggestions}
-          selectedIndex={selectedIndex}
-          onSelect={(item) => handleAddTag(item.value)}
-          onHoverIndex={(idx) => setSelectedIndex(idx)}
-          colorMode={colorMode === 'dark' ? 'dark' : 'light'}
-          openUpward={openUpward}
-          showIcon={false}
-        />
-      )}
-    </div>
-  );
-};
-
-import { Node } from '@xyflow/react';
-
-const deriveApiGroupsFromResources = (resources: string[]): string[] => {
-  const groups = new Set<string>();
-  for (const res of resources) {
-    const r = res.toLowerCase();
-    if (['deployments', 'statefulsets', 'daemonsets', 'replicasets'].includes(r)) {
-      groups.add('apps');
-    } else if (['jobs', 'cronjobs'].includes(r)) {
-      groups.add('batch');
-    } else if (['ingresses', 'ingressclasses', 'networkpolicies'].includes(r)) {
-      groups.add('networking.k8s.io');
-    } else if (['horizontalpodautoscalers', 'hpa'].includes(r)) {
-      groups.add('autoscaling');
-    } else if (['storageclasses', 'volumeattachments'].includes(r)) {
-      groups.add('storage.k8s.io');
-    } else if (['roles', 'rolebindings', 'clusterroles', 'clusterrolebindings'].includes(r)) {
-      groups.add('rbac.authorization.k8s.io');
-    } else {
-      // Core API Group ("") for pods, services, configmaps, secrets, persistentvolumeclaims, namespaces, nodes, etc.
-      groups.add('');
-    }
-  }
-  return Array.from(groups);
-};
-
-const deriveDeploymentResources = (targetNode: Node, allNodes: Node[]): string[] => {
-  const childPods = allNodes.filter((n) => n.parentId === targetNode.id && n.type === 'Pod');
-  const replicas = (targetNode.data?.replicas as number) ?? 0;
-  if (childPods.length > 0 || replicas > 0) {
-    return ['deployments', 'pods'];
-  }
-  return ['deployments'];
-};
-
-const SINGLE_CHILD_TYPE_MAP: Record<string, string> = {
-  Pod: 'pods',
-  Service: 'services',
-  ConfigMap: 'configmaps',
-  Secret: 'secrets',
-  PVC: 'persistentvolumeclaims',
-  Ingress: 'ingresses',
-  HPA: 'horizontalpodautoscalers',
-};
-
-const collectNamespaceChildResources = (child: Node, allNodes: Node[], resSet: Set<string>): void => {
-  if (child.type === 'Deployment') {
-    resSet.add('deployments');
-    const grandChildren = allNodes.filter((n) => n.parentId === child.id && n.type === 'Pod');
-    const replicas = (child.data?.replicas as number) ?? 0;
-    if (grandChildren.length > 0 || replicas > 0) {
-      resSet.add('pods');
-    }
-    return;
-  }
-
-  const resource = SINGLE_CHILD_TYPE_MAP[child.type || ''];
-  if (resource) {
-    resSet.add(resource);
-  }
-};
-
-const deriveNamespaceResources = (targetNode: Node, allNodes: Node[]): string[] => {
-  const children = allNodes.filter((n) => n.parentId === targetNode.id);
-  if (children.length === 0) {
-    return ['namespaces'];
-  }
-  const resSet = new Set<string>();
-  for (const child of children) {
-    collectNamespaceChildResources(child, allNodes, resSet);
-  }
-  return resSet.size > 0 ? Array.from(resSet) : ['namespaces'];
-};
-
-const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: Node[]): string[] => {
-  if (!targetNode) return ['pods', 'deployments'];
-
-  let effectiveTarget = targetNode;
-  if (targetNode.type === 'Pod' && targetNode.parentId) {
-    const parentDep = allNodes.find((n) => n.id === targetNode.parentId && n.type === 'Deployment');
-    if (parentDep) {
-      effectiveTarget = parentDep;
-    }
-  }
-
-  const type = effectiveTarget.type as string;
-
-  if (type === 'Deployment') {
-    return deriveDeploymentResources(effectiveTarget, allNodes);
-  }
-
-  if (type === 'Namespace') {
-    return deriveNamespaceResources(effectiveTarget, allNodes);
-  }
-
-  const mappedResource = SINGLE_CHILD_TYPE_MAP[type];
-  if (mappedResource) {
-    return [mappedResource];
-  }
-
-  return [type.toLowerCase() + 's'];
-};
-
-interface RuleCardRowProps {
-  rule: K8sRoleRule;
-  idx: number;
-  totalRules: number;
-  colorMode: string;
-  onRemoveRule: (index: number) => void;
-  onUpdateRuleTags: (index: number, field: 'apiGroups' | 'resources' | 'verbs', tags: string[]) => void;
-}
-
-const RuleCardRow: React.FC<RuleCardRowProps> = ({
-  rule,
-  idx,
-  totalRules,
-  colorMode,
-  onRemoveRule,
-  onUpdateRuleTags,
-}) => {
-  return (
-    <div
-      className={cn(
-        "p-3.5 rounded-xl border relative space-y-3",
-        colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
-      )}
-    >
-      {totalRules > 1 && (
-        <button
-          type="button"
-          onClick={() => onRemoveRule(idx)}
-          className="absolute top-2.5 right-2.5 text-red-400 hover:text-red-300 p-1 rounded transition-colors cursor-pointer"
-          title="Remove Rule"
-        >
-          <Trash2 size={13} />
-        </button>
-      )}
-
-      {/* API Groups Tagify Input */}
-      <div>
-        <label htmlFor={`api-groups-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-          API Groups
-        </label>
-        <TagInput
-          id={`api-groups-input-${idx}`}
-          tags={rule.apiGroups}
-          onChange={(newTags) => onUpdateRuleTags(idx, 'apiGroups', newTags)}
-          placeholder='Type group (e.g. apps) and press Enter...'
-          suggestions={COMMON_SUGGESTIONS.apiGroups}
-          colorMode={colorMode}
-          tagBgClass="bg-purple-500/20 border-purple-500/40 text-purple-300"
-        />
-      </div>
-
-      {/* Resources Tagify Input */}
-      <div>
-        <label htmlFor={`resources-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-          Resources
-        </label>
-        <TagInput
-          id={`resources-input-${idx}`}
-          tags={rule.resources}
-          onChange={(newTags) => onUpdateRuleTags(idx, 'resources', newTags)}
-          placeholder="Type resource (e.g. pods) and press Enter..."
-          suggestions={COMMON_SUGGESTIONS.resources}
-          colorMode={colorMode}
-          tagBgClass="bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
-        />
-      </div>
-
-      {/* Verbs Tagify Input */}
-      <div>
-        <label htmlFor={`verbs-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-          Verbs (Permissions)
-        </label>
-        <TagInput
-          id={`verbs-input-${idx}`}
-          tags={rule.verbs}
-          onChange={(newTags) => onUpdateRuleTags(idx, 'verbs', newTags)}
-          placeholder="Type verb (e.g. get) and press Enter..."
-          suggestions={COMMON_SUGGESTIONS.verbs}
-          colorMode={colorMode}
-          tagBgClass="bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
-        />
-      </div>
-    </div>
-  );
-};
-
-const DEFAULT_VERBS = ['get', 'list', 'watch'];
-
 export const RoleModal: React.FC<RoleModalProps> = ({
   isOpen,
   onClose,
@@ -451,20 +23,11 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   onSave,
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const nodes = useFlowStore((state) => state.nodes);
   const iamUsers = useFlowStore((state) => state.iamUsers);
   const setIamModalOpen = useFlowStore((state) => state.setIamModalOpen);
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
   const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
-  const [accessLevel, setAccessLevel] = useState<'Full' | 'Read-Only' | 'Custom'>('Full');
-  const [rules, setRules] = useState<K8sRoleRule[]>([
-    {
-      apiGroups: ['*'],
-      resources: ['*'],
-      verbs: ['*'],
-    },
-  ]);
 
   useEffect(() => {
     if (iamUsers.length > 0 && assignedUsers.length === 0) {
@@ -479,31 +42,12 @@ export const RoleModal: React.FC<RoleModalProps> = ({
         ? initialRole.assignedUsers
         : (initialRole.assignedUser ? [initialRole.assignedUser] : (iamUsers[0] ? [iamUsers[0].username] : ['admin-user']));
       setAssignedUsers(initialUsers);
-      setAccessLevel(initialRole.accessLevel || 'Full');
-      setRules(initialRole.rules && initialRole.rules.length > 0 ? initialRole.rules : [
-        { apiGroups: ['*'], resources: ['*'], verbs: ['*'] }
-      ]);
     } else {
-      const targetNode = nodes.find((n) => n.id === targetNodeId);
-      const derivedResources = deriveResourcesFromTargetNode(targetNode, nodes);
-      const derivedApiGroups = deriveApiGroupsFromResources(derivedResources);
-
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setRoleName(`role-${randomSuffix}`);
-
-      // Auto-select users with Full Access preset by default
-      const fullUsers = iamUsers.filter((u) => u.accessType === 'Full').map((u) => u.username);
-      setAssignedUsers(fullUsers.length > 0 ? fullUsers : (iamUsers[0] ? [iamUsers[0].username] : ['admin-user']));
-      setAccessLevel('Custom');
-      setRules([
-        {
-          apiGroups: derivedApiGroups,
-          resources: derivedResources,
-          verbs: ['get', 'list', 'watch'],
-        },
-      ]);
+      setAssignedUsers(iamUsers.length > 0 ? [iamUsers[0].username] : ['admin-user']);
     }
-  }, [initialRole, isOpen, targetNodeId, nodes, iamUsers]);
+  }, [initialRole, isOpen, targetNodeId, iamUsers]);
 
   const toggleUserSelection = (uname: string) => {
     setAssignedUsers((prev) =>
@@ -511,61 +55,28 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     );
   };
 
-  const handlePresetSelect = (preset: 'Full' | 'Read-Only' | 'Custom') => {
-    setAccessLevel(preset);
-
-    // Auto-select IAM users that match this access level preset
-    const matchingUsers = iamUsers.filter((u) => u.accessType === preset).map((u) => u.username);
-    if (matchingUsers.length > 0) {
-      setAssignedUsers(matchingUsers);
-    }
-
-    if (preset === 'Full') {
-      setRules([{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }]);
-    } else if (preset === 'Read-Only') {
-      setRules([{ apiGroups: ['apps', ''], resources: ['deployments', 'pods', 'services'], verbs: ['get', 'list', 'watch'] }]);
-    }
-  };
-
   if (!isOpen) return null;
-
-  const handleAddRule = () => {
-    setRules((prev) => [
-      ...prev,
-      { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] },
-    ]);
-  };
-
-  const handleRemoveRule = (index: number) => {
-    setRules((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleUpdateRuleTags = (
-    ruleIndex: number,
-    field: 'apiGroups' | 'resources' | 'verbs',
-    newTags: string[]
-  ) => {
-    setRules((prev) =>
-      prev.map((rule, idx) => {
-        if (idx !== ruleIndex) return rule;
-        const updated = { ...rule, [field]: newTags };
-        if (field === 'resources') {
-          updated.apiGroups = deriveApiGroupsFromResources(newTags);
-        }
-        return updated;
-      })
-    );
-  };
 
   const handleSave = () => {
     const finalUsers = assignedUsers.length > 0 ? assignedUsers : [iamUsers[0]?.username || 'admin-user'];
+
+    // Derive rule scope from first user's accessType
+    const firstUserObj = iamUsers.find((u) => u.username === finalUsers[0]);
+    const userAccess = firstUserObj?.accessType || 'Full';
+
+    const rules = userAccess === 'Full'
+      ? [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }]
+      : userAccess === 'Read-Only'
+      ? [{ apiGroups: ['apps', ''], resources: ['deployments', 'pods', 'services'], verbs: ['get', 'list', 'watch'] }]
+      : [{ apiGroups: ['apps', ''], resources: ['deployments', 'pods'], verbs: ['get', 'list', 'watch'] }];
+
     const roleItem: K8sRoleItem = {
       id: initialRole?.id || `role-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(roleName) || 'unnamed-role',
       assignedUser: finalUsers[0],
       assignedUsers: finalUsers,
-      accessLevel,
-      rules: rules.length > 0 ? rules : [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }],
+      accessLevel: userAccess,
+      rules,
     };
     onSave(roleItem);
     onClose();
@@ -600,118 +111,18 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={initialRole ? 'Edit Role' : 'Attach RBAC Role'}
-      subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Role & Permissions'}
+      subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Assign IAM Accounts to Role'}
       icon={ShieldCheck}
       iconColorClass="text-indigo-400"
-      widthClass="w-full max-w-3xl"
-      maxHeightClass="h-[70vh]"
+      widthClass="w-full max-w-xl"
+      maxHeightClass="h-[55vh]"
       footer={footer}
     >
       <div className="space-y-4">
-        {/* Multi-Select Assigned IAM Users */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-slate-400">
-              Assigned IAM Accounts / Users (Multiple Select) *
-            </label>
-            <button
-              type="button"
-              onClick={() => setIamModalOpen(true)}
-              className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
-            >
-              + Manage Kube IAM Users
-            </button>
-          </div>
-
-          <div
-            className={cn(
-              "p-2.5 rounded-lg border min-h-[44px] flex flex-wrap items-center gap-1.5 transition-all",
-              colorMode === 'dark' ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-300"
-            )}
-          >
-            {iamUsers.map((u) => {
-              const isSelected = assignedUsers.includes(u.username);
-              return (
-                <button
-                  type="button"
-                  key={u.id}
-                  onClick={() => toggleUserSelection(u.username)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md text-xs font-mono font-semibold flex items-center gap-1.5 border transition-all cursor-pointer",
-                    isSelected
-                      ? "bg-blue-600/30 text-blue-200 border-blue-500 shadow-sm"
-                      : colorMode === 'dark'
-                      ? "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                  )}
-                >
-                  <span>{u.username}</span>
-                  <span className="text-[9px] opacity-70">({u.accessType || 'Full'})</span>
-                  {isSelected && <X size={12} className="text-blue-400 hover:text-blue-200" />}
-                </button>
-              );
-            })}
-
-            {iamUsers.length === 0 && (
-              <span className="text-xs text-slate-500 font-mono italic">
-                No IAM Users created yet. Click "+ Manage Kube IAM Users" to create accounts.
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Access Level Presets */}
-        <div>
-          <label className="block text-xs font-semibold mb-1 text-slate-400">
-            Access Level / Permission Preset
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handlePresetSelect('Full')}
-              className={cn(
-                "px-3 py-2 rounded-lg border text-xs font-semibold flex flex-col items-center gap-0.5 transition-all cursor-pointer",
-                accessLevel === 'Full'
-                  ? "bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30"
-                  : colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-              )}
-            >
-              <span>Full Access</span>
-              <span className="text-[9px] font-mono opacity-80">All Resources (*)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetSelect('Read-Only')}
-              className={cn(
-                "px-3 py-2 rounded-lg border text-xs font-semibold flex flex-col items-center gap-0.5 transition-all cursor-pointer",
-                accessLevel === 'Read-Only'
-                  ? "bg-blue-500/20 border-blue-500 text-blue-300 ring-2 ring-blue-500/30"
-                  : colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-              )}
-            >
-              <span>Read-Only Access</span>
-              <span className="text-[9px] font-mono opacity-80">get, list, watch</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePresetSelect('Custom')}
-              className={cn(
-                "px-3 py-2 rounded-lg border text-xs font-semibold flex flex-col items-center gap-0.5 transition-all cursor-pointer",
-                accessLevel === 'Custom'
-                  ? "bg-purple-500/20 border-purple-500 text-purple-300 ring-2 ring-purple-500/30"
-                  : colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-              )}
-            >
-              <span>Custom Access</span>
-              <span className="text-[9px] font-mono opacity-80">Specific Resources</span>
-            </button>
-          </div>
-        </div>
-
         {/* Role Name */}
         <div>
           <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
-            Role Name
+            Role Name *
           </label>
           <input
             id="role-name-input"
@@ -728,30 +139,56 @@ export const RoleModal: React.FC<RoleModalProps> = ({
           />
         </div>
 
-        {/* Rules Section */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Role Rules / Permissions</span>
+        {/* Assigned IAM Accounts */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-slate-400">
+              Assigned IAM Account(s) *
+            </label>
             <button
               type="button"
-              onClick={handleAddRule}
-              className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+              onClick={() => setIamModalOpen(true)}
+              className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
             >
-              <Plus size={13} /> Add Rule
+              + Manage Kube IAM Users
             </button>
           </div>
 
-          {rules.map((rule, idx) => (
-            <RuleCardRow
-              key={`rule-spec-${rule.apiGroups.join('-')}-${rule.resources.join('-')}-${idx}`}
-              rule={rule}
-              idx={idx}
-              totalRules={rules.length}
-              colorMode={colorMode}
-              onRemoveRule={handleRemoveRule}
-              onUpdateRuleTags={handleUpdateRuleTags}
-            />
-          ))}
+          <div
+            className={cn(
+              "p-3 rounded-xl border min-h-[50px] flex flex-wrap items-center gap-1.5 transition-all",
+              colorMode === 'dark' ? "bg-slate-950 border-slate-800" : "bg-slate-50 border-slate-300"
+            )}
+          >
+            {iamUsers.map((u) => {
+              const isSelected = assignedUsers.includes(u.username);
+              return (
+                <button
+                  type="button"
+                  key={u.id}
+                  onClick={() => toggleUserSelection(u.username)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 border transition-all cursor-pointer",
+                    isSelected
+                      ? "bg-blue-600/30 text-blue-200 border-blue-500 shadow-sm"
+                      : colorMode === 'dark'
+                      ? "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  )}
+                >
+                  <span>{u.username}</span>
+                  <span className="text-[10px] opacity-70">({u.accessType || 'Full'} Access)</span>
+                  {isSelected && <X size={12} className="text-blue-400 hover:text-blue-200" />}
+                </button>
+              );
+            })}
+
+            {iamUsers.length === 0 && (
+              <span className="text-xs text-slate-500 font-mono italic">
+                No IAM Users created yet. Click "+ Manage Kube IAM Users" to create accounts.
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Modal>
