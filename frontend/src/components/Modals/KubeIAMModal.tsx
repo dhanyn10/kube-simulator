@@ -55,16 +55,18 @@ export const KubeIAMModal: React.FC = () => {
 
   // Wizard state
   const [username, setUsername] = useState('');
-  const [accessType, setAccessType] = useState<'Full Access' | 'Managed Access'>('Full Access');
   const [selectedPolicies, setSelectedPolicies] = useState<string[]>(['AdministratorAccess']);
   const [policySearch, setPolicySearch] = useState('');
   const [usernameError, setUsernameError] = useState('');
+
+  const computedAccessType: 'Full Access' | 'Managed Access' = selectedPolicies.includes('AdministratorAccess')
+    ? 'Full Access'
+    : 'Managed Access';
 
   const resetWizard = () => {
     setIsCreatingUser(false);
     setCurrentStep(1);
     setUsername('');
-    setAccessType('Full Access');
     setSelectedPolicies(['AdministratorAccess']);
     setPolicySearch('');
     setUsernameError('');
@@ -90,20 +92,18 @@ export const KubeIAMModal: React.FC = () => {
   };
 
   const handleNextStep2 = () => {
-    if (accessType === 'Managed Access' && selectedPolicies.length === 0) {
+    if (selectedPolicies.length === 0) {
       return;
     }
     setCurrentStep(3);
   };
 
   const handleFinishCreate = () => {
-    const finalPolicies = accessType === 'Full Access'
-      ? [DEFAULT_POLICIES[0]]
-      : DEFAULT_POLICIES.filter((p) => selectedPolicies.includes(p.name));
+    const finalPolicies = DEFAULT_POLICIES.filter((p) => selectedPolicies.includes(p.name));
 
     addIamUser({
       username: username.trim(),
-      accessType,
+      accessType: computedAccessType,
       policies: finalPolicies,
     });
 
@@ -403,134 +403,81 @@ export const KubeIAMModal: React.FC = () => {
                       Set Permissions
                     </h4>
                     <p className={cn("text-xs mt-0.5", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
-                      Choose how permissions are granted for user <span className="text-emerald-400 font-semibold">{username}</span>.
+                      Select permission policies to attach to user <span className="text-emerald-400 font-semibold">{username}</span>.
                     </p>
                   </div>
 
-                  {/* Access Type Cards */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setAccessType('Full Access')}
-                      className={cn(
-                        "p-3 rounded-lg border text-left transition-all relative",
-                        accessType === 'Full Access'
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : colorMode === 'dark' ? "bg-slate-800/60 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                      )}
-                    >
-                      {accessType === 'Full Access' && (
-                        <CheckCircle2 size={16} className="absolute top-2.5 right-2.5 text-emerald-400" />
-                      )}
-                      <div className="flex items-center gap-2 mb-1">
-                        <Lock size={14} className="text-purple-400" />
-                        <span className={cn("text-xs font-semibold", colorMode === 'dark' ? "text-slate-200" : "text-slate-800")}>
-                          Full Access
-                        </span>
-                      </div>
-                      <p className={cn("text-[11px]", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
-                        Grants administrative rights to all cluster resources and settings.
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setAccessType('Managed Access')}
-                      className={cn(
-                        "p-3 rounded-lg border text-left transition-all relative",
-                        accessType === 'Managed Access'
-                          ? "border-emerald-500 bg-emerald-500/10"
-                          : colorMode === 'dark' ? "bg-slate-800/60 border-slate-700 hover:border-slate-600" : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                      )}
-                    >
-                      {accessType === 'Managed Access' && (
-                        <CheckCircle2 size={16} className="absolute top-2.5 right-2.5 text-emerald-400" />
-                      )}
-                      <div className="flex items-center gap-2 mb-1">
-                        <Shield size={14} className="text-emerald-400" />
-                        <span className={cn("text-xs font-semibold", colorMode === 'dark' ? "text-slate-200" : "text-slate-800")}>
-                          Managed Access
-                        </span>
-                      </div>
-                      <p className={cn("text-[11px]", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
-                        Attach specific default policies to restrict user capabilities.
-                      </p>
-                    </button>
-                  </div>
-
                   {/* Managed Policy List Table */}
-                  {accessType === 'Managed Access' && (
-                    <div className="space-y-2 pt-2">
-                      <div className="flex items-center justify-between">
-                        <label className={cn("text-xs font-semibold", colorMode === 'dark' ? "text-slate-300" : "text-slate-700")}>
-                          Permissions Policies ({selectedPolicies.length} selected)
-                        </label>
-                        <div className="relative w-48">
-                          <Search size={12} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
-                          <input
-                            type="text"
-                            placeholder="Search policies..."
-                            value={policySearch}
-                            onChange={(e) => setPolicySearch(e.target.value)}
-                            className={cn(
-                              "w-full pl-6 pr-2 py-1 text-[11px] rounded border outline-none",
-                              colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-800"
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <div className={cn("border rounded-md overflow-hidden max-h-48 overflow-y-auto", colorMode === 'dark' ? "border-slate-700/80 bg-slate-900/50" : "border-slate-200 bg-white")}>
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className={cn("text-[10px] font-semibold uppercase tracking-wider border-b", colorMode === 'dark' ? "bg-slate-800/80 border-slate-700 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500")}>
-                              <th className="py-1.5 px-3 w-8"></th>
-                              <th className="py-1.5 px-3">Policy Name</th>
-                              <th className="py-1.5 px-3 w-20">Type</th>
-                              <th className="py-1.5 px-3">Description</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-700/30">
-                            {filteredPolicies.map((p) => {
-                              const isSelected = selectedPolicies.includes(p.name);
-                              return (
-                                <tr
-                                  key={p.name}
-                                  onClick={() => togglePolicy(p.name)}
-                                  className={cn(
-                                    "text-xs cursor-pointer transition-colors",
-                                    isSelected
-                                      ? colorMode === 'dark' ? "bg-emerald-500/10 text-slate-200" : "bg-emerald-50 text-slate-900"
-                                      : colorMode === 'dark' ? "hover:bg-slate-800/40 text-slate-300" : "hover:bg-slate-50 text-slate-700"
-                                  )}
-                                >
-                                  <td className="py-2 px-3 text-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={() => {}}
-                                      className="rounded accent-emerald-500 cursor-pointer"
-                                    />
-                                  </td>
-                                  <td className="py-2 px-3 font-semibold text-emerald-400">
-                                    {p.name}
-                                  </td>
-                                  <td className="py-2 px-3">
-                                    <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium border", colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500")}>
-                                      {p.type}
-                                    </span>
-                                  </td>
-                                  <td className={cn("py-2 px-3 text-[11px]", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
-                                    {p.description}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className={cn("text-xs font-semibold", colorMode === 'dark' ? "text-slate-300" : "text-slate-700")}>
+                        Permissions Policies ({selectedPolicies.length} selected)
+                      </label>
+                      <div className="relative w-48">
+                        <Search size={12} className={cn("absolute left-2 top-1/2 -translate-y-1/2", colorMode === 'dark' ? "text-slate-500" : "text-slate-400")} />
+                        <input
+                          type="text"
+                          placeholder="Search policies..."
+                          value={policySearch}
+                          onChange={(e) => setPolicySearch(e.target.value)}
+                          className={cn(
+                            "w-full pl-6 pr-2 py-1 text-[11px] rounded border outline-none",
+                            colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                          )}
+                        />
                       </div>
                     </div>
-                  )}
+
+                    <div className={cn("border rounded-md overflow-hidden max-h-60 overflow-y-auto", colorMode === 'dark' ? "border-slate-700/80 bg-slate-900/50" : "border-slate-200 bg-white")}>
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className={cn("text-[10px] font-semibold uppercase tracking-wider border-b", colorMode === 'dark' ? "bg-slate-800/80 border-slate-700 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500")}>
+                            <th className="py-1.5 px-3 w-8"></th>
+                            <th className="py-1.5 px-3">Policy Name</th>
+                            <th className="py-1.5 px-3 w-20">Type</th>
+                            <th className="py-1.5 px-3">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700/30">
+                          {filteredPolicies.map((p) => {
+                            const isSelected = selectedPolicies.includes(p.name);
+                            return (
+                              <tr
+                                key={p.name}
+                                onClick={() => togglePolicy(p.name)}
+                                className={cn(
+                                  "text-xs cursor-pointer transition-colors",
+                                  isSelected
+                                    ? colorMode === 'dark' ? "bg-emerald-500/10 text-slate-200" : "bg-emerald-50 text-slate-900"
+                                    : colorMode === 'dark' ? "hover:bg-slate-800/40 text-slate-300" : "hover:bg-slate-50 text-slate-700"
+                                )}
+                              >
+                                <td className="py-2 px-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {}}
+                                    className="rounded accent-emerald-500 cursor-pointer"
+                                  />
+                                </td>
+                                <td className="py-2 px-3 font-semibold text-emerald-400">
+                                  {p.name}
+                                </td>
+                                <td className="py-2 px-3">
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium border", colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-slate-100 border-slate-200 text-slate-500")}>
+                                    {p.type}
+                                  </span>
+                                </td>
+                                <td className={cn("py-2 px-3 text-[11px]", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
+                                  {p.description}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -554,13 +501,13 @@ export const KubeIAMModal: React.FC = () => {
 
                     <div className="flex justify-between items-center pb-2 border-b border-slate-700/40">
                       <span className={cn("text-xs font-medium", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>Access Type</span>
-                      <span className={cn("text-xs font-semibold text-emerald-400")}>{accessType}</span>
+                      <span className={cn("text-xs font-semibold text-emerald-400")}>{computedAccessType}</span>
                     </div>
 
                     <div>
-                      <span className={cn("text-xs font-medium block mb-1.5", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>Attached Policies</span>
+                      <span className={cn("text-xs font-medium block mb-1.5", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>Attached Policies ({selectedPolicies.length})</span>
                       <div className="space-y-1">
-                        {(accessType === 'Full Access' ? [DEFAULT_POLICIES[0]] : DEFAULT_POLICIES.filter((p) => selectedPolicies.includes(p.name))).map((p) => (
+                        {DEFAULT_POLICIES.filter((p) => selectedPolicies.includes(p.name)).map((p) => (
                           <div key={p.name} className={cn("p-2 rounded border flex items-center justify-between text-xs", colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200")}>
                             <div>
                               <span className="font-semibold text-emerald-400">{p.name}</span>
