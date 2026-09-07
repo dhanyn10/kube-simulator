@@ -12,6 +12,15 @@ export interface K8sRoleItem {
   rules: K8sRoleRule[];
 }
 
+export interface KubeIAMUser {
+  id: string;
+  username: string;
+  accountId: string;
+  roles: string[];
+  attachedPolicies: string[];
+  createdAt: string;
+}
+
 export interface K8sConfigMapItem {
   id: string;
   name: string;

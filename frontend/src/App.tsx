@@ -25,6 +25,7 @@ import {
   ConfigMapModal,
   SecretModal,
   HPAModal,
+  KubeIAMModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -173,6 +174,8 @@ export default function App() {
     setSecretModalTargetNode,
     hpaModalTargetNode,
     setHpaModalTargetNode,
+    isKubeIamModalOpen,
+    setKubeIamModalOpen,
     handleRoleSave,
     handleConfigMapSave,
     handleSecretSave,
@@ -341,6 +344,11 @@ export default function App() {
             targetNodeId={hpaModalTargetNode?.id || null}
             targetNodeLabel={hpaModalTargetNode?.label}
             onSave={handleHpaSave}
+          />
+
+          <KubeIAMModal
+            isOpen={isKubeIamModalOpen}
+            onClose={() => setKubeIamModalOpen(false)}
           />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />

@@ -2,7 +2,7 @@ import { logger } from '../../lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sResourceType } from '../../types';
+import { K8sResourceType, KubeIAMUser } from '../../types';
 import { safeRandom } from '../../lib/utils';
 import {
   processWorkloadSimulation,
@@ -28,6 +28,11 @@ export interface UiSlice {
   setSecretModalTargetNode: (target: { id: string; label: string } | null) => void;
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
+  isKubeIamModalOpen: boolean;
+  setKubeIamModalOpen: (open: boolean) => void;
+  iamUsers: KubeIAMUser[];
+  addIamUser: (user: Omit<KubeIAMUser, 'id' | 'createdAt'>) => void;
+  deleteIamUser: (id: string) => void;
   isHistoryViewOpen: boolean;
   setHistoryViewOpen: (open: boolean) => void;
   historyLogs: any[];
@@ -642,6 +647,31 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSecretModalTargetNode: (target) => set({ secretModalTargetNode: target }),
   hpaModalTargetNode: null,
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
+  isKubeIamModalOpen: false,
+  setKubeIamModalOpen: (open) => set({ isKubeIamModalOpen: open }),
+  iamUsers: [
+    {
+      id: 'iam-user-default-admin',
+      username: 'admin-user',
+      accountId: '123456789012',
+      roles: ['AdministratorAccess'],
+      attachedPolicies: ['AdministratorAccess', 'SystemAdminPolicy'],
+      createdAt: new Date().toISOString().split('T')[0],
+    },
+  ],
+  addIamUser: (user) => set((state) => ({
+    iamUsers: [
+      ...state.iamUsers,
+      {
+        ...user,
+        id: `iam-user-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
+        createdAt: new Date().toISOString().split('T')[0],
+      },
+    ],
+  })),
+  deleteIamUser: (id) => set((state) => ({
+    iamUsers: state.iamUsers.filter((u) => u.id !== id),
+  })),
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,

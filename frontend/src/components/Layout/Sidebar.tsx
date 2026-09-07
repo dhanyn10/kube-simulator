@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck } from 'lucide-react';
+import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, Key } from 'lucide-react';
 import { K8sResourceType } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -24,6 +24,7 @@ const ITEM_STYLES: Record<string, { border: string, text: string }> = {
 };
 
 const SECTIONS = [
+  { id: 'useful', title: 'Useful Resources', filter: (type: string) => type === 'IAM' },
   { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
   { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
@@ -77,14 +78,24 @@ const SidebarSection = ({
             <button
               type="button"
               key={type}
-              onClick={() => onAddNode(type)}
-              onDragStart={(event) => onDragStart(event, type)}
+              onClick={() => {
+                if (type === 'IAM') {
+                  setKubeIamModalOpen(true);
+                } else {
+                  onAddNode(type as K8sResourceType);
+                }
+              }}
+              onDragStart={(event) => {
+                if (type !== 'IAM') {
+                  onDragStart(event, type as K8sResourceType);
+                }
+              }}
               onDragEnd={onDragEnd}
-              draggable
+              draggable={type !== 'IAM'}
               className={cn(
                 "sidebar-item-card group",
-                colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50",
-                style.border
+                type === 'IAM' ? "border-l-amber-500 hover:border-amber-500" : (style?.border || "border-l-slate-500"),
+                colorMode === 'dark' ? "bg-slate-800 border-slate-700 hover:bg-slate-700/50" : "bg-white border-slate-200 hover:bg-slate-50"
               )}
             >
               <div className={cn(
@@ -115,9 +126,11 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
+  const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    useful: true,
     workloads: true,
     networking: false,
     configuration: false,
@@ -128,13 +141,14 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const isCurrentlyExpanded = prev[section];
-      const newState = { workloads: false, networking: false, configuration: false, scaling: false, others: false };
+      const newState = { useful: false, workloads: false, networking: false, configuration: false, scaling: false, others: false };
       newState[section as keyof typeof newState] = !isCurrentlyExpanded;
       return newState;
     });
   };
 
-  const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
+  const items: { type: string; icon: any; label: string; desc: string }[] = [
+    { type: 'IAM', icon: Key, label: 'Kube IAM', desc: 'AWS IAM Roles & Users' },
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
     { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
