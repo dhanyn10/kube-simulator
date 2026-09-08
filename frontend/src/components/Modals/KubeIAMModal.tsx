@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UserPlus, Trash2, CheckCircle2, Search, ArrowRight, ArrowLeft, Check, UserCheck } from 'lucide-react';
+import { User, UserPlus, Trash2, CheckCircle2, Search, ArrowRight, ArrowLeft, Check, UserCheck, ShieldCheck } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
@@ -106,6 +106,13 @@ interface IAMUserListViewProps {
 /**
  * Renders the existing Kube IAM user list with search filter and delete action.
  */
+interface AttachedRoleInfo {
+  nodeId: string;
+  nodeLabel: string;
+  roleId: string;
+  roleName: string;
+}
+
 const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   iamUsers,
   filteredUsers,
@@ -117,6 +124,33 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
 }) => {
   const isDark = colorMode === 'dark';
   const emptyText = getEmptyStateText(iamUsers.length);
+  const nodes = useFlowStore((state) => state.nodes);
+  const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
+  const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
+
+  const getAttachedRolesForUser = (username: string): AttachedRoleInfo[] => {
+    const rolesList: AttachedRoleInfo[] = [];
+    for (const node of nodes) {
+      if (node.data?.roles && Array.isArray(node.data.roles)) {
+        for (const role of node.data.roles) {
+          if (role.assignedUsers && role.assignedUsers.includes(username)) {
+            rolesList.push({
+              nodeId: node.id,
+              nodeLabel: node.data.label || node.id,
+              roleId: role.id,
+              roleName: role.name,
+            });
+          }
+        }
+      }
+    }
+    return rolesList;
+  };
+
+  const handleNavigateToRole = (nodeId: string, nodeLabel: string) => {
+    setKubeIamModalOpen(false);
+    setRoleModalTargetNode({ id: nodeId, label: nodeLabel });
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -220,6 +254,39 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
                         </span>
                       ))}
                     </div>
+
+                    {/* Attached Canvas Roles */}
+                    {(() => {
+                      const attachedRoles = getAttachedRolesForUser(user.username);
+                      if (attachedRoles.length === 0) return null;
+                      return (
+                        <div className="mt-2 pt-2 border-t border-slate-700/30">
+                          <span className={cn('text-[11px] font-medium flex items-center gap-1 mb-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                            <ShieldCheck size={12} className="text-indigo-400" />
+                            Attached Roles ({attachedRoles.length}):
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {attachedRoles.map((r) => (
+                              <button
+                                key={`${r.nodeId}-${r.roleId}`}
+                                type="button"
+                                onClick={() => handleNavigateToRole(r.nodeId, r.nodeLabel)}
+                                className={cn(
+                                  'text-[10px] px-2 py-0.5 rounded border flex items-center gap-1 transition-all hover:scale-105 cursor-pointer',
+                                  isDark
+                                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
+                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                                )}
+                                title={`Node: ${r.nodeLabel} - Click to configure role`}
+                              >
+                                <span className="font-semibold">{r.roleName}</span>
+                                <span className="opacity-60 text-[9px]">({r.nodeLabel})</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
