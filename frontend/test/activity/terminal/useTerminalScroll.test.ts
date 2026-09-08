@@ -66,6 +66,7 @@ describe('useTerminalScroll', () => {
     act(() => {
       vi.advanceTimersByTime(150);
     });
+    expect(result.current.isAutoscroll).toBe(true);
   });
 
   it('performs scroll using el.scrollTo when terminalEndRef is null', () => {
@@ -92,6 +93,7 @@ describe('useTerminalScroll', () => {
     act(() => {
       vi.advanceTimersByTime(650);
     });
+    expect(result.current.isAutoscroll).toBe(true);
   });
 
   it('handles user scroll behavior and turns off autoscroll when not at bottom', () => {
@@ -166,20 +168,23 @@ describe('useTerminalScroll', () => {
     act(() => {
       result.current.handleScroll();
     });
+    expect(result.current.isAutoscroll).toBe(true);
 
     // While programmatic scroll is active, scroll hits bottom (isAtBottom = true)
     currentScrollTop = 490;
     act(() => {
       result.current.handleScroll();
     });
+    expect(result.current.isAutoscroll).toBe(true);
 
     act(() => {
       vi.advanceTimersByTime(1000);
     });
+    expect(result.current.isAutoscroll).toBe(true);
   });
 
   it('effect respects page number matching in logs tab', () => {
-    const { rerender } = renderHook(
+    const { result, rerender } = renderHook(
       ({ currentPage, totalPages, isTerminalOpen, activeTab }) =>
         useTerminalScroll(isTerminalOpen, activeTab, currentPage, totalPages, ['log 1']),
       {
@@ -192,12 +197,15 @@ describe('useTerminalScroll', () => {
       }
     );
 
+    expect(result.current.isAutoscroll).toBe(true);
+
     rerender({
       currentPage: 5,
       totalPages: 5,
       isTerminalOpen: true,
       activeTab: 'logs',
     });
+    expect(result.current.isAutoscroll).toBe(true);
 
     rerender({
       currentPage: 5,
@@ -205,5 +213,6 @@ describe('useTerminalScroll', () => {
       isTerminalOpen: false,
       activeTab: 'logs',
     });
+    expect(result.current.isAutoscroll).toBe(true);
   });
 });

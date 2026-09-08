@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useNodeStatus, useNodeContainerStyles } from '@/hooks/useNodeStatusStyles';
+import { useNodeStatus, useNodeContainerStyles, getRoleDragClasses } from '@/hooks/useNodeStatusStyles';
 
 describe('useNodeStatus', () => {
   it('identifies ready status for pods', () => {
@@ -50,8 +50,8 @@ describe('useNodeContainerStyles', () => {
     expect(result.current.containerClasses).toContain('border-slate-200');
   });
 
-  it('returns selection classes when selected', () => {
-    const { result } = renderHook(() => useNodeContainerStyles({
+  it('returns selection classes when selected in dark vs light modes', () => {
+    const { result: darkResult } = renderHook(() => useNodeContainerStyles({
       selected: true,
       isReady: false,
       isPending: false,
@@ -59,8 +59,19 @@ describe('useNodeContainerStyles', () => {
       color: 'blue',
       colorMode: 'dark'
     }));
-    expect(result.current.containerClasses).toContain('border-blue-400');
-    expect(result.current.containerClasses).toContain('ring-blue-400/20');
+    expect(darkResult.current.containerClasses).toContain('border-blue-400');
+    expect(darkResult.current.containerClasses).toContain('ring-blue-400/20');
+
+    const { result: lightResult } = renderHook(() => useNodeContainerStyles({
+      selected: true,
+      isReady: false,
+      isPending: false,
+      isCrashing: false,
+      color: 'blue',
+      colorMode: 'light'
+    }));
+    expect(lightResult.current.containerClasses).toContain('border-blue-500');
+    expect(lightResult.current.containerClasses).toContain('shadow-lg');
   });
 
   it('returns crashing classes', () => {
@@ -74,5 +85,12 @@ describe('useNodeContainerStyles', () => {
     }));
     expect(result.current.containerClasses).toContain('animate-crash-blink');
     expect(result.current.containerClasses).toContain('border-red-600');
+  });
+
+  it('getRoleDragClasses returns role drag classes for compatible, incompatible, and hovered targets', () => {
+    expect(getRoleDragClasses(false, 'Pod', true)).toBe('');
+    expect(getRoleDragClasses(true, 'Internet', true)).toBe('role-drag-outside-ns');
+    expect(getRoleDragClasses(true, 'Pod', true)).toBe('role-drag-inside-ns');
+    expect(getRoleDragClasses(true, 'Pod', false)).toBe('');
   });
 });

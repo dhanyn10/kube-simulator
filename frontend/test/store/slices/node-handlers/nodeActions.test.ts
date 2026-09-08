@@ -36,6 +36,15 @@ describe('nodeActions', () => {
     useFlowStore.setState({ addLog: initialAddLog });
   });
 
+  it('addNode uses default random position when position argument is omitted', () => {
+    const { addNode } = useFlowStore.getState();
+    addNode('Pod');
+
+    const state = useFlowStore.getState();
+    expect(state.nodes[0].position.x).toBeGreaterThan(0);
+    expect(state.nodes[0].position.y).toBeGreaterThan(0);
+  });
+
   it('addNode sets default dimensions for Namespace nodes', () => {
     const { addNode } = useFlowStore.getState();
     addNode('Namespace', { x: 10, y: 10 });
@@ -69,6 +78,18 @@ describe('nodeActions', () => {
     expect(state.nodes[0].data.isAutoImage).toBe(false);
   });
 
+  it('updateNodeData preserves width and height on Namespace nodes', () => {
+    const ns = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, width: 600, height: 400, style: { width: 600, height: 400 }, data: { label: 'ns1' } };
+    useFlowStore.setState({ nodes: [ns] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('ns1', { label: 'ns2' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes[0].width).toBe(600);
+    expect(state.nodes[0].height).toBe(400);
+  });
+
   it('updateNodeData returns early if target node is missing or data has no changes', () => {
     const pod = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'my-pod' } };
     useFlowStore.setState({ nodes: [pod] as any, lastActionName: 'init' });
@@ -90,6 +111,18 @@ describe('nodeActions', () => {
 
     const state = useFlowStore.getState();
     expect(state.nodes.find(n => n.id === 'p1')?.data.replicas).toBe(2);
+  });
+
+  it('updateNodeData handles Pod parent sync when parent is ReplicaSet with replicas > 1', () => {
+    const rs = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, data: { replicas: 2 } };
+    const pod1 = { id: 'p1', type: 'Pod', parentId: 'rs1', position: { x: 20, y: 40 }, data: { replicas: 2 } };
+    useFlowStore.setState({ nodes: [rs, pod1] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { replicas: 3 });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 'rs1')?.data.replicas).toBe(3);
   });
 
   it('updateNodeData reverts ReplicaSet back to standalone Pod when replicas scaled down to 1', () => {

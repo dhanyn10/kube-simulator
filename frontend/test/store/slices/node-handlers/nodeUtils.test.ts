@@ -52,6 +52,24 @@ describe('nodeUtils', () => {
 
     const cmData = getInitialData('ConfigMap', 'cm1', get as any);
     expect(cmData.type).toBe('ConfigMap');
+
+    const depData = getInitialData('Deployment', 'd1', get as any);
+    expect(depData.type).toBe('Deployment');
+    expect(depData.replicas).toBe(0);
+
+    const ingData = getInitialData('Ingress', 'i1', get as any);
+    expect(ingData.type).toBe('Ingress');
+    expect(ingData.ingressHost).toBe('example.local');
+
+    const roleData = getInitialData('Role', 'r1', get as any);
+    expect(roleData.type).toBe('Role');
+    expect(roleData.rules).toHaveLength(1);
+
+    const secretData = getInitialData('Secret', 'sec1', get as any);
+    expect(secretData.type).toBe('Secret');
+
+    const defaultData = getInitialData('CustomType' as any, 'c1', get as any);
+    expect(defaultData.type).toBe('CustomType');
   });
 
   it('resolveAutoImage returns correct images for runtimes', () => {
@@ -79,6 +97,9 @@ describe('nodeUtils', () => {
 
     const syncedPending = syncWorkloadMetadata('Pod', { runtime: 'none' } as any);
     expect(syncedPending.status).toBe('pending');
+
+    const nonWorkload = syncWorkloadMetadata('Service', { runtime: 'nodejs' } as any);
+    expect(nonWorkload).toEqual({ runtime: 'nodejs' });
   });
 
   it('sanitizeResourceLimits keeps values in range', () => {
