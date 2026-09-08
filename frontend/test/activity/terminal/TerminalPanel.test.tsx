@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../src/activity/terminal/TerminalPanel';
 import { useFlowStore } from '../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
@@ -9,6 +9,7 @@ window.HTMLElement.prototype.scrollIntoView = vi.fn();
 
 describe('TerminalPanel', () => {
   beforeEach(() => {
+    cleanup();
     const state = useFlowStore.getState();
     state.clearTerminalLogs();
     state.setTerminalOpen(false);
@@ -16,6 +17,8 @@ describe('TerminalPanel', () => {
     state.setTerminalSelectedResourceId(null);
     useFlowStore.setState({
       colorMode: 'dark',
+      isAdminAuthenticated: false,
+      isAwaitingAdminPassword: false,
       nodes: [
         { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
         { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep' }, position: { x: 10, y: 10 } }
@@ -661,6 +664,7 @@ describe('TerminalPanel', () => {
         useFlowStore.setState({
           isTerminalOpen: true,
           isSimulating: true,
+          terminalActiveTab: 'activity',
           nodes: [
             { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } }
           ]
@@ -897,7 +901,7 @@ describe('TerminalPanel', () => {
         });
       });
 
-      render(<TerminalPanel />);
+      const { unmount } = render(<TerminalPanel />);
 
       expect(screen.getByText('Terminal Idle')).toBeInTheDocument();
 
@@ -905,6 +909,7 @@ describe('TerminalPanel', () => {
       fireEvent.click(applyBtn);
 
       expect(startSimulationSpy).toHaveBeenCalled();
+      unmount();
     });
   });
 
@@ -958,7 +963,7 @@ describe('TerminalPanel', () => {
         });
       });
 
-      render(<TerminalPanel />);
+      const { unmount } = render(<TerminalPanel />);
 
       const exportBtn = screen.getByTestId('terminal-export-log-btn');
       expect(exportBtn).toBeInTheDocument();
@@ -969,6 +974,92 @@ describe('TerminalPanel', () => {
 
       createObjectUrlSpy.mockRestore();
       revokeObjectUrlSpy.mockRestore();
+      unmount();
+    });
+
+    it('handles export log filename resolution when node label is missing or when no node is selected', () => {
+      const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
+      const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+      // Case 1: Node selected with no custom label (falls back to node id)
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'unlabeled-pod',
+          nodes: [{ id: 'unlabeled-pod', type: 'Pod', position: { x: 0, y: 0 }, data: {} }],
+          terminalLogs: { 'unlabeled-pod': ['log entry'] },
+          currentProject: null,
+        });
+      });
+
+      const { unmount: u1 } = render(<TerminalPanel />);
+      fireEvent.click(screen.getByTestId('terminal-export-log-btn'));
+      expect(createObjectUrlSpy).toHaveBeenCalled();
+      u1();
+
+      // Case 2: No node selected
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: null,
+          nodes: [],
+          terminalLogs: {},
+          currentProject: null,
+        });
+      });
+
+      const { unmount: u2 } = render(<TerminalPanel />);
+      fireEvent.click(screen.getByTestId('terminal-export-log-btn'));
+      expect(createObjectUrlSpy).toHaveBeenCalled();
+      u2();
+
+      createObjectUrlSpy.mockRestore();
+      revokeObjectUrlSpy.mockRestore();
+    });
+
+    it('renders terminal panel in light mode and handles footer visibility in logs tab with empty logs', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          colorMode: 'light',
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'pod-1',
+          terminalLogs: { 'pod-1': [] },
+        });
+      });
+
+      const { unmount } = render(<TerminalPanel />);
+
+      expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
+      // When logs tab has 0 logs, footer bar is hidden
+      expect(screen.queryByTestId('terminal-pagination-bar')).toBeNull();
+      unmount();
+    });
+
+    it('covers handleSelectSuggestion when selecting suggestion from autocomplete popup', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          terminalActiveTab: 'activity',
+        });
+      });
+
+      const { unmount } = render(<TerminalPanel />);
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: 'kubectl get' } });
+
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      const item0 = screen.getByTestId('autocomplete-item-0');
+      fireEvent.click(item0);
+
+      expect(input.value).toBe('kubectl get pods');
+      unmount();
     });
   });
 });

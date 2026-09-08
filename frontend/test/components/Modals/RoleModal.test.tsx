@@ -377,4 +377,154 @@ describe('RoleModal component', () => {
       expect(screen.getByText(expectedGroup)).toBeInTheDocument();
     }
   });
+
+  it('renders IAM users section when users exist, handles toggle assignment and IAM modal shortcut', () => {
+    const onCloseMock = vi.fn();
+    const setKubeIamModalOpenSpy = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
+
+    useFlowStore.setState({
+      iamUsers: [
+        { id: 'u1', username: 'dev-user', accessType: 'Developer' },
+        { id: 'u2', username: 'admin-user', accessType: 'Admin' },
+      ],
+      colorMode: 'dark',
+    });
+
+    const { rerender } = render(
+      <RoleModal
+        isOpen={true}
+        onClose={onCloseMock}
+        targetNodeId="dep-1"
+        targetNodeLabel="web-app"
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Assigned Kube IAM Users (0)')).toBeInTheDocument();
+
+    const devUserBtn = screen.getByText('dev-user').closest('button')!;
+    fireEvent.click(devUserBtn);
+
+    expect(screen.getByText('Assigned Kube IAM Users (1)')).toBeInTheDocument();
+
+    // Toggle again to remove
+    fireEvent.click(devUserBtn);
+    expect(screen.getByText('Assigned Kube IAM Users (0)')).toBeInTheDocument();
+
+    // Rerender in light mode to test light mode user button styles
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <RoleModal
+        isOpen={true}
+        onClose={onCloseMock}
+        targetNodeId="dep-1"
+        targetNodeLabel="web-app"
+        onSave={vi.fn()}
+      />
+    );
+
+    const manageIamBtn = screen.getByText('Manage Kube IAM Users');
+    fireEvent.click(manageIamBtn);
+
+    expect(onCloseMock).toHaveBeenCalled();
+    expect(setKubeIamModalOpenSpy).toHaveBeenCalledWith(true);
+  });
+
+  it('renders empty IAM user notice when no IAM users exist and handles direct modal shortcut button', () => {
+    const onCloseMock = vi.fn();
+    const setKubeIamModalOpenSpy = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
+
+    useFlowStore.setState({
+      iamUsers: [],
+      colorMode: 'dark',
+    });
+
+    render(
+      <RoleModal
+        isOpen={true}
+        onClose={onCloseMock}
+        targetNodeId="dep-1"
+        targetNodeLabel="web-app"
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('No Kube IAM users created yet.')).toBeInTheDocument();
+
+    const goToIamBtn = screen.getByText('Go to Kube IAM Management');
+    fireEvent.click(goToIamBtn);
+
+    expect(onCloseMock).toHaveBeenCalled();
+    expect(setKubeIamModalOpenSpy).toHaveBeenCalledWith(true);
+  });
+
+  it('handles targetNode undefined, standalone Pod parent, and Deployment with 0 replicas / 0 child pods', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'svc-parent', type: 'Service', data: { label: 'svc-1' } },
+        { id: 'pod-standalone', type: 'Pod', parentId: 'svc-parent', data: { label: 'pod-1' } },
+        { id: 'dep-zero', type: 'Deployment', data: { label: 'zero-dep', replicas: 0 } },
+        { id: 'ns-zero', type: 'Namespace', data: { label: 'ns-zero' } },
+        { id: 'dep-child-zero', type: 'Deployment', parentId: 'ns-zero', data: { replicas: 0 } },
+      ],
+      colorMode: 'dark',
+    });
+
+    // 1. targetNodeId is null / undefined
+    const { unmount: u1 } = render(
+      <RoleModal isOpen={true} onClose={vi.fn()} targetNodeId={null} onSave={vi.fn()} />
+    );
+    expect(screen.getByText('deployments')).toBeInTheDocument();
+    expect(screen.getByText('pods')).toBeInTheDocument();
+    u1();
+
+    // 2. Pod with non-Deployment parent
+    const { unmount: u2 } = render(
+      <RoleModal isOpen={true} onClose={vi.fn()} targetNodeId="pod-standalone" onSave={vi.fn()} />
+    );
+    expect(screen.getByText('pods')).toBeInTheDocument();
+    u2();
+
+    // 3. Deployment with 0 replicas and 0 child pods
+    const { unmount: u3 } = render(
+      <RoleModal isOpen={true} onClose={vi.fn()} targetNodeId="dep-zero" onSave={vi.fn()} />
+    );
+    expect(screen.getByText('deployments')).toBeInTheDocument();
+    expect(screen.queryByText('pods')).toBeNull();
+    u3();
+
+    // 4. Namespace with child Deployment having 0 replicas and 0 grandChildren pods
+    render(
+      <RoleModal isOpen={true} onClose={vi.fn()} targetNodeId="ns-zero" onSave={vi.fn()} />
+    );
+    expect(screen.getByText('deployments')).toBeInTheDocument();
+  });
+
+  it('fallbacks to unnamed-role when role name is cleared or whitespace only', () => {
+    const onSaveMock = vi.fn();
+
+    render(
+      <RoleModal
+        isOpen={true}
+        onClose={vi.fn()}
+        targetNodeId="dep-1"
+        targetNodeLabel="web-app"
+        onSave={onSaveMock}
+      />
+    );
+
+    // Clear role name to whitespace
+    const roleNameInput = screen.getByLabelText('Role Name');
+    fireEvent.change(roleNameInput, { target: { value: '   ' } });
+
+    // Save role
+    const saveBtn = screen.getByText('Attach Role');
+    fireEvent.click(saveBtn);
+
+    expect(onSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'unnamed-role',
+      })
+    );
+  });
 });

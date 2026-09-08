@@ -129,4 +129,75 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByTestId('left-sidebar-close'));
     expect(setSidebarVisibleSpy).toHaveBeenCalledWith(false);
   });
+
+  it('handles Role click when a node with or without label is selected, configuring, or when no node is selected', () => {
+    const setRoleModalTargetNodeSpy = vi.spyOn(useFlowStore.getState(), 'setRoleModalTargetNode');
+    const addLogSpy = vi.spyOn(useFlowStore.getState(), 'addLog');
+
+    // Case 1: Node selected with custom label
+    act(() => {
+      useFlowStore.setState({
+        nodes: [{ id: 'node-1', selected: true, data: { label: 'Custom App' } } as any],
+        configuringNodeId: null,
+      });
+    });
+
+    const { unmount } = render(<Sidebar onAddNode={vi.fn()} />);
+    const securityBtn = screen.getByText('Security & Access');
+    fireEvent.click(securityBtn);
+
+    const roleBtn = screen.getByText('Role');
+    fireEvent.click(roleBtn);
+
+    expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'node-1', label: 'Custom App' });
+    unmount();
+
+    // Case 2: Node selected without custom label (falls back to node id)
+    act(() => {
+      useFlowStore.setState({
+        nodes: [{ id: 'node-2', selected: true, data: {} } as any],
+        configuringNodeId: null,
+      });
+    });
+
+    const { unmount: unmount2 } = render(<Sidebar onAddNode={vi.fn()} />);
+    fireEvent.click(screen.getByText('Security & Access'));
+    fireEvent.click(screen.getByText('Role'));
+
+    expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'node-2', label: 'node-2' });
+    unmount2();
+
+    // Case 3: Node configuring (not selected)
+    act(() => {
+      useFlowStore.setState({
+        nodes: [{ id: 'node-3', selected: false, data: { label: 'Configuring Node' } } as any],
+        configuringNodeId: 'node-3',
+      });
+    });
+
+    const { unmount: unmount3 } = render(<Sidebar onAddNode={vi.fn()} />);
+    fireEvent.click(screen.getByText('Security & Access'));
+    fireEvent.click(screen.getByText('Role'));
+
+    expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'node-3', label: 'Configuring Node' });
+    unmount3();
+
+    // Case 4: No node selected or configuring -> logs warning
+    act(() => {
+      useFlowStore.setState({
+        nodes: [{ id: 'node-4', selected: false, data: {} } as any],
+        configuringNodeId: null,
+      });
+    });
+
+    render(<Sidebar onAddNode={vi.fn()} />);
+    fireEvent.click(screen.getByText('Security & Access'));
+    fireEvent.click(screen.getByText('Role'));
+
+    expect(addLogSpy).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining("'Role' is an attached resource"),
+      'UI'
+    );
+  });
 });
