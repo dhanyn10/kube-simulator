@@ -18,6 +18,7 @@ vi.mock('@/components/Config/', () => ({
   InternetConfig: () => <div data-testid="internet-config">InternetConfig</div>,
   PVCConfig: () => <div data-testid="pvc-config">PVCConfig</div>,
   DataResourceConfig: () => <div data-testid="data-resource-config">DataResourceConfig</div>,
+  RoleConfig: () => <div data-testid="role-config">RoleConfig</div>,
 }));
 
 describe('NodeConfig', () => {
@@ -32,7 +33,7 @@ describe('NodeConfig', () => {
     });
   });
 
-  it('renders correctly based on node type', () => {
+  it('renders correctly based on node type including Role and default unknown type', () => {
     const podNode = { id: 'n1', type: 'Pod', data: { label: 'pod-1' } };
     const { rerender } = render(<NodeConfig selectedNode={podNode} />);
     expect(screen.getByTestId('workload-config')).toBeDefined();
@@ -45,12 +46,17 @@ describe('NodeConfig', () => {
         { type: 'PVC', testid: 'pvc-config' },
         { type: 'ConfigMap', testid: 'data-resource-config' },
         { type: 'Secret', testid: 'data-resource-config' },
+        { type: 'Role', testid: 'role-config' },
     ];
 
     types.forEach(({ type, testid }) => {
         rerender(<NodeConfig selectedNode={{ id: 'n', type, data: {} }} />);
         expect(screen.getByTestId(testid)).toBeDefined();
     });
+
+    // Unknown node type returns null for renderConfig
+    rerender(<NodeConfig selectedNode={{ id: 'unknown-1', type: 'UnknownType', data: {} }} />);
+    expect(screen.queryByTestId('workload-config')).toBeNull();
   });
 
   it('updates node name', async () => {
