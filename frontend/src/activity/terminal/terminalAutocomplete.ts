@@ -20,12 +20,20 @@ export const ADMIN_SUGGESTIONS: SuggestionItem[] = [
 // Level 1: General subcommands when user types 'kubectl' or 'k'
 export const KUBECTL_TOP_COMMANDS: SuggestionItem[] = [
   { value: 'kubectl get', label: 'kubectl get', category: 'Subcommand', description: 'Display one or many resources' },
+  { value: 'kubectl config', label: 'kubectl config', category: 'Subcommand', description: 'Modify kubeconfig files and user contexts' },
   { value: 'kubectl logs', label: 'kubectl logs', category: 'Subcommand', description: 'Print the logs for a container in a pod' },
   { value: 'kubectl describe', label: 'kubectl describe', category: 'Subcommand', description: 'Show details of a specific resource' },
   { value: 'kubectl scale', label: 'kubectl scale', category: 'Subcommand', description: 'Set a new size for a Deployment' },
   { value: 'kubectl set image', label: 'kubectl set image', category: 'Subcommand', description: 'Update image of a Deployment' },
   { value: 'kubectl rollout', label: 'kubectl rollout', category: 'Subcommand', description: 'Manage the rollout of a resource' },
   { value: 'kubectl delete', label: 'kubectl delete', category: 'Subcommand', description: 'Delete resources by resource and name' },
+];
+
+export const CONFIG_SUBCOMMANDS: SuggestionItem[] = [
+  { value: 'kubectl config get-contexts', label: 'kubectl config get-contexts', category: 'Command', description: 'List all available user contexts' },
+  { value: 'kubectl config current-context', label: 'kubectl config current-context', category: 'Command', description: 'Display the current user context' },
+  { value: 'kubectl config view', label: 'kubectl config view', category: 'Command', description: 'Display merged kubeconfig settings' },
+  { value: 'kubectl config use-context ', label: 'kubectl config use-context <user>', category: 'Command', description: 'Set the current-context in kubeconfig' },
 ];
 
 // Level 2: Specific subcommands after typing 'kubectl get'
@@ -93,6 +101,9 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
   const list: SuggestionItem[] = [];
   if (sub === 'get' || 'get'.startsWith(sub)) {
     list.push(...GET_SUBCOMMANDS);
+  }
+  if (sub === 'config' || 'config'.startsWith(sub)) {
+    list.push(...CONFIG_SUBCOMMANDS);
   }
   if (sub === 'rollout' || 'rollout'.startsWith(sub)) {
     list.push(...ROLLOUT_SUBCOMMANDS);

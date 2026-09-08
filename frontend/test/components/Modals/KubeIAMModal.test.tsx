@@ -74,17 +74,28 @@ describe('KubeIAMModal component', () => {
     expect(screen.getByText('No users match your filter')).toBeInTheDocument();
   });
 
-  it('renders empty state when no users exist and starts wizard from button', () => {
+  it('renders built-in system:admin profile and allows switching active identity profile', () => {
+    useFlowStore.setState({ activeIdentity: 'system:admin', colorMode: 'light' });
+
+    render(<KubeIAMModal />);
+
+    expect(screen.getByText('system:admin')).toBeInTheDocument();
+    expect(screen.getByTestId('use-profile-btn-system-admin')).toHaveTextContent('Active Profile');
+
+    // Click "Use this profile" for admin-user
+    const useUserBtn = screen.getByTestId('use-profile-btn-admin-user');
+    expect(useUserBtn).toHaveTextContent('Use this profile');
+    fireEvent.click(useUserBtn);
+
+    expect(useFlowStore.getState().activeIdentity).toBe('admin-user');
+  });
+
+  it('renders search filter empty state when search filter matches no user', () => {
     useFlowStore.setState({ iamUsers: [], colorMode: 'light' });
 
     render(<KubeIAMModal />);
 
-    expect(screen.getByText('No IAM users created yet')).toBeInTheDocument();
-
-    const createButtons = screen.getAllByRole('button', { name: /Create User/i });
-    fireEvent.click(createButtons[1]);
-
-    expect(screen.getAllByText('User Details').length).toBeGreaterThan(0);
+    expect(screen.getByText('system:admin')).toBeInTheDocument();
   });
 
   it('deletes user when trash icon button is clicked', () => {

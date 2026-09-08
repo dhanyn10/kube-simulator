@@ -12,8 +12,9 @@ import { Node } from '@xyflow/react';
 describe('terminalAutocomplete', () => {
   it('returns general top subcommands when typing "kubectl"', () => {
     const suggestions = getAutocompleteSuggestions('kubectl', []);
-    expect(suggestions).toHaveLength(7);
+    expect(suggestions).toHaveLength(8);
     expect(suggestions.some(s => s.value === 'kubectl get')).toBe(true);
+    expect(suggestions.some(s => s.value === 'kubectl config')).toBe(true);
     expect(suggestions.some(s => s.value === 'kubectl logs')).toBe(true);
     expect(suggestions.some(s => s.value === 'kubectl describe')).toBe(true);
     expect(suggestions.some(s => s.value === 'kubectl scale')).toBe(true);

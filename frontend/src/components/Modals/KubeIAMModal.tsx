@@ -77,21 +77,151 @@ function getPolicyRowClass(isSelected: boolean, isDark: boolean): string {
   return isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700';
 }
 
-/**
- * Returns empty state text content based on overall user count.
- */
-function getEmptyStateText(userCount: number): { readonly title: string; readonly subtitle: string } {
-  if (userCount === 0) {
-    return {
-      title: 'No IAM users created yet',
-      subtitle: 'Create your first Kube IAM user to manage access permissions and roles.',
-    };
-  }
-  return {
-    title: 'No users match your filter',
-    subtitle: 'Try clearing your search query.',
-  };
+
+interface AttachedRoleInfo {
+  readonly nodeId: string;
+  readonly nodeLabel: string;
+  readonly roleId: string;
+  readonly roleName: string;
 }
+
+interface IAMUserCardProps {
+  readonly user: KubeIAMUser;
+  readonly isActive: boolean;
+  readonly isDark: boolean;
+  readonly attachedRoles: readonly AttachedRoleInfo[];
+  readonly onSelectActive: (username: string) => void;
+  readonly onDeleteUser: (id: string) => void;
+  readonly onNavigateToRole: (nodeId: string, nodeLabel: string) => void;
+}
+
+const IAMUserCard: React.FC<IAMUserCardProps> = ({
+  user,
+  isActive,
+  isDark,
+  attachedRoles,
+  onSelectActive,
+  onDeleteUser,
+  onNavigateToRole,
+}) => {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between p-3 rounded-lg border transition-colors',
+        isActive
+          ? isDark
+            ? 'bg-emerald-950/30 border-emerald-500/50'
+            : 'bg-emerald-50/80 border-emerald-300'
+          : isDark
+            ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
+            : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn('p-2 rounded-md mt-0.5', isDark ? 'bg-slate-900 text-emerald-400' : 'bg-white text-emerald-600 border border-slate-200')}>
+          <User size={16} />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
+              {user.username}
+            </span>
+            <span className={cn(
+              'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
+              user.accessType === 'Full Access'
+                ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+            )}>
+              {user.accessType}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            {user.policies.map((p) => (
+              <span
+                key={p.name}
+                className={cn(
+                  'text-[10px] px-1.5 py-0.5 rounded border',
+                  isDark
+                    ? 'bg-slate-900 border-slate-700 text-slate-300'
+                    : 'bg-white border-slate-200 text-slate-600'
+                )}
+              >
+                {p.name}
+              </span>
+            ))}
+          </div>
+
+          {attachedRoles.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-slate-700/30">
+              <span className={cn('text-[11px] font-medium flex items-center gap-1 mb-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                <ShieldCheck size={12} className="text-indigo-400" />
+                Attached Roles ({attachedRoles.length}):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {attachedRoles.map((r) => (
+                  <button
+                    key={`${r.nodeId}-${r.roleId}`}
+                    type="button"
+                    onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
+                    className={cn(
+                      'text-[10px] px-2 py-0.5 rounded border flex items-center gap-1 transition-all hover:scale-105 cursor-pointer',
+                      isDark
+                        ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                    )}
+                    title={`Node: ${r.nodeLabel} - Click to configure role`}
+                  >
+                    <span className="font-semibold">{r.roleName}</span>
+                    <span className="opacity-60 text-[9px]">({r.nodeLabel})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onSelectActive(user.username)}
+          disabled={isActive}
+          data-testid={`use-profile-btn-${user.username}`}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
+            isActive
+              ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 cursor-default'
+              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+          )}
+        >
+          {isActive ? (
+            <>
+              <CheckCircle2 size={13} className="text-emerald-400" />
+              <span>Active Profile</span>
+            </>
+          ) : (
+            <>
+              <UserCheck size={13} />
+              <span>Use this profile</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onDeleteUser(user.id)}
+          className={cn(
+            'p-1.5 rounded-md text-slate-400 hover:text-rose-400 transition-colors',
+            isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-200'
+          )}
+          title="Delete User"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface IAMUserListViewProps {
   readonly iamUsers: readonly KubeIAMUser[];
@@ -101,16 +231,6 @@ interface IAMUserListViewProps {
   readonly onSearchChange: (value: string) => void;
   readonly onStartCreate: () => void;
   readonly onDeleteUser: (id: string) => void;
-}
-
-/**
- * Renders the existing Kube IAM user list with search filter and delete action.
- */
-interface AttachedRoleInfo {
-  nodeId: string;
-  nodeLabel: string;
-  roleId: string;
-  roleName: string;
 }
 
 const IAMUserListView: React.FC<IAMUserListViewProps> = ({
@@ -123,24 +243,24 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   onDeleteUser,
 }) => {
   const isDark = colorMode === 'dark';
-  const emptyText = getEmptyStateText(iamUsers.length);
   const nodes = useFlowStore((state) => state.nodes);
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
+  const activeIdentity = useFlowStore((state) => state.activeIdentity);
+  const setActiveIdentity = useFlowStore((state) => state.setActiveIdentity);
 
   const getAttachedRolesForUser = (username: string): AttachedRoleInfo[] => {
     const rolesList: AttachedRoleInfo[] = [];
     for (const node of nodes) {
-      if (Array.isArray(node.data?.roles)) {
-        for (const role of node.data.roles) {
-          if (role.assignedUsers?.includes(username)) {
-            rolesList.push({
-              nodeId: node.id,
-              nodeLabel: node.data.label || node.id,
-              roleId: role.id,
-              roleName: role.name,
-            });
-          }
+      if (!Array.isArray(node.data?.roles)) continue;
+      for (const role of node.data.roles) {
+        if (role.assignedUsers?.includes(username)) {
+          rolesList.push({
+            nodeId: node.id,
+            nodeLabel: node.data.label || node.id,
+            roleId: role.id,
+            roleName: role.name,
+          });
         }
       }
     }
@@ -193,118 +313,86 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
       )}
 
       <div className="flex-1 overflow-y-auto pr-1">
-        {filteredUsers.length === 0 ? (
-          <div className={cn('flex flex-col items-center justify-center h-48 rounded-lg border border-dashed p-6 text-center', isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400')}>
-            <User size={32} className="mb-2 opacity-40 text-emerald-400" />
-            <p className="text-xs font-medium mb-1">{emptyText.title}</p>
-            <p className="text-[11px] max-w-xs mb-4">{emptyText.subtitle}</p>
-            {iamUsers.length === 0 && (
-              <button
-                type="button"
-                onClick={onStartCreate}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
-              >
-                <UserPlus size={14} />
-                Create User
-              </button>
+        <div className="space-y-2">
+          {/* Default Cluster Admin Profile */}
+          <div
+            className={cn(
+              'flex items-center justify-between p-3 rounded-lg border transition-colors',
+              activeIdentity === 'system:admin'
+                ? isDark
+                  ? 'bg-emerald-950/30 border-emerald-500/50'
+                  : 'bg-emerald-50/80 border-emerald-300'
+                : isDark
+                  ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
+                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
             )}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredUsers.map((user) => (
-              <div
-                key={user.id}
-                className={cn(
-                  'flex items-center justify-between p-3 rounded-lg border transition-colors',
-                  isDark
-                    ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div className={cn('p-2 rounded-md mt-0.5', isDark ? 'bg-slate-900 text-emerald-400' : 'bg-white text-emerald-600 border border-slate-200')}>
-                    <User size={16} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
-                        {user.username}
-                      </span>
-                      <span className={cn(
-                        'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
-                        user.accessType === 'Full Access'
-                          ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      )}>
-                        {user.accessType}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                      {user.policies.map((p) => (
-                        <span
-                          key={p.name}
-                          className={cn(
-                            'text-[10px] px-1.5 py-0.5 rounded border',
-                            isDark
-                              ? 'bg-slate-900 border-slate-700 text-slate-300'
-                              : 'bg-white border-slate-200 text-slate-600'
-                          )}
-                        >
-                          {p.name}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Attached Canvas Roles */}
-                    {(() => {
-                      const attachedRoles = getAttachedRolesForUser(user.username);
-                      if (attachedRoles.length === 0) return null;
-                      return (
-                        <div className="mt-2 pt-2 border-t border-slate-700/30">
-                          <span className={cn('text-[11px] font-medium flex items-center gap-1 mb-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
-                            <ShieldCheck size={12} className="text-indigo-400" />
-                            Attached Roles ({attachedRoles.length}):
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {attachedRoles.map((r) => (
-                              <button
-                                key={`${r.nodeId}-${r.roleId}`}
-                                type="button"
-                                onClick={() => handleNavigateToRole(r.nodeId, r.nodeLabel)}
-                                className={cn(
-                                  'text-[10px] px-2 py-0.5 rounded border flex items-center gap-1 transition-all hover:scale-105 cursor-pointer',
-                                  isDark
-                                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
-                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                )}
-                                title={`Node: ${r.nodeLabel} - Click to configure role`}
-                              >
-                                <span className="font-semibold">{r.roleName}</span>
-                                <span className="opacity-60 text-[9px]">({r.nodeLabel})</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => onDeleteUser(user.id)}
-                  className={cn(
-                    'p-1.5 rounded-md text-slate-400 hover:text-rose-400 transition-colors',
-                    isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-200'
-                  )}
-                  title="Delete User"
-                >
-                  <Trash2 size={14} />
-                </button>
+          >
+            <div className="flex items-start gap-3">
+              <div className={cn('p-2 rounded-md mt-0.5', isDark ? 'bg-slate-900 text-amber-400' : 'bg-white text-amber-600 border border-slate-200')}>
+                <ShieldCheck size={16} />
               </div>
-            ))}
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={cn('text-xs font-semibold font-mono', isDark ? 'text-slate-200' : 'text-slate-800')}>
+                    system:admin
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    Cluster Admin
+                  </span>
+                </div>
+                <p className={cn('text-[11px] mt-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                  Default cluster superuser account with unrestricted API Server permissions.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveIdentity('system:admin')}
+              disabled={activeIdentity === 'system:admin'}
+              data-testid="use-profile-btn-system-admin"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
+                activeIdentity === 'system:admin'
+                  ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 cursor-default'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+              )}
+            >
+              {activeIdentity === 'system:admin' ? (
+                <>
+                  <CheckCircle2 size={13} className="text-emerald-400" />
+                  <span>Active Profile</span>
+                </>
+              ) : (
+                <>
+                  <UserCheck size={13} />
+                  <span>Use this profile</span>
+                </>
+              )}
+            </button>
           </div>
-        )}
+
+          {filteredUsers.length === 0 && searchFilter ? (
+            <div className={cn('flex flex-col items-center justify-center h-32 rounded-lg border border-dashed p-6 text-center', isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400')}>
+              <User size={28} className="mb-2 opacity-40 text-emerald-400" />
+              <p className="text-xs font-medium mb-1">No users match your filter</p>
+              <p className="text-[11px] max-w-xs">Try clearing your search query.</p>
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <IAMUserCard
+                key={user.id}
+                user={user}
+                isActive={activeIdentity === user.username}
+                isDark={isDark}
+                attachedRoles={getAttachedRolesForUser(user.username)}
+                onSelectActive={setActiveIdentity}
+                onDeleteUser={onDeleteUser}
+                onNavigateToRole={handleNavigateToRole}
+              />
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

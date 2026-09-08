@@ -29,6 +29,10 @@ export interface UiSlice {
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
 
+  // Active K8s Identity state & actions
+  activeIdentity: string;
+  setActiveIdentity: (identity: string) => void;
+
   // Kube IAM Modal state & actions
   isKubeIamModalOpen: boolean;
   setKubeIamModalOpen: (open: boolean) => void;
@@ -684,6 +688,15 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   hpaModalTargetNode: null,
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
 
+  // Active K8s Identity initial state & actions
+  activeIdentity: 'system:admin',
+  setActiveIdentity: (identity) => {
+    set({ activeIdentity: identity });
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('active_identity', identity);
+    }
+  },
+
   // Kube IAM initial state & actions
   isKubeIamModalOpen: false,
   setKubeIamModalOpen: (open) => set({ isKubeIamModalOpen: open }),
@@ -815,6 +828,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           applyParsedSettings(val, set);
         } else {
           fallbackToLegacySettings(set);
+        }
+      });
+      globalThis.go.main.App.GetSetting('active_identity').then((val: string) => {
+        if (val) {
+          set({ activeIdentity: val });
         }
       });
       globalThis.go.main.App.GetSetting('kube_iam_users').then((val: string) => {

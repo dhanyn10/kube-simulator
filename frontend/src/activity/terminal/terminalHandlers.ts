@@ -208,6 +208,10 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   }
 
   addActivityLog('Available educational Kubernetes commands:');
+  addActivityLog('  kubectl config get-contexts           List available user context identities');
+  addActivityLog('  kubectl config current-context        Show current active user identity');
+  addActivityLog('  kubectl config use-context <user>     Switch active user context identity');
+  addActivityLog('  kubectl config view                   View current kubeconfig digital credentials');
   addActivityLog('  kubectl get pods                      List all pods on the canvas');
   addActivityLog('  kubectl get deployments               List deployments on the canvas');
   addActivityLog('  kubectl get services                  List services on the canvas');

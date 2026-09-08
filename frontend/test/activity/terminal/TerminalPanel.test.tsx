@@ -500,7 +500,7 @@ describe('TerminalPanel', () => {
       expect(screen.getByText('pod-1 log line 1')).toBeInTheDocument();
 
       // Change resource dropdown
-      const selectResource = screen.getByRole('combobox');
+      const selectResource = screen.getByTestId('terminal-resource-select');
       fireEvent.change(selectResource, { target: { value: 'dep-1' } });
 
       expect(useFlowStore.getState().terminalSelectedResourceId).toBe('dep-1');
