@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, Plus, Trash2, X, User, ExternalLink, Search, ChevronDown, Check } from 'lucide-react';
+import { ShieldCheck, Plus, Trash2, X, User, ExternalLink } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sRoleItem, K8sRoleRule, K8sResourceType, KubeIAMUser } from '../../types';
 import { useFlowStore } from '../../store';
@@ -450,6 +450,28 @@ const isUserFullAccess = (user: KubeIAMUser): boolean => {
 };
 
 /**
+ * Checks if policy set matches targeted resource categories.
+ */
+const checkPolicyResourceMatch = (resourcesSet: Set<string>, policyNames: Set<string>): boolean => {
+  const isDevResource = Array.from(resourcesSet).some((r) =>
+    ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets', 'horizontalpodautoscalers', 'hpa'].includes(r)
+  );
+  const isNetResource = Array.from(resourcesSet).some((r) =>
+    ['services', 'ingresses', 'networking'].includes(r)
+  );
+  const isStorageResource = Array.from(resourcesSet).some((r) =>
+    ['persistentvolumeclaims', 'pvcs', 'storage'].includes(r)
+  );
+
+  if (isDevResource && policyNames.has('ContainerDeveloperPolicy')) return true;
+  if (isNetResource && policyNames.has('NetworkingAdminPolicy')) return true;
+  if (isStorageResource && policyNames.has('StorageAdminPolicy')) return true;
+  if (policyNames.has('ReadOnlyAccess')) return true;
+
+  return resourcesSet.size === 0;
+};
+
+/**
  * Determines if a Kube IAM user is eligible/available for assignment on a given target card / role.
  */
 const isUserAvailableForRole = (
@@ -460,8 +482,8 @@ const isUserAvailableForRole = (
   if (isUserFullAccess(user)) return true;
   if (!user.policies || user.policies.length === 0) return false;
 
-  const policyNames = user.policies.map((p) => p.name);
-  if (policyNames.includes('PowerUserAccess') || policyNames.includes('AdministratorAccess')) {
+  const policyNames = new Set(user.policies.map((p) => p.name));
+  if (policyNames.has('PowerUserAccess') || policyNames.has('AdministratorAccess')) {
     return true;
   }
 
@@ -476,24 +498,7 @@ const isUserAvailableForRole = (
 
   if (resourcesSet.has('*')) return true;
 
-  const isDevResource = Array.from(resourcesSet).some((r) =>
-    ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets', 'horizontalpodautoscalers', 'hpa'].includes(r)
-  );
-  const isNetResource = Array.from(resourcesSet).some((r) =>
-    ['services', 'ingresses', 'networking'].includes(r)
-  );
-  const isStorageResource = Array.from(resourcesSet).some((r) =>
-    ['persistentvolumeclaims', 'pvcs', 'storage'].includes(r)
-  );
-
-  if (isDevResource && policyNames.includes('ContainerDeveloperPolicy')) return true;
-  if (isNetResource && policyNames.includes('NetworkingAdminPolicy')) return true;
-  if (isStorageResource && policyNames.includes('StorageAdminPolicy')) return true;
-  if (policyNames.includes('ReadOnlyAccess')) return true;
-
-  if (resourcesSet.size === 0) return true;
-
-  return false;
+  return checkPolicyResourceMatch(resourcesSet, policyNames);
 };
 
 export const RoleModal: React.FC<RoleModalProps> = ({
@@ -798,22 +803,36 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                       const isFullAccess = isUserFullAccess(user);
                       const isChecked = assignedUsers.includes(user.username);
 
+                      const getDropdownRowClass = (): string => {
+                        if (isChecked) {
+                          return colorMode === 'dark'
+                            ? "bg-indigo-600/30 text-indigo-100 font-bold"
+                            : "bg-indigo-50 text-indigo-900 font-bold";
+                        }
+                        return colorMode === 'dark'
+                          ? "hover:bg-slate-800/60 text-slate-300 focus:bg-slate-800/60 outline-none"
+                          : "hover:bg-slate-50 text-slate-700 focus:bg-slate-50 outline-none";
+                      };
+
                       return (
                         <div
                           key={user.id}
+                          role="option"
+                          aria-selected={isChecked}
+                          tabIndex={0}
                           onMouseDown={(e) => {
                             e.preventDefault();
                             toggleUserAssignment(user.username);
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleUserAssignment(user.username);
+                            }
+                          }}
                           className={cn(
                             "flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors border-b last:border-b-0 border-slate-800/40",
-                            isChecked
-                              ? colorMode === 'dark'
-                                ? "bg-indigo-600/30 text-indigo-100 font-bold"
-                                : "bg-indigo-50 text-indigo-900 font-bold"
-                              : colorMode === 'dark'
-                                ? "hover:bg-slate-800/60 text-slate-300"
-                                : "hover:bg-slate-50 text-slate-700"
+                            getDropdownRowClass()
                           )}
                         >
                           <div className="flex items-center gap-2">
@@ -822,6 +841,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                               checked={isChecked}
                               disabled={isFullAccess}
                               onChange={() => {}}
+                              aria-label={`Select ${user.username}`}
                               className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
                             />
                             <span className="font-semibold text-[11px]">{user.username}</span>
