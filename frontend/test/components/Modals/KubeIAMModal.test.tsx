@@ -227,4 +227,35 @@ describe('KubeIAMModal component', () => {
     fireEvent.click(closeBtn);
     expect(useFlowStore.getState().isKubeIamModalOpen).toBe(false);
   });
+
+  it('renders attached canvas roles for IAM users and navigates to target node role modal on click', () => {
+    const setKubeIamModalOpenSpy = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
+    const setRoleModalTargetNodeSpy = vi.spyOn(useFlowStore.getState(), 'setRoleModalTargetNode');
+
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-1',
+          data: {
+            label: 'web-pod',
+            roles: [
+              { id: 'role-1', name: 'web-reader-role', assignedUsers: ['admin-user'] },
+            ],
+          },
+        } as any,
+      ],
+      colorMode: 'light',
+    });
+
+    render(<KubeIAMModal />);
+
+    expect(screen.getByText('Attached Roles (1):')).toBeInTheDocument();
+    expect(screen.getByText('web-reader-role')).toBeInTheDocument();
+
+    const roleBtn = screen.getByRole('button', { name: /web-reader-role/i });
+    fireEvent.click(roleBtn);
+
+    expect(setKubeIamModalOpenSpy).toHaveBeenCalledWith(false);
+    expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'pod-1', label: 'web-pod' });
+  });
 });

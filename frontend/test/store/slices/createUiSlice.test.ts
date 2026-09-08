@@ -501,4 +501,88 @@ describe('createUiSlice', () => {
     setIsAdminAuthenticated(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
   });
+
+  it('handles addIamUser and deleteIamUser with role purging from canvas nodes', () => {
+    const { addIamUser, deleteIamUser } = useFlowStore.getState();
+
+    // 1. Add IAM user
+    addIamUser({ username: 'dev-user', accessType: 'Managed Access', policies: [] });
+    let state = useFlowStore.getState();
+    expect(state.iamUsers).toHaveLength(1);
+    const createdUserId = state.iamUsers[0].id;
+
+    // Attach role assigned to dev-user on a node
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-1',
+          data: {
+            label: 'web-pod',
+            roles: [
+              { id: 'role-1', name: 'app-role', assignedUsers: ['dev-user', 'other-user'] },
+            ],
+          },
+        } as any,
+        { id: 'pod-2', data: {} } as any, // Node without roles array
+      ],
+    });
+
+    // 2. Delete user and verify role purging across nodes
+    deleteIamUser(createdUserId);
+    state = useFlowStore.getState();
+    expect(state.iamUsers).toHaveLength(0);
+
+    const updatedNode = state.nodes.find((n) => n.id === 'pod-1')!;
+    const updatedRole = (updatedNode.data.roles as any[])[0];
+    expect(updatedRole.assignedUsers).toEqual(['other-user']);
+
+    // 3. Deleting non-existent user ID does not fail
+    deleteIamUser('non-existent-user-id');
+  });
+
+  it('handles fetchHistoryLogs and loadSettingsJson edge cases and WriteLog rejection', async () => {
+    // 1. GetHistoryLogs returns non-array and GetCurrentHistoryIndex is missing
+    (globalThis as any).go.main.App.GetHistoryLogs = vi.fn().mockResolvedValue({ not: 'an array' });
+    delete (globalThis as any).go.main.App.GetCurrentHistoryIndex;
+
+    const { fetchHistoryLogs, loadSettingsJson, addActivityLog, stopSimulation } = useFlowStore.getState();
+    await fetchHistoryLogs();
+    expect(useFlowStore.getState().isHistoryLoading).toBe(false);
+
+    // 2. loadSettingsJson with valid kube_iam_users array and invalid JSON
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'kube_iam_users') return Promise.resolve(JSON.stringify([{ id: 'u1', username: 'loaded-user' }]));
+      return Promise.resolve('');
+    });
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+    expect(useFlowStore.getState().iamUsers).toHaveLength(1);
+
+    // loadSettingsJson with invalid kube_iam_users JSON
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'kube_iam_users') return Promise.resolve('{invalid-json');
+      return Promise.resolve('');
+    });
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+
+    // 3. addActivityLog with WriteLog rejection
+    (globalThis as any).go.main.App.WriteLog = vi.fn().mockRejectedValue(new Error('WriteLog error'));
+    addActivityLog('Test error catch');
+    expect(useFlowStore.getState().activityLogs).toContain('Test error catch');
+
+    // 4. stopSimulation with canvas k8s resources
+    useFlowStore.setState({
+      isSimulating: true,
+      nodes: [
+        { id: 'dep-1', type: 'Deployment', data: { label: 'my-dep' } },
+        { id: 'svc-1', type: 'Service', data: {} },
+        { id: 'ing-1', type: 'Ingress', data: {} },
+        { id: 'hpa-1', type: 'HPA', data: {} },
+      ] as any,
+    });
+    stopSimulation();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('my-dep deleted'))).toBe(true);
+  });
 });

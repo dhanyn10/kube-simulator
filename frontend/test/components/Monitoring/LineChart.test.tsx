@@ -55,4 +55,21 @@ describe('LineChart', () => {
     const purplePolyline = purpleContainer.querySelector('polyline');
     expect(purplePolyline).toHaveAttribute('stroke', '#a855f7');
   });
+
+  it('handles isPercent=false without limitValue and valueFormatter without limitValue', () => {
+    const formatter = (v: number) => `${v} units`;
+    const { container } = render(
+      <LineChart
+        data={[25]}
+        color="emerald"
+        label="Bandwidth"
+        isPercent={false}
+        valueFormatter={formatter}
+      />
+    );
+
+    expect(screen.getByText('25 units / 0 units')).toBeInTheDocument();
+    const path = container.querySelector('path');
+    expect(path).toHaveAttribute('fill', 'rgba(168, 85, 247, 0.1)');
+  });
 });
