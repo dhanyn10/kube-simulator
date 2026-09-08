@@ -78,6 +78,151 @@ function getPolicyRowClass(isSelected: boolean, isDark: boolean): string {
 }
 
 
+interface AttachedRoleInfo {
+  readonly nodeId: string;
+  readonly nodeLabel: string;
+  readonly roleId: string;
+  readonly roleName: string;
+}
+
+interface IAMUserCardProps {
+  readonly user: KubeIAMUser;
+  readonly isActive: boolean;
+  readonly isDark: boolean;
+  readonly attachedRoles: readonly AttachedRoleInfo[];
+  readonly onSelectActive: (username: string) => void;
+  readonly onDeleteUser: (id: string) => void;
+  readonly onNavigateToRole: (nodeId: string, nodeLabel: string) => void;
+}
+
+const IAMUserCard: React.FC<IAMUserCardProps> = ({
+  user,
+  isActive,
+  isDark,
+  attachedRoles,
+  onSelectActive,
+  onDeleteUser,
+  onNavigateToRole,
+}) => {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between p-3 rounded-lg border transition-colors',
+        isActive
+          ? isDark
+            ? 'bg-emerald-950/30 border-emerald-500/50'
+            : 'bg-emerald-50/80 border-emerald-300'
+          : isDark
+            ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
+            : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn('p-2 rounded-md mt-0.5', isDark ? 'bg-slate-900 text-emerald-400' : 'bg-white text-emerald-600 border border-slate-200')}>
+          <User size={16} />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
+              {user.username}
+            </span>
+            <span className={cn(
+              'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
+              user.accessType === 'Full Access'
+                ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+            )}>
+              {user.accessType}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+            {user.policies.map((p) => (
+              <span
+                key={p.name}
+                className={cn(
+                  'text-[10px] px-1.5 py-0.5 rounded border',
+                  isDark
+                    ? 'bg-slate-900 border-slate-700 text-slate-300'
+                    : 'bg-white border-slate-200 text-slate-600'
+                )}
+              >
+                {p.name}
+              </span>
+            ))}
+          </div>
+
+          {attachedRoles.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-slate-700/30">
+              <span className={cn('text-[11px] font-medium flex items-center gap-1 mb-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                <ShieldCheck size={12} className="text-indigo-400" />
+                Attached Roles ({attachedRoles.length}):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {attachedRoles.map((r) => (
+                  <button
+                    key={`${r.nodeId}-${r.roleId}`}
+                    type="button"
+                    onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
+                    className={cn(
+                      'text-[10px] px-2 py-0.5 rounded border flex items-center gap-1 transition-all hover:scale-105 cursor-pointer',
+                      isDark
+                        ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                    )}
+                    title={`Node: ${r.nodeLabel} - Click to configure role`}
+                  >
+                    <span className="font-semibold">{r.roleName}</span>
+                    <span className="opacity-60 text-[9px]">({r.nodeLabel})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onSelectActive(user.username)}
+          disabled={isActive}
+          data-testid={`use-profile-btn-${user.username}`}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
+            isActive
+              ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 cursor-default'
+              : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+          )}
+        >
+          {isActive ? (
+            <>
+              <CheckCircle2 size={13} className="text-emerald-400" />
+              <span>Active Profile</span>
+            </>
+          ) : (
+            <>
+              <UserCheck size={13} />
+              <span>Use this profile</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onDeleteUser(user.id)}
+          className={cn(
+            'p-1.5 rounded-md text-slate-400 hover:text-rose-400 transition-colors',
+            isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-200'
+          )}
+          title="Delete User"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface IAMUserListViewProps {
   readonly iamUsers: readonly KubeIAMUser[];
   readonly filteredUsers: readonly KubeIAMUser[];
@@ -86,16 +231,6 @@ interface IAMUserListViewProps {
   readonly onSearchChange: (value: string) => void;
   readonly onStartCreate: () => void;
   readonly onDeleteUser: (id: string) => void;
-}
-
-/**
- * Renders the existing Kube IAM user list with search filter and delete action.
- */
-interface AttachedRoleInfo {
-  nodeId: string;
-  nodeLabel: string;
-  roleId: string;
-  roleName: string;
 }
 
 const IAMUserListView: React.FC<IAMUserListViewProps> = ({
@@ -117,16 +252,15 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   const getAttachedRolesForUser = (username: string): AttachedRoleInfo[] => {
     const rolesList: AttachedRoleInfo[] = [];
     for (const node of nodes) {
-      if (Array.isArray(node.data?.roles)) {
-        for (const role of node.data.roles) {
-          if (role.assignedUsers?.includes(username)) {
-            rolesList.push({
-              nodeId: node.id,
-              nodeLabel: node.data.label || node.id,
-              roleId: role.id,
-              roleName: role.name,
-            });
-          }
+      if (!Array.isArray(node.data?.roles)) continue;
+      for (const role of node.data.roles) {
+        if (role.assignedUsers?.includes(username)) {
+          rolesList.push({
+            nodeId: node.id,
+            nodeLabel: node.data.label || node.id,
+            roleId: role.id,
+            roleName: role.name,
+          });
         }
       }
     }
@@ -245,132 +379,18 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
               <p className="text-[11px] max-w-xs">Try clearing your search query.</p>
             </div>
           ) : (
-            filteredUsers.map((user) => {
-              const isActive = activeIdentity === user.username;
-              return (
-                <div
-                  key={user.id}
-                  className={cn(
-                    'flex items-center justify-between p-3 rounded-lg border transition-colors',
-                    isActive
-                      ? isDark
-                        ? 'bg-emerald-950/30 border-emerald-500/50'
-                        : 'bg-emerald-50/80 border-emerald-300'
-                      : isDark
-                        ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
-                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn('p-2 rounded-md mt-0.5', isDark ? 'bg-slate-900 text-emerald-400' : 'bg-white text-emerald-600 border border-slate-200')}>
-                      <User size={16} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
-                          {user.username}
-                        </span>
-                        <span className={cn(
-                          'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
-                          user.accessType === 'Full Access'
-                            ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        )}>
-                          {user.accessType}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                        {user.policies.map((p) => (
-                          <span
-                            key={p.name}
-                            className={cn(
-                              'text-[10px] px-1.5 py-0.5 rounded border',
-                              isDark
-                                ? 'bg-slate-900 border-slate-700 text-slate-300'
-                                : 'bg-white border-slate-200 text-slate-600'
-                            )}
-                          >
-                            {p.name}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Attached Canvas Roles */}
-                      {(() => {
-                        const attachedRoles = getAttachedRolesForUser(user.username);
-                        if (attachedRoles.length === 0) return null;
-                        return (
-                          <div className="mt-2 pt-2 border-t border-slate-700/30">
-                            <span className={cn('text-[11px] font-medium flex items-center gap-1 mb-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
-                              <ShieldCheck size={12} className="text-indigo-400" />
-                              Attached Roles ({attachedRoles.length}):
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {attachedRoles.map((r) => (
-                                <button
-                                  key={`${r.nodeId}-${r.roleId}`}
-                                  type="button"
-                                  onClick={() => handleNavigateToRole(r.nodeId, r.nodeLabel)}
-                                  className={cn(
-                                    'text-[10px] px-2 py-0.5 rounded border flex items-center gap-1 transition-all hover:scale-105 cursor-pointer',
-                                    isDark
-                                      ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
-                                      : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                  )}
-                                  title={`Node: ${r.nodeLabel} - Click to configure role`}
-                                >
-                                  <span className="font-semibold">{r.roleName}</span>
-                                  <span className="opacity-60 text-[9px]">({r.nodeLabel})</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveIdentity(user.username)}
-                      disabled={isActive}
-                      data-testid={`use-profile-btn-${user.username}`}
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer',
-                        isActive
-                          ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/40 cursor-default'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
-                      )}
-                    >
-                      {isActive ? (
-                        <>
-                          <CheckCircle2 size={13} className="text-emerald-400" />
-                          <span>Active Profile</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck size={13} />
-                          <span>Use this profile</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => onDeleteUser(user.id)}
-                      className={cn(
-                        'p-1.5 rounded-md text-slate-400 hover:text-rose-400 transition-colors',
-                        isDark ? 'hover:bg-slate-700' : 'hover:bg-slate-200'
-                      )}
-                      title="Delete User"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })
+            filteredUsers.map((user) => (
+              <IAMUserCard
+                key={user.id}
+                user={user}
+                isActive={activeIdentity === user.username}
+                isDark={isDark}
+                attachedRoles={getAttachedRolesForUser(user.username)}
+                onSelectActive={setActiveIdentity}
+                onDeleteUser={onDeleteUser}
+                onNavigateToRole={handleNavigateToRole}
+              />
+            ))
           )}
         </div>
       </div>

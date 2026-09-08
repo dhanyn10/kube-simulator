@@ -2,12 +2,62 @@ import { CommandContext } from './terminalCommands';
 import { KubeIAMUser } from '../../types';
 
 /**
+ * Evaluates whether an IAM user's policies allow a specific verb and resource.
+ */
+const checkIamPolicy = (
+  user: KubeIAMUser,
+  verb: string,
+  resource: string
+): boolean => {
+  const policies = user.policies.map((p) => p.name);
+  if (policies.includes('AdministratorAccess')) {
+    return true;
+  }
+  if (verb === 'get' || verb === 'list') {
+    return policies.length > 0;
+  }
+  if (policies.includes('PowerUserAccess')) {
+    return true;
+  }
+
+  const res = resource.toLowerCase();
+  const isDevAllowed = ['pods', 'deployments', 'replicasets'].includes(res) && policies.includes('ContainerDeveloperPolicy');
+  const isNetAllowed = ['services', 'ingresses'].includes(res) && policies.includes('NetworkingAdminPolicy');
+  const isStorageAllowed = ['pvcs'].includes(res) && policies.includes('StorageAdminPolicy');
+
+  return isDevAllowed || isNetAllowed || isStorageAllowed;
+};
+
+/**
+ * Evaluates whether canvas attached node roles allow a user verb and resource.
+ */
+const checkCanvasRoles = (
+  nodes: readonly any[],
+  activeUser: string,
+  verb: string,
+  resource: string
+): boolean => {
+  const targetRes = resource.toLowerCase();
+  for (const node of nodes) {
+    const roles = node.data?.roles;
+    if (!Array.isArray(roles)) continue;
+
+    for (const role of roles) {
+      if (!role.assignedUsers?.includes(activeUser)) continue;
+      for (const rule of role.rules || []) {
+        const resMatch = (rule.resources || []).includes('*') || (rule.resources || []).includes(targetRes);
+        const verbMatch = (rule.verbs || []).includes('*') || (rule.verbs || []).includes(verb);
+        if (resMatch && verbMatch) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+};
+
+/**
  * Checks if the active identity has permission for a specific Kubernetes verb and resource.
- *
- * @param ctx - CommandContext object giving access to store state and logging.
- * @param verb - Action verb ('get', 'list', 'delete', 'update', 'create')
- * @param resource - Resource type ('pods', 'deployments', 'services', 'configmaps', 'secrets', 'roles', 'hpas', etc.)
- * @returns True if allowed, false if forbidden.
  */
 export const checkRbacPermission = (
   ctx: CommandContext,
@@ -17,56 +67,15 @@ export const checkRbacPermission = (
   const store = ctx.getStoreState();
   const activeUser = store.activeIdentity || 'system:admin';
 
-  // 1. system:admin has cluster-admin (*/*) privileges
   if (activeUser === 'system:admin' || activeUser === 'kubernetes-admin') {
     return true;
   }
 
-  // 2. Check IAM User Policies
   const iamUsers: KubeIAMUser[] = store.iamUsers || [];
   const userObj = iamUsers.find((u) => u.username === activeUser);
 
-  let isAllowedByPolicy = false;
-
-  if (userObj) {
-    const policyNames = userObj.policies.map((p) => p.name);
-
-    if (policyNames.includes('AdministratorAccess')) {
-      isAllowedByPolicy = true;
-    } else if (verb === 'get' || verb === 'list') {
-      // Read actions allowed for default policies
-      isAllowedByPolicy = policyNames.length > 0;
-    } else if (verb === 'delete' || verb === 'update' || verb === 'create') {
-      if (policyNames.includes('PowerUserAccess')) {
-        isAllowedByPolicy = true;
-      } else if (['pods', 'deployments', 'replicasets'].includes(resource.toLowerCase()) && policyNames.includes('ContainerDeveloperPolicy')) {
-        isAllowedByPolicy = true;
-      } else if (['services', 'ingresses'].includes(resource.toLowerCase()) && policyNames.includes('NetworkingAdminPolicy')) {
-        isAllowedByPolicy = true;
-      } else if (['pvcs'].includes(resource.toLowerCase()) && policyNames.includes('StorageAdminPolicy')) {
-        isAllowedByPolicy = true;
-      }
-    }
-  }
-
-  // 3. Check Canvas Attached Node Roles
-  let isAllowedByCanvasRole = false;
-  for (const node of ctx.nodes) {
-    if (Array.isArray(node.data?.roles)) {
-      for (const role of node.data.roles) {
-        if (role.assignedUsers?.includes(activeUser)) {
-          for (const rule of role.rules || []) {
-            const resMatch = (rule.resources || []).includes('*') || (rule.resources || []).includes(resource.toLowerCase());
-            const verbMatch = (rule.verbs || []).includes('*') || (rule.verbs || []).includes(verb);
-            if (resMatch && verbMatch) {
-              isAllowedByCanvasRole = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-  }
+  const isAllowedByPolicy = userObj ? checkIamPolicy(userObj, verb, resource) : false;
+  const isAllowedByCanvasRole = checkCanvasRoles(ctx.nodes, activeUser, verb, resource);
 
   if (isAllowedByPolicy || isAllowedByCanvasRole) {
     return true;
@@ -77,57 +86,59 @@ export const checkRbacPermission = (
   return false;
 };
 
+const RESOURCE_ALIASES: Record<string, string> = {
+  pod: 'pods',
+  pods: 'pods',
+  deploy: 'deployments',
+  deployment: 'deployments',
+  deployments: 'deployments',
+  svc: 'services',
+  service: 'services',
+  services: 'services',
+  cm: 'configmaps',
+  configmap: 'configmaps',
+  configmaps: 'configmaps',
+  secret: 'secrets',
+  secrets: 'secrets',
+  role: 'roles',
+  roles: 'roles',
+  rolebinding: 'roles',
+  rolebindings: 'roles',
+};
+
+/**
+ * Normalizes raw CLI resource string input into a standard resource category name.
+ */
+const normalizeResourceName = (raw: string): string => {
+  const key = raw.toLowerCase();
+  return RESOURCE_ALIASES[key] || key;
+};
+
 /**
  * Extracts action verb and resource category from a kubectl command.
- *
- * @param cmd - Executed command string.
- * @returns Object with verb and resource, or null if command does not require RBAC evaluation.
  */
 export const deriveVerbAndResource = (cmd: string): { verb: 'get' | 'list' | 'delete' | 'update' | 'create'; resource: string } | null => {
   const trimmed = cmd.trim();
 
-  // Match 'kubectl get ...'
   const getMatch = /^kubectl\s+get\s+([a-z0-9-]+)\b/i.exec(trimmed);
   if (getMatch) {
-    const rawRes = getMatch[1].toLowerCase();
-    let res = rawRes;
-    if (['pod', 'pods'].includes(rawRes)) res = 'pods';
-    if (['deploy', 'deployment', 'deployments'].includes(rawRes)) res = 'deployments';
-    if (['svc', 'service', 'services'].includes(rawRes)) res = 'services';
-    if (['cm', 'configmap', 'configmaps'].includes(rawRes)) res = 'configmaps';
-    if (['secret', 'secrets'].includes(rawRes)) res = 'secrets';
-    if (['role', 'roles', 'rolebinding', 'rolebindings'].includes(rawRes)) res = 'roles';
-    return { verb: 'get', resource: res };
+    return { verb: 'get', resource: normalizeResourceName(getMatch[1]) };
   }
 
-  // Match 'kubectl delete ...'
   const deleteMatch = /^kubectl\s+delete\s+([a-z0-9-]+)\b/i.exec(trimmed);
   if (deleteMatch) {
-    const rawRes = deleteMatch[1].toLowerCase();
-    let res = rawRes;
-    if (['pod', 'pods'].includes(rawRes)) res = 'pods';
-    return { verb: 'delete', resource: res };
+    return { verb: 'delete', resource: normalizeResourceName(deleteMatch[1]) };
   }
 
-  // Match 'kubectl scale ...', 'kubectl set image ...', 'kubectl rollout ...'
   if (/^kubectl\s+(scale|set\s+image|rollout)\b/i.test(trimmed)) {
     return { verb: 'update', resource: 'deployments' };
   }
 
-  // Match 'kubectl describe ...'
   const describeMatch = /^kubectl\s+describe\s+([a-z0-9-]+)\b/i.exec(trimmed);
   if (describeMatch) {
-    const rawRes = describeMatch[1].toLowerCase();
-    let res = rawRes;
-    if (['pod', 'pods'].includes(rawRes)) res = 'pods';
-    if (['deploy', 'deployment', 'deployments'].includes(rawRes)) res = 'deployments';
-    if (['cm', 'configmap', 'configmaps'].includes(rawRes)) res = 'configmaps';
-    if (['secret', 'secrets'].includes(rawRes)) res = 'secrets';
-    if (['role', 'roles', 'rolebinding'].includes(rawRes)) res = 'roles';
-    return { verb: 'get', resource: res };
+    return { verb: 'get', resource: normalizeResourceName(describeMatch[1]) };
   }
 
-  // Match 'kubectl logs ...'
   if (/^kubectl\s+logs\b/i.test(trimmed)) {
     return { verb: 'get', resource: 'pods' };
   }
