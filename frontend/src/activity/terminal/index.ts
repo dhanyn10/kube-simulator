@@ -7,4 +7,3 @@ export * from './terminalLogUtils';
 export * from './useTerminalCommandSubmit';
 export * from './useTerminalLogs';
 export * from './useTerminalScroll';
-export * from '../../components/Layout/Terminal';

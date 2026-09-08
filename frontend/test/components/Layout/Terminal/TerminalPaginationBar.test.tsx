@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TerminalPaginationBar } from '../../../../src/components/Layout/Terminal/TerminalPanel';
+import { TerminalPaginationBar } from '../../../../src/components/Layout/Terminal/TerminalPaginationBar';
 import '@testing-library/jest-dom';
 
 describe('TerminalPaginationBar', () => {

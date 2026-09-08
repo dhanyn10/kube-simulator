@@ -1,6 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
-import { TerminalPanel, handleGetPods, handleGetDeployments, handleGetServices, handleLogsCommand, handleDescribeCommand, generateLogFilename, exportLogFile, handleHistoryCommand, formatCommandTimestamp, CommandHistoryEntry } from '../../../../src/components/Layout/Terminal/TerminalPanel';
+import { TerminalPanel } from '../../../../src/components/Layout/Terminal/TerminalPanel';
+import {
+  handleGetPods,
+  handleGetDeployments,
+  handleGetServices,
+  handleLogsCommand,
+  handleDescribeCommand,
+  generateLogFilename,
+  exportLogFile,
+  handleHistoryCommand,
+  formatCommandTimestamp,
+  CommandHistoryEntry,
+} from '../../../../src/activity/terminal';
 import { useFlowStore } from '../../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 

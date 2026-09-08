@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFlowStore } from '../../../store';
-import { cn, trimDashes, sanitizeSlug, cleanProjectName } from '../../../lib/utils';
+import { cn } from '../../../lib/utils';
 import {
   getAutocompleteSuggestions,
   SuggestionItem,
@@ -11,61 +11,11 @@ import {
   useTerminalScroll,
   generateLogFilename,
   exportLogFile,
-  handleGetPods,
-  handleGetDeployments,
-  handleGetServices,
-  handleGetCommands,
-  handleLogsCommand,
-  handleHistoryCommand,
-  handleHelpCommand,
-  handleDescribeCommand,
-  formatCommandTimestamp,
-  makeDivider,
-  getLogLineColorClass,
-  formatLogLineContent,
-  CommandHistoryEntry,
-  executeKubectlCommand,
 } from '../../../activity/terminal';
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';
 import { TerminalToolbar } from './TerminalToolbar';
-import { TerminalMinimizedTrigger } from './TerminalMinimizedTrigger';
-
-/**
- * Re-exported sub-command handlers and utility functions for backward compatibility and test suites.
- */
-export {
-  handleGetPods,
-  handleGetDeployments,
-  handleGetServices,
-  handleGetCommands,
-  handleLogsCommand,
-  handleHistoryCommand,
-  handleHelpCommand,
-  handleDescribeCommand,
-  formatCommandTimestamp,
-  makeDivider,
-  getLogLineColorClass,
-  formatLogLineContent,
-  executeKubectlCommand,
-  TerminalMinimizedTrigger,
-  generateLogFilename,
-  exportLogFile,
-  TerminalLogBody,
-  handleTerminalKeyDown,
-  getTabClass,
-  TerminalPaginationBar,
-  TerminalCommandForm,
-  TerminalToolbar,
-  useTerminalCommandSubmit,
-  useTerminalLogs,
-  useTerminalScroll,
-  trimDashes,
-  sanitizeSlug,
-  cleanProjectName,
-};
-export type { CommandHistoryEntry };
 
 /**
  * TerminalPanel renders the interactive Kubernetes Console (Kube Terminal) drawer panel.
