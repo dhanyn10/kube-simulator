@@ -14,6 +14,19 @@ export interface KubeIAMUser {
   createdAt: number;
 }
 
+export interface K8sDigitalCertificate {
+  user: string;
+  subject: string;
+  issuer: string;
+  serialNumber: string;
+  validFrom: string;
+  validTo: string;
+  authType: 'X.509 Certificate' | 'ServiceAccount Token' | 'Bearer Token';
+  tokenSignature: string;
+  fingerprint: string;
+  status: 'VERIFIED & VALID' | 'REVOKED' | 'EXPIRED';
+}
+
 export interface K8sRoleRule {
   apiGroups: string[];
   resources: string[];

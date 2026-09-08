@@ -48,7 +48,7 @@ describe('TerminalToolbar', () => {
       />
     );
 
-    const select = screen.getByRole('combobox');
+    const select = screen.getByTestId('terminal-resource-select');
     expect(select).toBeInTheDocument();
     expect(screen.getByText('pod/web-pod')).toBeInTheDocument();
     expect(screen.getByText('deployment/api-dep')).toBeInTheDocument();

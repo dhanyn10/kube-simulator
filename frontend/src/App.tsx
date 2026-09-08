@@ -26,6 +26,7 @@ import {
   SecretModal,
   HPAModal,
   KubeIAMModal,
+  IdentityPassportModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -345,6 +346,8 @@ export default function App() {
           />
 
           <KubeIAMModal />
+
+          <IdentityPassportModal />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 

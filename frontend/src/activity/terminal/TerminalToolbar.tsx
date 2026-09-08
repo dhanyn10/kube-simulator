@@ -1,5 +1,6 @@
 import { Node } from '@xyflow/react';
-import { Terminal, Search, Download, Trash2, X } from 'lucide-react';
+import { Terminal, Search, Download, Trash2, X, ShieldCheck } from 'lucide-react';
+import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 
 export interface TerminalToolbarProps {
@@ -34,6 +35,10 @@ export const TerminalToolbar = ({
   colorMode,
 }: TerminalToolbarProps) => {
   const isDark = colorMode === 'dark';
+  const activeIdentity = useFlowStore((state) => state.activeIdentity);
+  const setActiveIdentity = useFlowStore((state) => state.setActiveIdentity);
+  const setIdentityModalOpen = useFlowStore((state) => state.setIdentityModalOpen);
+  const iamUsers = useFlowStore((state) => state.iamUsers);
 
   return (
     <div className={cn(
@@ -82,6 +87,7 @@ export const TerminalToolbar = ({
           <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
             <span className={cn("text-[10px] font-mono uppercase font-bold", isDark ? "text-slate-500" : "text-slate-400")}>RESOURCE:</span>
             <select
+              data-testid="terminal-resource-select"
               value={terminalSelectedResourceId || ''}
               onChange={(e) => setTerminalSelectedResourceId(e.target.value)}
               className={cn(
@@ -99,6 +105,43 @@ export const TerminalToolbar = ({
             </select>
           </div>
         )}
+
+        {/* Active Identity Selector */}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setIdentityModalOpen(true)}
+            title="View Digital Passport & Certificate"
+            className={cn(
+              "p-1 rounded transition-colors flex items-center gap-1 text-[10px] font-mono font-semibold",
+              isDark ? "hover:bg-slate-800 text-emerald-400" : "hover:bg-slate-200 text-emerald-600"
+            )}
+          >
+            <ShieldCheck size={13} />
+            <span>Auth:</span>
+          </button>
+          <select
+            data-testid="terminal-identity-select"
+            value={activeIdentity}
+            onChange={(e) => setActiveIdentity(e.target.value)}
+            className={cn(
+              "border rounded px-2 py-0.5 text-[10px] font-mono focus:outline-none focus:border-emerald-500/50",
+              isDark
+                ? "bg-slate-900 text-emerald-400 border-slate-800"
+                : "bg-white text-emerald-700 border-slate-200"
+            )}
+            title="Active K8s User Identity Context"
+          >
+            <option value="system:admin">system:admin</option>
+            {iamUsers.map((u) => (
+              <option key={u.id} value={u.username}>
+                {u.username}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={cn("h-4 w-px", isDark ? "bg-slate-800" : "bg-slate-200")} />
 
         {/* Search Bar */}
         <div className="relative w-36">

@@ -26,6 +26,10 @@ import {
   handleLogsCommand,
   handleDescribeCommand,
 } from './terminalHandlers';
+import {
+  handleKubectlConfigCommand,
+  evaluateRbacForCommand,
+} from './terminalConfigCommands';
 import { CommandHistoryEntry, formatCommandTimestamp } from './terminalLogUtils';
 
 export const executeKubectlCommand = (
@@ -45,8 +49,20 @@ export const executeKubectlCommand = (
     return;
   }
 
+  if (handleKubectlConfigCommand(cmd, ctx)) {
+    return;
+  }
+
+  if (handleAdminCommands(cmd, ctx)) {
+    return;
+  }
+
+  // Evaluate RBAC permissions for operational commands
+  if (!evaluateRbacForCommand(cmd, ctx)) {
+    return;
+  }
+
   const commandHandlers = [
-    handleAdminCommands,
     handleGetAllCommand,
     handleScaleCommand,
     handleSetImageCommand,

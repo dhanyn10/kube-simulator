@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders, Terminal, Download } from 'lucide-react';
+import { FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug, CheckSquare, Square, Activity, ExternalLink, Sun, Moon, Bell, PlayCircle, Sliders, Terminal, Download, ShieldCheck } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
@@ -53,6 +53,8 @@ export const MenuBar = ({
   const isTerminalOpen = useFlowStore((state: FlowState) => state.isTerminalOpen);
   const setTerminalOpen = useFlowStore((state: FlowState) => state.setTerminalOpen);
   const simulatedUpdateInfo = useFlowStore((state: FlowState) => state.simulatedUpdateInfo);
+  const activeIdentity = useFlowStore((state: FlowState) => state.activeIdentity);
+  const setIdentityModalOpen = useFlowStore((state: FlowState) => state.setIdentityModalOpen);
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [updateAvailableInfo, setUpdateAvailableInfo] = useState<{ version: string; releaseUrl: string } | null>(null);
@@ -278,6 +280,24 @@ export const MenuBar = ({
           hasHpaValidationError={hasHpaValidationError}
           colorMode={colorMode}
         />
+
+        {/* K8s Active Identity Passport Badge */}
+        <button
+          type="button"
+          onClick={() => setIdentityModalOpen(true)}
+          style={{ '--wails-draggable': 'no-drag' }}
+          title={`Active Identity Context: ${activeIdentity} (Click to view Digital Passport & Certificate)`}
+          data-testid="menubar-identity-passport-btn"
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition-all ml-1 border shadow-xs cursor-pointer",
+            colorMode === 'dark'
+              ? "bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-500/30"
+              : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300"
+          )}
+        >
+          <ShieldCheck size={13} className="text-emerald-400" />
+          <span>User: <strong className="underline decoration-emerald-500/50">{activeIdentity}</strong></span>
+        </button>
 
         {/* Update Available notification button (VS Code style) */}
         {effectiveUpdateInfo && (
