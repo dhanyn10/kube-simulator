@@ -29,11 +29,9 @@ export interface UiSlice {
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
 
-  // Active K8s Identity & Passport state & actions
+  // Active K8s Identity state & actions
   activeIdentity: string;
   setActiveIdentity: (identity: string) => void;
-  isIdentityModalOpen: boolean;
-  setIdentityModalOpen: (open: boolean) => void;
 
   // Kube IAM Modal state & actions
   isKubeIamModalOpen: boolean;
@@ -698,8 +696,6 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       globalThis.go.main.App.SaveSetting('active_identity', identity);
     }
   },
-  isIdentityModalOpen: false,
-  setIdentityModalOpen: (open) => set({ isIdentityModalOpen: open }),
 
   // Kube IAM initial state & actions
   isKubeIamModalOpen: false,

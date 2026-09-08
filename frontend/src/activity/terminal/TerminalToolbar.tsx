@@ -37,7 +37,7 @@ export const TerminalToolbar = ({
   const isDark = colorMode === 'dark';
   const activeIdentity = useFlowStore((state) => state.activeIdentity);
   const setActiveIdentity = useFlowStore((state) => state.setActiveIdentity);
-  const setIdentityModalOpen = useFlowStore((state) => state.setIdentityModalOpen);
+  const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const iamUsers = useFlowStore((state) => state.iamUsers);
 
   return (
@@ -110,8 +110,8 @@ export const TerminalToolbar = ({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setIdentityModalOpen(true)}
-            title="View Digital Passport & Certificate"
+            onClick={() => setKubeIamModalOpen(true)}
+            title="Open Kube IAM Management"
             className={cn(
               "p-1 rounded transition-colors flex items-center gap-1 text-[10px] font-mono font-semibold",
               isDark ? "hover:bg-slate-800 text-emerald-400" : "hover:bg-slate-200 text-emerald-600"
