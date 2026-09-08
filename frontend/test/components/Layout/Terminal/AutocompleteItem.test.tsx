@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { AutocompleteItem } from '../../../src/activity/terminal/AutocompleteItem';
-import { SuggestionItem } from '../../../src/activity/terminal/terminalAutocomplete';
+import { AutocompleteItem } from '../../../../src/components/Layout/Terminal/AutocompleteItem';
+import { SuggestionItem } from '../../../../src/activity/terminal/terminalAutocomplete';
 import '@testing-library/jest-dom';
 
 describe('AutocompleteItem', () => {

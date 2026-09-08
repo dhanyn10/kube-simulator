@@ -1,54 +1,21 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { getAutocompleteSuggestions, SuggestionItem } from './terminalAutocomplete';
+import { useFlowStore } from '../../../store';
+import { cn } from '../../../lib/utils';
+import {
+  getAutocompleteSuggestions,
+  SuggestionItem,
+  useTerminalCommandSubmit,
+  handleTerminalKeyDown,
+  useTerminalLogs,
+  getTabClass,
+  useTerminalScroll,
+  generateLogFilename,
+  exportLogFile,
+} from '../../../activity/terminal';
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';
 import { TerminalToolbar } from './TerminalToolbar';
-import { useTerminalCommandSubmit } from './useTerminalCommandSubmit';
-import { handleTerminalKeyDown } from './terminalKeyDown';
-import { useTerminalLogs, getTabClass } from './useTerminalLogs';
-import { useTerminalScroll } from './useTerminalScroll';
-import { generateLogFilename, exportLogFile } from './terminalLogUtils';
-
-/**
- * Re-exported sub-command handlers and utility functions for backward compatibility and test suites.
- */
-export {
-  handleGetPods,
-  handleGetDeployments,
-  handleGetServices,
-  handleGetCommands,
-  handleLogsCommand,
-  handleHistoryCommand,
-  handleHelpCommand,
-  handleDescribeCommand,
-} from './terminalHandlers';
-export {
-  formatCommandTimestamp,
-  makeDivider,
-  getLogLineColorClass,
-  formatLogLineContent,
-} from './terminalLogUtils';
-export type { CommandHistoryEntry } from './terminalLogUtils';
-export { executeKubectlCommand } from './useTerminalCommandSubmit';
-export { TerminalMinimizedTrigger } from './TerminalMinimizedTrigger';
-
-export {
-  generateLogFilename,
-  exportLogFile,
-  TerminalLogBody,
-  handleTerminalKeyDown,
-  getTabClass,
-  TerminalPaginationBar,
-  TerminalCommandForm,
-  TerminalToolbar,
-  useTerminalCommandSubmit,
-  useTerminalLogs,
-  useTerminalScroll,
-};
-export { trimDashes, sanitizeSlug, cleanProjectName } from '../../lib/utils';
 
 /**
  * TerminalPanel renders the interactive Kubernetes Console (Kube Terminal) drawer panel.

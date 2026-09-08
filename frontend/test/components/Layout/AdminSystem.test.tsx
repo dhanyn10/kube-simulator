@@ -6,7 +6,7 @@ import { MenuBar } from '@/components/Layout/MenuBar';
 import { useFlowStore } from '@/store';
 import { handleAdminCommands, CommandContext } from '@/activity/terminal/terminalCommands';
 
-import { handleHelpCommand } from '@/activity/terminal/TerminalPanel';
+import { handleHelpCommand } from '@/activity/terminal';
 import { getAutocompleteSuggestions } from '@/activity/terminal/terminalAutocomplete';
 
 describe('Admin Authentication and Dev Commands System', () => {
