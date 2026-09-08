@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TerminalLogBody } from '../../../src/activity/terminal/TerminalPanel';
+import { TerminalLogBody } from '../../../../src/components/Layout/Terminal/TerminalPanel';
 import '@testing-library/jest-dom';
 
 describe('TerminalLogBody', () => {
