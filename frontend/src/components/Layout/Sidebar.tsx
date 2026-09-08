@@ -181,18 +181,14 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       return;
     }
 
-    if (type === 'Role' || type === 'ConfigMap' || type === 'Secret' || type === 'HPA') {
+    if (type === 'Role') {
       const targetNode = nodes.find((n) => n.selected || n.id === configuringNodeId);
       if (targetNode) {
-        const label = targetNode.data?.label || targetNode.id;
-        if (type === 'Role') setRoleModalTargetNode({ id: targetNode.id, label });
-        else if (type === 'ConfigMap') setConfigMapModalTargetNode({ id: targetNode.id, label });
-        else if (type === 'Secret') setSecretModalTargetNode({ id: targetNode.id, label });
-        else if (type === 'HPA') setHpaModalTargetNode({ id: targetNode.id, label });
+        setRoleModalTargetNode({ id: targetNode.id, label: targetNode.data?.label || targetNode.id });
       } else {
         addLog(
           'warn',
-          `[Sidebar Action] '${type}' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.`,
+          "[Sidebar Action] 'Role' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.",
           'UI'
         );
       }
