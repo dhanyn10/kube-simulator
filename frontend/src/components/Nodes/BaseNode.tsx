@@ -1,12 +1,12 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { AlertCircle, CheckCircle2, Shield, Settings, Lock, Activity } from 'lucide-react';
-import { K8sNodeData } from '../../types';
-import { cn } from '../../lib/utils';
+import { K8sNodeData } from '@/types';
+import { cn } from '@/lib/utils';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
-import { useBaseNodeHandler } from '../../activity/nodes';
+import { useBaseNodeHandler } from '@/activity/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).

@@ -1,11 +1,11 @@
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 import { ColorPalette } from '../UI/ColorPalette';
 import {
   formatColorName,
   useEdgeConfigHandler
-} from '../../activity/config';
+} from '@/activity/config';
 
 interface EdgeConfigProps {
   selectedEdge: any;

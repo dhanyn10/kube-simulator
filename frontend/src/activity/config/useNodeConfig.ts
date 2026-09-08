@@ -2,8 +2,8 @@
  * Helpers for Node configuration synchronization and visibility toggles.
  */
 
-import { useFlowStore } from '../../store';
-import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '../../store/slices/node-handlers/configUtils';
+import { useFlowStore } from '@/store';
+import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/slices/node-handlers/configUtils';
 
 export const syncPeersAndParent = (
   selectedNode: any,

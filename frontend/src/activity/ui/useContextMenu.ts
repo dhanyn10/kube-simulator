@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 
 export const useContextMenuHandler = ({
   onClose,

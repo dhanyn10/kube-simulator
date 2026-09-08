@@ -2,7 +2,7 @@
  * Hook and helpers for Workload configuration management.
  */
 
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 
 /**
  * Calculates the total replicas for a given node,

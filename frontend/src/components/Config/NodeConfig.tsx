@@ -1,5 +1,5 @@
-import { useFlowStore } from '../../store';
-import { cn, sanitizeSlug } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn, sanitizeSlug } from '@/lib/utils';
 import { Type, Terminal } from 'lucide-react';
 import { ConfigInput, ConfigLabel } from '../UI/ConfigUI';
 import {
@@ -16,7 +16,7 @@ import { RoleSettingsSection } from './RoleSettingsSection';
 import { ConfigMapSettingsSection } from './ConfigMapSettingsSection';
 import { SecretSettingsSection } from './SecretSettingsSection';
 import { HPASettingsSection } from './HPASettingsSection';
-import { useNodeConfigHandler } from '../../activity/config';
+import { useNodeConfigHandler } from '@/activity/config';
 
 interface NodeConfigProps {
   selectedNode: any;

@@ -2,11 +2,11 @@
  * Hook for BaseNode status, container styles, and properties computation.
  */
 
-import { useFlowStore } from '../../store';
-import { useNodeStyles } from '../../hooks/useNodeStyles';
-import { useNodeRename } from '../../hooks/useNodeEditor';
-import { useNodeStatus, useNodeContainerStyles } from '../../hooks/useNodeStatusStyles';
-import { K8sNodeData } from '../../types';
+import { useFlowStore } from '@/store';
+import { useNodeStyles } from '@/hooks/useNodeStyles';
+import { useNodeRename } from '@/hooks/useNodeEditor';
+import { useNodeStatus, useNodeContainerStyles } from '@/hooks/useNodeStatusStyles';
+import { K8sNodeData } from '@/types';
 
 export const useBaseNodeHandler = ({
   id,

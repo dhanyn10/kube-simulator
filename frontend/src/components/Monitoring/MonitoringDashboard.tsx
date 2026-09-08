@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
-import { cn, formatCPU, formatMemory } from '../../lib/utils';
+import { cn, formatCPU, formatMemory } from '@/lib/utils';
 import { Activity, X, Cpu, Database, ExternalLink, AlertTriangle, ZapOff } from 'lucide-react';
 import { LineChart } from './LineChart';
-import { useMonitoringDashboardHandler } from '../../activity/monitoring';
+import { useMonitoringDashboardHandler } from '@/activity/monitoring';
 
 export const MonitoringDashboard = () => {
   const {

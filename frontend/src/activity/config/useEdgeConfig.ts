@@ -2,7 +2,7 @@
  * Hook and helpers for Edge Configuration (Connection styles, colors, thickness).
  */
 
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 
 export const DEFAULT_RUNNING_COLOR = 'var(--color-mat-indigo)';
 export const DEFAULT_ERROR_COLOR = 'var(--color-mat-red)';

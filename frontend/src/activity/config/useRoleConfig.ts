@@ -2,8 +2,8 @@
  * Hook and helpers for RBAC Role Configuration.
  */
 
-import { useFlowStore } from '../../store';
-import { K8sRoleRule, K8sResourceType } from '../../types';
+import { useFlowStore } from '@/store';
+import { K8sRoleRule, K8sResourceType } from '@/types';
 
 export const AVAILABLE_VERBS = ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete'];
 export const AVAILABLE_RESOURCES = ['pods', 'deployments', 'services', 'configmaps', 'secrets', 'persistentvolumeclaims'];

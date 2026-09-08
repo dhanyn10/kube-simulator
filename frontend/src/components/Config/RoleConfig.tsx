@@ -1,12 +1,12 @@
 import { Shield, Plus, Trash2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
-import { K8sNodeData, K8sRoleRule } from '../../types';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
+import { K8sNodeData, K8sRoleRule } from '@/types';
 import {
   AVAILABLE_VERBS,
   getVerbButtonStyles,
   useRoleConfigHandler
-} from '../../activity/config';
+} from '@/activity/config';
 
 interface RoleConfigProps {
   data: K8sNodeData;

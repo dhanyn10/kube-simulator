@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 
 export const useMonitoringDashboardHandler = () => {
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
