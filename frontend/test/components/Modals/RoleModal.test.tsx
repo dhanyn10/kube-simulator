@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import { RoleModal } from '@/components/Modals/RoleModal';
@@ -131,6 +131,36 @@ describe('RoleModal component', () => {
       })
     );
     expect(onCloseMock).toHaveBeenCalled();
+  });
+
+  it('initializes default rule when initialRole rules array is empty', () => {
+    const onSaveMock = vi.fn();
+
+    const initialRole = {
+      id: 'role-123',
+      name: 'existing-role',
+      rules: [],
+    };
+
+    render(
+      <RoleModal
+        isOpen={true}
+        onClose={vi.fn()}
+        targetNodeId="dep-1"
+        targetNodeLabel="web-app"
+        initialRole={initialRole}
+        onSave={onSaveMock}
+      />
+    );
+
+    const saveBtn = screen.getByText('Update Role');
+    fireEvent.click(saveBtn);
+
+    expect(onSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }],
+      })
+    );
   });
 
   it('instantiates missing resource card on canvas when selecting "add to canvas" suggestion', () => {
