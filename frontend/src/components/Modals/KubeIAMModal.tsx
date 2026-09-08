@@ -77,21 +77,6 @@ function getPolicyRowClass(isSelected: boolean, isDark: boolean): string {
   return isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700';
 }
 
-/**
- * Returns empty state text content based on overall user count.
- */
-function getEmptyStateText(userCount: number): { readonly title: string; readonly subtitle: string } {
-  if (userCount === 0) {
-    return {
-      title: 'No IAM users created yet',
-      subtitle: 'Create your first Kube IAM user to manage access permissions and roles.',
-    };
-  }
-  return {
-    title: 'No users match your filter',
-    subtitle: 'Try clearing your search query.',
-  };
-}
 
 interface IAMUserListViewProps {
   readonly iamUsers: readonly KubeIAMUser[];
@@ -123,7 +108,6 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   onDeleteUser,
 }) => {
   const isDark = colorMode === 'dark';
-  const emptyText = getEmptyStateText(iamUsers.length);
   const nodes = useFlowStore((state) => state.nodes);
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
@@ -255,10 +239,10 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
           </div>
 
           {filteredUsers.length === 0 && searchFilter ? (
-            <div className={cn('flex flex-col items-center justify-center h-36 rounded-lg border border-dashed p-6 text-center', isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400')}>
+            <div className={cn('flex flex-col items-center justify-center h-32 rounded-lg border border-dashed p-6 text-center', isDark ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400')}>
               <User size={28} className="mb-2 opacity-40 text-emerald-400" />
-              <p className="text-xs font-medium mb-1">{emptyText.title}</p>
-              <p className="text-[11px] max-w-xs">{emptyText.subtitle}</p>
+              <p className="text-xs font-medium mb-1">No users match your filter</p>
+              <p className="text-[11px] max-w-xs">Try clearing your search query.</p>
             </div>
           ) : (
             filteredUsers.map((user) => {
