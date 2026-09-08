@@ -95,6 +95,31 @@ describe('MenuBar', () => {
     delete (window as any).runtime;
   });
 
+  it('falls back to onOpenAbout when update button clicked without releaseUrl or runtime', async () => {
+    useFlowStore.setState({
+      simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: '' },
+    });
+
+    render(<MenuBar {...defaultProps} />);
+
+    const updateBtn = screen.getByTestId('menubar-update-btn');
+    fireEvent.click(updateBtn);
+    expect(defaultProps.onOpenAbout).toHaveBeenCalled();
+  });
+
+  it('handles background update check when update is not available', async () => {
+    (globalThis as any).go.main.App.CheckForUpdates = vi.fn().mockResolvedValue({
+      updateAvailable: false,
+      latestVersion: '',
+    });
+
+    render(<MenuBar {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('menubar-update-btn')).toBeNull();
+    });
+  });
+
   it('handles background update check error gracefully', async () => {
     (globalThis as any).go.main.App.GetSystemInfo = vi.fn().mockRejectedValue(new Error('Network error'));
     render(<MenuBar {...defaultProps} />);
@@ -103,7 +128,7 @@ describe('MenuBar', () => {
     });
   });
 
-  it('handles Resource > Save on existing project vs new project', async () => {
+  it('handles Resource > Save on existing project vs project id === -1', async () => {
     useFlowStore.setState({
       currentProject: { id: 10, name: "Active Proj" },
       nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
@@ -119,7 +144,8 @@ describe('MenuBar', () => {
       expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(10, expect.any(String));
     });
 
-    useFlowStore.setState({ currentProject: null });
+    // Project with id === -1 opens manager to save as new
+    useFlowStore.setState({ currentProject: { id: -1, name: "Unsaved" } });
     rerender(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText("Resource"));
@@ -128,15 +154,23 @@ describe('MenuBar', () => {
     expect(defaultProps.onOpenProjects).toHaveBeenCalled();
   });
 
-  it('handles View > Utilities menu item when history view is open', () => {
+  it('handles View > Utilities menu item when history view is open or closed', () => {
     const setHistoryViewOpen = vi.spyOn(useFlowStore.getState(), 'setHistoryViewOpen');
+    const setRightSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
 
     useFlowStore.setState({ isHistoryViewOpen: true, isRightSidebarVisible: true });
-    render(<MenuBar {...defaultProps} />);
+    const { rerender } = render(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByText('Utilities'));
     expect(setHistoryViewOpen).toHaveBeenCalledWith(false);
+
+    useFlowStore.setState({ isHistoryViewOpen: false, isRightSidebarVisible: true });
+    rerender(<MenuBar {...defaultProps} />);
+
+    // View menu is still open
+    fireEvent.click(screen.getByText('Utilities'));
+    expect(setRightSidebarVisible).toHaveBeenCalledWith(false);
   });
 
   it('handles View > History and Terminal menu items', () => {
@@ -171,6 +205,9 @@ describe('MenuBar', () => {
 
     fireEvent.click(screen.getByText('View'));
     expect(screen.getByText('Monitoring: Detached')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Monitoring: Detached'));
+    // Does not call setMonitoringOpen when detached
+    expect(setMonitoringOpen).toHaveBeenCalledTimes(1);
   });
 
   it('handles Help > Report Issue link', () => {
@@ -199,9 +236,11 @@ describe('MenuBar', () => {
     expect(badge).toHaveTextContent('99+');
   });
 
-  it('toggles theme mode and autosave', () => {
+  it('toggles theme mode, sidebar, autofocus, and autosave', () => {
     const toggleColorMode = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
     const toggleAutosave = vi.spyOn(useFlowStore.getState(), 'toggleAutosave');
+    const setSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setSidebarVisible');
+    const toggleAutofocus = vi.spyOn(useFlowStore.getState(), 'toggleAutofocus');
 
     render(<MenuBar {...defaultProps} />);
 
@@ -212,5 +251,13 @@ describe('MenuBar', () => {
     fireEvent.click(screen.getByText('Resource'));
     fireEvent.click(screen.getByText('Autosave: OFF'));
     expect(toggleAutosave).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('Components'));
+    expect(setSidebarVisible).toHaveBeenCalledWith(false);
+
+    // Menu dropdown remains open for checked items
+    fireEvent.click(screen.getByText('Autofocus'));
+    expect(toggleAutofocus).toHaveBeenCalled();
   });
 });

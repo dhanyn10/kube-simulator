@@ -11,7 +11,8 @@ import {
   handleUnboundPvcs,
   handleBoundPvcs,
   handleOomCrashes,
-  scheduleRecovery
+  scheduleRecovery,
+  processWorkloadSimulation
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
@@ -154,6 +155,17 @@ describe('simulation test suite', () => {
       expect(ctx.updatedNodes.find(n => n.id === 'pod1')?.data.status).toBe('ready');
   });
 
+  it('incoming traffic calculation handles missing internetNodes or unreachable targets', () => {
+    const ctxEmpty = getMockCtx({ internetNodes: undefined, internetReachableMap: undefined });
+    expect(calculateIncomingTraffic(baseNodes[0], ctxEmpty).traffic).toBe(0);
+
+    const ctxUnreachable = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 3000 })],
+      internetReachableMap: new Map([['i1', new Set(['other-node'])]])
+    });
+    expect(calculateIncomingTraffic(baseNodes[0], ctxUnreachable).traffic).toBe(0);
+  });
+
   it('incoming traffic calculation with durationUnit multipliers', () => {
     // Default / 'second' durationUnit (multiplier 1)
     const ctxSecond = getMockCtx({
@@ -208,6 +220,20 @@ describe('simulation test suite', () => {
     expect(handleHpaScaling(depWithMinMax, 100, ctx3)).toBe(true);
   });
 
+  it('hpa scaling execution - scale down blocked by random check', () => {
+    (safeRandom as any).mockReturnValue(0.5); // < 0.7 triggers scale down dampening
+    const depWith3 = createNode('d-scaled', 'Deployment', {
+      replicas: 3,
+      hpas: [{ minReplicas: 1, maxReplicas: 5, targetCPU: 50 }]
+    });
+    const ctx = getMockCtx();
+    ctx.updatedNodes.push(depWith3);
+    ctx.nodeIndexMap?.set('d-scaled', ctx.updatedNodes.length - 1);
+
+    // cpuPercent = 10% on target 50% -> scale down attempt dampened
+    expect(handleHpaScaling(depWith3, 10, ctx)).toBe(false);
+  });
+
   it('hpa scaling execution - update currentCPU', () => {
     const ctx = getMockCtx();
     // No HPA edge
@@ -233,7 +259,11 @@ describe('simulation test suite', () => {
       expect(res).toBe(false);
   });
 
-  it('handleOomCrashes crashes a pod', () => {
+  it('handleOomCrashes crashes a pod and handles non-OOM / already crashing pod', () => {
+      // Non-OOM returns false
+      const ctx0 = getMockCtx();
+      expect(handleOomCrashes(baseNodes[0], false, ctx0)).toBe(false);
+
       (safeRandom as any).mockReturnValue(0.6); // > 0.5 triggers crash check
       const ctx = getMockCtx();
       const pod = createNode('pod1', 'Pod', { status: 'ready' });
@@ -244,6 +274,19 @@ describe('simulation test suite', () => {
       const res = handleOomCrashes(baseNodes[0], true, ctx);
       expect(res).toBe(true);
       expect(ctx.updatedNodes.find(n => n.id === 'pod1')?.data.status).toBe('crashing');
+
+      // Pod already crashing returns false
+      const podCrashing = createNode('pod1', 'Pod', { status: 'crashing' });
+      const ctxCrashing = getMockCtx();
+      ctxCrashing.childPodMap = new Map([['d1', [podCrashing]]]);
+      expect(handleOomCrashes(baseNodes[0], true, ctxCrashing)).toBe(false);
+  });
+
+  it('processWorkloadSimulation runs complete simulation step', () => {
+    const ctx = getMockCtx();
+    const res = processWorkloadSimulation(baseNodes[0], ctx);
+    expect(res).toBeDefined();
+    expect(typeof res.hasChanges).toBe('boolean');
   });
 
   it('scheduleRecovery recovers a crashing pod and ignores non-crashing pod', () => {

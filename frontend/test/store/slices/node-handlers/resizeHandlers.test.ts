@@ -27,7 +27,6 @@ describe('resizeHandlers', () => {
   });
 
   it('onNodeResize syncs sibling pods when a pod is resized', () => {
-    // Add another pod to the same deployment
     useFlowStore.setState((state) => ({
         nodes: [
             ...state.nodes,
@@ -45,16 +44,22 @@ describe('resizeHandlers', () => {
     const p2 = state.nodes.find(n => n.id === 'p2');
 
     expect(p1?.width).toBe(200);
-    expect(p2?.width).toBe(200); // p2 should have synced with p1
+    expect(p2?.width).toBe(200);
   });
 
-  it('onNodeResizeStop updates lastAction', () => {
+  it('onNodeResizeStop updates lastAction and logs canvas resize activity', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({ addLog: addLogSpy });
+
     const { onNodeResizeStop } = useFlowStore.getState();
-    onNodeResizeStop({}, {} as any);
+    const resizedNode = { id: 'd1', width: 400, height: 200, data: { label: 'My Dep' } };
+
+    onNodeResizeStop({}, resizedNode as any);
 
     const state = useFlowStore.getState();
     expect(state.lastActionName).toBe('Resize Element');
     expect(state.lastActionId).toContain('resize-');
+    expect(addLogSpy).toHaveBeenCalledWith('info', expect.stringContaining('Resized card'), 'UI');
   });
 
   it('handles edge cases in onNodeResize for standalone pods, missing parents, and non-workload nodes', () => {

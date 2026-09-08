@@ -28,6 +28,16 @@ describe('createFlowSlice', () => {
     expect(n2?.position).toEqual({ x: 60, y: 60 });
   });
 
+  it('onNodesChange handles dx===0 and dy===0 or position changes without group', () => {
+    const node1 = { id: 'n1', position: { x: 10, y: 10 }, data: { groupId: 'g1' } };
+    useFlowStore.setState({ nodes: [node1] as any });
+
+    const { onNodesChange } = useFlowStore.getState();
+    onNodesChange([{ id: 'n1', type: 'position', position: { x: 10, y: 10 } }]);
+
+    expect(useFlowStore.getState().nodes[0].position).toEqual({ x: 10, y: 10 });
+  });
+
   it('syncRoleRulesFromConnections syncs rules for all connected workload types', () => {
     const roleNode: Node = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: { rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }] } };
     const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 100, y: 0 }, data: { replicas: 1 } };
@@ -64,6 +74,27 @@ describe('createFlowSlice', () => {
     ]));
   });
 
+  it('syncRoleRulesFromConnections handles no roles or unchanged role rules', () => {
+    const podNode: Node = { id: 'pod1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.setState({ nodes: [podNode], edges: [] });
+
+    const { setEdges } = useFlowStore.getState();
+    setEdges([]);
+    expect(useFlowStore.getState().nodes[0].id).toBe('pod1');
+
+    // Role with matching resources -> isSame returns node
+    const roleNode: Node = {
+      id: 'role1',
+      type: 'Role',
+      position: { x: 0, y: 0 },
+      data: { rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }] }
+    };
+    const edge: Edge = { id: 'e1', source: 'role1', target: 'pod1' };
+    useFlowStore.setState({ nodes: [roleNode, podNode], edges: [edge] });
+    setEdges([edge]);
+    expect(useFlowStore.getState().nodes[0].data.rules[0].resources).toEqual(['pods']);
+  });
+
   it('onConnect reroutes connections between Role and child Pod in Deployment', () => {
     const roleNode = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
     const depNode = { id: 'dep1', type: 'Deployment', position: { x: 100, y: 0 }, data: {} };
@@ -85,10 +116,21 @@ describe('createFlowSlice', () => {
     expect(edges[0].source).toBe('dep1');
   });
 
+  it('onConnect handles existing duplicate edge and missing nodes', () => {
+    const hpa = { id: 'h1', type: 'HPA', data: {} };
+    const dep = { id: 'd1', type: 'Deployment', data: { cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const existingEdge: Edge = { id: 'eh1-d1', source: 'h1', target: 'd1' };
+    useFlowStore.setState({ nodes: [hpa, dep] as any, edges: [existingEdge] });
+
+    // Connecting existing edge returns state unchanged
+    useFlowStore.getState().onConnect({ source: 'h1', target: 'd1' });
+    expect(useFlowStore.getState().edges).toHaveLength(1);
+  });
+
   it('onConnect validates edges and handles HPA auto-config', () => {
     const hpa = { id: 'h1', type: 'HPA', data: {} };
     const dep = { id: 'd1', type: 'Deployment', data: { label: 'dep' } };
-    useFlowStore.setState({ nodes: [hpa, dep] as any });
+    useFlowStore.setState({ nodes: [hpa, dep] as any, edges: [] });
 
     const { onConnect } = useFlowStore.getState();
     onConnect({ source: 'h1', target: 'd1' });
@@ -177,19 +219,25 @@ describe('createFlowSlice', () => {
     expect(useFlowStore.getState().edges.some((e) => e.target === 'bottomN')).toBe(true);
   });
 
-  it('autoLayout triggers dagre layout in LR and TB directions', () => {
-    const node1 = { id: 'n1', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
+  it('onQuickConnect returns early when source node is missing', () => {
+    useFlowStore.setState({ nodes: [], edges: [] });
+    useFlowStore.getState().onQuickConnect('nonexistent', 'right');
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
+
+  it('autoLayout triggers dagre layout in LR and TB directions with parent nodes', () => {
+    const parentNode = { id: 'p1', position: { x: 0, y: 0 }, width: 300, height: 200, data: {} };
+    const childNode = { id: 'c1', parentId: 'p1', position: { x: 10, y: 10 }, width: 100, height: 100, data: {} };
     const node2 = { id: 'n2', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
-    const edge = { id: 'e1', source: 'n1', target: 'n2' };
-    useFlowStore.setState({ nodes: [node1, node2] as any, edges: [edge] as any });
+    const edge = { id: 'e1', source: 'p1', target: 'n2' };
+    useFlowStore.setState({ nodes: [parentNode, childNode, node2] as any, edges: [edge] as any });
 
     const { autoLayout } = useFlowStore.getState();
     autoLayout('TB');
 
     const state = useFlowStore.getState();
     expect(state.lastActionName).toBe('Auto Layout');
-    expect(state.lastActionId).toContain('layout-');
-    expect(state.nodes).toHaveLength(2);
+    expect(state.nodes.find(n => n.id === 'c1')?.position).toEqual({ x: 10, y: 10 });
   });
 
   it('onEdgesChange updates selected state and handles edge deletion', () => {
