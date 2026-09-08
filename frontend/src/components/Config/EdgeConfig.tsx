@@ -1,55 +1,29 @@
-
 import { useFlowStore } from '../../store';
 import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ColorPalette } from '../UI/ColorPalette';
+import {
+  formatColorName,
+  useEdgeConfigHandler
+} from '../../activity/config';
 
 interface EdgeConfigProps {
   selectedEdge: any;
 }
 
-const DEFAULT_RUNNING_COLOR = 'var(--color-mat-indigo)';
-const DEFAULT_ERROR_COLOR = 'var(--color-mat-red)';
-
 export const EdgeConfig = ({ selectedEdge }: EdgeConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const edges = useFlowStore((state) => state.edges);
-  const setEdges = useFlowStore((state) => state.setEdges);
 
-  const globalEdgeColor = useFlowStore((state) => state.globalEdgeColor);
-  const globalEdgeErrorColor = useFlowStore((state) => state.globalEdgeErrorColor);
-  const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
-
-  const data = selectedEdge.data || {};
-  const edgeWidth = data.width || 2;
-
-  const updateEdgeData = (newData: any) => {
-    setEdges(edges.map(e => e.id === selectedEdge.id ? {
-      ...e,
-      data: { ...e.data, ...newData }
-    } : e));
-  };
-
-  const handleRunningColorChange = (newColor: string) => {
-    if (newColor.toLowerCase() === globalEdgeErrorColor.toLowerCase()) {
-      setGlobalEdgeColors(newColor, globalEdgeColor);
-    } else {
-      setGlobalEdgeColors(newColor, globalEdgeErrorColor);
-    }
-  };
-
-  const handleErrorColorChange = (newColor: string) => {
-    if (newColor.toLowerCase() === globalEdgeColor.toLowerCase()) {
-      setGlobalEdgeColors(globalEdgeErrorColor, newColor);
-    } else {
-      setGlobalEdgeColors(globalEdgeColor, newColor);
-    }
-  };
-
-  const resetRunningColor = () => setGlobalEdgeColors(DEFAULT_RUNNING_COLOR, globalEdgeErrorColor);
-  const resetErrorColor = () => setGlobalEdgeColors(globalEdgeColor, DEFAULT_ERROR_COLOR);
-
-  const formatColorName = (color: string) => color.replace('var(--color-mat-', '').replace(')', '');
+  const {
+    edgeWidth,
+    globalEdgeColor,
+    globalEdgeErrorColor,
+    updateEdgeData,
+    handleRunningColorChange,
+    handleErrorColorChange,
+    resetRunningColor,
+    resetErrorColor,
+  } = useEdgeConfigHandler(selectedEdge);
 
   return (
     <div className="space-y-6">

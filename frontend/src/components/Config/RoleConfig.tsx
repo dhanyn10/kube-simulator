@@ -1,124 +1,28 @@
 import { Shield, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
-import { K8sNodeData, K8sRoleRule, K8sResourceType } from '../../types';
+import { K8sNodeData, K8sRoleRule } from '../../types';
+import {
+  AVAILABLE_VERBS,
+  getVerbButtonStyles,
+  useRoleConfigHandler
+} from '../../activity/config';
 
 interface RoleConfigProps {
   data: K8sNodeData;
   nodeId: string;
 }
 
-const AVAILABLE_VERBS = ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete'];
-const AVAILABLE_RESOURCES = ['pods', 'deployments', 'services', 'configmaps', 'secrets', 'persistentvolumeclaims'];
-
-const RESOURCE_TYPE_MAP: Record<string, K8sResourceType> = {
-  pods: 'Pod',
-  deployments: 'Deployment',
-  services: 'Service',
-  configmaps: 'ConfigMap',
-  secrets: 'Secret',
-  persistentvolumeclaims: 'PVC',
-};
-
-const getVerbButtonStyles = (isSelected: boolean | undefined, colorMode: 'dark' | 'light'): string => {
-  if (isSelected) {
-    return "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold";
-  }
-  if (colorMode === 'dark') {
-    return "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600";
-  }
-  return "bg-white border-slate-300 text-slate-600 hover:border-slate-400";
-};
-
 export const RoleConfig = ({ data, nodeId }: RoleConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const updateNodeData = useFlowStore((state) => state.updateNodeData);
-  const nodes = useFlowStore((state) => state.nodes);
-  const edges = useFlowStore((state) => state.edges);
-  const setEdges = useFlowStore((state) => state.setEdges);
-  const addLog = useFlowStore((state) => state.addLog);
   const rules: K8sRoleRule[] = data.rules || [];
 
-  const handleDisconnectResource = (res: string) => {
-    const k8sKind = RESOURCE_TYPE_MAP[res];
-
-    // Find all connected edges to this resource type (or child pods if 'pods')
-    const connectedEdgeIds = new Set<string>();
-    edges.forEach((e) => {
-      const sourceNode = nodes.find((n) => n.id === e.source);
-      const targetNode = nodes.find((n) => n.id === e.target);
-      let otherNode = null;
-      if (e.source === nodeId) {
-        otherNode = targetNode;
-      } else if (e.target === nodeId) {
-        otherNode = sourceNode;
-      }
-
-      if (!otherNode) return;
-
-      if (res === 'pods') {
-        if (otherNode.type === 'Pod' || otherNode.type === 'Deployment') {
-          connectedEdgeIds.add(e.id);
-        }
-      } else if (res === 'deployments') {
-        if (otherNode.type === 'Deployment') {
-          connectedEdgeIds.add(e.id);
-        }
-      } else if (k8sKind && otherNode.type === k8sKind) {
-        connectedEdgeIds.add(e.id);
-      }
-    });
-
-    if (connectedEdgeIds.size > 0) {
-      const nextEdges = edges.filter((e) => !connectedEdgeIds.has(e.id));
-      setEdges(nextEdges);
-
-      // Explicitly update rule.resources to remove res
-      const newRules = rules.map((rule) => ({
-        ...rule,
-        resources: (rule.resources || []).filter((r) => r !== res),
-      }));
-      updateNodeData(nodeId, { rules: newRules });
-
-      addLog('info', `[Canvas Action] Disconnected Role from ${res}`, 'UI');
-    } else {
-      // Fallback: remove res from rule.resources directly
-      const newRules = rules.map((rule) => ({
-        ...rule,
-        resources: (rule.resources || []).filter((r) => r !== res),
-      }));
-      updateNodeData(nodeId, { rules: newRules });
-    }
-  };
-
-  const handleAddRule = () => {
-    const newRules = [
-      ...rules,
-      {
-        apiGroups: [''],
-        resources: [],
-        verbs: ['get', 'list']
-      }
-    ];
-    updateNodeData(nodeId, { rules: newRules });
-  };
-
-  const handleRemoveRule = (index: number) => {
-    const newRules = rules.filter((_, i) => i !== index);
-    updateNodeData(nodeId, { rules: newRules });
-  };
-
-  const handleToggleVerb = (ruleIndex: number, verb: string) => {
-    const newRules = [...rules];
-    const currentVerbs = newRules[ruleIndex].verbs || [];
-    if (currentVerbs.includes(verb)) {
-      newRules[ruleIndex].verbs = currentVerbs.filter(v => v !== verb);
-    } else {
-      newRules[ruleIndex].verbs = [...currentVerbs, verb];
-    }
-    updateNodeData(nodeId, { rules: newRules });
-  };
-
+  const {
+    handleDisconnectResource,
+    handleAddRule,
+    handleRemoveRule,
+    handleToggleVerb
+  } = useRoleConfigHandler(nodeId, rules);
 
   return (
     <div className="space-y-4">
