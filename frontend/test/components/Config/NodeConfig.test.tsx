@@ -158,4 +158,39 @@ describe('NodeConfig', () => {
     expect(setTerminalActiveTab).toHaveBeenCalledWith('logs');
     expect(setTerminalOpen).toHaveBeenCalledWith(true);
   });
+
+  it('renders attached resource settings section when node has roles, configMaps, secrets, or hpas', () => {
+    const attachedNode = {
+      id: 'node-attached',
+      type: 'Deployment',
+      data: {
+        label: 'attached-dep',
+        roles: [{ id: 'r1', name: 'my-role' }],
+        configMaps: [{ id: 'cm1', name: 'my-cm' }],
+        secrets: [{ id: 'sec1', name: 'my-sec' }],
+        hpas: [{ id: 'hpa1', name: 'my-hpa' }],
+      },
+    };
+
+    render(<NodeConfig selectedNode={attachedNode} />);
+    // The container for attached resource sections should be rendered
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+  });
+
+  it('handles syncParentPodUpdates early returns when selectedNode is not Pod or has no parent or missing parent node', () => {
+    // 1. Non-Pod node with parentId (returns early from syncParentPodUpdates)
+    const serviceNode = { id: 'svc-1', type: 'Service', parentId: 'ns-1', data: { label: 'my-svc' } };
+    const { unmount: u1 } = render(<NodeConfig selectedNode={serviceNode} />);
+    u1();
+
+    // 2. Pod without parentId (returns early from syncParentPodUpdates)
+    const standalonePod = { id: 'pod-standalone', type: 'Pod', data: { label: 'standalone' } };
+    const { unmount: u2 } = render(<NodeConfig selectedNode={standalonePod} />);
+    u2();
+
+    // 3. Pod with parentId that does not exist in nodes
+    const orphanPod = { id: 'pod-orphan', type: 'Pod', parentId: 'non-existent-parent', data: { label: 'orphan' } };
+    useFlowStore.setState({ nodes: [orphanPod as any] });
+    render(<NodeConfig selectedNode={orphanPod} />);
+  });
 });

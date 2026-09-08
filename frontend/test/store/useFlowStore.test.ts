@@ -89,12 +89,40 @@ describe('useFlowStore', () => {
   });
 
   it('autosaves project when enabled and updates lastSavedSnapshot on success', async () => {
+    (globalThis as any).go.main.App.UpdateProject = vi.fn().mockResolvedValue(true);
+
     useFlowStore.setState({
       isAutosaveEnabled: true,
       currentProject: { id: 1, name: 'Project 1' },
-      lastActionId: 'action-save'
+      lastActionId: 'action-save-success'
     });
 
     expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
+    await new Promise(process.nextTick);
+    expect(useFlowStore.getState().lastSavedSnapshot).toBe(JSON.stringify({ nodes: [], edges: [] }));
+  });
+
+  it('handles autosave when UpdateProject returns false or when currentProject id is -1', async () => {
+    (globalThis as any).go.main.App.UpdateProject = vi.fn().mockResolvedValue(false);
+
+    useFlowStore.setState({
+      isAutosaveEnabled: true,
+      currentProject: { id: 1, name: 'Project 1' },
+      lastSavedSnapshot: 'initial-snap',
+      lastActionId: 'action-save-false'
+    });
+
+    await new Promise(process.nextTick);
+    expect(useFlowStore.getState().lastSavedSnapshot).toBe('initial-snap');
+
+    // currentProject.id === -1 -> does not invoke UpdateProject
+    (globalThis as any).go.main.App.UpdateProject.mockClear();
+    useFlowStore.setState({
+      isAutosaveEnabled: true,
+      currentProject: { id: -1, name: 'Unsaved Project' },
+      lastActionId: 'action-save-negative'
+    });
+
+    expect((globalThis as any).go.main.App.UpdateProject).not.toHaveBeenCalled();
   });
 });
