@@ -128,7 +128,10 @@ describe('MenuBar', () => {
     });
   });
 
-  it('handles Resource > Save on existing project vs project id === -1', async () => {
+  it('handles Resource > Save on existing project vs project id === -1 and UpdateProject success vs failure', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    // Case 1: UpdateProject returns true
     useFlowStore.setState({
       currentProject: { id: 10, name: "Active Proj" },
       nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
@@ -142,9 +145,23 @@ describe('MenuBar', () => {
 
     await waitFor(() => {
       expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(10, expect.any(String));
+      expect(alertSpy).toHaveBeenCalledWith("Resource architecture saved successfully!");
     });
 
-    // Project with id === -1 opens manager to save as new
+    // Case 2: UpdateProject returns false
+    (globalThis as any).go.main.App.UpdateProject = vi.fn().mockResolvedValue(false);
+    alertSpy.mockClear();
+
+    fireEvent.click(screen.getByText("Resource"));
+    const saveItemsUpdateFail = screen.getAllByText("Save");
+    fireEvent.click(saveItemsUpdateFail[saveItemsUpdateFail.length - 1]);
+
+    await waitFor(() => {
+      expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalled();
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    // Case 3: Project with id === -1 opens manager to save as new
     useFlowStore.setState({ currentProject: { id: -1, name: "Unsaved" } });
     rerender(<MenuBar {...defaultProps} />);
 
@@ -152,6 +169,8 @@ describe('MenuBar', () => {
     const saveItems2 = screen.getAllByText("Save");
     fireEvent.click(saveItems2[saveItems2.length - 1]);
     expect(defaultProps.onOpenProjects).toHaveBeenCalled();
+
+    alertSpy.mockRestore();
   });
 
   it('handles View > Utilities menu item when history view is open or closed', () => {

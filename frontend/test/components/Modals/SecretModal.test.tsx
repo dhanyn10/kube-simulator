@@ -111,4 +111,42 @@ describe('SecretModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Attach Secret' })).toBeInTheDocument();
   });
+
+  it('handles empty secretData in initialSecret, empty targetNodeLabel, and empty secretName fallback', () => {
+    const onSaveMock = vi.fn();
+    const initialSecret: K8sSecretItem = {
+      id: 'sec-456',
+      name: '',
+      type: '',
+      secretData: [],
+    };
+
+    render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeLabel={undefined}
+        initialSecret={initialSecret}
+        onSave={onSaveMock}
+      />
+    );
+
+    expect(screen.getByText('Configure Sensitive Key-Value Data')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('app-secret')).toBeInTheDocument();
+
+    // Clear secretName to whitespace
+    const nameInput = screen.getByDisplayValue('app-secret');
+    fireEvent.change(nameInput, { target: { value: '   ' } });
+
+    // Click Update Secret button
+    const saveBtn = screen.getByRole('button', { name: 'Update Secret' });
+    fireEvent.click(saveBtn);
+
+    expect(onSaveMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'sec-456',
+        name: 'unnamed-secret',
+        type: 'Opaque',
+      })
+    );
+  });
 });

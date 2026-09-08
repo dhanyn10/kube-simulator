@@ -119,4 +119,40 @@ describe('RoleSettingsSection', () => {
       roles: [expect.objectContaining({ id: 'r1', name: 'updated-reader-role' })],
     });
   });
+
+  it('handles adding new role from list modal and fallback targetNodeLabel when data.label is missing', () => {
+    const updateNodeData = vi.fn();
+    const addLog = vi.fn();
+    useFlowStore.setState({ updateNodeData, addLog });
+
+    const data = {
+      roles: [
+        { id: 'r1', name: 'reader-role', rules: [] },
+      ],
+    };
+
+    render(<RoleSettingsSection data={data as any} nodeId="node-fallback-id" />);
+
+    // Open list modal
+    fireEvent.click(screen.getByTitle('Attached Roles (1)'));
+
+    expect(screen.getByText('Node: node-fallback-id')).toBeInTheDocument();
+
+    // Click "Add Role" in list modal to add a new role (existingIndex = -1)
+    const addRoleBtn = screen.getByRole('button', { name: /Add Role/i });
+    fireEvent.click(addRoleBtn);
+
+    expect(screen.getByText('Attach RBAC Role')).toBeInTheDocument();
+
+    // Click Attach Role button
+    const attachBtn = screen.getByRole('button', { name: 'Attach Role' });
+    fireEvent.click(attachBtn);
+
+    expect(updateNodeData).toHaveBeenCalledWith('node-fallback-id', {
+      roles: expect.arrayContaining([
+        expect.objectContaining({ id: 'r1' }),
+        expect.objectContaining({ name: expect.any(String) }),
+      ]),
+    });
+  });
 });
