@@ -24,6 +24,7 @@ export interface K8sRoleItem {
   id: string;
   name: string;
   rules: K8sRoleRule[];
+  assignedUsers?: string[];
 }
 
 export interface K8sConfigMapItem {

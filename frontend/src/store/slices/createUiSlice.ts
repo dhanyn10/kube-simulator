@@ -661,11 +661,44 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       id: `user-${Date.now()}-${Math.floor(safeRandom() * 1000)}`,
       createdAt: Date.now(),
     };
-    return { iamUsers: [...state.iamUsers, newUser] };
+    const updatedUsers = [...state.iamUsers, newUser];
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
+    }
+    return { iamUsers: updatedUsers };
   }),
-  deleteIamUser: (id) => set((state) => ({
-    iamUsers: state.iamUsers.filter((u) => u.id !== id),
-  })),
+  deleteIamUser: (id) => set((state) => {
+    const deletedUser = state.iamUsers.find((u) => u.id === id);
+    const updatedUsers = state.iamUsers.filter((u) => u.id !== id);
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
+    }
+
+    // Purge deleted user from roles across all canvas nodes
+    let updatedNodes = state.nodes;
+    if (deletedUser) {
+      const username = deletedUser.username;
+      updatedNodes = state.nodes.map((node) => {
+        if (!node.data?.roles || !Array.isArray(node.data.roles)) return node;
+        const cleanedRoles = node.data.roles.map((role) => {
+          if (!role.assignedUsers) return role;
+          return {
+            ...role,
+            assignedUsers: role.assignedUsers.filter((u) => u !== username),
+          };
+        });
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            roles: cleanedRoles,
+          },
+        };
+      });
+    }
+
+    return { iamUsers: updatedUsers, nodes: updatedNodes };
+  }),
 
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
@@ -768,6 +801,18 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           applyParsedSettings(val, set);
         } else {
           fallbackToLegacySettings(set);
+        }
+      });
+      globalThis.go.main.App.GetSetting('kube_iam_users').then((val: string) => {
+        if (val) {
+          try {
+            const parsedUsers = JSON.parse(val);
+            if (Array.isArray(parsedUsers)) {
+              set({ iamUsers: parsedUsers });
+            }
+          } catch (e) {
+            logger.error('Failed to parse kube_iam_users settings json', e);
+          }
         }
       });
     }

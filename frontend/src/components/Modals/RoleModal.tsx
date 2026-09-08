@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, Plus, Trash2, X } from 'lucide-react';
+import { ShieldCheck, Plus, Trash2, X, User, ExternalLink } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sRoleItem, K8sRoleRule, K8sResourceType } from '../../types';
 import { useFlowStore } from '../../store';
@@ -452,8 +452,11 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
+  const iamUsers = useFlowStore((state) => state.iamUsers);
+  const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
+  const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
       apiGroups: ['apps', ''],
@@ -465,10 +468,12 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   useEffect(() => {
     if (initialRole) {
       setRoleName(initialRole.name || 'app-reader-role');
+      setAssignedUsers(initialRole.assignedUsers || []);
       setRules(initialRole.rules && initialRole.rules.length > 0 ? initialRole.rules : [
         { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }
       ]);
     } else {
+      setAssignedUsers([]);
       const targetNode = nodes.find((n) => n.id === targetNodeId);
       const derivedResources = deriveResourcesFromTargetNode(targetNode, nodes);
       const derivedApiGroups = deriveApiGroupsFromResources(derivedResources);
@@ -515,11 +520,23 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     );
   };
 
+  const toggleUserAssignment = (username: string) => {
+    setAssignedUsers((prev) =>
+      prev.includes(username) ? prev.filter((u) => u !== username) : [...prev, username]
+    );
+  };
+
+  const handleOpenIamModal = () => {
+    onClose();
+    setKubeIamModalOpen(true);
+  };
+
   const handleSave = () => {
     const roleItem: K8sRoleItem = {
       id: initialRole?.id || `role-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(roleName) || 'unnamed-role',
       rules: rules.length > 0 ? rules : [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
+      assignedUsers,
     };
     onSave(roleItem);
     onClose();
@@ -580,6 +597,62 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                 : "bg-slate-50 border-slate-300 text-slate-900"
             )}
           />
+        </div>
+
+        {/* Assigned Kube IAM Users */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+              <User size={14} className="text-emerald-400" />
+              Assigned Kube IAM Users ({assignedUsers.length})
+            </span>
+            <button
+              type="button"
+              onClick={handleOpenIamModal}
+              className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+            >
+              <ExternalLink size={12} />
+              Manage Kube IAM Users
+            </button>
+          </div>
+
+          {iamUsers.length === 0 ? (
+            <div className={cn('p-3 rounded-lg border text-xs flex items-center justify-between', colorMode === 'dark' ? 'bg-slate-950/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600')}>
+              <span>No Kube IAM users created yet.</span>
+              <button
+                type="button"
+                onClick={handleOpenIamModal}
+                className="text-emerald-400 hover:underline text-[11px] font-medium"
+              >
+                Go to Kube IAM Management
+              </button>
+            </div>
+          ) : (
+            <div className={cn('p-2.5 rounded-lg border flex flex-wrap gap-2 max-h-32 overflow-y-auto', colorMode === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200')}>
+              {iamUsers.map((user) => {
+                const isAssigned = assignedUsers.includes(user.username);
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => toggleUserAssignment(user.username)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 border transition-all cursor-pointer',
+                      isAssigned
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-xs'
+                        : colorMode === 'dark'
+                          ? 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    )}
+                  >
+                    <User size={12} className={isAssigned ? 'text-emerald-400' : 'opacity-50'} />
+                    <span>{user.username}</span>
+                    <span className="text-[10px] opacity-70">({user.accessType})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Rules Section */}
