@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { PortMappingConfig } from '@/components/Config/PortMappingConfig';
+import { PortMappingConfig } from '../../../src/components/Config/PortMappingConfig';
 import '@testing-library/jest-dom';
 
 describe('PortMappingConfig', () => {
@@ -54,8 +54,8 @@ describe('PortMappingConfig', () => {
 
     render(
       <PortMappingConfig
-        port={80}
-        targetPort={80}
+        port={0}
+        targetPort={0}
         onPortChange={onPortChange}
         onTargetPortChange={onTargetPortChange}
         colorMode="dark"
@@ -63,6 +63,9 @@ describe('PortMappingConfig', () => {
     );
 
     const inputs = screen.getAllByRole('spinbutton');
+    expect(inputs[0]).toHaveValue(80);
+    expect(inputs[1]).toHaveValue(80);
+
     fireEvent.change(inputs[0], { target: { value: '443' } });
     expect(onPortChange).toHaveBeenCalledWith(443);
 
