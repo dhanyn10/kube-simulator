@@ -58,13 +58,22 @@ describe('MenuBar', () => {
     };
   });
 
-  it('renders correctly', () => {
+  it('renders correctly and hides identity badge when user is system:admin', () => {
+    useFlowStore.setState({ activeIdentity: 'system:admin' });
     render(<MenuBar {...defaultProps} />);
     expect(screen.getByText('File')).toBeDefined();
     expect(screen.getByText('Resource')).toBeDefined();
     expect(screen.getByText('View')).toBeDefined();
     expect(screen.getByText('Help')).toBeDefined();
     expect(screen.getByTestId('app-title')).toBeDefined();
+    expect(screen.queryByTestId('menubar-identity-passport-btn')).toBeNull();
+  });
+
+  it('renders identity badge when user switched to a Kube IAM identity', () => {
+    useFlowStore.setState({ activeIdentity: 'budi' });
+    render(<MenuBar {...defaultProps} />);
+    expect(screen.getByTestId('menubar-identity-passport-btn')).toBeInTheDocument();
+    expect(screen.getByText('budi')).toBeInTheDocument();
   });
 
   it('checks for updates on mount and displays update button', async () => {
