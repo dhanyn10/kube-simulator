@@ -167,11 +167,38 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     item.desc.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const nodes = useFlowStore((state) => state.nodes);
+  const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
+  const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
+  const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
+  const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
+  const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
+  const addLog = useFlowStore((state) => state.addLog);
+
   const handleAddNode = (type: K8sResourceType) => {
     if (type === 'IAM') {
       setKubeIamModalOpen(true);
       return;
     }
+
+    if (type === 'Role' || type === 'ConfigMap' || type === 'Secret' || type === 'HPA') {
+      const targetNode = nodes.find((n) => n.selected || n.id === configuringNodeId);
+      if (targetNode) {
+        const label = targetNode.data?.label || targetNode.id;
+        if (type === 'Role') setRoleModalTargetNode({ id: targetNode.id, label });
+        else if (type === 'ConfigMap') setConfigMapModalTargetNode({ id: targetNode.id, label });
+        else if (type === 'Secret') setSecretModalTargetNode({ id: targetNode.id, label });
+        else if (type === 'HPA') setHpaModalTargetNode({ id: targetNode.id, label });
+      } else {
+        addLog(
+          'warn',
+          `[Sidebar Action] '${type}' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.`,
+          'UI'
+        );
+      }
+      return;
+    }
+
     onAddNode(type);
   };
 
