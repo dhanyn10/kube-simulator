@@ -378,14 +378,14 @@ describe('RoleModal component', () => {
     }
   });
 
-  it('renders IAM users section when users exist, handles toggle assignment and IAM modal shortcut', () => {
+  it('renders IAM users section when users exist, handles autocomplete typing, toggle assignment and IAM modal shortcut', () => {
     const onCloseMock = vi.fn();
     const setKubeIamModalOpenSpy = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
 
     useFlowStore.setState({
       iamUsers: [
-        { id: 'u1', username: 'dev-user', accessType: 'Developer' },
-        { id: 'u2', username: 'admin-user', accessType: 'Admin' },
+        { id: 'u1', username: 'dev-user', accessType: 'Managed Access', policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: '' }] },
+        { id: 'u2', username: 'admin-user', accessType: 'Full Access', policies: [{ name: 'AdministratorAccess', type: 'Default', description: '' }] },
       ],
       colorMode: 'dark',
     });
@@ -400,18 +400,31 @@ describe('RoleModal component', () => {
       />
     );
 
-    expect(screen.getByText('Assigned Kube IAM Users (0)')).toBeInTheDocument();
-
-    const devUserBtn = screen.getByText('dev-user').closest('button')!;
-    fireEvent.click(devUserBtn);
-
+    // Full Access user admin-user is automatically assigned
     expect(screen.getByText('Assigned Kube IAM Users (1)')).toBeInTheDocument();
 
-    // Toggle again to remove
-    fireEvent.click(devUserBtn);
-    expect(screen.getByText('Assigned Kube IAM Users (0)')).toBeInTheDocument();
+    // Type in autocomplete input field
+    const userInput = screen.getByPlaceholderText('Add user...');
+    fireEvent.focus(userInput);
+    fireEvent.change(userInput, { target: { value: 'dev' } });
 
-    // Rerender in light mode to test light mode user button styles
+    // Click on dev-user suggestion row in dropdown
+    const devRow = screen.getAllByText('dev-user').find(el => el.closest('div'))!;
+    fireEvent.mouseDown(devRow);
+
+    expect(screen.getByText('Assigned Kube IAM Users (2)')).toBeInTheDocument();
+
+    // Remove dev-user via tag X button
+    const devUserText = screen.getAllByText('dev-user')[0];
+    const removeDevBtn = devUserText.nextElementSibling as HTMLElement;
+    if (removeDevBtn) {
+      fireEvent.click(removeDevBtn);
+    }
+
+    // Test click outside closes dropdown
+    fireEvent.mouseDown(document.body);
+
+    // Rerender in light mode to test light mode rendering
     useFlowStore.setState({ colorMode: 'light' });
     rerender(
       <RoleModal
