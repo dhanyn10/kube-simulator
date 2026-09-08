@@ -25,6 +25,22 @@ vi.mock('../../../src/components/Monitoring/ProgressBar', () => ({
   )
 }));
 
+// Mock Handle from @xyflow/react to capture isValidConnection
+vi.mock('@xyflow/react', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    Handle: ({ isValidConnection, id }: any) => (
+      <div data-testid={`handle-${id}`} data-isvalid={isValidConnection ? 'has-fn' : 'none'} onClick={() => {
+        if (isValidConnection) {
+          (window as any)._lastIsValidDeployment = isValidConnection({ target: 'd1' });
+          (window as any)._lastIsValidPod = isValidConnection({ target: 'p1' });
+        }
+      }} />
+    ),
+  };
+});
+
 describe('HPANode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,7 +71,14 @@ describe('HPANode', () => {
     expect(screen.getByText('10')).toBeDefined();
   });
 
-  it('renders custom metrics and replicas', () => {
+  it('renders custom metrics and validates handles isValidConnection callback', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'd1', type: 'Deployment', data: {} } as any,
+        { id: 'p1', type: 'Pod', data: {} } as any,
+      ]
+    });
+
     const props = {
       id: 'h1',
       type: 'HPA',
@@ -64,6 +87,7 @@ describe('HPANode', () => {
         minReplicas: 2,
         maxReplicas: 5,
         targetCPU: 70,
+        currentCPU: 80,
         targetMemory: 80
       }
     } as any;
@@ -77,7 +101,13 @@ describe('HPANode', () => {
     expect(screen.getByText('2')).toBeDefined();
     expect(screen.getByText('5')).toBeDefined();
     expect(screen.getAllByText(/70%/)).toBeDefined();
-    expect(screen.getAllByText(/80%/)).toBeDefined();
+
+    // Trigger handle click to test isValidConnection
+    const handle = screen.getByTestId('handle-bottom-s');
+    handle.click();
+
+    expect((window as any)._lastIsValidDeployment).toBe(true);
+    expect((window as any)._lastIsValidPod).toBe(false);
   });
 
   it('shows warning when connected to deployment without resource requests', () => {

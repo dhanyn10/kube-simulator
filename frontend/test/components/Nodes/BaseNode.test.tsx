@@ -55,12 +55,20 @@ describe('BaseNode', () => {
     expect(onRename).toHaveBeenCalledWith('new-name');
   });
 
-  it('shows replicas badge when > 1', () => {
+  it('shows replicas badge when > 1 in dark and light modes', () => {
     const props = {
       ...defaultProps,
       data: { ...defaultProps.data, replicas: 5 }
     };
-    render(
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <BaseNode {...props} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('x5')).toBeInTheDocument();
+
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
       <ReactFlowProvider>
         <BaseNode {...props} />
       </ReactFlowProvider>
@@ -120,22 +128,26 @@ describe('BaseNode', () => {
     expect(screen.getByText('x100')).toBeInTheDocument();
   });
 
-  it('renders roles and configMaps attached section at bottom', () => {
+  it('renders roles and configMaps attached section at bottom for items without ID', () => {
     render(
       <ReactFlowProvider>
         <BaseNode
           {...defaultProps}
           data={{
             ...defaultProps.data,
-            roles: [{ id: 'r1', name: 'my-role' }],
-            configMaps: [{ id: 'c1', name: 'my-cm' }],
+            roles: [{ name: 'my-role-noid' }],
+            configMaps: [{ name: 'my-cm-noid' }],
+            secrets: [{ name: 'my-sec-noid' }],
+            hpas: [{ name: 'my-hpa-noid', minReplicas: 1, maxReplicas: 10, targetCPU: 50 }],
           }}
         />
       </ReactFlowProvider>
     );
 
-    expect(screen.getByTitle('Role: my-role')).toBeInTheDocument();
-    expect(screen.getByTitle('ConfigMap: my-cm')).toBeInTheDocument();
+    expect(screen.getByTitle('Role: my-role-noid')).toBeInTheDocument();
+    expect(screen.getByTitle('ConfigMap: my-cm-noid')).toBeInTheDocument();
+    expect(screen.getByTitle('Secret: my-sec-noid')).toBeInTheDocument();
+    expect(screen.getByTitle('HPA: my-hpa-noid (Min: 1, Max: 10, CPU: 50%)')).toBeInTheDocument();
   });
 
   it('renders status indicators correctly for Internet and PVC node types', () => {

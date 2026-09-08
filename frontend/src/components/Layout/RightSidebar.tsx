@@ -386,7 +386,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           toggleColorMode={toggleColorMode}
           onCloseSidebar={() => {
             if (isHistoryViewOpen) {
-              setHistoryViewOpen(false);
+              useFlowStore.setState({ isHistoryViewOpen: false });
             }
             setRightSidebarVisible(false);
           }}
