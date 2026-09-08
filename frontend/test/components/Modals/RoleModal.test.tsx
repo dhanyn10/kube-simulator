@@ -540,4 +540,96 @@ describe('RoleModal component', () => {
       })
     );
   });
+
+  it('filters IAM users dropdown by search query and enforces policy boundaries for card types', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'svc-1', type: 'Service', data: { label: 'my-svc' } },
+        { id: 'pvc-1', type: 'PVC', data: { label: 'my-pvc' } },
+      ],
+      iamUsers: [
+        { id: 'u1', username: 'net-admin', accessType: 'Managed Access', policies: [{ name: 'NetworkingAdminPolicy', type: 'Default', description: '' }] },
+        { id: 'u2', username: 'storage-admin', accessType: 'Managed Access', policies: [{ name: 'StorageAdminPolicy', type: 'Default', description: '' }] },
+        { id: 'u3', username: 'read-only-user', accessType: 'Managed Access', policies: [{ name: 'ReadOnlyAccess', type: 'Default', description: '' }] },
+        { id: 'u4', username: 'full-admin', accessType: 'Full Access', policies: [{ name: 'AdministratorAccess', type: 'Default', description: '' }] },
+      ],
+      colorMode: 'dark',
+    });
+
+    // Render for Service card
+    const { unmount } = render(
+      <RoleModal
+        isOpen={true}
+        onClose={vi.fn()}
+        targetNodeId="svc-1"
+        targetNodeLabel="my-svc"
+        onSave={vi.fn()}
+      />
+    );
+
+    const userInput = screen.getByPlaceholderText('Add user...');
+    fireEvent.focus(userInput);
+
+    // net-admin, read-only-user, full-admin should be available for Service
+    expect(screen.getByText('net-admin')).toBeInTheDocument();
+    expect(screen.getByText('read-only-user')).toBeInTheDocument();
+    expect(screen.queryByText('storage-admin')).toBeNull();
+
+    // Type query to filter
+    fireEvent.change(userInput, { target: { value: 'net' } });
+    expect(screen.getByText('net-admin')).toBeInTheDocument();
+    expect(screen.queryByText('read-only-user')).toBeNull();
+
+    unmount();
+
+    // Render for PVC card
+    render(
+      <RoleModal
+        isOpen={true}
+        onClose={vi.fn()}
+        targetNodeId="pvc-1"
+        targetNodeLabel="my-pvc"
+        onSave={vi.fn()}
+      />
+    );
+
+    const userInput2 = screen.getByPlaceholderText('Add user...');
+    fireEvent.focus(userInput2);
+
+    // storage-admin should be available for PVC
+    expect(screen.getByText('storage-admin')).toBeInTheDocument();
+    expect(screen.queryByText('net-admin')).toBeNull();
+  });
+
+  it('prevents toggling or unassigning Full Access users', () => {
+    useFlowStore.setState({
+      nodes: [{ id: 'dep-1', type: 'Deployment', data: { label: 'web-app' } }],
+      iamUsers: [
+        { id: 'u1', username: 'full-admin', accessType: 'Full Access', policies: [{ name: 'AdministratorAccess', type: 'Default', description: '' }] },
+      ],
+      colorMode: 'dark',
+    });
+
+    render(
+      <RoleModal
+        isOpen={true}
+        onClose={vi.fn()}
+        targetNodeId="dep-1"
+        targetNodeLabel="web-app"
+        onSave={vi.fn()}
+      />
+    );
+
+    // Full admin is assigned automatically and has tag without remove X button
+    expect(screen.getByText('full-admin')).toBeInTheDocument();
+    expect(screen.getByText('(Full Access)')).toBeInTheDocument();
+
+    // Open dropdown menu
+    const userInput = screen.getByPlaceholderText('Add user...');
+    fireEvent.focus(userInput);
+
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeDisabled();
+    expect(checkbox).toBeChecked();
+  });
 });
