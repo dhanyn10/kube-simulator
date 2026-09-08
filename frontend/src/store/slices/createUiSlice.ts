@@ -2,7 +2,7 @@ import { logger } from '../../lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sResourceType, KubeIAMUser } from '../../types';
+import { K8sResourceType, K8sRoleItem, KubeIAMUser } from '../../types';
 import { safeRandom } from '../../lib/utils';
 import {
   processWorkloadSimulation,
@@ -640,6 +640,39 @@ const handleStopSimulation = (
   }));
 };
 
+/**
+ * Removes assigned username from a role's assignedUsers array
+ */
+const removeUserFromRole = (role: K8sRoleItem, username: string): K8sRoleItem => {
+  if (!role.assignedUsers) return role;
+  return {
+    ...role,
+    assignedUsers: role.assignedUsers.filter((u) => u !== username),
+  };
+};
+
+/**
+ * Removes assigned username from all roles attached to a node
+ */
+const purgeUserFromNode = (node: Node, username: string): Node => {
+  if (!node.data?.roles || !Array.isArray(node.data.roles)) return node;
+  const cleanedRoles = (node.data.roles as K8sRoleItem[]).map((role) => removeUserFromRole(role, username));
+  return {
+    ...node,
+    data: {
+      ...node.data,
+      roles: cleanedRoles,
+    },
+  };
+};
+
+/**
+ * Purges deleted IAM user from roles across all canvas nodes
+ */
+const purgeUserFromNodes = (nodes: Node[], username: string): Node[] => {
+  return nodes.map((node) => purgeUserFromNode(node, username));
+};
+
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
   roleModalTargetNode: null,
@@ -674,28 +707,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
     }
 
-    // Purge deleted user from roles across all canvas nodes
-    let updatedNodes = state.nodes;
-    if (deletedUser) {
-      const username = deletedUser.username;
-      updatedNodes = state.nodes.map((node) => {
-        if (!node.data?.roles || !Array.isArray(node.data.roles)) return node;
-        const cleanedRoles = node.data.roles.map((role) => {
-          if (!role.assignedUsers) return role;
-          return {
-            ...role,
-            assignedUsers: role.assignedUsers.filter((u) => u !== username),
-          };
-        });
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            roles: cleanedRoles,
-          },
-        };
-      });
-    }
+    const updatedNodes = deletedUser
+      ? purgeUserFromNodes(state.nodes, deletedUser.username)
+      : state.nodes;
 
     return { iamUsers: updatedUsers, nodes: updatedNodes };
   }),

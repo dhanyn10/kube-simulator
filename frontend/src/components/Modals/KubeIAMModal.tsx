@@ -131,9 +131,9 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   const getAttachedRolesForUser = (username: string): AttachedRoleInfo[] => {
     const rolesList: AttachedRoleInfo[] = [];
     for (const node of nodes) {
-      if (node.data?.roles && Array.isArray(node.data.roles)) {
+      if (Array.isArray(node.data?.roles)) {
         for (const role of node.data.roles) {
-          if (role.assignedUsers && role.assignedUsers.includes(username)) {
+          if (role.assignedUsers?.includes(username)) {
             rolesList.push({
               nodeId: node.id,
               nodeLabel: node.data.label || node.id,
@@ -310,8 +310,11 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
   );
 };
 
+export type IAMStep = 1 | 2 | 3;
+export type IAMAccessType = 'Full Access' | 'Managed Access';
+
 interface IAMStepperProps {
-  readonly currentStep: 1 | 2 | 3;
+  readonly currentStep: IAMStep;
   readonly colorMode: string;
   readonly onReset: () => void;
 }
@@ -620,7 +623,7 @@ const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
 };
 
 interface IAMWizardFooterProps {
-  readonly currentStep: 1 | 2 | 3;
+  readonly currentStep: IAMStep;
   readonly colorMode: string;
   readonly onPrevious: () => void;
   readonly onNext: () => void;
@@ -686,7 +689,7 @@ export const KubeIAMModal: React.FC = () => {
   const deleteIamUser = useFlowStore((state) => state.deleteIamUser);
 
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [currentStep, setCurrentStep] = useState<IAMStep>(1);
   const [searchFilter, setSearchFilter] = useState('');
 
   // Wizard state
@@ -695,7 +698,7 @@ export const KubeIAMModal: React.FC = () => {
   const [policySearch, setPolicySearch] = useState('');
   const [usernameError, setUsernameError] = useState('');
 
-  const computedAccessType: 'Full Access' | 'Managed Access' = selectedPolicies.includes('AdministratorAccess')
+  const computedAccessType: IAMAccessType = selectedPolicies.includes('AdministratorAccess')
     ? 'Full Access'
     : 'Managed Access';
 

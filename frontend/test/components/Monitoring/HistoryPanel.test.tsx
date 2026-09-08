@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { HistoryPanel } from '@/components/Monitoring/HistoryPanel';
+import { HistoryPanel } from '../../../src/components/Monitoring/HistoryPanel';
 import '@testing-library/jest-dom';
 
 let mockLogs: any[] = [
@@ -13,7 +13,7 @@ let mockIsLoading = false;
 const mockFetchHistoryLogs = vi.fn();
 const mockHandleJumpToHistory = vi.fn();
 
-vi.mock('@/hooks/useHistory', () => ({
+vi.mock('../../../src/hooks/useHistory', () => ({
   useHistory: () => ({
     historyLogs: mockLogs,
     currentHistoryIndex: mockCurrentHistoryIndex,
@@ -54,6 +54,13 @@ describe('HistoryPanel', () => {
   it('renders light mode and recorded snapshot fallback timestamp', () => {
     render(<HistoryPanel colorMode="light" />);
     expect(screen.getByText('Recorded Snapshot')).toBeInTheDocument();
+  });
+
+  it('renders non-current step log item styling in light mode', () => {
+    mockCurrentHistoryIndex = 2; // index 1 is not current step
+    render(<HistoryPanel colorMode="light" />);
+    const logButton = screen.getByText('Create Node').closest('button');
+    expect(logButton?.className).toContain('hover:bg-violet-50/50 text-slate-700');
   });
 
   it('renders fallback index === 0 as current step when currentHistoryIndex is null', () => {

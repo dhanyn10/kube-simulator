@@ -48,6 +48,22 @@ describe('SimulationControls', () => {
     expect(stopSimulation).toHaveBeenCalled();
   });
 
+  it('shows red pulsing button when simulating with HPA validation error in light mode', () => {
+    render(
+      <SimulationControls
+        isSimulating={true}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
+        hasInternet={true}
+        hasHpaValidationError={true}
+        colorMode="light"
+      />
+    );
+
+    const stopButton = screen.getByRole('button', { name: /stop/i });
+    expect(stopButton.className).toContain('bg-red-600 animate-pulse');
+  });
+
   it('disables button when no internet', () => {
     render(
       <SimulationControls
@@ -80,5 +96,4 @@ describe('SimulationControls', () => {
     const playButton = screen.getByRole('button', { name: /play/i });
     expect(playButton.title).toBe('HPA requires Resource Limits on target workloads');
   });
-
 });

@@ -170,9 +170,6 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
-  const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
-  const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
-  const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
   const addLog = useFlowStore((state) => state.addLog);
 
   const handleAddNode = (type: K8sResourceType) => {

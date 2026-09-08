@@ -442,6 +442,16 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
 
 const DEFAULT_VERBS = ['get', 'list', 'watch'];
 
+const getUserButtonClass = (isAssigned: boolean, isDark: boolean): string => {
+  if (isAssigned) {
+    return 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-xs';
+  }
+  if (isDark) {
+    return 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700';
+  }
+  return 'bg-white border-slate-200 text-slate-600 hover:border-slate-300';
+};
+
 export const RoleModal: React.FC<RoleModalProps> = ({
   isOpen,
   onClose,
@@ -631,6 +641,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
             <div className={cn('p-2.5 rounded-lg border flex flex-wrap gap-2 max-h-32 overflow-y-auto', colorMode === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200')}>
               {iamUsers.map((user) => {
                 const isAssigned = assignedUsers.includes(user.username);
+                const userButtonClass = getUserButtonClass(isAssigned, colorMode === 'dark');
                 return (
                   <button
                     key={user.id}
@@ -638,11 +649,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                     onClick={() => toggleUserAssignment(user.username)}
                     className={cn(
                       'px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 border transition-all cursor-pointer',
-                      isAssigned
-                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-xs'
-                        : colorMode === 'dark'
-                          ? 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      userButtonClass
                     )}
                   >
                     <User size={12} className={isAssigned ? 'text-emerald-400' : 'opacity-50'} />
