@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Plus, Trash2, X, User, ExternalLink } from 'lucide-react';
 import { Modal } from './Modal';
-import { K8sRoleItem, K8sRoleRule, K8sResourceType } from '../../types';
+import { K8sRoleItem, K8sRoleRule, K8sResourceType, KubeIAMUser } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
 import { AutocompleteDropdown, AutocompleteSuggestion } from '../UI/AutocompleteDropdown';
@@ -442,14 +442,63 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
 
 const DEFAULT_VERBS = ['get', 'list', 'watch'];
 
-const getUserButtonClass = (isAssigned: boolean, isDark: boolean): string => {
-  if (isAssigned) {
-    return 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-xs';
+/**
+ * Checks whether an IAM user has Full Access permissions.
+ */
+const isUserFullAccess = (user: KubeIAMUser): boolean => {
+  return user.accessType === 'Full Access' || Boolean(user.policies?.some((p) => p.name === 'AdministratorAccess'));
+};
+
+/**
+ * Checks if policy set matches targeted resource categories.
+ */
+const checkPolicyResourceMatch = (resourcesSet: Set<string>, policyNames: Set<string>): boolean => {
+  const isDevResource = Array.from(resourcesSet).some((r) =>
+    ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets', 'horizontalpodautoscalers', 'hpa'].includes(r)
+  );
+  const isNetResource = Array.from(resourcesSet).some((r) =>
+    ['services', 'ingresses', 'networking'].includes(r)
+  );
+  const isStorageResource = Array.from(resourcesSet).some((r) =>
+    ['persistentvolumeclaims', 'pvcs', 'storage'].includes(r)
+  );
+
+  if (isDevResource && policyNames.has('ContainerDeveloperPolicy')) return true;
+  if (isNetResource && policyNames.has('NetworkingAdminPolicy')) return true;
+  if (isStorageResource && policyNames.has('StorageAdminPolicy')) return true;
+  if (policyNames.has('ReadOnlyAccess')) return true;
+
+  return resourcesSet.size === 0;
+};
+
+/**
+ * Determines if a Kube IAM user is eligible/available for assignment on a given target card / role.
+ */
+const isUserAvailableForRole = (
+  user: KubeIAMUser,
+  targetNode: Node | undefined,
+  rules: K8sRoleRule[]
+): boolean => {
+  if (isUserFullAccess(user)) return true;
+  if (!user.policies || user.policies.length === 0) return false;
+
+  const policyNames = new Set(user.policies.map((p) => p.name));
+  if (policyNames.has('PowerUserAccess') || policyNames.has('AdministratorAccess')) {
+    return true;
   }
-  if (isDark) {
-    return 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700';
+
+  const resourcesSet = new Set<string>();
+  if (targetNode) {
+    const derived = deriveResourcesFromTargetNode(targetNode, []);
+    derived.forEach((r) => resourcesSet.add(r.toLowerCase()));
   }
-  return 'bg-white border-slate-200 text-slate-600 hover:border-slate-300';
+  for (const rule of rules) {
+    (rule.resources || []).forEach((r) => resourcesSet.add(r.toLowerCase()));
+  }
+
+  if (resourcesSet.has('*')) return true;
+
+  return checkPolicyResourceMatch(resourcesSet, policyNames);
 };
 
 export const RoleModal: React.FC<RoleModalProps> = ({
@@ -467,6 +516,9 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
   const [roleName, setRoleName] = useState<string>('app-reader-role');
   const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState<string>('');
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState<boolean>(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
   const [rules, setRules] = useState<K8sRoleRule[]>([
     {
       apiGroups: ['apps', ''],
@@ -475,16 +527,23 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     },
   ]);
 
+  const targetNode = nodes.find((n) => n.id === targetNodeId);
+
   useEffect(() => {
+    const fullAccessUsernames = iamUsers
+      .filter(isUserFullAccess)
+      .map((u) => u.username);
+
     if (initialRole) {
       setRoleName(initialRole.name || 'app-reader-role');
-      setAssignedUsers(initialRole.assignedUsers || []);
+      const initialUsers = initialRole.assignedUsers || [];
+      const combined = Array.from(new Set([...initialUsers, ...fullAccessUsernames]));
+      setAssignedUsers(combined);
       setRules(initialRole.rules && initialRole.rules.length > 0 ? initialRole.rules : [
         { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }
       ]);
     } else {
-      setAssignedUsers([]);
-      const targetNode = nodes.find((n) => n.id === targetNodeId);
+      setAssignedUsers(fullAccessUsernames);
       const derivedResources = deriveResourcesFromTargetNode(targetNode, nodes);
       const derivedApiGroups = deriveApiGroupsFromResources(derivedResources);
 
@@ -498,9 +557,36 @@ export const RoleModal: React.FC<RoleModalProps> = ({
         },
       ]);
     }
-  }, [initialRole, isOpen, targetNodeId, nodes]);
+    setUserSearchQuery('');
+    setIsUserDropdownOpen(false);
+  }, [initialRole, isOpen, targetNodeId, nodes, iamUsers]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+    if (isUserDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserDropdownOpen]);
 
   if (!isOpen) return null;
+
+  const availableUsers = iamUsers.filter((user) => isUserAvailableForRole(user, targetNode, rules));
+
+  const filteredAvailableUsers = availableUsers.filter((user) => {
+    if (!userSearchQuery.trim()) return true;
+    const q = userSearchQuery.toLowerCase().trim();
+    const matchUsername = user.username.toLowerCase().includes(q);
+    const matchType = user.accessType.toLowerCase().includes(q);
+    const matchPolicy = user.policies.some((p) => p.name.toLowerCase().includes(q));
+    return matchUsername || matchType || matchPolicy;
+  });
 
   const handleAddRule = () => {
     setRules((prev) => [
@@ -531,6 +617,10 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   };
 
   const toggleUserAssignment = (username: string) => {
+    const targetUser = iamUsers.find((u) => u.username === username);
+    if (targetUser && isUserFullAccess(targetUser)) {
+      return; // Full access users are permanently assigned
+    }
     setAssignedUsers((prev) =>
       prev.includes(username) ? prev.filter((u) => u !== username) : [...prev, username]
     );
@@ -609,7 +699,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
           />
         </div>
 
-        {/* Assigned Kube IAM Users */}
+        {/* Assigned Kube IAM Users Autocomplete Input */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
@@ -638,26 +728,152 @@ export const RoleModal: React.FC<RoleModalProps> = ({
               </button>
             </div>
           ) : (
-            <div className={cn('p-2.5 rounded-lg border flex flex-wrap gap-2 max-h-32 overflow-y-auto', colorMode === 'dark' ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200')}>
-              {iamUsers.map((user) => {
-                const isAssigned = assignedUsers.includes(user.username);
-                const userButtonClass = getUserButtonClass(isAssigned, colorMode === 'dark');
-                return (
-                  <button
-                    key={user.id}
-                    type="button"
-                    onClick={() => toggleUserAssignment(user.username)}
-                    className={cn(
-                      'px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 border transition-all cursor-pointer',
-                      userButtonClass
-                    )}
-                  >
-                    <User size={12} className={isAssigned ? 'text-emerald-400' : 'opacity-50'} />
-                    <span>{user.username}</span>
-                    <span className="text-[10px] opacity-70">({user.accessType})</span>
-                  </button>
-                );
-              })}
+            <div ref={userDropdownRef} className="relative">
+              {/* Tag Input Field */}
+              <label
+                htmlFor="assigned-users-input"
+                className={cn(
+                  "min-h-[42px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
+                  isUserDropdownOpen ? "ring-2 ring-indigo-500/50 border-indigo-500/80" : "border-slate-700/60",
+                  colorMode === 'dark' ? "bg-slate-950" : "bg-white"
+                )}
+              >
+                {assignedUsers.map((uname) => {
+                  const uobj = iamUsers.find((u) => u.username === uname);
+                  const isFull = uobj ? isUserFullAccess(uobj) : false;
+                  return (
+                    <span
+                      key={`assigned-chip-${uname}`}
+                      className={cn(
+                        "px-2 py-0.5 rounded-md text-xs font-mono font-semibold flex items-center gap-1 border shadow-xs transition-all animate-in fade-in zoom-in-95 duration-150",
+                        isFull
+                          ? "bg-purple-500/20 border-purple-500/40 text-purple-300"
+                          : "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+                      )}
+                    >
+                      <User size={10} />
+                      <span>{uname}</span>
+                      {isFull ? (
+                        <span className="text-[9px] opacity-70 font-normal ml-0.5">(Full Access)</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleUserAssignment(uname);
+                          }}
+                          className="hover:opacity-80 p-0.5 rounded-full transition-opacity cursor-pointer"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+
+                <input
+                  id="assigned-users-input"
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => {
+                    setUserSearchQuery(e.target.value);
+                    setIsUserDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsUserDropdownOpen(true)}
+                  placeholder={assignedUsers.length === 0 ? "Type to search or add IAM users..." : "Add user..."}
+                  className={cn(
+                    "flex-1 min-w-[140px] bg-transparent text-xs font-mono outline-none py-0.5 px-1",
+                    colorMode === 'dark' ? "text-slate-100 placeholder-slate-500" : "text-slate-800 placeholder-slate-400"
+                  )}
+                />
+              </label>
+
+              {/* Autocomplete Dropdown Menu */}
+              {isUserDropdownOpen && (
+                <div className={cn(
+                  "absolute left-0 right-0 top-full mt-1 z-50 max-h-48 overflow-y-auto rounded-lg border shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar font-mono text-xs",
+                  colorMode === 'dark' ? "bg-slate-900 border-slate-700/80 text-slate-200" : "bg-white border-slate-300 text-slate-800"
+                )}>
+                  {filteredAvailableUsers.length === 0 ? (
+                    <div className="p-2.5 text-center text-xs text-slate-400">
+                      No matching IAM users available for this card type.
+                    </div>
+                  ) : (
+                    filteredAvailableUsers.map((user) => {
+                      const isFullAccess = isUserFullAccess(user);
+                      const isChecked = assignedUsers.includes(user.username);
+
+                      const getDropdownRowClass = (): string => {
+                        if (isChecked) {
+                          return colorMode === 'dark'
+                            ? "bg-indigo-600/30 text-indigo-100 font-bold"
+                            : "bg-indigo-50 text-indigo-900 font-bold";
+                        }
+                        return colorMode === 'dark'
+                          ? "hover:bg-slate-800/60 text-slate-300 focus:bg-slate-800/60 outline-none"
+                          : "hover:bg-slate-50 text-slate-700 focus:bg-slate-50 outline-none";
+                      };
+
+                      return (
+                        <div
+                          key={user.id}
+                          role="option"
+                          aria-selected={isChecked}
+                          tabIndex={0}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            toggleUserAssignment(user.username);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleUserAssignment(user.username);
+                            }
+                          }}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors border-b last:border-b-0 border-slate-800/40",
+                            getDropdownRowClass()
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={isFullAccess}
+                              onChange={() => {}}
+                              aria-label={`Select ${user.username}`}
+                              className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            <span className="font-semibold text-[11px]">{user.username}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {isFullAccess ? (
+                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                                Full Access
+                              </span>
+                            ) : (
+                              user.policies.map((p) => (
+                                <span
+                                  key={p.name}
+                                  className={cn(
+                                    "text-[9px] px-1.5 py-0.5 rounded border",
+                                    colorMode === 'dark'
+                                      ? "bg-slate-800 border-slate-700 text-slate-400"
+                                      : "bg-slate-100 border-slate-200 text-slate-600"
+                                  )}
+                                >
+                                  {p.name}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
