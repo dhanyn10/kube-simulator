@@ -1,15 +1,12 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { AlertCircle, CheckCircle2, Shield, Settings, Lock, Activity } from 'lucide-react';
-import { K8sNodeData } from '../../types';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { K8sNodeData } from '@/types';
+import { cn } from '@/lib/utils';
 import { QuickConnectArrows } from './QuickConnectArrows';
-import { useNodeStyles } from '../../hooks/useNodeStyles';
-import { useNodeRename } from '../../hooks/useNodeEditor';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
-import { useNodeStatus, useNodeContainerStyles } from '../../hooks/useNodeStatusStyles';
 import { NodePodBadges } from './NodePodBadges';
+import { useBaseNodeHandler } from '@/activity/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -82,37 +79,27 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   hideSettings?: boolean;
   statusOverride?: 'pending' | 'ready' | 'crashing';
 }) => {
-  const colorMode = useFlowStore((state) => state.colorMode);
-  const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
-  const nodes = useFlowStore((state) => state.nodes);
-  const { transitionClasses } = useNodeStyles(id);
-  const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(data.label, data.onRename);
-
-  const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA';
-  const currentNode = nodes.find((n) => n.id === id);
-  const parentNode = currentNode?.parentId ? nodes.find((n) => n.id === currentNode.parentId) : null;
-  const isInsideNamespace = currentNode?.parentId ? (parentNode?.type === 'Namespace' || nodes.find((p) => p.id === parentNode?.parentId)?.type === 'Namespace') : false;
-
-  const { isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
-    useNodeStatus(data, statusOverride, color, colorMode);
-
-  const { containerClasses, progressEmptyBgClass } =
-    useNodeContainerStyles({
-      selected,
-      isReady,
-      isPending,
-      isCrashing,
-      color,
-      colorMode,
-      isRoleDragging,
-      nodeType: data.type,
-      isInsideNamespace,
-      isHovered: data.isHovered
-    });
-
-  const replicas = data.replicas || 1;
-  const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || (replicas > 1 && !data.parentId));
+  const {
+    colorMode,
+    transitionClasses,
+    isEditing,
+    setIsEditing,
+    editValue,
+    setEditValue,
+    inputRef,
+    handleRename,
+    onKeyDown,
+    isPending,
+    isReady,
+    isCrashing,
+    statusIconColor,
+    statusTextColor,
+    statusDotColor,
+    containerClasses,
+    progressEmptyBgClass,
+    replicas,
+    showDashedProgress,
+  } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
   return (
     <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200")}>

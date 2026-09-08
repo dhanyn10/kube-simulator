@@ -1,8 +1,6 @@
-
-import { useEffect, useRef } from 'react';
 import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal, Sun, Moon } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { cn } from '@/lib/utils';
+import { useContextMenuHandler } from '@/activity/ui';
 
 interface ContextMenuProps {
   x: number;
@@ -13,60 +11,27 @@ interface ContextMenuProps {
 }
 
 export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuProps) => {
-  const colorMode = useFlowStore((state: any) => state.colorMode);
-  const toggleColorMode = useFlowStore((state: any) => state.toggleColorMode);
-  const nodes = useFlowStore((state: any) => state.nodes);
-  const clipboard = useFlowStore((state: any) => state.clipboard);
-  const groupNodes = useFlowStore((state: any) => state.groupNodes);
-  const ungroupNodes = useFlowStore((state: any) => state.ungroupNodes);
-  const copyNodes = useFlowStore((state: any) => state.copyNodes);
-  const pasteNodes = useFlowStore((state: any) => state.pasteNodes);
-
-  const setTerminalOpen = useFlowStore((state: any) => state.setTerminalOpen);
-  const setTerminalActiveTab = useFlowStore((state: any) => state.setTerminalActiveTab);
-  const setTerminalSelectedResourceId = useFlowStore((state: any) => state.setTerminalSelectedResourceId);
-
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const selectedNodes = nodes.filter((n: any) => n.selected);
-  const selectedIds = selectedNodes.map((n: any) => n.id);
-  const singleNode = selectedNodes.length === 1 ? selectedNodes[0] : null;
-  const canViewLogs = singleNode && ['Deployment', 'ReplicaSet', 'Pod'].includes(singleNode.type);
-  const hasSelection = selectedIds.length > 0;
-  const canGroup = selectedIds.length > 1;
-  const isGrouped = selectedNodes.some((n: any) => n.data?.groupId);
-  const canPaste = Boolean(
-    clipboard &&
-      Array.isArray(clipboard.nodes) &&
-      clipboard.nodes.length > 0 &&
-      clipboard.nodes.every((n: any) => n && typeof n === 'object' && n.id && n.type)
-  );
-
-  // Focus first menu item on open
-  useEffect(() => {
-    const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])');
-    firstItem?.focus();
-  }, []);
-
-  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
-    const items = Array.from(
-      menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? []
-    );
-    const current = document.activeElement as HTMLElement;
-    const idx = items.indexOf(current);
-
-    e.stopPropagation();
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      items[(idx + 1) % items.length]?.focus();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      items[(idx - 1 + items.length) % items.length]?.focus();
-    } else if (e.key === 'Escape' || e.key === 'Tab') {
-      e.preventDefault();
-      onClose();
-    }
-  };
+  const {
+    colorMode,
+    toggleColorMode,
+    nodes,
+    menuRef,
+    singleNode,
+    canViewLogs,
+    hasSelection,
+    canGroup,
+    isGrouped,
+    canPaste,
+    selectedIds,
+    groupNodes,
+    ungroupNodes,
+    copyNodes,
+    pasteNodes,
+    setTerminalOpen,
+    setTerminalActiveTab,
+    setTerminalSelectedResourceId,
+    handleMenuKeyDown,
+  } = useContextMenuHandler({ onClose });
 
   const itemClass = cn(
     "w-full px-3 py-2 text-xs flex items-center gap-3 transition-colors",
