@@ -53,6 +53,31 @@ describe('SecretListModal', () => {
     expect(screen.getByText('db-secret')).toBeInTheDocument();
     expect(screen.getByText('tls-secret')).toBeInTheDocument();
     expect(screen.getByText(/2 key-value pairs \(DB_PASS, DB_USER\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 key-value pair \(tls.crt\)/i)).toBeInTheDocument();
+  });
+
+  it('renders correctly when targetNodeLabel is omitted, type is undefined, or secretData is empty', () => {
+    const customSecrets: K8sSecretItem[] = [
+      {
+        id: 'sec-empty',
+        name: 'untyped-secret',
+        type: '' as any,
+        secretData: [],
+      },
+      {
+        id: 'sec-no-data',
+        name: 'no-data-secret',
+        type: 'Opaque',
+        secretData: undefined as any,
+      },
+    ];
+
+    render(<SecretListModal {...defaultProps} targetNodeLabel={undefined} secrets={customSecrets} />);
+
+    expect(screen.getByText('Manage attached Secrets')).toBeInTheDocument();
+    expect(screen.getByText('untyped-secret')).toBeInTheDocument();
+    expect(screen.getAllByText('Opaque').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No data entries').length).toBe(2);
   });
 
   it('renders empty message when no secrets attached', () => {

@@ -41,6 +41,36 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       expect(screen.getByText('+ 1 more rule(s)...')).toBeInTheDocument();
     });
 
+    it('handles undefined rules and empty resource/verb arrays in RoleNode', () => {
+      const noRulesProps: any = {
+        id: 'role-empty',
+        type: 'Role',
+        data: {
+          label: 'empty-role',
+          type: 'Role',
+          rules: undefined,
+        },
+      };
+
+      const { rerender } = render(<RoleNode {...noRulesProps} />);
+      expect(screen.queryByText(/Rules/)).not.toBeInTheDocument();
+
+      const emptyRuleProps: any = {
+        id: 'role-empty-rule',
+        type: 'Role',
+        data: {
+          label: 'empty-rule-role',
+          type: 'Role',
+          rules: [{ apiGroups: [''], resources: [], verbs: [] }],
+        },
+      };
+
+      rerender(<RoleNode {...emptyRuleProps} />);
+      expect(screen.getByText('Rules (1)')).toBeInTheDocument();
+      expect(screen.getByText('Res:')).toBeInTheDocument();
+      expect(screen.getByText('Verbs:')).toBeInTheDocument();
+    });
+
     it('does not render rules preview when displaySettings.rules is false', () => {
       const mockProps: any = {
         id: 'role-2',

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Sidebar } from '../../../src/components/Layout/Sidebar';
 import { useFlowStore } from '../../../src/store';
 
 describe('Sidebar', () => {
-  it('renders all sections and search input', () => {
-    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+  it('renders all sections and search input in dark and light modes', () => {
+    const { rerender } = render(<Sidebar onAddNode={vi.fn()} />);
 
     expect(screen.getByPlaceholderText('Search...')).toBeDefined();
     expect(screen.getByText('Workloads')).toBeDefined();
@@ -13,10 +13,16 @@ describe('Sidebar', () => {
     expect(screen.getByText('Configuration')).toBeDefined();
     expect(screen.getByText('Scaling')).toBeDefined();
     expect(screen.getByText('Others')).toBeDefined();
+
+    act(() => {
+      useFlowStore.setState({ colorMode: 'light' });
+    });
+    rerender(<Sidebar onAddNode={vi.fn()} />);
+    expect(screen.getByText('Workloads')).toBeDefined();
   });
 
   it('filters items based on search term', () => {
-    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+    render(<Sidebar onAddNode={vi.fn()} />);
 
     const searchInput = screen.getByPlaceholderText('Search...');
     fireEvent.change(searchInput, { target: { value: 'Deployment' } });
@@ -26,7 +32,7 @@ describe('Sidebar', () => {
   });
 
   it('shows "No elements found" when search yields no results', () => {
-    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+    render(<Sidebar onAddNode={vi.fn()} />);
 
     const searchInput = screen.getByPlaceholderText('Search...');
     fireEvent.change(searchInput, { target: { value: 'nonexistent-component' } });
@@ -35,7 +41,7 @@ describe('Sidebar', () => {
   });
 
   it('toggles sections', () => {
-    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+    render(<Sidebar onAddNode={vi.fn()} />);
 
     const networkingBtn = screen.getByText('Networking');
     fireEvent.click(networkingBtn);
@@ -44,45 +50,68 @@ describe('Sidebar', () => {
     expect(screen.getByText('Service')).toBeDefined();
 
     // Workloads should be collapsed.
-    // The structure is: button(Workloads) + div(container)
-    // The div has max-h-0, opacity-0, invisible classes when collapsed.
     const workloadsBtn = screen.getByText('Workloads');
     const sectionContainer = workloadsBtn.nextElementSibling;
     expect(sectionContainer?.className).toContain('invisible');
     expect(sectionContainer?.className).toContain('max-h-0');
   });
 
-  it('calls onAddNode when a component is clicked', () => {
+  it('calls onAddNode when a component is clicked and opens IAM modal on IAM click', () => {
     const onAddNode = vi.fn();
-    render(<Sidebar onAddNode={onAddNode} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+    const setKubeIamModalOpen = vi.fn();
+    useFlowStore.setState({ setKubeIamModalOpen });
+
+    render(<Sidebar onAddNode={onAddNode} />);
 
     const podBtn = screen.getByText('Pod');
     fireEvent.click(podBtn);
-
     expect(onAddNode).toHaveBeenCalledWith('Pod');
+
+    // Kube IAM click
+    const iamBtn = screen.getByText('Kube IAM');
+    fireEvent.click(iamBtn);
+    expect(setKubeIamModalOpen).toHaveBeenCalledWith(true);
   });
 
-  it('handles drag start', () => {
+  it('handles drag start for draggable items and handles non-draggable IAM item', () => {
     const setDraggingSidebarItem = vi.spyOn(useFlowStore.getState(), 'setDraggingSidebarItem');
-    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+    const setKubeIamModalOpen = vi.fn();
+    useFlowStore.setState({ setKubeIamModalOpen });
+
+    render(<Sidebar onAddNode={vi.fn()} />);
 
     const podBtn = screen.getByText('Pod').closest('button');
     const mockDataTransfer = {
-        setData: vi.fn(),
-        effectAllowed: ''
+      setData: vi.fn(),
+      effectAllowed: ''
     };
 
     fireEvent.dragStart(podBtn!, { dataTransfer: mockDataTransfer });
 
     expect(mockDataTransfer.setData).toHaveBeenCalledWith('application/reactflow', 'Pod');
     expect(setDraggingSidebarItem).toHaveBeenCalledWith('Pod');
+
+    // Drag start on non-draggable IAM item triggers modal
+    const iamBtn = screen.getByText('Kube IAM').closest('button');
+    fireEvent.dragStart(iamBtn!, { dataTransfer: mockDataTransfer });
+
+    expect(setKubeIamModalOpen).toHaveBeenCalledWith(true);
+
+    // Drag end clears draggingSidebarItem and hovered nodes
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { isHovered: true } } as any]
+    });
+
+    fireEvent.dragEnd(podBtn!);
+    expect(setDraggingSidebarItem).toHaveBeenCalledWith(null);
+    expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
   });
 
   it('shows custom context menu on right click with change theme and close options', () => {
     const toggleColorModeSpy = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
     const setSidebarVisibleSpy = vi.spyOn(useFlowStore.getState(), 'setSidebarVisible');
 
-    render(<Sidebar onAddNode={vi.fn()} isProjectOpen={true} setIsProjectOpen={vi.fn()} />);
+    render(<Sidebar onAddNode={vi.fn()} />);
 
     const sidebarContainer = document.getElementById('sidebar-components')!;
     fireEvent.contextMenu(sidebarContainer);

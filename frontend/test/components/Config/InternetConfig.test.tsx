@@ -94,7 +94,7 @@ describe('InternetConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 500 });
   });
 
-  it('handles clicking ruler tick buttons and editing numeric input', () => {
+  it('handles clicking ruler tick buttons and editing numeric input with invalid or empty input fallback', () => {
     const defaultNode = {
       id: 'int1',
       type: 'Internet',
@@ -125,12 +125,27 @@ describe('InternetConfig', () => {
     const numInput = screen.getByTestId('traffic-numeric-input');
     fireEvent.change(numInput, { target: { value: '350' } });
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 350 });
+
+    // Empty input fallback
+    fireEvent.change(numInput, { target: { value: '' } });
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
   });
 
-  it('handles duration unit updates for ms, sec, and min', () => {
+  it('handles duration unit updates for ms, sec, and min, and handles undefined data fallbacks', () => {
+    const fallbackNode = {
+      id: 'int2',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: undefined,
+        durationUnit: undefined,
+        displaySettings: { traffic: true, duration: true }
+      }
+    };
+
     render(
       <InternetConfig
-        selectedNode={selectedNode}
+        selectedNode={fallbackNode}
         performUpdate={performUpdate}
         toggleVisibility={toggleVisibility}
       />

@@ -8,14 +8,14 @@ describe('MenuBarDropdown', () => {
     label: 'Test Menu',
     items: [
       { label: 'Item 1', onClick: vi.fn(), shortcut: 'Ctrl+1' },
-      { type: 'separator' as const, label: 'sep', onClick: () => {} },
+      { type: 'separator' as const, label: '', onClick: () => {} },
       { label: 'Toggle Item', onClick: vi.fn(), checked: true },
       { label: 'Item 2', icon: Settings, onClick: vi.fn() },
     ]
   };
 
-  it('renders menu label', () => {
-    render(
+  it('renders menu label in dark and light modes', () => {
+    const { rerender } = render(
       <MenuBarDropdown
         menu={mockMenu}
         activeMenu={null}
@@ -24,6 +24,16 @@ describe('MenuBarDropdown', () => {
       />
     );
     expect(screen.getByText('Test Menu')).toBeDefined();
+
+    rerender(
+      <MenuBarDropdown
+        menu={mockMenu}
+        activeMenu="Test Menu"
+        setActiveMenu={vi.fn()}
+        colorMode="dark"
+      />
+    );
+    expect(screen.getByText('Item 1')).toBeDefined();
   });
 
   it('renders items when open', () => {
@@ -41,17 +51,22 @@ describe('MenuBarDropdown', () => {
     expect(screen.getByText('Item 2')).toBeDefined();
   });
 
-  it('calls setActiveMenu when clicked', () => {
+  it('calls setActiveMenu on click and onMouseEnter when another activeMenu is set', () => {
     const setActiveMenu = vi.fn();
     render(
       <MenuBarDropdown
         menu={mockMenu}
-        activeMenu={null}
+        activeMenu="Other Menu"
         setActiveMenu={setActiveMenu}
         colorMode="light"
       />
     );
-    fireEvent.click(screen.getByText('Test Menu'));
+
+    const btn = screen.getByText('Test Menu');
+    fireEvent.mouseEnter(btn);
+    expect(setActiveMenu).toHaveBeenCalledWith('Test Menu');
+
+    fireEvent.click(btn);
     expect(setActiveMenu).toHaveBeenCalledWith('Test Menu');
   });
 

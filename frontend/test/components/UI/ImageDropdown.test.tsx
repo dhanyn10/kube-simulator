@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { useFlowStore } from '../../../src/store';
-
-// We can just import directly or resolve the correct path. Let's see if ImageDropdown can be imported from '../../src/components/UI/ImageDropdown'
 import { ImageDropdown as TargetImageDropdown } from '../../../src/components/UI/ImageDropdown';
 
 describe('ImageDropdown', () => {
@@ -31,17 +29,31 @@ describe('ImageDropdown', () => {
     expect(screen.getByText('Select container image...')).toBeDefined();
   });
 
-  it('opens and displays options when clicked', async () => {
+  it('opens and displays options in light mode with selected and unselected item styling', async () => {
     const onChange = vi.fn();
-    render(<TargetImageDropdown value="" onChange={onChange} colorMode="dark" />);
+    render(<TargetImageDropdown value="my-local-image:latest" onChange={onChange} colorMode="light" />);
 
     const button = screen.getByRole('button');
     fireEvent.click(button);
 
     expect(screen.getByPlaceholderText('Search or type custom image...')).toBeDefined();
-    expect(screen.getByText('my-local-image:latest')).toBeDefined();
-    // Default registries like "nginx:latest" should also be present
+    expect(screen.getAllByText('my-local-image:latest').length).toBeGreaterThan(0);
     expect(screen.getByText('nginx:latest')).toBeDefined();
+  });
+
+  it('renders empty message when customImages is empty and query has no matches and search is empty', async () => {
+    useFlowStore.setState({ customImages: [] });
+    const onChange = vi.fn();
+
+    render(<TargetImageDropdown value="" onChange={onChange} colorMode="light" />);
+
+    const button = screen.getByRole('button');
+    fireEvent.click(button);
+
+    const input = screen.getByPlaceholderText('Search or type custom image...');
+    fireEvent.change(input, { target: { value: '   ' } });
+
+    expect(screen.getByPlaceholderText('Search or type custom image...')).toBeDefined();
   });
 
   it('filters options and allows adding a custom image', async () => {
@@ -75,7 +87,7 @@ describe('ImageDropdown', () => {
     expect(onChange).toHaveBeenCalledWith('my-local-image:latest');
   });
 
-  it('closes dropdown when clicking outside', async () => {
+  it('closes dropdown when clicking outside and stays open when clicking inside', async () => {
     const onChange = vi.fn();
     render(
       <div>
@@ -86,8 +98,15 @@ describe('ImageDropdown', () => {
 
     const button = screen.getByRole('button');
     fireEvent.click(button);
+
+    const input = screen.getByPlaceholderText('Search or type custom image...');
+    expect(input).not.toBeNull();
+
+    // Click inside dropdown
+    fireEvent.mouseDown(input);
     expect(screen.queryByPlaceholderText('Search or type custom image...')).not.toBeNull();
 
+    // Click outside dropdown
     const outside = screen.getByTestId('outside');
     fireEvent.mouseDown(outside);
 

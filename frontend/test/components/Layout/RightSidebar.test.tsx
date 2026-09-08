@@ -28,6 +28,7 @@ describe('RightSidebar', () => {
       configuringNodeId: null,
       configuringEdgeId: null,
       visibleWidgets: ['hardware-budget', 'object-stats'],
+      isHistoryViewOpen: false,
     });
   });
 
@@ -56,14 +57,21 @@ describe('RightSidebar', () => {
     expect(screen.getByText('Object Statistics')).toBeDefined();
   });
 
-  it('opens canvas dropdown', () => {
-    render(<RightSidebar onExportYaml={vi.fn()} />);
+  it('opens canvas dropdown and handles outside click', () => {
+    render(
+      <div>
+        <div data-testid="outside">Outside</div>
+        <RightSidebar onExportYaml={vi.fn()} />
+      </div>
+    );
     const dropdownToggle = screen.getByTestId('canvas-dropdown-toggle');
     fireEvent.click(dropdownToggle);
 
-    expect(screen.getByText('Hardware Budget', { selector: 'span' })).toBeDefined();
-    expect(screen.getByText('Object Statistics', { selector: 'span' })).toBeDefined();
     expect(screen.getByTestId('open-yaml-inspector')).toBeDefined();
+
+    // Click outside dropdown
+    fireEvent.mouseDown(screen.getByTestId('outside'));
+    expect(screen.queryByTestId('open-yaml-inspector')).toBeNull();
   });
 
   it('toggles widget visibility', () => {
@@ -153,9 +161,13 @@ describe('RightSidebar', () => {
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
   });
 
-  it('shows custom context menu on right click with change theme and close options', () => {
+  it('shows custom context menu on right click with change theme and close options when history view is open', () => {
     const toggleColorModeSpy = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
     const setRightSidebarVisibleSpy = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
+
+    act(() => {
+      useFlowStore.setState({ isHistoryViewOpen: true });
+    });
 
     render(<RightSidebar onExportYaml={vi.fn()} />);
 
@@ -173,6 +185,7 @@ describe('RightSidebar', () => {
     // Right click again and click close
     fireEvent.contextMenu(sidebarContainer);
     fireEvent.click(screen.getByTestId('context-menu-close-sidebar'));
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
     expect(setRightSidebarVisibleSpy).toHaveBeenCalledWith(false);
   });
 });

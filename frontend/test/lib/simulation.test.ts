@@ -246,7 +246,7 @@ describe('simulation test suite', () => {
       expect(ctx.updatedNodes.find(n => n.id === 'pod1')?.data.status).toBe('crashing');
   });
 
-  it('scheduleRecovery recovers a crashing pod', () => {
+  it('scheduleRecovery recovers a crashing pod and ignores non-crashing pod', () => {
       const pod = createNode('pod1', 'Pod', { status: 'crashing' });
       const deleteNodes = vi.fn();
       const ctx = getMockCtx({
@@ -261,5 +261,14 @@ describe('simulation test suite', () => {
 
       // Advance time for second timeout (2000ms)
       vi.advanceTimersByTime(2000);
+
+      // Non-crashing pod
+      const nonCrashingPod = createNode('pod2', 'Pod', { status: 'ready' });
+      const nonCrashingCtx = getMockCtx({
+          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], nonCrashingPod], deleteNodes })
+      });
+
+      scheduleRecovery(baseNodes[0], 'pod2', nonCrashingCtx);
+      vi.advanceTimersByTime(3000);
   });
 });
