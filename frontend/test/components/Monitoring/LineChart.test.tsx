@@ -72,4 +72,19 @@ describe('LineChart', () => {
     const path = container.querySelector('path');
     expect(path).toHaveAttribute('fill', 'rgba(168, 85, 247, 0.1)');
   });
+
+  it('handles array with falsy/zero last element and valueFormatter with limitValue 0', () => {
+    const formatter = (v: number) => `${v} B`;
+    render(
+      <LineChart
+        data={[0]}
+        color="blue"
+        label="Traffic"
+        valueFormatter={formatter}
+        limitValue={0}
+      />
+    );
+    expect(screen.getByText('0 B / 0 B')).toBeInTheDocument();
+    expect(screen.getByText('0%')).toBeInTheDocument();
+  });
 });
