@@ -63,19 +63,12 @@ describe('terminalConfigCommands', () => {
   });
 
   describe('deriveVerbAndResource', () => {
-    it('derives verb and resource for kubectl get pods', () => {
-      const res = deriveVerbAndResource('kubectl get pods');
-      expect(res).toEqual({ verb: 'get', resource: 'pods' });
-    });
-
-    it('derives verb and resource for kubectl delete pod', () => {
-      const res = deriveVerbAndResource('kubectl delete pod web-pod');
-      expect(res).toEqual({ verb: 'delete', resource: 'pods' });
-    });
-
-    it('derives verb and resource for kubectl scale', () => {
-      const res = deriveVerbAndResource('kubectl scale deployment/api --replicas=3');
-      expect(res).toEqual({ verb: 'update', resource: 'deployments' });
+    it.each([
+      { cmd: 'kubectl get pods', expected: { verb: 'get', resource: 'pods' } },
+      { cmd: 'kubectl delete pod web-pod', expected: { verb: 'delete', resource: 'pods' } },
+      { cmd: 'kubectl scale deployment/api --replicas=3', expected: { verb: 'update', resource: 'deployments' } },
+    ])('derives verb and resource for "$cmd"', ({ cmd, expected }) => {
+      expect(deriveVerbAndResource(cmd)).toEqual(expected);
     });
 
     it('returns null for non-operational commands', () => {
