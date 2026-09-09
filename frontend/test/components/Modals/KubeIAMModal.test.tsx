@@ -323,4 +323,41 @@ describe('KubeIAMModal component', () => {
     expect(updatedUser?.username).toBe('renamed-user');
     expect(useFlowStore.getState().activeIdentity).toBe('renamed-user');
   });
+
+  it('allows cancelling edit mode, going back to users list, and deleting user from detail view', () => {
+    useFlowStore.setState({
+      iamUsers: [
+        {
+          id: 'user-to-del',
+          username: 'delete-me',
+          accessType: 'Managed Access',
+          policies: [],
+        },
+      ],
+    });
+
+    render(<KubeIAMModal />);
+
+    // Open detail view
+    fireEvent.click(screen.getByText('delete-me'));
+    expect(screen.getByText('IAM User Summary & Access Management')).toBeInTheDocument();
+
+    // Click Edit Profile and then Cancel Editing
+    fireEvent.click(screen.getByText('Edit Profile'));
+    expect(screen.getAllByText('Cancel Editing').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByText('Cancel Editing')[0]);
+    expect(screen.getByText('IAM User Summary & Access Management')).toBeInTheDocument();
+
+    // Click Back to Users
+    fireEvent.click(screen.getByText('Back to Users'));
+    expect(screen.getByText('Kube IAM Users (1)')).toBeInTheDocument();
+
+    // Go back to detail view and click Delete User trash button in detail header
+    fireEvent.click(screen.getByText('delete-me'));
+    const trashBtn = screen.getByTitle('Delete User');
+    fireEvent.click(trashBtn);
+
+    expect(useFlowStore.getState().iamUsers).toHaveLength(0);
+  });
 });
