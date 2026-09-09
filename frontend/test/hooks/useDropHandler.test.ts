@@ -115,7 +115,7 @@ describe('useDropHandler', () => {
     expect(parentId).toBeUndefined();
   });
 
-  it('onDrop adds node to container', () => {
+  it('onDrop adds node to container and handles disallowed container types like PVC in Namespace', () => {
     const addNode = vi.fn();
     useFlowStore.setState({
       addNode,
@@ -126,7 +126,24 @@ describe('useDropHandler', () => {
 
     const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
 
-    const mockEvent = {
+    // PVC is not allowed inside a Namespace container
+    const mockPvcEvent = {
+      preventDefault: vi.fn(),
+      clientX: 100,
+      clientY: 100,
+      dataTransfer: {
+        getData: vi.fn().mockReturnValue('PVC')
+      }
+    } as any;
+
+    act(() => {
+      result.current.onDrop(mockPvcEvent);
+    });
+
+    expect(addNode).toHaveBeenCalledWith('PVC', expect.any(Object), undefined);
+
+    // Deployment is allowed inside a Namespace container
+    const mockDepEvent = {
       preventDefault: vi.fn(),
       clientX: 100,
       clientY: 100,
@@ -136,7 +153,7 @@ describe('useDropHandler', () => {
     } as any;
 
     act(() => {
-      result.current.onDrop(mockEvent);
+      result.current.onDrop(mockDepEvent);
     });
 
     expect(addNode).toHaveBeenCalledWith('Deployment', expect.any(Object), 'ns1');
@@ -181,6 +198,39 @@ describe('useDropHandler', () => {
     });
 
     expect(addNodeMock).toHaveBeenCalledWith('Service', expect.any(Object), 'ns-c');
+  });
+
+  it('handles computeFinalDropPosition when targetContainer has parentId missing from nodes', () => {
+    const containerNode: Node = {
+      id: 'c1',
+      type: 'Deployment',
+      parentId: 'missing-parent',
+      position: { x: 20, y: 20 },
+      width: 300,
+      height: 200,
+      data: {},
+    };
+
+    useFlowStore.setState({ nodes: [containerNode] });
+
+    const addNodeMock = vi.fn();
+    useFlowStore.setState({ addNode: addNodeMock });
+
+    const screenToFlow = vi.fn(() => ({ x: 50, y: 50 }));
+    const { result } = renderHook(() => useDropHandler(screenToFlow));
+
+    const event = {
+      preventDefault: vi.fn(),
+      dataTransfer: { getData: () => 'Pod' },
+      clientX: 50,
+      clientY: 50,
+    } as any;
+
+    act(() => {
+      result.current.onDrop(event);
+    });
+
+    expect(addNodeMock).toHaveBeenCalled();
   });
 
   it('getTargetContainer finds smallest container', () => {
@@ -254,6 +304,41 @@ describe('useDropHandler', () => {
       expect(setHoveredDeploymentId).toHaveBeenCalledWith('dep1');
       const updatedNodes = useFlowStore.getState().nodes;
       expect(updatedNodes.find((n) => n.id === 'dep1')?.data?.isHovered).toBe(true);
+    });
+
+    it('onDrop handles dropping a Role onto a target workload', () => {
+      const depNode = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: { label: 'My Deployment' }
+      };
+
+      useFlowStore.setState({
+        nodes: [depNode] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('Role')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().roleModalTargetNode).toEqual({
+        id: 'dep1',
+        label: 'My Deployment'
+      });
     });
 
     it('onDrop handles dropping a ConfigMap onto a target workload', () => {
@@ -352,6 +437,35 @@ describe('useDropHandler', () => {
       );
     });
 
+    it('onDrop handles dropping an HPA onto empty canvas and logs HPA-specific warning', () => {
+      const addLogSpy = vi.fn();
+      useFlowStore.setState({
+        nodes: [],
+        addLog: addLogSpy
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const emptyEvent = {
+        preventDefault: vi.fn(),
+        clientX: 500,
+        clientY: 500,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('HPA')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(emptyEvent);
+      });
+
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'warn',
+        expect.stringContaining('HPA must be dropped onto an existing card (e.g. Deployment or ReplicaSet)'),
+        'UI'
+      );
+    });
+
     it('handles target node label fallback to node id when label is missing, and resolves ReplicaSet parent for Pods', () => {
       const rsParent = {
         id: 'rs1',
@@ -394,6 +508,99 @@ describe('useDropHandler', () => {
         id: 'rs1',
         label: 'rs1'
       });
+    });
+
+    it('handles pod with non-Deployment/non-ReplicaSet parent in findRoleTargetNode', () => {
+      const svcParent = {
+        id: 'svc1',
+        type: 'Service',
+        position: { x: 0, y: 0 },
+        width: 300,
+        height: 200,
+        data: { label: 'My Service' }
+      };
+      const podChild = {
+        id: 'pod1',
+        type: 'Pod',
+        parentId: 'svc1',
+        position: { x: 10, y: 10 },
+        width: 100,
+        height: 50,
+        data: { label: 'Child Pod' }
+      };
+
+      useFlowStore.setState({
+        nodes: [svcParent, podChild] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 20,
+        clientY: 20,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('Role')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().roleModalTargetNode).toEqual({
+        id: 'pod1',
+        label: 'Child Pod'
+      });
+    });
+
+    it('isPositionInsideNode falls back to default 320x160 for Deployment and 600x400 for non-Deployment when dimensions are missing', () => {
+      const depWithoutDim = {
+        id: 'dep-nodim',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: {}
+      };
+      const svcWithoutDim = {
+        id: 'svc-nodim',
+        type: 'Service',
+        position: { x: 500, y: 0 },
+        data: {}
+      };
+
+      useFlowStore.setState({
+        nodes: [depWithoutDim, svcWithoutDim] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      // Point (300, 100) is inside depWithoutDim (default 320x160)
+      const depDropEvent = {
+        preventDefault: vi.fn(),
+        clientX: 300,
+        clientY: 100,
+        dataTransfer: { getData: () => 'Role' }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(depDropEvent);
+      });
+
+      expect(useFlowStore.getState().roleModalTargetNode?.id).toBe('dep-nodim');
+
+      // Point (800, 300) is inside svcWithoutDim (default 600x400 starting at x=500 -> 500 to 1100)
+      const svcDropEvent = {
+        preventDefault: vi.fn(),
+        clientX: 800,
+        clientY: 300,
+        dataTransfer: { getData: () => 'Role' }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(svcDropEvent);
+      });
+
+      expect(useFlowStore.getState().roleModalTargetNode?.id).toBe('svc-nodim');
     });
 
     it('onDrop handles unknown type using default CENTER_OFFSETS fallback', () => {
