@@ -63,6 +63,17 @@ interface IAMUserCardProps {
   readonly onDeleteUser: (id: string) => void;
 }
 
+function getUserCardBgClass(isActive: boolean, isDark: boolean): string {
+  if (isActive) {
+    return isDark
+      ? 'bg-emerald-950/30 border-emerald-500/50 hover:bg-emerald-900/40'
+      : 'bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100/60';
+  }
+  return isDark
+    ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
+    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80';
+}
+
 const IAMUserCard: React.FC<IAMUserCardProps> = ({
   user,
   isActive,
@@ -71,19 +82,23 @@ const IAMUserCard: React.FC<IAMUserCardProps> = ({
   onSelectActive,
   onDeleteUser,
 }) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelectUser(user);
+    }
+  };
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
-        'flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer group',
-        isActive
-          ? isDark
-            ? 'bg-emerald-950/30 border-emerald-500/50 hover:bg-emerald-900/40'
-            : 'bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100/60'
-          : isDark
-            ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
-            : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
+        'w-full text-left flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer group outline-none focus:ring-2 focus:ring-emerald-500/50',
+        getUserCardBgClass(isActive, isDark)
       )}
       onClick={() => onSelectUser(user)}
+      onKeyDown={handleKeyDown}
     >
       <div className="flex items-center gap-3">
         <div className={cn('p-2 rounded-md', isDark ? 'bg-slate-900 text-emerald-400' : 'bg-white text-emerald-600 border border-slate-200')}>
@@ -109,7 +124,7 @@ const IAMUserCard: React.FC<IAMUserCardProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <button
           type="button"
           onClick={() => onSelectActive(user.username)}
@@ -148,6 +163,130 @@ const IAMUserCard: React.FC<IAMUserCardProps> = ({
         </button>
 
         <ChevronRight size={16} className={cn('text-slate-400 group-hover:text-emerald-400 transition-colors ml-1')} />
+      </div>
+    </div>
+  );
+};
+
+interface IAMUserEditWizardProps {
+  readonly user: KubeIAMUser;
+  readonly isDark: boolean;
+  readonly editStep: IAMStep;
+  readonly editUsername: string;
+  readonly editUsernameError: string;
+  readonly editPolicies: readonly string[];
+  readonly editPolicySearch: string;
+  readonly filteredEditPolicies: readonly KubeIAMPolicy[];
+  readonly isEditAdminSelected: boolean;
+  readonly isEditOtherSelected: boolean;
+  readonly editComputedAccessType: IAMAccessType;
+  readonly onCancel: () => void;
+  readonly onUsernameChange: (val: string) => void;
+  readonly onPolicySearchChange: (val: string) => void;
+  readonly onTogglePolicy: (policyName: string) => void;
+  readonly onPrevious: () => void;
+  readonly onNextStep1: () => void;
+  readonly onNextStep2: () => void;
+  readonly onFinishEdit: () => void;
+}
+
+const IAMUserEditWizard: React.FC<IAMUserEditWizardProps> = ({
+  user,
+  isDark,
+  editStep,
+  editUsername,
+  editUsernameError,
+  editPolicies,
+  editPolicySearch,
+  filteredEditPolicies,
+  isEditAdminSelected,
+  isEditOtherSelected,
+  editComputedAccessType,
+  onCancel,
+  onUsernameChange,
+  onPolicySearchChange,
+  onTogglePolicy,
+  onPrevious,
+  onNextStep1,
+  onNextStep2,
+  onFinishEdit,
+}) => {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-700/50">
+        <div>
+          <h3 className={cn('text-sm font-bold flex items-center gap-2', isDark ? 'text-slate-100' : 'text-slate-800')}>
+            <Edit3 size={16} className="text-indigo-400" />
+            Edit User Profile ({user.username})
+          </h3>
+          <p className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>
+            Modify user credentials and permission policy assignments.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className={cn(
+            'px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer',
+            isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+          )}
+        >
+          <X size={14} />
+          Cancel Editing
+        </button>
+      </div>
+
+      <div className="flex flex-1 gap-6 overflow-hidden">
+        <IAMStepper
+          currentStep={editStep}
+          colorMode={isDark ? 'dark' : 'light'}
+          isEditMode={true}
+          onReset={onCancel}
+        />
+
+        <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
+          {editStep === 1 && (
+            <IAMStep1Details
+              username={editUsername}
+              usernameError={editUsernameError}
+              colorMode={isDark ? 'dark' : 'light'}
+              onUsernameChange={onUsernameChange}
+            />
+          )}
+
+          {editStep === 2 && (
+            <IAMStep2Permissions
+              username={editUsername}
+              selectedPolicies={editPolicies}
+              policySearch={editPolicySearch}
+              filteredPolicies={filteredEditPolicies}
+              isAdminSelected={isEditAdminSelected}
+              isOtherSelected={isEditOtherSelected}
+              colorMode={isDark ? 'dark' : 'light'}
+              onPolicySearchChange={onPolicySearchChange}
+              onTogglePolicy={onTogglePolicy}
+            />
+          )}
+
+          {editStep === 3 && (
+            <IAMStep3Review
+              username={editUsername}
+              computedAccessType={editComputedAccessType}
+              selectedPolicies={editPolicies}
+              colorMode={isDark ? 'dark' : 'light'}
+              isEditMode={true}
+            />
+          )}
+
+          <IAMWizardFooter
+            currentStep={editStep}
+            colorMode={isDark ? 'dark' : 'light'}
+            isEditMode={true}
+            onPrevious={onPrevious}
+            onNext={editStep === 1 ? onNextStep1 : onNextStep2}
+            onFinish={onFinishEdit}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1142,6 +1281,90 @@ export const KubeIAMModal: React.FC = () => {
     setRoleModalTargetNode({ id: nodeId, label: nodeLabel });
   };
 
+  const renderBodyContent = () => {
+    if (selectedUserDetail) {
+      return (
+        <IAMUserDetailView
+          user={selectedUserDetail}
+          isActive={activeIdentity === selectedUserDetail.username}
+          isDark={colorMode === 'dark'}
+          attachedRoles={getAttachedRolesForUser(selectedUserDetail.username)}
+          onBack={() => setSelectedUserDetail(null)}
+          onSelectActive={setActiveIdentity}
+          onDeleteUser={deleteIamUser}
+          onNavigateToRole={handleNavigateToRole}
+        />
+      );
+    }
+
+    if (!isCreatingUser) {
+      return (
+        <IAMUserListView
+          iamUsers={iamUsers}
+          filteredUsers={filteredUsers}
+          searchFilter={searchFilter}
+          colorMode={colorMode}
+          onSearchChange={setSearchFilter}
+          onStartCreate={handleStartCreate}
+          onSelectUser={(u) => setSelectedUserDetail(u)}
+          onDeleteUser={deleteIamUser}
+        />
+      );
+    }
+
+    return (
+      <div className="flex flex-1 gap-6 overflow-hidden">
+        <IAMStepper
+          currentStep={currentStep}
+          colorMode={colorMode}
+          onReset={resetWizard}
+        />
+
+        <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
+          {currentStep === 1 && (
+            <IAMStep1Details
+              username={username}
+              usernameError={usernameError}
+              colorMode={colorMode}
+              onUsernameChange={handleUsernameChange}
+            />
+          )}
+
+          {currentStep === 2 && (
+            <IAMStep2Permissions
+              username={username}
+              selectedPolicies={selectedPolicies}
+              policySearch={policySearch}
+              filteredPolicies={filteredPolicies}
+              isAdminSelected={isAdminSelected}
+              isOtherSelected={isOtherSelected}
+              colorMode={colorMode}
+              onPolicySearchChange={setPolicySearch}
+              onTogglePolicy={togglePolicy}
+            />
+          )}
+
+          {currentStep === 3 && (
+            <IAMStep3Review
+              username={username}
+              computedAccessType={computedAccessType}
+              selectedPolicies={selectedPolicies}
+              colorMode={colorMode}
+            />
+          )}
+
+          <IAMWizardFooter
+            currentStep={currentStep}
+            colorMode={colorMode}
+            onPrevious={() => setCurrentStep((prev) => (prev - 1) as 1 | 2)}
+            onNext={currentStep === 1 ? handleNextStep1 : handleNextStep2}
+            onFinish={handleFinishCreate}
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -1156,79 +1379,7 @@ export const KubeIAMModal: React.FC = () => {
       maxHeightClass="max-h-[85vh] h-[70vh]"
     >
       <div className="flex flex-col h-full overflow-hidden">
-        {selectedUserDetail ? (
-          <IAMUserDetailView
-            user={selectedUserDetail}
-            isActive={activeIdentity === selectedUserDetail.username}
-            isDark={colorMode === 'dark'}
-            attachedRoles={getAttachedRolesForUser(selectedUserDetail.username)}
-            onBack={() => setSelectedUserDetail(null)}
-            onSelectActive={setActiveIdentity}
-            onDeleteUser={deleteIamUser}
-            onNavigateToRole={handleNavigateToRole}
-          />
-        ) : !isCreatingUser ? (
-          <IAMUserListView
-            iamUsers={iamUsers}
-            filteredUsers={filteredUsers}
-            searchFilter={searchFilter}
-            colorMode={colorMode}
-            onSearchChange={setSearchFilter}
-            onStartCreate={handleStartCreate}
-            onSelectUser={(u) => setSelectedUserDetail(u)}
-            onDeleteUser={deleteIamUser}
-          />
-        ) : (
-          <div className="flex flex-1 gap-6 overflow-hidden">
-            <IAMStepper
-              currentStep={currentStep}
-              colorMode={colorMode}
-              onReset={resetWizard}
-            />
-
-            <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
-              {currentStep === 1 && (
-                <IAMStep1Details
-                  username={username}
-                  usernameError={usernameError}
-                  colorMode={colorMode}
-                  onUsernameChange={handleUsernameChange}
-                />
-              )}
-
-              {currentStep === 2 && (
-                <IAMStep2Permissions
-                  username={username}
-                  selectedPolicies={selectedPolicies}
-                  policySearch={policySearch}
-                  filteredPolicies={filteredPolicies}
-                  isAdminSelected={isAdminSelected}
-                  isOtherSelected={isOtherSelected}
-                  colorMode={colorMode}
-                  onPolicySearchChange={setPolicySearch}
-                  onTogglePolicy={togglePolicy}
-                />
-              )}
-
-              {currentStep === 3 && (
-                <IAMStep3Review
-                  username={username}
-                  computedAccessType={computedAccessType}
-                  selectedPolicies={selectedPolicies}
-                  colorMode={colorMode}
-                />
-              )}
-
-              <IAMWizardFooter
-                currentStep={currentStep}
-                colorMode={colorMode}
-                onPrevious={() => setCurrentStep((prev) => (prev - 1) as 1 | 2)}
-                onNext={currentStep === 1 ? handleNextStep1 : handleNextStep2}
-                onFinish={handleFinishCreate}
-              />
-            </div>
-          </div>
-        )}
+        {renderBodyContent()}
       </div>
     </Modal>
   );

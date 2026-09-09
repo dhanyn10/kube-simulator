@@ -678,6 +678,26 @@ const purgeUserFromNodes = (nodes: Node[], username: string): Node[] => {
   return nodes.map((node) => purgeUserFromNode(node, username));
 };
 
+/**
+ * Renames user in assignedUsers array
+ */
+const renameUserInAssignedList = (assignedUsers: string[] | undefined, oldName: string, newName: string) => {
+  if (!assignedUsers) return assignedUsers;
+  return assignedUsers.map((uname) => (uname === oldName ? newName : uname));
+};
+
+/**
+ * Renames user in node's attached roles
+ */
+const renameUserInNodeRoles = (node: Node, oldName: string, newName: string): Node => {
+  if (!Array.isArray(node.data?.roles)) return node;
+  const updatedRoles = node.data.roles.map((role) => ({
+    ...role,
+    assignedUsers: renameUserInAssignedList(role.assignedUsers, oldName, newName),
+  }));
+  return { ...node, data: { ...node.data, roles: updatedRoles } };
+};
+
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
   roleModalTargetNode: null,
@@ -737,15 +757,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     // If username changed, update assignedUsers in canvas node roles
     let updatedNodes = state.nodes;
     if (oldUsername !== newUsername) {
-      updatedNodes = state.nodes.map((node) => {
-        if (!Array.isArray(node.data?.roles)) return node;
-        const updatedRoles = node.data.roles.map((role) => {
-          if (!role.assignedUsers) return role;
-          const assigned = role.assignedUsers.map((uname) => (uname === oldUsername ? newUsername : uname));
-          return { ...role, assignedUsers: assigned };
-        });
-        return { ...node, data: { ...node.data, roles: updatedRoles } };
-      });
+      updatedNodes = state.nodes.map((node) => renameUserInNodeRoles(node, oldUsername, newUsername));
     }
 
     return { iamUsers: updatedUsers, nodes: updatedNodes };
