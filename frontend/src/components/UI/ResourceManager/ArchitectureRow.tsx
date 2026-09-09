@@ -42,13 +42,6 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
 
   const isConfirming = confirmOverwriteId === project.id;
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      props.onSelect?.();
-    }
-  };
-
   const renderActions = () => {
     if (isConfirming) {
       return (
@@ -127,19 +120,8 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
     );
   };
 
-  return (
-    <div
-      role={props.onSelect ? "button" : undefined}
-      tabIndex={props.onSelect ? 0 : undefined}
-      onClick={props.onSelect}
-      onKeyDown={props.onSelect ? handleKeyDown : undefined}
-      className={cn(
-        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md min-w-0 gap-3 select-none text-left w-full",
-        props.onSelect && "cursor-pointer",
-        colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
-        (isActive || isSelected) && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
-      )}
-    >
+  const content = (
+    <>
       <div className="min-w-0 flex-1">
         <div className="font-semibold text-xs flex items-center gap-1.5 min-w-0">
           <span className="truncate flex-1" title={project.name}>{project.name}</span>
@@ -155,6 +137,31 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
       <div className="flex items-center gap-2 shrink-0">
         {renderActions()}
       </div>
+    </>
+  );
+
+  const containerClass = cn(
+    "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md min-w-0 gap-3 select-none text-left w-full",
+    props.onSelect && "cursor-pointer",
+    colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
+    (isActive || isSelected) && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
+  );
+
+  if (props.onSelect) {
+    return (
+      <button
+        type="button"
+        onClick={props.onSelect}
+        className={containerClass}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={containerClass}>
+      {content}
     </div>
   );
 };
