@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UserPlus, Trash2, CheckCircle2, Search, ArrowRight, ArrowLeft, Check, UserCheck, ShieldCheck, ChevronRight, Clock, Shield, Edit3, Save, X } from 'lucide-react';
+import { User, UserPlus, Trash2, CheckCircle2, Search, ArrowRight, ArrowLeft, Check, UserCheck, ShieldCheck, ChevronRight, Clock, Shield, Edit3, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
@@ -16,7 +16,10 @@ function getStepBadgeClass(step: number, currentStep: number, isDark: boolean): 
   if (currentStep > step) {
     return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
   }
-  return isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400';
+  if (isDark) {
+    return 'bg-slate-800 text-slate-500';
+  }
+  return 'bg-slate-100 text-slate-400';
 }
 
 /**
@@ -26,7 +29,10 @@ function getStepTextClass(step: number, currentStep: number, isDark: boolean): s
   if (currentStep === step) {
     return 'text-emerald-400';
   }
-  return isDark ? 'text-slate-300' : 'text-slate-700';
+  if (isDark) {
+    return 'text-slate-300';
+  }
+  return 'text-slate-700';
 }
 
 /**
@@ -34,9 +40,51 @@ function getStepTextClass(step: number, currentStep: number, isDark: boolean): s
  */
 function getPolicyRowClass(isSelected: boolean, isDark: boolean): string {
   if (isSelected) {
-    return isDark ? 'bg-emerald-500/10 text-slate-200' : 'bg-emerald-50 text-slate-900';
+    if (isDark) {
+      return 'bg-emerald-500/10 text-slate-200';
+    }
+    return 'bg-emerald-50 text-slate-900';
   }
-  return isDark ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-50 text-slate-700';
+  if (isDark) {
+    return 'hover:bg-slate-800/40 text-slate-300';
+  }
+  return 'hover:bg-slate-50 text-slate-700';
+}
+
+function getLastUsedActivityClass(isActive: boolean, isDark: boolean): string {
+  if (isActive) {
+    return 'text-emerald-400';
+  }
+  if (isDark) {
+    return 'text-slate-400';
+  }
+  return 'text-slate-600';
+}
+
+function getUserCardBgClass(isActive: boolean, isDark: boolean): string {
+  if (isActive) {
+    if (isDark) {
+      return 'bg-emerald-950/30 border-emerald-500/50 hover:bg-emerald-900/40';
+    }
+    return 'bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100/60';
+  }
+  if (isDark) {
+    return 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800';
+  }
+  return 'bg-slate-50 border-slate-200 hover:bg-slate-100/80';
+}
+
+function getAdminCardBgClass(isActive: boolean, isDark: boolean): string {
+  if (isActive) {
+    if (isDark) {
+      return 'bg-emerald-950/30 border-emerald-500/50';
+    }
+    return 'bg-emerald-50/80 border-emerald-300';
+  }
+  if (isDark) {
+    return 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800';
+  }
+  return 'bg-slate-50 border-slate-200 hover:bg-slate-100/80';
 }
 
 interface AttachedRoleInfo {
@@ -57,17 +105,6 @@ interface IAMUserCardProps {
   readonly onDeleteUser: (id: string) => void;
 }
 
-function getUserCardBgClass(isActive: boolean, isDark: boolean): string {
-  if (isActive) {
-    return isDark
-      ? 'bg-emerald-950/30 border-emerald-500/50 hover:bg-emerald-900/40'
-      : 'bg-emerald-50/80 border-emerald-300 hover:bg-emerald-100/60';
-  }
-  return isDark
-    ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
-    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80';
-}
-
 const IAMUserCard: React.FC<IAMUserCardProps> = ({
   user,
   isActive,
@@ -76,6 +113,11 @@ const IAMUserCard: React.FC<IAMUserCardProps> = ({
   onSelectActive,
   onDeleteUser,
 }) => {
+  const isFullAccess = user.accessType === 'Full Access';
+  const badgeClass = isFullAccess
+    ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+    : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+
   return (
     <div
       className={cn(
@@ -96,12 +138,7 @@ const IAMUserCard: React.FC<IAMUserCardProps> = ({
             <span className={cn('text-xs font-semibold group-hover:text-emerald-400 transition-colors', isDark ? 'text-slate-200' : 'text-slate-800')}>
               {user.username}
             </span>
-            <span className={cn(
-              'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
-              user.accessType === 'Full Access'
-                ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-            )}>
+            <span className={cn('px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider', badgeClass)}>
               {user.accessType}
             </span>
           </div>
@@ -199,7 +236,7 @@ const IAMUserSummaryCards: React.FC<IAMUserSummaryCardsProps> = ({
         <UserCheck size={12} className="text-purple-400" />
         Last Used Activity
       </span>
-      <p className={cn('text-xs font-semibold', isActive ? 'text-emerald-400' : isDark ? 'text-slate-400' : 'text-slate-600')}>
+      <p className={cn('text-xs font-semibold', getLastUsedActivityClass(isActive, isDark))}>
         {isActive ? 'Active Session' : 'Never / Inactive'}
       </p>
     </div>
@@ -284,25 +321,24 @@ const IAMUserRoleBindingsTable: React.FC<IAMUserRoleBindingsTableProps> = ({
             {attachedRoles.map((r) => {
               const bindingId = `${r.roleName}-rb-${r.nodeId.split('-')[0]}`;
               const createdDate = formatDateWithSeconds(r.createdAt);
-              const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onNavigateToRole(r.nodeId, r.nodeLabel);
-                }
-              };
               return (
                 <tr
                   key={`${r.nodeId}-${r.roleId}`}
-                  role="button"
-                  tabIndex={0}
                   onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
-                  onKeyDown={handleKeyDown}
                   className={cn(
-                    'transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-emerald-500',
+                    'transition-colors cursor-pointer',
                     isDark ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'
                   )}
                 >
-                  <td className="py-2 px-3 text-slate-400 text-[11px] font-mono">{bindingId}</td>
+                  <td className="py-2 px-3 text-slate-400 text-[11px] font-mono">
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
+                      className="text-left font-mono hover:text-emerald-400 hover:underline cursor-pointer"
+                    >
+                      {bindingId}
+                    </button>
+                  </td>
                   <td className="py-2 px-3 font-sans font-semibold text-emerald-400">{user.username}</td>
                   <td className="py-2 px-3 font-sans">
                     <span className="font-semibold text-slate-200">{r.nodeLabel}</span>
@@ -629,13 +665,7 @@ const IAMSystemAdminCard: React.FC<IAMSystemAdminCardProps> = ({ isActive, isDar
   <div
     className={cn(
       'flex items-center justify-between p-3 rounded-lg border transition-colors',
-      isActive
-        ? isDark
-          ? 'bg-emerald-950/30 border-emerald-500/50'
-          : 'bg-emerald-50/80 border-emerald-300'
-        : isDark
-          ? 'bg-slate-800/60 border-slate-700/80 hover:bg-slate-800'
-          : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
+      getAdminCardBgClass(isActive, isDark)
     )}
   >
     <div className="flex items-start gap-3">
@@ -989,23 +1019,13 @@ const IAMStep2Permissions: React.FC<IAMStep2PermissionsProps> = ({
                   ? isOtherSelected
                   : isAdminSelected;
 
-                const handleKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && !isDisabled) {
-                    e.preventDefault();
-                    onTogglePolicy(p.name);
-                  }
-                };
-
                 return (
                   <tr
                     key={p.name}
-                    role="button"
-                    tabIndex={0}
                     onClick={() => {
                       if (!isDisabled) onTogglePolicy(p.name);
                     }}
-                    onKeyDown={handleKeyDown}
-                    className={cn('text-xs transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-emerald-500', getPolicyRowClass(isSelected, isDark))}
+                    className={cn('text-xs transition-colors cursor-pointer', getPolicyRowClass(isSelected, isDark))}
                   >
                     <td className="py-2 px-3 text-center">
                       <input
@@ -1017,7 +1037,14 @@ const IAMStep2Permissions: React.FC<IAMStep2PermissionsProps> = ({
                       />
                     </td>
                     <td className="py-2 px-3 font-semibold text-emerald-400">
-                      {p.name}
+                      <button
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => onTogglePolicy(p.name)}
+                        className="font-semibold text-emerald-400 hover:underline cursor-pointer disabled:cursor-not-allowed disabled:no-underline"
+                      >
+                        {p.name}
+                      </button>
                     </td>
                     <td className="py-2 px-3">
                       <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium border', isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500')}>

@@ -520,25 +520,16 @@ const RoleUserOptionRow: React.FC<RoleUserOptionRowProps> = ({
       : "hover:bg-slate-50 text-slate-700 focus:bg-slate-50 outline-none";
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onToggle(user.username);
-    }
-  };
-
   return (
-    <div
-      role="option"
-      aria-selected={isChecked}
-      tabIndex={0}
+    <button
+      type="button"
       onMouseDown={(e) => {
         e.preventDefault();
         onToggle(user.username);
       }}
-      onKeyDown={handleKeyDown}
+      onClick={() => onToggle(user.username)}
       className={cn(
-        "flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors border-b last:border-b-0 border-slate-800/40",
+        "w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors border-b last:border-b-0 border-slate-800/40 text-left outline-none focus:ring-1 focus:ring-indigo-500",
         getDropdownRowClass()
       )}
     >
@@ -575,7 +566,7 @@ const RoleUserOptionRow: React.FC<RoleUserOptionRowProps> = ({
           ))
         )}
       </div>
-    </div>
+    </button>
   );
 };
 
