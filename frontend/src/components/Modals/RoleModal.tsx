@@ -637,6 +637,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       name: sanitizeSlug(roleName) || 'unnamed-role',
       rules: rules.length > 0 ? rules : [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
       assignedUsers,
+      createdAt: initialRole?.createdAt || Date.now(),
     };
     onSave(roleItem);
     onClose();

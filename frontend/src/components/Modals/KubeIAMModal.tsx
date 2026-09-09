@@ -48,8 +48,10 @@ function getPolicyRowClass(isSelected: boolean, isDark: boolean): string {
 interface AttachedRoleInfo {
   readonly nodeId: string;
   readonly nodeLabel: string;
+  readonly nodeType?: string;
   readonly roleId: string;
   readonly roleName: string;
+  readonly createdAt?: number;
 }
 
 interface IAMUserCardProps {
@@ -321,24 +323,49 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
             No specific RoleBindings assigned on the canvas.
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {attachedRoles.map((r) => (
-              <button
-                key={`${r.nodeId}-${r.roleId}`}
-                type="button"
-                onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
-                className={cn(
-                  'text-xs px-3 py-1.5 rounded-lg border flex items-center gap-2 transition-all hover:scale-102 cursor-pointer',
-                  isDark
-                    ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20'
-                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                )}
-              >
-                <ShieldCheck size={14} className="text-indigo-400" />
-                <span className="font-semibold">{r.roleName}</span>
-                <span className="opacity-70 text-[10px]">({r.nodeLabel})</span>
-              </button>
-            ))}
+          <div className={cn('border rounded-lg overflow-hidden', isDark ? 'border-slate-800 bg-slate-900/40' : 'border-slate-200 bg-white')}>
+            <table className="w-full text-left border-collapse font-mono text-xs">
+              <thead>
+                <tr className={cn('text-[10px] font-semibold uppercase tracking-wider border-b font-sans', isDark ? 'bg-slate-800/80 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500')}>
+                  <th className="py-2 px-3">Binding ID</th>
+                  <th className="py-2 px-3">IAM Profile</th>
+                  <th className="py-2 px-3">Target Element</th>
+                  <th className="py-2 px-3">Role Ref</th>
+                  <th className="py-2 px-3">Created At</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/40">
+                {attachedRoles.map((r) => {
+                  const bindingId = `${r.roleName}-rb-${r.nodeId.split('-')[0]}`;
+                  const createdDate = r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Active Session';
+                  return (
+                    <tr
+                      key={`${r.nodeId}-${r.roleId}`}
+                      onClick={() => onNavigateToRole(r.nodeId, r.nodeLabel)}
+                      className={cn(
+                        'transition-colors cursor-pointer',
+                        isDark ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'
+                      )}
+                    >
+                      <td className="py-2 px-3 text-slate-400 text-[11px] font-mono">{bindingId}</td>
+                      <td className="py-2 px-3 font-sans font-semibold text-emerald-400">{user.username}</td>
+                      <td className="py-2 px-3 font-sans">
+                        <span className="font-semibold text-slate-200">{r.nodeLabel}</span>
+                        {r.nodeType && (
+                          <span className="text-[10px] text-slate-500 ml-1">({r.nodeType})</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-medium border bg-indigo-500/10 border-indigo-500/30 text-indigo-300">
+                          {r.roleName}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-slate-400 text-[11px] font-sans">{createdDate}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -911,8 +938,10 @@ export const KubeIAMModal: React.FC = () => {
           rolesList.push({
             nodeId: node.id,
             nodeLabel: node.data.label || node.id,
+            nodeType: node.type,
             roleId: role.id,
             roleName: role.name,
+            createdAt: role.createdAt,
           });
         }
       }

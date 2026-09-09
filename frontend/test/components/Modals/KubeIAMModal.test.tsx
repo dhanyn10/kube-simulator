@@ -269,9 +269,13 @@ describe('KubeIAMModal component', () => {
     expect(screen.getByText('AdministratorAccess')).toBeInTheDocument();
     expect(screen.getByText('web-reader-role')).toBeInTheDocument();
 
-    // Click on attached role button in Detail View
-    const roleBtn = screen.getByRole('button', { name: /web-reader-role/i });
-    fireEvent.click(roleBtn);
+    // Table should contain RoleBinding details
+    expect(screen.getByText('Binding ID')).toBeInTheDocument();
+    expect(screen.getByText('web-reader-role-rb-pod')).toBeInTheDocument();
+
+    // Click on RoleBinding table row
+    const roleRow = screen.getByText('web-reader-role-rb-pod').closest('tr')!;
+    fireEvent.click(roleRow);
 
     expect(setKubeIamModalOpenSpy).toHaveBeenCalledWith(false);
     expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'pod-1', label: 'web-pod' });

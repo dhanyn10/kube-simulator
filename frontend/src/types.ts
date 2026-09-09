@@ -45,6 +45,7 @@ export interface K8sRoleBindingItem {
   roleRef: string; // References K8sRoleItem name or id
   subjects: Array<string | K8sRoleSubject>;
   namespace?: string;
+  createdAt?: number;
 }
 
 export interface K8sRoleItem {
@@ -54,6 +55,7 @@ export interface K8sRoleItem {
   rules: K8sRoleRule[];
   assignedUsers?: string[];
   subjects?: K8sRoleSubject[];
+  createdAt?: number;
 }
 
 export interface K8sConfigMapItem {
