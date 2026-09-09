@@ -280,4 +280,39 @@ describe('KubeIAMModal component', () => {
     expect(setKubeIamModalOpenSpy).toHaveBeenCalledWith(false);
     expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'pod-1', label: 'web-pod' });
   });
+
+  it('allows editing user profile (username and policies) in detail view', () => {
+    useFlowStore.setState({
+      iamUsers: [
+        {
+          id: 'user-1',
+          username: 'old-user',
+          accessType: 'Managed Access',
+          policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: '' }],
+        },
+      ],
+      activeIdentity: 'old-user',
+    });
+
+    render(<KubeIAMModal />);
+
+    // Open detail view for old-user
+    fireEvent.click(screen.getByText('old-user'));
+
+    // Click Edit Profile button
+    const editBtn = screen.getByText('Edit Profile');
+    fireEvent.click(editBtn);
+
+    // Edit username input
+    const usernameInput = screen.getByLabelText('User Name / Handle');
+    fireEvent.change(usernameInput, { target: { value: 'renamed-user' } });
+
+    // Save changes
+    const saveBtn = screen.getByText('Save Changes');
+    fireEvent.click(saveBtn);
+
+    const updatedUser = useFlowStore.getState().iamUsers.find((u) => u.id === 'user-1');
+    expect(updatedUser?.username).toBe('renamed-user');
+    expect(useFlowStore.getState().activeIdentity).toBe('renamed-user');
+  });
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, UserPlus, Trash2, CheckCircle2, Search, ArrowRight, ArrowLeft, Check, UserCheck, ShieldCheck, ChevronRight, Clock, Shield } from 'lucide-react';
+import { User, UserPlus, Trash2, CheckCircle2, Search, ArrowRight, ArrowLeft, Check, UserCheck, ShieldCheck, ChevronRight, Clock, Shield, Edit3, Save, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
@@ -177,9 +177,56 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
   onDeleteUser,
   onNavigateToRole,
 }) => {
+  const updateIamUser = useFlowStore((state) => state.updateIamUser);
+  const activeIdentity = useFlowStore((state) => state.activeIdentity);
+  const setActiveIdentity = useFlowStore((state) => state.setActiveIdentity);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editUsername, setEditUsername] = useState(user.username);
+  const [editPolicies, setEditPolicies] = useState<string[]>(user.policies?.map((p) => p.name) || []);
+
+  const formatDateWithSeconds = (ts?: number): string => {
+    if (!ts) return 'System Default';
+    const date = new Date(ts);
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+  };
+
+  const handleSaveEdit = () => {
+    if (!editUsername.trim()) return;
+    const finalPolicies = DEFAULT_POLICIES.filter((p) => editPolicies.includes(p.name));
+    const isFull = editPolicies.includes('AdministratorAccess');
+
+    updateIamUser(user.id, {
+      username: editUsername.trim(),
+      accessType: isFull ? 'Full Access' : 'Managed Access',
+      policies: finalPolicies,
+    });
+
+    if (activeIdentity === user.username) {
+      setActiveIdentity(editUsername.trim());
+    }
+
+    setIsEditing(false);
+  };
+
+  const isEditingAdmin = editPolicies.includes('AdministratorAccess');
+
+  const toggleEditPolicy = (policyName: string) => {
+    if (policyName === 'AdministratorAccess') {
+      setEditPolicies(isEditingAdmin ? [] : ['AdministratorAccess']);
+      return;
+    }
+    setEditPolicies((prev) => {
+      const withoutAdmin = prev.filter((p) => p !== 'AdministratorAccess');
+      return withoutAdmin.includes(policyName)
+        ? withoutAdmin.filter((p) => p !== policyName)
+        : [...withoutAdmin, policyName];
+    });
+  };
+
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Header with Back Button */}
+      {/* Header with Back & Edit Buttons */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-700/50">
         <div className="flex items-center gap-3">
           <button
@@ -207,6 +254,42 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {!isEditing ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEditUsername(user.username);
+                setEditPolicies(user.policies?.map((p) => p.name) || []);
+                setIsEditing(true);
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs cursor-pointer"
+            >
+              <Edit3 size={13} />
+              Edit Profile
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-xs cursor-pointer"
+              >
+                <Save size={13} />
+                Save Changes
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className={cn(
+                  'p-1.5 rounded-md text-slate-400 hover:text-slate-200 transition-colors border cursor-pointer',
+                  isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-300 bg-slate-100'
+                )}
+              >
+                <X size={14} />
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             onClick={() => onSelectActive(user.username)}
@@ -249,6 +332,57 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
         </div>
       </div>
 
+      {/* Edit Mode User Details Form */}
+      {isEditing && (
+        <div className={cn('p-3.5 rounded-xl border space-y-3', isDark ? 'bg-slate-900 border-indigo-500/40' : 'bg-indigo-50/50 border-indigo-200')}>
+          <div>
+            <label htmlFor="edit-username-input" className="block text-xs font-semibold mb-1 text-slate-400">
+              User Name / Handle
+            </label>
+            <input
+              id="edit-username-input"
+              type="text"
+              value={editUsername}
+              onChange={(e) => setEditUsername(e.target.value)}
+              className={cn(
+                'w-full px-3 py-1.5 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all',
+                isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+              )}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold mb-1 text-slate-400">
+              Permissions Policies Assignment
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              {DEFAULT_POLICIES.map((p) => {
+                const isChecked = editPolicies.includes(p.name);
+                return (
+                  <label
+                    key={`edit-policy-${p.name}`}
+                    className={cn(
+                      'p-2 rounded-lg border flex items-center gap-2 cursor-pointer transition-colors text-xs',
+                      isChecked
+                        ? isDark ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200' : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                        : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleEditPolicy(p.name)}
+                      className="rounded accent-emerald-500"
+                    />
+                    <span className="font-semibold font-mono text-[11px]">{p.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AWS-Style Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
         <div className={cn('p-3 rounded-lg border space-y-1', isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200')}>
@@ -264,8 +398,8 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
             <Clock size={12} className="text-indigo-400" />
             Created At
           </span>
-          <p className={cn('text-xs font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
-            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'System Default'}
+          <p className={cn('text-[11px] font-semibold font-mono', isDark ? 'text-slate-200' : 'text-slate-800')}>
+            {formatDateWithSeconds(user.createdAt)}
           </p>
         </div>
 
@@ -337,7 +471,7 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
               <tbody className="divide-y divide-slate-800/40">
                 {attachedRoles.map((r) => {
                   const bindingId = `${r.roleName}-rb-${r.nodeId.split('-')[0]}`;
-                  const createdDate = r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Active Session';
+                  const createdDate = formatDateWithSeconds(r.createdAt);
                   return (
                     <tr
                       key={`${r.nodeId}-${r.roleId}`}
@@ -360,7 +494,7 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
                           {r.roleName}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-slate-400 text-[11px] font-sans">{createdDate}</td>
+                      <td className="py-2 px-3 text-slate-400 text-[11px] font-mono">{createdDate}</td>
                     </tr>
                   );
                 })}
