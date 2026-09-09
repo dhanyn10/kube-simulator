@@ -105,31 +105,44 @@ describe('terminalConfigCommands', () => {
   });
 
   describe('handleKubectlConfigCommand', () => {
-    it('handles kubectl config current-context', () => {
-      storeState.activeIdentity = 'budi';
-      const handled = handleKubectlConfigCommand('kubectl config current-context', mockCtx);
+    it.each([
+      {
+        cmd: 'kubectl config current-context',
+        setup: () => {
+          storeState.activeIdentity = 'budi';
+        },
+        verify: () => {
+          expect(activityLogs).toContain('budi');
+        },
+      },
+      {
+        cmd: 'kubectl config get-contexts',
+        setup: () => {},
+        verify: () => {
+          expect(activityLogs.some((l) => l.includes('system:admin'))).toBe(true);
+          expect(activityLogs.some((l) => l.includes('budi'))).toBe(true);
+        },
+      },
+      {
+        cmd: 'kubectl config use-context budi',
+        setup: () => {},
+        verify: () => {
+          expect(storeState.activeIdentity).toBe('budi');
+          expect(activityLogs.some((l) => l.includes('Switched to context "budi"'))).toBe(true);
+        },
+      },
+      {
+        cmd: 'kubectl config view',
+        setup: () => {},
+        verify: () => {
+          expect(activityLogs.some((l) => l.includes('kind: Config'))).toBe(true);
+        },
+      },
+    ])('handles subcommand "$cmd"', ({ cmd, setup, verify }) => {
+      setup();
+      const handled = handleKubectlConfigCommand(cmd, mockCtx);
       expect(handled).toBe(true);
-      expect(activityLogs).toContain('budi');
-    });
-
-    it('handles kubectl config get-contexts', () => {
-      const handled = handleKubectlConfigCommand('kubectl config get-contexts', mockCtx);
-      expect(handled).toBe(true);
-      expect(activityLogs.some((l) => l.includes('system:admin'))).toBe(true);
-      expect(activityLogs.some((l) => l.includes('budi'))).toBe(true);
-    });
-
-    it('handles kubectl config use-context <user>', () => {
-      const handled = handleKubectlConfigCommand('kubectl config use-context budi', mockCtx);
-      expect(handled).toBe(true);
-      expect(storeState.activeIdentity).toBe('budi');
-      expect(activityLogs.some((l) => l.includes('Switched to context "budi"'))).toBe(true);
-    });
-
-    it('handles kubectl config view', () => {
-      const handled = handleKubectlConfigCommand('kubectl config view', mockCtx);
-      expect(handled).toBe(true);
-      expect(activityLogs.some((l) => l.includes('kind: Config'))).toBe(true);
+      verify();
     });
   });
 
