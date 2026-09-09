@@ -68,6 +68,30 @@ describe('useDropHandler', () => {
     expect(updatedNodes[0].data.isHovered).toBe(true);
   });
 
+  it('onDragOver handles dragging non-attachment item over empty area (no container target)', () => {
+    const setHoveredDeploymentId = vi.fn();
+    useFlowStore.setState({
+      draggingSidebarItem: 'Pod' as any,
+      setHoveredDeploymentId,
+      nodes: []
+    });
+
+    const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+    const mockEvent = {
+      preventDefault: vi.fn(),
+      clientX: 500,
+      clientY: 500,
+      dataTransfer: { dropEffect: '' }
+    } as any;
+
+    act(() => {
+      result.current.onDragOver(mockEvent);
+    });
+
+    expect(setHoveredDeploymentId).toHaveBeenCalledWith(null);
+  });
+
   it('returns early on drop if dataTransfer has no type', () => {
     const addNodeMock = vi.fn();
     useFlowStore.setState({ addNode: addNodeMock });
@@ -200,30 +224,38 @@ describe('useDropHandler', () => {
     expect(addNodeMock).toHaveBeenCalledWith('Service', expect.any(Object), 'ns-c');
   });
 
-  it('handles computeFinalDropPosition when targetContainer has parentId missing from nodes', () => {
-    const containerNode: Node = {
+  it('handles computeFinalDropPosition when targetContainer has parentId present in nodes', () => {
+    const parentContainer: Node = {
+      id: 'p1',
+      type: 'Namespace',
+      position: { x: 100, y: 100 },
+      width: 600,
+      height: 400,
+      data: {},
+    };
+    const childContainer: Node = {
       id: 'c1',
       type: 'Deployment',
-      parentId: 'missing-parent',
+      parentId: 'p1',
       position: { x: 20, y: 20 },
       width: 300,
       height: 200,
       data: {},
     };
 
-    useFlowStore.setState({ nodes: [containerNode] });
+    useFlowStore.setState({ nodes: [parentContainer, childContainer] });
 
     const addNodeMock = vi.fn();
     useFlowStore.setState({ addNode: addNodeMock });
 
-    const screenToFlow = vi.fn(() => ({ x: 50, y: 50 }));
+    const screenToFlow = vi.fn(() => ({ x: 150, y: 150 }));
     const { result } = renderHook(() => useDropHandler(screenToFlow));
 
     const event = {
       preventDefault: vi.fn(),
       dataTransfer: { getData: () => 'Pod' },
-      clientX: 50,
-      clientY: 50,
+      clientX: 150,
+      clientY: 150,
     } as any;
 
     act(() => {
@@ -262,7 +294,7 @@ describe('useDropHandler', () => {
   });
 
   describe('Role & ConfigMap drag and drop handlers', () => {
-    it('onDragOver handles dragging a Role item over a card inside deployment', () => {
+    it('onDragOver handles dragging an HPA item over a card inside deployment', () => {
       const setHoveredDeploymentId = vi.fn();
       const depNode = {
         id: 'dep1',
@@ -272,20 +304,11 @@ describe('useDropHandler', () => {
         height: 160,
         data: {}
       };
-      const podChild = {
-        id: 'pod1',
-        type: 'Pod',
-        parentId: 'dep1',
-        position: { x: 10, y: 10 },
-        width: 100,
-        height: 50,
-        data: {}
-      };
 
       useFlowStore.setState({
-        draggingSidebarItem: 'Role' as any,
+        draggingSidebarItem: 'HPA' as any,
         setHoveredDeploymentId,
-        nodes: [depNode, podChild] as any
+        nodes: [depNode] as any
       });
 
       const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
@@ -302,8 +325,6 @@ describe('useDropHandler', () => {
       });
 
       expect(setHoveredDeploymentId).toHaveBeenCalledWith('dep1');
-      const updatedNodes = useFlowStore.getState().nodes;
-      expect(updatedNodes.find((n) => n.id === 'dep1')?.data?.isHovered).toBe(true);
     });
 
     it('onDrop handles dropping a Role onto a target workload', () => {

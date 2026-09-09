@@ -83,6 +83,12 @@ describe('simulation test suite', () => {
     expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, active).has('d1')).toBe(expected);
   });
 
+  it('calculateReachability accepts activeSimulationEdges as a Set', () => {
+    const ctx = getMockCtx();
+    const activeSet = new Set(['e1']);
+    expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, activeSet).has('d1')).toBe(true);
+  });
+
   it('calculateReachability ignores edges with validationError', () => {
     const edgeWithError = { id: 'e1', source: 'i1', target: 'd1', data: { validationError: 'error' } } as any;
     const edgeMap = new Map([['i1', [edgeWithError]]]);
@@ -104,6 +110,15 @@ describe('simulation test suite', () => {
     const res = updateInternetTraffic(node, ctx);
     expect(res.traffic).toBe(500);
     expect(ctx.updatedNodes[1].data.currentTraffic).toBe(500);
+  });
+
+  it('internet traffic logic - unchanged when current equals target', () => {
+    const ctx = getMockCtx();
+    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000 });
+    ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
+    const res = updateInternetTraffic(node, ctx);
+    expect(res.traffic).toBe(1000);
+    expect(res.hasChanges).toBe(false);
   });
 
   it.each([
@@ -166,13 +181,22 @@ describe('simulation test suite', () => {
     expect(calculateIncomingTraffic(baseNodes[0], ctxUnreachable).traffic).toBe(0);
   });
 
-  it('incoming traffic calculation with durationUnit multipliers', () => {
+  it('incoming traffic calculation with durationUnit multipliers and child pod reachability', () => {
     // Default / 'second' durationUnit (multiplier 1)
     const ctxSecond = getMockCtx({
       internetNodes: [createNode('i1', 'Internet', { currentTraffic: 3000, durationUnit: 'second' })],
       internetReachableMap: new Map([['i1', new Set(['d1'])]])
     });
     expect(calculateIncomingTraffic(baseNodes[0], ctxSecond).traffic).toBe(3000);
+
+    // Reaching workload via child pod
+    const childPod = createNode('pod1', 'Pod', { parentId: 'd1' });
+    const ctxChild = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 2000 })],
+      internetReachableMap: new Map([['i1', new Set(['pod1'])]]),
+      childPodMap: new Map([['d1', [childPod]]])
+    });
+    expect(calculateIncomingTraffic(baseNodes[0], ctxChild).traffic).toBe(2000);
 
     // 'millisecond' durationUnit (multiplier 1000)
     const ctxMs = getMockCtx({
@@ -289,11 +313,13 @@ describe('simulation test suite', () => {
     expect(typeof res.hasChanges).toBe('boolean');
   });
 
-  it('scheduleRecovery recovers a crashing pod and ignores non-crashing pod', () => {
+  it('scheduleRecovery recovers a crashing pod and handles parent deployment recovery resync', () => {
       const pod = createNode('pod1', 'Pod', { status: 'crashing' });
       const deleteNodes = vi.fn();
+      const setMock = vi.fn();
       const ctx = getMockCtx({
-          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], deleteNodes })
+          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], deleteNodes }),
+          set: setMock
       });
 
       scheduleRecovery(baseNodes[0], 'pod1', ctx);
@@ -304,14 +330,30 @@ describe('simulation test suite', () => {
 
       // Advance time for second timeout (2000ms)
       vi.advanceTimersByTime(2000);
+      expect(setMock).toHaveBeenCalled();
+  });
 
-      // Non-crashing pod
-      const nonCrashingPod = createNode('pod2', 'Pod', { status: 'ready' });
-      const nonCrashingCtx = getMockCtx({
-          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], nonCrashingPod], deleteNodes })
+  it('scheduleRecovery returns early if parent deployment is missing after deletion', () => {
+      const pod = createNode('pod1', 'Pod', { status: 'crashing' });
+      const deleteNodes = vi.fn();
+      const setMock = vi.fn();
+
+      // Second get() call returns state without parent deployment 'd1'
+      const getMock = vi.fn()
+        .mockReturnValueOnce({ nodes: [baseNodes[0], pod], deleteNodes })
+        .mockReturnValueOnce({ nodes: [pod], deleteNodes });
+
+      const ctx = getMockCtx({
+          get: getMock,
+          set: setMock
       });
 
-      scheduleRecovery(baseNodes[0], 'pod2', nonCrashingCtx);
+      scheduleRecovery(baseNodes[0], 'pod1', ctx);
+
       vi.advanceTimersByTime(3000);
+      expect(deleteNodes).toHaveBeenCalled();
+
+      vi.advanceTimersByTime(2000);
+      expect(setMock).not.toHaveBeenCalled();
   });
 });
