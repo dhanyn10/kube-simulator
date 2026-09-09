@@ -122,7 +122,7 @@ const IAMUserCard: React.FC<IAMUserCardProps> = ({
             <div className="mt-2 pt-2 border-t border-slate-700/30">
               <span className={cn('text-[11px] font-medium flex items-center gap-1 mb-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
                 <ShieldCheck size={12} className="text-indigo-400" />
-                Attached Roles ({attachedRoles.length}):
+                RoleBindings / Attached Roles ({attachedRoles.length}):
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {attachedRoles.map((r) => (

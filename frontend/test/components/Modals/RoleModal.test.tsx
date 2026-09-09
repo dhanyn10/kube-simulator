@@ -48,7 +48,7 @@ describe('RoleModal component', () => {
       />
     );
 
-    expect(screen.getByText('Attach RBAC Role')).toBeInTheDocument();
+    expect(screen.getByText('Attach RBAC Role & RoleBinding')).toBeInTheDocument();
     expect(screen.getByText('Target card: web-app')).toBeInTheDocument();
 
     const roleNameInput = screen.getByLabelText('Role Name') as HTMLInputElement;
@@ -101,7 +101,7 @@ describe('RoleModal component', () => {
       />
     );
 
-    expect(screen.getByText('Edit Role')).toBeInTheDocument();
+    expect(screen.getByText('Edit Role & RoleBinding')).toBeInTheDocument();
     const roleNameInput = screen.getByLabelText('Role Name') as HTMLInputElement;
     expect(roleNameInput.value).toBe('existing-role');
     expect(screen.getByText('apps')).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe('RoleModal component', () => {
     );
 
     // Full Access user admin-user is automatically assigned
-    expect(screen.getByText('Assigned Kube IAM Users (1)')).toBeInTheDocument();
+    expect(screen.getByText('RoleBinding Subjects / IAM Users (1)')).toBeInTheDocument();
 
     // Type in autocomplete input field
     const userInput = screen.getByPlaceholderText('Add user...');
@@ -412,7 +412,7 @@ describe('RoleModal component', () => {
     const devRow = screen.getAllByText('dev-user').find(el => el.closest('div'))!;
     fireEvent.mouseDown(devRow);
 
-    expect(screen.getByText('Assigned Kube IAM Users (2)')).toBeInTheDocument();
+    expect(screen.getByText('RoleBinding Subjects / IAM Users (2)')).toBeInTheDocument();
 
     // Remove dev-user via tag X button
     const devUserText = screen.getAllByText('dev-user')[0];

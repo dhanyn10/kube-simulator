@@ -260,7 +260,7 @@ describe('KubeIAMModal component', () => {
 
     render(<KubeIAMModal />);
 
-    expect(screen.getByText('Attached Roles (1):')).toBeInTheDocument();
+    expect(screen.getByText('RoleBindings / Attached Roles (1):')).toBeInTheDocument();
     expect(screen.getByText('web-reader-role')).toBeInTheDocument();
 
     const roleBtn = screen.getByRole('button', { name: /web-reader-role/i });

@@ -234,7 +234,7 @@ describe('App Component', () => {
       render(<App />);
     });
 
-    expect(screen.getByText('Attach RBAC Role')).toBeInTheDocument();
+    expect(screen.getByText('Attach RBAC Role & RoleBinding')).toBeInTheDocument();
 
     const saveRoleBtn = screen.getByText('Attach Role');
     await act(async () => {

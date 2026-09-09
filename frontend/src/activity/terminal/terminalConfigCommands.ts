@@ -102,6 +102,7 @@ const RESOURCE_ALIASES: Record<string, string> = {
   secrets: 'secrets',
   role: 'roles',
   roles: 'roles',
+  rb: 'roles',
   rolebinding: 'roles',
   rolebindings: 'roles',
 };

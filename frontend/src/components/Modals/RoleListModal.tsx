@@ -26,8 +26,8 @@ export const RoleListModal: React.FC<RoleListModalProps> = ({
     <AttachedResourceListModal<K8sRoleItem>
       isOpen={isOpen}
       onClose={onClose}
-      title="Attached RBAC Roles"
-      subtitle={targetNodeLabel ? `Node: ${targetNodeLabel}` : 'Manage attached roles'}
+      title="Attached RBAC Roles & RoleBindings"
+      subtitle={targetNodeLabel ? `Node: ${targetNodeLabel}` : 'Manage attached roles & RoleBindings'}
       icon={ShieldCheck}
       iconColorClass="text-indigo-400"
       buttonBgColorClass="bg-indigo-600 hover:bg-indigo-500"
@@ -50,7 +50,7 @@ export const RoleListModal: React.FC<RoleListModalProps> = ({
           </div>
           {role.assignedUsers && role.assignedUsers.length > 0 && (
             <div className="text-emerald-400 font-sans font-medium text-[10px]">
-              Assigned Users: {role.assignedUsers.join(', ')}
+              Bound Subjects (RoleBinding): {role.assignedUsers.join(', ')}
             </div>
           )}
         </div>
