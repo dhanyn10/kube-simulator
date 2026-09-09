@@ -281,7 +281,7 @@ describe('KubeIAMModal component', () => {
     expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'pod-1', label: 'web-pod' });
   });
 
-  it('allows editing user profile (username and policies) in detail view', () => {
+  it('allows editing user profile (username and policies) in detail view using wizard stepper', () => {
     useFlowStore.setState({
       iamUsers: [
         {
@@ -303,13 +303,18 @@ describe('KubeIAMModal component', () => {
     const editBtn = screen.getByText('Edit Profile');
     fireEvent.click(editBtn);
 
-    // Edit username input
-    const usernameInput = screen.getByLabelText('User Name / Handle');
+    // Step 1: Edit username input
+    const usernameInput = screen.getByPlaceholderText('e.g. dev-cluster-admin');
     fireEvent.change(usernameInput, { target: { value: 'renamed-user' } });
 
-    // Save changes
-    const saveBtn = screen.getByText('Save Changes');
-    fireEvent.click(saveBtn);
+    // Click Next -> Step 2
+    fireEvent.click(screen.getByText('Next'));
+
+    // Click Next -> Step 3
+    fireEvent.click(screen.getByText('Next'));
+
+    // Click Create User / Save button in Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Create User/i }));
 
     const updatedUser = useFlowStore.getState().iamUsers.find((u) => u.id === 'user-1');
     expect(updatedUser?.username).toBe('renamed-user');

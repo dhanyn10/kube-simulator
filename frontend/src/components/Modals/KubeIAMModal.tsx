@@ -182,8 +182,13 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
   const setActiveIdentity = useFlowStore((state) => state.setActiveIdentity);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [editStep, setEditStep] = useState<IAMStep>(1);
   const [editUsername, setEditUsername] = useState(user.username);
-  const [editPolicies, setEditPolicies] = useState<string[]>(user.policies?.map((p) => p.name) || []);
+  const [editPolicies, setEditPolicies] = useState<string[]>(user.policies?.map((p) => p.name) || ['AdministratorAccess']);
+  const [editPolicySearch, setEditPolicySearch] = useState('');
+  const [editUsernameError, setEditUsernameError] = useState('');
+
+  const iamUsers = useFlowStore((state) => state.iamUsers);
 
   const formatDateWithSeconds = (ts?: number): string => {
     if (!ts) return 'System Default';
@@ -191,8 +196,34 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
   };
 
-  const handleSaveEdit = () => {
-    if (!editUsername.trim()) return;
+  const handleStartEdit = () => {
+    setEditUsername(user.username);
+    setEditPolicies(user.policies?.map((p) => p.name) || ['AdministratorAccess']);
+    setEditStep(1);
+    setEditUsernameError('');
+    setIsEditing(true);
+  };
+
+  const handleEditNextStep1 = () => {
+    if (!editUsername.trim()) {
+      setEditUsernameError('Username is required');
+      return;
+    }
+    const exists = iamUsers.some((u) => u.id !== user.id && u.username.toLowerCase() === editUsername.trim().toLowerCase());
+    if (exists) {
+      setEditUsernameError('Username already exists');
+      return;
+    }
+    setEditUsernameError('');
+    setEditStep(2);
+  };
+
+  const handleEditNextStep2 = () => {
+    if (editPolicies.length === 0) return;
+    setEditStep(3);
+  };
+
+  const handleFinishEdit = () => {
     const finalPolicies = DEFAULT_POLICIES.filter((p) => editPolicies.includes(p.name));
     const isFull = editPolicies.includes('AdministratorAccess');
 
@@ -209,11 +240,12 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
     setIsEditing(false);
   };
 
-  const isEditingAdmin = editPolicies.includes('AdministratorAccess');
+  const isEditAdminSelected = editPolicies.includes('AdministratorAccess');
+  const isEditOtherSelected = editPolicies.some((p) => p !== 'AdministratorAccess');
 
   const toggleEditPolicy = (policyName: string) => {
     if (policyName === 'AdministratorAccess') {
-      setEditPolicies(isEditingAdmin ? [] : ['AdministratorAccess']);
+      setEditPolicies(isEditAdminSelected ? [] : ['AdministratorAccess']);
       return;
     }
     setEditPolicies((prev) => {
@@ -223,6 +255,97 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
         : [...withoutAdmin, policyName];
     });
   };
+
+  const filteredEditPolicies = DEFAULT_POLICIES.filter((p) =>
+    p.name.toLowerCase().includes(editPolicySearch.toLowerCase()) ||
+    p.description.toLowerCase().includes(editPolicySearch.toLowerCase())
+  );
+
+  const editComputedAccessType: IAMAccessType = editPolicies.includes('AdministratorAccess')
+    ? 'Full Access'
+    : 'Managed Access';
+
+  if (isEditing) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-700/50">
+          <div>
+            <h3 className={cn('text-sm font-bold flex items-center gap-2', isDark ? 'text-slate-100' : 'text-slate-800')}>
+              <Edit3 size={16} className="text-indigo-400" />
+              Edit User Profile ({user.username})
+            </h3>
+            <p className={cn('text-[11px]', isDark ? 'text-slate-400' : 'text-slate-500')}>
+              Modify user credentials and permission policy assignments.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className={cn(
+              'px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer',
+              isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+            )}
+          >
+            <X size={14} />
+            Cancel Editing
+          </button>
+        </div>
+
+        <div className="flex flex-1 gap-6 overflow-hidden">
+          <IAMStepper
+            currentStep={editStep}
+            colorMode={isDark ? 'dark' : 'light'}
+            onReset={() => setIsEditing(false)}
+          />
+
+          <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
+            {editStep === 1 && (
+              <IAMStep1Details
+                username={editUsername}
+                usernameError={editUsernameError}
+                colorMode={isDark ? 'dark' : 'light'}
+                onUsernameChange={(val) => {
+                  setEditUsername(val);
+                  if (editUsernameError) setEditUsernameError('');
+                }}
+              />
+            )}
+
+            {editStep === 2 && (
+              <IAMStep2Permissions
+                username={editUsername}
+                selectedPolicies={editPolicies}
+                policySearch={editPolicySearch}
+                filteredPolicies={filteredEditPolicies}
+                isAdminSelected={isEditAdminSelected}
+                isOtherSelected={isEditOtherSelected}
+                colorMode={isDark ? 'dark' : 'light'}
+                onPolicySearchChange={setEditPolicySearch}
+                onTogglePolicy={toggleEditPolicy}
+              />
+            )}
+
+            {editStep === 3 && (
+              <IAMStep3Review
+                username={editUsername}
+                computedAccessType={editComputedAccessType}
+                selectedPolicies={editPolicies}
+                colorMode={isDark ? 'dark' : 'light'}
+              />
+            )}
+
+            <IAMWizardFooter
+              currentStep={editStep}
+              colorMode={isDark ? 'dark' : 'light'}
+              onPrevious={() => setEditStep((prev) => (prev - 1) as 1 | 2)}
+              onNext={editStep === 1 ? handleEditNextStep1 : handleEditNextStep2}
+              onFinish={handleFinishEdit}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -254,41 +377,14 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {!isEditing ? (
-            <button
-              type="button"
-              onClick={() => {
-                setEditUsername(user.username);
-                setEditPolicies(user.policies?.map((p) => p.name) || []);
-                setIsEditing(true);
-              }}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs cursor-pointer"
-            >
-              <Edit3 size={13} />
-              Edit Profile
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-xs cursor-pointer"
-              >
-                <Save size={13} />
-                Save Changes
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className={cn(
-                  'p-1.5 rounded-md text-slate-400 hover:text-slate-200 transition-colors border cursor-pointer',
-                  isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-300 bg-slate-100'
-                )}
-              >
-                <X size={14} />
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-xs cursor-pointer"
+          >
+            <Edit3 size={13} />
+            Edit Profile
+          </button>
 
           <button
             type="button"
@@ -331,57 +427,6 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Edit Mode User Details Form */}
-      {isEditing && (
-        <div className={cn('p-3.5 rounded-xl border space-y-3', isDark ? 'bg-slate-900 border-indigo-500/40' : 'bg-indigo-50/50 border-indigo-200')}>
-          <div>
-            <label htmlFor="edit-username-input" className="block text-xs font-semibold mb-1 text-slate-400">
-              User Name / Handle
-            </label>
-            <input
-              id="edit-username-input"
-              type="text"
-              value={editUsername}
-              onChange={(e) => setEditUsername(e.target.value)}
-              className={cn(
-                'w-full px-3 py-1.5 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all',
-                isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
-              )}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1 text-slate-400">
-              Permissions Policies Assignment
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {DEFAULT_POLICIES.map((p) => {
-                const isChecked = editPolicies.includes(p.name);
-                return (
-                  <label
-                    key={`edit-policy-${p.name}`}
-                    className={cn(
-                      'p-2 rounded-lg border flex items-center gap-2 cursor-pointer transition-colors text-xs',
-                      isChecked
-                        ? isDark ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200' : 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                        : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleEditPolicy(p.name)}
-                      className="rounded accent-emerald-500"
-                    />
-                    <span className="font-semibold font-mono text-[11px]">{p.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* AWS-Style Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
