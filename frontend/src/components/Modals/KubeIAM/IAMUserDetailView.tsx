@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { User, Trash2, CheckCircle2, ArrowLeft, UserCheck, Clock, Shield, Edit3 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
-import { KubeIAMPolicy, KubeIAMUser } from '../../../types';
-import { AttachedRoleInfo, formatDateWithSeconds, getLastUsedActivityClass } from '../../../activity/modals';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
+import { KubeIAMPolicy, KubeIAMUser } from '@/types';
+import { AttachedRoleInfo, formatDateWithSeconds, getLastUsedActivityClass } from '@/activity/modals';
 import { IAMUserEditView } from './IAMUserEditView';
 
 export interface IAMUserSummaryCardsProps {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Search } from 'lucide-react';
-import { cn } from '../../../lib/utils';
-import { KubeIAMPolicy } from '../../../types';
-import { DEFAULT_POLICIES, IAMStep, getStepBadgeClass, getStepTextClass, getPolicyRowClass } from '../../../activity/modals';
+import { cn } from '@/lib/utils';
+import { KubeIAMPolicy } from '@/types';
+import { DEFAULT_POLICIES, IAMStep, getStepBadgeClass, getStepTextClass, getPolicyRowClass } from '@/activity/modals';
 
 export interface IAMStepperProps {
   readonly currentStep: IAMStep;

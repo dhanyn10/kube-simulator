@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Edit3, X } from 'lucide-react';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
-import { KubeIAMPolicy, KubeIAMUser } from '../../../types';
-import { DEFAULT_POLICIES, IAMStep, IAMAccessType } from '../../../activity/modals';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
+import { KubeIAMPolicy, KubeIAMUser } from '@/types';
+import { DEFAULT_POLICIES, IAMStep, IAMAccessType } from '@/activity/modals';
 import {
   IAMStepper,
   IAMStep1Details,

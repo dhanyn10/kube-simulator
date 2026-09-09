@@ -1,8 +1,8 @@
 import React from 'react';
 import { User, UserPlus, Search } from 'lucide-react';
-import { cn } from '../../../lib/utils';
-import { useFlowStore } from '../../../store';
-import { KubeIAMUser } from '../../../types';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
+import { KubeIAMUser } from '@/types';
 import { IAMUserCard } from './IAMUserCard';
 import { IAMSystemAdminCard } from './IAMSystemAdminCard';
 
