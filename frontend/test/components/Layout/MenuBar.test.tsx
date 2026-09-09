@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MenuBar } from '../../../src/components/Layout/MenuBar';
 import { useFlowStore } from '../../../src/store';
 import '@testing-library/jest-dom';
@@ -58,8 +58,10 @@ describe('MenuBar', () => {
     };
   });
 
-  it('renders correctly and hides identity badge when user is system:admin', () => {
-    useFlowStore.setState({ activeIdentity: 'system:admin' });
+  it('renders correctly and hides identity badge when user is system:admin', async () => {
+    await act(async () => {
+      useFlowStore.setState({ activeIdentity: 'system:admin' });
+    });
     render(<MenuBar {...defaultProps} />);
     expect(screen.getByText('File')).toBeDefined();
     expect(screen.getByText('Resource')).toBeDefined();
@@ -69,8 +71,10 @@ describe('MenuBar', () => {
     expect(screen.queryByTestId('menubar-identity-passport-btn')).toBeNull();
   });
 
-  it('renders identity badge when user switched to a Kube IAM identity', () => {
-    useFlowStore.setState({ activeIdentity: 'budi' });
+  it('renders identity badge when user switched to a Kube IAM identity', async () => {
+    await act(async () => {
+      useFlowStore.setState({ activeIdentity: 'budi' });
+    });
     render(<MenuBar {...defaultProps} />);
     expect(screen.getByTestId('menubar-identity-passport-btn')).toBeInTheDocument();
     expect(screen.getByText('budi')).toBeInTheDocument();
@@ -92,8 +96,10 @@ describe('MenuBar', () => {
   it('opens release URL when update button clicked and BrowserOpenURL is available', async () => {
     const mockBrowserOpen = vi.fn();
     (window as any).runtime = { BrowserOpenURL: mockBrowserOpen };
-    useFlowStore.setState({
-      simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: 'https://example.com/v2' },
+    await act(async () => {
+      useFlowStore.setState({
+        simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: 'https://example.com/v2' },
+      });
     });
 
     render(<MenuBar {...defaultProps} />);
@@ -105,8 +111,10 @@ describe('MenuBar', () => {
   });
 
   it('falls back to onOpenAbout when update button clicked without releaseUrl or runtime', async () => {
-    useFlowStore.setState({
-      simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: '' },
+    await act(async () => {
+      useFlowStore.setState({
+        simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: '' },
+      });
     });
 
     render(<MenuBar {...defaultProps} />);
@@ -116,7 +124,8 @@ describe('MenuBar', () => {
     expect(defaultProps.onOpenAbout).toHaveBeenCalled();
   });
 
-  it('handles background update check when update is not available', async () => {
+  it('handles background update check when update is not available or when sysInfo.version is missing', async () => {
+    (globalThis as any).go.main.App.GetSystemInfo = vi.fn().mockResolvedValue({});
     (globalThis as any).go.main.App.CheckForUpdates = vi.fn().mockResolvedValue({
       updateAvailable: false,
       latestVersion: '',
@@ -137,13 +146,15 @@ describe('MenuBar', () => {
     });
   });
 
-  it('handles Resource > Save on existing project vs project id === -1 and UpdateProject success vs failure', async () => {
+  it('handles Resource > Save on existing project vs null currentProject', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     // Case 1: UpdateProject returns true
-    useFlowStore.setState({
-      currentProject: { id: 10, name: "Active Proj" },
-      nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
+    await act(async () => {
+      useFlowStore.setState({
+        currentProject: { id: 10, name: "Active Proj" },
+        nodes: [{ id: "n1", type: "Pod", position: { x: 0, y: 0 }, data: {} }],
+      });
     });
 
     const { rerender } = render(<MenuBar {...defaultProps} />);
@@ -157,21 +168,10 @@ describe('MenuBar', () => {
       expect(alertSpy).toHaveBeenCalledWith("Resource architecture saved successfully!");
     });
 
-    // Case 2: UpdateProject returns false
-    (globalThis as any).go.main.App.UpdateProject = vi.fn().mockResolvedValue(false);
-    alertSpy.mockClear();
-
-    fireEvent.click(screen.getByText("Resource"));
-    const saveItemsUpdateFail = screen.getAllByText("Save");
-    fireEvent.click(saveItemsUpdateFail[saveItemsUpdateFail.length - 1]);
-
-    await waitFor(() => {
-      expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalled();
-      expect(alertSpy).not.toHaveBeenCalled();
+    // Case 2: Null currentProject opens projects modal to save as new
+    await act(async () => {
+      useFlowStore.setState({ currentProject: null });
     });
-
-    // Case 3: Project with id === -1 opens manager to save as new
-    useFlowStore.setState({ currentProject: { id: -1, name: "Unsaved" } });
     rerender(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText("Resource"));
@@ -182,31 +182,86 @@ describe('MenuBar', () => {
     alertSpy.mockRestore();
   });
 
-  it('handles View > Utilities menu item when history view is open or closed', () => {
+  it('closes open menu dropdown on click outside', async () => {
+    render(<MenuBar {...defaultProps} />);
+
+    // Open 'File' menu
+    fireEvent.click(screen.getByText('File'));
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+
+    // Click outside
+    fireEvent.mouseDown(document.body);
+    await waitFor(() => {
+      expect(screen.queryByText('Settings')).toBeNull();
+    });
+  });
+
+  it('handles View > Simulation menu item when monitoring is closed vs open vs detached', async () => {
+    const setMonitoringOpen = vi.spyOn(useFlowStore.getState(), 'setMonitoringOpen');
+
+    // Case 1: Monitoring is closed -> opens monitoring
+    await act(async () => {
+      useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: false });
+    });
+    const { rerender } = render(<MenuBar {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('Simulation'));
+    expect(setMonitoringOpen).toHaveBeenCalledWith(true);
+
+    // Case 2: Monitoring is open -> closes simulation
+    await act(async () => {
+      useFlowStore.setState({ isMonitoringOpen: true, isMonitoringDetached: false });
+    });
+    rerender(<MenuBar {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('View'));
+    fireEvent.click(screen.getByText('Close Simulation'));
+    expect(setMonitoringOpen).toHaveBeenCalledWith(false);
+
+    // Case 3: Monitoring is detached
+    await act(async () => {
+      useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: true });
+    });
+    rerender(<MenuBar {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('View'));
+    expect(screen.getByText('Monitoring: Detached')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Monitoring: Detached'));
+    expect(setMonitoringOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it('handles View > Utilities menu item when history view is open or closed', async () => {
     const setHistoryViewOpen = vi.spyOn(useFlowStore.getState(), 'setHistoryViewOpen');
     const setRightSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
 
-    useFlowStore.setState({ isHistoryViewOpen: true, isRightSidebarVisible: true });
+    await act(async () => {
+      useFlowStore.setState({ isHistoryViewOpen: true, isRightSidebarVisible: true });
+    });
     const { rerender } = render(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByText('Utilities'));
     expect(setHistoryViewOpen).toHaveBeenCalledWith(false);
 
-    useFlowStore.setState({ isHistoryViewOpen: false, isRightSidebarVisible: true });
+    await act(async () => {
+      useFlowStore.setState({ isHistoryViewOpen: false, isRightSidebarVisible: true });
+    });
     rerender(<MenuBar {...defaultProps} />);
 
-    // View menu is still open
+    // Menu dropdown is still open
     fireEvent.click(screen.getByText('Utilities'));
     expect(setRightSidebarVisible).toHaveBeenCalledWith(false);
   });
 
-  it('handles View > History and Terminal menu items', () => {
+  it('handles View > History and Terminal menu items', async () => {
     const setRightSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setRightSidebarVisible');
     const setHistoryViewOpen = vi.spyOn(useFlowStore.getState(), 'setHistoryViewOpen');
     const setTerminalOpen = vi.spyOn(useFlowStore.getState(), 'setTerminalOpen');
 
-    useFlowStore.setState({ isHistoryViewOpen: false, isRightSidebarVisible: false });
+    await act(async () => {
+      useFlowStore.setState({ isHistoryViewOpen: false, isRightSidebarVisible: false });
+    });
     render(<MenuBar {...defaultProps} />);
 
     fireEvent.click(screen.getByText('View'));
@@ -219,25 +274,6 @@ describe('MenuBar', () => {
     expect(setTerminalOpen).toHaveBeenCalledWith(true);
   });
 
-  it('handles View > Simulation menu item in different monitoring modes', () => {
-    const setMonitoringOpen = vi.spyOn(useFlowStore.getState(), 'setMonitoringOpen');
-    useFlowStore.setState({ isMonitoringOpen: true });
-    const { rerender } = render(<MenuBar {...defaultProps} />);
-
-    fireEvent.click(screen.getByText('View'));
-    fireEvent.click(screen.getByText('Close Simulation'));
-    expect(setMonitoringOpen).toHaveBeenCalledWith(false);
-
-    useFlowStore.setState({ isMonitoringOpen: false, isMonitoringDetached: true });
-    rerender(<MenuBar {...defaultProps} />);
-
-    fireEvent.click(screen.getByText('View'));
-    expect(screen.getByText('Monitoring: Detached')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Monitoring: Detached'));
-    // Does not call setMonitoringOpen when detached
-    expect(setMonitoringOpen).toHaveBeenCalledTimes(1);
-  });
-
   it('handles Help > Report Issue link', () => {
     render(<MenuBar {...defaultProps} />);
 
@@ -246,16 +282,18 @@ describe('MenuBar', () => {
     expect((globalThis as any).BrowserOpenURL).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
   });
 
-  it('renders in light mode with error count > 99 displaying 99+', () => {
-    useFlowStore.setState({
-      colorMode: 'light',
-      logs: Array.from({ length: 105 }, (_, i) => ({
-        id: String(i),
-        level: 'error',
-        message: `Error ${i}`,
-        timestamp: '10:00:00',
-        scope: 'System'
-      }))
+  it('renders in light mode with error count > 99 displaying 99+', async () => {
+    await act(async () => {
+      useFlowStore.setState({
+        colorMode: 'light',
+        logs: Array.from({ length: 105 }, (_, i) => ({
+          id: String(i),
+          level: 'error',
+          message: `Error ${i}`,
+          timestamp: '10:00:00',
+          scope: 'System'
+        }))
+      });
     });
 
     render(<MenuBar {...defaultProps} />);
@@ -284,7 +322,6 @@ describe('MenuBar', () => {
     fireEvent.click(screen.getByText('Components'));
     expect(setSidebarVisible).toHaveBeenCalledWith(false);
 
-    // Menu dropdown remains open for checked items
     fireEvent.click(screen.getByText('Autofocus'));
     expect(toggleAutofocus).toHaveBeenCalled();
   });

@@ -31,6 +31,27 @@ describe('HPAListModal', () => {
     expect(screen.getByText('No HPA autoscalers attached to this node.')).toBeInTheDocument();
   });
 
+  it('renders subtitle default fallback when targetNodeLabel is omitted', () => {
+    render(<HPAListModal {...defaultProps} targetNodeLabel={undefined} />);
+    expect(screen.getByText('Manage attached HPA Autoscalers')).toBeInTheDocument();
+  });
+
+  it('renders attached HPA without targetMemory when omitted', () => {
+    const hpas: K8sHpaItem[] = [
+      {
+        id: 'hpa-2',
+        name: 'cpu-only-hpa',
+        minReplicas: 1,
+        maxReplicas: 5,
+        targetCPU: 70,
+      },
+    ];
+
+    render(<HPAListModal {...defaultProps} hpas={hpas} />);
+    expect(screen.getByText('cpu-only-hpa')).toBeInTheDocument();
+    expect(screen.queryByText(/Target Mem:/)).toBeNull();
+  });
+
   it('renders attached HPAs and triggers edit, delete, and add new actions', () => {
     const hpas: K8sHpaItem[] = [
       {

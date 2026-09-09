@@ -132,13 +132,23 @@ describe('ContextMenu', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
-  it('calls onClose when backdrop is clicked or right-clicked', () => {
+  it('calls onClose when backdrop is clicked, right-clicked, touch-started, or keydown Escape', () => {
     render(
       <ContextMenu x={100} y={100} onClose={mockOnClose} onInspect={mockOnInspect} onDelete={mockOnDelete} />
     );
     const backdrop = screen.getByLabelText('Close context menu');
+
+    fireEvent.touchStart(backdrop);
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+
     fireEvent.contextMenu(backdrop);
-    expect(mockOnClose).toHaveBeenCalled();
+    expect(mockOnClose).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(backdrop, { key: 'Enter' });
+    expect(mockOnClose).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(backdrop, { key: 'Escape' });
+    expect(mockOnClose).toHaveBeenCalledTimes(3);
   });
 
   it('calls groupNodes and ungroupNodes when buttons are clicked', () => {

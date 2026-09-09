@@ -99,7 +99,7 @@ describe('dragHandlers', () => {
     expect(updatedSvc?.parentId).toBeUndefined();
   });
 
-  it('onNodeDragStop handles re-parenting to Namespace and Deployment, and disallowed target fallback', () => {
+  it('onNodeDragStop handles re-parenting to Namespace and Deployment, non-existent target fallback, and disallowed target fallback', () => {
     const { onNodeDragStop } = useFlowStore.getState();
 
     // Re-parent to Namespace
@@ -118,6 +118,14 @@ describe('dragHandlers', () => {
     state = useFlowStore.getState();
     updatedPod = state.nodes.find(n => n.id === 'n1');
     expect(updatedPod?.parentId).toBe('d1');
+
+    // Attempt re-parenting with non-existent target ID
+    useFlowStore.setState({ hoveredDeploymentId: 'non-existent-target' });
+    onNodeDragStop({} as any, node);
+
+    state = useFlowStore.getState();
+    updatedPod = state.nodes.find(n => n.id === 'n1');
+    expect(updatedPod?.parentId).toBeUndefined();
 
     // Attempt invalid re-parenting (e.g. Namespace into Pod)
     useFlowStore.setState({

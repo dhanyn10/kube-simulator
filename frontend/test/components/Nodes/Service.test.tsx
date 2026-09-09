@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { ServiceNode } from '../../../src/components/Nodes/Service';
 import { useFlowStore } from '../../../src/store';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -20,7 +21,7 @@ describe('ServiceNode', () => {
     useFlowStore.setState({ colorMode: 'dark' });
   });
 
-  it('renders correctly with default data', () => {
+  it('renders correctly with default data in dark mode', () => {
     const props = {
       id: 's1',
       type: 'Service',
@@ -34,10 +35,28 @@ describe('ServiceNode', () => {
     );
 
     expect(screen.getByText('Service')).toBeDefined();
-    expect(screen.getByText('port:')).toBeDefined();
-    expect(screen.getByText('targetPort:')).toBeDefined();
+    expect(screen.getByText('port:')).toHaveClass('text-slate-500');
+    expect(screen.getByText('targetPort:')).toHaveClass('text-slate-500');
     expect(screen.getByText('Selector')).toBeDefined();
     expect(screen.getByText('app: app-label')).toBeDefined();
+  });
+
+  it('renders correctly in light mode with light mode slate classes', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const props = {
+      id: 's1',
+      type: 'Service',
+      data: { label: 'My Service' }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <ServiceNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('port:')).toHaveClass('text-slate-400');
+    expect(screen.getByText('targetPort:')).toHaveClass('text-slate-400');
   });
 
   it('renders custom ports and selector', () => {
@@ -70,9 +89,9 @@ describe('ServiceNode', () => {
       data: {
         label: 'My Service',
         displaySettings: {
-            port: false,
-            targetPort: false,
-            selector: false
+          port: false,
+          targetPort: false,
+          selector: false
         }
       }
     } as any;
