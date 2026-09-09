@@ -143,12 +143,17 @@ describe('createFlowSlice', () => {
     expect(updatedDep?.data.memoryRequest).toBe('128Mi');
   });
 
-  it('validateEdge flags invalid connections', () => {
+  it('validateEdge handles edge with missing source/target nodes and flags invalid connections', () => {
+    useFlowStore.setState({ nodes: [] });
+    const { validateEdge } = useFlowStore.getState();
+
+    const missingEdge = { id: 'e-missing', source: 'missing1', target: 'missing2' } as any;
+    expect(validateEdge(missingEdge)).toEqual(missingEdge);
+
     const internet = { id: 'i1', type: 'Internet', data: {} };
     const pvc = { id: 'p1', type: 'PVC', data: {} };
     useFlowStore.setState({ nodes: [internet, pvc] as any });
 
-    const { validateEdge } = useFlowStore.getState();
     const edge = { id: 'e1', source: 'i1', target: 'p1' };
     const validated = validateEdge(edge as any);
 
@@ -170,7 +175,7 @@ describe('createFlowSlice', () => {
     expect(edges[0].target).toBe('n3');
   });
 
-  it('onQuickConnect connects nodes in orthogonal directions (right, left, top, bottom)', () => {
+  it('onQuickConnect connects nodes in orthogonal directions (right, left, top, bottom) and logs action', () => {
     const centerNode: Node = {
       id: 'center',
       type: 'Service',
@@ -208,6 +213,7 @@ describe('createFlowSlice', () => {
 
     useFlowStore.getState().onQuickConnect('center', 'right');
     expect(useFlowStore.getState().edges.some((e) => e.target === 'rightN')).toBe(true);
+    expect(useFlowStore.getState().lastActionName).toBe('Connect Nodes');
 
     useFlowStore.getState().onQuickConnect('center', 'left');
     expect(useFlowStore.getState().edges.some((e) => e.target === 'leftN')).toBe(true);
@@ -219,9 +225,14 @@ describe('createFlowSlice', () => {
     expect(useFlowStore.getState().edges.some((e) => e.target === 'bottomN')).toBe(true);
   });
 
-  it('onQuickConnect returns early when source node is missing', () => {
+  it('onQuickConnect returns early when source node is missing or no candidates match direction', () => {
     useFlowStore.setState({ nodes: [], edges: [] });
     useFlowStore.getState().onQuickConnect('nonexistent', 'right');
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+
+    const centerNode: Node = { id: 'center', type: 'Pod', position: { x: 100, y: 100 }, data: {} };
+    useFlowStore.setState({ nodes: [centerNode], edges: [] });
+    useFlowStore.getState().onQuickConnect('center', 'right');
     expect(useFlowStore.getState().edges).toHaveLength(0);
   });
 
@@ -261,13 +272,5 @@ describe('createFlowSlice', () => {
     const edges = useFlowStore.getState().edges;
     expect(edges).toHaveLength(1);
     expect(edges[0].data?.validationError).toBeDefined();
-  });
-
-  it('onQuickConnect logs warning when no valid target node is found in given direction', () => {
-    const centerNode: Node = { id: 'center', type: 'Pod', position: { x: 100, y: 100 }, data: {} };
-    useFlowStore.setState({ nodes: [centerNode], edges: [] });
-
-    useFlowStore.getState().onQuickConnect('center', 'right');
-    expect(useFlowStore.getState().edges).toHaveLength(0);
   });
 });
