@@ -6,3 +6,4 @@ export * from './useNodeConfig';
 export * from './useWorkloadConfig';
 export * from './useRoleConfig';
 export * from './useEdgeConfig';
+export * from './useAttachedResourceSettings';

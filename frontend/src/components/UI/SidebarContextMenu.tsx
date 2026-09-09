@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
 import { Sun, Moon, X } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
+
+export { useSidebarContextMenu } from '@/activity/ui';
 
 interface SidebarContextMenuProps {
   readonly x: number;
@@ -73,23 +74,4 @@ export function SidebarContextMenu({
       </button>
     </div>
   );
-}
-
-export function useSidebarContextMenu() {
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY });
-  };
-
-  const closeContextMenu = () => setContextMenu(null);
-
-  useEffect(() => {
-    window.addEventListener('click', closeContextMenu);
-    return () => window.removeEventListener('click', closeContextMenu);
-  }, []);
-
-  return { contextMenu, handleContextMenu, closeContextMenu };
 }

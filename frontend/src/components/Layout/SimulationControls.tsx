@@ -1,5 +1,8 @@
 import { Play, Square } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
+import { useSimulationControls } from '@/activity/layout';
+
+export { getSimulationButtonTitle, getSimulationButtonClass } from '@/activity/layout';
 
 interface SimulationControlsProps {
   isSimulating: boolean;
@@ -18,25 +21,11 @@ export const SimulationControls = ({
   hasHpaValidationError,
   colorMode
 }: SimulationControlsProps) => {
-  const getButtonTitle = () => {
-    if (!hasInternet) return "Add an Internet card to start simulation";
-    if (hasHpaValidationError) return "HPA requires Resource Limits on target workloads";
-    return isSimulating ? "Stop Simulation" : "Start Simulation";
-  };
-
-  const getButtonClass = () => {
-    if (!hasInternet) return "text-slate-400 cursor-not-allowed bg-transparent";
-
-    if (isSimulating) {
-      return hasHpaValidationError
-        ? "bg-red-600 animate-pulse text-white"
-        : "bg-red-500 text-white hover:bg-red-600";
-    }
-
-    return hasHpaValidationError
-      ? "bg-amber-500/50 text-amber-900 border-amber-500/50"
-      : "bg-emerald-500 text-white hover:bg-emerald-600";
-  };
+  const { title, buttonClass } = useSimulationControls({
+    isSimulating,
+    hasInternet,
+    hasHpaValidationError,
+  });
 
   return (
     <div
@@ -51,10 +40,10 @@ export const SimulationControls = ({
         type="button"
         onClick={() => isSimulating ? stopSimulation() : startSimulation()}
         disabled={!hasInternet}
-        title={getButtonTitle()}
+        title={title}
         className={cn(
           "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
-          getButtonClass()
+          buttonClass
         )}
       >
         {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}

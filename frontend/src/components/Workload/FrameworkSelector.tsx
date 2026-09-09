@@ -1,7 +1,7 @@
 import { Box } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { RUNTIMES } from '../../constants/config';
-import { ConfigSection } from '../UI/ConfigUI';
+import { cn } from '@/lib/utils';
+import { ConfigSection } from '@/components/UI/ConfigUI';
+import { getFrameworksForRuntime, getFrameworkButtonClass } from '@/activity/workload';
 
 interface FrameworkSelectorProps {
   runtime: string;
@@ -19,10 +19,8 @@ export const FrameworkSelector = ({
   colorMode,
   performUpdate
 }: FrameworkSelectorProps) => {
-  if (Boolean(runtime) === false || runtime === 'none') return null;
-
-  const frameworks = RUNTIMES[runtime as keyof typeof RUNTIMES]?.frameworks;
-  if (Boolean(frameworks) === false) return null;
+  const frameworks = getFrameworksForRuntime(runtime);
+  if (!frameworks) return null;
 
   return (
     <div className="animate-in fade-in slide-in-from-top-1">
@@ -30,12 +28,7 @@ export const FrameworkSelector = ({
         <div className="flex flex-wrap gap-1">
           {frameworks.map((fw) => {
             const isActive = framework === fw;
-            let btnClass = "bg-white border-slate-200 hover:border-slate-300";
-            if (isActive) {
-              btnClass = "bg-emerald-600 border-emerald-600 text-white";
-            } else if (colorMode === 'dark') {
-              btnClass = "bg-slate-950 border-slate-800 hover:border-slate-700";
-            }
+            const btnClass = getFrameworkButtonClass(isActive, colorMode);
 
             return (
               <button

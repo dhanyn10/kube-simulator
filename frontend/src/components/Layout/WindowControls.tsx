@@ -1,15 +1,16 @@
 import { Minus, Square, X } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
+import { useWindowControls } from '@/activity/layout';
 
 export const WindowControls = ({ colorMode }: { colorMode: string }) => {
-  const win = (globalThis as any).go?.main?.App;
+  const { handleMinimize, handleMaximize, handleClose } = useWindowControls();
 
   return (
     <div className="flex items-center" style={{ '--wails-draggable': 'no-drag' }}>
       <button
         type="button"
         aria-label="minimize"
-        onClick={() => win?.MinimizeWindow?.()}
+        onClick={handleMinimize}
         className={cn(
           "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
           colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
@@ -20,7 +21,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
       <button
         type="button"
         aria-label="maximize"
-        onClick={() => win?.MaximizeWindow?.()}
+        onClick={handleMaximize}
         className={cn(
           "w-11 h-10 flex items-center justify-center transition-colors text-slate-500",
           colorMode === 'dark' ? "hover:bg-slate-800 hover:text-slate-200" : "hover:bg-slate-200 hover:text-slate-700"
@@ -31,7 +32,7 @@ export const WindowControls = ({ colorMode }: { colorMode: string }) => {
       <button
         type="button"
         aria-label="close"
-        onClick={() => win?.CloseWindow?.()}
+        onClick={handleClose}
         className="w-11 h-10 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-slate-500"
       >
         <X size={18} />

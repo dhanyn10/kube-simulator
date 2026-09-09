@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { LucideIcon } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
-import { K8sNodeData } from '../../types';
+import { cn } from '@/lib/utils';
+import { K8sNodeData } from '@/types';
+import { useAttachedResourceSettings, BaseResourceItem } from '@/activity/config';
 
-export interface BaseResourceItem {
-  id: string;
-  name: string;
-}
+export type { BaseResourceItem };
 
 export interface AttachedResourceSettingsSectionProps<T extends BaseResourceItem> {
   readonly data: K8sNodeData;
@@ -61,52 +58,22 @@ export function AttachedResourceSettingsSection<T extends BaseResourceItem>({
   renderListModal,
   renderEditModal,
 }: AttachedResourceSettingsSectionProps<T>): React.ReactElement | null {
-  const colorMode = useFlowStore((state) => state.colorMode);
-  const updateNodeData = useFlowStore((state) => state.updateNodeData);
-  const addLog = useFlowStore((state) => state.addLog);
-
-  const [editingItem, setEditingItem] = useState<T | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isListModalOpen, setIsListModalOpen] = useState(false);
-
-  const rawItems = data[resourceKey];
-  const items: T[] = Array.isArray(rawItems) ? (rawItems as unknown as T[]) : [];
-
-  const logLabel = logResourceName || resourceName.toLowerCase();
-
-  const handleOpenEdit = (item: T) => {
-    setEditingItem(item);
-    setIsEditModalOpen(true);
-  };
-
-  const handleAddNew = () => {
-    setEditingItem(null);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDeleteItem = (itemId: string, itemName: string) => {
-    const updated = items.filter((item) => item.id !== itemId);
-    updateNodeData(nodeId, { [resourceKey]: updated });
-    addLog('info', `[${resourceName} Removed] Removed ${logLabel} "${itemName}" from node`, 'UI');
-  };
-
-  const handleSaveItem = (item: T) => {
-    const existingIndex = items.findIndex((i) => i.id === item.id);
-    let updated: T[];
-    if (existingIndex >= 0) {
-      updated = [...items];
-      updated[existingIndex] = item;
-    } else {
-      updated = [...items, item];
-    }
-    updateNodeData(nodeId, { [resourceKey]: updated });
-    addLog('info', `[${resourceName} Saved] Updated ${logLabel} "${item.name}"`, 'UI');
-    setIsEditModalOpen(false);
-  };
+  const {
+    colorMode,
+    items,
+    editingItem,
+    isEditModalOpen,
+    setIsEditModalOpen,
+    isListModalOpen,
+    setIsListModalOpen,
+    targetNodeLabel,
+    handleOpenEdit,
+    handleAddNew,
+    handleDeleteItem,
+    handleSaveItem,
+  } = useAttachedResourceSettings<T>(data, nodeId, resourceKey, resourceName, logResourceName);
 
   if (items.length === 0) return null;
-
-  const targetNodeLabel = data.label || nodeId;
 
   return (
     <>

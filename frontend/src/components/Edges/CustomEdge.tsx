@@ -1,208 +1,38 @@
-import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath, useReactFlow } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, EdgeProps } from '@xyflow/react';
 import { Settings, Trash2, AlertCircle } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { cn } from '@/lib/utils';
+import { useCustomEdge } from '@/activity/edges';
 
-const checkNodeUnready = (node: any, nodes: any[]): boolean => {
-  if (!node) return false;
-  const isWorkload = node.type === 'Pod' || node.type === 'Deployment';
-  if (isWorkload && node.data?.status !== 'ready') return true;
+export {
+  checkNodeUnready,
+  checkDownstreamErrorState,
+  findDownstreamUnreadyNode,
+  getTargetLoggableNode,
+} from '@/activity/edges';
 
-  if (node.type === 'Deployment') {
-    const childPods = nodes.filter((n: any) => String(n.parentId) === String(node.id) && n.type === 'Pod');
-    if (childPods.some((p: any) => p.data?.status !== 'ready')) return true;
-  }
-  return false;
-};
-
-const checkDownstreamErrorState = (
-  isSimulating: boolean,
-  validationError: any,
-  target: string,
-  nodes: any[],
-  edges: any[],
-  activeSimulationEdges: string[]
-): boolean => {
-  if (!isSimulating || validationError) return false;
-
-  const visited = new Set<string>();
-  const queue = [target];
-
-  while (queue.length > 0) {
-    const currentId = String(queue.shift()!);
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const node = nodes.find((n: any) => String(n.id) === currentId);
-    if (checkNodeUnready(node, nodes)) return true;
-
-    const outgoingEdges = edges.filter((e: any) =>
-      String(e.source) === currentId && activeSimulationEdges.some((eid) => String(eid) === String(e.id))
-    );
-
-    for (const edge of outgoingEdges) {
-      queue.push(String(edge.target));
-    }
-  }
-  return false;
-};
-
-export const findDownstreamUnreadyNode = (
-  targetId: string,
-  nodes: any[],
-  edges: any[],
-  activeSimulationEdges: string[]
-): any => {
-  const visited = new Set<string>();
-  const queue = [targetId];
-
-  while (queue.length > 0) {
-    const currentId = String(queue.shift()!);
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-
-    const node = nodes.find((n: any) => String(n.id) === currentId);
-    if (node && checkNodeUnready(node, nodes)) {
-      return node;
-    }
-
-    const outgoingEdges = edges.filter((e: any) =>
-      String(e.source) === currentId && activeSimulationEdges.some((eid) => String(eid) === String(e.id))
-    );
-
-    for (const edge of outgoingEdges) {
-      queue.push(String(edge.target));
-    }
-  }
-  return nodes.find((n: any) => String(n.id) === targetId) || null;
-};
-
-export const getTargetLoggableNode = (
-  targetId: string,
-  isTargetError: boolean,
-  nodes: any[],
-  edges: any[],
-  activeSimulationEdges: string[]
-): any => {
-  const targetNode = nodes.find((n: any) => String(n.id) === targetId);
-  const unreadyNode = isTargetError
-    ? findDownstreamUnreadyNode(targetId, nodes, edges, activeSimulationEdges)
-    : targetNode;
-
-  if (unreadyNode && ['Pod', 'Deployment', 'ReplicaSet'].includes(unreadyNode.type)) {
-    return unreadyNode;
-  }
-  if (targetNode && ['Pod', 'Deployment', 'ReplicaSet'].includes(targetNode.type)) {
-    return targetNode;
-  }
-  return null;
-};
-
-export default function CustomEdge({
-  id,
-  source,
-  target,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style = {},
-  markerEnd,
-  selected,
-  data,
-}: EdgeProps) {
-  const { setEdges } = useReactFlow();
-  const toggleEdgeSettings = useFlowStore((state: any) => state.toggleEdgeSettings);
-  const setConfiguringEdgeId = useFlowStore((state: any) => state.setConfiguringEdgeId);
-  const configuringEdgeId = useFlowStore((state: any) => state.configuringEdgeId);
-  const activeSimulationEdges = useFlowStore((state: any) => state.activeSimulationEdges);
-  const nodes = useFlowStore((state: any) => state.nodes);
-  const edges = useFlowStore((state: any) => state.edges);
-  const globalEdgeColor = useFlowStore((state: any) => state.globalEdgeColor);
-  const globalEdgeErrorColor = useFlowStore((state: any) => state.globalEdgeErrorColor);
-  const setTerminalOpen = useFlowStore((state: any) => state.setTerminalOpen);
-  const setTerminalActiveTab = useFlowStore((state: any) => state.setTerminalActiveTab);
-  const setTerminalSelectedResourceId = useFlowStore((state: any) => state.setTerminalSelectedResourceId);
-  const addActivityLog = useFlowStore((state: any) => state.addActivityLog);
-
-  const isConfiguring = String(configuringEdgeId) === String(id);
-  const isSimulating = activeSimulationEdges.some((eid: any) => String(eid) === String(id));
-  const validationError = data?.validationError;
-
-  const isTargetError = checkDownstreamErrorState(
+export default function CustomEdge(props: EdgeProps) {
+  const { style = {}, markerEnd, selected } = props;
+  const {
+    isConfiguring,
     isSimulating,
-    validationError,
-    target,
-    nodes,
-    edges,
-    activeSimulationEdges
-  );
-
-  const getStrokeColor = () => {
-    if (validationError || isTargetError) return globalEdgeErrorColor;
-    return globalEdgeColor;
-  };
-
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  });
-
-  const edgeWidth = data?.width || 2;
-
-  const onRemove = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEdges((edges) => edges.filter((edge) => edge.id !== id));
-    if (isConfiguring) setConfiguringEdgeId(null);
-  };
-
-  const onSettings = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleEdgeSettings(id);
-  };
-
-  const hasAlert = Boolean(validationError || isTargetError);
-  const alertTooltip = validationError || 'Downstream target error / workload not ready';
-
-  const onAlertClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setTerminalOpen(true);
-
-    const loggableNode = getTargetLoggableNode(target, isTargetError, nodes, edges, activeSimulationEdges);
-
-    if (loggableNode) {
-      setTerminalSelectedResourceId(loggableNode.id);
-      setTerminalActiveTab('logs');
-    } else {
-      setTerminalActiveTab('activity');
-    }
-
-    const targetNode = nodes.find((n: any) => String(n.id) === target);
-    const sourceNode = nodes.find((n: any) => String(n.id) === source);
-    const sLabel = sourceNode?.data?.label || source;
-    const tLabel = targetNode?.data?.label || target;
-
-    if (validationError) {
-      addActivityLog(`[Connection Alert] ${sLabel} -> ${tLabel}: ${validationError}`);
-    } else if (isTargetError) {
-      const unreadyNode = findDownstreamUnreadyNode(target, nodes, edges, activeSimulationEdges);
-      const uLabel = unreadyNode?.data?.label || unreadyNode?.id || target;
-      addActivityLog(`[Connection Alert] Downstream workload ${unreadyNode?.type?.toLowerCase() || 'resource'}/${uLabel} is not in ready state.`);
-    }
-  };
+    hasAlert,
+    alertTooltip,
+    getStrokeColor,
+    edgePath,
+    labelX,
+    labelY,
+    edgeWidth,
+    onRemove,
+    onSettings,
+    onAlertClick,
+  } = useCustomEdge(props);
 
   return (
     <>
       <BaseEdge
         path={edgePath}
         markerEnd={markerEnd}
-        className={cn(isSimulating && "traffic-line")}
+        className={cn(isSimulating && 'traffic-line')}
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
@@ -243,10 +73,10 @@ export default function CustomEdge({
               <button
                 type="button"
                 className={cn(
-                  "p-1 rounded transition-colors",
+                  'p-1 rounded transition-colors',
                   isConfiguring
-                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
                 )}
                 onClick={onSettings}
                 title="Settings"

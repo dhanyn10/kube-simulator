@@ -1,13 +1,11 @@
 import React from 'react';
 import { Edit2, Trash2, Plus, LucideIcon } from 'lucide-react';
 import { Modal } from './Modal';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { getItemActionTitles, BaseAttachedItem } from '@/activity/modals';
 
-export interface BaseAttachedItem {
-  id: string;
-  name: string;
-}
+export type { BaseAttachedItem };
 
 export interface AttachedResourceListModalProps<T extends BaseAttachedItem> {
   readonly isOpen: boolean;
@@ -97,8 +95,7 @@ export function AttachedResourceListModal<T extends BaseAttachedItem>({
           <div className="text-center py-6 text-slate-400 text-xs">{emptyText}</div>
         ) : (
           items.map((item) => {
-            const editTitle = itemTypeName ? `Edit ${itemTypeName}` : `Edit ${item.name}`;
-            const deleteTitle = itemTypeName ? `Delete ${itemTypeName}` : `Delete ${item.name}`;
+            const { editTitle, deleteTitle } = getItemActionTitles(item, itemTypeName);
 
             return (
               <div

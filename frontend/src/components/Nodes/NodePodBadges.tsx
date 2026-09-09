@@ -1,15 +1,13 @@
+import { getPodBadgeVisibility } from '@/activity/nodes';
+
 interface NodePodBadgesProps {
   data: any;
 }
 
 export const NodePodBadges = ({ data }: NodePodBadgesProps) => {
-  if (data.type !== 'Pod') return null;
+  const { showRuntime, showWebserver, showImage, hasAnyBadge } = getPodBadgeVisibility(data);
 
-  const showRuntime = data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none';
-  const showWebserver = data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none';
-  const showImage = data.displaySettings?.image !== false && data.image;
-
-  if (!showRuntime && !showWebserver && !showImage) return null;
+  if (!hasAnyBadge) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1 min-w-0 max-w-full overflow-hidden">
