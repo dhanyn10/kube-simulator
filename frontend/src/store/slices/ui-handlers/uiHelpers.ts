@@ -1,5 +1,6 @@
 import { FlowState } from '@/store/types';
 import { Node } from '@xyflow/react';
+import { safeRandom } from '@/lib/utils';
 
 /**
  * Parses settings JSON string and applies valid fields to state.
@@ -100,10 +101,10 @@ export const createLogLineForResource = (node: Node, point?: any): string | null
     return `[${timestamp}] [WARNING] CPU limit reached for ${name}. Container execution throttled.`;
   }
 
-  if (Math.random() > 0.3) {
+  if (safeRandom() > 0.3) {
     const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/healthz', '/metrics'];
-    const path = paths[Math.floor(Math.random() * paths.length)];
-    const clientIp = `10.244.0.${Math.floor(Math.random() * 254) + 1}`;
+    const path = paths[Math.floor(safeRandom() * paths.length)];
+    const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
     const statusCode = point?.isOOM ? '503' : '200 OK';
     return `[${timestamp}] ${clientIp} - GET ${path} - ${statusCode} - ${name}`;
   }
