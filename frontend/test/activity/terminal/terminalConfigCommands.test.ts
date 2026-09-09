@@ -78,29 +78,18 @@ describe('terminalConfigCommands', () => {
   });
 
   describe('checkRbacPermission', () => {
-    it('allows all commands for system:admin', () => {
-      storeState.activeIdentity = 'system:admin';
-      const allowed = checkRbacPermission(mockCtx, 'delete', 'pods');
-      expect(allowed).toBe(true);
-    });
-
-    it('allows get pods for user with ReadOnlyAccess', () => {
-      storeState.activeIdentity = 'siti';
-      const allowed = checkRbacPermission(mockCtx, 'get', 'pods');
-      expect(allowed).toBe(true);
-    });
-
-    it('forbids delete pods for user with ReadOnlyAccess', () => {
-      storeState.activeIdentity = 'siti';
-      const allowed = checkRbacPermission(mockCtx, 'delete', 'pods');
-      expect(allowed).toBe(false);
-      expect(activityLogs.some((l) => l.includes('Error from server (Forbidden)'))).toBe(true);
-    });
-
-    it('allows delete pods for budi via canvas role pod-manager', () => {
-      storeState.activeIdentity = 'budi';
-      const allowed = checkRbacPermission(mockCtx, 'delete', 'pods');
-      expect(allowed).toBe(true);
+    it.each([
+      { identity: 'system:admin', verb: 'delete', resource: 'pods', expectedAllowed: true, checkLog: false },
+      { identity: 'siti', verb: 'get', resource: 'pods', expectedAllowed: true, checkLog: false },
+      { identity: 'siti', verb: 'delete', resource: 'pods', expectedAllowed: false, checkLog: true },
+      { identity: 'budi', verb: 'delete', resource: 'pods', expectedAllowed: true, checkLog: false },
+    ])('evaluates RBAC permission for "$identity" attempting "$verb $resource"', ({ identity, verb, resource, expectedAllowed, checkLog }) => {
+      storeState.activeIdentity = identity;
+      const allowed = checkRbacPermission(mockCtx, verb, resource);
+      expect(allowed).toBe(expectedAllowed);
+      if (checkLog) {
+        expect(activityLogs.some((l) => l.includes('Error from server (Forbidden)'))).toBe(true);
+      }
     });
   });
 
