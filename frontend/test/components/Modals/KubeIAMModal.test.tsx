@@ -313,8 +313,11 @@ describe('KubeIAMModal component', () => {
     // Click Next -> Step 3
     fireEvent.click(screen.getByText('Next'));
 
-    // Click Create User / Save button in Step 3
-    fireEvent.click(screen.getByRole('button', { name: /Create User/i }));
+    // Step 3 shows Review & Update and Update User button
+    expect(screen.getAllByText('Review & Update').length).toBeGreaterThan(0);
+
+    // Click Update User button in Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Update User/i }));
 
     const updatedUser = useFlowStore.getState().iamUsers.find((u) => u.id === 'user-1');
     expect(updatedUser?.username).toBe('renamed-user');

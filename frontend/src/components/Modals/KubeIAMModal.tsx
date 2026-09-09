@@ -331,12 +331,14 @@ const IAMUserDetailView: React.FC<IAMUserDetailViewProps> = ({
                 computedAccessType={editComputedAccessType}
                 selectedPolicies={editPolicies}
                 colorMode={isDark ? 'dark' : 'light'}
+                isEditMode={true}
               />
             )}
 
             <IAMWizardFooter
               currentStep={editStep}
               colorMode={isDark ? 'dark' : 'light'}
+              isEditMode={true}
               onPrevious={() => setEditStep((prev) => (prev - 1) as 1 | 2)}
               onNext={editStep === 1 ? handleEditNextStep1 : handleEditNextStep2}
               onFinish={handleFinishEdit}
@@ -705,13 +707,14 @@ const IAMUserListView: React.FC<IAMUserListViewProps> = ({
 interface IAMStepperProps {
   readonly currentStep: IAMStep;
   readonly colorMode: string;
+  readonly isEditMode?: boolean;
   readonly onReset: () => void;
 }
 
 /**
- * Vertical stepper bar on the left side of the user creation wizard.
+ * Vertical stepper bar on the left side of the user creation / editing wizard.
  */
-const IAMStepper: React.FC<IAMStepperProps> = ({ currentStep, colorMode, onReset }) => {
+const IAMStepper: React.FC<IAMStepperProps> = ({ currentStep, colorMode, isEditMode = false, onReset }) => {
   const isDark = colorMode === 'dark';
 
   return (
@@ -753,7 +756,7 @@ const IAMStepper: React.FC<IAMStepperProps> = ({ currentStep, colorMode, onReset
           </div>
           <div>
             <p className={cn('text-xs font-semibold', getStepTextClass(3, currentStep, isDark))}>
-              Review & Create
+              {isEditMode ? 'Review & Update' : 'Review & Create'}
             </p>
             <p className={cn('text-[10px]', isDark ? 'text-slate-500' : 'text-slate-400')}>
               Confirm details
@@ -771,7 +774,7 @@ const IAMStepper: React.FC<IAMStepperProps> = ({ currentStep, colorMode, onReset
         )}
       >
         <ArrowLeft size={12} />
-        Cancel Wizard
+        {isEditMode ? 'Cancel Editing' : 'Cancel Wizard'}
       </button>
     </div>
   );
@@ -952,6 +955,7 @@ interface IAMStep3ReviewProps {
   readonly computedAccessType: string;
   readonly selectedPolicies: readonly string[];
   readonly colorMode: string;
+  readonly isEditMode?: boolean;
 }
 
 /**
@@ -962,6 +966,7 @@ const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
   computedAccessType,
   selectedPolicies,
   colorMode,
+  isEditMode = false,
 }) => {
   const isDark = colorMode === 'dark';
   const finalPolicies = DEFAULT_POLICIES.filter((p) => selectedPolicies.includes(p.name));
@@ -970,10 +975,12 @@ const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
     <div className="space-y-4">
       <div>
         <h4 className={cn('text-sm font-semibold', isDark ? 'text-slate-200' : 'text-slate-800')}>
-          Review & Create
+          {isEditMode ? 'Review & Update' : 'Review & Create'}
         </h4>
         <p className={cn('text-xs mt-0.5', isDark ? 'text-slate-400' : 'text-slate-500')}>
-          Review user specifications before creating the Kube IAM user.
+          {isEditMode
+            ? 'Review updated specifications before saving changes to the Kube IAM user.'
+            : 'Review user specifications before creating the Kube IAM user.'}
         </p>
       </div>
 
@@ -1014,17 +1021,19 @@ const IAMStep3Review: React.FC<IAMStep3ReviewProps> = ({
 interface IAMWizardFooterProps {
   readonly currentStep: IAMStep;
   readonly colorMode: string;
+  readonly isEditMode?: boolean;
   readonly onPrevious: () => void;
   readonly onNext: () => void;
   readonly onFinish: () => void;
 }
 
 /**
- * Bottom control buttons (Previous / Next / Create User) for the wizard.
+ * Bottom control buttons (Previous / Next / Create or Update User) for the wizard.
  */
 const IAMWizardFooter: React.FC<IAMWizardFooterProps> = ({
   currentStep,
   colorMode,
+  isEditMode = false,
   onPrevious,
   onNext,
   onFinish,
@@ -1063,7 +1072,7 @@ const IAMWizardFooter: React.FC<IAMWizardFooterProps> = ({
           className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors shadow-sm"
         >
           <CheckCircle2 size={14} />
-          Create User
+          {isEditMode ? 'Update User' : 'Create User'}
         </button>
       )}
     </div>
