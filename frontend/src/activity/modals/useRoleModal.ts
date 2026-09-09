@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Node } from '@xyflow/react';
-import { K8sRoleItem, K8sRoleRule, K8sResourceType, KubeIAMUser } from '../../types';
+import { K8sRoleItem, K8sRoleRule, KubeIAMUser } from '../../types';
 import { useFlowStore } from '../../store';
 import { sanitizeSlug } from '../../lib/utils';
 

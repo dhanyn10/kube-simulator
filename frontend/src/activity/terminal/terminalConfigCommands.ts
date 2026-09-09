@@ -29,6 +29,26 @@ const checkIamPolicy = (
 };
 
 /**
+ * Evaluates whether a role rule permits a target resource and verb.
+ */
+const isRuleMatching = (rule: any, targetRes: string, verb: string): boolean => {
+  const resources = rule.resources || [];
+  const verbs = rule.verbs || [];
+  const resMatch = resources.includes('*') || resources.includes(targetRes);
+  const verbMatch = verbs.includes('*') || verbs.includes(verb);
+  return resMatch && verbMatch;
+};
+
+/**
+ * Evaluates whether a canvas role assigned to activeUser permits a target resource and verb.
+ */
+const isRoleMatchingUser = (role: any, activeUser: string, targetRes: string, verb: string): boolean => {
+  if (!role.assignedUsers?.includes(activeUser)) return false;
+  const rules = role.rules || [];
+  return rules.some((rule: any) => isRuleMatching(rule, targetRes, verb));
+};
+
+/**
  * Evaluates whether canvas attached node roles allow a user verb and resource.
  */
 const checkCanvasRoles = (
@@ -41,16 +61,8 @@ const checkCanvasRoles = (
   for (const node of nodes) {
     const roles = node.data?.roles;
     if (!Array.isArray(roles)) continue;
-
-    for (const role of roles) {
-      if (!role.assignedUsers?.includes(activeUser)) continue;
-      for (const rule of role.rules || []) {
-        const resMatch = (rule.resources || []).includes('*') || (rule.resources || []).includes(targetRes);
-        const verbMatch = (rule.verbs || []).includes('*') || (rule.verbs || []).includes(verb);
-        if (resMatch && verbMatch) {
-          return true;
-        }
-      }
+    if (roles.some((role) => isRoleMatchingUser(role, activeUser, targetRes, verb))) {
+      return true;
     }
   }
   return false;

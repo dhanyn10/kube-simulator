@@ -226,4 +226,18 @@ describe('createLogSlice', () => {
       delete (window as any)._originalConsoleError;
     }
   });
+
+  it('handles partial globalThis.go structure without WriteLog', () => {
+    (globalThis as any).go = { main: {} };
+
+    const testStore = createStore<any>()((...a) => ({
+      ...createLogSlice(...a),
+    }));
+
+    expect(() => {
+      testStore.getState().addLog('info', 'Safe log');
+    }).not.toThrow();
+
+    delete (globalThis as any).go;
+  });
 });

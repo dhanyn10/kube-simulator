@@ -24,6 +24,12 @@ describe('nodeUtils', () => {
     handlers.onDelete();
     expect(deleteNodesMock).toHaveBeenCalled();
 
+    // Test onDelete when node is not found
+    deleteNodesMock.mockClear();
+    const missingHandlers = createNodeHandlers("non-existent-node", getStore);
+    missingHandlers.onDelete();
+    expect(deleteNodesMock).not.toHaveBeenCalled();
+
     handlers.onRename("My New Node");
     expect(updateNodeDataMock).toHaveBeenCalledWith("node-1", { label: "my-new-node" });
   });
@@ -103,9 +109,30 @@ describe('nodeUtils', () => {
   });
 
   it('sanitizeResourceLimits keeps values in range', () => {
-    const data = { replicas: 2000, minReplicas: -5 };
+    const data = { replicas: 2000, minReplicas: -5, maxReplicas: 5000 };
     const sanitized = sanitizeResourceLimits(data);
     expect(sanitized.replicas).toBe(1000);
     expect(sanitized.minReplicas).toBe(1);
+    expect(sanitized.maxReplicas).toBe(1000);
+  });
+
+  it('handles applyAutoImageLogic and syncWorkloadMetadata edge cases', () => {
+    // Neither runtime nor webserver provided in data
+    const noRtWsData = applyAutoImageLogic({ label: 'pod' } as any, { label: 'updated' });
+    expect(noRtWsData).toEqual({ label: 'updated' });
+
+    // Target has custom image (isAutoImage: false)
+    const customImgTarget = { label: 'pod', image: 'custom:1.0', isAutoImage: false } as any;
+    const customResult = applyAutoImageLogic(customImgTarget, { runtime: 'nodejs' });
+    expect(customResult).toEqual({ runtime: 'nodejs' });
+
+    // syncWorkloadMetadata with isAutoImage = false
+    const customWorkload = syncWorkloadMetadata('Pod', { runtime: 'nodejs', isAutoImage: false, image: 'custom:2.0' } as any);
+    expect(customWorkload.status).toBe('ready');
+    expect(customWorkload.image).toBe('custom:2.0');
+
+    // syncWorkloadMetadata with runtime = 'none' and webserver = 'none'
+    const pendingWorkload = syncWorkloadMetadata('Deployment', { runtime: 'none', webserver: 'none' } as any);
+    expect(pendingWorkload.status).toBe('pending');
   });
 });

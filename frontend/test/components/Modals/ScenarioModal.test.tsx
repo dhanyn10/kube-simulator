@@ -107,4 +107,65 @@ describe('ScenarioModal', () => {
     render(<ScenarioModal isOpen={true} onClose={() => {}} />);
     expect(screen.getByText('Learning Scenarios')).toBeDefined();
   });
+
+  it('handles scenario data with missing nodes/edges or node parentId, and confirm in light mode', async () => {
+    useFlowStore.setState({
+      nodes: [{ id: 'existing', type: 'Pod', data: {} } as any],
+      colorMode: 'light',
+    });
+
+    const emptyDataScenario = {
+      id: 'empty-data-scenario',
+      name: 'Empty Data Scenario',
+      level: 'Basic' as const,
+      description: 'Scenario without nodes/edges or with parentId',
+      data: {
+        nodes: [
+          { id: 101, parentId: 202, type: 'Pod', data: {} },
+          { id: 202, type: 'Namespace', data: {} },
+        ],
+      } as any,
+    };
+
+    scenarios.push(emptyDataScenario);
+
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+
+    const btn = screen.getByText('Empty Data Scenario').closest('button');
+    fireEvent.click(btn!);
+
+    expect(screen.getByText('Overwrite Current Canvas?')).toBeDefined();
+
+    const confirmBtn = screen.getByText('Confirm & Load');
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(useFlowStore.getState().nodes.length).toBe(2);
+
+    scenarios.pop();
+  });
+
+  it('handles scenario data without nodes or edges arrays', async () => {
+    const noArrayScenario = {
+      id: 'no-array-scenario',
+      name: 'No Array Scenario',
+      level: 'Intermediate' as const,
+      description: 'Scenario with empty data object',
+      data: {} as any,
+    };
+
+    scenarios.push(noArrayScenario);
+
+    render(<ScenarioModal isOpen={true} onClose={() => {}} />);
+
+    const btn = screen.getByText('No Array Scenario').closest('button');
+    await act(async () => {
+      fireEvent.click(btn!);
+    });
+
+    expect(useFlowStore.getState().nodes.length).toBe(0);
+
+    scenarios.pop();
+  });
 });
