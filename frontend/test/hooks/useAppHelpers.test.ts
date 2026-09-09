@@ -88,6 +88,17 @@ describe('useAppHelpers', () => {
         },
       };
 
+      // Mock window.go.main.App.GetSystemResources for browser check
+      (globalThis as any).window = {
+        go: {
+          main: {
+            App: {
+              GetSystemResources: mockGetSystemResources,
+            },
+          },
+        },
+      };
+
       let eventHandler: any;
       vi.mocked(EventsOn).mockImplementation((event: string, cb: any) => {
         if (event === 'openAboutDialog') eventHandler = cb;
@@ -113,6 +124,8 @@ describe('useAppHelpers', () => {
         vi.advanceTimersByTime(1000);
       });
 
+      expect(setSystemResources).toHaveBeenCalledWith({ cpu: 10, ram: 20 });
+
       if (eventHandler) {
         eventHandler();
         expect(setIsAboutDialogOpen).toHaveBeenCalledWith(true);
@@ -126,6 +139,16 @@ describe('useAppHelpers', () => {
       const setIsAboutDialogOpen = vi.fn();
 
       vi.mocked(GetSystemResources).mockRejectedValue(new Error('not registered'));
+
+      (globalThis as any).window = {
+        go: {
+          main: {
+            App: {
+              GetSystemResources,
+            },
+          },
+        },
+      };
 
       renderHook(() =>
         useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
@@ -145,6 +168,16 @@ describe('useAppHelpers', () => {
       const setIsAboutDialogOpen = vi.fn();
 
       vi.mocked(GetSystemResources).mockRejectedValue(new Error('connection failed'));
+
+      (globalThis as any).window = {
+        go: {
+          main: {
+            App: {
+              GetSystemResources,
+            },
+          },
+        },
+      };
 
       renderHook(() =>
         useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)

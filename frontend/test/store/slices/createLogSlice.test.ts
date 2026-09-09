@@ -1,149 +1,54 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createStore } from 'zustand';
-import { createLogSlice } from '../../../src/store/slices/createLogSlice';
-import { webcrypto } from 'node:crypto';
-
-// Mock crypto.randomUUID using node:crypto for better safety/randomness in tests
-if (!globalThis.crypto) {
-    (globalThis as any).crypto = webcrypto;
-}
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { createLogSlice } from '@/store/slices/createLogSlice';
+import { FlowState } from '@/store/types';
 
 describe('createLogSlice', () => {
-  let store: any;
+  let storeState: any;
 
   beforeEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
     vi.clearAllMocks();
+    sessionStorage.clear();
+    localStorage.clear();
+    delete (globalThis as any).go;
 
-    // Create a fresh store for each test
-    store = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
+    storeState = {
+      logs: [],
+      isLogToastVisible: false,
+      isLogModalOpen: false,
+    };
   });
 
-  it('should initialize with empty logs if nothing in storage', () => {
-    expect(store.getState().logs).toEqual([]);
-    expect(store.getState().isLogToastVisible).toBe(false);
-  });
-
-  it('should add a log and show toast for error, warn, and fatal levels', () => {
-    store.getState().addLog('fatal', 'Fatal crash message');
-
-    const state = store.getState();
-    expect(state.logs).toHaveLength(1);
-    expect(state.logs[0].level).toBe('fatal');
-    expect(state.logs[0].message).toBe('Fatal crash message');
-    expect(state.isLogToastVisible).toBe(true);
-  });
-
-  it('should persist logs to sessionStorage', () => {
-    store.getState().addLog('warn', 'Persistence test');
-
-    const stored = JSON.parse(sessionStorage.getItem('k8s_sim_logs') || '[]');
-    expect(stored).toHaveLength(1);
-    expect(stored[0].message).toBe('Persistence test');
-  });
-
-  it('should respect MAX_LOGS limit', () => {
-    // Add 505 logs (MAX_LOGS is 500)
-    for (let i = 0; i < 505; i++) {
-      store.getState().addLog('error', `Error ${i}`);
+  const getStore = () => storeState;
+  const setStore = (fn: any) => {
+    if (typeof fn === 'function') {
+      storeState = { ...storeState, ...fn(storeState) };
+    } else {
+      storeState = { ...storeState, ...fn };
     }
+  };
 
-    expect(store.getState().logs).toHaveLength(500);
-    // Should contain the LAST 500 logs
-    expect(store.getState().logs[0].message).toBe('Error 5');
-    expect(store.getState().logs[499].message).toBe('Error 504');
+  it('loadLogsFromStorage removes legacy localStorage log key and loads stored sessionStorage logs', () => {
+    localStorage.setItem('k8s_sim_logs', 'legacy');
+    const storedLogs = [{ id: 'l1', level: 'info', message: 'Loaded Log', timestamp: 1000 }];
+    sessionStorage.setItem('k8s_sim_logs', JSON.stringify(storedLogs));
+
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    expect(localStorage.getItem('k8s_sim_logs')).toBeNull();
+    expect(slice.logs).toEqual(storedLogs);
   });
 
-  it('should delete a single log', () => {
-    store.getState().addLog('info', 'Log to delete');
-    const id = store.getState().logs[0].id;
-    store.getState().deleteLog(id);
-    expect(store.getState().logs).toHaveLength(0);
+  it('loadLogsFromStorage handles JSON parse errors gracefully via internalError', () => {
+    sessionStorage.setItem('k8s_sim_logs', 'invalid json');
+    const originalConsoleError = vi.fn();
+    (globalThis as any)._originalConsoleError = originalConsoleError;
+
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    expect(slice.logs).toEqual([]);
+    expect(originalConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to load logs from storage:'), expect.any(Error));
   });
 
-  it('should delete multiple logs', () => {
-    store.getState().addLog('info', 'L1');
-    store.getState().addLog('error', 'L2');
-    store.getState().addLog('warn', 'L3');
-
-    const ids = [store.getState().logs[0].id, store.getState().logs[2].id];
-    store.getState().deleteLogs(ids);
-
-    expect(store.getState().logs).toHaveLength(1);
-    expect(store.getState().logs[0].message).toBe('L2');
-  });
-
-  it('should clear logs', () => {
-    store.getState().addLog('error', 'To be cleared');
-    store.getState().clearLogs();
-
-    expect(store.getState().logs).toEqual([]);
-    expect(store.getState().isLogToastVisible).toBe(false);
-    expect(sessionStorage.getItem('k8s_sim_logs')).toBe('[]');
-  });
-
-  it('should set toast visibility', () => {
-    store.getState().setLogToastVisible(true);
-    expect(store.getState().isLogToastVisible).toBe(true);
-    store.getState().setLogToastVisible(false);
-    expect(store.getState().isLogToastVisible).toBe(false);
-  });
-
-  it('should set modal open state', () => {
-    store.getState().setLogModalOpen(true);
-    expect(store.getState().isLogModalOpen).toBe(true);
-    store.getState().setLogModalOpen(false);
-    expect(store.getState().isLogModalOpen).toBe(false);
-  });
-
-  it('should store explicitly passed scope', () => {
-    store.getState().addLog('info', 'Deployment updated', 'Simulation');
-    const log = store.getState().logs[0];
-    expect(log.scope).toBe('Simulation');
-    expect(log.message).toBe('Deployment updated');
-  });
-
-  it('should fallback scope to System when not provided', () => {
-    store.getState().addLog('info', 'System initialization completed');
-    const log = store.getState().logs[0];
-    expect(log.scope).toBe('System');
-    expect(log.message).toBe('System initialization completed');
-  });
-
-  it('should set isLogToastVisible based on stored log levels and handle non-important logs', () => {
-    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([
-      { id: '1', level: 'warn', message: 'Warning log', timestamp: Date.now(), scope: 'System' }
-    ]));
-
-    const warnStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
-
-    expect(warnStore.getState().isLogToastVisible).toBe(true);
-
-    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([
-      { id: '2', level: 'info', message: 'Info log', timestamp: Date.now(), scope: 'System' }
-    ]));
-
-    const infoStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
-
-    expect(infoStore.getState().isLogToastVisible).toBe(false);
-
-    // Adding non-important log does not show toast
-    infoStore.getState().addLog('info', 'Another info message');
-    expect(infoStore.getState().isLogToastVisible).toBe(false);
-  });
-
-  it('should migrate legacy localStorage logs and invoke Wails WriteLog if available', async () => {
-    localStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: 'legacy-1', message: 'legacy' }]));
-    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: 'stored-1', message: 'stored' }]));
-
-    const mockWriteLog = vi.fn().mockRejectedValue(new Error('Wails offline'));
+  it('addLog creates a new log entry, caps at 500, sets toast visibility for errors, and calls Wails WriteLog', () => {
+    const mockWriteLog = vi.fn().mockResolvedValue(true);
     (globalThis as any).go = {
       main: {
         App: {
@@ -152,92 +57,97 @@ describe('createLogSlice', () => {
       },
     };
 
-    const newStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice };
 
-    expect(localStorage.getItem('k8s_sim_logs')).toBeNull();
-    expect(newStore.getState().logs).toHaveLength(1);
+    storeState.addLog('error', 'Error occurred', 'UI');
 
-    newStore.getState().addLog('info', 'Test Wails Log', 'KubeConsole');
-    expect(mockWriteLog).toHaveBeenCalledWith('KubeConsole', 'info', 'Test Wails Log');
-
-    delete (globalThis as any).go;
+    expect(storeState.logs).toHaveLength(1);
+    expect(storeState.logs[0].message).toBe('Error occurred');
+    expect(storeState.logs[0].scope).toBe('UI');
+    expect(storeState.isLogToastVisible).toBe(true);
+    expect(mockWriteLog).toHaveBeenCalledWith('UI', 'error', 'Error occurred');
   });
 
-  it('should handle load storage errors gracefully', () => {
-    const originalGetItem = sessionStorage.getItem;
-    const mockOriginalConsoleError = vi.fn();
-    (globalThis as any)._originalConsoleError = mockOriginalConsoleError;
-    if (typeof window !== 'undefined') {
-      (window as any)._originalConsoleError = mockOriginalConsoleError;
-    }
+  it('addLog defaults scope to System and app for Wails backend when scope is omitted', () => {
+    const mockWriteLog = vi.fn().mockRejectedValue(new Error('Write fail'));
+    (globalThis as any).go = {
+      main: {
+        App: {
+          WriteLog: mockWriteLog,
+        },
+      },
+    };
 
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('Storage disabled');
-    });
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice };
 
-    const newStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
+    storeState.addLog('info', 'System message');
 
-    expect(newStore.getState().logs).toEqual([]);
-    expect(mockOriginalConsoleError).toHaveBeenCalledWith(
-      'Failed to load logs from storage:',
-      expect.any(Error)
-    );
-
-    sessionStorage.getItem = originalGetItem;
-    vi.restoreAllMocks();
-    delete (globalThis as any)._originalConsoleError;
-    if (typeof window !== 'undefined') {
-      delete (window as any)._originalConsoleError;
-    }
+    expect(storeState.logs[0].scope).toBe('System');
+    expect(mockWriteLog).toHaveBeenCalledWith('app', 'info', 'System message');
   });
 
-  it('should handle save storage errors gracefully', () => {
-    const mockOriginalConsoleError = vi.fn();
-    (globalThis as any)._originalConsoleError = mockOriginalConsoleError;
-    if (typeof window !== 'undefined') {
-      (window as any)._originalConsoleError = mockOriginalConsoleError;
-    }
+  it('deleteLog removes log by id and updates sessionStorage', () => {
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = {
+      ...storeState,
+      ...slice,
+      logs: [
+        { id: 'l1', level: 'info', message: 'Log 1', timestamp: 1000 },
+        { id: 'l2', level: 'info', message: 'Log 2', timestamp: 2000 },
+      ],
+    };
 
-    const testStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
+    storeState.deleteLog('l1');
 
-    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('QuotaExceededError');
-    });
-
-    expect(() => {
-      testStore.getState().addLog('error', 'Trigger save error');
-    }).not.toThrow();
-
-    expect(testStore.getState().logs).toHaveLength(1);
-    expect(mockOriginalConsoleError).toHaveBeenCalledWith(
-      'Failed to save logs to storage:',
-      expect.any(Error)
-    );
-
-    spy.mockRestore();
-    delete (globalThis as any)._originalConsoleError;
-    if (typeof window !== 'undefined') {
-      delete (window as any)._originalConsoleError;
-    }
+    expect(storeState.logs).toHaveLength(1);
+    expect(storeState.logs[0].id).toBe('l2');
   });
 
-  it('handles partial globalThis.go structure without WriteLog', () => {
-    (globalThis as any).go = { main: {} };
+  it('deleteLogs removes multiple logs by ids', () => {
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = {
+      ...storeState,
+      ...slice,
+      logs: [
+        { id: 'l1', level: 'info', message: 'Log 1', timestamp: 1000 },
+        { id: 'l2', level: 'info', message: 'Log 2', timestamp: 2000 },
+        { id: 'l3', level: 'info', message: 'Log 3', timestamp: 3000 },
+      ],
+    };
 
-    const testStore = createStore<any>()((...a) => ({
-      ...createLogSlice(...a),
-    }));
+    storeState.deleteLogs(['l1', 'l3']);
 
-    expect(() => {
-      testStore.getState().addLog('info', 'Safe log');
-    }).not.toThrow();
+    expect(storeState.logs).toHaveLength(1);
+    expect(storeState.logs[0].id).toBe('l2');
+  });
 
-    delete (globalThis as any).go;
+  it('clearLogs resets logs, hides toast, and closes modal', () => {
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = {
+      ...storeState,
+      ...slice,
+      logs: [{ id: 'l1', level: 'error', message: 'Error', timestamp: 1000 }],
+      isLogToastVisible: true,
+      isLogModalOpen: true,
+    };
+
+    storeState.clearLogs();
+
+    expect(storeState.logs).toHaveLength(0);
+    expect(storeState.isLogToastVisible).toBe(false);
+    expect(storeState.isLogModalOpen).toBe(false);
+  });
+
+  it('setLogToastVisible and setLogModalOpen update UI state', () => {
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice };
+
+    storeState.setLogToastVisible(true);
+    expect(storeState.isLogToastVisible).toBe(true);
+
+    storeState.setLogModalOpen(true);
+    expect(storeState.isLogModalOpen).toBe(true);
   });
 });

@@ -12,6 +12,12 @@ describe('createFlowSlice', () => {
     });
   });
 
+  it('setNodes updates nodes state directly', () => {
+    const node1: Node = { id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.getState().setNodes([node1]);
+    expect(useFlowStore.getState().nodes).toEqual([node1]);
+  });
+
   it('onNodesChange updates positions of grouped nodes', () => {
     const node1 = { id: 'n1', position: { x: 0, y: 0 }, data: { groupId: 'g1' } };
     const node2 = { id: 'n2', position: { x: 50, y: 50 }, data: { groupId: 'g1' } };

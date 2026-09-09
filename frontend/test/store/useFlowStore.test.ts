@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
 import { useFlowStore, applyHistoryState } from '@/store/useFlowStore';
 import { logger } from '@/lib/logger';
 
@@ -75,9 +76,25 @@ describe('useFlowStore', () => {
     const callArgs = (globalThis as any).go.main.App.PushHistory.mock.calls[0][0];
     const data = JSON.parse(callArgs);
     expect(data.actionName).toBe('Test Action');
+
+    // Resolve PushHistory promise
+    await new Promise(process.nextTick);
+    expect(fetchHistoryLogsMock).toHaveBeenCalled();
   });
 
-  it('handles subscription when Wails App backend is absent or rejects', async () => {
+  it('handles subscription when PushHistory rejects', async () => {
+    (globalThis as any).go.main.App.PushHistory = vi.fn().mockRejectedValue(new Error('History write failed'));
+
+    useFlowStore.setState({
+      lastActionId: 'action-reject',
+      lastActionName: 'Rejecting Action',
+    });
+
+    await new Promise(process.nextTick);
+    expect(useFlowStore.getState().lastActionName).toBe('Rejecting Action');
+  });
+
+  it('handles subscription when Wails App backend is absent', async () => {
     delete (globalThis as any).go;
 
     useFlowStore.setState({
@@ -89,7 +106,14 @@ describe('useFlowStore', () => {
   });
 
   it('autosaves project when enabled and updates lastSavedSnapshot on success', async () => {
-    (globalThis as any).go.main.App.UpdateProject = vi.fn().mockResolvedValue(true);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          PushHistory: vi.fn().mockResolvedValue(true),
+          UpdateProject: vi.fn().mockResolvedValue(true),
+        },
+      },
+    };
 
     useFlowStore.setState({
       isAutosaveEnabled: true,
@@ -103,7 +127,14 @@ describe('useFlowStore', () => {
   });
 
   it('handles autosave when UpdateProject returns false or when currentProject id is -1', async () => {
-    (globalThis as any).go.main.App.UpdateProject = vi.fn().mockResolvedValue(false);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          PushHistory: vi.fn().mockResolvedValue(true),
+          UpdateProject: vi.fn().mockResolvedValue(false),
+        },
+      },
+    };
 
     useFlowStore.setState({
       isAutosaveEnabled: true,
@@ -124,5 +155,10 @@ describe('useFlowStore', () => {
     });
 
     expect((globalThis as any).go.main.App.UpdateProject).not.toHaveBeenCalled();
+  });
+
+  it('can select state using the hook selector wrapper via renderHook', () => {
+    const { result } = renderHook(() => useFlowStore((state) => state.lastActionId));
+    expect(result.current).toBeDefined();
   });
 });

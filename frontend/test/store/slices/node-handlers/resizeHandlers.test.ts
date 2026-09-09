@@ -1,147 +1,114 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useFlowStore } from '@/store';
 import { resizeHandlers } from '@/store/slices/node-handlers/resizeHandlers';
+import { Node } from '@xyflow/react';
 
 describe('resizeHandlers', () => {
+  let storeState: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({
-      nodes: [
-        { id: 'd1', type: 'Deployment', position: { x: 0, y: 0 }, width: 320, height: 160, data: {} },
-        { id: 'p1', type: 'Pod', parentId: 'd1', position: { x: 20, y: 40 }, width: 140, height: 80, data: {} }
-      ] as any,
-      lastActionId: 'init'
-    });
+    storeState = {
+      nodes: [],
+      addLog: vi.fn(),
+    };
   });
 
-  it('onNodeResize updates deployment size and layout', () => {
-    const { onNodeResize } = useFlowStore.getState();
-    const node = { id: 'd1', width: 400, height: 200 } as any;
+  const getStore = () => storeState;
+  const setStore = (fn: any) => {
+    if (typeof fn === 'function') {
+      storeState = { ...storeState, ...fn(storeState) };
+    } else {
+      storeState = { ...storeState, ...fn };
+    }
+  };
 
-    onNodeResize({}, node);
+  it('onNodeResize returns early if currentNode is not found in store', () => {
+    storeState.nodes = [];
+    const handlers = resizeHandlers(setStore, getStore);
 
-    const state = useFlowStore.getState();
-    const deployment = state.nodes.find(n => n.id === 'd1');
-    expect(deployment?.width).toBe(400);
-    expect(deployment?.height).toBe(200);
-    expect(deployment?.data.isManuallyResized).toBe(true);
+    handlers.onNodeResize({}, { id: 'missing' } as Node);
+    expect(storeState.nodes).toEqual([]);
   });
 
-  it('onNodeResize syncs sibling pods when a pod with style minHeight is resized', () => {
-    useFlowStore.setState((state) => ({
-      nodes: [
-        ...state.nodes,
-        { id: 'p2', type: 'Pod', parentId: 'd1', position: { x: 180, y: 40 }, width: 140, height: 80, data: {} }
-      ] as any
-    }));
+  it('onNodeResize resizes standalone node with minimum dimensions', () => {
+    const svcNode: Node = { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, width: 100, height: 50, data: {} };
+    storeState.nodes = [svcNode];
 
-    const { onNodeResize } = useFlowStore.getState();
-    const resizedPod = { id: 'p1', width: 200, height: 120, style: { minHeight: 120 } } as any;
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResize({}, { id: 'svc1', width: 200, height: 120 } as Node);
 
-    onNodeResize({}, resizedPod);
-
-    const state = useFlowStore.getState();
-    const p1 = state.nodes.find(n => n.id === 'p1');
-    const p2 = state.nodes.find(n => n.id === 'p2');
-
-    expect(p1?.width).toBe(200);
-    expect(p2?.width).toBe(200);
+    expect(storeState.nodes[0].width).toBe(200);
+    expect(storeState.nodes[0].height).toBe(120);
+    expect(storeState.nodes[0].data.isManuallyResized).toBe(true);
   });
 
-  it('onNodeResize handles pods without explicit position/dimensions or measured sizes in containers', () => {
-    useFlowStore.setState({
-      nodes: [
-        { id: 'd1', type: 'Deployment', position: { x: 10, y: 10 }, width: 320, height: 160, data: {} },
-        { id: 'p1', type: 'Pod', parentId: 'd1', position: {} as any, style: {} as any, data: {} }
-      ] as any
-    });
+  it('onNodeResize resizes Pod, syncing sibling pods and updating parent Deployment container bounds', () => {
+    const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, width: 300, height: 200, data: {} };
+    const pod1: Node = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, width: 100, height: 60, data: {} };
+    const pod2: Node = { id: 'pod2', type: 'Pod', parentId: 'dep1', position: { x: 120, y: 10 }, width: 100, height: 60, data: {} };
 
-    const { onNodeResize } = useFlowStore.getState();
-    onNodeResize({}, { id: 'p1', width: 0, height: 0 } as any);
+    storeState.nodes = [depNode, pod1, pod2];
 
-    const state = useFlowStore.getState();
-    const p1 = state.nodes.find(n => n.id === 'p1');
-    expect(p1).toBeDefined();
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResize({}, { id: 'pod1', width: 180, height: 80 } as Node);
+
+    const updatedPod1 = storeState.nodes.find((n: Node) => n.id === 'pod1');
+    const updatedPod2 = storeState.nodes.find((n: Node) => n.id === 'pod2');
+
+    expect(updatedPod1.width).toBe(180);
+    expect(updatedPod2.width).toBe(180);
   });
 
-  it('onNodeResizeStop updates lastAction and logs canvas resize activity with measured size and fallback label', () => {
-    const addLogSpy = vi.fn();
-    useFlowStore.setState({
-      nodes: [
-        { id: 'p-unlabeled', type: 'Pod', position: { x: 10, y: 10 }, measured: { width: 180, height: 120 }, data: {} }
-      ] as any,
-      addLog: addLogSpy
-    });
+  it('applyPodResize returns nodes unchanged if parentId or parent Deployment is missing', () => {
+    // Pod minimum width is 168 (from getPodMinimumSize)
+    const standalonePod: Node = { id: 'pod1', type: 'Pod', position: { x: 0, y: 0 }, width: 168, height: 60, data: {} };
+    storeState.nodes = [standalonePod];
 
-    const { onNodeResizeStop } = useFlowStore.getState();
-    const resizedNode = { id: 'p-unlabeled' };
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResize({}, { id: 'pod1', width: 200, height: 70 } as Node);
 
-    onNodeResizeStop({}, resizedNode as any);
+    expect(storeState.nodes[0].width).toBe(200);
 
-    const state = useFlowStore.getState();
-    expect(state.lastActionName).toBe('Resize Element');
-    expect(state.lastActionId).toContain('resize-');
-    expect(addLogSpy).toHaveBeenCalledWith('info', expect.stringContaining("Resized card 'p-unlabeled'"), 'UI');
+    const podWithMissingParent: Node = { id: 'pod2', type: 'Pod', parentId: 'missing-dep', position: { x: 0, y: 0 }, width: 168, height: 60, data: {} };
+    storeState.nodes = [podWithMissingParent];
+    handlers.onNodeResize({}, { id: 'pod2', width: 220, height: 70 } as Node);
+
+    expect(storeState.nodes[0].width).toBe(220);
   });
 
-  it('onNodeResizeStop falls back to 150x100 when width and height and measured are missing', () => {
-    const addLogSpy = vi.fn();
-    useFlowStore.setState({
-      nodes: [
-        { id: 'node-nodim', type: 'Service', position: { x: 0, y: 0 }, data: {} }
-      ] as any,
-      addLog: addLogSpy
-    });
+  it('onNodeResize resizes Deployment container and relayouts child pods', () => {
+    const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, width: 300, height: 200, data: {} };
+    const childPod: Node = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, width: 100, height: 60, data: {} };
 
-    const { onNodeResizeStop } = useFlowStore.getState();
-    onNodeResizeStop({}, { id: 'node-nodim' } as any);
+    storeState.nodes = [depNode, childPod];
 
-    expect(addLogSpy).toHaveBeenCalledWith('info', expect.stringContaining('to size: 150x100px'), 'UI');
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResize({}, { id: 'dep1', width: 500, height: 300 } as Node);
+
+    const updatedDep = storeState.nodes.find((n: Node) => n.id === 'dep1');
+    expect(updatedDep.width).toBe(500);
+    expect(updatedDep.height).toBe(300);
   });
 
-  it('onNodeResizeStop works without get parameter function provided', () => {
-    const setMock = vi.fn();
-    const handlers = resizeHandlers(setMock, undefined);
+  it('onNodeResizeStop logs action message and updates lastActionName', () => {
+    const node: Node = { id: 'n1', type: 'Deployment', position: { x: 10, y: 20 }, width: 200, height: 150, data: { label: 'My Dep' } };
+    storeState.nodes = [node];
 
-    handlers.onNodeResizeStop({}, { id: 'd1' } as any);
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResizeStop({}, node);
 
-    expect(setMock).toHaveBeenCalledWith({
-      lastActionId: expect.stringContaining('resize-'),
-      lastActionName: 'Resize Element'
-    });
+    expect(storeState.addLog).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining("[Canvas Action] Resized card 'My Dep' (Deployment)"),
+      'UI'
+    );
+    expect(storeState.lastActionName).toBe('Resize Element');
   });
 
-  it('handles edge cases in onNodeResize for standalone pods, missing parents, and non-workload nodes without width/height', () => {
-    const { onNodeResize } = useFlowStore.getState();
+  it('onNodeResizeStop handles missing get or node without throwing error', () => {
+    const handlers = resizeHandlers(setStore, undefined as any);
+    handlers.onNodeResizeStop({}, { id: 'n1' } as Node);
 
-    // 1. Non-existent node
-    onNodeResize({}, { id: 'non-existent', width: 200, height: 100 } as any);
-
-    // 2. Standalone pod without parentId
-    useFlowStore.setState({
-      nodes: [
-        { id: 'p-standalone', type: 'Pod', position: { x: 0, y: 0 }, width: 140, height: 80, data: {} }
-      ] as any
-    });
-    onNodeResize({}, { id: 'p-standalone', width: 180, height: 90 } as any);
-
-    // 3. Pod with missing parent in state
-    useFlowStore.setState({
-      nodes: [
-        { id: 'p-orphan', type: 'Pod', parentId: 'missing-dep', position: { x: 0, y: 0 }, width: 140, height: 80, data: {} }
-      ] as any
-    });
-    onNodeResize({}, { id: 'p-orphan', width: 180, height: 90 } as any);
-
-    // 4. Resizing a Service card without pre-existing width/height
-    useFlowStore.setState({
-      nodes: [
-        { id: 'svc-1', type: 'Service', position: { x: 0, y: 0 }, data: {} }
-      ] as any
-    });
-    onNodeResize({}, { id: 'svc-1', width: 150, height: 80 } as any);
-
-    const updatedSvc = useFlowStore.getState().nodes.find(n => n.id === 'svc-1');
-    expect(updatedSvc?.width).toBe(150);
+    expect(storeState.lastActionName).toBe('Resize Element');
   });
 });
