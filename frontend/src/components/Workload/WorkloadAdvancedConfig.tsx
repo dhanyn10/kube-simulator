@@ -1,8 +1,10 @@
-import { useFlowStore } from '../../store';
-import { validateResourceLimits, cn } from '../../lib/utils';
-import { Layers, Eye, EyeOff, FileCode, FileX } from 'lucide-react';
+import { Layers, Eye, EyeOff } from 'lucide-react';
+import { cn } from '../../lib/utils';
 import { AdvancedSection } from '../UI/ConfigUI';
 import { ResourceSettingsList } from './ResourceSettings';
+import { useWorkloadAdvancedConfig, getYamlButtonProps } from '../../activity/workload';
+
+export { getYamlButtonProps };
 
 interface WorkloadAdvancedConfigProps {
   selectedNode: any;
@@ -11,39 +13,22 @@ interface WorkloadAdvancedConfigProps {
   toggleYaml: (field: string) => void;
 }
 
-const getYamlButtonProps = (hasResources: boolean, isYamlResources: boolean) => {
-  if (!hasResources) {
-    return {
-      className: "text-slate-600/40 cursor-not-allowed pointer-events-none",
-      icon: <FileX size={10} />,
-    };
-  }
-  return {
-    className: isYamlResources ? "text-emerald-500" : "text-slate-500 hover:text-emerald-400",
-    icon: isYamlResources ? <FileCode size={10} /> : <FileX size={10} />,
-  };
-};
-
 export const WorkloadAdvancedConfig = ({
   selectedNode,
   performUpdate,
   toggleVisibility,
   toggleYaml,
 }: WorkloadAdvancedConfigProps) => {
-  const colorMode = useFlowStore((state) => state.colorMode);
-  const nodes = useFlowStore((state) => state.nodes);
-  const edges = useFlowStore((state) => state.edges);
-
-  const data = selectedNode.data;
-  const isTargetedByHPA = edges.some(
-    (e) => e.target === selectedNode.id && nodes.find((n) => n.id === e.source)?.type === 'HPA'
-  );
-  const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
-  const { isCpuError, isMemError } = validateResourceLimits(data);
-  const hasResources = Boolean(data.cpuRequest || data.memoryRequest || data.cpuLimit || data.memoryLimit);
-  const isYamlResources = (data.yamlSettings?.resources ?? true) && hasResources;
-
-  const yamlProps = getYamlButtonProps(hasResources, isYamlResources);
+  const {
+    colorMode,
+    data,
+    isTargetedByHPA,
+    hasRequests,
+    isCpuError,
+    isMemError,
+    hasResources,
+    yamlProps,
+  } = useWorkloadAdvancedConfig(selectedNode);
 
   return (
     <AdvancedSection colorMode={colorMode}>

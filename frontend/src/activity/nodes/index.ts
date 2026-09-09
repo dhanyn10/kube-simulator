@@ -6,3 +6,5 @@ export { useNodeStyles } from '@/hooks/useNodeStyles';
 export { useNodeRename } from '@/hooks/useNodeEditor';
 export { useNodeStatus, useNodeContainerStyles } from '@/hooks/useNodeStatusStyles';
 export * from './useBaseNode';
+export * from './nodeBadgeHelpers';
+export * from './useQuickConnect';
