@@ -96,11 +96,11 @@ describe('ArchitectureRow', () => {
 
     expect(screen.getByText('OVERWRITE?')).toBeInTheDocument();
 
-    const yesBtn = screen.getByRole('button', { name: /yes/i });
+    const yesBtn = screen.getByRole('button', { name: /^YES$/i });
     fireEvent.click(yesBtn);
     expect(onOverwrite).toHaveBeenCalledWith(1);
 
-    const noBtn = screen.getByRole('button', { name: /no/i });
+    const noBtn = screen.getByRole('button', { name: /^NO$/i });
     fireEvent.click(noBtn);
     expect(setConfirmOverwriteId).toHaveBeenCalledWith(null);
   });

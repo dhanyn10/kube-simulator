@@ -77,6 +77,44 @@ describe('clipboardHandlers', () => {
       expect(updateNodeData).toHaveBeenCalledWith('dep1', { replicas: 3 });
     });
 
+    it('increments pod replicas when parent is a ReplicaSet', () => {
+      const parentRS: Node = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: { replicas: 1 } };
+      const selectedPod: Node = { id: 'pod1', type: 'Pod', parentId: 'rs1', selected: true, position: { x: 10, y: 10 }, data: { label: 'worker' } };
+
+      const updateNodeData = vi.fn();
+      useFlowStore.setState({
+        nodes: [parentRS, selectedPod],
+        updateNodeData,
+        clipboard: {
+          nodes: [{ id: 'pod1', type: 'Pod', position: { x: 10, y: 10 }, data: { label: 'worker' } } as Node],
+          edges: [],
+        },
+      });
+
+      useFlowStore.getState().pasteNodes();
+
+      expect(updateNodeData).toHaveBeenCalledWith('rs1', { replicas: 2 });
+    });
+
+    it('increments pod replicas for pod with parent that is not a controller (e.g. Namespace)', () => {
+      const parentNs: Node = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+      const selectedPod: Node = { id: 'pod1', type: 'Pod', parentId: 'ns1', selected: true, position: { x: 10, y: 10 }, data: { label: 'worker' } };
+
+      const updateNodeData = vi.fn();
+      useFlowStore.setState({
+        nodes: [parentNs, selectedPod],
+        updateNodeData,
+        clipboard: {
+          nodes: [{ id: 'pod1', type: 'Pod', position: { x: 10, y: 10 }, data: { label: 'worker' } } as Node],
+          edges: [],
+        },
+      });
+
+      useFlowStore.getState().pasteNodes();
+
+      expect(updateNodeData).toHaveBeenCalledWith('pod1', { replicas: 2 });
+    });
+
     it('increments pod replicas for standalone selected pod with fallback default 1 replica when targetNode has no replicas prop', () => {
       const selectedPod: Node = { id: 'pod1', type: 'Pod', selected: true, position: { x: 10, y: 10 }, data: { label: 'worker' } };
 

@@ -4,8 +4,8 @@ import {
   deriveVerbAndResource,
   handleKubectlConfigCommand,
   evaluateRbacForCommand,
-} from '../../../src/activity/terminal/terminalConfigCommands';
-import { CommandContext } from '../../../src/activity/terminal/terminalCommands';
+} from '@/activity/terminal/terminalConfigCommands';
+import { CommandContext } from '@/activity/terminal/terminalCommands';
 
 describe('terminalConfigCommands', () => {
   let mockCtx: CommandContext;
@@ -28,6 +28,30 @@ describe('terminalConfigCommands', () => {
           username: 'siti',
           accessType: 'Managed Access',
           policies: [{ name: 'ReadOnlyAccess', type: 'Default', description: 'Read only' }],
+        },
+        {
+          id: 'u-3',
+          username: 'admin_user',
+          accessType: 'Managed Access',
+          policies: [{ name: 'AdministratorAccess', type: 'Default', description: 'Admin' }],
+        },
+        {
+          id: 'u-4',
+          username: 'power_user',
+          accessType: 'Managed Access',
+          policies: [{ name: 'PowerUserAccess', type: 'Default', description: 'Power user' }],
+        },
+        {
+          id: 'u-5',
+          username: 'net_user',
+          accessType: 'Managed Access',
+          policies: [{ name: 'NetworkingAdminPolicy', type: 'Default', description: 'Networking' }],
+        },
+        {
+          id: 'u-6',
+          username: 'storage_user',
+          accessType: 'Managed Access',
+          policies: [{ name: 'StorageAdminPolicy', type: 'Default', description: 'Storage' }],
         },
       ],
     };
@@ -67,6 +91,8 @@ describe('terminalConfigCommands', () => {
       { cmd: 'kubectl get pods', expected: { verb: 'get', resource: 'pods' } },
       { cmd: 'kubectl delete pod web-pod', expected: { verb: 'delete', resource: 'pods' } },
       { cmd: 'kubectl scale deployment/api --replicas=3', expected: { verb: 'update', resource: 'deployments' } },
+      { cmd: 'kubectl describe service my-svc', expected: { verb: 'get', resource: 'services' } },
+      { cmd: 'kubectl logs my-pod', expected: { verb: 'get', resource: 'pods' } },
     ])('derives verb and resource for "$cmd"', ({ cmd, expected }) => {
       expect(deriveVerbAndResource(cmd)).toEqual(expected);
     });
@@ -80,12 +106,17 @@ describe('terminalConfigCommands', () => {
   describe('checkRbacPermission', () => {
     it.each([
       { identity: 'system:admin', verb: 'delete', resource: 'pods', expectedAllowed: true, checkLog: false },
+      { identity: 'admin_user', verb: 'delete', resource: 'secrets', expectedAllowed: true, checkLog: false },
+      { identity: 'power_user', verb: 'update', resource: 'deployments', expectedAllowed: true, checkLog: false },
+      { identity: 'net_user', verb: 'update', resource: 'services', expectedAllowed: true, checkLog: false },
+      { identity: 'storage_user', verb: 'delete', resource: 'pvcs', expectedAllowed: true, checkLog: false },
       { identity: 'siti', verb: 'get', resource: 'pods', expectedAllowed: true, checkLog: false },
       { identity: 'siti', verb: 'delete', resource: 'pods', expectedAllowed: false, checkLog: true },
       { identity: 'budi', verb: 'delete', resource: 'pods', expectedAllowed: true, checkLog: false },
+      { identity: 'unknown_user', verb: 'get', resource: 'pods', expectedAllowed: false, checkLog: true },
     ])('evaluates RBAC permission for "$identity" attempting "$verb $resource"', ({ identity, verb, resource, expectedAllowed, checkLog }) => {
       storeState.activeIdentity = identity;
-      const allowed = checkRbacPermission(mockCtx, verb, resource);
+      const allowed = checkRbacPermission(mockCtx, verb as any, resource);
       expect(allowed).toBe(expectedAllowed);
       if (checkLog) {
         expect(activityLogs.some((l) => l.includes('Error from server (Forbidden)'))).toBe(true);
@@ -121,6 +152,20 @@ describe('terminalConfigCommands', () => {
         },
       },
       {
+        cmd: 'kubectl config use-context',
+        setup: () => {},
+        verify: () => {
+          expect(activityLogs.some((l) => l.includes('error: context name is required'))).toBe(true);
+        },
+      },
+      {
+        cmd: 'kubectl config use-context unknown_user',
+        setup: () => {},
+        verify: () => {
+          expect(activityLogs.some((l) => l.includes('error: no context exists with the name'))).toBe(true);
+        },
+      },
+      {
         cmd: 'kubectl config view',
         setup: () => {},
         verify: () => {
@@ -133,6 +178,11 @@ describe('terminalConfigCommands', () => {
       expect(handled).toBe(true);
       verify();
     });
+
+    it('returns false for unsupported config subcommands or non-config commands', () => {
+      expect(handleKubectlConfigCommand('kubectl config set-cluster', mockCtx)).toBe(false);
+      expect(handleKubectlConfigCommand('kubectl get pods', mockCtx)).toBe(false);
+    });
   });
 
   describe('evaluateRbacForCommand', () => {
@@ -141,6 +191,10 @@ describe('terminalConfigCommands', () => {
       const allowed = evaluateRbacForCommand('kubectl get pods', mockCtx);
       expect(allowed).toBe(true);
       expect(activityLogs.some((l) => l.includes('[API Server Auth] Certificate / Token Verified for User: "system:admin"'))).toBe(true);
+    });
+
+    it('returns true for non-operational commands', () => {
+      expect(evaluateRbacForCommand('kubectl config view', mockCtx)).toBe(true);
     });
   });
 });

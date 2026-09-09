@@ -66,6 +66,8 @@ describe('terminalCommands', () => {
       handled = handleGetSecretsCommand('kubectl get secrets', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('No secrets found'))).toBe(true);
+
+      expect(handleGetSecretsCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleDescribeSecretCommand describes secret with key-value data or not found', () => {
@@ -81,6 +83,8 @@ describe('terminalCommands', () => {
       handled = handleDescribeSecretCommand('kubectl describe secret missing-sec', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('secret "missing-sec" not found'))).toBe(true);
+
+      expect(handleDescribeSecretCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
   });
 
@@ -96,6 +100,8 @@ describe('terminalCommands', () => {
       handled = handleGetConfigMapsCommand('kubectl get configmap', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('No configmaps found'))).toBe(true);
+
+      expect(handleGetConfigMapsCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleDescribeConfigMapCommand describes configmap with key-value data or not found', () => {
@@ -111,6 +117,8 @@ describe('terminalCommands', () => {
       handled = handleDescribeConfigMapCommand('kubectl describe cm missing-cm', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('configmap "missing-cm" not found'))).toBe(true);
+
+      expect(handleDescribeConfigMapCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
   });
 
@@ -133,16 +141,24 @@ describe('terminalCommands', () => {
       handled = handleGetRolesCommand('kubectl get roles', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('No roles found'))).toBe(true);
+
+      expect(handleGetRolesCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
-    it('handleDescribeRoleCommand describes existing or missing role', () => {
+    it('handleDescribeRoleCommand describes existing or missing role and rolebinding', () => {
       let handled = handleDescribeRoleCommand('kubectl describe role reader-role', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('Name:') && l.includes('reader-role'))).toBe(true);
 
+      handled = handleDescribeRoleCommand('kubectl describe rolebinding reader-role-binding', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('RoleRef:'))).toBe(true);
+
       handled = handleDescribeRoleCommand('kubectl describe role unknown-role', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('role "unknown-role" not found'))).toBe(true);
+
+      expect(handleDescribeRoleCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
   });
 
@@ -155,6 +171,8 @@ describe('terminalCommands', () => {
       handled = handleDescribeDeploymentCommand('kubectl describe deployment unknown-dep', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
+
+      expect(handleDescribeDeploymentCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
 
     it('handleScaleCommand handles scaling deployment or not found', () => {
@@ -165,6 +183,8 @@ describe('terminalCommands', () => {
       handled = handleScaleCommand('kubectl scale deployment/unknown-dep --replicas=5', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
+
+      expect(handleScaleCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleSetImageCommand initiates rollout or handles missing deployment', () => {
@@ -175,6 +195,8 @@ describe('terminalCommands', () => {
       handled = handleSetImageCommand('kubectl set image deployment/unknown-dep app=nginx:1.25', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
+
+      expect(handleSetImageCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleRolloutStatusCommand checks rollout status or missing deployment', () => {
@@ -191,6 +213,8 @@ describe('terminalCommands', () => {
       handled = handleRolloutStatusCommand('kubectl rollout status deployment/unknown-dep', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
+
+      expect(handleRolloutStatusCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleRolloutHistoryCommand lists revision history', () => {
@@ -201,6 +225,8 @@ describe('terminalCommands', () => {
       handled = handleRolloutHistoryCommand('kubectl rollout history deployment/unknown-dep', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
+
+      expect(handleRolloutHistoryCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleRolloutUndoCommand undos rollout or handles insufficient revisions', () => {
@@ -218,6 +244,8 @@ describe('terminalCommands', () => {
       handled = handleRolloutUndoCommand('kubectl rollout undo deployment/unknown-dep', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
+
+      expect(handleRolloutUndoCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleDeletePodCommand deletes standalone pod or self-heals deployment pod', () => {
@@ -236,6 +264,8 @@ describe('terminalCommands', () => {
       handled = handleDeletePodCommand('kubectl delete pod unknown-pod', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('pod "unknown-pod" not found'))).toBe(true);
+
+      expect(handleDeletePodCommand('kubectl get pods', mockCtx)).toBe(false);
     });
 
     it('handleGetAllCommand displays all resources when simulating or not', () => {
@@ -252,6 +282,8 @@ describe('terminalCommands', () => {
       handled = handleGetAllCommand('kubectl get all', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('0/1'))).toBe(true);
+
+      expect(handleGetAllCommand('kubectl get pods', mockCtx)).toBe(false);
     });
   });
 

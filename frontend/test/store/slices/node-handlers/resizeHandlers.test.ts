@@ -105,10 +105,35 @@ describe('resizeHandlers', () => {
     expect(storeState.lastActionName).toBe('Resize Element');
   });
 
-  it('onNodeResizeStop handles missing get or node without throwing error', () => {
-    const handlers = resizeHandlers(setStore, undefined as any);
-    handlers.onNodeResizeStop({}, { id: 'n1' } as Node);
+  it('onNodeResizeStop handles measured dimensions, missing label fallback, and missing get', () => {
+    const node: Node = { id: 'n2', type: 'Service', position: { x: 0, y: 0 }, measured: { width: 180, height: 90 }, data: {} };
+    storeState.nodes = [node];
 
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResizeStop({}, node);
+
+    expect(storeState.addLog).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining("[Canvas Action] Resized card 'n2' (Service)"),
+      'UI'
+    );
+
+    const noGetHandlers = resizeHandlers(setStore, undefined as any);
+    noGetHandlers.onNodeResizeStop({}, { id: 'n3' } as Node);
     expect(storeState.lastActionName).toBe('Resize Element');
+  });
+
+  it('calculateMinContainerBounds falls back to measured or style minHeight or default POD_MIN_DIMENSIONS height', () => {
+    const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
+    const pod1: Node = { id: 'p1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, style: { minHeight: '85' }, data: {} };
+    const pod2: Node = { id: 'p2', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 100 }, data: {} };
+
+    storeState.nodes = [depNode, pod1, pod2];
+
+    const handlers = resizeHandlers(setStore, getStore);
+    handlers.onNodeResize({}, { id: 'dep1', width: 50, height: 50 } as Node);
+
+    const updatedDep = storeState.nodes.find((n: Node) => n.id === 'dep1');
+    expect(updatedDep.height).toBeGreaterThan(100);
   });
 });
