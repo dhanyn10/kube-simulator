@@ -239,7 +239,7 @@ describe('KubeIAMModal component', () => {
     expect(useFlowStore.getState().isKubeIamModalOpen).toBe(false);
   });
 
-  it('renders attached canvas roles for IAM users and navigates to target node role modal on click', () => {
+  it('navigates to user detail view on card click and renders attached canvas roles and policies', () => {
     const setKubeIamModalOpenSpy = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
     const setRoleModalTargetNodeSpy = vi.spyOn(useFlowStore.getState(), 'setRoleModalTargetNode');
 
@@ -260,9 +260,16 @@ describe('KubeIAMModal component', () => {
 
     render(<KubeIAMModal />);
 
-    expect(screen.getByText('RoleBindings / Attached Roles (1):')).toBeInTheDocument();
+    // Click on admin-user card row to open Detail View
+    const userCard = screen.getByText('admin-user').closest('div')!;
+    fireEvent.click(userCard);
+
+    // Should see AWS IAM-style Summary details
+    expect(screen.getByText('IAM User Summary & Access Management')).toBeInTheDocument();
+    expect(screen.getByText('AdministratorAccess')).toBeInTheDocument();
     expect(screen.getByText('web-reader-role')).toBeInTheDocument();
 
+    // Click on attached role button in Detail View
     const roleBtn = screen.getByRole('button', { name: /web-reader-role/i });
     fireEvent.click(roleBtn);
 
