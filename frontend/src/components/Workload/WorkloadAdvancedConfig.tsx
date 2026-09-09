@@ -2,9 +2,9 @@ import { Layers, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { AdvancedSection } from '../UI/ConfigUI';
 import { ResourceSettingsList } from './ResourceSettings';
-import { useWorkloadAdvancedConfig, getYamlButtonProps } from '../../activity/workload';
+import { useWorkloadAdvancedConfig } from '../../activity/workload';
 
-export { getYamlButtonProps };
+export { getYamlButtonProps } from '../../activity/workload';
 
 interface WorkloadAdvancedConfigProps {
   selectedNode: any;

@@ -31,7 +31,7 @@ describe('useAttachedResourceSettings', () => {
     );
 
     expect(result.current.colorMode).toBe('dark');
-    expect(result.current.items.length).toBe(1);
+    expect(result.current.items).toHaveLength(1);
     expect(result.current.targetNodeLabel).toBe('Test Node');
 
     act(() => {

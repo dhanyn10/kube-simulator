@@ -4,7 +4,7 @@ import { getResourceSettingItems } from '../../../src/activity/workload/resource
 describe('resourceSettingsHelpers', () => {
   it('returns correctly styled items when errors are present', () => {
     const items = getResourceSettingItems(true, false);
-    expect(items.length).toBe(5);
+    expect(items).toHaveLength(5);
 
     const cpuReq = items.find((i) => i.field === 'cpuRequest');
     expect(cpuReq?.hasError).toBe(true);

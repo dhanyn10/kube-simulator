@@ -1,5 +1,5 @@
 export const getPodBadgeVisibility = (data: any) => {
-  if (!data || data.type !== 'Pod') {
+  if (data?.type !== 'Pod') {
     return { showRuntime: false, showWebserver: false, showImage: false, hasAnyBadge: false };
   }
 
