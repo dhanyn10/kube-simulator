@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useSidebarContextMenu } from '../../../src/activity/ui/useSidebarContextMenu';
+import { useSidebarContextMenu } from '@/activity/ui/useSidebarContextMenu';
 
 describe('useSidebarContextMenu', () => {
   it('opens and closes context menu correctly', () => {

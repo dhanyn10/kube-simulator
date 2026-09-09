@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getResourceSettingItems } from '../../../src/activity/workload/resourceSettingsHelpers';
+import { getResourceSettingItems } from '@/activity/workload/resourceSettingsHelpers';
 
 describe('resourceSettingsHelpers', () => {
   it('returns correctly styled items when errors are present', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useQuickConnect } from '../../../src/activity/nodes/useQuickConnect';
-import { useFlowStore } from '../../../src/store';
+import { useQuickConnect } from '@/activity/nodes/useQuickConnect';
+import { useFlowStore } from '@/store';
 
 describe('useQuickConnect', () => {
   it('triggers onQuickConnect on enter key or mouse click', () => {

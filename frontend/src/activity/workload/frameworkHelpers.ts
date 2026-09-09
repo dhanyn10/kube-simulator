@@ -1,4 +1,4 @@
-import { RUNTIMES } from '../../constants/config';
+import { RUNTIMES } from '@/constants/config';
 
 export const getFrameworksForRuntime = (runtime: string): readonly string[] | null => {
   if (!runtime || runtime === 'none') return null;

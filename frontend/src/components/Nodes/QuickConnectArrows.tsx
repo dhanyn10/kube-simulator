@@ -1,6 +1,6 @@
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useQuickConnect } from '../../activity/nodes';
+import { cn } from '@/lib/utils';
+import { useQuickConnect } from '@/activity/nodes';
 
 interface QuickConnectArrowsProps {
   nodeId: string;

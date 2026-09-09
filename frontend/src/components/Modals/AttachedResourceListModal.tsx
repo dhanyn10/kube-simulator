@@ -1,9 +1,9 @@
 import React from 'react';
 import { Edit2, Trash2, Plus, LucideIcon } from 'lucide-react';
 import { Modal } from './Modal';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { getItemActionTitles, BaseAttachedItem } from '../../activity/modals';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { getItemActionTitles, BaseAttachedItem } from '@/activity/modals';
 
 export type { BaseAttachedItem };
 

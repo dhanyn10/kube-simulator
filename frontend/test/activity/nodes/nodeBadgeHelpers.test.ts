@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPodBadgeVisibility } from '../../../src/activity/nodes/nodeBadgeHelpers';
+import { getPodBadgeVisibility } from '@/activity/nodes/nodeBadgeHelpers';
 
 describe('nodeBadgeHelpers', () => {
   it('returns false for non-pod data or missing display settings', () => {

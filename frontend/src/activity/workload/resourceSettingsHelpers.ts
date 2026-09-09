@@ -1,4 +1,4 @@
-import { CPU_OPTIONS, MEMORY_OPTIONS } from '../../constants/config';
+import { CPU_OPTIONS, MEMORY_OPTIONS } from '@/constants/config';
 
 export interface ResourceSettingItem {
   type?: string;

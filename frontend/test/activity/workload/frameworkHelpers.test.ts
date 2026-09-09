@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getFrameworksForRuntime,
   getFrameworkButtonClass,
-} from '../../../src/activity/workload/frameworkHelpers';
+} from '@/activity/workload/frameworkHelpers';
 
 describe('frameworkHelpers', () => {
   it('getFrameworksForRuntime returns frameworks list for valid runtime', () => {

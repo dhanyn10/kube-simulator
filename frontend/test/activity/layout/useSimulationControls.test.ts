@@ -4,7 +4,7 @@ import {
   getSimulationButtonTitle,
   getSimulationButtonClass,
   useSimulationControls,
-} from '../../../src/activity/layout/useSimulationControls';
+} from '@/activity/layout/useSimulationControls';
 
 describe('useSimulationControls & helpers', () => {
   it('getSimulationButtonTitle returns appropriate title', () => {

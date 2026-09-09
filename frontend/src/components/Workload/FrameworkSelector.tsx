@@ -1,7 +1,7 @@
 import { Box } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { ConfigSection } from '../UI/ConfigUI';
-import { getFrameworksForRuntime, getFrameworkButtonClass } from '../../activity/workload';
+import { cn } from '@/lib/utils';
+import { ConfigSection } from '@/components/UI/ConfigUI';
+import { getFrameworksForRuntime, getFrameworkButtonClass } from '@/activity/workload';
 
 interface FrameworkSelectorProps {
   runtime: string;

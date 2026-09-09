@@ -1,6 +1,6 @@
 import React from 'react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 
 export function useQuickConnect(nodeId: string, color: string = 'blue') {
   const onQuickConnect = useFlowStore((state) => state.onQuickConnect);

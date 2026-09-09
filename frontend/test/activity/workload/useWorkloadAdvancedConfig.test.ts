@@ -3,8 +3,8 @@ import { renderHook } from '@testing-library/react';
 import {
   getYamlButtonProps,
   useWorkloadAdvancedConfig,
-} from '../../../src/activity/workload/useWorkloadAdvancedConfig';
-import { useFlowStore } from '../../../src/store';
+} from '@/activity/workload/useWorkloadAdvancedConfig';
+import { useFlowStore } from '@/store';
 
 describe('useWorkloadAdvancedConfig & helpers', () => {
   it('getYamlButtonProps returns correct disabled vs enabled states', () => {

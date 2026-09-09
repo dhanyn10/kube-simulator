@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useFlowStore } from '../../store';
-import { K8sNodeData } from '../../types';
+import { useFlowStore } from '@/store';
+import { K8sNodeData } from '@/types';
 
 export interface BaseResourceItem {
   id: string;

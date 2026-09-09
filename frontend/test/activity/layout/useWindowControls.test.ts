@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useWindowControls } from '../../../src/activity/layout/useWindowControls';
+import { useWindowControls } from '@/activity/layout/useWindowControls';
 
 describe('useWindowControls', () => {
   it('calls window App wails functions when available', () => {

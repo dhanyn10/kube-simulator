@@ -6,8 +6,8 @@ import {
   findDownstreamUnreadyNode,
   getTargetLoggableNode,
   useCustomEdge,
-} from '../../../src/activity/edges/useCustomEdge';
-import { useFlowStore } from '../../../src/store';
+} from '@/activity/edges/useCustomEdge';
+import { useFlowStore } from '@/store';
 
 vi.mock('@xyflow/react', () => ({
   useReactFlow: () => ({

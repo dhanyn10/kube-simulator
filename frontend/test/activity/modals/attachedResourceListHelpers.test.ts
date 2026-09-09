@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getItemActionTitles } from '../../../src/activity/modals/attachedResourceListHelpers';
+import { getItemActionTitles } from '@/activity/modals/attachedResourceListHelpers';
 
 describe('attachedResourceListHelpers', () => {
   it('getItemActionTitles formats titles based on item or itemTypeName', () => {

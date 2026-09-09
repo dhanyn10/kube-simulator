@@ -1,7 +1,7 @@
 import React from 'react';
 import { FileCode, FileX } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { validateResourceLimits } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { validateResourceLimits } from '@/lib/utils';
 
 export const getYamlButtonProps = (hasResources: boolean, isYamlResources: boolean) => {
   if (!hasResources) {

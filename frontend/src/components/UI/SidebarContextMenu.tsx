@@ -1,7 +1,7 @@
 import { Sun, Moon, X } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
-export { useSidebarContextMenu } from '../../activity/ui';
+export { useSidebarContextMenu } from '@/activity/ui';
 
 interface SidebarContextMenuProps {
   readonly x: number;

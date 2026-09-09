@@ -1,5 +1,5 @@
 import { useReactFlow, getBezierPath } from '@xyflow/react';
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 
 /**
  * Helper function to check if a node or its children are not ready.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAttachedResourceSettings } from '../../../src/activity/config/useAttachedResourceSettings';
-import { useFlowStore } from '../../../src/store';
+import { useAttachedResourceSettings } from '@/activity/config/useAttachedResourceSettings';
+import { useFlowStore } from '@/store';
 
 describe('useAttachedResourceSettings', () => {
   it('manages attached items state, edit, add, save, and delete actions', () => {
