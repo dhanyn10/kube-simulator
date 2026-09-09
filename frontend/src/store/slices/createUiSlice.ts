@@ -2,7 +2,7 @@ import { logger } from '../../lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sResourceType, K8sRoleItem, KubeIAMUser } from '../../types';
+import { K8sResourceType, KubeIAMUser } from '../../types';
 import { safeRandom } from '../../lib/utils';
 import {
   processWorkloadSimulation,

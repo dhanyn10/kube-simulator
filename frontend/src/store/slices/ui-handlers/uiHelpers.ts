@@ -1,13 +1,5 @@
-import { FlowState, SimulationMetricPoint } from '@/store/types';
-import { K8sRoleItem, KubeIAMUser } from '@/types';
-import { safeRandom } from '@/lib/utils';
-import { Node, Edge } from '@xyflow/react';
-import {
-  stopSimulation as stopSimulationInternal,
-  broadcastMetrics,
-  checkEmergencyStop,
-} from '@/store/slices/simulationManager';
-import { SimulationContext, processWorkloadSimulation, updateInternetTraffic, calculateReachability } from '@/lib/simulation';
+import { FlowState } from '@/store/types';
+import { Node } from '@xyflow/react';
 
 /**
  * Parses settings JSON string and applies valid fields to state.
@@ -38,9 +30,9 @@ export const applyParsedSettings = (val: string, set: (state: Partial<FlowState>
  * @param edges Current canvas edges
  * @returns Object with edgeMap and targetEdgeMap
  */
-export const buildEdgeMaps = (edges: Edge[]) => {
-  const edgeMap = new Map<string, Edge[]>();
-  const targetEdgeMap = new Map<string, Edge[]>();
+export const buildEdgeMaps = (edges: any[]) => {
+  const edgeMap = new Map<string, any[]>();
+  const targetEdgeMap = new Map<string, any[]>();
 
   for (const edge of edges) {
     const source = String(edge.source);
@@ -97,7 +89,7 @@ export const classifyNodes = (currentNodes: Node[]) => {
  * @param point Optional simulation metric point
  * @returns Log line string or null
  */
-export const createLogLineForResource = (node: Node, point?: SimulationMetricPoint): string | null => {
+export const createLogLineForResource = (node: Node, point?: any): string | null => {
   const timestamp = new Date().toISOString();
   const name = node.data.label || node.id;
 
@@ -108,10 +100,10 @@ export const createLogLineForResource = (node: Node, point?: SimulationMetricPoi
     return `[${timestamp}] [WARNING] CPU limit reached for ${name}. Container execution throttled.`;
   }
 
-  if (safeRandom() > 0.3) {
+  if (Math.random() > 0.3) {
     const paths = ['/index.html', '/api/v1/data', '/api/v1/status', '/healthz', '/metrics'];
-    const path = paths[Math.floor(safeRandom() * paths.length)];
-    const clientIp = `10.244.0.${Math.floor(safeRandom() * 254) + 1}`;
+    const path = paths[Math.floor(Math.random() * paths.length)];
+    const clientIp = `10.244.0.${Math.floor(Math.random() * 254) + 1}`;
     const statusCode = point?.isOOM ? '503' : '200 OK';
     return `[${timestamp}] ${clientIp} - GET ${path} - ${statusCode} - ${name}`;
   }
@@ -128,7 +120,7 @@ export const createLogLineForResource = (node: Node, point?: SimulationMetricPoi
  */
 export const simulateAllResourceLogs = (
   nodes: Node[],
-  metrics: Record<string, SimulationMetricPoint[]>,
+  metrics: Record<string, any[]>,
   set: (state: Partial<FlowState>) => void
 ) => {
   const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
@@ -166,11 +158,11 @@ export const simulateAllResourceLogs = (
  * @param username Username to remove
  * @returns Updated K8s role item
  */
-export const removeUserFromRole = (role: K8sRoleItem, username: string): K8sRoleItem => {
+export const removeUserFromRole = (role: any, username: string): any => {
   if (!role.assignedUsers) return role;
   return {
     ...role,
-    assignedUsers: role.assignedUsers.filter((u) => u !== username),
+    assignedUsers: role.assignedUsers.filter((u: string) => u !== username),
   };
 };
 
@@ -184,7 +176,7 @@ export const removeUserFromRole = (role: K8sRoleItem, username: string): K8sRole
 export const purgeUserFromNodes = (nodes: Node[], username: string): Node[] => {
   return nodes.map((node) => {
     if (!node.data?.roles || !Array.isArray(node.data.roles)) return node;
-    const cleanedRoles = (node.data.roles as K8sRoleItem[]).map((role) => removeUserFromRole(role, username));
+    const cleanedRoles = (node.data.roles as any[]).map((role) => removeUserFromRole(role, username));
     return {
       ...node,
       data: {
@@ -205,9 +197,9 @@ export const purgeUserFromNodes = (nodes: Node[], username: string): Node[] => {
  */
 export const renameUserInNodeRoles = (node: Node, oldName: string, newName: string): Node => {
   if (!Array.isArray(node.data?.roles)) return node;
-  const updatedRoles = node.data.roles.map((role) => ({
+  const updatedRoles = node.data.roles.map((role: any) => ({
     ...role,
-    assignedUsers: role.assignedUsers?.map((uname) => (uname === oldName ? newName : uname)),
+    assignedUsers: role.assignedUsers?.map((uname: string) => (uname === oldName ? newName : uname)),
   }));
   return { ...node, data: { ...node.data, roles: updatedRoles } };
 };

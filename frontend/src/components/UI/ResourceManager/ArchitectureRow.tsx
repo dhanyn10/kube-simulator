@@ -42,13 +42,20 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
 
   const isConfirming = confirmOverwriteId === project.id;
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      props.onSelect?.();
+    }
+  };
+
   const renderActions = () => {
     if (isConfirming) {
       return (
         <div className="flex items-center gap-2 bg-red-500/10 px-2 py-1 rounded border border-red-500/20 shrink-0">
           <span className="text-[9px] font-black text-red-500 uppercase tracking-wider shrink-0">OVERWRITE?</span>
-          <button type="button" onClick={() => props.onOverwrite?.(project.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors shrink-0">YES</button>
-          <button type="button" onClick={() => props.setConfirmOverwriteId?.(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors shrink-0">NO</button>
+          <button type="button" onClick={() => props.onOverwrite?.(project.id)} className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 transition-colors shrink-0 cursor-pointer">YES</button>
+          <button type="button" onClick={() => props.setConfirmOverwriteId?.(null)} className="text-[10px] font-black text-slate-500 hover:text-slate-400 transition-colors shrink-0 cursor-pointer">NO</button>
         </div>
       );
     }
@@ -56,7 +63,10 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
     const deleteButton = props.onDelete ? (
       <button
         type="button"
-        onClick={() => props.onDelete?.(project.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onDelete?.(project.id);
+        }}
         className="p-1.5 text-red-500 hover:bg-red-500/10 rounded transition-colors shrink-0 cursor-pointer"
         title="Delete project"
       >
@@ -70,7 +80,10 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
           {hasChanges && props.onUpdate && (
             <button
               type="button"
-              onClick={props.onUpdate}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onUpdate?.();
+              }}
               className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1 shadow shadow-emerald-950/20 shrink-0 cursor-pointer"
             >
               <Save size={12} /> Update
@@ -88,7 +101,10 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
         {showOverwrite && (
           <button
             type="button"
-            onClick={() => props.setConfirmOverwriteId?.(project.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.setConfirmOverwriteId?.(project.id);
+            }}
             className="px-2.5 py-1 text-[10px] font-bold text-amber-500 hover:bg-amber-500/10 rounded transition-colors border border-amber-500/20 shrink-0 cursor-pointer"
           >
             Overwrite
@@ -97,7 +113,10 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
         {props.onLoad && (
           <button
             type="button"
-            onClick={() => props.onLoad?.(project.id, project.name)}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onLoad?.(project.id, project.name);
+            }}
             className="px-2.5 py-1 text-[10px] font-bold text-blue-500 hover:bg-blue-500/10 rounded transition-colors border border-blue-500/20 shrink-0 cursor-pointer"
           >
             Open
@@ -110,9 +129,13 @@ export const ArchitectureRow = (props: ArchitectureRowProps) => {
 
   return (
     <div
+      role={props.onSelect ? "button" : undefined}
+      tabIndex={props.onSelect ? 0 : undefined}
       onClick={props.onSelect}
+      onKeyDown={props.onSelect ? handleKeyDown : undefined}
       className={cn(
-        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md min-w-0 gap-3 cursor-pointer select-none",
+        "flex items-center justify-between p-3 rounded-lg border transition-all duration-150 hover:shadow-md min-w-0 gap-3 select-none text-left w-full",
+        props.onSelect && "cursor-pointer",
         colorMode === 'dark' ? "bg-slate-950/30 border-slate-800/80 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300",
         (isActive || isSelected) && (colorMode === 'dark' ? "border-blue-500 bg-blue-950/10" : "border-blue-300 bg-blue-50/20")
       )}
