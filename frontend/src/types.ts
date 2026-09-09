@@ -33,11 +33,29 @@ export interface K8sRoleRule {
   verbs: string[];
 }
 
+export interface K8sRoleSubject {
+  kind: 'User' | 'ServiceAccount' | 'Group';
+  name: string;
+  namespace?: string;
+}
+
+export interface K8sRoleBindingItem {
+  id: string;
+  name: string;
+  roleRef: string; // References K8sRoleItem name or id
+  subjects: Array<string | K8sRoleSubject>;
+  namespace?: string;
+  createdAt?: number;
+}
+
 export interface K8sRoleItem {
   id: string;
   name: string;
+  roleKind?: 'Role' | 'ClusterRole';
   rules: K8sRoleRule[];
   assignedUsers?: string[];
+  subjects?: K8sRoleSubject[];
+  createdAt?: number;
 }
 
 export interface K8sConfigMapItem {
@@ -120,6 +138,7 @@ export interface K8sNodeData {
   // Role, ConfigMap, Secret & HPA specific attached fields
   rules?: K8sRoleRule[];
   roles?: K8sRoleItem[];
+  roleBindings?: K8sRoleBindingItem[];
   configMaps?: K8sConfigMapItem[];
   secrets?: K8sSecretItem[];
   hpas?: K8sHpaItem[];

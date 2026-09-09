@@ -637,6 +637,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       name: sanitizeSlug(roleName) || 'unnamed-role',
       rules: rules.length > 0 ? rules : [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
       assignedUsers,
+      createdAt: initialRole?.createdAt || Date.now(),
     };
     onSave(roleItem);
     onClose();
@@ -670,14 +671,32 @@ export const RoleModal: React.FC<RoleModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={initialRole ? 'Edit Role' : 'Attach RBAC Role'}
-      subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Role & Permissions'}
+      title={initialRole ? 'Edit Role & RoleBinding' : 'Attach RBAC Role & RoleBinding'}
+      subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Role Permissions & RoleBinding Assignments'}
       icon={ShieldCheck}
       iconColorClass="text-indigo-400"
       widthClass="w-full max-w-3xl"
       maxHeightClass="h-[70vh]"
       footer={footer}
     >
+      {/* K8s RBAC Educational Micro-hint Banner */}
+      <div className={cn(
+        "p-3 rounded-xl border flex items-start gap-2.5 text-xs mb-4",
+        colorMode === 'dark'
+          ? "bg-indigo-950/40 border-indigo-800/60 text-indigo-200"
+          : "bg-indigo-50 border-indigo-200 text-indigo-900"
+      )}>
+        <ShieldCheck size={18} className="text-indigo-400 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-semibold text-[11px] uppercase tracking-wider text-indigo-400">
+            💡 Concept: Role vs RoleBinding
+          </p>
+          <p className="leading-relaxed opacity-90 text-[11px]">
+            In Kubernetes RBAC, a <strong>Role</strong> defines <em>WHAT</em> permissions are allowed (API Groups, Resources, Verbs), while a <strong>RoleBinding</strong> specifies <em>WHO</em> (IAM Users / Subjects) receives those permissions.
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-4">
         {/* Role Name */}
         <div>
@@ -699,12 +718,12 @@ export const RoleModal: React.FC<RoleModalProps> = ({
           />
         </div>
 
-        {/* Assigned Kube IAM Users Autocomplete Input */}
+        {/* RoleBinding - Assigned Kube IAM Users Autocomplete Input */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
               <User size={14} className="text-emerald-400" />
-              Assigned Kube IAM Users ({assignedUsers.length})
+              RoleBinding Subjects / IAM Users ({assignedUsers.length})
             </span>
             <button
               type="button"

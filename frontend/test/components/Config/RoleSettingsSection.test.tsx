@@ -41,7 +41,7 @@ describe('RoleSettingsSection', () => {
     const btn = screen.getByTitle('Attached Roles (2)');
     fireEvent.click(btn);
 
-    expect(screen.getByText('Attached RBAC Roles')).toBeInTheDocument();
+    expect(screen.getByText('Attached RBAC Roles & RoleBindings')).toBeInTheDocument();
     expect(screen.getByText('reader-role')).toBeInTheDocument();
     expect(screen.getByText('writer-role')).toBeInTheDocument();
 
@@ -78,7 +78,7 @@ describe('RoleSettingsSection', () => {
     const editBtn = screen.getByTitle('Edit Role');
     fireEvent.click(editBtn);
 
-    expect(screen.getByText('Edit Role')).toBeInTheDocument();
+    expect(screen.getByText('Edit Role & RoleBinding')).toBeInTheDocument();
 
     // Save role in edit modal
     const saveBtn = screen.getByText('Update Role');
@@ -142,7 +142,7 @@ describe('RoleSettingsSection', () => {
     const addRoleBtn = screen.getByRole('button', { name: /Add Role/i });
     fireEvent.click(addRoleBtn);
 
-    expect(screen.getByText('Attach RBAC Role')).toBeInTheDocument();
+    expect(screen.getByText('Attach RBAC Role & RoleBinding')).toBeInTheDocument();
 
     // Click Attach Role button
     const attachBtn = screen.getByRole('button', { name: 'Attach Role' });

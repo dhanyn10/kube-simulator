@@ -239,7 +239,7 @@ describe('KubeIAMModal component', () => {
     expect(useFlowStore.getState().isKubeIamModalOpen).toBe(false);
   });
 
-  it('renders attached canvas roles for IAM users and navigates to target node role modal on click', () => {
+  it('navigates to user detail view on card click and renders attached canvas roles and policies', () => {
     const setKubeIamModalOpenSpy = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
     const setRoleModalTargetNodeSpy = vi.spyOn(useFlowStore.getState(), 'setRoleModalTargetNode');
 
@@ -260,13 +260,67 @@ describe('KubeIAMModal component', () => {
 
     render(<KubeIAMModal />);
 
-    expect(screen.getByText('Attached Roles (1):')).toBeInTheDocument();
+    // Click on admin-user card row to open Detail View
+    const userCard = screen.getByText('admin-user').closest('div')!;
+    fireEvent.click(userCard);
+
+    // Should see AWS IAM-style Summary details
+    expect(screen.getByText('IAM User Summary & Access Management')).toBeInTheDocument();
+    expect(screen.getByText('AdministratorAccess')).toBeInTheDocument();
     expect(screen.getByText('web-reader-role')).toBeInTheDocument();
 
-    const roleBtn = screen.getByRole('button', { name: /web-reader-role/i });
-    fireEvent.click(roleBtn);
+    // Table should contain RoleBinding details
+    expect(screen.getByText('Binding ID')).toBeInTheDocument();
+    expect(screen.getByText('web-reader-role-rb-pod')).toBeInTheDocument();
+
+    // Click on RoleBinding table row
+    const roleRow = screen.getByText('web-reader-role-rb-pod').closest('tr')!;
+    fireEvent.click(roleRow);
 
     expect(setKubeIamModalOpenSpy).toHaveBeenCalledWith(false);
     expect(setRoleModalTargetNodeSpy).toHaveBeenCalledWith({ id: 'pod-1', label: 'web-pod' });
+  });
+
+  it('allows editing user profile (username and policies) in detail view using wizard stepper', () => {
+    useFlowStore.setState({
+      iamUsers: [
+        {
+          id: 'user-1',
+          username: 'old-user',
+          accessType: 'Managed Access',
+          policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: '' }],
+        },
+      ],
+      activeIdentity: 'old-user',
+    });
+
+    render(<KubeIAMModal />);
+
+    // Open detail view for old-user
+    fireEvent.click(screen.getByText('old-user'));
+
+    // Click Edit Profile button
+    const editBtn = screen.getByText('Edit Profile');
+    fireEvent.click(editBtn);
+
+    // Step 1: Edit username input
+    const usernameInput = screen.getByPlaceholderText('e.g. dev-cluster-admin');
+    fireEvent.change(usernameInput, { target: { value: 'renamed-user' } });
+
+    // Click Next -> Step 2
+    fireEvent.click(screen.getByText('Next'));
+
+    // Click Next -> Step 3
+    fireEvent.click(screen.getByText('Next'));
+
+    // Step 3 shows Review & Update and Update User button
+    expect(screen.getAllByText('Review & Update').length).toBeGreaterThan(0);
+
+    // Click Update User button in Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Update User/i }));
+
+    const updatedUser = useFlowStore.getState().iamUsers.find((u) => u.id === 'user-1');
+    expect(updatedUser?.username).toBe('renamed-user');
+    expect(useFlowStore.getState().activeIdentity).toBe('renamed-user');
   });
 });

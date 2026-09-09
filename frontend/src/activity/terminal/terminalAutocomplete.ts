@@ -123,6 +123,7 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
       { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
       { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' },
       { value: 'kubectl describe role ', label: 'kubectl describe role <name>', category: 'Subcommand', description: 'Describe role specs & rules' },
+      { value: 'kubectl describe rolebinding ', label: 'kubectl describe rolebinding <name>', category: 'Subcommand', description: 'Describe rolebinding specs & subjects' },
       { value: 'kubectl describe cm ', label: 'kubectl describe cm <name>', category: 'Subcommand', description: 'Describe configmap data' },
       { value: 'kubectl describe secret ', label: 'kubectl describe secret <name>', category: 'Subcommand', description: 'Describe secret data' }
     );

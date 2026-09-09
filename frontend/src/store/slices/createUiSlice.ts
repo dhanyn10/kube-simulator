@@ -38,6 +38,7 @@ export interface UiSlice {
   setKubeIamModalOpen: (open: boolean) => void;
   iamUsers: KubeIAMUser[];
   addIamUser: (user: Omit<KubeIAMUser, 'id' | 'createdAt'>) => void;
+  updateIamUser: (id: string, updated: Partial<Omit<KubeIAMUser, 'id' | 'createdAt'>>) => void;
   deleteIamUser: (id: string) => void;
 
   isHistoryViewOpen: boolean;
@@ -677,6 +678,26 @@ const purgeUserFromNodes = (nodes: Node[], username: string): Node[] => {
   return nodes.map((node) => purgeUserFromNode(node, username));
 };
 
+/**
+ * Renames user in assignedUsers array
+ */
+const renameUserInAssignedList = (assignedUsers: string[] | undefined, oldName: string, newName: string) => {
+  if (!assignedUsers) return assignedUsers;
+  return assignedUsers.map((uname) => (uname === oldName ? newName : uname));
+};
+
+/**
+ * Renames user in node's attached roles
+ */
+const renameUserInNodeRoles = (node: Node, oldName: string, newName: string): Node => {
+  if (!Array.isArray(node.data?.roles)) return node;
+  const updatedRoles = node.data.roles.map((role) => ({
+    ...role,
+    assignedUsers: renameUserInAssignedList(role.assignedUsers, oldName, newName),
+  }));
+  return { ...node, data: { ...node.data, roles: updatedRoles } };
+};
+
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
   roleModalTargetNode: null,
@@ -712,6 +733,34 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
     }
     return { iamUsers: updatedUsers };
+  }),
+  updateIamUser: (id, updatedData) => set((state) => {
+    const existingUser = state.iamUsers.find((u) => u.id === id);
+    if (!existingUser) return {};
+
+    const oldUsername = existingUser.username;
+    const newUsername = updatedData.username ? updatedData.username.trim() : oldUsername;
+
+    const updatedUsers = state.iamUsers.map((u) => {
+      if (u.id !== id) return u;
+      return {
+        ...u,
+        ...updatedData,
+        username: newUsername,
+      };
+    });
+
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
+    }
+
+    // If username changed, update assignedUsers in canvas node roles
+    let updatedNodes = state.nodes;
+    if (oldUsername !== newUsername) {
+      updatedNodes = state.nodes.map((node) => renameUserInNodeRoles(node, oldUsername, newUsername));
+    }
+
+    return { iamUsers: updatedUsers, nodes: updatedNodes };
   }),
   deleteIamUser: (id) => set((state) => {
     const deletedUser = state.iamUsers.find((u) => u.id === id);

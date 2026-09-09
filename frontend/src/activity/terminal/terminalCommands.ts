@@ -559,7 +559,7 @@ export const handleGetRolesCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+get\s+(roles?|rolebindings?)\b/i.exec(cmd.trim());
+  const match = /^kubectl\s+get\s+(roles?|rolebindings?|rb)\b/i.exec(cmd.trim());
   if (!match) return false;
 
   const attached = extractAttachedResources<any>(ctx.nodes, 'roles');
@@ -571,7 +571,7 @@ export const handleGetRolesCommand = (
   }));
 
   const resType = match[1].toLowerCase();
-  if (resType.startsWith('rolebinding')) {
+  if (resType.startsWith('rolebinding') || resType === 'rb') {
     if (allRoles.length === 0) {
       ctx.addActivityLog('No rolebindings found on the canvas.');
       return true;
@@ -603,16 +603,19 @@ export const handleDescribeRoleCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+describe\s+(roles?|rolebinding)\s+([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+describe\s+(roles?|rolebindings?|rb)\s+([a-z0-9-]+)/i.exec(cmd);
   if (!match) return false;
 
+  const targetKind = match[1].toLowerCase();
   const targetName = match[2].toLowerCase();
   let foundRole: { name: string; owner: string; rules: any[]; assignedUsers: string[] } | null = null;
 
   ctx.nodes.forEach((n) => {
     if (Array.isArray(n.data?.roles)) {
       n.data.roles.forEach((r: any) => {
-        if (r.name.toLowerCase() === targetName || r.id?.toLowerCase() === targetName) {
+        const isRoleMatch = r.name.toLowerCase() === targetName || r.id?.toLowerCase() === targetName;
+        const isBindingMatch = (r.name.toLowerCase() + '-binding') === targetName;
+        if (isRoleMatch || isBindingMatch) {
           foundRole = { name: r.name, owner: n.data?.label || n.id, rules: r.rules || [], assignedUsers: r.assignedUsers || [] };
         }
       });
@@ -621,6 +624,24 @@ export const handleDescribeRoleCommand = (
 
   if (foundRole) {
     const roleObj = foundRole as { name: string; owner: string; rules: any[]; assignedUsers: string[] };
+
+    if (targetKind.startsWith('rolebinding') || targetKind === 'rb' || targetName.endsWith('-binding')) {
+      const bindingName = roleObj.name + '-binding';
+      ctx.addActivityLog(`Name:         ${bindingName}`);
+      ctx.addActivityLog(`Namespace:    default`);
+      ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
+      ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
+      ctx.addActivityLog(`Subjects:`);
+      if (roleObj.assignedUsers.length === 0) {
+        ctx.addActivityLog(`  <none>`);
+      } else {
+        roleObj.assignedUsers.forEach((u) => {
+          ctx.addActivityLog(`  Kind: User, Name: ${u}`);
+        });
+      }
+      return true;
+    }
+
     ctx.addActivityLog(`Name:               ${roleObj.name}`);
     ctx.addActivityLog(`Namespace:          default`);
     ctx.addActivityLog(`Attached To:        ${roleObj.owner}`);
@@ -635,7 +656,8 @@ export const handleDescribeRoleCommand = (
       ctx.addActivityLog(`  ${res.padEnd(10)} ${grp.padEnd(6)} [${vrb}]`);
     });
   } else {
-    ctx.addActivityLog(`Error from server (NotFound): role "${targetName}" not found`);
+    const kindLabel = targetKind.startsWith('rolebinding') || targetKind === 'rb' ? 'rolebinding' : 'role';
+    ctx.addActivityLog(`Error from server (NotFound): ${kindLabel} "${targetName}" not found`);
   }
   return true;
 };
