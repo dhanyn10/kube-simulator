@@ -4,6 +4,12 @@ import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '../store';
 import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem } from '../types';
 import { logger } from '../lib/logger';
+import {
+  emitLiveRoleCommand,
+  emitLiveSecretCommand,
+  emitLiveConfigMapCommand,
+  emitLiveHpaCommand,
+} from '../activity/terminal/liveUpdateCommands';
 
 export function useAppInit(
   isDetachedMode: boolean,
@@ -97,6 +103,9 @@ export function useAttachmentHandlers() {
       isRightSidebarVisible: true,
       isHistoryViewOpen: false,
     });
+
+    // Auto-emit live kubectl command
+    emitLiveRoleCommand(roleItem.name, roleModalTargetNode.label);
   };
 
   const handleSecretSave = (secretItem: K8sSecretItem) => {
@@ -125,6 +134,9 @@ export function useAttachmentHandlers() {
       isRightSidebarVisible: true,
       isHistoryViewOpen: false,
     });
+
+    // Auto-emit live kubectl command
+    emitLiveSecretCommand(secretItem.name, secretItem.type || 'Opaque', secretModalTargetNode.label);
   };
 
   const handleConfigMapSave = (cmItem: K8sConfigMapItem) => {
@@ -153,6 +165,9 @@ export function useAttachmentHandlers() {
       isRightSidebarVisible: true,
       isHistoryViewOpen: false,
     });
+
+    // Auto-emit live kubectl command
+    emitLiveConfigMapCommand(cmItem.name, configMapModalTargetNode.label);
   };
 
   const handleHpaSave = (hpaItem: K8sHpaItem) => {
@@ -181,6 +196,15 @@ export function useAttachmentHandlers() {
       isRightSidebarVisible: true,
       isHistoryViewOpen: false,
     });
+
+    // Auto-emit live kubectl command
+    emitLiveHpaCommand(
+      hpaItem.name,
+      hpaModalTargetNode.label,
+      hpaItem.minReplicas || 1,
+      hpaItem.maxReplicas || 10,
+      hpaItem.targetCPUUtilizationPercentage || 80
+    );
   };
 
   return {
