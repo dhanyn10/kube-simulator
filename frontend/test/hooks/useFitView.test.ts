@@ -37,10 +37,11 @@ describe('useFitView', () => {
     expect(mockRfFitView).not.toHaveBeenCalled();
   });
 
-  it('calculates scale and centers viewport for nodes', () => {
+  it('calculates scale and centers viewport for nodes using measured sizes and fallback sizing', () => {
     const nodes = [
-      { position: { x: 100, y: 100 }, width: 200, height: 200 },
+      { position: { x: 100, y: 100 }, measured: { width: 200, height: 200 } },
       { position: { x: 500, y: 500 }, width: 100, height: 100 },
+      { position: { x: 50, y: 50 } }, // Node with no width/height
     ];
     mockGetNodes.mockReturnValue(nodes);
 
@@ -48,13 +49,26 @@ describe('useFitView', () => {
     result.current();
 
     expect(mockSetViewport).toHaveBeenCalledWith(
-        expect.objectContaining({
-            zoom: expect.any(Number),
-            x: expect.any(Number),
-            y: expect.any(Number),
-        }),
-        expect.objectContaining({ duration: 800 })
+      expect.objectContaining({
+        zoom: expect.any(Number),
+        x: expect.any(Number),
+        y: expect.any(Number),
+      }),
+      expect.objectContaining({ duration: 800 })
     );
+  });
+
+  it('handles small scale where scale <= maxZoom', () => {
+    // Large bounding box -> small scale below maxZoom
+    const nodes = [
+      { position: { x: 0, y: 0 }, width: 2000, height: 2000 },
+    ];
+    mockGetNodes.mockReturnValue(nodes);
+
+    const { result } = renderHook(() => useFitView());
+    result.current({ maxZoom: 1.5 });
+
+    expect(mockSetViewport).toHaveBeenCalled();
   });
 
   it('falls back to standard fitView if renderer is not found', () => {
@@ -67,16 +81,16 @@ describe('useFitView', () => {
     expect(mockRfFitView).toHaveBeenCalled();
   });
 
-  it('respects maxZoom parameter', () => {
-    // Large container, small node -> high scale
+  it('respects maxZoom parameter when calculated scale > maxZoom', () => {
+    // Large container, small node -> high scale exceeding maxZoom
     mockGetNodes.mockReturnValue([{ position: { x: 0, y: 0 }, width: 10, height: 10 }]);
 
     const { result } = renderHook(() => useFitView());
     result.current({ maxZoom: 0.5 });
 
     expect(mockSetViewport).toHaveBeenCalledWith(
-        expect.objectContaining({ zoom: 0.5 }),
-        expect.any(Object)
+      expect.objectContaining({ zoom: 0.5 }),
+      expect.any(Object)
     );
   });
 });
