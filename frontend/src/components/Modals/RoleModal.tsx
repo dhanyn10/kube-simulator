@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Plus, Trash2, X, User, ExternalLink } from 'lucide-react';
+import { Node } from '@xyflow/react';
 import { Modal } from './Modal';
 import { K8sRoleItem, K8sRoleRule, K8sResourceType, KubeIAMUser } from '../../types';
 import { useFlowStore } from '../../store';
@@ -7,12 +8,12 @@ import { cn, sanitizeSlug } from '../../lib/utils';
 import { AutocompleteDropdown, AutocompleteSuggestion } from '../UI/AutocompleteDropdown';
 
 interface RoleModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  targetNodeId: string | null;
-  targetNodeLabel?: string;
-  initialRole?: K8sRoleItem | null;
-  onSave: (roleItem: K8sRoleItem) => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly targetNodeId: string | null;
+  readonly targetNodeLabel?: string;
+  readonly initialRole?: K8sRoleItem | null;
+  readonly onSave: (roleItem: K8sRoleItem) => void;
 }
 
 const COMMON_SUGGESTIONS: Record<string, string[]> = {
@@ -22,13 +23,13 @@ const COMMON_SUGGESTIONS: Record<string, string[]> = {
 };
 
 interface TagInputProps {
-  id?: string;
-  tags: string[];
-  onChange: (tags: string[]) => void;
-  placeholder?: string;
-  suggestions?: string[];
-  colorMode: string;
-  tagBgClass?: string;
+  readonly id?: string;
+  readonly tags: readonly string[];
+  readonly onChange: (tags: string[]) => void;
+  readonly placeholder?: string;
+  readonly suggestions?: readonly string[];
+  readonly colorMode: string;
+  readonly tagBgClass?: string;
 }
 
 const TagInput: React.FC<TagInputProps> = ({
@@ -116,7 +117,6 @@ const TagInput: React.FC<TagInputProps> = ({
       onChange([...tags, trimmed]);
     }
 
-    // If item was marked as missing from canvas, instantiate card on canvas
     const resourceToTypeMap: Record<string, K8sResourceType> = {
       pods: 'Pod',
       deployments: 'Deployment',
@@ -235,7 +235,6 @@ const TagInput: React.FC<TagInputProps> = ({
         />
       </label>
 
-      {/* Reusable CLI-Style Autocomplete Dropdown */}
       {isFocused && availableSuggestions.length > 0 && (
         <AutocompleteDropdown
           suggestions={availableSuggestions}
@@ -250,8 +249,6 @@ const TagInput: React.FC<TagInputProps> = ({
     </div>
   );
 };
-
-import { Node } from '@xyflow/react';
 
 const deriveApiGroupsFromResources = (resources: string[]): string[] => {
   const groups = new Set<string>();
@@ -270,7 +267,6 @@ const deriveApiGroupsFromResources = (resources: string[]): string[] => {
     } else if (['roles', 'rolebindings', 'clusterroles', 'clusterrolebindings'].includes(r)) {
       groups.add('rbac.authorization.k8s.io');
     } else {
-      // Core API Group ("") for pods, services, configmaps, secrets, persistentvolumeclaims, namespaces, nodes, etc.
       groups.add('');
     }
   }
@@ -355,12 +351,12 @@ const deriveResourcesFromTargetNode = (targetNode: Node | undefined, allNodes: N
 };
 
 interface RuleCardRowProps {
-  rule: K8sRoleRule;
-  idx: number;
-  totalRules: number;
-  colorMode: string;
-  onRemoveRule: (index: number) => void;
-  onUpdateRuleTags: (index: number, field: 'apiGroups' | 'resources' | 'verbs', tags: string[]) => void;
+  readonly rule: K8sRoleRule;
+  readonly idx: number;
+  readonly totalRules: number;
+  readonly colorMode: string;
+  readonly onRemoveRule: (index: number) => void;
+  readonly onUpdateRuleTags: (index: number, field: 'apiGroups' | 'resources' | 'verbs', tags: string[]) => void;
 }
 
 const RuleCardRow: React.FC<RuleCardRowProps> = ({
@@ -389,7 +385,6 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
         </button>
       )}
 
-      {/* API Groups Tagify Input */}
       <div>
         <label htmlFor={`api-groups-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
           API Groups
@@ -405,7 +400,6 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
         />
       </div>
 
-      {/* Resources Tagify Input */}
       <div>
         <label htmlFor={`resources-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
           Resources
@@ -421,7 +415,6 @@ const RuleCardRow: React.FC<RuleCardRowProps> = ({
         />
       </div>
 
-      {/* Verbs Tagify Input */}
       <div>
         <label htmlFor={`verbs-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
           Verbs (Permissions)
@@ -499,6 +492,91 @@ const isUserAvailableForRole = (
   if (resourcesSet.has('*')) return true;
 
   return checkPolicyResourceMatch(resourcesSet, policyNames);
+};
+
+interface RoleUserOptionRowProps {
+  readonly user: KubeIAMUser;
+  readonly isChecked: boolean;
+  readonly isFullAccess: boolean;
+  readonly colorMode: string;
+  readonly onToggle: (username: string) => void;
+}
+
+const RoleUserOptionRow: React.FC<RoleUserOptionRowProps> = ({
+  user,
+  isChecked,
+  isFullAccess,
+  colorMode,
+  onToggle,
+}) => {
+  const getDropdownRowClass = (): string => {
+    if (isChecked) {
+      return colorMode === 'dark'
+        ? "bg-indigo-600/30 text-indigo-100 font-bold"
+        : "bg-indigo-50 text-indigo-900 font-bold";
+    }
+    return colorMode === 'dark'
+      ? "hover:bg-slate-800/60 text-slate-300 focus:bg-slate-800/60 outline-none"
+      : "hover:bg-slate-50 text-slate-700 focus:bg-slate-50 outline-none";
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onToggle(user.username);
+    }
+  };
+
+  return (
+    <div
+      role="option"
+      aria-selected={isChecked}
+      tabIndex={0}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onToggle(user.username);
+      }}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        "flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors border-b last:border-b-0 border-slate-800/40",
+        getDropdownRowClass()
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={isChecked}
+          disabled={isFullAccess}
+          onChange={() => {}}
+          aria-label={`Select ${user.username}`}
+          className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
+        />
+        <span className="font-semibold text-[11px]">{user.username}</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {isFullAccess ? (
+          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+            Full Access
+          </span>
+        ) : (
+          user.policies.map((p) => (
+            <span
+              key={p.name}
+              className={cn(
+                "text-[9px] px-1.5 py-0.5 rounded border",
+                colorMode === 'dark'
+                  ? "bg-slate-800 border-slate-700 text-slate-400"
+                  : "bg-slate-100 border-slate-200 text-slate-600"
+              )}
+            >
+              {p.name}
+            </span>
+          ))
+        )}
+      </div>
+    </div>
+  );
 };
 
 export const RoleModal: React.FC<RoleModalProps> = ({
@@ -619,7 +697,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   const toggleUserAssignment = (username: string) => {
     const targetUser = iamUsers.find((u) => u.username === username);
     if (targetUser && isUserFullAccess(targetUser)) {
-      return; // Full access users are permanently assigned
+      return;
     }
     setAssignedUsers((prev) =>
       prev.includes(username) ? prev.filter((u) => u !== username) : [...prev, username]
@@ -649,7 +727,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
         type="button"
         onClick={onClose}
         className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border",
+          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
           colorMode === 'dark'
             ? "border-slate-700 hover:bg-slate-800 text-slate-300"
             : "border-slate-300 hover:bg-slate-100 text-slate-700"
@@ -660,7 +738,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       <button
         type="button"
         onClick={handleSave}
-        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all"
+        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all cursor-pointer"
       >
         {initialRole ? 'Update Role' : 'Attach Role'}
       </button>
@@ -679,7 +757,6 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       maxHeightClass="h-[70vh]"
       footer={footer}
     >
-      {/* K8s RBAC Educational Micro-hint Banner */}
       <div className={cn(
         "p-3 rounded-xl border flex items-start gap-2.5 text-xs mb-4",
         colorMode === 'dark'
@@ -698,7 +775,6 @@ export const RoleModal: React.FC<RoleModalProps> = ({
       </div>
 
       <div className="space-y-4">
-        {/* Role Name */}
         <div>
           <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
             Role Name
@@ -718,7 +794,6 @@ export const RoleModal: React.FC<RoleModalProps> = ({
           />
         </div>
 
-        {/* RoleBinding - Assigned Kube IAM Users Autocomplete Input */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
@@ -741,14 +816,13 @@ export const RoleModal: React.FC<RoleModalProps> = ({
               <button
                 type="button"
                 onClick={handleOpenIamModal}
-                className="text-emerald-400 hover:underline text-[11px] font-medium"
+                className="text-emerald-400 hover:underline text-[11px] font-medium cursor-pointer"
               >
                 Go to Kube IAM Management
               </button>
             </div>
           ) : (
             <div ref={userDropdownRef} className="relative">
-              {/* Tag Input Field */}
               <label
                 htmlFor="assigned-users-input"
                 className={cn(
@@ -807,7 +881,6 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                 />
               </label>
 
-              {/* Autocomplete Dropdown Menu */}
               {isUserDropdownOpen && (
                 <div className={cn(
                   "absolute left-0 right-0 top-full mt-1 z-50 max-h-48 overflow-y-auto rounded-lg border shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar font-mono text-xs",
@@ -818,78 +891,16 @@ export const RoleModal: React.FC<RoleModalProps> = ({
                       No matching IAM users available for this card type.
                     </div>
                   ) : (
-                    filteredAvailableUsers.map((user) => {
-                      const isFullAccess = isUserFullAccess(user);
-                      const isChecked = assignedUsers.includes(user.username);
-
-                      const getDropdownRowClass = (): string => {
-                        if (isChecked) {
-                          return colorMode === 'dark'
-                            ? "bg-indigo-600/30 text-indigo-100 font-bold"
-                            : "bg-indigo-50 text-indigo-900 font-bold";
-                        }
-                        return colorMode === 'dark'
-                          ? "hover:bg-slate-800/60 text-slate-300 focus:bg-slate-800/60 outline-none"
-                          : "hover:bg-slate-50 text-slate-700 focus:bg-slate-50 outline-none";
-                      };
-
-                      return (
-                        <div
-                          key={user.id}
-                          role="option"
-                          aria-selected={isChecked}
-                          tabIndex={0}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            toggleUserAssignment(user.username);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              toggleUserAssignment(user.username);
-                            }
-                          }}
-                          className={cn(
-                            "flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors border-b last:border-b-0 border-slate-800/40",
-                            getDropdownRowClass()
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              disabled={isFullAccess}
-                              onChange={() => {}}
-                              aria-label={`Select ${user.username}`}
-                              className="rounded accent-emerald-500 cursor-pointer disabled:cursor-not-allowed"
-                            />
-                            <span className="font-semibold text-[11px]">{user.username}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            {isFullAccess ? (
-                              <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-bold tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                                Full Access
-                              </span>
-                            ) : (
-                              user.policies.map((p) => (
-                                <span
-                                  key={p.name}
-                                  className={cn(
-                                    "text-[9px] px-1.5 py-0.5 rounded border",
-                                    colorMode === 'dark'
-                                      ? "bg-slate-800 border-slate-700 text-slate-400"
-                                      : "bg-slate-100 border-slate-200 text-slate-600"
-                                  )}
-                                >
-                                  {p.name}
-                                </span>
-                              ))
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
+                    filteredAvailableUsers.map((user) => (
+                      <RoleUserOptionRow
+                        key={user.id}
+                        user={user}
+                        isChecked={assignedUsers.includes(user.username)}
+                        isFullAccess={isUserFullAccess(user)}
+                        colorMode={colorMode}
+                        onToggle={toggleUserAssignment}
+                      />
+                    ))
                   )}
                 </div>
               )}
@@ -897,7 +908,6 @@ export const RoleModal: React.FC<RoleModalProps> = ({
           )}
         </div>
 
-        {/* Rules Section */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400">Role Rules / Permissions</span>

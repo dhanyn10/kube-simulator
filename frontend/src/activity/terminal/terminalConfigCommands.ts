@@ -167,6 +167,72 @@ export const evaluateRbacForCommand = (cmd: string, ctx: CommandContext): boolea
   return allowed;
 };
 
+const handleGetContextsSubcommand = (
+  ctx: CommandContext,
+  activeUser: string,
+  availableUsers: readonly string[]
+): true => {
+  ctx.addActivityLog(`${"CURRENT".padEnd(8)} ${"NAME".padEnd(20)} ${"CLUSTER".padEnd(16)} ${"AUTHINFO".padEnd(20)} NAMESPACE`);
+  availableUsers.forEach((u) => {
+    const isCurrent = u === activeUser ? '*' : ' ';
+    ctx.addActivityLog(`${isCurrent.padEnd(8)} ${u.padEnd(20)} kube-cluster     ${u.padEnd(20)} default`);
+  });
+  return true;
+};
+
+const handleUseContextSubcommand = (
+  ctx: CommandContext,
+  arg: string | undefined,
+  availableUsers: readonly string[]
+): true => {
+  if (!arg) {
+    ctx.addActivityLog(`error: context name is required. Usage: kubectl config use-context <user-context>`);
+    return true;
+  }
+  const targetUser = availableUsers.find((u) => u.toLowerCase() === arg.toLowerCase());
+  if (targetUser) {
+    ctx.setStoreState({ activeIdentity: targetUser });
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('active_identity', targetUser);
+    }
+    ctx.addActivityLog(`[API Server Auth] Certificate / Token Verified for User: "${targetUser}"`);
+    ctx.addActivityLog(`Switched to context "${targetUser}".`);
+  } else {
+    ctx.addActivityLog(`error: no context exists with the name: "${arg}".`);
+    ctx.addActivityLog(`Available contexts: ${availableUsers.join(', ')}`);
+  }
+  return true;
+};
+
+const handleViewConfigSubcommand = (
+  ctx: CommandContext,
+  activeUser: string,
+  availableUsers: readonly string[]
+): true => {
+  ctx.addActivityLog(`apiVersion: v1`);
+  ctx.addActivityLog(`kind: Config`);
+  ctx.addActivityLog(`current-context: ${activeUser}`);
+  ctx.addActivityLog(`clusters:`);
+  ctx.addActivityLog(`- cluster:`);
+  ctx.addActivityLog(`    certificate-authority-data: [CLUSTER_CA_CERTIFICATE]`);
+  ctx.addActivityLog(`    server: https://127.0.0.1:6443`);
+  ctx.addActivityLog(`  name: kube-cluster`);
+  ctx.addActivityLog(`contexts:`);
+  availableUsers.forEach((u) => {
+    ctx.addActivityLog(`- context:`);
+    ctx.addActivityLog(`    cluster: kube-cluster`);
+    ctx.addActivityLog(`    user: ${u}`);
+    ctx.addActivityLog(`  name: ${u}`);
+  });
+  ctx.addActivityLog(`users:`);
+  availableUsers.forEach((u) => {
+    ctx.addActivityLog(`- name: ${u}`);
+    ctx.addActivityLog(`  user:`);
+    ctx.addActivityLog(`    client-certificate-data: [X509_CERTIFICATE_OR_BEARER_TOKEN]`);
+  });
+  return true;
+};
+
 /**
  * Handles `kubectl config` commands (get-contexts, current-context, view, use-context).
  *
@@ -178,7 +244,7 @@ export const handleKubectlConfigCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+config\s+([a-z0-9-]+)(?:\s+([a-zA-Z0-9_:-]+))?/i.exec(cmd.trim());
+  const match = /^kubectl\s+config\s+([a-z0-9-]+)(?:\s+([a-z0-9_:-]+))?/i.exec(cmd.trim());
   if (!match) return false;
 
   const subCmd = match[1].toLowerCase();
@@ -186,67 +252,19 @@ export const handleKubectlConfigCommand = (
   const store = ctx.getStoreState();
   const activeUser = store.activeIdentity || 'system:admin';
   const iamUsers: KubeIAMUser[] = store.iamUsers || [];
-
   const availableUsers = ['system:admin', ...iamUsers.map((u) => u.username)];
 
-  if (subCmd === 'current-context') {
-    ctx.addActivityLog(activeUser);
-    return true;
-  }
-
-  if (subCmd === 'get-contexts') {
-    ctx.addActivityLog(`${"CURRENT".padEnd(8)} ${"NAME".padEnd(20)} ${"CLUSTER".padEnd(16)} ${"AUTHINFO".padEnd(20)} NAMESPACE`);
-    availableUsers.forEach((u) => {
-      const isCurrent = u === activeUser ? '*' : ' ';
-      ctx.addActivityLog(`${isCurrent.padEnd(8)} ${u.padEnd(20)} kube-cluster     ${u.padEnd(20)} default`);
-    });
-    return true;
-  }
-
-  if (subCmd === 'use-context') {
-    if (!arg) {
-      ctx.addActivityLog(`error: context name is required. Usage: kubectl config use-context <user-context>`);
+  switch (subCmd) {
+    case 'current-context':
+      ctx.addActivityLog(activeUser);
       return true;
-    }
-    const targetUser = availableUsers.find((u) => u.toLowerCase() === arg.toLowerCase());
-    if (targetUser) {
-      ctx.setStoreState({ activeIdentity: targetUser });
-      if (globalThis.go?.main?.App?.SaveSetting) {
-        globalThis.go.main.App.SaveSetting('active_identity', targetUser);
-      }
-      ctx.addActivityLog(`[API Server Auth] Certificate / Token Verified for User: "${targetUser}"`);
-      ctx.addActivityLog(`Switched to context "${targetUser}".`);
-    } else {
-      ctx.addActivityLog(`error: no context exists with the name: "${arg}".`);
-      ctx.addActivityLog(`Available contexts: ${availableUsers.join(', ')}`);
-    }
-    return true;
+    case 'get-contexts':
+      return handleGetContextsSubcommand(ctx, activeUser, availableUsers);
+    case 'use-context':
+      return handleUseContextSubcommand(ctx, arg, availableUsers);
+    case 'view':
+      return handleViewConfigSubcommand(ctx, activeUser, availableUsers);
+    default:
+      return false;
   }
-
-  if (subCmd === 'view') {
-    ctx.addActivityLog(`apiVersion: v1`);
-    ctx.addActivityLog(`kind: Config`);
-    ctx.addActivityLog(`current-context: ${activeUser}`);
-    ctx.addActivityLog(`clusters:`);
-    ctx.addActivityLog(`- cluster:`);
-    ctx.addActivityLog(`    certificate-authority-data: [CLUSTER_CA_CERTIFICATE]`);
-    ctx.addActivityLog(`    server: https://127.0.0.1:6443`);
-    ctx.addActivityLog(`  name: kube-cluster`);
-    ctx.addActivityLog(`contexts:`);
-    availableUsers.forEach((u) => {
-      ctx.addActivityLog(`- context:`);
-      ctx.addActivityLog(`    cluster: kube-cluster`);
-      ctx.addActivityLog(`    user: ${u}`);
-      ctx.addActivityLog(`  name: ${u}`);
-    });
-    ctx.addActivityLog(`users:`);
-    availableUsers.forEach((u) => {
-      ctx.addActivityLog(`- name: ${u}`);
-      ctx.addActivityLog(`  user:`);
-      ctx.addActivityLog(`    client-certificate-data: [X509_CERTIFICATE_OR_BEARER_TOKEN]`);
-    });
-    return true;
-  }
-
-  return false;
 };

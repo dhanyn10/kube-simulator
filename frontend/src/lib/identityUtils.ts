@@ -1,6 +1,18 @@
 import { K8sDigitalCertificate, KubeIAMUser } from '../types';
 
 /**
+ * Generates a formatted random hex serial number string (e.g., "7F:3A:91:02:4B:88:E1:90").
+ */
+export function generateHexSerial(): string {
+  const uuidHex = crypto.randomUUID().replaceAll('-', '').substring(0, 16).toUpperCase();
+  const parts: string[] = [];
+  for (let i = 0; i < uuidHex.length; i += 2) {
+    parts.push(uuidHex.substring(i, i + 2));
+  }
+  return parts.join(':');
+}
+
+/**
  * Generates a mock x509 digital certificate or service account token passport for a given identity username.
  *
  * @param username The identity name (e.g., 'system:admin', 'budi', 'dev-user')
@@ -16,7 +28,7 @@ export function generateDigitalCertificate(username: string, userObj?: KubeIAMUs
       user: 'system:admin',
       subject: 'CN=kubernetes-admin, O=system:masters',
       issuer: 'CN=kubernetes-ca, O=Kubernetes Cluster CA',
-      serialNumber: '7F:3A:91:02:4B:88:E1:90',
+      serialNumber: generateHexSerial(),
       validFrom: '2024-01-01T00:00:00Z',
       validTo: '2034-01-01T00:00:00Z',
       authType: 'X.509 Certificate',
