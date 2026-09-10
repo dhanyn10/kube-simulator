@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Folder, Clock, FileText, Check, FilePlus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, RotateCcw, X } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
 import { Modal } from './Modal';
@@ -42,6 +42,7 @@ const formatDateModified = (val?: string | number): string => {
 export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
   const fitView = useFitView();
   const colorMode = useFlowStore((state) => state.colorMode);
+  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
   const currentProject = useFlowStore((state) => state.currentProject);
@@ -49,6 +50,9 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [recentFiles, setRecentFiles] = useState<RecentFileItem[]>([]);
   const [activeLocation, setActiveLocation] = useState<string>('~/.kube-simulator/app_settings_json');
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: RecentFileItem | null } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const isCanvasEmpty = nodes.length === 0;
 
@@ -69,11 +73,12 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
         } catch {
           // fallback
         }
+        const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.json`;
         items.push({
           id: 'autosave-latest',
           name: latestAutosaveKey,
-          location: '~/.kube-simulator/app_settings_json',
-          fullPath: `~/.kube-simulator/app_settings_json [Key: ${latestAutosaveKey}]`,
+          location: autosavePath,
+          fullPath: autosavePath,
           updatedAt: formatDateModified(ts),
           isAutosave: true,
         });
@@ -113,6 +118,28 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
       setNewProjectName(generateTimestampedProjectName());
     }
   }, [isOpen, currentProject]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    if (contextMenu) {
+      globalThis.addEventListener('click', handleClickOutside);
+      globalThis.addEventListener('contextmenu', handleClickOutside);
+    }
+    return () => {
+      globalThis.removeEventListener('click', handleClickOutside);
+      globalThis.removeEventListener('contextmenu', handleClickOutside);
+    };
+  }, [contextMenu]);
+
+  const handleRowContextMenu = (e: React.MouseEvent, item: RecentFileItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, item });
+  };
 
   const handleQuickSaveCurrent = async () => {
     const content = JSON.stringify({ nodes, edges });
@@ -279,7 +306,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
             <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
               Recent Files & Auto-Saved Profiles
             </h4>
-            <span className="text-[10px] text-slate-500 font-mono">Hover location for full path</span>
+            <span className="text-[10px] text-slate-500 font-mono">Right-click profile for menu (Change Theme, Restore, Exit)</span>
           </div>
 
           <div className="overflow-x-auto max-h-56 overflow-y-auto rounded-xl border custom-scrollbar">
@@ -290,14 +317,13 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
               )}>
                 <tr>
                   <th className="py-2.5 px-3">Name</th>
-                  <th className="py-2.5 px-3">Date Modified</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
+                  <th className="py-2.5 px-3 text-right">Date Modified</th>
                 </tr>
               </thead>
               <tbody className="divide-y text-xs font-medium">
                 {recentFiles.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="text-center py-8 text-slate-500">
+                    <td colSpan={2} className="text-center py-8 text-slate-500">
                       No recent files or auto-saved profiles found
                     </td>
                   </tr>
@@ -305,8 +331,10 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                   recentFiles.map((file) => (
                     <tr
                       key={String(file.id)}
+                      onContextMenu={(e) => handleRowContextMenu(e, file)}
+                      onDoubleClick={() => handleRestoreFile(file)}
                       className={cn(
-                        "transition-colors group",
+                        "transition-colors group cursor-pointer select-none",
                         file.isAutosave
                           ? colorMode === 'dark' ? "bg-blue-950/20 hover:bg-blue-900/30" : "bg-blue-50/40 hover:bg-blue-100/50"
                           : colorMode === 'dark' ? "hover:bg-slate-800/50" : "hover:bg-slate-100/70"
@@ -323,7 +351,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-200 truncate max-w-[240px]">{file.name}</span>
+                              <span className="font-bold text-slate-200 truncate max-w-[280px]">{file.name}</span>
                               {file.isAutosave && (
                                 <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
                                   Auto-Save
@@ -335,7 +363,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                                 </span>
                               )}
                             </div>
-                            {/* Sub-block displaying location path */}
+                            {/* Sub-block displaying clean location path */}
                             <div className={cn(
                               "mt-1 px-2 py-0.5 rounded border inline-flex items-center gap-1.5 text-[10px] font-mono max-w-full",
                               colorMode === 'dark'
@@ -355,19 +383,8 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                       </td>
 
                       {/* Date Modified Column */}
-                      <td className="py-2.5 px-3 text-[11px] font-mono text-slate-300 whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right text-[11px] font-mono text-slate-300 whitespace-nowrap align-top pt-3">
                         {file.updatedAt}
-                      </td>
-
-                      {/* Action Column */}
-                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleRestoreFile(file)}
-                          className="px-2.5 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow transition-colors"
-                        >
-                          {file.isAutosave ? 'Restore' : 'Open'}
-                        </button>
                       </td>
                     </tr>
                   ))
@@ -376,6 +393,73 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
             </table>
           </div>
         </div>
+
+        {/* Dedicated Context Menu for Profile Items (3 Options: Change Theme, Restore, Exit) */}
+        {contextMenu && (
+          <div
+            ref={contextMenuRef}
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            className={cn(
+              "fixed z-[250] min-w-[170px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100",
+              colorMode === 'dark'
+                ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
+                : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
+            )}
+          >
+            {/* 1. Change Theme */}
+            <button
+              type="button"
+              onClick={() => {
+                toggleColorMode();
+                setContextMenu(null);
+              }}
+              className={cn(
+                "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors",
+                colorMode === 'dark' ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+              )}
+            >
+              {colorMode === 'dark' ? <Sun size={14} className="text-amber-400" /> : <Moon size={14} className="text-slate-600" />}
+              <span>Change Theme</span>
+            </button>
+
+            {/* 2. Restore Profile */}
+            {contextMenu.item && (
+              <button
+                type="button"
+                onClick={() => {
+                  const targetItem = contextMenu.item;
+                  setContextMenu(null);
+                  if (targetItem) handleRestoreFile(targetItem);
+                }}
+                className={cn(
+                  "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-blue-400 hover:text-blue-300",
+                  colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
+                )}
+              >
+                <RotateCcw size={14} />
+                <span>Restore Profile</span>
+              </button>
+            )}
+
+            <div className={cn("my-1 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")} />
+
+            {/* 3. Exit / Close */}
+            <button
+              type="button"
+              onClick={() => {
+                setContextMenu(null);
+                onClose();
+              }}
+              className={cn(
+                "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300",
+                colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
+              )}
+            >
+              <X size={14} />
+              <span>Exit</span>
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   );

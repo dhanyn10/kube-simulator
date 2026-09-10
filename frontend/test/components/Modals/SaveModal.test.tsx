@@ -42,11 +42,12 @@ describe('SaveModal', () => {
     };
   });
 
-  it('renders MS Word-style table headers, location sub-blocks, and Date Modified column', async () => {
+  it('renders MS Word-style table headers, location sub-blocks, and Date Modified column without Action header', async () => {
     render(<SaveModal {...defaultProps} />);
 
     expect(screen.getByText('Save Architecture & Recent Files')).toBeInTheDocument();
     expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.queryByText('Action')).not.toBeInTheDocument();
     expect(screen.getAllByText('Date Modified').length).toBeGreaterThan(0);
 
     await waitFor(() => {
@@ -54,6 +55,29 @@ describe('SaveModal', () => {
       expect(screen.getByText('Web Architecture')).toBeInTheDocument();
       const pathSpan = screen.getByTitle('~/.kube-simulator/projects/1/architecture.infra');
       expect(pathSpan).toBeInTheDocument();
+    });
+  });
+
+  it('supports row right-click context menu options (Change Theme, Restore Profile, Exit)', async () => {
+    render(<SaveModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('autosave-10092026120008')).toBeInTheDocument();
+    });
+
+    const itemRow = screen.getByText('autosave-10092026120008').closest('tr')!;
+    fireEvent.contextMenu(itemRow);
+
+    await waitFor(() => {
+      expect(screen.getByText('Change Theme')).toBeInTheDocument();
+      expect(screen.getByText('Restore Profile')).toBeInTheDocument();
+      expect(screen.getByText('Exit')).toBeInTheDocument();
+    });
+
+    // Click Restore Profile
+    fireEvent.click(screen.getByText('Restore Profile'));
+    await waitFor(() => {
+      expect(defaultProps.onClose).toHaveBeenCalled();
     });
   });
 
