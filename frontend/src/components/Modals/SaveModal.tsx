@@ -17,6 +17,7 @@ interface RecentFileItem {
   id: number | string;
   name: string;
   location: string;
+  fullPath: string;
   updatedAt: string;
   isAutosave?: boolean;
 }
@@ -47,7 +48,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
 
   const [newProjectName, setNewProjectName] = useState('');
   const [recentFiles, setRecentFiles] = useState<RecentFileItem[]>([]);
-  const [activeLocation, setActiveLocation] = useState<string>('Local Storage (.kube-simulator)');
+  const [activeLocation, setActiveLocation] = useState<string>('~/.kube-simulator/app_settings_json');
 
   const isCanvasEmpty = nodes.length === 0;
 
@@ -61,24 +62,21 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
       const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
 
       if (latestAutosaveKey && latestAutosaveContent) {
+        let ts = Date.now();
         try {
           const parsed = JSON.parse(latestAutosaveContent);
-          items.push({
-            id: 'autosave-latest',
-            name: latestAutosaveKey,
-            location: '.kube-simulator/app_settings_json',
-            updatedAt: formatDateModified(parsed.timestamp || Date.now()),
-            isAutosave: true,
-          });
+          if (parsed.timestamp) ts = parsed.timestamp;
         } catch {
-          items.push({
-            id: 'autosave-latest',
-            name: latestAutosaveKey,
-            location: '.kube-simulator/app_settings_json',
-            updatedAt: formatDateModified(Date.now()),
-            isAutosave: true,
-          });
+          // fallback
         }
+        items.push({
+          id: 'autosave-latest',
+          name: latestAutosaveKey,
+          location: '~/.kube-simulator/app_settings_json',
+          fullPath: `~/.kube-simulator/app_settings_json [Key: ${latestAutosaveKey}]`,
+          updatedAt: formatDateModified(ts),
+          isAutosave: true,
+        });
       }
     }
 
@@ -87,10 +85,13 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
       const projects = await app.GetProjects();
       if (Array.isArray(projects)) {
         projects.forEach((p: any) => {
+          const relativePath = `.kube-simulator/projects/${p.id}`;
+          const fullPath = `~/.kube-simulator/projects/${p.id}/architecture.infra`;
           items.push({
             id: p.id,
             name: p.name,
-            location: `.kube-simulator/projects/${p.id}`,
+            location: relativePath,
+            fullPath,
             updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
           });
         });
@@ -105,10 +106,10 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
     loadRecentFiles();
 
     if (currentProject) {
-      setActiveLocation(`.kube-simulator/projects/${currentProject.id}`);
+      setActiveLocation(`~/.kube-simulator/projects/${currentProject.id}/architecture.infra`);
       setNewProjectName(currentProject.name);
     } else {
-      setActiveLocation('Local Storage (.kube-simulator)');
+      setActiveLocation('~/.kube-simulator/app_settings_json');
       setNewProjectName(generateTimestampedProjectName());
     }
   }, [isOpen, currentProject]);
@@ -196,7 +197,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
       onClose={onClose}
       title="Save Architecture & Recent Files"
       icon={Save}
-      widthClass="w-[720px]"
+      widthClass="w-[780px]"
       maxHeightClass="h-[75vh]"
     >
       <div className="space-y-5 p-1 font-sans">
@@ -213,9 +214,12 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
               <div className="text-xs font-bold tracking-tight text-slate-200">
                 {currentProject ? currentProject.name : 'Unsaved Session Architecture'}
               </div>
-              <p className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+              <p
+                title={activeLocation}
+                className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5 cursor-help"
+              >
                 <span>Location:</span>
-                <span className="text-blue-400 font-bold">{activeLocation}</span>
+                <span className="text-blue-400 font-bold truncate max-w-[360px]">{activeLocation}</span>
               </p>
             </div>
           </div>
@@ -269,70 +273,99 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
           </div>
         </div>
 
-        {/* Recent Files & Auto-Saved Profiles List */}
+        {/* Recent Files Table (MS Word Style) */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
               Recent Files & Auto-Saved Profiles
             </h4>
-            <span className="text-[10px] text-slate-500 font-mono">MS Word Style Recent Files</span>
+            <span className="text-[10px] text-slate-500 font-mono">Hover location column for full path</span>
           </div>
 
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
-            {recentFiles.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6 border border-dashed rounded-lg">
-                No recent files or auto-saved profiles found
-              </p>
-            ) : (
-              recentFiles.map((file) => (
-                <div
-                  key={String(file.id)}
-                  className={cn(
-                    "p-3 rounded-xl border flex items-center justify-between transition-all",
-                    file.isAutosave
-                      ? colorMode === 'dark' ? "bg-blue-950/20 border-blue-800/50" : "bg-blue-50/50 border-blue-200"
-                      : colorMode === 'dark' ? "bg-slate-900/60 border-slate-800 hover:border-slate-700" : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "p-2 rounded-lg",
-                      file.isAutosave ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
-                    )}>
-                      {file.isAutosave ? <Clock size={16} /> : <FileText size={16} />}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-200">{file.name}</span>
-                        {file.isAutosave && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                            Auto-Save Profile
-                          </span>
-                        )}
-                        {currentProject?.id === file.id && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                            <Check size={10} /> Active
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono mt-0.5">
-                        <span>Path: {file.location}</span>
-                        <span>•</span>
-                        <span>Date Modified: {file.updatedAt}</span>
-                      </div>
-                    </div>
-                  </div>
+          <div className="overflow-x-auto max-h-56 overflow-y-auto rounded-xl border custom-scrollbar">
+            <table className="w-full text-left font-sans border-collapse">
+              <thead className={cn(
+                "sticky top-0 text-[10px] uppercase font-bold tracking-wider select-none z-10 border-b",
+                colorMode === 'dark' ? "bg-slate-900 text-slate-400 border-slate-800" : "bg-slate-100 text-slate-500 border-slate-200"
+              )}>
+                <tr>
+                  <th className="py-2.5 px-3">Name</th>
+                  <th className="py-2.5 px-3">Location Path</th>
+                  <th className="py-2.5 px-3">Date Modified</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y text-xs font-medium">
+                {recentFiles.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-8 text-slate-500">
+                      No recent files or auto-saved profiles found
+                    </td>
+                  </tr>
+                ) : (
+                  recentFiles.map((file) => (
+                    <tr
+                      key={String(file.id)}
+                      className={cn(
+                        "transition-colors group",
+                        file.isAutosave
+                          ? colorMode === 'dark' ? "bg-blue-950/20 hover:bg-blue-900/30" : "bg-blue-50/40 hover:bg-blue-100/50"
+                          : colorMode === 'dark' ? "hover:bg-slate-800/50" : "hover:bg-slate-100/70"
+                      )}
+                    >
+                      {/* Name Column */}
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "p-1.5 rounded-md shrink-0",
+                            file.isAutosave ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
+                          )}>
+                            {file.isAutosave ? <Clock size={14} /> : <FileText size={14} />}
+                          </div>
+                          <span className="font-bold text-slate-200 truncate max-w-[180px]">{file.name}</span>
+                          {file.isAutosave && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                              Auto-Save
+                            </span>
+                          )}
+                          {currentProject?.id === file.id && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
+                              <Check size={9} /> Active
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
-                  <button
-                    type="button"
-                    onClick={() => handleRestoreFile(file)}
-                    className="px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow transition-colors"
-                  >
-                    {file.isAutosave ? 'Restore' : 'Open'}
-                  </button>
-                </div>
-              ))
-            )}
+                      {/* Location Path Column (Full Path on Hover) */}
+                      <td className="py-2.5 px-3">
+                        <span
+                          title={file.fullPath}
+                          className="font-mono text-[11px] text-slate-400 hover:text-blue-400 cursor-help truncate block max-w-[200px]"
+                        >
+                          {file.location}
+                        </span>
+                      </td>
+
+                      {/* Date Modified Column */}
+                      <td className="py-2.5 px-3 text-[11px] font-mono text-slate-300">
+                        {file.updatedAt}
+                      </td>
+
+                      {/* Action Column */}
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleRestoreFile(file)}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow transition-colors"
+                        >
+                          {file.isAutosave ? 'Restore' : 'Open'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

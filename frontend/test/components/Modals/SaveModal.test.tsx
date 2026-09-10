@@ -42,15 +42,19 @@ describe('SaveModal', () => {
     };
   });
 
-  it('renders modal with location, Date Modified, and recent files', async () => {
+  it('renders MS Word-style table headers, location paths, and Date Modified column', async () => {
     render(<SaveModal {...defaultProps} />);
 
     expect(screen.getByText('Save Architecture & Recent Files')).toBeInTheDocument();
-    expect(screen.getByText('Local Storage (.kube-simulator)')).toBeInTheDocument();
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Location Path')).toBeInTheDocument();
+    expect(screen.getAllByText('Date Modified').length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(screen.getByText('autosave-10092026120008')).toBeInTheDocument();
       expect(screen.getByText('Web Architecture')).toBeInTheDocument();
+      const pathSpan = screen.getByTitle('~/.kube-simulator/projects/1/architecture.infra');
+      expect(pathSpan).toBeInTheDocument();
     });
   });
 
