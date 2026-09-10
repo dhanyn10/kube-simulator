@@ -299,10 +299,15 @@ export const FileBackstageView = ({
     <div
       data-testid="file-backstage-view"
       className={cn(
-        "fixed inset-0 z-[200] flex font-sans animate-in fade-in zoom-in-95 duration-150 select-none",
+        "fixed inset-0 z-[200] flex font-sans animate-in fade-in zoom-in-95 duration-150 select-none relative",
         colorMode === 'dark' ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
       )}
     >
+      {/* OS Window Controls - Positioned at top right edge of application window */}
+      <div className="absolute top-0 right-0 z-50">
+        <WindowControls colorMode={colorMode} />
+      </div>
+
       {/* MS Word Left Sidebar */}
       <div className={cn(
         "w-64 border-r flex flex-col shrink-0 shadow-lg",
@@ -491,11 +496,6 @@ export const FileBackstageView = ({
 
       {/* Main Backstage Content Panel */}
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
-        {/* Top Right OS Window Controls */}
-        <div className="absolute top-3 right-3 z-10">
-          <WindowControls colorMode={colorMode} />
-        </div>
-
         <div className="max-w-4xl mx-auto space-y-6 pt-2">
 
           {/* TAB 1: HOME & RECENT FILES */}
