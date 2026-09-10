@@ -204,6 +204,9 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   const hasChanges = Object.entries(newData).some(([key, value]) => (targetData as any)[key] !== value);
   if (!hasChanges) return;
 
+  const prevReplicas = targetData.replicas;
+  const prevImage = targetData.image;
+
   let sanitizedData = sanitizeResourceLimits(newData);
   sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
 
@@ -230,11 +233,11 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   const nodeLabel = (targetData.label as string) || target.id;
   const nodeType = target.type || 'Deployment';
 
-  if (newData.replicas !== undefined && newData.replicas !== targetData.replicas) {
-    emitLiveScaleCommand(nodeLabel, nodeType, newData.replicas);
+  if (newData.replicas !== undefined && newData.replicas !== prevReplicas) {
+    emitLiveScaleCommand(nodeLabel, nodeType, newData.replicas, prevReplicas);
   }
-  if (newData.image !== undefined && newData.image !== targetData.image) {
-    emitLiveSetImageCommand(nodeLabel, nodeType, newData.image);
+  if (newData.image !== undefined && newData.image !== prevImage) {
+    emitLiveSetImageCommand(nodeLabel, nodeType, newData.image, prevImage);
   }
   if (
     (newData.cpuLimit !== undefined && newData.cpuLimit !== targetData.cpuLimit) ||

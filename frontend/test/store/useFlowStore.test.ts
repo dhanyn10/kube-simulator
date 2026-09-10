@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFlowStore, applyHistoryState } from '@/store/useFlowStore';
+import { useFlowStore, applyHistoryState, formatAutosaveKey } from '@/store/useFlowStore';
 import { logger } from '@/lib/logger';
 
 vi.mock('@/lib/logger', () => ({
@@ -18,10 +18,16 @@ describe('useFlowStore', () => {
       main: {
         App: {
           PushHistory: vi.fn().mockResolvedValue(true),
-          UpdateProject: vi.fn().mockResolvedValue(true)
+          UpdateProject: vi.fn().mockResolvedValue(true),
+          SaveSetting: vi.fn(),
         }
       }
     };
+  });
+
+  it('formatAutosaveKey generates correctly formatted timestamp string', () => {
+    const d = new Date(2026, 8, 10, 12, 0, 8); // Sep 10, 2026 12:00:08
+    expect(formatAutosaveKey(d)).toBe('autosave-10092026120008');
   });
 
   it('initializes with default values and executes initial history timeout capture', async () => {
@@ -111,19 +117,19 @@ describe('useFlowStore', () => {
         App: {
           PushHistory: vi.fn().mockResolvedValue(true),
           UpdateProject: vi.fn().mockResolvedValue(true),
+          SaveSetting: vi.fn(),
         },
       },
     };
 
     useFlowStore.setState({
-      isAutosaveEnabled: true,
       currentProject: { id: 1, name: 'Project 1' },
       lastActionId: 'action-save-success'
     });
 
     expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
     await new Promise(process.nextTick);
-    expect(useFlowStore.getState().lastSavedSnapshot).toBe(JSON.stringify({ nodes: [], edges: [] }));
+    expect(useFlowStore.getState().lastSavedSnapshot).toEqual(expect.stringContaining('"nodes":[]'));
   });
 
   it('handles autosave when UpdateProject returns false or when currentProject id is -1', async () => {
@@ -132,12 +138,12 @@ describe('useFlowStore', () => {
         App: {
           PushHistory: vi.fn().mockResolvedValue(true),
           UpdateProject: vi.fn().mockResolvedValue(false),
+          SaveSetting: vi.fn(),
         },
       },
     };
 
     useFlowStore.setState({
-      isAutosaveEnabled: true,
       currentProject: { id: 1, name: 'Project 1' },
       lastSavedSnapshot: 'initial-snap',
       lastActionId: 'action-save-false'
@@ -149,7 +155,6 @@ describe('useFlowStore', () => {
     // currentProject.id === -1 -> does not invoke UpdateProject
     (globalThis as any).go.main.App.UpdateProject.mockClear();
     useFlowStore.setState({
-      isAutosaveEnabled: true,
       currentProject: { id: -1, name: 'Unsaved Project' },
       lastActionId: 'action-save-negative'
     });

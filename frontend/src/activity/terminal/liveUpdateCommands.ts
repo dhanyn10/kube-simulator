@@ -10,8 +10,12 @@ let isDispatchingLiveCommand = false;
  * Automatically opens the terminal panel and executes the command.
  *
  * @param cmd - The kubectl imperative command string to execute
+ * @param overrides - Optional previous values to accurately log state transitions
  */
-export const dispatchLiveCommand = (cmd: string): void => {
+export const dispatchLiveCommand = (
+  cmd: string,
+  overrides?: { prevReplicas?: number; prevImage?: string }
+): void => {
   if (isDispatchingLiveCommand) return;
   isDispatchingLiveCommand = true;
 
@@ -46,6 +50,8 @@ export const dispatchLiveCommand = (cmd: string): void => {
       updateNodeData: store.updateNodeData,
       getStoreState: () => useFlowStore.getState(),
       setStoreState: (partial) => useFlowStore.setState(partial),
+      overridePrevReplicas: overrides?.prevReplicas,
+      overridePrevImage: overrides?.prevImage,
     };
 
     executeKubectlCommand(
@@ -66,10 +72,11 @@ export const dispatchLiveCommand = (cmd: string): void => {
 export const emitLiveScaleCommand = (
   nodeLabel: string,
   nodeType: string,
-  replicas: number
+  replicas: number,
+  prevReplicas?: number
 ): void => {
   const kind = nodeType.toLowerCase() === 'replicaset' ? 'replicaset' : 'deployment';
-  dispatchLiveCommand(`kubectl scale ${kind}/${nodeLabel} --replicas=${replicas}`);
+  dispatchLiveCommand(`kubectl scale ${kind}/${nodeLabel} --replicas=${replicas}`, { prevReplicas });
 };
 
 /**
@@ -78,11 +85,12 @@ export const emitLiveScaleCommand = (
 export const emitLiveSetImageCommand = (
   nodeLabel: string,
   nodeType: string,
-  image: string
+  image: string,
+  prevImage?: string
 ): void => {
   const kind = nodeType.toLowerCase() === 'pod' ? 'pod' : 'deployment';
   const containerName = `${nodeLabel}-container`;
-  dispatchLiveCommand(`kubectl set image ${kind}/${nodeLabel} ${containerName}=${image}`);
+  dispatchLiveCommand(`kubectl set image ${kind}/${nodeLabel} ${containerName}=${image}`, { prevImage });
 };
 
 /**

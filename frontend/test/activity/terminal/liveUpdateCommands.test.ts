@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useFlowStore } from '../../../src/store';
 import {
   dispatchLiveCommand,
@@ -35,22 +35,47 @@ describe('liveUpdateCommands', () => {
     expect(state.activityLogs.some((line) => line.includes('kubectl get pods'))).toBe(true);
   });
 
-  it('emitLiveScaleCommand dispatches scale command for deployment', () => {
-    emitLiveScaleCommand('web-dep', 'Deployment', 3);
+  it('emitLiveScaleCommand dispatches scale command with previous replica count logged correctly', () => {
+    // Add dummy deployment node to store
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'dep-1',
+          type: 'Deployment',
+          position: { x: 0, y: 0 },
+          data: { label: 'web-dep', replicas: 3 },
+        },
+      ],
+    });
+
+    emitLiveScaleCommand('web-dep', 'Deployment', 4, 3);
 
     const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl scale deployment/web-dep --replicas=3'))).toBe(true);
+    expect(state.activityLogs.some((line) => line.includes('kubectl scale deployment/web-dep --replicas=4'))).toBe(true);
+    expect(state.activityLogs.some((line) => line.includes('[scale] Scaling replicas from 3 to 4...'))).toBe(true);
   });
 
   it('emitLiveScaleCommand dispatches scale command for replicaset', () => {
-    emitLiveScaleCommand('web-rs', 'ReplicaSet', 5);
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'rs-1',
+          type: 'ReplicaSet',
+          position: { x: 0, y: 0 },
+          data: { label: 'web-rs', replicas: 4 },
+        },
+      ],
+    });
+
+    emitLiveScaleCommand('web-rs', 'ReplicaSet', 3, 4);
 
     const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl scale replicaset/web-rs --replicas=5'))).toBe(true);
+    expect(state.activityLogs.some((line) => line.includes('kubectl scale replicaset/web-rs --replicas=3'))).toBe(true);
+    expect(state.activityLogs.some((line) => line.includes('[scale] Scaling replicas from 4 to 3...'))).toBe(true);
   });
 
   it('emitLiveSetImageCommand dispatches set image command', () => {
-    emitLiveSetImageCommand('web-dep', 'Deployment', 'nginx:alpine');
+    emitLiveSetImageCommand('web-dep', 'Deployment', 'nginx:alpine', 'nginx:latest');
 
     const state = useFlowStore.getState();
     expect(state.activityLogs.some((line) => line.includes('kubectl set image deployment/web-dep web-dep-container=nginx:alpine'))).toBe(true);

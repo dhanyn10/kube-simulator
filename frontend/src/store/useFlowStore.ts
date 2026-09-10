@@ -7,6 +7,21 @@ import { createNodeSlice } from './slices/createNodeSlice';
 import { createUiSlice } from './slices/createUiSlice';
 import { createLogSlice } from './slices/createLogSlice';
 
+/**
+ * Formats a Date object into an autosave key with format: autosave-ddmmyyyyhis
+ * Example: autosave-10092026120008
+ */
+export const formatAutosaveKey = (d: Date = new Date()): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `autosave-${day}${month}${year}${hours}${minutes}${seconds}`;
+};
+
 const flowStore = createStore<FlowState>()(
   (set, get, store) => ({
     clipboard: null,
@@ -23,7 +38,8 @@ const flowStore = createStore<FlowState>()(
   })
 );
 
-// Subscription to record meaningful actions in the Go "Database"
+// Session autosave key generated when activity begins
+let currentSessionAutosaveKey: string | null = null;
 let isApplyingHistory = false;
 
 // Initial capture (base state)
@@ -40,6 +56,43 @@ setTimeout(() => {
     logger.info('[History] Initial state recorded to Go database');
   }
 }, 500);
+
+// Core function to execute autosave
+const executeAutosave = (state: FlowState) => {
+  if (!currentSessionAutosaveKey) {
+    currentSessionAutosaveKey = formatAutosaveKey(new Date());
+  }
+
+  const content = JSON.stringify({
+    nodes: state.nodes,
+    edges: state.edges,
+    lastActionName: state.lastActionName,
+    timestamp: Date.now(),
+  });
+
+  const app = globalThis.go?.main?.App;
+  if (app?.SaveSetting) {
+    app.SaveSetting(currentSessionAutosaveKey, content);
+    app.SaveSetting('auto_saved_profile_latest', currentSessionAutosaveKey);
+    app.SaveSetting('auto_saved_profile_content', content);
+    logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
+  }
+
+  if (state.currentProject && state.currentProject.id !== -1 && app?.UpdateProject) {
+    app.UpdateProject(state.currentProject.id, content).then((success) => {
+      if (success) {
+        flowStore.setState({ lastSavedSnapshot: content });
+      }
+    });
+  }
+};
+
+// Window unload handler for final save before app close
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    executeAutosave(flowStore.getState());
+  });
+}
 
 flowStore.subscribe((state, prevState) => {
   if (isApplyingHistory) return;
@@ -64,18 +117,8 @@ flowStore.subscribe((state, prevState) => {
         .catch(() => {});
     }
 
-    // Autosave logic
-    if (state.isAutosaveEnabled && state.currentProject && state.currentProject.id !== -1) {
-      const content = JSON.stringify({ nodes: state.nodes, edges: state.edges });
-      if (globalThis.go?.main?.App?.UpdateProject) {
-        logger.info(`[Autosave] Saving project ${state.currentProject.name}...`);
-        globalThis.go.main.App.UpdateProject(state.currentProject.id, content).then((success) => {
-          if (success) {
-            flowStore.setState({ lastSavedSnapshot: content });
-          }
-        });
-      }
-    }
+    // Always execute autosave on state changes
+    executeAutosave(state);
   }
 });
 
