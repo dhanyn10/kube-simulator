@@ -14,6 +14,10 @@ import { FlowState } from '../types';
 import { K8sNodeData } from '../../types';
 import { getConnectionError } from '../../constants/connections';
 import { getAbsPos } from '../helpers';
+import {
+  emitLiveEdgeCreatedCommand,
+  emitLiveEdgeDeletedCommand,
+} from '../../activity/terminal/liveUpdateCommands';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -222,6 +226,22 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     });
   },
   onEdgesChange: (changes: EdgeChange[]) => {
+    const { nodes, edges } = get();
+    const removeChanges = changes.filter((c) => c.type === 'remove');
+
+    removeChanges.forEach((c) => {
+      if ('id' in c) {
+        const removedEdge = edges.find((e) => e.id === c.id);
+        if (removedEdge) {
+          const sNode = nodes.find((n) => n.id === removedEdge.source);
+          const tNode = nodes.find((n) => n.id === removedEdge.target);
+          const sLabel = (sNode?.data?.label as string) || removedEdge.source;
+          const tLabel = (tNode?.data?.label as string) || removedEdge.target;
+          emitLiveEdgeDeletedCommand(sLabel, tLabel);
+        }
+      }
+    });
+
     set((state) => {
       const nextEdges = applyEdgeChanges(changes, state.edges);
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
@@ -295,10 +315,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       target: targetId,
     } as Edge);
 
+    let isAdded = false;
     set((state) => {
       const exists = state.edges.some((e) => e.source === sourceId && e.target === targetId);
       if (exists) return state;
 
+      isAdded = true;
       const nextEdges = addEdge(newEdge, state.edges);
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
       return {
@@ -308,6 +330,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
         lastActionName: 'Connect Nodes',
       };
     });
+
+    if (isAdded) {
+      const sLabel = (sourceNode?.data?.label as string) || sourceId;
+      const tLabel = (targetNode?.data?.label as string) || targetId;
+      emitLiveEdgeCreatedCommand(sLabel, tLabel);
+    }
   },
   onReconnect: (oldEdge: Edge, newConnection: Connection) => {
     const { edges, validateEdge } = get();

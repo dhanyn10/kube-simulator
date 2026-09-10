@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug,
-  CheckSquare, Square, Activity, ExternalLink, Bell, PlayCircle, Sliders, Terminal
+  Activity, ExternalLink, Bell, PlayCircle, Sliders, Terminal
 } from 'lucide-react';
 import { useFlowStore, FlowState } from '../../store';
 import { validateHpaTargets } from '../../store/slices/simulationManager';
@@ -10,7 +10,8 @@ import { startTour } from '../../lib/tour';
 export interface MenuBarStateOptions {
   readonly onExportYaml: () => void;
   readonly onImportFile: () => void;
-  readonly onSaveFile: () => void;
+  readonly onSave: () => void;
+  readonly onSaveAs: () => void;
   readonly onOpenProjects: () => void;
   readonly onOpenScenarios: () => void;
   readonly onOpenAbout: () => void;
@@ -20,7 +21,8 @@ export interface MenuBarStateOptions {
 export const useMenuBarState = ({
   onExportYaml,
   onImportFile,
-  onSaveFile,
+  onSave,
+  onSaveAs,
   onOpenProjects,
   onOpenScenarios,
   onOpenAbout,
@@ -28,8 +30,6 @@ export const useMenuBarState = ({
 }: MenuBarStateOptions) => {
   const colorMode = useFlowStore((state: FlowState) => state.colorMode);
   const toggleColorMode = useFlowStore((state: FlowState) => state.toggleColorMode);
-  const isAutosaveEnabled = useFlowStore((state: FlowState) => state.isAutosaveEnabled);
-  const toggleAutosave = useFlowStore((state: FlowState) => state.toggleAutosave);
   const currentProject = useFlowStore((state: FlowState) => state.currentProject);
   const nodes = useFlowStore((state: FlowState) => state.nodes);
   const edges = useFlowStore((state: FlowState) => state.edges);
@@ -117,9 +117,10 @@ export const useMenuBarState = ({
       {
         label: 'File',
         items: [
-          { label: 'Save', icon: Save, onClick: onSaveFile, shortcut: 'Ctrl+S' },
+          { label: 'Save', icon: Save, onClick: onSave, shortcut: 'Ctrl+S' },
+          { label: 'Save As...', icon: Save, onClick: onSaveAs },
           { label: 'Import', icon: Upload, onClick: onImportFile },
-          { label: 'Export', icon: FileCode, onClick: onExportYaml },
+          { label: 'Export YAML', icon: FileCode, onClick: onExportYaml },
           { label: 'Settings', icon: Sliders, onClick: onOpenSettings },
         ]
       },
@@ -143,11 +144,6 @@ export const useMenuBarState = ({
                 onOpenProjects(); // Open manager to save as new
               }
             }
-          },
-          {
-            label: isAutosaveEnabled ? 'Autosave: ON' : 'Autosave: OFF',
-            icon: isAutosaveEnabled ? CheckSquare : Square,
-            onClick: toggleAutosave
           },
         ]
       },
@@ -212,8 +208,8 @@ export const useMenuBarState = ({
       }
     ];
   }, [
-    onSaveFile, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings,
-    currentProject, nodes, edges, isAutosaveEnabled, toggleAutosave, colorMode,
+    onSave, onSaveAs, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings,
+    currentProject, nodes, edges, colorMode,
     isMonitoringDetached, isMonitoringOpen, setMonitoringOpen,
     isSidebarVisible, isRightSidebarVisible, isHistoryViewOpen, setHistoryViewOpen,
     isAutofocusEnabled, setSidebarVisible, setRightSidebarVisible, toggleAutofocus,

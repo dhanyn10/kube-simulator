@@ -17,7 +17,7 @@ export const useTerminalScroll = (
     if (!el) return;
     isProgrammaticScrollRef.current = true;
     const behavior = instant ? 'auto' : 'smooth';
-    if (terminalEndRef.current) {
+    if (terminalEndRef.current && typeof terminalEndRef.current.scrollIntoView === 'function') {
       terminalEndRef.current.scrollIntoView({ behavior });
     } else if (typeof el.scrollTo === 'function') {
       el.scrollTo({ top: el.scrollHeight, behavior });

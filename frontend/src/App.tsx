@@ -25,6 +25,7 @@ import {
   SecretModal,
   HPAModal,
   KubeIAMModal,
+  SaveModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -118,6 +119,7 @@ export default function App() {
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
   const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
   const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
@@ -208,7 +210,8 @@ export default function App() {
       <MenuBar
         onExportYaml={handleExport}
         onImportFile={handleImportFile}
-        onSaveFile={handleExportFile}
+        onSave={() => setIsSaveModalOpen(true)}
+        onSaveAs={handleExportFile}
         onOpenProjects={() => setIsProjectOpen(true)}
         onOpenScenarios={() => setIsScenarioOpen(true)}
         onOpenAbout={() => setIsAboutDialogOpen(true)}
@@ -310,6 +313,12 @@ export default function App() {
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
 
           <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+          <SaveModal
+            isOpen={isSaveModalOpen}
+            onClose={() => setIsSaveModalOpen(false)}
+            onSaveAs={handleExportFile}
+          />
 
           <RoleModal
             isOpen={roleModalTargetNode !== null}

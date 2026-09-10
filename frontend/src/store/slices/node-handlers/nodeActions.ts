@@ -17,6 +17,13 @@ import {
   syncWorkloadMetadata
 } from './nodeUtils';
 import { safeRandom } from '../../../lib/utils';
+import {
+  emitLiveScaleCommand,
+  emitLiveSetImageCommand,
+  emitLiveSetResourcesCommand,
+  emitLiveNodeCreatedCommand,
+  emitLiveNodeDeletedCommand,
+} from '../../../activity/terminal/liveUpdateCommands';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -65,7 +72,7 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
   if (updatedNode.type === 'Pod') {
     const parent = nodes.find(n => n.id === updatedNode.parentId);
     const isStandaloneContext = !updatedNode.parentId || parent?.type === 'Namespace';
-    
+
     if (isStandaloneContext && (updatedData.replicas || 0) > 1) {
       return handleReplicaSetTransform(nodeId, updatedNode, updatedData, nodes, get);
     }
@@ -149,6 +156,9 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   get().addLog('info', logMsg, 'UI');
 
   set({ nodes: collisionResolvedNodes, lastActionId: `add-${Date.now()}`, lastActionName: `Add ${type}` });
+
+  // Auto-emit kubectl live command for newly created node
+  emitLiveNodeCreatedCommand(type, (newNode.data?.label as string) || id);
 };
 
 const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodesToDelete: Node[]) => {
@@ -166,6 +176,9 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
     const label = n.data?.label || n.id;
     const logMsg = `[Canvas Action] Deleted card '${label}' (${n.type}) from coordinates (x1:${x1}, y1:${y1}, x2:${x2}, y2:${y2}), size: ${w}x${h}px`;
     get().addLog('info', logMsg, 'UI');
+
+    // Auto-emit kubectl live delete command
+    emitLiveNodeDeletedCommand(n.type || 'Node', label);
   });
 
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
@@ -191,6 +204,9 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   const hasChanges = Object.entries(newData).some(([key, value]) => (targetData as any)[key] !== value);
   if (!hasChanges) return;
 
+  const prevReplicas = targetData.replicas;
+  const prevImage = targetData.image;
+
   let sanitizedData = sanitizeResourceLimits(newData);
   sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
 
@@ -212,6 +228,28 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   const nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
   const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
   set({ nodes: collisionResolvedNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
+
+  // Auto-emit kubectl live command for updated fields
+  const nodeLabel = (targetData.label as string) || target.id;
+  const nodeType = target.type || 'Deployment';
+
+  if (newData.replicas !== undefined && newData.replicas !== prevReplicas) {
+    emitLiveScaleCommand(nodeLabel, nodeType, newData.replicas, prevReplicas);
+  }
+  if (newData.image !== undefined && newData.image !== prevImage) {
+    emitLiveSetImageCommand(nodeLabel, nodeType, newData.image, prevImage);
+  }
+  if (
+    (newData.cpuLimit !== undefined && newData.cpuLimit !== targetData.cpuLimit) ||
+    (newData.memoryLimit !== undefined && newData.memoryLimit !== targetData.memoryLimit)
+  ) {
+    emitLiveSetResourcesCommand(
+      nodeLabel,
+      nodeType,
+      newData.cpuLimit ?? targetData.cpuLimit,
+      newData.memoryLimit ?? targetData.memoryLimit
+    );
+  }
 };
 
 // -- MAIN EXPORT --

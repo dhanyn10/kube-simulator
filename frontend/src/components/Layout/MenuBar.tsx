@@ -8,7 +8,8 @@ import { useMenuBarState } from '../../activity/menubar';
 interface MenuBarProps {
   onExportYaml: () => void;
   onImportFile: () => void;
-  onSaveFile: () => void;
+  onSave: () => void;
+  onSaveAs: () => void;
   onOpenProjects: () => void;
   onOpenScenarios: () => void;
   onOpenAbout: () => void;
@@ -18,7 +19,8 @@ interface MenuBarProps {
 export const MenuBar = ({
   onExportYaml,
   onImportFile,
-  onSaveFile,
+  onSave,
+  onSaveAs,
   onOpenProjects,
   onOpenScenarios,
   onOpenAbout,
@@ -44,7 +46,8 @@ export const MenuBar = ({
   } = useMenuBarState({
     onExportYaml,
     onImportFile,
-    onSaveFile,
+    onSave,
+    onSaveAs,
     onOpenProjects,
     onOpenScenarios,
     onOpenAbout,

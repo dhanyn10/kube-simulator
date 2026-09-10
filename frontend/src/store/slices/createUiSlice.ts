@@ -604,7 +604,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   globalEdgeColor: 'var(--color-mat-indigo)',
   globalEdgeErrorColor: 'var(--color-mat-red)',
   draggingSidebarItem: null,
-  isAutosaveEnabled: false,
+  isAutosaveEnabled: true,
   isAutofocusEnabled: false,
   isSidebarVisible: true,
   isRightSidebarVisible: true,
@@ -704,6 +704,22 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           fallbackToLegacySettings(set);
         }
       });
+      globalThis.go.main.App.GetSetting('auto_saved_profile_content').then((content: string) => {
+        if (content) {
+          try {
+            const parsed = JSON.parse(content);
+            if (Array.isArray(parsed.nodes) && Array.isArray(parsed.edges) && parsed.nodes.length > 0) {
+              set({
+                nodes: parsed.nodes,
+                edges: parsed.edges,
+              });
+              logger.info('[Autosave] Restored latest profile from auto_saved_profile_content');
+            }
+          } catch (e) {
+            logger.error('[Autosave] Failed to parse auto_saved_profile_content', e);
+          }
+        }
+      });
       globalThis.go.main.App.GetSetting('active_identity').then((val: string) => {
         if (val) {
           set({ activeIdentity: val });
@@ -762,7 +778,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       }));
     }
   },
-  toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: !state.isAutosaveEnabled })),
+  toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: true })),
   toggleAutofocus: () => {
     set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled }));
     get().saveSettingsJson();

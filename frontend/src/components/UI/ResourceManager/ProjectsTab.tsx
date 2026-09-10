@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Clock } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { ArchitectureRow, Project } from './ArchitectureRow';
 
@@ -18,6 +18,8 @@ export interface ProjectsTabProps {
   handleLoad: (id: number, name: string) => void;
   handleDelete: (id: number) => void;
   colorMode: 'dark' | 'light';
+  latestAutosaveKey?: string | null;
+  handleRestoreAutosave?: () => void;
 }
 
 export const ProjectsTab = ({
@@ -35,13 +37,37 @@ export const ProjectsTab = ({
   handleUpdate,
   handleLoad,
   handleDelete,
-  colorMode
+  colorMode,
+  latestAutosaveKey,
+  handleRestoreAutosave
 }: ProjectsTabProps) => (
   <div className="space-y-4">
     <div>
       <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-1">Architecture Archives</h3>
       <p className="text-[10px] text-slate-500 leading-tight">Create, update, restore, or manage local Kubernetes system architectures.</p>
     </div>
+
+    {latestAutosaveKey && handleRestoreAutosave && (
+      <div className={cn(
+        "p-3 rounded-xl border flex items-center justify-between",
+        colorMode === 'dark' ? "bg-slate-900/80 border-slate-700/60" : "bg-blue-50/60 border-blue-200"
+      )}>
+        <div className="flex items-center gap-2.5">
+          <Clock size={16} className="text-blue-500" />
+          <div>
+            <div className="text-xs font-bold font-mono text-blue-500">{latestAutosaveKey}</div>
+            <p className="text-[10px] text-slate-500">Auto-saved session profile restored on app startup</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleRestoreAutosave}
+          className="px-3 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow transition-colors"
+        >
+          Restore Profile
+        </button>
+      </div>
+    )}
 
     <div className={cn(
       "p-3 rounded-lg border flex gap-3 items-center",

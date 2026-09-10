@@ -28,7 +28,6 @@ describe('MenuBar', () => {
     (globalThis as any).BrowserOpenURL = vi.fn();
     useFlowStore.setState({
       colorMode: 'dark',
-      isAutosaveEnabled: false,
       nodes: [],
       edges: [],
       isSimulating: false,
@@ -302,9 +301,8 @@ describe('MenuBar', () => {
     expect(badge).toHaveTextContent('99+');
   });
 
-  it('toggles theme mode, sidebar, autofocus, and autosave', () => {
+  it('toggles theme mode, sidebar, and autofocus', () => {
     const toggleColorMode = vi.spyOn(useFlowStore.getState(), 'toggleColorMode');
-    const toggleAutosave = vi.spyOn(useFlowStore.getState(), 'toggleAutosave');
     const setSidebarVisible = vi.spyOn(useFlowStore.getState(), 'setSidebarVisible');
     const toggleAutofocus = vi.spyOn(useFlowStore.getState(), 'toggleAutofocus');
 
@@ -313,10 +311,6 @@ describe('MenuBar', () => {
     const themeBtn = screen.getByTitle('Toggle Theme');
     fireEvent.click(themeBtn);
     expect(toggleColorMode).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Resource'));
-    fireEvent.click(screen.getByText('Autosave: OFF'));
-    expect(toggleAutosave).toHaveBeenCalled();
 
     fireEvent.click(screen.getByText('View'));
     fireEvent.click(screen.getByText('Components'));

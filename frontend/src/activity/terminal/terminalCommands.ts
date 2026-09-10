@@ -10,6 +10,8 @@ export interface CommandContext {
   deleteNodes: (nodes: Node[]) => void;
   getStoreState: () => any;
   setStoreState: (state: any) => void;
+  overridePrevReplicas?: number;
+  overridePrevImage?: string;
 }
 
 const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean => {
@@ -292,21 +294,24 @@ export const handleScaleCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+scale\s+(deploy(?:ment)?)\/([a-z0-9-]+)\s+--replicas=(\d+)/i.exec(cmd);
+  const match = /^kubectl\s+scale\s+(deploy(?:ment)?|replicaset|rs)\/([a-z0-9-]+)\s+--replicas=(\d+)/i.exec(cmd);
   if (!match) return false;
 
+  const resKind = match[1].toLowerCase().startsWith('replica') || match[1].toLowerCase() === 'rs' ? 'ReplicaSet' : 'Deployment';
   const targetName = match[2].toLowerCase();
   const replicasNum = Number.parseInt(match[3], 10);
 
-  const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
+  const foundNode = findNodeByTargetName(ctx.nodes, targetName, resKind);
 
   if (foundNode) {
-    const prevReplicas = foundNode.data.replicas || 0;
+    const prevReplicas = ctx.overridePrevReplicas !== undefined ? ctx.overridePrevReplicas : (foundNode.data.replicas || 0);
     ctx.updateNodeData(foundNode.id, { replicas: replicasNum });
-    ctx.addActivityLog(`deployment.apps/${foundNode.data.label || foundNode.id} scaled`);
+    const labelKind = resKind === 'ReplicaSet' ? 'replicaset.apps' : 'deployment.apps';
+    ctx.addActivityLog(`${labelKind}/${foundNode.data.label || foundNode.id} scaled`);
     ctx.addActivityLog(`[scale] Scaling replicas from ${prevReplicas} to ${replicasNum}...`);
   } else {
-    ctx.addActivityLog(`Error from server (NotFound): deployment "${targetName}" not found`);
+    const labelKind = resKind === 'ReplicaSet' ? 'replicaset' : 'deployment';
+    ctx.addActivityLog(`Error from server (NotFound): ${labelKind} "${targetName}" not found`);
   }
   return true;
 };
@@ -324,7 +329,7 @@ export const handleSetImageCommand = (
   const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {
-    const currentImage = foundNode.data.image || 'nginx:latest';
+    const currentImage = ctx.overridePrevImage || foundNode.data.image || 'nginx:latest';
     const revisions = foundNode.data.rolloutRevisions || [currentImage];
     const newRevisions = [...revisions, targetImage];
 
