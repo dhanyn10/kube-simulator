@@ -279,7 +279,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
             <h4 className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
               Recent Files & Auto-Saved Profiles
             </h4>
-            <span className="text-[10px] text-slate-500 font-mono">Hover location column for full path</span>
+            <span className="text-[10px] text-slate-500 font-mono">Hover location for full path</span>
           </div>
 
           <div className="overflow-x-auto max-h-56 overflow-y-auto rounded-xl border custom-scrollbar">
@@ -290,7 +290,6 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
               )}>
                 <tr>
                   <th className="py-2.5 px-3">Name</th>
-                  <th className="py-2.5 px-3">Location Path</th>
                   <th className="py-2.5 px-3">Date Modified</th>
                   <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
@@ -298,7 +297,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
               <tbody className="divide-y text-xs font-medium">
                 {recentFiles.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-slate-500">
+                    <td colSpan={3} className="text-center py-8 text-slate-500">
                       No recent files or auto-saved profiles found
                     </td>
                   </tr>
@@ -313,46 +312,55 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                           : colorMode === 'dark' ? "hover:bg-slate-800/50" : "hover:bg-slate-100/70"
                       )}
                     >
-                      {/* Name Column */}
+                      {/* Name Column with Sub-block for Location */}
                       <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-2.5">
                           <div className={cn(
-                            "p-1.5 rounded-md shrink-0",
+                            "p-1.5 rounded-md shrink-0 mt-0.5",
                             file.isAutosave ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-500"
                           )}>
-                            {file.isAutosave ? <Clock size={14} /> : <FileText size={14} />}
+                            {file.isAutosave ? <Clock size={15} /> : <FileText size={15} />}
                           </div>
-                          <span className="font-bold text-slate-200 truncate max-w-[180px]">{file.name}</span>
-                          {file.isAutosave && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-                              Auto-Save
-                            </span>
-                          )}
-                          {currentProject?.id === file.id && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
-                              <Check size={9} /> Active
-                            </span>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-200 truncate max-w-[240px]">{file.name}</span>
+                              {file.isAutosave && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                                  Auto-Save
+                                </span>
+                              )}
+                              {currentProject?.id === file.id && (
+                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center gap-1">
+                                  <Check size={9} /> Active
+                                </span>
+                              )}
+                            </div>
+                            {/* Sub-block displaying location path */}
+                            <div className={cn(
+                              "mt-1 px-2 py-0.5 rounded border inline-flex items-center gap-1.5 text-[10px] font-mono max-w-full",
+                              colorMode === 'dark'
+                                ? "bg-slate-900/80 border-slate-800 text-slate-400"
+                                : "bg-slate-100 border-slate-200 text-slate-600"
+                            )}>
+                              <span className="text-slate-500 font-semibold shrink-0">Location:</span>
+                              <span
+                                title={file.fullPath}
+                                className="truncate hover:text-blue-400 cursor-help"
+                              >
+                                {file.location}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Location Path Column (Full Path on Hover) */}
-                      <td className="py-2.5 px-3">
-                        <span
-                          title={file.fullPath}
-                          className="font-mono text-[11px] text-slate-400 hover:text-blue-400 cursor-help truncate block max-w-[200px]"
-                        >
-                          {file.location}
-                        </span>
-                      </td>
-
                       {/* Date Modified Column */}
-                      <td className="py-2.5 px-3 text-[11px] font-mono text-slate-300">
+                      <td className="py-2.5 px-3 text-[11px] font-mono text-slate-300 whitespace-nowrap">
                         {file.updatedAt}
                       </td>
 
                       {/* Action Column */}
-                      <td className="py-2.5 px-3 text-right">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => handleRestoreFile(file)}

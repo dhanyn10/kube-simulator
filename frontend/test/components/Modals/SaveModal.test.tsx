@@ -42,12 +42,11 @@ describe('SaveModal', () => {
     };
   });
 
-  it('renders MS Word-style table headers, location paths, and Date Modified column', async () => {
+  it('renders MS Word-style table headers, location sub-blocks, and Date Modified column', async () => {
     render(<SaveModal {...defaultProps} />);
 
     expect(screen.getByText('Save Architecture & Recent Files')).toBeInTheDocument();
     expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Location Path')).toBeInTheDocument();
     expect(screen.getAllByText('Date Modified').length).toBeGreaterThan(0);
 
     await waitFor(() => {
