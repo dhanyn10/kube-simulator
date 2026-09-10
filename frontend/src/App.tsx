@@ -10,7 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { logger } from './lib/logger';
-import { Sidebar, RightSidebar, MenuBar, TerminalPanel } from './components/Layout';
+import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView } from './components/Layout';
 import { CanvasControlsPanel } from './components/Layout/CanvasControlsPanel';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
@@ -115,6 +115,7 @@ export default function App() {
   const canvasBgOpacity = useFlowStore((state) => state.canvasBgOpacity);
   const loadSettingsJson = useFlowStore((state) => state.loadSettingsJson);
 
+  const [isFileBackstageOpen, setIsFileBackstageOpen] = useState(false);
   const [isProjectOpen, setIsProjectOpen] = useState(false);
   const [isScenarioOpen, setIsScenarioOpen] = useState(false);
   const [isAboutDialogOpen, setIsAboutDialogOpen] = useState(false);
@@ -210,7 +211,7 @@ export default function App() {
       <MenuBar
         onExportYaml={handleExport}
         onImportFile={handleImportFile}
-        onSave={() => setIsSaveModalOpen(true)}
+        onSave={() => setIsFileBackstageOpen(true)}
         onSaveAs={handleExportFile}
         onOpenProjects={() => setIsProjectOpen(true)}
         onOpenScenarios={() => setIsScenarioOpen(true)}
@@ -318,6 +319,14 @@ export default function App() {
             isOpen={isSaveModalOpen}
             onClose={() => setIsSaveModalOpen(false)}
             onSaveAs={handleExportFile}
+          />
+
+          <FileBackstageView
+            isOpen={isFileBackstageOpen}
+            onClose={() => setIsFileBackstageOpen(false)}
+            onSaveAs={handleExportFile}
+            onImportFile={handleImportFile}
+            onExportYaml={handleExport}
           />
 
           <RoleModal
