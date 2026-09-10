@@ -32,6 +32,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectName, setProjectName] = useState('');
   const [newCustomImage, setNewCustomImage] = useState('');
+  const [latestAutosaveKey, setLatestAutosaveKey] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'projects' | 'docker' | 'local'>('projects');
   const [sidebarSearch, setSidebarSearch] = useState('');
@@ -53,6 +54,10 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   const loadProjects = async () => {
     const res = await globalThis.go?.main?.App?.GetProjects();
     setProjects(res || []);
+    if (globalThis.go?.main?.App?.GetSetting) {
+      const key = await globalThis.go.main.App.GetSetting('auto_saved_profile_latest');
+      if (key) setLatestAutosaveKey(key);
+    }
   };
 
   useEffect(() => {
@@ -133,6 +138,32 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     setTimeout(() => {
       fitView({ padding: 0.1, duration: 800 });
     }, 50);
+  };
+
+  const handleRestoreAutosave = async () => {
+    if (!globalThis.go?.main?.App?.GetSetting) return;
+    const content = await globalThis.go.main.App.GetSetting('auto_saved_profile_content');
+    if (!content) return;
+
+    try {
+      const data = JSON.parse(content);
+      const nodesWithStrings = mapProjectNodes(data.nodes);
+      const edgesWithStrings = mapProjectEdges(data.edges);
+      const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
+
+      useFlowStore.setState({
+        nodes: hydratedNodes,
+        edges: edgesWithStrings,
+        lastActionId: `restore-autosave-${Date.now()}`,
+        lastActionName: 'Restore Auto-Save Profile',
+      });
+      onClose();
+      setTimeout(() => {
+        fitView({ padding: 0.1, duration: 800 });
+      }, 50);
+    } catch (e) {
+      console.error('Failed to restore auto-save profile', e);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -255,6 +286,8 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
               handleLoad={handleLoad}
               handleDelete={handleDelete}
               colorMode={colorMode}
+              latestAutosaveKey={latestAutosaveKey}
+              handleRestoreAutosave={handleRestoreAutosave}
             />
           )}
 

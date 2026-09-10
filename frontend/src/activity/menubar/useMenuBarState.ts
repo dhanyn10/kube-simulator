@@ -10,7 +10,8 @@ import { startTour } from '../../lib/tour';
 export interface MenuBarStateOptions {
   readonly onExportYaml: () => void;
   readonly onImportFile: () => void;
-  readonly onSaveFile: () => void;
+  readonly onSave: () => void;
+  readonly onSaveAs: () => void;
   readonly onOpenProjects: () => void;
   readonly onOpenScenarios: () => void;
   readonly onOpenAbout: () => void;
@@ -20,7 +21,8 @@ export interface MenuBarStateOptions {
 export const useMenuBarState = ({
   onExportYaml,
   onImportFile,
-  onSaveFile,
+  onSave,
+  onSaveAs,
   onOpenProjects,
   onOpenScenarios,
   onOpenAbout,
@@ -115,9 +117,10 @@ export const useMenuBarState = ({
       {
         label: 'File',
         items: [
-          { label: 'Save', icon: Save, onClick: onSaveFile, shortcut: 'Ctrl+S' },
+          { label: 'Save', icon: Save, onClick: onSave, shortcut: 'Ctrl+S' },
+          { label: 'Save As...', icon: Save, onClick: onSaveAs },
           { label: 'Import', icon: Upload, onClick: onImportFile },
-          { label: 'Export', icon: FileCode, onClick: onExportYaml },
+          { label: 'Export YAML', icon: FileCode, onClick: onExportYaml },
           { label: 'Settings', icon: Sliders, onClick: onOpenSettings },
         ]
       },
@@ -205,7 +208,7 @@ export const useMenuBarState = ({
       }
     ];
   }, [
-    onSaveFile, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings,
+    onSave, onSaveAs, onImportFile, onExportYaml, onOpenProjects, onOpenScenarios, onOpenAbout, onOpenSettings,
     currentProject, nodes, edges, colorMode,
     isMonitoringDetached, isMonitoringOpen, setMonitoringOpen,
     isSidebarVisible, isRightSidebarVisible, isHistoryViewOpen, setHistoryViewOpen,

@@ -13,3 +13,4 @@ export * from './SecretListModal';
 export * from './HPAModal';
 export * from './HPAListModal';
 export * from './KubeIAMModal';
+export * from './SaveModal';
