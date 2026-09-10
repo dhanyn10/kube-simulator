@@ -28,6 +28,7 @@ import { hydrateNodes } from '../../store/nodeHelpers';
 import { useFitView } from '../../hooks/useFitView';
 import { formatAutosaveKey } from '../../store/useFlowStore';
 import { ColorPalette } from '../UI/ColorPalette';
+import { WindowControls } from './WindowControls';
 
 export interface FileBackstageViewProps {
   readonly isOpen: boolean;
@@ -489,8 +490,13 @@ export const FileBackstageView = ({
       </div>
 
       {/* Main Backstage Content Panel */}
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+        {/* Top Right OS Window Controls */}
+        <div className="absolute top-3 right-3 z-10">
+          <WindowControls colorMode={colorMode} />
+        </div>
+
+        <div className="max-w-4xl mx-auto space-y-6 pt-2">
 
           {/* TAB 1: HOME & RECENT FILES */}
           {activeTab === 'home' && (

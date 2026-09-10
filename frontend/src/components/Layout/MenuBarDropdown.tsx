@@ -36,8 +36,7 @@ export const MenuBarDropdown = ({
 
   const buttonClasses = cn(
     "px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer",
-    isOpen ? activeClasses : inactiveClasses,
-    menu.label === 'File' && "font-bold text-blue-500 hover:text-blue-400"
+    isOpen ? activeClasses : inactiveClasses
   );
 
   const handleHeaderClick = () => {
