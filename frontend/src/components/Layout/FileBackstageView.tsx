@@ -23,9 +23,10 @@ import {
 } from 'lucide-react';
 import { useFlowStore } from '../../store';
 import { cn } from '../../lib/utils';
-import { generateTimestampedProjectName, mapProjectNodes, mapProjectEdges } from '../UI/ResourceManager/resourceManagerHelpers';
+import { mapProjectNodes, mapProjectEdges } from '../UI/ResourceManager/resourceManagerHelpers';
 import { hydrateNodes } from '../../store/nodeHelpers';
 import { useFitView } from '../../hooks/useFitView';
+import { formatAutosaveKey } from '../../store/useFlowStore';
 import { ColorPalette } from '../UI/ColorPalette';
 
 export interface FileBackstageViewProps {
@@ -129,7 +130,7 @@ export const FileBackstageView = ({
         } catch {
           // fallback
         }
-        const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.json`;
+        const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
         items.push({
           id: 'autosave-latest',
           name: latestAutosaveKey,
@@ -166,12 +167,14 @@ export const FileBackstageView = ({
     if (!isOpen) return;
     loadRecentFiles();
 
+    const currentKey = formatAutosaveKey(new Date());
+
     if (currentProject) {
       setActiveLocation(`~/.kube-simulator/projects/${currentProject.id}/architecture.infra`);
       setNewProjectName(currentProject.name);
     } else {
-      setActiveLocation('~/.kube-simulator/app_settings_json');
-      setNewProjectName(generateTimestampedProjectName());
+      setActiveLocation(`~/.kube-simulator/autosaves/${currentKey}.infra`);
+      setNewProjectName(currentKey);
     }
   }, [isOpen, currentProject]);
 
@@ -223,7 +226,7 @@ export const FileBackstageView = ({
       }
     }
 
-    const saveName = newProjectName.trim() || generateTimestampedProjectName();
+    const saveName = newProjectName.trim() || formatAutosaveKey(new Date());
     if (app?.SaveProject) {
       const id = await app.SaveProject(saveName, content);
       if (id !== undefined) {
