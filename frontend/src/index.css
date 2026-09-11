@@ -266,6 +266,99 @@
   .sidebar-item-card {
     @apply flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200 hover:shadow-lg active:cursor-grabbing;
   }
+
+  /* Backstage & Modal Layout Component Styles */
+  .backstage-sidebar-dark {
+    @apply w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-slate-900 border-slate-800;
+  }
+
+  .backstage-sidebar-light {
+    @apply w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-blue-900 text-white border-blue-800;
+  }
+
+  .backstage-btn-back-dark {
+    @apply p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200;
+  }
+
+  .backstage-btn-back-light {
+    @apply p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer bg-white/20 hover:bg-white/30 text-white;
+  }
+
+  .backstage-nav-btn {
+    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer disabled:opacity-50;
+  }
+
+  .backstage-item-active-dark {
+    @apply bg-blue-600 text-white;
+  }
+
+  .backstage-item-active-light {
+    @apply bg-white text-blue-900 font-extrabold shadow-md;
+  }
+
+  .backstage-item-inactive-dark {
+    @apply text-slate-300 hover:bg-slate-800/80;
+  }
+
+  .backstage-item-inactive-light {
+    @apply text-blue-100 hover:bg-white/10;
+  }
+
+  .backstage-settings-active-dark {
+    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-slate-800 text-blue-400;
+  }
+
+  .backstage-settings-active-light {
+    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-white/20 text-white;
+  }
+
+  .backstage-settings-inactive-dark {
+    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer text-slate-300 hover:bg-slate-800/80;
+  }
+
+  .backstage-settings-inactive-light {
+    @apply w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer text-blue-100 hover:bg-white/10;
+  }
+
+  .backstage-submenu-active-dark {
+    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer bg-blue-600 text-white;
+  }
+
+  .backstage-submenu-active-light {
+    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer bg-white text-blue-900 shadow-sm;
+  }
+
+  .backstage-submenu-inactive-dark {
+    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer text-slate-400 hover:text-white;
+  }
+
+  .backstage-submenu-inactive-light {
+    @apply w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer text-blue-100 hover:bg-white/10;
+  }
+
+  .backstage-theme-toggle-dark {
+    @apply w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-slate-800 text-amber-400 hover:bg-slate-700;
+  }
+
+  .backstage-theme-toggle-light {
+    @apply w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-white/20 text-white hover:bg-white/30;
+  }
+
+  .backstage-table-row-autosave-dark {
+    @apply bg-blue-950/20 hover:bg-blue-900/30;
+  }
+
+  .backstage-table-row-autosave-light {
+    @apply bg-blue-50/40 hover:bg-blue-100/50;
+  }
+
+  .backstage-table-row-normal-dark {
+    @apply hover:bg-slate-800/50;
+  }
+
+  .backstage-table-row-normal-light {
+    @apply hover:bg-slate-100/70;
+  }
 }
 
 

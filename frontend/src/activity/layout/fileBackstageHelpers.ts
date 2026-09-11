@@ -178,47 +178,49 @@ export const getSettingsSubmenuClass = (
  */
 export const getTableRowClass = (isAutosave: boolean, isDark: boolean): string => {
   if (isAutosave) {
-    if (isDark) return "bg-blue-950/20 hover:bg-blue-900/30";
-    return "bg-blue-50/40 hover:bg-blue-100/50";
+    if (isDark) return "backstage-table-row-autosave-dark";
+    return "backstage-table-row-autosave-light";
   }
-  if (isDark) return "hover:bg-slate-800/50";
-  return "hover:bg-slate-100/70";
+  if (isDark) return "backstage-table-row-normal-dark";
+  return "backstage-table-row-normal-light";
 };
 
 /**
  * Compute style classes for backstage sidebar container
  */
 export const getSidebarContainerClass = (isDark: boolean): string => {
-  if (isDark) return "w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-slate-900 border-slate-800";
-  return "w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-blue-900 text-white border-blue-800";
+  if (isDark) return "backstage-sidebar-dark";
+  return "backstage-sidebar-light";
 };
 
 /**
  * Compute style classes for backstage back button
  */
 export const getBackButtonClass = (isDark: boolean): string => {
-  if (isDark) return "p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200";
-  return "p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer bg-white/20 hover:bg-white/30 text-white";
+  if (isDark) return "backstage-btn-back-dark";
+  return "backstage-btn-back-light";
 };
 
 /**
  * Compute style classes for home item button
  */
 export const getHomeItemClass = (activeTab: BackstageTab, isDark: boolean): string => {
+  const base = "backstage-nav-btn";
   if (activeTab === 'home') {
-    if (isDark) return "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer bg-blue-600 text-white";
-    return "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer bg-white text-blue-900 font-extrabold shadow-md";
+    if (isDark) return `${base} backstage-item-active-dark`;
+    return `${base} backstage-item-active-light`;
   }
-  if (isDark) return "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer text-slate-300 hover:bg-slate-800/80";
-  return "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer text-blue-100 hover:bg-white/10";
+  if (isDark) return `${base} backstage-item-inactive-dark`;
+  return `${base} backstage-item-inactive-light`;
 };
 
 /**
  * Compute style classes for action buttons (Save, Import, Save As, Export)
  */
 export const getActionButtonClass = (isDark: boolean): string => {
-  if (isDark) return "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer disabled:opacity-50 text-slate-300 hover:bg-slate-800/80";
-  return "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer disabled:opacity-50 text-blue-100 hover:bg-white/10";
+  const base = "backstage-nav-btn";
+  if (isDark) return `${base} backstage-item-inactive-dark`;
+  return `${base} backstage-item-inactive-light`;
 };
 
 /**
@@ -226,11 +228,11 @@ export const getActionButtonClass = (isDark: boolean): string => {
  */
 export const getSettingsButtonClass = (activeTab: BackstageTab, isDark: boolean): string => {
   if (activeTab.startsWith('settings-')) {
-    if (isDark) return "w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-slate-800 text-blue-400";
-    return "w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-white/20 text-white";
+    if (isDark) return "backstage-settings-active-dark";
+    return "backstage-settings-active-light";
   }
-  if (isDark) return "w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer text-slate-300 hover:bg-slate-800/80";
-  return "w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer text-blue-100 hover:bg-white/10";
+  if (isDark) return "backstage-settings-inactive-dark";
+  return "backstage-settings-inactive-light";
 };
 
 /**
@@ -238,19 +240,19 @@ export const getSettingsButtonClass = (activeTab: BackstageTab, isDark: boolean)
  */
 export const getSubmenuItemClass = (isActive: boolean, isDark: boolean): string => {
   if (isActive) {
-    if (isDark) return "w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer bg-blue-600 text-white";
-    return "w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer bg-white text-blue-900 shadow-sm";
+    if (isDark) return "backstage-submenu-active-dark";
+    return "backstage-submenu-active-light";
   }
-  if (isDark) return "w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer text-slate-400 hover:text-white";
-  return "w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer text-blue-100 hover:bg-white/10";
+  if (isDark) return "backstage-submenu-inactive-dark";
+  return "backstage-submenu-inactive-light";
 };
 
 /**
  * Compute style classes for Theme toggle button
  */
 export const getThemeToggleClass = (isDark: boolean): string => {
-  if (isDark) return "w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-slate-800 text-amber-400 hover:bg-slate-700";
-  return "w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer bg-white/20 text-white hover:bg-white/30";
+  if (isDark) return "backstage-theme-toggle-dark";
+  return "backstage-theme-toggle-light";
 };
 
 /**
