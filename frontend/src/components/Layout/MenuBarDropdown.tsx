@@ -43,10 +43,10 @@ export const MenuBarDropdown = ({
     if (onMenuClick) {
       onMenuClick(menu.label);
     }
-    if (menu.label !== 'File') {
-      setActiveMenu(isOpen ? null : menu.label);
-    } else {
+    if (menu.label === 'File') {
       setActiveMenu(null);
+    } else {
+      setActiveMenu(isOpen ? null : menu.label);
     }
   };
 

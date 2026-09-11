@@ -42,6 +42,13 @@ const flowStore = createStore<FlowState>()(
 let currentSessionAutosaveKey: string | null = null;
 let isApplyingHistory = false;
 
+export const getCurrentSessionAutosaveKey = (): string => {
+  if (!currentSessionAutosaveKey) {
+    currentSessionAutosaveKey = formatAutosaveKey(new Date());
+  }
+  return currentSessionAutosaveKey;
+};
+
 // Initial capture (base state)
 setTimeout(() => {
   const state = flowStore.getState();
@@ -59,6 +66,8 @@ setTimeout(() => {
 
 // Core function to execute autosave
 const executeAutosave = (state: FlowState) => {
+  if (!state.isAutosaveEnabled) return;
+
   if (!currentSessionAutosaveKey) {
     currentSessionAutosaveKey = formatAutosaveKey(new Date());
   }

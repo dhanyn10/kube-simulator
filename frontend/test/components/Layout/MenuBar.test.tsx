@@ -182,10 +182,10 @@ describe('MenuBar', () => {
     alertSpy.mockRestore();
   });
 
-  it('triggers onSave when File menu is clicked', async () => {
+  it('triggers onSave to open FileBackstageView overlay when File menu is clicked', async () => {
     render(<MenuBar {...defaultProps} />);
 
-    // Open 'File' menu triggers onSave (FileBackstageView overlay)
+    // Clicking 'File' menu header triggers onSave (FileBackstageView overlay)
     fireEvent.click(screen.getByText('File'));
     expect(defaultProps.onSave).toHaveBeenCalled();
   });

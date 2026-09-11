@@ -778,7 +778,13 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       }));
     }
   },
-  toggleAutosave: () => set((state: FlowState) => ({ isAutosaveEnabled: true })),
+  toggleAutosave: () => set((state: FlowState) => {
+    const nextVal = !state.isAutosaveEnabled;
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      globalThis.go.main.App.SaveSetting('isAutosaveEnabled', String(nextVal));
+    }
+    return { isAutosaveEnabled: nextVal };
+  }),
   toggleAutofocus: () => {
     set((state: FlowState) => ({ isAutofocusEnabled: !state.isAutofocusEnabled }));
     get().saveSettingsJson();
