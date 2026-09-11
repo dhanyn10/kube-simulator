@@ -1,43 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, RotateCcw, X } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { Modal } from './Modal';
-import { generateTimestampedProjectName, mapProjectNodes, mapProjectEdges } from '../UI/ResourceManager/resourceManagerHelpers';
-import { hydrateNodes } from '../../store/nodeHelpers';
-import { useFitView } from '../../hooks/useFitView';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { Modal } from '@/components/Modals/Modal';
+import { generateTimestampedProjectName } from '@/components/UI/ResourceManager/resourceManagerHelpers';
+import { useFitView } from '@/hooks/useFitView';
+import {
+  formatDateModified,
+  fetchRecentFiles,
+  restoreRecentFile,
+  RecentFileItem,
+} from '@/activity/layout/fileBackstageHelpers';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly onSaveAs: () => void;
 }
-
-interface RecentFileItem {
-  id: number | string;
-  name: string;
-  location: string;
-  fullPath: string;
-  updatedAt: string;
-  isAutosave?: boolean;
-}
-
-/**
- * Format a raw date/timestamp string or number to DD/MM/YYYY HH:mm:ss
- */
-const formatDateModified = (val?: string | number): string => {
-  if (!val) return new Date().toLocaleString('en-GB');
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const day = pad(d.getDate());
-  const month = pad(d.getMonth() + 1);
-  const year = d.getFullYear();
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  const seconds = pad(d.getSeconds());
-  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-};
 
 export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
   const fitView = useFitView();
@@ -57,52 +36,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
   const isCanvasEmpty = nodes.length === 0;
 
   const loadRecentFiles = async () => {
-    const items: RecentFileItem[] = [];
-    const app = globalThis.go?.main?.App;
-
-    // 1. Fetch latest auto-saved profile from settings
-    if (app?.GetSetting) {
-      const latestAutosaveKey = await app.GetSetting('auto_saved_profile_latest');
-      const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
-
-      if (latestAutosaveKey && latestAutosaveContent) {
-        let ts = Date.now();
-        try {
-          const parsed = JSON.parse(latestAutosaveContent);
-          if (parsed.timestamp) ts = parsed.timestamp;
-        } catch {
-          // fallback
-        }
-        const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.json`;
-        items.push({
-          id: 'autosave-latest',
-          name: latestAutosaveKey,
-          location: autosavePath,
-          fullPath: autosavePath,
-          updatedAt: formatDateModified(ts),
-          isAutosave: true,
-        });
-      }
-    }
-
-    // 2. Fetch saved projects from SQLite/Badger DB
-    if (app?.GetProjects) {
-      const projects = await app.GetProjects();
-      if (Array.isArray(projects)) {
-        projects.forEach((p: any) => {
-          const relativePath = `.kube-simulator/projects/${p.id}`;
-          const fullPath = `~/.kube-simulator/projects/${p.id}/architecture.infra`;
-          items.push({
-            id: p.id,
-            name: p.name,
-            location: relativePath,
-            fullPath,
-            updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
-          });
-        });
-      }
-    }
-
+    const items = await fetchRecentFiles();
     setRecentFiles(items);
   };
 
@@ -170,50 +104,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
   };
 
   const handleRestoreFile = async (item: RecentFileItem) => {
-    const app = globalThis.go?.main?.App;
-    if (!app) return;
-
-    if (item.isAutosave) {
-      const content = await app.GetSetting('auto_saved_profile_content');
-      if (content) {
-        try {
-          const data = JSON.parse(content);
-          const nodesWithStrings = mapProjectNodes(data.nodes);
-          const edgesWithStrings = mapProjectEdges(data.edges);
-          const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
-
-          useFlowStore.setState({
-            nodes: hydratedNodes,
-            edges: edgesWithStrings,
-            lastActionId: `restore-save-${Date.now()}`,
-            lastActionName: 'Restored Recent File',
-          });
-          onClose();
-          setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
-        } catch {
-          // ignore error
-        }
-      }
-    } else if (typeof item.id === 'number') {
-      const res = await app.LoadProject(item.id);
-      if (res?.content) {
-        const data = JSON.parse(res.content);
-        const nodesWithStrings = mapProjectNodes(data.nodes);
-        const edgesWithStrings = mapProjectEdges(data.edges);
-        const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
-
-        useFlowStore.setState({
-          nodes: hydratedNodes,
-          edges: edgesWithStrings,
-          currentProject: { id: item.id, name: item.name },
-          lastSavedSnapshot: res.content,
-          lastActionId: `load-recent-${Date.now()}`,
-          lastActionName: 'Load Recent Project',
-        });
-        onClose();
-        setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
-      }
-    }
+    await restoreRecentFile(item, onClose, fitView);
   };
 
   if (!isOpen) return null;
@@ -258,11 +149,12 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
 
         {/* Quick Save / Name Input */}
         <div className="space-y-2">
-          <label className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block">
+          <label htmlFor="save-modal-project-name" className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block">
             Save Current Architecture
           </label>
           <div className="flex gap-2">
             <input
+              id="save-modal-project-name"
               type="text"
               placeholder="Enter architecture name..."
               value={newProjectName}

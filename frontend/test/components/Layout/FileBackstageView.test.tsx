@@ -133,4 +133,14 @@ describe('FileBackstageView', () => {
     fireEvent.click(screen.getByText('Theme Mode'));
     expect(toggleColorMode).toHaveBeenCalled();
   });
+
+  it('renders default context menu on right click in empty backstage area', () => {
+    renderWithProvider(<FileBackstageView {...defaultProps} />);
+
+    const backstageContainer = screen.getByTestId('file-backstage-view');
+    fireEvent.contextMenu(backstageContainer);
+
+    expect(screen.getByText('Change Theme')).toBeInTheDocument();
+    expect(screen.getByText('Exit')).toBeInTheDocument();
+  });
 });

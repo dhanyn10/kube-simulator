@@ -304,7 +304,7 @@ export const handleScaleCommand = (
   const foundNode = findNodeByTargetName(ctx.nodes, targetName, resKind);
 
   if (foundNode) {
-    const prevReplicas = ctx.overridePrevReplicas !== undefined ? ctx.overridePrevReplicas : (foundNode.data.replicas || 0);
+    const prevReplicas = ctx.overridePrevReplicas ?? (foundNode.data.replicas || 0);
     ctx.updateNodeData(foundNode.id, { replicas: replicasNum });
     const labelKind = resKind === 'ReplicaSet' ? 'replicaset.apps' : 'deployment.apps';
     ctx.addActivityLog(`${labelKind}/${foundNode.data.label || foundNode.id} scaled`);

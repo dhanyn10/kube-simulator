@@ -26,12 +26,12 @@ describe('SidebarContextMenu', () => {
     expect(toggleColorMode).toHaveBeenCalled();
     expect(onCloseContextMenu).toHaveBeenCalled();
 
-    const closeBtn = screen.getByText('Close');
+    const closeBtn = screen.getByText('Exit');
     fireEvent.click(closeBtn);
     expect(onCloseSidebar).toHaveBeenCalled();
   });
 
-  it('handles Close button click when onCloseSidebar is omitted and in light mode', () => {
+  it('handles Exit button click when onCloseSidebar is omitted and in light mode', () => {
     const onCloseContextMenu = vi.fn();
 
     render(
@@ -44,7 +44,7 @@ describe('SidebarContextMenu', () => {
       />
     );
 
-    const closeBtn = screen.getByText('Close');
+    const closeBtn = screen.getByText('Exit');
     fireEvent.click(closeBtn);
     expect(onCloseContextMenu).toHaveBeenCalled();
   });
