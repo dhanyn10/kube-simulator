@@ -16,7 +16,8 @@ describe('MenuBar', () => {
   const defaultProps = {
     onExportYaml: vi.fn(),
     onImportFile: vi.fn(),
-    onSaveFile: vi.fn(),
+    onSave: vi.fn(),
+    onSaveAs: vi.fn(),
     onOpenProjects: vi.fn(),
     onOpenScenarios: vi.fn(),
     onOpenAbout: vi.fn(),
@@ -181,17 +182,25 @@ describe('MenuBar', () => {
     alertSpy.mockRestore();
   });
 
+  it('triggers onSave when File menu is clicked', async () => {
+    render(<MenuBar {...defaultProps} />);
+
+    // Open 'File' menu triggers onSave (FileBackstageView overlay)
+    fireEvent.click(screen.getByText('File'));
+    expect(defaultProps.onSave).toHaveBeenCalled();
+  });
+
   it('closes open menu dropdown on click outside', async () => {
     render(<MenuBar {...defaultProps} />);
 
-    // Open 'File' menu
-    fireEvent.click(screen.getByText('File'));
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    // Open 'Resource' menu
+    fireEvent.click(screen.getByText('Resource'));
+    expect(screen.getByText('Resource Manager')).toBeInTheDocument();
 
     // Click outside
     fireEvent.mouseDown(document.body);
     await waitFor(() => {
-      expect(screen.queryByText('Settings')).toBeNull();
+      expect(screen.queryByText('Resource Manager')).toBeNull();
     });
   });
 

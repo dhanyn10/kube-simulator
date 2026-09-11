@@ -11,20 +11,22 @@ interface MenuItem {
 }
 
 interface MenuBarDropdownProps {
-  menu: {
-    label: string;
-    items: MenuItem[];
+  readonly menu: {
+    readonly label: string;
+    readonly items: readonly MenuItem[];
   };
-  activeMenu: string | null;
-  setActiveMenu: (label: string | null) => void;
-  colorMode: 'dark' | 'light';
+  readonly activeMenu: string | null;
+  readonly setActiveMenu: (label: string | null) => void;
+  readonly colorMode: 'dark' | 'light';
+  readonly onMenuClick?: (label: string) => void;
 }
 
 export const MenuBarDropdown = ({
   menu,
   activeMenu,
   setActiveMenu,
-  colorMode
+  colorMode,
+  onMenuClick,
 }: MenuBarDropdownProps) => {
   const isOpen = activeMenu === menu.label;
   const isDark = colorMode === 'dark';
@@ -33,16 +35,27 @@ export const MenuBarDropdown = ({
   const inactiveClasses = isDark ? "hover:bg-slate-800" : "hover:bg-slate-200";
 
   const buttonClasses = cn(
-    "px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1",
+    "px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer",
     isOpen ? activeClasses : inactiveClasses
   );
+
+  const handleHeaderClick = () => {
+    if (onMenuClick) {
+      onMenuClick(menu.label);
+    }
+    if (menu.label !== 'File') {
+      setActiveMenu(isOpen ? null : menu.label);
+    } else {
+      setActiveMenu(null);
+    }
+  };
 
   return (
     <div className="relative" style={{ '--wails-draggable': 'no-drag' }}>
       <button
         type="button"
-        onClick={() => setActiveMenu(isOpen ? null : menu.label)}
-        onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
+        onClick={handleHeaderClick}
+        onMouseEnter={() => activeMenu && menu.label !== 'File' && setActiveMenu(menu.label)}
         className={buttonClasses}
       >
         {menu.label}

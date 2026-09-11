@@ -1,3 +1,4 @@
+export * from './FileBackstageView';
 export * from './MenuBar';
 export * from './MenuBarDropdown';
 export * from './RightSidebar';
