@@ -238,8 +238,8 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
               <Folder size={18} />
             </div>
             <div>
-              <div className="text-xs font-bold tracking-tight text-slate-200">
-                {currentProject ? currentProject.name : 'Unsaved Session Architecture'}
+              <div className="text-xs font-bold tracking-tight text-slate-200 font-mono">
+                {currentProject ? currentProject.name : (newProjectName || 'Auto-Saved Profile')}
               </div>
               <p
                 title={activeLocation}

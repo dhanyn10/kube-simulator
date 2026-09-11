@@ -521,8 +521,8 @@ export const FileBackstageView = ({
                     <Folder size={20} />
                   </div>
                   <div>
-                    <div className="text-sm font-bold tracking-tight">
-                      {currentProject ? currentProject.name : 'Unsaved Session Architecture'}
+                    <div className="text-sm font-bold tracking-tight font-mono">
+                      {currentProject ? currentProject.name : (newProjectName || 'Auto-Saved Profile')}
                     </div>
                     <p
                       title={activeLocation}
