@@ -28,7 +28,7 @@ interface RecentFileItem {
 const formatDateModified = (val?: string | number): string => {
   if (!val) return new Date().toLocaleString('en-GB');
   const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val);
+  if (Number.isNaN(d.getTime())) return String(val);
   const pad = (n: number) => String(n).padStart(2, '0');
   const day = pad(d.getDate());
   const month = pad(d.getMonth() + 1);
@@ -258,11 +258,12 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
 
         {/* Quick Save / Name Input */}
         <div className="space-y-2">
-          <label className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block">
+          <label htmlFor="save-modal-project-name" className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block">
             Save Current Architecture
           </label>
           <div className="flex gap-2">
             <input
+              id="save-modal-project-name"
               type="text"
               placeholder="Enter architecture name..."
               value={newProjectName}
