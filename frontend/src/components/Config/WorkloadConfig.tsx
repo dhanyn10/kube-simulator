@@ -7,7 +7,7 @@ import { SelectorGroup } from '../UI/SelectorGroup';
 import { RUNTIMES, WEBSERVERS } from '@/constants/config';
 import { cn } from '@/lib/utils';
 import { FrameworkSelector } from '../Workload/FrameworkSelector';
-import { useWorkloadConfigHandler } from '@/activity/config';
+import { useWorkloadConfigHandler } from '@/activities/config';
 
 interface WorkloadConfigProps {
   selectedNode: any;

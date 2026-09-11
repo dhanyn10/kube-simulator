@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sRoleItem } from '@/types';
 import { cn } from '@/lib/utils';
-import { useRoleModal } from '@/activity/modals';
+import { useRoleModal } from '@/activities/modals';
 import {
   RoleModalHeaderHint,
   RoleSubjectsSection,

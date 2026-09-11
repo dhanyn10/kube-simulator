@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { TerminalCommandForm } from '@/components/Layout/Terminal/TerminalCommandForm';
 import { useFlowStore } from '@/store';
-import { SuggestionItem } from '@/activity/terminal';
+import { SuggestionItem } from '@/activities/terminal';
 
 describe('TerminalCommandForm', () => {
   const defaultProps = {

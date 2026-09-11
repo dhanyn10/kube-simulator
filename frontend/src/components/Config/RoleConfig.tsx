@@ -6,7 +6,7 @@ import {
   AVAILABLE_VERBS,
   getVerbButtonStyles,
   useRoleConfigHandler
-} from '@/activity/config';
+} from '@/activities/config';
 
 interface RoleConfigProps {
   data: K8sNodeData;

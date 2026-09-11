@@ -23,7 +23,7 @@ import {
   emitLiveSetResourcesCommand,
   emitLiveNodeCreatedCommand,
   emitLiveNodeDeletedCommand,
-} from '../../../activity/terminal/liveUpdateCommands';
+} from '../../../activities/terminal/liveUpdateCommands';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 

@@ -4,7 +4,7 @@ import { Bell, Trash2 } from 'lucide-react';
 import { LogToolbar } from './LogModal/LogToolbar';
 import { LogRow } from './LogModal/LogRow';
 import { LogPagination } from './LogModal/LogPagination';
-import { useLogModal } from '../../activity/modals';
+import { useLogModal } from '../../activities/modals';
 
 export const LogModal: React.FC = () => {
   const {

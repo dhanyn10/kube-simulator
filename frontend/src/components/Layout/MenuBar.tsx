@@ -3,7 +3,7 @@ import { cn } from '../../lib/utils';
 import { WindowControls } from './WindowControls';
 import { SimulationControls } from './SimulationControls';
 import { MenuBarDropdown } from './MenuBarDropdown';
-import { useMenuBarState } from '../../activity/menubar';
+import { useMenuBarState } from '../../activities/menubar';
 
 interface MenuBarProps {
   onExportYaml: () => void;

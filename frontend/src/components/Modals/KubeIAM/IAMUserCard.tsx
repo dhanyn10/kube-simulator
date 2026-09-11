@@ -2,7 +2,7 @@ import React from 'react';
 import { User, Trash2, CheckCircle2, UserCheck, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { KubeIAMUser } from '@/types';
-import { getUserCardBgClass } from '@/activity/modals';
+import { getUserCardBgClass } from '@/activities/modals';
 
 export interface IAMUserCardProps {
   readonly user: KubeIAMUser;

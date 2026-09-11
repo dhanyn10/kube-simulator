@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldCheck, CheckCircle2, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getAdminCardBgClass } from '@/activity/modals';
+import { getAdminCardBgClass } from '@/activities/modals';
 
 export interface IAMSystemAdminCardProps {
   readonly isActive: boolean;

@@ -12,7 +12,7 @@ import {
   handleHistoryCommand,
   formatCommandTimestamp,
   CommandHistoryEntry,
-} from '../../../../src/activity/terminal';
+} from '../../../../src/activities/terminal';
 import { useFlowStore } from '../../../../src/store/useFlowStore';
 import '@testing-library/jest-dom';
 

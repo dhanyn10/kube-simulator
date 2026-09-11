@@ -1,4 +1,4 @@
-import { getPodBadgeVisibility } from '@/activity/nodes';
+import { getPodBadgeVisibility } from '@/activities/nodes';
 
 interface NodePodBadgesProps {
   data: any;

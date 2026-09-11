@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Home, Save, FilePlus, FileText, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { RecentFileItem, getTableRowClass, getAutosaveSwitchBgClass } from '@/activity/layout/fileBackstageHelpers';
+import { RecentFileItem, getTableRowClass, getAutosaveSwitchBgClass } from '@/activities/layout/fileBackstageHelpers';
 
 export interface BackstageHomeTabProps {
   readonly colorMode: 'dark' | 'light';

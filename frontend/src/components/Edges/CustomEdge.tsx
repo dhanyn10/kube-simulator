@@ -1,14 +1,14 @@
 import { BaseEdge, EdgeLabelRenderer, EdgeProps } from '@xyflow/react';
 import { Settings, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCustomEdge } from '@/activity/edges';
+import { useCustomEdge } from '@/activities/edges';
 
 export {
   checkNodeUnready,
   checkDownstreamErrorState,
   findDownstreamUnreadyNode,
   getTargetLoggableNode,
-} from '@/activity/edges';
+} from '@/activities/edges';
 
 export default function CustomEdge(props: EdgeProps) {
   const { style = {}, markerEnd, selected } = props;

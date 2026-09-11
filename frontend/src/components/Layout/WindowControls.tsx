@@ -1,6 +1,6 @@
 import { Minus, Square, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useWindowControls } from '@/activity/layout';
+import { useWindowControls } from '@/activities/layout';
 
 export const WindowControls = ({ colorMode }: { colorMode: string }) => {
   const { handleMinimize, handleMaximize, handleClose } = useWindowControls();

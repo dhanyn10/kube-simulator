@@ -3,7 +3,7 @@ import { Edit2, Trash2, Plus, LucideIcon } from 'lucide-react';
 import { Modal } from './Modal';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
-import { getItemActionTitles, BaseAttachedItem } from '@/activity/modals';
+import { getItemActionTitles, BaseAttachedItem } from '@/activities/modals';
 
 export type { BaseAttachedItem };
 
