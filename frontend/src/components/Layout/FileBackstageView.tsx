@@ -299,7 +299,7 @@ export const FileBackstageView = ({
     <div
       data-testid="file-backstage-view"
       className={cn(
-        "fixed inset-0 z-[200] flex font-sans animate-in fade-in zoom-in-95 duration-150 select-none relative",
+        "fixed inset-0 z-[200] flex font-sans animate-in fade-in zoom-in-95 duration-150 select-none",
         colorMode === 'dark' ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
       )}
     >

@@ -85,6 +85,11 @@ export const MenuBar = ({
             activeMenu={activeMenu}
             setActiveMenu={setActiveMenu}
             colorMode={colorMode}
+            onMenuClick={(label) => {
+              if (label === 'File') {
+                onSave(); // Opens full screen MS Word 2021 FileBackstageView
+              }
+            }}
           />
         ))}
 
