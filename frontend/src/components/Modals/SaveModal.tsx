@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, RotateCcw, X } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { Modal } from './Modal';
-import { generateTimestampedProjectName } from '../UI/ResourceManager/resourceManagerHelpers';
-import { useFitView } from '../../hooks/useFitView';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { Modal } from '@/components/Modals/Modal';
+import { generateTimestampedProjectName } from '@/components/UI/ResourceManager/resourceManagerHelpers';
+import { useFitView } from '@/hooks/useFitView';
 import {
   formatDateModified,
   fetchRecentFiles,
   restoreRecentFile,
   RecentFileItem,
-} from '../../activity/layout/fileBackstageHelpers';
+} from '@/activity/layout/fileBackstageHelpers';
 
 export interface SaveModalProps {
   readonly isOpen: boolean;

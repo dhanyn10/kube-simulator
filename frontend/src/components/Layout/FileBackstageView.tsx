@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { hydrateNodes } from '../../store/nodeHelpers';
-import { useFitView } from '../../hooks/useFitView';
-import { getCurrentSessionAutosaveKey } from '../../store/useFlowStore';
-import { WindowControls } from './WindowControls';
-import { BackstageSidebar } from './BackstageSidebar';
-import { BackstageHomeTab } from './BackstageHomeTab';
-import { BackstageSettingsTab } from './BackstageSettingsTab';
-import { BackstageContextMenu } from './BackstageContextMenu';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { useFitView } from '@/hooks/useFitView';
+import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
+import { WindowControls } from '@/components/Layout/WindowControls';
+import { BackstageSidebar } from '@/components/Layout/BackstageSidebar';
+import { BackstageHomeTab } from '@/components/Layout/BackstageHomeTab';
+import { BackstageSettingsTab } from '@/components/Layout/BackstageSettingsTab';
+import { BackstageContextMenu } from '@/components/Layout/BackstageContextMenu';
 import {
   BackstageTab,
   RecentFileItem,
   fetchRecentFiles,
   restoreRecentFile,
-} from '../../activity/layout/fileBackstageHelpers';
+} from '@/activity/layout/fileBackstageHelpers';
 
 export interface FileBackstageViewProps {
   readonly isOpen: boolean;

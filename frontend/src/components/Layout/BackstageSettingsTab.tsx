@@ -1,8 +1,8 @@
 import React from 'react';
 import { Eye, Grid, RefreshCw } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { ColorPalette } from '../UI/ColorPalette';
-import { BackstageTab } from '../../activity/layout/fileBackstageHelpers';
+import { cn } from '@/lib/utils';
+import { ColorPalette } from '@/components/UI/ColorPalette';
+import { BackstageTab } from '@/activity/layout/fileBackstageHelpers';
 
 export interface BackstageSettingsTabProps {
   readonly activeTab: BackstageTab;

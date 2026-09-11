@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sun, Moon, RotateCcw, X } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { RecentFileItem } from '../../activity/layout/fileBackstageHelpers';
+import { cn } from '@/lib/utils';
+import { RecentFileItem } from '@/activity/layout/fileBackstageHelpers';
 
 export interface BackstageContextMenuProps {
   readonly contextMenu: { readonly x: number; readonly y: number; readonly item: RecentFileItem | null } | null;

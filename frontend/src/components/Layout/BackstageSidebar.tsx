@@ -14,8 +14,8 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { BackstageTab } from '../../activity/layout/fileBackstageHelpers';
+import { cn } from '@/lib/utils';
+import { BackstageTab } from '@/activity/layout/fileBackstageHelpers';
 
 export interface BackstageSidebarProps {
   readonly colorMode: 'dark' | 'light';

@@ -1,6 +1,6 @@
-import { useFlowStore } from '../../store';
-import { mapProjectNodes, mapProjectEdges } from '../../components/UI/ResourceManager/resourceManagerHelpers';
-import { hydrateNodes } from '../../store/nodeHelpers';
+import { useFlowStore } from '@/store';
+import { mapProjectNodes, mapProjectEdges } from '@/components/UI/ResourceManager/resourceManagerHelpers';
+import { hydrateNodes } from '@/store/nodeHelpers';
 
 export type BackstageTab = 'home' | 'settings-view' | 'settings-canvas';
 
