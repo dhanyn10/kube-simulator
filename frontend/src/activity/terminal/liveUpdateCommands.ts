@@ -1,6 +1,5 @@
-import { Node } from '@xyflow/react';
-import { useFlowStore } from '../../store';
-import { CommandContext, executeKubectlCommand } from './useTerminalCommandSubmit';
+import { useFlowStore } from '@/store';
+import { CommandContext, executeKubectlCommand } from '@/activity/terminal/useTerminalCommandSubmit';
 
 // Flag to prevent recursive dispatch loops when terminal commands themselves modify store
 let isDispatchingLiveCommand = false;

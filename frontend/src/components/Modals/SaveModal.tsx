@@ -10,6 +10,8 @@ import {
   fetchRecentFiles,
   restoreRecentFile,
   RecentFileItem,
+  getSaveRowBgClass,
+  getHeaderProfileName,
 } from '@/activity/layout/fileBackstageHelpers';
 
 export interface SaveModalProps {
@@ -130,7 +132,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
             </div>
             <div>
               <div className="text-xs font-bold tracking-tight text-slate-200 font-mono">
-                {currentProject ? currentProject.name : (newProjectName || 'Auto-Saved Profile')}
+                {getHeaderProfileName(currentProject, newProjectName)}
               </div>
               <p
                 title={activeLocation}
@@ -227,9 +229,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                       onDoubleClick={() => handleRestoreFile(file)}
                       className={cn(
                         "transition-colors group cursor-pointer select-none",
-                        file.isAutosave
-                          ? colorMode === 'dark' ? "bg-blue-950/20 hover:bg-blue-900/30" : "bg-blue-50/40 hover:bg-blue-100/50"
-                          : colorMode === 'dark' ? "hover:bg-slate-800/50" : "hover:bg-slate-100/70"
+                        getSaveRowBgClass(Boolean(file.isAutosave), colorMode === 'dark')
                       )}
                     >
                       {/* Name Column with Sub-block for Location */}
