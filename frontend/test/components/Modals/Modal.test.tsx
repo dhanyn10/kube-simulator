@@ -86,7 +86,7 @@ describe('Modal component', () => {
     fireEvent.contextMenu(dialogElement, { clientX: 100, clientY: 150 });
 
     expect(screen.getByText('Change Theme')).toBeInTheDocument();
-    expect(screen.getByText('Close')).toBeInTheDocument();
+    expect(screen.getByText('Exit')).toBeInTheDocument();
 
     // Click Change Theme
     const changeThemeBtn = screen.getByText('Change Theme').closest('button')!;
@@ -105,8 +105,8 @@ describe('Modal component', () => {
     fireEvent.contextMenu(dialogElement, { clientX: 120, clientY: 180 });
     expect(screen.getByText('Change Theme')).toBeInTheDocument();
 
-    // Click Close inside context menu
-    const closeContextBtn = screen.getByText('Close').closest('button')!;
+    // Click Exit inside context menu
+    const closeContextBtn = screen.getByText('Exit').closest('button')!;
     fireEvent.click(closeContextBtn);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });

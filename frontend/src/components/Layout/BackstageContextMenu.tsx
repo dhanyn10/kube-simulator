@@ -87,7 +87,7 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
         )}
       >
         <X size={15} />
-        <span>Close File Menu</span>
+        <span>Exit</span>
       </button>
     </div>
   );

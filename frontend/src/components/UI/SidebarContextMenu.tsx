@@ -70,7 +70,7 @@ export function SidebarContextMenu({
         )}
       >
         <X size={14} />
-        Close
+        Exit
       </button>
     </div>
   );
