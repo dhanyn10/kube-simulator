@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Home, Save, FilePlus, FileText, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { RecentFileItem, getTableRowClass } from '@/activity/layout/fileBackstageHelpers';
+import { RecentFileItem, getTableRowClass, getAutosaveSwitchBgClass } from '@/activity/layout/fileBackstageHelpers';
 
 export interface BackstageHomeTabProps {
   readonly colorMode: 'dark' | 'light';
@@ -57,7 +57,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
               onClick={toggleAutosave}
               className={cn(
                 "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                isAutosaveEnabled ? "bg-emerald-500" : isDark ? "bg-slate-700" : "bg-slate-300"
+                getAutosaveSwitchBgClass(isAutosaveEnabled, isDark)
               )}
               title={isAutosaveEnabled ? "Autosave is Enabled" : "Autosave is Disabled"}
             >

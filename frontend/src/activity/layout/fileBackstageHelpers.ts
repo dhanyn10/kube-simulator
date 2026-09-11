@@ -178,9 +178,107 @@ export const getSettingsSubmenuClass = (
  */
 export const getTableRowClass = (isAutosave: boolean, isDark: boolean): string => {
   if (isAutosave) {
-    if (isDark) return "bg-blue-950/20 hover:bg-blue-900/30";
-    return "bg-blue-50/40 hover:bg-blue-100/50";
+    if (isDark) return "backstage-table-row-autosave-dark";
+    return "backstage-table-row-autosave-light";
   }
-  if (isDark) return "hover:bg-slate-800/50";
-  return "hover:bg-slate-100/70";
+  if (isDark) return "backstage-table-row-normal-dark";
+  return "backstage-table-row-normal-light";
+};
+
+/**
+ * Compute style classes for backstage sidebar container
+ */
+export const getSidebarContainerClass = (isDark: boolean): string => {
+  if (isDark) return "backstage-sidebar-dark";
+  return "backstage-sidebar-light";
+};
+
+/**
+ * Compute style classes for backstage back button
+ */
+export const getBackButtonClass = (isDark: boolean): string => {
+  if (isDark) return "backstage-btn-back-dark";
+  return "backstage-btn-back-light";
+};
+
+/**
+ * Compute style classes for home item button
+ */
+export const getHomeItemClass = (activeTab: BackstageTab, isDark: boolean): string => {
+  const base = "backstage-nav-btn";
+  if (activeTab === 'home') {
+    if (isDark) return `${base} backstage-item-active-dark`;
+    return `${base} backstage-item-active-light`;
+  }
+  if (isDark) return `${base} backstage-item-inactive-dark`;
+  return `${base} backstage-item-inactive-light`;
+};
+
+/**
+ * Compute style classes for action buttons (Save, Import, Save As, Export)
+ */
+export const getActionButtonClass = (isDark: boolean): string => {
+  const base = "backstage-nav-btn";
+  if (isDark) return `${base} backstage-item-inactive-dark`;
+  return `${base} backstage-item-inactive-light`;
+};
+
+/**
+ * Compute style classes for Settings accordion trigger button
+ */
+export const getSettingsButtonClass = (activeTab: BackstageTab, isDark: boolean): string => {
+  if (activeTab.startsWith('settings-')) {
+    if (isDark) return "backstage-settings-active-dark";
+    return "backstage-settings-active-light";
+  }
+  if (isDark) return "backstage-settings-inactive-dark";
+  return "backstage-settings-inactive-light";
+};
+
+/**
+ * Compute style classes for Settings submenu options
+ */
+export const getSubmenuItemClass = (isActive: boolean, isDark: boolean): string => {
+  if (isActive) {
+    if (isDark) return "backstage-submenu-active-dark";
+    return "backstage-submenu-active-light";
+  }
+  if (isDark) return "backstage-submenu-inactive-dark";
+  return "backstage-submenu-inactive-light";
+};
+
+/**
+ * Compute style classes for Theme toggle button
+ */
+export const getThemeToggleClass = (isDark: boolean): string => {
+  if (isDark) return "backstage-theme-toggle-dark";
+  return "backstage-theme-toggle-light";
+};
+
+/**
+ * Compute background class for Autosave toggle switch button
+ */
+export const getAutosaveSwitchBgClass = (isAutosaveEnabled: boolean, isDark: boolean): string => {
+  if (isAutosaveEnabled) return "bg-emerald-500";
+  if (isDark) return "bg-slate-700";
+  return "bg-slate-300";
+};
+
+/**
+ * Compute style classes for Save modal table row by delegating to getTableRowClass
+ */
+export const getSaveRowBgClass = (isAutosave: boolean, isDark: boolean): string => {
+  return getTableRowClass(isAutosave, isDark);
+};
+
+/**
+ * Determine active header profile name for Save Modal
+ */
+export const getHeaderProfileName = (
+  currentProject: { name: string } | null,
+  newProjectName: string
+): string => {
+  if (currentProject) return currentProject.name;
+  if (newProjectName) return newProjectName;
+  return 'Auto-Saved Profile';
 };

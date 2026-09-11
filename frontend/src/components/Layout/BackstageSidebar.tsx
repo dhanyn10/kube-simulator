@@ -15,7 +15,16 @@ import {
   Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BackstageTab } from '@/activity/layout/fileBackstageHelpers';
+import {
+  BackstageTab,
+  getSidebarContainerClass,
+  getBackButtonClass,
+  getHomeItemClass,
+  getActionButtonClass,
+  getSettingsButtonClass,
+  getSubmenuItemClass,
+  getThemeToggleClass,
+} from '@/activity/layout/fileBackstageHelpers';
 
 export interface BackstageSidebarProps {
   readonly colorMode: 'dark' | 'light';
@@ -52,22 +61,14 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
   const isDark = colorMode === 'dark';
 
   return (
-    <div
-      className={cn(
-        "w-64 border-r flex flex-col shrink-0 shadow-lg select-none",
-        isDark ? "bg-slate-900 border-slate-800" : "bg-blue-900 text-white border-blue-800"
-      )}
-    >
+    <div className={getSidebarContainerClass(isDark)}>
       {/* Back Button (← Arrow) */}
       <div className="p-4 border-b border-white/10 flex items-center gap-3">
         <button
           type="button"
           onClick={onClose}
           data-testid="file-backstage-back-btn"
-          className={cn(
-            "p-2.5 rounded-full transition-colors flex items-center justify-center cursor-pointer",
-            isDark ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-white/20 hover:bg-white/30 text-white"
-          )}
+          className={getBackButtonClass(isDark)}
           title="Return to Canvas (Esc)"
         >
           <ArrowLeft size={20} />
@@ -84,12 +85,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('home')}
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer",
-            activeTab === 'home'
-              ? isDark ? "bg-blue-600 text-white" : "bg-white text-blue-900 font-extrabold shadow-md"
-              : isDark ? "text-slate-300 hover:bg-slate-800/80" : "text-blue-100 hover:bg-white/10"
-          )}
+          className={getHomeItemClass(activeTab, isDark)}
         >
           <Home size={16} />
           <span>Home</span>
@@ -100,10 +96,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
           type="button"
           onClick={onQuickSaveCurrent}
           disabled={isCanvasEmpty}
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer disabled:opacity-50",
-            isDark ? "text-slate-300 hover:bg-slate-800/80" : "text-blue-100 hover:bg-white/10"
-          )}
+          className={getActionButtonClass(isDark)}
         >
           <Save size={16} />
           <span>Save</span>
@@ -116,10 +109,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
             onClose();
             onSaveAs();
           }}
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer",
-            isDark ? "text-slate-300 hover:bg-slate-800/80" : "text-blue-100 hover:bg-white/10"
-          )}
+          className={getActionButtonClass(isDark)}
         >
           <FilePlus size={16} />
           <span>Save As...</span>
@@ -132,10 +122,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
             onClose();
             onImportFile();
           }}
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer",
-            isDark ? "text-slate-300 hover:bg-slate-800/80" : "text-blue-100 hover:bg-white/10"
-          )}
+          className={getActionButtonClass(isDark)}
         >
           <Upload size={16} />
           <span>Import</span>
@@ -148,10 +135,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
             onClose();
             onExportYaml();
           }}
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all text-left cursor-pointer",
-            isDark ? "text-slate-300 hover:bg-slate-800/80" : "text-blue-100 hover:bg-white/10"
-          )}
+          className={getActionButtonClass(isDark)}
         >
           <FileCode size={16} />
           <span>Export YAML</span>
@@ -169,12 +153,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
                 setActiveTab('settings-view');
               }
             }}
-            className={cn(
-              "w-full px-3.5 py-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer",
-              activeTab.startsWith('settings-')
-                ? isDark ? "bg-slate-800 text-blue-400" : "bg-white/20 text-white"
-                : isDark ? "text-slate-300 hover:bg-slate-800/80" : "text-blue-100 hover:bg-white/10"
-            )}
+            className={getSettingsButtonClass(activeTab, isDark)}
           >
             <div className="flex items-center gap-3">
               <Sliders size={16} />
@@ -189,12 +168,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('settings-view')}
-                className={cn(
-                  "w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer",
-                  activeTab === 'settings-view'
-                    ? isDark ? "bg-blue-600 text-white" : "bg-white text-blue-900 shadow-sm"
-                    : isDark ? "text-slate-400 hover:text-white" : "text-blue-100 hover:bg-white/10"
-                )}
+                className={getSubmenuItemClass(activeTab === 'settings-view', isDark)}
               >
                 <Eye size={14} />
                 <span>View & Layout</span>
@@ -203,12 +177,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('settings-canvas')}
-                className={cn(
-                  "w-full px-3 py-2 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all text-left cursor-pointer",
-                  activeTab === 'settings-canvas'
-                    ? isDark ? "bg-blue-600 text-white" : "bg-white text-blue-900 shadow-sm"
-                    : isDark ? "text-slate-400 hover:text-white" : "text-blue-100 hover:bg-white/10"
-                )}
+                className={getSubmenuItemClass(activeTab === 'settings-canvas', isDark)}
               >
                 <Grid size={14} />
                 <span>Canvas Grid</span>
@@ -223,10 +192,7 @@ export const BackstageSidebar: React.FC<BackstageSidebarProps> = ({
         <button
           type="button"
           onClick={toggleColorMode}
-          className={cn(
-            "w-full px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer",
-            isDark ? "bg-slate-800 text-amber-400 hover:bg-slate-700" : "bg-white/20 text-white hover:bg-white/30"
-          )}
+          className={getThemeToggleClass(isDark)}
         >
           <span className="flex items-center gap-2">
             {isDark ? <Sun size={15} /> : <Moon size={15} />}

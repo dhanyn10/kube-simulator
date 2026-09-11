@@ -64,64 +64,88 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <label className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-            isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-          )}>
+          <label
+            htmlFor="setting-components-sidebar"
+            aria-label="Components Sidebar Toggle"
+            className={cn(
+              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
+              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
+            )}
+          >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Components Sidebar</span>
               <span className="text-xs opacity-60">Show left resource palette</span>
             </div>
             <input
+              id="setting-components-sidebar"
               type="checkbox"
+              aria-label="Components Sidebar"
               checked={isSidebarVisible}
               onChange={() => setSidebarVisible(!isSidebarVisible)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
             />
           </label>
 
-          <label className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-            isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-          )}>
+          <label
+            htmlFor="setting-utilities-sidebar"
+            aria-label="Utilities Sidebar Toggle"
+            className={cn(
+              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
+              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
+            )}
+          >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Utilities Sidebar</span>
               <span className="text-xs opacity-60">Show right configuration panel</span>
             </div>
             <input
+              id="setting-utilities-sidebar"
               type="checkbox"
+              aria-label="Utilities Sidebar"
               checked={isRightSidebarVisible}
               onChange={() => setRightSidebarVisible(!isRightSidebarVisible)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
             />
           </label>
 
-          <label className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-            isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-          )}>
+          <label
+            htmlFor="setting-simulation-panel"
+            aria-label="Simulation Panel Toggle"
+            className={cn(
+              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
+              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
+            )}
+          >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Simulation Panel</span>
               <span className="text-xs opacity-60">Show monitoring graph & telemetry</span>
             </div>
             <input
+              id="setting-simulation-panel"
               type="checkbox"
+              aria-label="Simulation Panel"
               checked={isMonitoringOpen}
               onChange={() => setMonitoringOpen(!isMonitoringOpen)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
             />
           </label>
 
-          <label className={cn(
-            "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-            isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-          )}>
+          <label
+            htmlFor="setting-autofocus"
+            aria-label="Autofocus Toggle"
+            className={cn(
+              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
+              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
+            )}
+          >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Autofocus</span>
               <span className="text-xs opacity-60">Auto zoom on node selection</span>
             </div>
             <input
+              id="setting-autofocus"
               type="checkbox"
+              aria-label="Autofocus"
               checked={isAutofocusEnabled}
               onChange={() => toggleAutofocus()}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
