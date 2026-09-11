@@ -182,11 +182,18 @@ describe('MenuBar', () => {
     alertSpy.mockRestore();
   });
 
-  it('triggers onSave when File menu is clicked', async () => {
+  it('opens File dropdown menu when File is clicked and triggers onSave when Save item is clicked', async () => {
     render(<MenuBar {...defaultProps} />);
 
-    // Open 'File' menu triggers onSave (FileBackstageView overlay)
+    // Clicking 'File' opens the File dropdown menu
     fireEvent.click(screen.getByText('File'));
+    expect(screen.getByText('Save As...')).toBeInTheDocument();
+    expect(screen.getByText('Import')).toBeInTheDocument();
+    expect(screen.getByText('Export YAML')).toBeInTheDocument();
+
+    // Clicking 'Save' inside File dropdown menu triggers onSave (FileBackstageView overlay)
+    const saveItems = screen.getAllByText('Save');
+    fireEvent.click(saveItems[0]);
     expect(defaultProps.onSave).toHaveBeenCalled();
   });
 

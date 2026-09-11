@@ -43,11 +43,7 @@ export const MenuBarDropdown = ({
     if (onMenuClick) {
       onMenuClick(menu.label);
     }
-    if (menu.label !== 'File') {
-      setActiveMenu(isOpen ? null : menu.label);
-    } else {
-      setActiveMenu(null);
-    }
+    setActiveMenu(isOpen ? null : menu.label);
   };
 
   return (
@@ -55,7 +51,7 @@ export const MenuBarDropdown = ({
       <button
         type="button"
         onClick={handleHeaderClick}
-        onMouseEnter={() => activeMenu && menu.label !== 'File' && setActiveMenu(menu.label)}
+        onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
         className={buttonClasses}
       >
         {menu.label}
