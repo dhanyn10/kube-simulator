@@ -66,6 +66,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <label
             htmlFor="setting-components-sidebar"
+            aria-label="Components Sidebar Toggle"
             className={cn(
               "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
               isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
@@ -78,6 +79,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
             <input
               id="setting-components-sidebar"
               type="checkbox"
+              aria-label="Components Sidebar"
               checked={isSidebarVisible}
               onChange={() => setSidebarVisible(!isSidebarVisible)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
@@ -86,6 +88,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
 
           <label
             htmlFor="setting-utilities-sidebar"
+            aria-label="Utilities Sidebar Toggle"
             className={cn(
               "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
               isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
@@ -98,6 +101,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
             <input
               id="setting-utilities-sidebar"
               type="checkbox"
+              aria-label="Utilities Sidebar"
               checked={isRightSidebarVisible}
               onChange={() => setRightSidebarVisible(!isRightSidebarVisible)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
@@ -106,6 +110,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
 
           <label
             htmlFor="setting-simulation-panel"
+            aria-label="Simulation Panel Toggle"
             className={cn(
               "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
               isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
@@ -118,6 +123,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
             <input
               id="setting-simulation-panel"
               type="checkbox"
+              aria-label="Simulation Panel"
               checked={isMonitoringOpen}
               onChange={() => setMonitoringOpen(!isMonitoringOpen)}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
@@ -126,6 +132,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
 
           <label
             htmlFor="setting-autofocus"
+            aria-label="Autofocus Toggle"
             className={cn(
               "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
               isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
@@ -138,6 +145,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
             <input
               id="setting-autofocus"
               type="checkbox"
+              aria-label="Autofocus"
               checked={isAutofocusEnabled}
               onChange={() => toggleAutofocus()}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"

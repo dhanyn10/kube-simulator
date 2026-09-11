@@ -265,15 +265,10 @@ export const getAutosaveSwitchBgClass = (isAutosaveEnabled: boolean, isDark: boo
 };
 
 /**
- * Compute style classes for Save modal table row
+ * Compute style classes for Save modal table row by delegating to getTableRowClass
  */
 export const getSaveRowBgClass = (isAutosave: boolean, isDark: boolean): string => {
-  if (isAutosave) {
-    if (isDark) return "bg-blue-950/20 hover:bg-blue-900/30";
-    return "bg-blue-50/40 hover:bg-blue-100/50";
-  }
-  if (isDark) return "hover:bg-slate-800/50";
-  return "hover:bg-slate-100/70";
+  return getTableRowClass(isAutosave, isDark);
 };
 
 /**
