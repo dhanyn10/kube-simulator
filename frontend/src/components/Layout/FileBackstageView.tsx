@@ -175,6 +175,11 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
   return (
     <div
       data-testid="file-backstage-view"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, item: null });
+      }}
       className={cn(
         "fixed inset-0 z-[200] flex font-sans animate-in fade-in zoom-in-95 duration-150 select-none",
         colorMode === 'dark' ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"
