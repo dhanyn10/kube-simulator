@@ -73,6 +73,7 @@ describe('FileBackstageView', () => {
   });
 
   it('directly saves current profile when Save sidebar button is clicked', async () => {
+    useFlowStore.setState({ isAutosaveEnabled: false });
     renderWithProvider(<FileBackstageView {...defaultProps} />);
 
     const saveSidebarBtn = screen.getByRole('button', { name: /^Save$/i });
@@ -82,6 +83,15 @@ describe('FileBackstageView', () => {
       expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
       expect(defaultProps.onClose).toHaveBeenCalled();
     });
+  });
+
+  it('toggles autosave state when autosave switch button is clicked', () => {
+    const toggleAutosave = vi.spyOn(useFlowStore.getState(), 'toggleAutosave');
+    renderWithProvider(<FileBackstageView {...defaultProps} />);
+
+    const switchBtn = screen.getByRole('switch');
+    fireEvent.click(switchBtn);
+    expect(toggleAutosave).toHaveBeenCalled();
   });
 
   it('switches tabs between Home, Settings > View, and Settings > Canvas', () => {

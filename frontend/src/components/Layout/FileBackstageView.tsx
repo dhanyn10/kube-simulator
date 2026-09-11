@@ -26,7 +26,7 @@ import { cn } from '../../lib/utils';
 import { mapProjectNodes, mapProjectEdges } from '../UI/ResourceManager/resourceManagerHelpers';
 import { hydrateNodes } from '../../store/nodeHelpers';
 import { useFitView } from '../../hooks/useFitView';
-import { formatAutosaveKey } from '../../store/useFlowStore';
+import { formatAutosaveKey, getCurrentSessionAutosaveKey } from '../../store/useFlowStore';
 import { ColorPalette } from '../UI/ColorPalette';
 import { WindowControls } from './WindowControls';
 
@@ -88,11 +88,13 @@ export const FileBackstageView = ({
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
   const isMonitoringOpen = useFlowStore((state) => state.isMonitoringOpen);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
+  const isAutosaveEnabled = useFlowStore((state) => state.isAutosaveEnabled);
 
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const setMonitoringOpen = useFlowStore((state) => state.setMonitoringOpen);
   const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
+  const toggleAutosave = useFlowStore((state) => state.toggleAutosave);
 
   const canvasBgVariant = useFlowStore((state) => state.canvasBgVariant);
   const canvasBgColor = useFlowStore((state) => state.canvasBgColor);
@@ -168,7 +170,7 @@ export const FileBackstageView = ({
     if (!isOpen) return;
     loadRecentFiles();
 
-    const currentKey = formatAutosaveKey(new Date());
+    const currentKey = getCurrentSessionAutosaveKey();
 
     if (currentProject) {
       setActiveLocation(`~/.kube-simulator/projects/${currentProject.id}/architecture.infra`);
@@ -214,10 +216,16 @@ export const FileBackstageView = ({
 
   // Directly update current active project / profile
   const handleQuickSaveCurrent = async () => {
-    const content = JSON.stringify({ nodes, edges });
+    const isAutosaveOn = useFlowStore.getState().isAutosaveEnabled;
+    const content = JSON.stringify({ nodes, edges, timestamp: Date.now() });
     const app = globalThis.go?.main?.App;
 
     if (currentProject && currentProject.id !== -1 && app?.UpdateProject) {
+      if (isAutosaveOn) {
+        // When autosave is ON, state is already synchronized with profile
+        onClose();
+        return;
+      }
       const success = await app.UpdateProject(currentProject.id, content);
       if (success) {
         useFlowStore.setState({ lastSavedSnapshot: content });
@@ -227,7 +235,17 @@ export const FileBackstageView = ({
       }
     }
 
-    const saveName = newProjectName.trim() || formatAutosaveKey(new Date());
+    if (isAutosaveOn && app?.SaveSetting) {
+      const sessionKey = getCurrentSessionAutosaveKey();
+      app.SaveSetting(sessionKey, content);
+      app.SaveSetting('auto_saved_profile_latest', sessionKey);
+      app.SaveSetting('auto_saved_profile_content', content);
+      await loadRecentFiles();
+      onClose();
+      return;
+    }
+
+    const saveName = newProjectName.trim() || getCurrentSessionAutosaveKey();
     if (app?.SaveProject) {
       const id = await app.SaveProject(saveName, content);
       if (id !== undefined) {
@@ -506,36 +524,35 @@ export const FileBackstageView = ({
                   <h1 className="text-xl font-extrabold tracking-tight">Home & Recent Profiles</h1>
                   <p className="text-xs text-slate-500 mt-0.5">Quickly restore recent architecture files and auto-saved profiles</p>
                 </div>
-                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
-                  <Home size={24} />
-                </div>
-              </div>
-
-              {/* Current Active Profile Header */}
-              <div className={cn(
-                "p-4 rounded-2xl border flex items-center justify-between shadow-xs",
-                colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
-              )}>
-                <div className="flex items-center gap-3.5">
-                  <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-500">
-                    <Folder size={20} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold tracking-tight font-mono">
-                      {currentProject ? currentProject.name : (newProjectName || 'Auto-Saved Profile')}
-                    </div>
-                    <p
-                      title={activeLocation}
-                      className="text-xs text-slate-400 font-mono flex items-center gap-1.5 mt-0.5 cursor-help"
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 select-none">
+                    <Clock size={15} className="text-blue-500" />
+                    <span className="text-xs font-semibold text-slate-400">Autosave:</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isAutosaveEnabled}
+                      onClick={toggleAutosave}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        isAutosaveEnabled ? "bg-emerald-500" : colorMode === 'dark' ? "bg-slate-700" : "bg-slate-300"
+                      )}
+                      title={isAutosaveEnabled ? "Autosave is Enabled" : "Autosave is Disabled"}
                     >
-                      <span>Location:</span>
-                      <span className="text-blue-500 font-bold truncate max-w-[480px]">{activeLocation}</span>
-                    </p>
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                          isAutosaveEnabled ? "translate-x-4" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                    <span className={cn("font-extrabold uppercase text-[10px] tracking-wider", isAutosaveEnabled ? "text-emerald-500" : "text-slate-400")}>
+                      {isAutosaveEnabled ? "ON" : "OFF"}
+                    </span>
                   </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">Date Modified</span>
-                  <span className="text-xs font-mono font-medium">{formatDateModified(Date.now())}</span>
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
+                    <Home size={20} />
+                  </div>
                 </div>
               </div>
 
