@@ -885,7 +885,7 @@ export const FileBackstageView = ({
               )}
             >
               <RotateCcw size={15} />
-              <span>Restore Profile</span>
+              <span>Load Profile</span>
             </button>
           )}
 

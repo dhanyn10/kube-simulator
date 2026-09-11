@@ -64,7 +64,7 @@ export const ProjectsTab = ({
           onClick={handleRestoreAutosave}
           className="px-3 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow transition-colors"
         >
-          Restore Profile
+          Load Profile
         </button>
       </div>
     )}

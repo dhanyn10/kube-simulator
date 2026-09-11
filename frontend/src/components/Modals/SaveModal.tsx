@@ -422,7 +422,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
               <span>Change Theme</span>
             </button>
 
-            {/* 2. Restore Profile */}
+            {/* 2. Load Profile */}
             {contextMenu.item && (
               <button
                 type="button"
@@ -437,7 +437,7 @@ export const SaveModal = ({ isOpen, onClose, onSaveAs }: SaveModalProps) => {
                 )}
               >
                 <RotateCcw size={14} />
-                <span>Restore Profile</span>
+                <span>Load Profile</span>
               </button>
             )}
 

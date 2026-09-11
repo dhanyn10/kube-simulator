@@ -58,7 +58,7 @@ describe('SaveModal', () => {
     });
   });
 
-  it('supports row right-click context menu options (Change Theme, Restore Profile, Exit)', async () => {
+  it('supports row right-click context menu options (Change Theme, Load Profile, Exit)', async () => {
     render(<SaveModal {...defaultProps} />);
 
     await waitFor(() => {
@@ -70,12 +70,12 @@ describe('SaveModal', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Change Theme')).toBeInTheDocument();
-      expect(screen.getByText('Restore Profile')).toBeInTheDocument();
+      expect(screen.getByText('Load Profile')).toBeInTheDocument();
       expect(screen.getByText('Exit')).toBeInTheDocument();
     });
 
-    // Click Restore Profile
-    fireEvent.click(screen.getByText('Restore Profile'));
+    // Click Load Profile
+    fireEvent.click(screen.getByText('Load Profile'));
     await waitFor(() => {
       expect(defaultProps.onClose).toHaveBeenCalled();
     });
