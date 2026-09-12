@@ -306,6 +306,7 @@ export const SidebarTabBar = ({
 export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+  const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
@@ -410,7 +411,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       />
 
       {/* Content Area */}
-      <div className="right-sidebar-content-area custom-scrollbar">
+      <div className={cn("right-sidebar-content-area custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-64")}>
         {activeTab === 'history' && (
           <div className="p-0 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />
