@@ -79,21 +79,21 @@ export const Modal = ({
       open
       onContextMenu={handleContextMenu}
       className={cn(
-        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none",
+        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none pointer-events-auto",
         alignClass
       )}
     >
-      {/* Backdrop button for accessibility to handle clicks outside */}
+      {/* Backdrop button for desktop-style transparent overlay */}
       <button
         type="button"
-        className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent"
+        className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent z-0"
         onClick={onClose}
         aria-hidden="true"
         tabIndex={-1}
       />
       <div
         className={cn(
-          "relative rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
+          "relative z-10 rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
           widthClass,
           maxHeightClass,
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
