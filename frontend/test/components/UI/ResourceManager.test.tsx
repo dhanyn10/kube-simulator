@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { ResourceManager } from '@/components/UI/ResourceManager';
 import { useFlowStore } from '@/store';
 
@@ -9,6 +10,7 @@ const mockSaveProject = vi.fn().mockResolvedValue(1);
 const mockLoadProject = vi.fn().mockResolvedValue({ content: JSON.stringify({ nodes: [], edges: [] }) });
 const mockUpdateProject = vi.fn().mockResolvedValue(true);
 const mockDeleteProject = vi.fn().mockResolvedValue(true);
+const mockGetSetting = vi.fn().mockResolvedValue(null);
 
 (globalThis as any).go = {
   main: {
@@ -18,6 +20,7 @@ const mockDeleteProject = vi.fn().mockResolvedValue(true);
       LoadProject: mockLoadProject,
       UpdateProject: mockUpdateProject,
       DeleteProject: mockDeleteProject,
+      GetSetting: mockGetSetting,
       FetchDockerHubPopular: vi.fn().mockResolvedValue(JSON.stringify({
         results: [
           { name: 'nginx', description: 'Official build of Nginx.' },
@@ -56,8 +59,11 @@ describe('ResourceManager', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders and fetches projects on open in dark and light modes', async () => {
+  it('renders and fetches projects on open in dark and light modes, setting default project name if canvas is not empty', async () => {
     mockGetProjects.mockResolvedValueOnce([{ id: 1, name: 'Project 1', updatedAt: Date.now() / 1000 }]);
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: {} }],
+    });
 
     const { rerender } = render(<ResourceManager isOpen={true} onClose={() => {}} />);
 
@@ -119,6 +125,54 @@ describe('ResourceManager', () => {
     });
   });
 
+  it('handles restoring autosave profile and gracefully handles empty content or invalid JSON', async () => {
+    mockGetSetting.mockImplementation((key) => {
+      if (key === 'auto_saved_profile_latest') return Promise.resolve('autosave-12345');
+      if (key === 'auto_saved_profile_content') return Promise.resolve(JSON.stringify({ nodes: [], edges: [] }));
+      return Promise.resolve('');
+    });
+
+    const onClose = vi.fn();
+    const { unmount } = render(<ResourceManager isOpen={true} onClose={onClose} />);
+
+    await waitFor(() => expect(screen.getByText('Load Profile')).toBeInTheDocument());
+
+    const loadProfileBtn = screen.getByText('Load Profile');
+    await act(async () => {
+      fireEvent.click(loadProfileBtn);
+    });
+
+    expect(onClose).toHaveBeenCalled();
+    unmount();
+
+    // Test when GetSetting returns empty content
+    mockGetSetting.mockImplementation((key) => {
+      if (key === 'auto_saved_profile_latest') return Promise.resolve('autosave-12345');
+      return Promise.resolve('');
+    });
+    const res2 = render(<ResourceManager isOpen={true} onClose={onClose} />);
+    await waitFor(() => expect(screen.getByText('Load Profile')).toBeInTheDocument());
+    await act(async () => {
+      fireEvent.click(screen.getByText('Load Profile'));
+    });
+    res2.unmount();
+
+    // Test when JSON parsing fails
+    mockGetSetting.mockImplementation((key) => {
+      if (key === 'auto_saved_profile_latest') return Promise.resolve('autosave-12345');
+      return Promise.resolve('INVALID JSON');
+    });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res3 = render(<ResourceManager isOpen={true} onClose={onClose} />);
+    await waitFor(() => expect(screen.getByText('Load Profile')).toBeInTheDocument());
+    await act(async () => {
+      fireEvent.click(screen.getByText('Load Profile'));
+    });
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+    res3.unmount();
+  });
+
   it('handles active project without changes (no Update button) and updating active project with changes', async () => {
     const activeContent = JSON.stringify({ nodes: [], edges: [] });
     const project1 = { id: 1, name: 'Project 1', content: activeContent, updatedAt: Date.now()/1000 };
@@ -167,10 +221,10 @@ describe('ResourceManager', () => {
     expect(screen.queryByText('Overwrite')).toBeNull();
   });
 
-  it('handles updating an active project and overwrite confirmation flow', async () => {
-    const project = { id: 1, name: 'Project 1', content: JSON.stringify({ nodes: [{ id: 'n2' }], edges: [] }), updatedAt: Date.now()/1000 };
+  it('handles updating an active project and overwrite confirmation flow including overwriting current active project', async () => {
+    const project = { id: 2, name: 'Project 2', content: JSON.stringify({ nodes: [{ id: 'n2' }], edges: [] }), updatedAt: Date.now()/1000 };
     useFlowStore.setState({
-      currentProject: { id: 2, name: 'Project 2' },
+      currentProject: { id: 1, name: 'Project 1' },
       nodes: [{ id: 'n1', type: 'Pod', data: {} } as any],
       lastSavedSnapshot: JSON.stringify({ nodes: [], edges: [] })
     });
@@ -190,7 +244,7 @@ describe('ResourceManager', () => {
     // Confirm overwrite
     fireEvent.click(screen.getByText('Overwrite'));
     fireEvent.click(screen.getByText('YES'));
-    expect(mockUpdateProject).toHaveBeenCalledWith(1, expect.any(String));
+    expect(mockUpdateProject).toHaveBeenCalledWith(2, expect.any(String));
   });
 
   it('filters sidebar tabs using search input', async () => {

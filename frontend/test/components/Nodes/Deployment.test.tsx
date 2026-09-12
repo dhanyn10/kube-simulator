@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DeploymentNode } from '@/components/Nodes/Deployment';
 import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -35,7 +35,7 @@ describe('DeploymentNode', () => {
     expect(screen.getByText('Workload Zone')).toBeDefined();
   });
 
-  it('renders correctly in light mode when selected, hovered, detaching, and with attached roles', () => {
+  it('renders correctly in light mode when selected, hovered, detaching, and with assignedUsers in attached roles', () => {
     useFlowStore.setState({ colorMode: 'light' });
 
     const props = {
@@ -46,7 +46,7 @@ describe('DeploymentNode', () => {
         label: 'Light Dep',
         isHovered: true,
         isDetaching: true,
-        roles: [{ id: 'r1', name: 'admin-role' }, { name: 'viewer-role' }]
+        roles: [{ id: 'r1', name: 'admin-role', assignedUsers: ['alice', 'bob'] }, { name: 'viewer-role' }]
       }
     } as any;
 
@@ -57,17 +57,17 @@ describe('DeploymentNode', () => {
     );
 
     expect(screen.getByText('DEPLOYMENT')).toBeDefined();
-    expect(screen.getByTitle('Role: admin-role')).toBeDefined();
+    expect(screen.getByTitle('Role: admin-role (Users: alice, bob)')).toBeDefined();
     expect(screen.getByTitle('Role: viewer-role')).toBeDefined();
   });
 
-  it('handles role dragging inside and outside namespace', () => {
+  it('handles role, ConfigMap, and HPA dragging inside and outside namespace', () => {
     const nsNode = { id: 'ns1', type: 'Namespace', data: {} };
     const depInNs = { id: 'd1', type: 'Deployment', parentId: 'ns1', data: { label: 'Inside NS', isHovered: true } };
     const depOutsideNs = { id: 'd2', type: 'Deployment', data: { label: 'Outside NS' } };
 
     useFlowStore.setState({
-      draggingSidebarItem: 'Role',
+      draggingSidebarItem: 'ConfigMap',
       nodes: [nsNode, depInNs, depOutsideNs] as any,
     });
 
@@ -78,6 +78,8 @@ describe('DeploymentNode', () => {
     );
 
     expect(screen.getByText('Inside NS')).toBeDefined();
+
+    useFlowStore.setState({ draggingSidebarItem: 'Internet' as any });
 
     rerender(
       <ReactFlowProvider>

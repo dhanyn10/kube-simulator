@@ -60,6 +60,38 @@ describe('HPAModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
+  it('handles bounds normalization and fallback name when inputs have invalid or out-of-range values', () => {
+    const onSave = vi.fn();
+    render(<HPAModal {...defaultProps} onSave={onSave} />);
+
+    const nameInput = screen.getByLabelText('HPA Name');
+    fireEvent.change(nameInput, { target: { value: '' } });
+
+    const minInput = screen.getByLabelText('Min Replicas');
+    fireEvent.change(minInput, { target: { value: '0' } });
+
+    const maxInput = screen.getByLabelText('Max Replicas');
+    fireEvent.change(maxInput, { target: { value: '0' } });
+
+    const cpuInput = screen.getByLabelText('Target CPU Utilization (%)');
+    fireEvent.change(cpuInput, { target: { value: '150' } });
+
+    const memInput = screen.getByLabelText(/Target Memory Utilization/);
+    fireEvent.change(memInput, { target: { value: '120' } });
+
+    const saveButton = screen.getByRole('button', { name: 'Attach HPA' });
+    fireEvent.click(saveButton);
+
+    expect(onSave).toHaveBeenCalledWith({
+      id: expect.any(String),
+      name: 'unnamed-hpa',
+      minReplicas: 1,
+      maxReplicas: 10,
+      targetCPU: 100,
+      targetMemory: 100,
+    });
+  });
+
   it('renders initialHpa data when passed and updates correctly', () => {
     const initialHpa: K8sHpaItem = {
       id: 'hpa-123',
