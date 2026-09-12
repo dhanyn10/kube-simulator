@@ -253,7 +253,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
         </div>
       </div>
 
-      <div className={cn("sidebar-content-scroll sidebar-overflow-mask transition-all duration-300")}>
+      <div className={cn("sidebar-content-scroll custom-scrollbar sidebar-overflow-mask transition-all duration-300")}>
         {SECTIONS.map(section => (
           <SidebarSection 
             key={section.id}
