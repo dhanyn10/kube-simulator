@@ -44,7 +44,7 @@ describe('resizeHandlers', () => {
 
   it('onNodeResize resizes Pod, syncing sibling pods and updating parent Deployment container bounds', () => {
     const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, width: 300, height: 200, data: {} };
-    const pod1: Node = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, width: 100, height: 60, data: {} };
+    const pod1: Node = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, width: 100, height: 60, style: { minHeight: 60 }, data: {} };
     const pod2: Node = { id: 'pod2', type: 'Pod', parentId: 'dep1', position: { x: 120, y: 10 }, width: 100, height: 60, data: {} };
 
     storeState.nodes = [depNode, pod1, pod2];
@@ -60,7 +60,6 @@ describe('resizeHandlers', () => {
   });
 
   it('applyPodResize returns nodes unchanged if parentId or parent Deployment is missing', () => {
-    // Pod minimum width is 168 (from getPodMinimumSize)
     const standalonePod: Node = { id: 'pod1', type: 'Pod', position: { x: 0, y: 0 }, width: 168, height: 60, data: {} };
     storeState.nodes = [standalonePod];
 
@@ -123,17 +122,21 @@ describe('resizeHandlers', () => {
     expect(storeState.lastActionName).toBe('Resize Element');
   });
 
-  it('calculateMinContainerBounds falls back to measured or style minHeight or default POD_MIN_DIMENSIONS height', () => {
+  it('calculateMinContainerBounds and getMinNodeSize handle measured width, style minHeight, and fallback sizes', () => {
     const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
-    const pod1: Node = { id: 'p1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, style: { minHeight: '85' }, data: {} };
+    const pod1: Node = { id: 'p1', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 10 }, measured: { width: 150, height: 80 }, style: { minHeight: '85' }, data: {} };
     const pod2: Node = { id: 'p2', type: 'Pod', parentId: 'dep1', position: { x: 10, y: 100 }, data: {} };
 
     storeState.nodes = [depNode, pod1, pod2];
 
     const handlers = resizeHandlers(setStore, getStore);
-    handlers.onNodeResize({}, { id: 'dep1', width: 50, height: 50 } as Node);
+    handlers.onNodeResize({}, { id: 'dep1', width: 0, height: 0 } as Node);
 
     const updatedDep = storeState.nodes.find((n: Node) => n.id === 'dep1');
     expect(updatedDep.height).toBeGreaterThan(100);
+
+    const fallbackNode: Node = { id: 'f1', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+    storeState.nodes = [fallbackNode];
+    handlers.onNodeResize({}, { id: 'f1', width: 0, height: 0 } as Node);
   });
 });

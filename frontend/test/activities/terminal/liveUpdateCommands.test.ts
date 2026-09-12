@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useFlowStore } from '@/store';
 import {
   dispatchLiveCommand,
@@ -26,6 +26,10 @@ describe('liveUpdateCommands', () => {
     });
   });
 
+  afterEach(() => {
+    delete (globalThis as any).go;
+  });
+
   it('dispatchLiveCommand opens terminal, switches tab to activity, and adds activity log', () => {
     dispatchLiveCommand('kubectl get pods');
 
@@ -35,8 +39,35 @@ describe('liveUpdateCommands', () => {
     expect(state.activityLogs.some((line) => line.includes('kubectl get pods'))).toBe(true);
   });
 
+  it('dispatchLiveCommand handles terminal already open and already on activity tab', () => {
+    useFlowStore.setState({
+      isTerminalOpen: true,
+      terminalActiveTab: 'activity',
+    });
+
+    dispatchLiveCommand('kubectl get pods');
+
+    const state = useFlowStore.getState();
+    expect(state.isTerminalOpen).toBe(true);
+    expect(state.terminalActiveTab).toBe('activity');
+  });
+
+  it('dispatchLiveCommand executes WriteLog on Wails app when present and catches errors', async () => {
+    const mockWriteLog = vi.fn().mockRejectedValue(new Error('WriteLog failed'));
+    (globalThis as any).go = {
+      main: {
+        App: {
+          WriteLog: mockWriteLog,
+        },
+      },
+    };
+
+    dispatchLiveCommand('kubectl get pods');
+
+    expect(mockWriteLog).toHaveBeenCalledWith('kubeconsole', 'info', expect.stringContaining('$ kubectl get pods'));
+  });
+
   it('emitLiveScaleCommand dispatches scale command with previous replica count logged correctly', () => {
-    // Add dummy deployment node to store
     useFlowStore.setState({
       nodes: [
         {
@@ -74,32 +105,47 @@ describe('liveUpdateCommands', () => {
     expect(state.activityLogs.some((line) => line.includes('[scale] Scaling replicas from 4 to 3...'))).toBe(true);
   });
 
-  it('emitLiveSetImageCommand dispatches set image command', () => {
+  it('emitLiveSetImageCommand dispatches set image command for Pod vs Deployment', () => {
+    emitLiveSetImageCommand('web-pod', 'Pod', 'nginx:alpine', 'nginx:latest');
+    const state1 = useFlowStore.getState();
+    expect(state1.activityLogs.some((line) => line.includes('kubectl set image pod/web-pod web-pod-container=nginx:alpine'))).toBe(true);
+
     emitLiveSetImageCommand('web-dep', 'Deployment', 'nginx:alpine', 'nginx:latest');
-
-    const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl set image deployment/web-dep web-dep-container=nginx:alpine'))).toBe(true);
+    const state2 = useFlowStore.getState();
+    expect(state2.activityLogs.some((line) => line.includes('kubectl set image deployment/web-dep web-dep-container=nginx:alpine'))).toBe(true);
   });
 
-  it('emitLiveSetResourcesCommand dispatches set resources command with cpu and memory', () => {
+  it('emitLiveSetResourcesCommand handles cpu, memory, and empty limits', () => {
     emitLiveSetResourcesCommand('web-dep', 'Deployment', '200m', '512Mi');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('--limits=cpu=200m,memory=512Mi'))).toBe(true);
 
-    const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl set resources deployment/web-dep --limits=cpu=200m,memory=512Mi'))).toBe(true);
+    emitLiveSetResourcesCommand('web-pod', 'Pod', '100m');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('--limits=cpu=100m'))).toBe(true);
+
+    emitLiveSetResourcesCommand('web-pod', 'Pod', undefined, '256Mi');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('--limits=memory=256Mi'))).toBe(true);
+
+    emitLiveSetResourcesCommand('web-pod', 'Pod');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl set resources pod/web-pod'))).toBe(true);
   });
 
-  it('emitLiveConfigMapCommand dispatches configmap creation command with target', () => {
+  it('emitLiveConfigMapCommand dispatches configmap creation command with and without target', () => {
     emitLiveConfigMapCommand('app-config', 'backend-api');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create configmap app-config --from-literal=attachedTo=backend-api'))).toBe(true);
 
-    const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl create configmap app-config --from-literal=attachedTo=backend-api'))).toBe(true);
+    emitLiveConfigMapCommand('global-config');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create configmap global-config'))).toBe(true);
   });
 
-  it('emitLiveSecretCommand dispatches secret creation command', () => {
+  it('emitLiveSecretCommand dispatches secret creation command with custom types and targets', () => {
     emitLiveSecretCommand('db-secret', 'Opaque', 'db-pod');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create secret generic db-secret --from-literal=attachedTo=db-pod'))).toBe(true);
 
-    const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl create secret generic db-secret --from-literal=attachedTo=db-pod'))).toBe(true);
+    emitLiveSecretCommand('tls-secret', 'kubernetes.io/tls', 'web-ingress');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create secret generic tls-secret --type=kubernetes.io/tls --from-literal=attachedTo=web-ingress'))).toBe(true);
+
+    emitLiveSecretCommand('standalone-secret', 'Opaque');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create secret generic standalone-secret'))).toBe(true);
   });
 
   it('emitLiveHpaCommand dispatches autoscale command', () => {
@@ -109,11 +155,12 @@ describe('liveUpdateCommands', () => {
     expect(state.activityLogs.some((line) => line.includes('kubectl autoscale deployment/app-dep --name=app-hpa --min=2 --max=8 --cpu-percent=75'))).toBe(true);
   });
 
-  it('emitLiveRoleCommand dispatches role creation command', () => {
+  it('emitLiveRoleCommand dispatches role creation command with and without target', () => {
     emitLiveRoleCommand('pod-reader', 'my-namespace');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create role pod-reader --verb=get,list,watch --resource=pods --attached-to=my-namespace'))).toBe(true);
 
-    const state = useFlowStore.getState();
-    expect(state.activityLogs.some((line) => line.includes('kubectl create role pod-reader --verb=get,list,watch --resource=pods --attached-to=my-namespace'))).toBe(true);
+    emitLiveRoleCommand('global-reader');
+    expect(useFlowStore.getState().activityLogs.some((line) => line.includes('kubectl create role global-reader --verb=get,list,watch --resource=pods'))).toBe(true);
   });
 
   it('emitLiveNodeCreatedCommand and emitLiveNodeDeletedCommand dispatch create and delete commands', () => {
