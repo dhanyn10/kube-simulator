@@ -19,12 +19,12 @@ export const RoleModalHeaderHint: React.FC<RoleModalHeaderHintProps> = ({ colorM
   <div className={cn(
     "p-3 rounded-xl border flex items-start gap-2.5 text-xs mb-4",
     colorMode === 'dark'
-      ? "bg-indigo-950/40 border-indigo-800/60 text-indigo-200"
-      : "bg-indigo-50 border-indigo-200 text-indigo-900"
+      ? "bg-slate-900 border-slate-700 text-slate-200"
+      : "bg-slate-100 border-slate-300 text-slate-900"
   )}>
-    <ShieldCheck size={18} className="text-indigo-400 shrink-0 mt-0.5" />
+    <ShieldCheck size={18} className={colorMode === 'dark' ? "text-slate-300 shrink-0 mt-0.5" : "text-slate-700 shrink-0 mt-0.5"} />
     <div className="space-y-1">
-      <p className="font-semibold text-[11px] uppercase tracking-wider text-indigo-400">
+      <p className={cn("font-semibold text-[11px] uppercase tracking-wider", colorMode === 'dark' ? "text-slate-300" : "text-slate-800")}>
         💡 Concept: Role vs RoleBinding
       </p>
       <p className="leading-relaxed opacity-90 text-[11px]">

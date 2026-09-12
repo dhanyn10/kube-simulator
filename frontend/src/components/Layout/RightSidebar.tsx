@@ -306,6 +306,7 @@ export const SidebarTabBar = ({
 export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+  const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
   const nodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
@@ -374,7 +375,8 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       id="right-sidebar"
       onContextMenu={handleContextMenu}
       className={cn(
-        "right-sidebar-container w-72 border-l relative",
+        "right-sidebar-container w-72 border-l relative transition-all duration-300",
+        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-full",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
@@ -410,7 +412,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       />
 
       {/* Content Area */}
-      <div className="right-sidebar-content-area custom-scrollbar">
+      <div className={cn("right-sidebar-content-area custom-scrollbar sidebar-overflow-mask transition-all duration-300")}>
         {activeTab === 'history' && (
           <div className="p-0 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />

@@ -124,6 +124,7 @@ const SidebarSection = ({
 export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
+  const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
   const setSidebarVisible = useFlowStore((state) => state.setSidebarVisible);
   const setDraggingSidebarItem = useFlowStore((state) => state.setDraggingSidebarItem);
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
@@ -213,7 +214,8 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       id="sidebar-components"
       onContextMenu={handleContextMenu}
       className={cn(
-        "sidebar-container w-64 border-r relative",
+        "sidebar-container w-64 border-r relative transition-all duration-300",
+        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-full",
         colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}
     >
@@ -251,7 +253,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
         </div>
       </div>
 
-      <div className="sidebar-content-scroll">
+      <div className={cn("sidebar-content-scroll custom-scrollbar sidebar-overflow-mask transition-all duration-300")}>
         {SECTIONS.map(section => (
           <SidebarSection 
             key={section.id}

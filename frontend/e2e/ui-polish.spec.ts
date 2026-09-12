@@ -28,7 +28,7 @@ test.describe('Sidebar UX and Style Polish', () => {
     await expect(root).toHaveClass(/dark|light/);
 
     // Verify custom-scrollbar class is present in sidebar content
-    const sidebarContent = page.locator('.custom-scrollbar');
+    const sidebarContent = page.locator('.sidebar-content-scroll');
     await expect(sidebarContent).toBeVisible();
   });
 
