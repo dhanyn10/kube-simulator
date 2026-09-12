@@ -28,11 +28,16 @@ describe('useNodeStatus', () => {
     expect(result.current.statusDotColor).toContain('animate-ping');
   });
 
-  it('uses default colors for normal nodes', () => {
+  it('uses default colors for normal nodes in light vs dark mode and icon vs text mode', () => {
     const data = { type: 'Service' } as any;
-    const { result } = renderHook(() => useNodeStatus(data, undefined, 'amber', 'light'));
+    const { result: lightResult } = renderHook(() => useNodeStatus(data, undefined, 'amber', 'light'));
 
-    expect(result.current.statusTextColor).toBe('text-amber-600');
+    expect(lightResult.current.statusIconColor).toBe('text-amber-500');
+    expect(lightResult.current.statusTextColor).toBe('text-amber-600');
+
+    const { result: darkResult } = renderHook(() => useNodeStatus(data, undefined, 'amber', 'dark'));
+    expect(darkResult.current.statusIconColor).toBe('text-amber-400');
+    expect(darkResult.current.statusTextColor).toBe('text-amber-400');
   });
 });
 
@@ -74,8 +79,8 @@ describe('useNodeContainerStyles', () => {
     expect(lightResult.current.containerClasses).toContain('shadow-lg');
   });
 
-  it('returns crashing classes', () => {
-    const { result } = renderHook(() => useNodeContainerStyles({
+  it('returns crashing and pending classes', () => {
+    const { result: crashResult } = renderHook(() => useNodeContainerStyles({
       selected: false,
       isReady: false,
       isPending: false,
@@ -83,8 +88,19 @@ describe('useNodeContainerStyles', () => {
       color: 'blue',
       colorMode: 'dark'
     }));
-    expect(result.current.containerClasses).toContain('animate-crash-blink');
-    expect(result.current.containerClasses).toContain('border-red-600');
+    expect(crashResult.current.containerClasses).toContain('animate-crash-blink');
+    expect(crashResult.current.containerClasses).toContain('border-red-600');
+
+    const { result: pendingResult } = renderHook(() => useNodeContainerStyles({
+      selected: false,
+      isReady: false,
+      isPending: true,
+      isCrashing: false,
+      color: 'blue',
+      colorMode: 'dark'
+    }));
+    expect(pendingResult.current.containerClasses).toContain('border-red-500/50');
+    expect(pendingResult.current.containerClasses).toContain('animate-pulse-slow');
   });
 
   it('getRoleDragClasses returns role drag classes for compatible, incompatible, and hovered targets', () => {
@@ -92,5 +108,6 @@ describe('useNodeContainerStyles', () => {
     expect(getRoleDragClasses(true, 'Internet', true)).toBe('role-drag-outside-ns');
     expect(getRoleDragClasses(true, 'Pod', true)).toBe('role-drag-inside-ns');
     expect(getRoleDragClasses(true, 'Pod', false)).toBe('');
+    expect(getRoleDragClasses(true, undefined, false)).toBe('');
   });
 });
