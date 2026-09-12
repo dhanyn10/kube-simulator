@@ -86,7 +86,7 @@ export const Modal = ({
       {/* Backdrop button for desktop-style transparent overlay */}
       <button
         type="button"
-        className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent z-0"
+        className="fixed inset-0 w-full h-full cursor-default outline-none bg-black/0 pointer-events-auto z-0"
         onClick={onClose}
         aria-hidden="true"
         tabIndex={-1}

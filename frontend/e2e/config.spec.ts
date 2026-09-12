@@ -51,7 +51,7 @@ test.describe('ConfigMap and Secret', () => {
     await expect(page.getByText('2 key-value pairs (PORT, ENV)')).toBeVisible();
 
     // Click Edit button in list modal to open ConfigMapModal
-    await page.getByTitle('Edit ConfigMap').click({ force: true });
+    await page.getByTitle('Edit ConfigMap').click();
     await expect(page.getByText('Edit ConfigMap')).toBeVisible();
     await expect(page.locator('#configmap-name-input')).toHaveValue('web-config');
   });
