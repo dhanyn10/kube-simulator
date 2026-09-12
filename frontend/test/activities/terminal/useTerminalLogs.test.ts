@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useTerminalLogs, getTabClass } from '../../../src/activities/terminal/useTerminalLogs';
+import { useTerminalLogs, getTabClass } from '@/activities/terminal/useTerminalLogs';
 
 describe('useTerminalLogs extra branch conditions', () => {
   it('covers getTabClass light mode non-active tab styling branch', () => {

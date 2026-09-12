@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PVCConfig } from '../../../src/components/Config/PVCConfig';
-import { useFlowStore } from '../../../src/store';
+import { PVCConfig } from '@/components/Config/PVCConfig';
+import { useFlowStore } from '@/store';
 
 describe('PVCConfig', () => {
   const performUpdate = vi.fn();

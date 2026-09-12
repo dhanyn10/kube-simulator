@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { KeyValueConfig } from '../../../src/components/Config/KeyValueConfig';
+import { KeyValueConfig } from '@/components/Config/KeyValueConfig';
 import { Key } from 'lucide-react';
 
 describe('KeyValueConfig', () => {

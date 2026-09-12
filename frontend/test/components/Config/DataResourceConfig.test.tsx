@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DataResourceConfig } from '../../../src/components/Config/DataResourceConfig';
-import { useFlowStore } from '../../../src/store';
+import { DataResourceConfig } from '@/components/Config/DataResourceConfig';
+import { useFlowStore } from '@/store';
 
 describe('DataResourceConfig', () => {
   const performUpdate = vi.fn();

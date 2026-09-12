@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { HistoryPanel } from '../../../src/components/Monitoring/HistoryPanel';
+import { HistoryPanel } from '@/components/Monitoring/HistoryPanel';
 import '@testing-library/jest-dom';
 
 let mockLogs: any[] = [
@@ -13,7 +13,7 @@ let mockIsLoading = false;
 const mockFetchHistoryLogs = vi.fn();
 const mockHandleJumpToHistory = vi.fn();
 
-vi.mock('../../../src/hooks/useHistory', () => ({
+vi.mock('@/hooks/useHistory', () => ({
   useHistory: () => ({
     historyLogs: mockLogs,
     currentHistoryIndex: mockCurrentHistoryIndex,

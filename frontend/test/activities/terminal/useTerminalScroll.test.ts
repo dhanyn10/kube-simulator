@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useTerminalScroll } from '../../../src/activities/terminal/useTerminalScroll';
+import { useTerminalScroll } from '@/activities/terminal/useTerminalScroll';
 
 describe('useTerminalScroll', () => {
   beforeEach(() => {

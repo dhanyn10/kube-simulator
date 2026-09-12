@@ -2,7 +2,7 @@ import { describe, it, expect, } from 'vitest';
 import {
   syncPodsInDeployment,
   resolveGlobalCollisions
-} from '../../src/store/helpers';
+} from '@/store/helpers';
 
 describe('store helpers extra coverage', () => {
     it('syncPodsInDeployment should handle dataTemplate for displaySettings', () => {

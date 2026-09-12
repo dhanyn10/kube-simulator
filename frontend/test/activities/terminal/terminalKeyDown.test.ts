@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { handleTerminalKeyDown } from '../../../src/activities/terminal/terminalKeyDown';
-import { SuggestionItem } from '../../../src/activities/terminal/terminalAutocomplete';
+import { handleTerminalKeyDown } from '@/activities/terminal/terminalKeyDown';
+import { SuggestionItem } from '@/activities/terminal/terminalAutocomplete';
 
 const createKeyboardEvent = (key: string, shiftKey = false) => {
   const preventDefault = vi.fn();

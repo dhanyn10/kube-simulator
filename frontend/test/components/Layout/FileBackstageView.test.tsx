@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { FileBackstageView } from '../../../src/components/Layout/FileBackstageView';
-import { useFlowStore } from '../../../src/store';
+import { FileBackstageView } from '@/components/Layout/FileBackstageView';
+import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
 
 describe('FileBackstageView', () => {

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { NamespaceNode } from '../../../src/components/Nodes/Namespace';
-import { useFlowStore } from '../../../src/store';
+import { NamespaceNode } from '@/components/Nodes/Namespace';
+import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
 // Mock hooks
-vi.mock('../../../src/hooks/useNodeEditor', () => ({
+vi.mock('@/hooks/useNodeEditor', () => ({
   useNodeRename: vi.fn(() => ({
     isEditing: false,
     setIsEditing: vi.fn(),
@@ -21,14 +21,14 @@ vi.mock('../../../src/hooks/useNodeEditor', () => ({
   }))
 }));
 
-vi.mock('../../../src/hooks/useNodeStyles', () => ({
+vi.mock('@/hooks/useNodeStyles', () => ({
   useNodeStyles: vi.fn(() => ({
     transitionClasses: ''
   }))
 }));
 
 // Mock child components
-vi.mock('../../../src/components/Nodes/NodeUI', () => ({
+vi.mock('@/components/Nodes/NodeUI', () => ({
   NodeActionButtons: () => <div data-testid="action-buttons">ActionButtons</div>,
   NodeRenameInput: ({ label }: any) => <div data-testid="rename-input">{label}</div>
 }));

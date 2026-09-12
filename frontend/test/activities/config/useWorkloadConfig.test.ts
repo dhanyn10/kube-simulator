@@ -4,8 +4,8 @@ import {
   getReplicaValue,
   getUpdateReplicasTargetId,
   useWorkloadConfigHandler,
-} from '../../../src/activities/config/useWorkloadConfig';
-import { useFlowStore } from '../../../src/store';
+} from '@/activities/config/useWorkloadConfig';
+import { useFlowStore } from '@/store';
 
 describe('useWorkloadConfig', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { WindowControls } from '../../../src/components/Layout/WindowControls';
+import { WindowControls } from '@/components/Layout/WindowControls';
 
 describe('WindowControls', () => {
   const mockMinimize = vi.fn();

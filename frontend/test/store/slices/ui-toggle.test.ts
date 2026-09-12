@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useFlowStore } from '../../../src/store';
+import { useFlowStore } from '@/store';
 
 describe('UI Toggle Handlers (Gear Settings)', () => {
   beforeEach(() => {

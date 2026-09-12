@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { Sidebar } from '../../../src/components/Layout/Sidebar';
-import { useFlowStore } from '../../../src/store';
+import { Sidebar } from '@/components/Layout/Sidebar';
+import { useFlowStore } from '@/store';
 
 describe('Sidebar', () => {
   it('renders all sections and search input in dark and light modes', () => {

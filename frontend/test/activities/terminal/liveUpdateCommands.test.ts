@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useFlowStore } from '../../../src/store';
+import { useFlowStore } from '@/store';
 import {
   dispatchLiveCommand,
   emitLiveScaleCommand,
@@ -13,7 +13,7 @@ import {
   emitLiveNodeDeletedCommand,
   emitLiveEdgeCreatedCommand,
   emitLiveEdgeDeletedCommand,
-} from '../../../src/activities/terminal/liveUpdateCommands';
+} from '@/activities/terminal/liveUpdateCommands';
 
 describe('liveUpdateCommands', () => {
   beforeEach(() => {

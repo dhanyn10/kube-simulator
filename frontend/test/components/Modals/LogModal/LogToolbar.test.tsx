@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { LogToolbar } from '../../../../src/components/Modals/LogModal/LogToolbar';
+import { LogToolbar } from '@/components/Modals/LogModal/LogToolbar';
 import '@testing-library/jest-dom';
 
 describe('LogToolbar', () => {

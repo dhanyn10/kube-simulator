@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ResourceBudget } from '../../../src/components/Monitoring/ResourceBudget';
-import { useFlowStore } from '../../../src/store';
+import { ResourceBudget } from '@/components/Monitoring/ResourceBudget';
+import { useFlowStore } from '@/store';
 
 describe('ResourceBudget', () => {
   it('renders correctly with resource limits', () => {

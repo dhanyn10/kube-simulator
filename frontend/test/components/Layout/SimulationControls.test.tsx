@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SimulationControls } from '../../../src/components/Layout/SimulationControls';
+import { SimulationControls } from '@/components/Layout/SimulationControls';
 import '@testing-library/jest-dom';
 
 describe('SimulationControls', () => {

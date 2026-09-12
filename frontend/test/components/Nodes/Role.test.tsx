@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import { RoleSettingsSection } from '@/components/Config/RoleSettingsSection';
-import { useFlowStore } from '../../../src/store';
+import { useFlowStore } from '@/store';
 import { RoleNode } from '@/components/Nodes/Role';
 import { handleGetRolesCommand, handleDescribeRoleCommand } from '@/activities/terminal/terminalCommands';
 

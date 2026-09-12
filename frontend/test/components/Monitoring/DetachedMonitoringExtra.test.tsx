@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
-import { DetachedMonitoring } from '../../../src/components/Monitoring/DetachedMonitoring';
+import { DetachedMonitoring } from '@/components/Monitoring/DetachedMonitoring';
 
 describe('DetachedMonitoring extra branch coverage', () => {
   it('covers isThrottled badge, replicas fallback, and runtime JSON parse error handling', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { useFlowStore } from '../../../src/store';
-import { ImageDropdown as TargetImageDropdown } from '../../../src/components/UI/ImageDropdown';
+import { useFlowStore } from '@/store';
+import { ImageDropdown as TargetImageDropdown } from '@/components/UI/ImageDropdown';
 
 describe('ImageDropdown', () => {
   beforeEach(() => {

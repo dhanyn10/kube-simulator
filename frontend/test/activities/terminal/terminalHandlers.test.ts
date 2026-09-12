@@ -9,7 +9,7 @@ import {
   handleHistoryCommand,
   handleHelpCommand,
   handleDescribeCommand,
-} from '../../../src/activities/terminal/terminalHandlers';
+} from '@/activities/terminal/terminalHandlers';
 
 describe('terminalHandlers', () => {
   describe('handleGetPods', () => {
