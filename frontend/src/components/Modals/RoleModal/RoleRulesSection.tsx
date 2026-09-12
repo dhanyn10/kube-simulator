@@ -29,11 +29,17 @@ export const RoleRulesSection: React.FC<RoleRulesSectionProps> = ({
 }) => (
   <div className="space-y-3">
     <div className="flex items-center justify-between">
-      <span className="text-xs font-semibold text-slate-400">Role Rules / Permissions</span>
+      <span className={colorMode === 'dark' ? "text-xs font-semibold text-slate-300" : "text-xs font-semibold text-slate-800"}>
+        Role Rules / Permissions
+      </span>
       <button
         type="button"
         onClick={onAddRule}
-        className="flex items-center gap-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+        className={
+          colorMode === 'dark'
+            ? "flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700 px-2 py-0.5 rounded bg-slate-900"
+            : "flex items-center gap-1 text-[11px] font-semibold text-slate-800 hover:text-black transition-colors cursor-pointer border border-slate-300 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200"
+        }
       >
         <Plus size={13} /> Add Rule
       </button>

@@ -35,14 +35,19 @@ export const RuleCardRow: React.FC<RuleCardRowProps> = ({
     <div
       className={cn(
         "p-3.5 rounded-xl border relative space-y-3",
-        colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
+        colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-white border-slate-300 shadow-xs"
       )}
     >
       {totalRules > 1 && (
         <button
           type="button"
           onClick={() => onRemoveRule(idx)}
-          className="absolute top-2.5 right-2.5 text-red-400 hover:text-red-300 p-1 rounded transition-colors cursor-pointer"
+          className={cn(
+            "absolute top-2.5 right-2.5 p-1 rounded transition-colors cursor-pointer border",
+            colorMode === 'dark'
+              ? "text-slate-400 hover:text-slate-100 border-slate-800 hover:bg-slate-800"
+              : "text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-100"
+          )}
           title="Remove Rule"
         >
           <Trash2 size={13} />
@@ -50,7 +55,13 @@ export const RuleCardRow: React.FC<RuleCardRowProps> = ({
       )}
 
       <div>
-        <label htmlFor={`api-groups-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+        <label
+          htmlFor={`api-groups-input-${idx}`}
+          className={cn(
+            "block text-[10px] font-bold uppercase tracking-wider mb-1",
+            colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
+          )}
+        >
           API Groups
         </label>
         <TagInput
@@ -60,12 +71,22 @@ export const RuleCardRow: React.FC<RuleCardRowProps> = ({
           placeholder='Type group (e.g. apps) and press Enter...'
           suggestions={COMMON_SUGGESTIONS.apiGroups}
           colorMode={colorMode}
-          tagBgClass="bg-purple-500/20 border-purple-500/40 text-purple-300"
+          tagBgClass={
+            colorMode === 'dark'
+              ? "bg-slate-900 border-slate-700 text-slate-200"
+              : "bg-slate-100 border-slate-400 text-slate-900"
+          }
         />
       </div>
 
       <div>
-        <label htmlFor={`resources-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+        <label
+          htmlFor={`resources-input-${idx}`}
+          className={cn(
+            "block text-[10px] font-bold uppercase tracking-wider mb-1",
+            colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
+          )}
+        >
           Resources
         </label>
         <TagInput
@@ -75,12 +96,22 @@ export const RuleCardRow: React.FC<RuleCardRowProps> = ({
           placeholder="Type resource (e.g. pods) and press Enter..."
           suggestions={COMMON_SUGGESTIONS.resources}
           colorMode={colorMode}
-          tagBgClass="bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+          tagBgClass={
+            colorMode === 'dark'
+              ? "bg-slate-900 border-slate-700 text-slate-200"
+              : "bg-slate-100 border-slate-400 text-slate-900"
+          }
         />
       </div>
 
       <div>
-        <label htmlFor={`verbs-input-${idx}`} className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+        <label
+          htmlFor={`verbs-input-${idx}`}
+          className={cn(
+            "block text-[10px] font-bold uppercase tracking-wider mb-1",
+            colorMode === 'dark' ? "text-slate-300" : "text-slate-700"
+          )}
+        >
           Verbs (Permissions)
         </label>
         <TagInput
@@ -90,7 +121,11 @@ export const RuleCardRow: React.FC<RuleCardRowProps> = ({
           placeholder="Type verb (e.g. get) and press Enter..."
           suggestions={COMMON_SUGGESTIONS.verbs}
           colorMode={colorMode}
-          tagBgClass="bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+          tagBgClass={
+            colorMode === 'dark'
+              ? "bg-slate-900 border-slate-700 text-slate-200"
+              : "bg-slate-100 border-slate-400 text-slate-900"
+          }
         />
       </div>
     </div>
