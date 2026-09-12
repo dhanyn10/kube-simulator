@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { RightSidebar } from '../../../src/components/Layout/RightSidebar';
-import { useFlowStore } from '../../../src/store';
+import { RightSidebar } from '@/components/Layout/RightSidebar';
+import { useFlowStore } from '@/store';
 
 // Mock Config components to avoid deep rendering issues
-vi.mock('../../../src/components/Config', () => ({
+vi.mock('@/components/Config', () => ({
   NodeConfig: () => <div data-testid="node-config">Node Config</div>,
   EdgeConfig: () => <div data-testid="edge-config">Edge Config</div>,
 }));
 
 // Mock ResourceBudget
-vi.mock('../../../src/components/Monitoring', () => ({
+vi.mock('@/components/Monitoring', () => ({
   ResourceBudget: () => <div data-testid="resource-budget">Resource Budget</div>,
 }));
 

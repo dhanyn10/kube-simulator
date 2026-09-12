@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
-import { useBaseNodeHandler } from '@/activity/nodes';
+import { useBaseNodeHandler } from '@/activities/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).

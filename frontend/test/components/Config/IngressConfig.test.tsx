@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { IngressConfig } from '../../../src/components/Config/IngressConfig';
-import { useFlowStore } from '../../../src/store';
+import { IngressConfig } from '@/components/Config/IngressConfig';
+import { useFlowStore } from '@/store';
 
 describe('IngressConfig', () => {
   const performUpdate = vi.fn();

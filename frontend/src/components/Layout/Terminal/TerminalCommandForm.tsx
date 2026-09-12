@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../../lib/utils';
 import { useFlowStore } from '../../../store';
-import { SuggestionItem } from '../../../activity/terminal';
+import { SuggestionItem } from '../../../activities/terminal';
 import { AutocompleteItem } from './AutocompleteItem';
 
 export interface TerminalCommandFormProps {

@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { MenuBar } from '../../../src/components/Layout/MenuBar';
-import { useFlowStore } from '../../../src/store';
+import { MenuBar } from '@/components/Layout/MenuBar';
+import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
 
 vi.mock('@wailsjs/runtime', () => ({
   BrowserOpenURL: vi.fn(),
 }));
 
-vi.mock('../../../src/lib/tour', () => ({
+vi.mock('@/lib/tour', () => ({
   startTour: vi.fn(),
 }));
 

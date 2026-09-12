@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SettingsModal } from '../../../src/components/Modals/SettingsModal';
-import { useFlowStore } from '../../../src/store';
+import { SettingsModal } from '@/components/Modals/SettingsModal';
+import { useFlowStore } from '@/store';
 
 // Mock ResizeObserver for Headless UI Dialog
 global.ResizeObserver = class ResizeObserver {

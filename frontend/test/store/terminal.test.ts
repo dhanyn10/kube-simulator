@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useFlowStore } from '../../src/store/useFlowStore';
+import { useFlowStore } from '@/store/useFlowStore';
 
 describe('useFlowStore - Terminal Slice', () => {
   beforeEach(() => {

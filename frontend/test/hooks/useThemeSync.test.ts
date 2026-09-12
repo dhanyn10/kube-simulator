@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useThemeSync } from '../../src/hooks/useThemeSync';
-import { useFlowStore } from '../../src/store';
+import { useThemeSync } from '@/hooks/useThemeSync';
+import { useFlowStore } from '@/store';
 
 describe('useThemeSync', () => {
   beforeEach(() => {

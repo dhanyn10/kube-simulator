@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Edit3, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFlowStore } from '@/store';
 import { KubeIAMPolicy, KubeIAMUser } from '@/types';
-import { DEFAULT_POLICIES, IAMStep, IAMAccessType } from '@/activity/modals';
+import { useIAMUserEdit } from '@/activities/modals/useIAMUserEdit';
 import {
   IAMStepper,
   IAMStep1Details,
@@ -25,55 +24,24 @@ export const IAMUserEditView: React.FC<IAMUserEditViewProps> = ({
   onCancel,
   onFinish,
 }) => {
-  const iamUsers = useFlowStore((state) => state.iamUsers);
-
-  const [editStep, setEditStep] = useState<IAMStep>(1);
-  const [editUsername, setEditUsername] = useState(user.username);
-  const [editPolicies, setEditPolicies] = useState<string[]>(user.policies?.map((p) => p.name) || ['AdministratorAccess']);
-  const [editPolicySearch, setEditPolicySearch] = useState('');
-  const [editUsernameError, setEditUsernameError] = useState('');
-
-  const handleEditNextStep1 = () => {
-    if (!editUsername.trim()) {
-      setEditUsernameError('Username is required');
-      return;
-    }
-    const exists = iamUsers.some((u) => u.id !== user.id && u.username.toLowerCase() === editUsername.trim().toLowerCase());
-    if (exists) {
-      setEditUsernameError('Username already exists');
-      return;
-    }
-    setEditUsernameError('');
-    setEditStep(2);
-  };
-
-  const handleFinishEdit = () => {
-    const finalPolicies = DEFAULT_POLICIES.filter((p) => editPolicies.includes(p.name));
-    onFinish(editUsername.trim(), finalPolicies);
-  };
-
-  const isEditAdminSelected = editPolicies.includes('AdministratorAccess');
-  const isEditOtherSelected = editPolicies.some((p) => p !== 'AdministratorAccess');
-
-  const toggleEditPolicy = (policyName: string) => {
-    if (policyName === 'AdministratorAccess') {
-      setEditPolicies(isEditAdminSelected ? [] : ['AdministratorAccess']);
-      return;
-    }
-    setEditPolicies((prev) => {
-      const withoutAdmin = prev.filter((p) => p !== 'AdministratorAccess');
-      return withoutAdmin.includes(policyName)
-        ? withoutAdmin.filter((p) => p !== policyName)
-        : [...withoutAdmin, policyName];
-    });
-  };
-
-  const filteredEditPolicies = DEFAULT_POLICIES.filter((p) =>
-    p.name.toLowerCase().includes(editPolicySearch.toLowerCase()) ||
-    p.description.toLowerCase().includes(editPolicySearch.toLowerCase())
-  );
-
-  const editComputedAccessType: IAMAccessType = isEditAdminSelected ? 'Full Access' : 'Managed Access';
+  const {
+    editStep,
+    editUsername,
+    editUsernameError,
+    editPolicies,
+    editPolicySearch,
+    setEditPolicySearch,
+    filteredEditPolicies,
+    isEditAdminSelected,
+    isEditOtherSelected,
+    editComputedAccessType,
+    handleEditNextStep1,
+    handleNextFromStep2,
+    handlePreviousStep,
+    handleFinishEdit,
+    toggleEditPolicy,
+    handleUsernameChange,
+  } = useIAMUserEdit({ user, onFinish });
 
   return (
     <div className="flex flex-col h-full">
@@ -114,10 +82,7 @@ export const IAMUserEditView: React.FC<IAMUserEditViewProps> = ({
               username={editUsername}
               usernameError={editUsernameError}
               colorMode={isDark ? 'dark' : 'light'}
-              onUsernameChange={(val) => {
-                setEditUsername(val);
-                if (editUsernameError) setEditUsernameError('');
-              }}
+              onUsernameChange={handleUsernameChange}
             />
           )}
 
@@ -149,8 +114,8 @@ export const IAMUserEditView: React.FC<IAMUserEditViewProps> = ({
             currentStep={editStep}
             colorMode={isDark ? 'dark' : 'light'}
             isEditMode={true}
-            onPrevious={() => setEditStep((prev) => (prev - 1) as 1 | 2)}
-            onNext={editStep === 1 ? handleEditNextStep1 : () => { if (editPolicies.length > 0) setEditStep(3); }}
+            onPrevious={handlePreviousStep}
+            onNext={editStep === 1 ? handleEditNextStep1 : handleNextFromStep2}
             onFinish={handleFinishEdit}
           />
         </div>

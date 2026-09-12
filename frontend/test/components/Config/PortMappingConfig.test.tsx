@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { PortMappingConfig } from '../../../src/components/Config/PortMappingConfig';
+import { PortMappingConfig } from '@/components/Config/PortMappingConfig';
 import '@testing-library/jest-dom';
 
 describe('PortMappingConfig', () => {

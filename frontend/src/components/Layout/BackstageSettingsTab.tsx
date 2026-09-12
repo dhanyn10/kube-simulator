@@ -1,8 +1,12 @@
 import React from 'react';
 import { Eye, Grid, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { ColorPalette } from '@/components/UI/ColorPalette';
-import { BackstageTab } from '@/activity/layout/fileBackstageHelpers';
+import { BackstageTab } from '@/activities/layout/fileBackstageHelpers';
+import {
+  getPatternButtonClass,
+  getSettingLabelClass,
+  formatOpacityPercentage,
+} from '@/activities/layout/backstageSettingsHelpers';
 
 export interface BackstageSettingsTabProps {
   readonly activeTab: BackstageTab;
@@ -45,10 +49,6 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
   setCanvasBgOpacity,
 }) => {
   const isDark = colorMode === 'dark';
-  const activeBtnClass = "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/10 border-blue-600";
-  const inactiveBtnClass = isDark
-    ? "bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-300"
-    : "bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-700";
 
   if (activeTab === 'settings-view') {
     return (
@@ -67,10 +67,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
           <label
             htmlFor="setting-components-sidebar"
             aria-label="Components Sidebar Toggle"
-            className={cn(
-              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-            )}
+            className={getSettingLabelClass(isDark)}
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Components Sidebar</span>
@@ -89,10 +86,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
           <label
             htmlFor="setting-utilities-sidebar"
             aria-label="Utilities Sidebar Toggle"
-            className={cn(
-              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-            )}
+            className={getSettingLabelClass(isDark)}
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Utilities Sidebar</span>
@@ -111,10 +105,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
           <label
             htmlFor="setting-simulation-panel"
             aria-label="Simulation Panel Toggle"
-            className={cn(
-              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-            )}
+            className={getSettingLabelClass(isDark)}
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Simulation Panel</span>
@@ -133,10 +124,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
           <label
             htmlFor="setting-autofocus"
             aria-label="Autofocus Toggle"
-            className={cn(
-              "flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all select-none",
-              isDark ? "bg-slate-900 border-slate-800 hover:bg-slate-800/60" : "bg-white border-slate-200 hover:bg-slate-50"
-            )}
+            className={getSettingLabelClass(isDark)}
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold">Autofocus</span>
@@ -175,20 +163,14 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
             <button
               type="button"
               onClick={() => setCanvasBgVariant('dots')}
-              className={cn(
-                "flex-1 py-3 px-5 rounded-2xl border text-xs font-bold transition-all cursor-pointer",
-                canvasBgVariant === 'dots' ? activeBtnClass : inactiveBtnClass
-              )}
+              className={getPatternButtonClass(canvasBgVariant === 'dots', isDark)}
             >
               Dots Pattern
             </button>
             <button
               type="button"
               onClick={() => setCanvasBgVariant('lines')}
-              className={cn(
-                "flex-1 py-3 px-5 rounded-2xl border text-xs font-bold transition-all cursor-pointer",
-                canvasBgVariant === 'lines' ? activeBtnClass : inactiveBtnClass
-              )}
+              className={getPatternButtonClass(canvasBgVariant === 'lines', isDark)}
             >
               Lines Grid
             </button>
@@ -221,7 +203,7 @@ export const BackstageSettingsTab: React.FC<BackstageSettingsTabProps> = ({
             <label htmlFor="canvas-grid-opacity-input" className="font-bold uppercase text-slate-400 tracking-wider">
               Opacity / Intensity
             </label>
-            <span className="font-extrabold text-blue-500">{Math.round(canvasBgOpacity * 100)}%</span>
+            <span className="font-extrabold text-blue-500">{formatOpacityPercentage(canvasBgOpacity)}%</span>
           </div>
           <input
             id="canvas-grid-opacity-input"

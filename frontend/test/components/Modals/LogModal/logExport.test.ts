@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatFullDateTime, formatLogsText } from '../../../../src/components/Modals/LogModal/logExport';
-import { LogEntry } from '../../../../src/store/types';
+import { formatFullDateTime, formatLogsText } from '@/components/Modals/LogModal/logExport';
+import { LogEntry } from '@/store/types';
 
 describe('logExport', () => {
   it('formats full date time correctly', () => {
@@ -41,7 +41,7 @@ describe('logExport', () => {
       { id: '1', level: 'info', scope: 'Simulation', message: 'Test log', timestamp: Date.now() },
     ];
 
-    const { exportLogsToFile } = await import('../../../../src/components/Modals/LogModal/logExport');
+    const { exportLogsToFile } = await import('@/components/Modals/LogModal/logExport');
     const result = await exportLogsToFile(logs);
 
     expect(result).toBe(true);
@@ -69,7 +69,7 @@ describe('logExport', () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
-    const { exportLogsToFile } = await import('../../../../src/components/Modals/LogModal/logExport');
+    const { exportLogsToFile } = await import('@/components/Modals/LogModal/logExport');
 
     // Case 1: OpenLogFile returns false and logs is empty -> returns false
     const resultEmpty = await exportLogsToFile([]);
@@ -109,7 +109,7 @@ describe('logExport', () => {
       { id: '1', level: 'info', scope: 'Simulation', message: 'Error fallback log', timestamp: Date.now() },
     ];
 
-    const { exportLogsToFile } = await import('../../../../src/components/Modals/LogModal/logExport');
+    const { exportLogsToFile } = await import('@/components/Modals/LogModal/logExport');
     const result = await exportLogsToFile(logs);
 
     expect(result).toBe(true);

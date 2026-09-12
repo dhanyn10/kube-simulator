@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import AboutDialog from '../../../src/components/Modals/AboutDialog';
-import { useFlowStore } from '../../../src/store';
+import AboutDialog from '@/components/Modals/AboutDialog';
+import { useFlowStore } from '@/store';
 
 // Mock ResizeObserver for Headless UI Dialog
 global.ResizeObserver = class ResizeObserver {

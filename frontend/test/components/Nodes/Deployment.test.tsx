@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { DeploymentNode } from '../../../src/components/Nodes/Deployment';
-import { useFlowStore } from '../../../src/store';
+import { DeploymentNode } from '@/components/Nodes/Deployment';
+import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
 // Mock ResizeObserver for ReactFlow NodeResizer

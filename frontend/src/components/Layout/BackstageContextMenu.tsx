@@ -1,7 +1,16 @@
 import React from 'react';
 import { Sun, Moon, RotateCcw, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { RecentFileItem } from '@/activity/layout/fileBackstageHelpers';
+import { RecentFileItem } from '@/activities/layout/fileBackstageHelpers';
+import {
+  getContextMenuContainerClass,
+  getContextMenuButtonClass,
+  getContextMenuLoadProfileClass,
+  getContextMenuExitClass,
+  getContextMenuDividerClass,
+  handleThemeToggleClick,
+  handleLoadProfileClick,
+  handleExitClick,
+} from '@/activities/layout/backstageContextMenuHelpers';
 
 export interface BackstageContextMenuProps {
   readonly contextMenu: { readonly x: number; readonly y: number; readonly item: RecentFileItem | null } | null;
@@ -33,23 +42,12 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
     <div
       ref={contextMenuRef}
       style={{ top: contextMenu.y, left: contextMenu.x }}
-      className={cn(
-        "fixed z-[250] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100",
-        isDark
-          ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
-          : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
-      )}
+      className={getContextMenuContainerClass(isDark)}
     >
       <button
         type="button"
-        onClick={() => {
-          toggleColorMode();
-          setContextMenu(null);
-        }}
-        className={cn(
-          "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors cursor-pointer",
-          isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-        )}
+        onClick={() => handleThemeToggleClick(toggleColorMode, setContextMenu)}
+        className={getContextMenuButtonClass(isDark)}
       >
         {isDark ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} className="text-slate-600" />}
         <span>Change Theme</span>
@@ -58,33 +56,20 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
       {contextMenu.item && (
         <button
           type="button"
-          onClick={() => {
-            const targetItem = contextMenu.item;
-            setContextMenu(null);
-            if (targetItem) handleRestoreFile(targetItem);
-          }}
-          className={cn(
-            "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-blue-500 hover:text-blue-400 cursor-pointer",
-            isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
-          )}
+          onClick={() => handleLoadProfileClick(contextMenu.item, setContextMenu, handleRestoreFile)}
+          className={getContextMenuLoadProfileClass(isDark)}
         >
           <RotateCcw size={15} />
           <span>Load Profile</span>
         </button>
       )}
 
-      <div className={cn("my-1 border-t", isDark ? "border-slate-800" : "border-slate-100")} />
+      <div className={getContextMenuDividerClass(isDark)} />
 
       <button
         type="button"
-        onClick={() => {
-          setContextMenu(null);
-          onClose();
-        }}
-        className={cn(
-          "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-rose-500 hover:text-rose-400 cursor-pointer",
-          isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"
-        )}
+        onClick={() => handleExitClick(setContextMenu, onClose)}
+        className={getContextMenuExitClass(isDark)}
       >
         <X size={15} />
         <span>Exit</span>

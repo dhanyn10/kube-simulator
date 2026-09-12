@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { SaveModal } from '../../../src/components/Modals/SaveModal';
-import { useFlowStore } from '../../../src/store';
+import { SaveModal } from '@/components/Modals/SaveModal';
+import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
 
-vi.mock('../../../src/hooks/useFitView', () => ({
+vi.mock('@/hooks/useFitView', () => ({
   useFitView: () => vi.fn(),
 }));
 

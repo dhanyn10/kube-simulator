@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import App from '../src/App';
-import { useFlowStore } from '../src/store';
+import App from '@/App';
+import { useFlowStore } from '@/store';
 
 // Mock utils
-vi.mock('../src/lib/utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/lib/utils')>();
+vi.mock('@/lib/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils')>();
   return {
     ...actual,
     generateYaml: vi.fn().mockResolvedValue('mock yaml content'),
@@ -54,7 +54,7 @@ vi.mock('../wailsjs/runtime', () => ({
   EventsOn: vi.fn(() => () => {}),
 }));
 
-vi.mock('../src/hooks/useKeyboardShortcuts', () => ({
+vi.mock('@/hooks/useKeyboardShortcuts', () => ({
   useKeyboardShortcuts: vi.fn(),
 }));
 

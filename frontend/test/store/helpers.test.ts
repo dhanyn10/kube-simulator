@@ -7,7 +7,7 @@ import {
   syncPodsInDeployment,
   layoutPodsInDeployment,
   resolveGlobalCollisions
-} from '../../src/store/helpers';
+} from '@/store/helpers';
 import { Node } from '@xyflow/react';
 
 describe('store helpers', () => {

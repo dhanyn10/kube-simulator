@@ -2,7 +2,7 @@ import { Layers, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfigLabel } from '@/components/UI/ConfigUI';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
-import { getResourceSettingItems } from '@/activity/workload';
+import { getResourceSettingItems } from '@/activities/workload';
 
 interface ResourceSettingsProps {
   data: any;

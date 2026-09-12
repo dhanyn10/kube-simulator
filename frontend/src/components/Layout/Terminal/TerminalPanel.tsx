@@ -11,7 +11,7 @@ import {
   useTerminalScroll,
   generateLogFilename,
   exportLogFile,
-} from '../../../activity/terminal';
+} from '../../../activities/terminal';
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, renderHook, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
-import { SidebarContextMenu, useSidebarContextMenu } from '../../../src/components/UI/SidebarContextMenu';
+import { SidebarContextMenu, useSidebarContextMenu } from '@/components/UI/SidebarContextMenu';
 
 describe('SidebarContextMenu', () => {
   it('calls onCloseSidebar when onCloseSidebar prop is provided and close button is clicked', () => {

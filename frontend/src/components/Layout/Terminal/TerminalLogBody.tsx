@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
 import { Box, Layers, Play } from 'lucide-react';
 import { cn } from '../../../lib/utils';
-import { formatLogLineContent } from '../../../activity/terminal';
+import { formatLogLineContent } from '../../../activities/terminal';
 
 export interface TerminalLogBodyProps {
   isSimulating: boolean;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { HPAConfig } from '../../../src/components/Config/HPAConfig';
-import { useFlowStore } from '../../../src/store';
+import { HPAConfig } from '@/components/Config/HPAConfig';
+import { useFlowStore } from '@/store';
 
 describe('HPAConfig', () => {
   const performUpdate = vi.fn();

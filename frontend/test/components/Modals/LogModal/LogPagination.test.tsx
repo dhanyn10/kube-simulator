@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { LogPagination } from '../../../../src/components/Modals/LogModal/LogPagination';
+import { LogPagination } from '@/components/Modals/LogModal/LogPagination';
 import '@testing-library/jest-dom';
 
 describe('LogPagination', () => {

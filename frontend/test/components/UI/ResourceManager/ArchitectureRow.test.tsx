@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
-import { ArchitectureRow, Project } from '../../../../src/components/UI/ResourceManager/ArchitectureRow';
+import { ArchitectureRow, Project } from '@/components/UI/ResourceManager/ArchitectureRow';
 
 describe('ArchitectureRow', () => {
   const project: Project = {

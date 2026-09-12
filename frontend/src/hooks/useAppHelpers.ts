@@ -9,7 +9,7 @@ import {
   emitLiveSecretCommand,
   emitLiveConfigMapCommand,
   emitLiveHpaCommand,
-} from '../activity/terminal/liveUpdateCommands';
+} from '../activities/terminal/liveUpdateCommands';
 
 export function useAppInit(
   isDetachedMode: boolean,

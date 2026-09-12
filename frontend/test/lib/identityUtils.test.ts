@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateDigitalCertificate } from '../../src/lib/identityUtils';
-import { KubeIAMUser } from '../../src/types';
+import { generateDigitalCertificate } from '@/lib/identityUtils';
+import { KubeIAMUser } from '@/types';
 
 describe('identityUtils', () => {
   it('generates system:admin certificate correctly', () => {

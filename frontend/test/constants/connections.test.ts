@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getConnectionError } from '../../src/constants/connections';
+import { getConnectionError } from '@/constants/connections';
 
 describe('connections constants', () => {
   it('should return null for valid connections', () => {

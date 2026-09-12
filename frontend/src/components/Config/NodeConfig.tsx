@@ -16,7 +16,7 @@ import { RoleSettingsSection } from './RoleSettingsSection';
 import { ConfigMapSettingsSection } from './ConfigMapSettingsSection';
 import { SecretSettingsSection } from './SecretSettingsSection';
 import { HPASettingsSection } from './HPASettingsSection';
-import { useNodeConfigHandler } from '@/activity/config';
+import { useNodeConfigHandler } from '@/activities/config';
 
 interface NodeConfigProps {
   selectedNode: any;

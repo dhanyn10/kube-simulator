@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { PodNode } from '../../../src/components/Nodes/Pod';
-import { useFlowStore } from '../../../src/store';
+import { PodNode } from '@/components/Nodes/Pod';
+import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
 // Mock BaseNode since it's complex and uses many ReactFlow hooks
-vi.mock('../../../src/components/Nodes/BaseNode', () => ({
+vi.mock('@/components/Nodes/BaseNode', () => ({
   BaseNode: ({ children, title }: any) => (
     <div data-testid="base-node">
       <span>{title}</span>

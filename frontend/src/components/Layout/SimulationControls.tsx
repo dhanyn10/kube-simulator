@@ -1,8 +1,8 @@
 import { Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useSimulationControls } from '@/activity/layout';
+import { useSimulationControls } from '@/activities/layout';
 
-export { getSimulationButtonTitle, getSimulationButtonClass } from '@/activity/layout';
+export { getSimulationButtonTitle, getSimulationButtonClass } from '@/activities/layout';
 
 interface SimulationControlsProps {
   isSimulating: boolean;

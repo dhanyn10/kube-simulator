@@ -24,7 +24,7 @@ import {
   getSettingsButtonClass,
   getSubmenuItemClass,
   getThemeToggleClass,
-} from '@/activity/layout/fileBackstageHelpers';
+} from '@/activities/layout/fileBackstageHelpers';
 
 export interface BackstageSidebarProps {
   readonly colorMode: 'dark' | 'light';

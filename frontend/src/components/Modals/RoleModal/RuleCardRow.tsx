@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { K8sRoleRule } from '@/types';
 import { cn } from '@/lib/utils';
 import { TagInput } from './TagInput';
-import { COMMON_SUGGESTIONS } from '@/activity/modals';
+import { COMMON_SUGGESTIONS } from '@/activities/modals';
 
 /**
  * Props for RuleCardRow component.

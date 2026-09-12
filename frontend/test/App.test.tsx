@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import App from '../src/App';
-import { useFlowStore } from '../src/store';
+import App from '@/App';
+import { useFlowStore } from '@/store';
 
 // Mock utils
-vi.mock('../src/lib/utils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/lib/utils')>();
+vi.mock('@/lib/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils')>();
   return {
     ...actual,
     generateYaml: vi.fn().mockResolvedValue('mock yaml content'),
@@ -14,7 +14,7 @@ vi.mock('../src/lib/utils', async (importOriginal) => {
 });
 
 let capturedEventsOnCallback: any = null;
-vi.mock('../src/wailsjs/runtime', () => ({
+vi.mock('@/wailsjs/runtime', () => ({
   EventsOn: vi.fn((event, callback) => {
     if (event === 'openAboutDialog') {
       capturedEventsOnCallback = callback;
@@ -63,13 +63,13 @@ vi.mock('@xyflow/react', async (importOriginal) => {
 });
 
 let capturedKeyboardOptions: any = null;
-vi.mock('../src/hooks/useKeyboardShortcuts', () => ({
+vi.mock('@/hooks/useKeyboardShortcuts', () => ({
   useKeyboardShortcuts: vi.fn((options) => {
     capturedKeyboardOptions = options;
   }),
 }));
 
-vi.mock('../src/wailsjs/go/main/App.js', () => ({
+vi.mock('@/wailsjs/go/main/App.js', () => ({
   GetSystemResources: vi.fn().mockResolvedValue({ cpuCores: 4, totalMemoryGB: 16 }),
 }));
 

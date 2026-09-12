@@ -3,7 +3,7 @@ import { User, Trash2, CheckCircle2, ArrowLeft, UserCheck, Clock, Shield, Edit3 
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { KubeIAMPolicy, KubeIAMUser } from '@/types';
-import { AttachedRoleInfo, formatDateWithSeconds, getLastUsedActivityClass } from '@/activity/modals';
+import { AttachedRoleInfo, formatDateWithSeconds, getLastUsedActivityClass } from '@/activities/modals';
 import { IAMUserEditView } from './IAMUserEditView';
 
 export interface IAMUserSummaryCardsProps {

@@ -3,7 +3,7 @@ import { User, ExternalLink, X } from 'lucide-react';
 import { KubeIAMUser } from '@/types';
 import { cn } from '@/lib/utils';
 import { RoleUserOptionRow } from './RoleUserOptionRow';
-import { isUserFullAccess } from '@/activity/modals';
+import { isUserFullAccess } from '@/activities/modals';
 
 /**
  * Props for RoleSubjectsSection component.

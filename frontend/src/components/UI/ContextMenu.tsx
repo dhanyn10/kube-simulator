@@ -1,6 +1,6 @@
 import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useContextMenuHandler } from '@/activity/ui';
+import { useContextMenuHandler } from '@/activities/ui';
 
 interface ContextMenuProps {
   x: number;

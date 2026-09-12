@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
-import { LogToolbar } from '../../../../src/components/Modals/LogModal/LogToolbar';
+import { LogToolbar } from '@/components/Modals/LogModal/LogToolbar';
 
 describe('LogToolbar extra branch coverage', () => {
   it('covers fatal log level counting, partial selection checkbox icon, and select menu dropdown options', () => {

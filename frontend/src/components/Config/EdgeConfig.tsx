@@ -5,7 +5,7 @@ import { ColorPalette } from '../UI/ColorPalette';
 import {
   formatColorName,
   useEdgeConfigHandler
-} from '@/activity/config';
+} from '@/activities/config';
 
 interface EdgeConfigProps {
   selectedEdge: any;

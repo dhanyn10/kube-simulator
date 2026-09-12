@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { InternetNode } from '../../../src/components/Nodes/Internet';
-import { useFlowStore } from '../../../src/store';
+import { InternetNode } from '@/components/Nodes/Internet';
+import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
 // Mock BaseNode
-vi.mock('../../../src/components/Nodes/BaseNode', () => ({
+vi.mock('@/components/Nodes/BaseNode', () => ({
   BaseNode: ({ children, title }: any) => (
     <div data-testid="base-node">
       <span>{title}</span>

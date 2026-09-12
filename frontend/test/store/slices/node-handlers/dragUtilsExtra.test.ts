@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { handleGenericContainerMove } from '../../../../src/store/slices/node-handlers/dragUtils';
+import { handleGenericContainerMove } from '@/store/slices/node-handlers/dragUtils';
 
 describe('dragUtils extra branch conditions', () => {
   it('covers syncOldParentDeployment when old parent is not a Deployment or ReplicaSet', () => {

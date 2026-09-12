@@ -17,7 +17,7 @@ import { getAbsPos } from '../helpers';
 import {
   emitLiveEdgeCreatedCommand,
   emitLiveEdgeDeletedCommand,
-} from '../../activity/terminal/liveUpdateCommands';
+} from '../../activities/terminal/liveUpdateCommands';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';

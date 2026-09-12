@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createDeploymentSlice } from '../../../src/store/slices/createDeploymentSlice';
+import { createDeploymentSlice } from '@/store/slices/createDeploymentSlice';
 
 describe('createDeploymentSlice', () => {
   const set = vi.fn();

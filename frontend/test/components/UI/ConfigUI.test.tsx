@@ -9,7 +9,7 @@ import {
   AdvancedSection,
   NumberStepper,
   RangeInput,
-} from '../../../src/components/UI/ConfigUI';
+} from '@/components/UI/ConfigUI';
 
 describe('ConfigUI uncovered conditions', () => {
   it('covers YamlToggle disabled state branch', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { WorkloadConfig } from '../../../src/components/Config/WorkloadConfig';
-import { useFlowStore } from '../../../src/store';
+import { WorkloadConfig } from '@/components/Config/WorkloadConfig';
+import { useFlowStore } from '@/store';
 
 describe('WorkloadConfig', () => {
   const performUpdate = vi.fn();

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { HPANode } from '../../../src/components/Nodes/HPA';
-import { useFlowStore } from '../../../src/store';
+import { HPANode } from '@/components/Nodes/HPA';
+import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
 // Mock BaseNode
-vi.mock('../../../src/components/Nodes/BaseNode', () => ({
+vi.mock('@/components/Nodes/BaseNode', () => ({
   BaseNode: ({ children, title }: any) => (
     <div data-testid="base-node">
       <span>{title}</span>
@@ -15,7 +15,7 @@ vi.mock('../../../src/components/Nodes/BaseNode', () => ({
 }));
 
 // Mock ProgressBar to avoid deep rendering issues
-vi.mock('../../../src/components/Monitoring/ProgressBar', () => ({
+vi.mock('@/components/Monitoring/ProgressBar', () => ({
   ProgressBar: ({ label, value, subLabel }: any) => (
     <div data-testid="progress-bar">
       <span>{label}</span>
