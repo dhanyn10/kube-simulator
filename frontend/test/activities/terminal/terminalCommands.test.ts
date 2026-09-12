@@ -175,10 +175,16 @@ describe('terminalCommands', () => {
       expect(handleDescribeDeploymentCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
 
-    it('handleScaleCommand handles scaling deployment or not found', () => {
+    it('handleScaleCommand handles scaling deployment, replicaset, or not found', () => {
       let handled = handleScaleCommand('kubectl scale deployment/my-dep --replicas=5', mockCtx);
       expect(handled).toBe(true);
       expect(mockCtx.updateNodeData).toHaveBeenCalledWith('deploy-1', { replicas: 5 });
+
+      // Add ReplicaSet node
+      mockCtx.nodes.push({ id: 'rs-1', type: 'ReplicaSet', data: { label: 'my-rs', replicas: 2 } } as any);
+      handled = handleScaleCommand('kubectl scale replicaset/my-rs --replicas=4', mockCtx);
+      expect(handled).toBe(true);
+      expect(mockCtx.updateNodeData).toHaveBeenCalledWith('rs-1', { replicas: 4 });
 
       handled = handleScaleCommand('kubectl scale deployment/unknown-dep --replicas=5', mockCtx);
       expect(handled).toBe(true);

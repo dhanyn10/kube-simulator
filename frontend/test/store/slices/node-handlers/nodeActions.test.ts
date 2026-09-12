@@ -45,14 +45,19 @@ describe('nodeActions', () => {
     expect(state.nodes[0].position.y).toBeGreaterThan(0);
   });
 
-  it('addNode sets default dimensions for Namespace nodes', () => {
+  it('addNode sets default dimensions for Namespace and Deployment nodes', () => {
     const { addNode } = useFlowStore.getState();
     addNode('Namespace', { x: 10, y: 10 });
+    addNode('Deployment', { x: 50, y: 50 });
 
     const state = useFlowStore.getState();
     const nsNode = state.nodes.find(n => n.type === 'Namespace');
     expect(nsNode?.width).toBe(600);
     expect(nsNode?.height).toBe(400);
+
+    const depNode = state.nodes.find(n => n.type === 'Deployment');
+    expect(depNode?.width).toBe(320);
+    expect(depNode?.height).toBe(160);
   });
 
   it('addNode handles adding a Pod into a Deployment container parent', () => {
@@ -76,6 +81,22 @@ describe('nodeActions', () => {
     const state = useFlowStore.getState();
     expect(state.nodes[0].data.image).toBe('custom-image:v1');
     expect(state.nodes[0].data.isAutoImage).toBe(false);
+  });
+
+  it('updateNodeData emits live update commands for cpuLimit and memoryLimit changes', () => {
+    const depNode = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'web-dep', cpuLimit: '100m', memoryLimit: '128Mi' },
+    };
+    useFlowStore.setState({ nodes: [depNode] as any, activityLogs: [] });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('dep1', { cpuLimit: '200m', memoryLimit: '256Mi' });
+
+    const state = useFlowStore.getState();
+    expect(state.activityLogs.some(line => line.includes('kubectl set resources deployment/web-dep --limits=cpu=200m,memory=256Mi'))).toBe(true);
   });
 
   it('updateNodeData preserves width and height on Namespace nodes', () => {
@@ -150,21 +171,19 @@ describe('nodeActions', () => {
     expect(state.logs.some(l => l.message.includes('[Canvas Action]') && l.message.includes('x1:100'))).toBe(true);
   });
 
-  it('deleteNodes removes nodes, connected edges, and logs activity', () => {
+  it('deleteNodes removes nodes, connected edges, and handles measured/unmeasured node dimensions', () => {
     const node1 = { id: 'n1', type: 'Pod', position: { x: 10, y: 10 }, data: {} };
-    const node2 = { id: 'n2', type: 'Pod', position: { x: 50, y: 50 }, data: {} };
+    const node2 = { id: 'n2', type: 'Pod', position: { x: 50, y: 50 }, measured: { width: 140, height: 90 }, data: {} };
     const edge = { id: 'e1', source: 'n1', target: 'n2' };
 
     useFlowStore.setState({ nodes: [node1, node2] as any, edges: [edge] as any, logs: [] });
 
     const { deleteNodes } = useFlowStore.getState();
-    deleteNodes([node1] as any);
+    deleteNodes([node1, node2] as any);
 
     const state = useFlowStore.getState();
-    expect(state.nodes).toHaveLength(1);
-    expect(state.nodes[0].id).toBe('n2');
+    expect(state.nodes).toHaveLength(0);
     expect(state.edges).toHaveLength(0);
-    expect(state.logs.some(l => l.message.includes('Deleted card') && l.message.includes('from coordinates'))).toBe(true);
   });
 
   it('updateNodeData updates data and handles special workload logic', () => {

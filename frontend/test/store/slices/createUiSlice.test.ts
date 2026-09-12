@@ -16,7 +16,8 @@ describe('createUiSlice', () => {
       globalEdgeColor: 'old-color',
       globalEdgeErrorColor: 'old-error-color',
       nodes: [],
-      edges: []
+      edges: [],
+      iamUsers: [],
     });
 
     // Mock globalThis.go for backend calls
@@ -502,8 +503,54 @@ describe('createUiSlice', () => {
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
   });
 
+  it('handles activeIdentity, updateIamUser, and draggingSidebarItem reset', () => {
+    const { setActiveIdentity, addIamUser, updateIamUser, setDraggingSidebarItem } = useFlowStore.getState();
+
+    // 1. setActiveIdentity
+    setActiveIdentity('admin-user');
+    expect(useFlowStore.getState().activeIdentity).toBe('admin-user');
+    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('active_identity', 'admin-user');
+
+    // 2. updateIamUser
+    addIamUser({ username: 'old-user', accessType: 'Managed Access', policies: [] });
+    let state = useFlowStore.getState();
+    const userId = state.iamUsers[0].id;
+
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'p1',
+          data: {
+            roles: [{ assignedUsers: ['old-user', 'other-user'] }],
+          },
+        } as any,
+      ],
+    });
+
+    updateIamUser(userId, { username: 'new-user' });
+    state = useFlowStore.getState();
+    expect(state.iamUsers[0].username).toBe('new-user');
+    const roleUsers = (state.nodes[0].data.roles as any[])[0].assignedUsers;
+    expect(roleUsers).toEqual(['new-user', 'other-user']);
+
+    // update non-existent user returns empty
+    updateIamUser('missing-id', { username: 'foo' });
+
+    // 3. setDraggingSidebarItem null clears hovered states on nodes
+    useFlowStore.setState({
+      nodes: [
+        { id: 'node-hovered', data: { isHovered: true } } as any,
+      ],
+    });
+    setDraggingSidebarItem(null);
+    expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
+  });
+
   it('handles addIamUser and deleteIamUser with role purging from canvas nodes', () => {
     const { addIamUser, deleteIamUser } = useFlowStore.getState();
+
+    // Reset iamUsers
+    useFlowStore.setState({ iamUsers: [] });
 
     // 1. Add IAM user
     addIamUser({ username: 'dev-user', accessType: 'Managed Access', policies: [] });

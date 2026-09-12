@@ -35,6 +35,7 @@ describe('useCanvasHandlers hook', () => {
       isAutofocusEnabled: false,
       isRightSidebarVisible: true,
       setConfiguringEdgeId: vi.fn(),
+      setRightSidebarVisible: (val: boolean) => useFlowStore.setState({ isRightSidebarVisible: val }),
       onNodeClick: vi.fn(),
     });
   });
@@ -126,7 +127,6 @@ describe('useCanvasHandlers hook', () => {
 
   it('handles onEdgeClick with sidebar toggle, missing nodes, and autofocus bounds fitting', () => {
     const setConfiguringEdgeId = vi.fn();
-    const setRightSidebarVisible = vi.fn();
 
     const sourceNode: Node = {
       id: 'n1',
@@ -146,7 +146,6 @@ describe('useCanvasHandlers hook', () => {
       nodes: [sourceNode, targetNode],
       edges: [edge],
       isRightSidebarVisible: false,
-      setRightSidebarVisible,
       setConfiguringEdgeId,
       isAutofocusEnabled: true,
     });
@@ -158,7 +157,7 @@ describe('useCanvasHandlers hook', () => {
       result.current.onEdgeClick(mockEvent, edge);
     });
 
-    expect(setRightSidebarVisible).toHaveBeenCalledWith(true);
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
     expect(setConfiguringEdgeId).toHaveBeenCalledWith('e1');
     expect(mockFitBounds).toHaveBeenCalledWith(
       { x: 0, y: 0, width: 400, height: 350 },

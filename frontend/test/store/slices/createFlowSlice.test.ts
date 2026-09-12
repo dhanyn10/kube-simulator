@@ -266,6 +266,7 @@ describe('createFlowSlice', () => {
 
     useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'remove' }]);
     expect(useFlowStore.getState().edges).toHaveLength(0);
+    expect(useFlowStore.getState().lastActionName).toBe('Delete Edge');
   });
 
   it('onConnect handles invalid connection with error log and edge validation error', () => {
@@ -278,5 +279,16 @@ describe('createFlowSlice', () => {
     const edges = useFlowStore.getState().edges;
     expect(edges).toHaveLength(1);
     expect(edges[0].data?.validationError).toBeDefined();
+  });
+
+  it('onConnect handles parented source and target nodes with container handles', () => {
+    const ns = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+    const pod1 = { id: 'p1', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: {} };
+    const pod2 = { id: 'p2', type: 'Pod', parentId: 'ns1', position: { x: 100, y: 10 }, data: {} };
+
+    useFlowStore.setState({ nodes: [ns, pod1, pod2] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'p1', target: 'p2' });
+    expect(useFlowStore.getState().edges).toHaveLength(1);
   });
 });
