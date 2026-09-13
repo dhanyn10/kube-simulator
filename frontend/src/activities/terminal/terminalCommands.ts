@@ -28,6 +28,48 @@ const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean =>
   return true;
 };
 
+/**
+ * Returns group strings based on resource types for manifest activity logs
+ */
+const getResourceGroup = (type: string) => {
+  if (type === 'Deployment' || type === 'ReplicaSet') {
+    return '.apps';
+  } else if (type === 'Ingress') {
+    return '.networking.k8s.io';
+  } else if (type === 'HPA') {
+    return '.autoscaling';
+  }
+  return '';
+};
+
+export const handleApplyCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const match = /^kubectl\s+apply\s+-f\s+(\S+)/i.exec(cmd.trim());
+  if (!match) return false;
+
+  const k8sResources = ctx.nodes.filter(n =>
+    ['Deployment', 'ReplicaSet', 'Pod', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret'].includes(n.type)
+  );
+
+  if (k8sResources.length > 0) {
+    k8sResources.forEach(n => {
+      const typeLower = n.type.toLowerCase();
+      const group = getResourceGroup(n.type);
+      const label = n.data?.label || n.id;
+      ctx.addActivityLog(`${typeLower}${group}/${label} created`);
+    });
+  } else {
+    ctx.addActivityLog(`No resources defined in the manifest.`);
+  }
+
+  ctx.addActivityLog(`$ kubectl get pods -w`);
+  ctx.addActivityLog(`${"NAME".padEnd(38)} READY   STATUS              RESTARTS   AGE`);
+
+  return true;
+};
+
 export const handleGetSecretsCommand = (
   cmd: string,
   ctx: CommandContext

@@ -16,11 +16,15 @@ export const dispatchLiveCommand = (
   overrides?: { prevReplicas?: number; prevImage?: string }
 ): void => {
   if (isDispatchingLiveCommand) return;
+
+  const store = useFlowStore.getState();
+
+  // Only dispatch live CLI commands when simulation is actively running (Play mode)
+  if (!store.isSimulating) return;
+
   isDispatchingLiveCommand = true;
 
   try {
-    const store = useFlowStore.getState();
-
     // 1. Ensure Kube Console is visible
     if (!store.isTerminalOpen) {
       store.setTerminalOpen(true);
