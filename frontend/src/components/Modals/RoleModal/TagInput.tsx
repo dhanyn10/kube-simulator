@@ -19,6 +19,21 @@ export interface TagInputProps {
 }
 
 /**
+ * Computes border and ring styling for TagInput container based on focus state and theme mode.
+ *
+ * @param isFocused whether input is focused
+ * @param colorMode current theme mode
+ * @returns CSS class string
+ */
+export function getTagInputContainerBorderClass(isFocused: boolean, colorMode: string): string {
+  const isDark = colorMode === 'dark';
+  if (isFocused) {
+    return isDark ? 'ring-2 ring-slate-400 border-slate-400' : 'ring-2 ring-slate-800 border-slate-800';
+  }
+  return isDark ? 'border-slate-700' : 'border-slate-300';
+}
+
+/**
  * TagInput component allows multi-tag input with autocomplete support for K8s role rules.
  *
  * @param props TagInputProps
@@ -180,13 +195,7 @@ export const TagInput: React.FC<TagInputProps> = ({
         htmlFor={id}
         className={cn(
           "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-          isFocused
-            ? colorMode === 'dark'
-              ? "ring-2 ring-slate-400 border-slate-400"
-              : "ring-2 ring-slate-800 border-slate-800"
-            : colorMode === 'dark'
-              ? "border-slate-700"
-              : "border-slate-300",
+          getTagInputContainerBorderClass(isFocused, colorMode),
           colorMode === 'dark' ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900"
         )}
       >

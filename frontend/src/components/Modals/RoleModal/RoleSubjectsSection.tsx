@@ -22,6 +22,66 @@ export interface RoleSubjectsSectionProps {
   readonly onToggleAssignment: (username: string) => void;
 }
 
+interface AssignedUserChipProps {
+  readonly username: string;
+  readonly iamUsers: readonly KubeIAMUser[];
+  readonly colorMode: string;
+  readonly onToggleAssignment: (username: string) => void;
+}
+
+/**
+ * Computes border and ring styling for assigned users input based on open state and theme mode.
+ *
+ * @param isUserDropdownOpen whether dropdown is open
+ * @param colorMode current theme mode
+ * @returns CSS class string
+ */
+export function getRoleSubjectsInputBorderClass(isUserDropdownOpen: boolean, colorMode: string): string {
+  const isDark = colorMode === 'dark';
+  if (isUserDropdownOpen) {
+    return isDark ? 'ring-2 ring-slate-400 border-slate-400' : 'ring-2 ring-slate-800 border-slate-800';
+  }
+  return isDark ? 'border-slate-700' : 'border-slate-300';
+}
+
+const AssignedUserChip: React.FC<AssignedUserChipProps> = ({
+  username,
+  iamUsers,
+  colorMode,
+  onToggleAssignment,
+}) => {
+  const uobj = iamUsers.find((u) => u.username === username);
+  const isFull = uobj ? isUserFullAccess(uobj) : false;
+
+  return (
+    <span
+      className={cn(
+        "px-2 py-0.5 rounded-md text-xs font-mono font-semibold flex items-center gap-1 border shadow-xs transition-all animate-in fade-in zoom-in-95 duration-150",
+        colorMode === 'dark'
+          ? "bg-slate-900 border-slate-700 text-slate-200"
+          : "bg-slate-100 border-slate-400 text-slate-900"
+      )}
+    >
+      <User size={10} />
+      <span>{username}</span>
+      {isFull ? (
+        <span className="text-[9px] opacity-70 font-normal ml-0.5">(Full Access)</span>
+      ) : (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleAssignment(username);
+          }}
+          className="hover:opacity-80 p-0.5 rounded-full transition-opacity cursor-pointer"
+        >
+          <X size={10} />
+        </button>
+      )}
+    </span>
+  );
+};
+
 /**
  * RoleSubjectsSection renders the Subject/IAM user assignment section of RoleModal.
  *
@@ -78,48 +138,19 @@ export const RoleSubjectsSection: React.FC<RoleSubjectsSectionProps> = ({
           htmlFor="assigned-users-input"
           className={cn(
             "min-h-[42px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-            isUserDropdownOpen
-              ? colorMode === 'dark'
-                ? "ring-2 ring-slate-400 border-slate-400"
-                : "ring-2 ring-slate-800 border-slate-800"
-              : colorMode === 'dark'
-                ? "border-slate-700"
-                : "border-slate-300",
+            getRoleSubjectsInputBorderClass(isUserDropdownOpen, colorMode),
             colorMode === 'dark' ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"
           )}
         >
-          {assignedUsers.map((uname) => {
-            const uobj = iamUsers.find((u) => u.username === uname);
-            const isFull = uobj ? isUserFullAccess(uobj) : false;
-            return (
-              <span
-                key={`assigned-chip-${uname}`}
-                className={cn(
-                  "px-2 py-0.5 rounded-md text-xs font-mono font-semibold flex items-center gap-1 border shadow-xs transition-all animate-in fade-in zoom-in-95 duration-150",
-                  colorMode === 'dark'
-                    ? "bg-slate-900 border-slate-700 text-slate-200"
-                    : "bg-slate-100 border-slate-400 text-slate-900"
-                )}
-              >
-                <User size={10} />
-                <span>{uname}</span>
-                {isFull ? (
-                  <span className="text-[9px] opacity-70 font-normal ml-0.5">(Full Access)</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleAssignment(uname);
-                    }}
-                    className="hover:opacity-80 p-0.5 rounded-full transition-opacity cursor-pointer"
-                  >
-                    <X size={10} />
-                  </button>
-                )}
-              </span>
-            );
-          })}
+          {assignedUsers.map((uname) => (
+            <AssignedUserChip
+              key={`assigned-chip-${uname}`}
+              username={uname}
+              iamUsers={iamUsers}
+              colorMode={colorMode}
+              onToggleAssignment={onToggleAssignment}
+            />
+          ))}
 
           <input
             id="assigned-users-input"

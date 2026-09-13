@@ -44,50 +44,27 @@ describe('useIAMUserEdit', () => {
     expect(result.current.editPolicies).toEqual(['AdministratorAccess']);
   });
 
-  it('validates empty username on step 1 next', () => {
-    const { result } = renderHook(() => useIAMUserEdit({ user: dummyUser, onFinish: vi.fn() }));
+  it.each([
+    { inputUsername: '  ', expectedError: 'Username is required', expectedStep: 1 },
+    { inputUsername: 'jane_doe', expectedError: 'Username already exists', expectedStep: 1 },
+    { inputUsername: 'john_doe_updated', expectedError: '', expectedStep: 2 },
+  ])(
+    'handles step 1 username validation for input "$inputUsername"',
+    ({ inputUsername, expectedError, expectedStep }) => {
+      const { result } = renderHook(() => useIAMUserEdit({ user: dummyUser, onFinish: vi.fn() }));
 
-    act(() => {
-      result.current.handleUsernameChange('  ');
-    });
+      act(() => {
+        result.current.handleUsernameChange(inputUsername);
+      });
 
-    act(() => {
-      result.current.handleEditNextStep1();
-    });
+      act(() => {
+        result.current.handleEditNextStep1();
+      });
 
-    expect(result.current.editUsernameError).toBe('Username is required');
-    expect(result.current.editStep).toBe(1);
-  });
-
-  it('validates duplicate username on step 1 next', () => {
-    const { result } = renderHook(() => useIAMUserEdit({ user: dummyUser, onFinish: vi.fn() }));
-
-    act(() => {
-      result.current.handleUsernameChange('jane_doe');
-    });
-
-    act(() => {
-      result.current.handleEditNextStep1();
-    });
-
-    expect(result.current.editUsernameError).toBe('Username already exists');
-    expect(result.current.editStep).toBe(1);
-  });
-
-  it('proceeds to step 2 when username is valid', () => {
-    const { result } = renderHook(() => useIAMUserEdit({ user: dummyUser, onFinish: vi.fn() }));
-
-    act(() => {
-      result.current.handleUsernameChange('john_doe_updated');
-    });
-
-    act(() => {
-      result.current.handleEditNextStep1();
-    });
-
-    expect(result.current.editUsernameError).toBe('');
-    expect(result.current.editStep).toBe(2);
-  });
+      expect(result.current.editUsernameError).toBe(expectedError);
+      expect(result.current.editStep).toBe(expectedStep);
+    }
+  );
 
   it('toggles policies correctly', () => {
     const { result } = renderHook(() => useIAMUserEdit({ user: dummyUser, onFinish: vi.fn() }));

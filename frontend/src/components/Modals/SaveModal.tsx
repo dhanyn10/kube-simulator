@@ -5,7 +5,6 @@ import { Modal } from '@/components/Modals/Modal';
 import { useSaveModal } from '@/activities/modals/useSaveModal';
 import {
   formatDateModified,
-  RecentFileItem,
   getSaveRowBgClass,
   getHeaderProfileName,
 } from '@/activities/layout/fileBackstageHelpers';
