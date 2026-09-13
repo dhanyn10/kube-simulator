@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
+import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
 
 interface ModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export const Modal = ({
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -50,21 +52,7 @@ export const Modal = ({
     return () => globalThis.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-    if (contextMenu) {
-      globalThis.addEventListener('click', handleClickOutside);
-      globalThis.addEventListener('contextmenu', handleClickOutside);
-    }
-    return () => {
-      globalThis.removeEventListener('click', handleClickOutside);
-      globalThis.removeEventListener('contextmenu', handleClickOutside);
-    };
-  }, [contextMenu]);
+  useOutsideContextMenu(contextMenuRef, Boolean(contextMenu), closeContextMenu);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

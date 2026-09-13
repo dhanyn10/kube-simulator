@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RecentFileItem, fetchRecentFiles } from './fileBackstageHelpers';
+import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
 
 /**
  * Shared hook to manage recent files state, loading, and context menu outside click listening.
@@ -14,27 +15,15 @@ export function useRecentFilesState(isOpen: boolean) {
     setRecentFiles(items);
   }, []);
 
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
   useEffect(() => {
     if (isOpen) {
       loadRecentFiles();
     }
   }, [isOpen, loadRecentFiles]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-    if (contextMenu) {
-      globalThis.addEventListener('click', handleClickOutside);
-      globalThis.addEventListener('contextmenu', handleClickOutside);
-    }
-    return () => {
-      globalThis.removeEventListener('click', handleClickOutside);
-      globalThis.removeEventListener('contextmenu', handleClickOutside);
-    };
-  }, [contextMenu]);
+  useOutsideContextMenu(contextMenuRef, Boolean(contextMenu), closeContextMenu);
 
   const handleRowContextMenu = (e: React.MouseEvent, item: RecentFileItem) => {
     e.preventDefault();
