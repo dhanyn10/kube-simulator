@@ -4,7 +4,8 @@ import { Modal } from './Modal';
 import { K8sSecretItem } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
-import { KeyValueFormSection, KeyValueItem } from './KeyValueFormSection';
+import { KeyValueFormSection } from './KeyValueFormSection';
+import { useKeyValueModalState } from '@/activities/modals/useKeyValueModalState';
 
 interface SecretModalProps {
   isOpen: boolean;
@@ -14,6 +15,11 @@ interface SecretModalProps {
   initialSecret?: K8sSecretItem | null;
   onSave: (secretItem: K8sSecretItem) => void;
 }
+
+const DEFAULT_SECRET_ITEMS = [
+  { key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
+  { key: 'API_KEY', value: 'secret-token-xyz' },
+];
 
 export const SecretModal: React.FC<SecretModalProps> = ({
   isOpen,
@@ -27,10 +33,14 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
   const [secretName, setSecretName] = useState<string>('app-secret');
   const [secretType, setSecretType] = useState<string>('Opaque');
-  const [dataItems, setDataItems] = useState<KeyValueItem[]>([
-    { id: 'sec-kv-1', key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
-    { id: 'sec-kv-2', key: 'API_KEY', value: 'secret-token-xyz' },
-  ]);
+  const {
+    dataItems,
+    setDataItems,
+    handleAddField,
+    handleRemoveField,
+    handleUpdateField,
+    getValidData,
+  } = useKeyValueModalState('sec', DEFAULT_SECRET_ITEMS);
 
   useEffect(() => {
     if (initialSecret) {
@@ -54,28 +64,12 @@ export const SecretModal: React.FC<SecretModalProps> = ({
         { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_KEY', value: 'secret-token-xyz' },
       ]);
     }
-  }, [initialSecret, isOpen, targetNodeId]);
+  }, [initialSecret, isOpen, targetNodeId, setDataItems]);
 
   if (!isOpen) return null;
 
-  const handleAddField = () => {
-    setDataItems((prev) => [...prev, { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: '', value: '' }]);
-  };
-
-  const handleRemoveField = (id: string) => {
-    setDataItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleUpdateField = (id: string, field: 'key' | 'value', value: string) => {
-    setDataItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
-  };
-
   const handleSave = () => {
-    const validData = dataItems
-      .filter((item) => item.key.trim() !== '')
-      .map(({ key, value }) => ({ key, value }));
+    const validData = getValidData();
     const secretItem: K8sSecretItem = {
       id: initialSecret?.id || `secret-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(secretName) || 'unnamed-secret',
