@@ -27,6 +27,10 @@ describe('liveUpdateCommands', () => {
     });
   });
 
+  afterEach(() => {
+    delete (globalThis as any).go;
+  });
+
   it('dispatchLiveCommand ignores commands and returns early when isSimulating is false', () => {
     useFlowStore.setState({ isSimulating: false });
     dispatchLiveCommand('kubectl get pods');
@@ -34,10 +38,6 @@ describe('liveUpdateCommands', () => {
     const state = useFlowStore.getState();
     expect(state.isTerminalOpen).toBe(false);
     expect(state.activityLogs).toHaveLength(0);
-  });
-
-  afterEach(() => {
-    delete (globalThis as any).go;
   });
 
   it('dispatchLiveCommand opens terminal, switches tab to activity, and adds activity log', () => {

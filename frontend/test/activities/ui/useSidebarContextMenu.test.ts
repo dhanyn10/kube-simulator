@@ -29,4 +29,27 @@ describe('useSidebarContextMenu', () => {
 
     expect(result.current.contextMenu).toBeNull();
   });
+
+  it('closes context menu when right-clicking elsewhere (contextmenu event on window)', () => {
+    const { result } = renderHook(() => useSidebarContextMenu());
+
+    const mockEvent = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      clientX: 150,
+      clientY: 250,
+    } as any;
+
+    act(() => {
+      result.current.handleContextMenu(mockEvent);
+    });
+
+    expect(result.current.contextMenu).toEqual({ x: 150, y: 250 });
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    });
+
+    expect(result.current.contextMenu).toBeNull();
+  });
 });

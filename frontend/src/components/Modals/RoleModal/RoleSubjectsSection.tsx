@@ -74,6 +74,97 @@ const AssignedUserChip: React.FC<AssignedUserChipProps> = ({
  * @param props RoleSubjectsSectionProps
  * @returns JSX Element
  */
+interface RoleSubjectsHeaderProps {
+  readonly assignedCount: number;
+  readonly colorMode: string;
+  readonly onOpenIamModal: () => void;
+}
+
+const RoleSubjectsHeader: React.FC<RoleSubjectsHeaderProps> = ({
+  assignedCount,
+  colorMode,
+  onOpenIamModal,
+}) => (
+  <div className="flex items-center justify-between">
+    <span className={colorMode === 'dark' ? "text-xs font-semibold text-slate-300 flex items-center gap-1.5" : "text-xs font-semibold text-slate-800 flex items-center gap-1.5"}>
+      <User size={14} className={colorMode === 'dark' ? "text-slate-300" : "text-slate-700"} />
+      RoleBinding Subjects / IAM Users ({assignedCount})
+    </span>
+    <button
+      type="button"
+      onClick={onOpenIamModal}
+      className={
+        colorMode === 'dark'
+          ? "flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700 px-2 py-0.5 rounded bg-slate-900"
+          : "flex items-center gap-1 text-[11px] font-semibold text-slate-800 hover:text-black transition-colors cursor-pointer border border-slate-300 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200"
+      }
+    >
+      <ExternalLink size={12} />
+      Manage Kube IAM Users
+    </button>
+  </div>
+);
+
+interface NoUsersBannerProps {
+  readonly colorMode: string;
+  readonly onOpenIamModal: () => void;
+}
+
+const NoUsersBanner: React.FC<NoUsersBannerProps> = ({ colorMode, onOpenIamModal }) => (
+  <div className={cn('p-3 rounded-lg border text-xs flex items-center justify-between', colorMode === 'dark' ? 'bg-slate-950/60 border-slate-800 text-slate-400' : 'bg-white border-slate-300 text-slate-700')}>
+    <span>No Kube IAM users created yet.</span>
+    <button
+      type="button"
+      onClick={onOpenIamModal}
+      className={colorMode === 'dark' ? "text-slate-300 hover:underline text-[11px] font-medium cursor-pointer" : "text-slate-800 hover:underline text-[11px] font-medium cursor-pointer"}
+    >
+      Go to Kube IAM Management
+    </button>
+  </div>
+);
+
+interface RoleUserDropdownMenuProps {
+  readonly filteredAvailableUsers: readonly KubeIAMUser[];
+  readonly assignedUsers: readonly string[];
+  readonly colorMode: string;
+  readonly onToggleAssignment: (username: string) => void;
+}
+
+const RoleUserDropdownMenu: React.FC<RoleUserDropdownMenuProps> = ({
+  filteredAvailableUsers,
+  assignedUsers,
+  colorMode,
+  onToggleAssignment,
+}) => (
+  <div className={cn(
+    "absolute left-0 right-0 top-full mt-1 z-50 max-h-48 overflow-y-auto rounded-lg border shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar font-mono text-xs",
+    colorMode === 'dark' ? "bg-slate-900 border-slate-700/80 text-slate-200" : "bg-white border-slate-300 text-slate-800"
+  )}>
+    {filteredAvailableUsers.length === 0 ? (
+      <div className="p-2.5 text-center text-xs text-slate-400">
+        No matching IAM users available for this card type.
+      </div>
+    ) : (
+      filteredAvailableUsers.map((user) => (
+        <RoleUserOptionRow
+          key={user.id}
+          user={user}
+          isChecked={assignedUsers.includes(user.username)}
+          isFullAccess={isUserFullAccess(user)}
+          colorMode={colorMode}
+          onToggle={onToggleAssignment}
+        />
+      ))
+    )}
+  </div>
+);
+
+/**
+ * RoleSubjectsSection renders the Subject/IAM user assignment section of RoleModal.
+ *
+ * @param props RoleSubjectsSectionProps
+ * @returns JSX Element
+ */
 export const RoleSubjectsSection: React.FC<RoleSubjectsSectionProps> = ({
   iamUsers,
   assignedUsers,
@@ -88,36 +179,14 @@ export const RoleSubjectsSection: React.FC<RoleSubjectsSectionProps> = ({
   onToggleAssignment,
 }) => (
   <div className="space-y-2">
-    <div className="flex items-center justify-between">
-      <span className={colorMode === 'dark' ? "text-xs font-semibold text-slate-300 flex items-center gap-1.5" : "text-xs font-semibold text-slate-800 flex items-center gap-1.5"}>
-        <User size={14} className={colorMode === 'dark' ? "text-slate-300" : "text-slate-700"} />
-        RoleBinding Subjects / IAM Users ({assignedUsers.length})
-      </span>
-      <button
-        type="button"
-        onClick={onOpenIamModal}
-        className={
-          colorMode === 'dark'
-            ? "flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700 px-2 py-0.5 rounded bg-slate-900"
-            : "flex items-center gap-1 text-[11px] font-semibold text-slate-800 hover:text-black transition-colors cursor-pointer border border-slate-300 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200"
-        }
-      >
-        <ExternalLink size={12} />
-        Manage Kube IAM Users
-      </button>
-    </div>
+    <RoleSubjectsHeader
+      assignedCount={assignedUsers.length}
+      colorMode={colorMode}
+      onOpenIamModal={onOpenIamModal}
+    />
 
     {iamUsers.length === 0 ? (
-      <div className={cn('p-3 rounded-lg border text-xs flex items-center justify-between', colorMode === 'dark' ? 'bg-slate-950/60 border-slate-800 text-slate-400' : 'bg-white border-slate-300 text-slate-700')}>
-        <span>No Kube IAM users created yet.</span>
-        <button
-          type="button"
-          onClick={onOpenIamModal}
-          className={colorMode === 'dark' ? "text-slate-300 hover:underline text-[11px] font-medium cursor-pointer" : "text-slate-800 hover:underline text-[11px] font-medium cursor-pointer"}
-        >
-          Go to Kube IAM Management
-        </button>
-      </div>
+      <NoUsersBanner colorMode={colorMode} onOpenIamModal={onOpenIamModal} />
     ) : (
       <div ref={userDropdownRef} className="relative">
         <label
@@ -156,27 +225,12 @@ export const RoleSubjectsSection: React.FC<RoleSubjectsSectionProps> = ({
         </label>
 
         {isUserDropdownOpen && (
-          <div className={cn(
-            "absolute left-0 right-0 top-full mt-1 z-50 max-h-48 overflow-y-auto rounded-lg border shadow-xl p-1 animate-in fade-in zoom-in-95 duration-100 custom-scrollbar font-mono text-xs",
-            colorMode === 'dark' ? "bg-slate-900 border-slate-700/80 text-slate-200" : "bg-white border-slate-300 text-slate-800"
-          )}>
-            {filteredAvailableUsers.length === 0 ? (
-              <div className="p-2.5 text-center text-xs text-slate-400">
-                No matching IAM users available for this card type.
-              </div>
-            ) : (
-              filteredAvailableUsers.map((user) => (
-                <RoleUserOptionRow
-                  key={user.id}
-                  user={user}
-                  isChecked={assignedUsers.includes(user.username)}
-                  isFullAccess={isUserFullAccess(user)}
-                  colorMode={colorMode}
-                  onToggle={onToggleAssignment}
-                />
-              ))
-            )}
-          </div>
+          <RoleUserDropdownMenu
+            filteredAvailableUsers={filteredAvailableUsers}
+            assignedUsers={assignedUsers}
+            colorMode={colorMode}
+            onToggleAssignment={onToggleAssignment}
+          />
         )}
       </div>
     )}
