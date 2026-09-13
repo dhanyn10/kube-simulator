@@ -75,7 +75,7 @@
 
   .custom-scrollbar::-webkit-scrollbar-track {
     background-color: transparent;
-    border-radius: 9999px;
+    @apply rounded-full;
   }
 
   .dark .custom-scrollbar::-webkit-scrollbar-track {
@@ -89,7 +89,7 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    border-radius: 9999px;
+    @apply rounded-full;
     background-clip: padding-box;
     border: 1px solid transparent;
     transition: background-color 0.2s ease;
