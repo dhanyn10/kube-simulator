@@ -411,7 +411,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       />
 
       {/* Content Area */}
-      <div className={cn("right-sidebar-content-area custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-64")}>
+      <div className={cn("right-sidebar-content-area custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-72")}>
         {activeTab === 'history' && (
           <div className="p-0 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />

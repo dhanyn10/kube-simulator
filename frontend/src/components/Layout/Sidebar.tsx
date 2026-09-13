@@ -252,7 +252,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
         </div>
       </div>
 
-      <div className={cn("sidebar-content-scroll custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-64")}>
+      <div className={cn("sidebar-content-scroll custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-72")}>
         {SECTIONS.map(section => (
           <SidebarSection 
             key={section.id}
