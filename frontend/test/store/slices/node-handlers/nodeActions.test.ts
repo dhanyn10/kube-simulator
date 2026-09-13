@@ -90,7 +90,7 @@ describe('nodeActions', () => {
       position: { x: 0, y: 0 },
       data: { label: 'web-dep', cpuLimit: '100m', memoryLimit: '128Mi' },
     };
-    useFlowStore.setState({ nodes: [depNode] as any, activityLogs: [] });
+    useFlowStore.setState({ nodes: [depNode] as any, isSimulating: true, activityLogs: [] });
 
     const { updateNodeData } = useFlowStore.getState();
     updateNodeData('dep1', { cpuLimit: '200m', memoryLimit: '256Mi' });

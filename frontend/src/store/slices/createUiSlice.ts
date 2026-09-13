@@ -25,6 +25,7 @@ import {
   purgeUserFromNodes,
   renameUserInNodeRoles,
 } from './ui-handlers';
+import { dispatchLiveCommand } from '../../activities/terminal/liveUpdateCommands';
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';
@@ -468,7 +469,6 @@ const startSimulationInternal = (
       const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
 
       // Clear logs and show terminal
-      const initialActivity = buildInitialActivity(nodes);
       const initialTerminalLogs = buildInitialTerminalLogs(nodes);
 
       set({
@@ -477,9 +477,12 @@ const startSimulationInternal = (
         simulationMetrics: {},
         isTerminalOpen: true,
         terminalActiveTab: 'activity',
-        activityLogs: initialActivity,
+        activityLogs: [],
         terminalLogs: initialTerminalLogs,
       });
+
+      // Automatically dispatch kubectl apply command when starting simulation
+      dispatchLiveCommand('kubectl apply -f k8s-manifest.yaml');
 
       let ticks = 0;
       if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);

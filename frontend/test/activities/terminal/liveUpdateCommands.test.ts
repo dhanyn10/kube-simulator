@@ -20,10 +20,20 @@ describe('liveUpdateCommands', () => {
     useFlowStore.setState({
       nodes: [],
       edges: [],
+      isSimulating: true,
       isTerminalOpen: false,
       terminalActiveTab: 'logs',
       activityLogs: [],
     });
+  });
+
+  it('dispatchLiveCommand ignores commands and returns early when isSimulating is false', () => {
+    useFlowStore.setState({ isSimulating: false });
+    dispatchLiveCommand('kubectl get pods');
+
+    const state = useFlowStore.getState();
+    expect(state.isTerminalOpen).toBe(false);
+    expect(state.activityLogs).toHaveLength(0);
   });
 
   afterEach(() => {

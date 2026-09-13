@@ -5,7 +5,7 @@ import {
   NodeChange,
   EdgeChange,
 } from '@xyflow/react';
-import { K8sResourceType, K8sNodeData } from '../types';
+import { K8sResourceType, K8sNodeData } from '@/types';
 
 export type LogLevel = 'error' | 'warn' | 'fatal' | 'info';
 export type LogScope = 'Simulation' | 'KubeConsole' | 'Store' | 'UI' | 'Backend' | 'System' | (string & {});

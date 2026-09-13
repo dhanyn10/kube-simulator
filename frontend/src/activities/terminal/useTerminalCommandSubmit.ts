@@ -4,6 +4,7 @@ import { useFlowStore } from '../../store';
 import {
   CommandContext,
   handleAdminCommands,
+  handleApplyCommand,
   handleGetAllCommand,
   handleScaleCommand,
   handleSetImageCommand,
@@ -54,6 +55,7 @@ export const executeKubectlCommand = (
   }
 
   const commandHandlers = [
+    handleApplyCommand,
     handleGetAllCommand,
     handleScaleCommand,
     handleSetImageCommand,

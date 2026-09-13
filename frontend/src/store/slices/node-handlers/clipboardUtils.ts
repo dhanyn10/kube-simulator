@@ -1,5 +1,5 @@
 import { Node } from '@xyflow/react';
-import { getNodeData } from '../../helpers';
+import { getNodeData } from '@/store/helpers';
 
 /**
  * Finds a logical match for a pasted pod.
