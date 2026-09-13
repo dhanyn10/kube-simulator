@@ -375,8 +375,9 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       id="right-sidebar"
       onContextMenu={handleContextMenu}
       className={cn(
-        "right-sidebar-container w-72 border-l relative",
-        colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+        "right-sidebar-container w-72 border-l relative transition-all duration-300",
+        colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200",
+        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]"
       )}
     >
       {contextMenu && (
@@ -411,7 +412,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
       />
 
       {/* Content Area */}
-      <div className={cn("right-sidebar-content-area custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-72")}>
+      <div className="right-sidebar-content-area custom-scrollbar">
         {activeTab === 'history' && (
           <div className="p-0 h-full flex flex-col">
             <HistoryPanel colorMode={colorMode} />

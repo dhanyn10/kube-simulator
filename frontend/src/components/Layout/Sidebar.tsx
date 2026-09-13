@@ -214,8 +214,9 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       id="sidebar-components"
       onContextMenu={handleContextMenu}
       className={cn(
-        "sidebar-container w-64 border-r relative",
-        colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
+        "sidebar-container w-64 border-r relative transition-all duration-300",
+        colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200",
+        isTerminalOpen ? "h-[calc(100vh-2.5rem-16rem)]" : "h-[calc(100vh-2.5rem)]"
       )}
     >
       {contextMenu && (
@@ -252,7 +253,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
         </div>
       </div>
 
-      <div className={cn("sidebar-content-scroll custom-scrollbar transition-all duration-300", isTerminalOpen && "pb-72")}>
+      <div className="sidebar-content-scroll custom-scrollbar">
         {SECTIONS.map(section => (
           <SidebarSection 
             key={section.id}
