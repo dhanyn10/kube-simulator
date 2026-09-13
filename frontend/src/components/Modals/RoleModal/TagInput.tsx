@@ -4,6 +4,7 @@ import { K8sResourceType } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { AutocompleteDropdown, AutocompleteSuggestion } from '@/components/UI/AutocompleteDropdown';
+import { getContainerFocusBorderClass } from './roleModalHelpers';
 
 /**
  * Props for TagInput component.
@@ -18,20 +19,16 @@ export interface TagInputProps {
   readonly tagBgClass?: string;
 }
 
-/**
- * Computes border and ring styling for TagInput container based on focus state and theme mode.
- *
- * @param isFocused whether input is focused
- * @param colorMode current theme mode
- * @returns CSS class string
- */
-export function getTagInputContainerBorderClass(isFocused: boolean, colorMode: string): string {
-  const isDark = colorMode === 'dark';
-  if (isFocused) {
-    return isDark ? 'ring-2 ring-slate-400 border-slate-400' : 'ring-2 ring-slate-800 border-slate-800';
-  }
-  return isDark ? 'border-slate-700' : 'border-slate-300';
-}
+const RESOURCE_TO_TYPE_MAP: Record<string, K8sResourceType> = {
+  pods: 'Pod',
+  deployments: 'Deployment',
+  services: 'Service',
+  configmaps: 'ConfigMap',
+  secrets: 'Secret',
+  persistentvolumeclaims: 'PVC',
+  ingresses: 'Ingress',
+  horizontalpodautoscalers: 'HPA',
+};
 
 /**
  * TagInput component allows multi-tag input with autocomplete support for K8s role rules.
@@ -83,18 +80,7 @@ export const TagInput: React.FC<TagInputProps> = ({
     const label = s === '' ? 'Core API' : s;
     const description = s === '' ? 'Core Kubernetes API Group (Pods, Services, ConfigMaps, Secrets)' : undefined;
 
-    const resourceToTypeMap: Record<string, string> = {
-      pods: 'Pod',
-      deployments: 'Deployment',
-      services: 'Service',
-      configmaps: 'ConfigMap',
-      secrets: 'Secret',
-      persistentvolumeclaims: 'PVC',
-      ingresses: 'Ingress',
-      horizontalpodautoscalers: 'HPA',
-    };
-
-    const targetType = resourceToTypeMap[s.toLowerCase()];
+    const targetType = RESOURCE_TO_TYPE_MAP[s.toLowerCase()];
     const isMissingFromCanvas = Boolean(targetType && !nodes.some((n) => n.type === targetType));
 
     return {
@@ -128,18 +114,7 @@ export const TagInput: React.FC<TagInputProps> = ({
       onChange([...tags, trimmed]);
     }
 
-    const resourceToTypeMap: Record<string, K8sResourceType> = {
-      pods: 'Pod',
-      deployments: 'Deployment',
-      services: 'Service',
-      configmaps: 'ConfigMap',
-      secrets: 'Secret',
-      persistentvolumeclaims: 'PVC',
-      ingresses: 'Ingress',
-      horizontalpodautoscalers: 'HPA',
-    };
-
-    const targetType = resourceToTypeMap[trimmed.toLowerCase()];
+    const targetType = RESOURCE_TO_TYPE_MAP[trimmed.toLowerCase()];
     if (targetType) {
       const existsOnCanvas = nodes.some((n) => n.type === targetType);
       if (!existsOnCanvas) {
@@ -195,7 +170,7 @@ export const TagInput: React.FC<TagInputProps> = ({
         htmlFor={id}
         className={cn(
           "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-          getTagInputContainerBorderClass(isFocused, colorMode),
+          getContainerFocusBorderClass(isFocused, colorMode),
           colorMode === 'dark' ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900"
         )}
       >

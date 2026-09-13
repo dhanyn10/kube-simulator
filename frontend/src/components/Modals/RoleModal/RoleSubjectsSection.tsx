@@ -4,6 +4,7 @@ import { KubeIAMUser } from '@/types';
 import { cn } from '@/lib/utils';
 import { RoleUserOptionRow } from './RoleUserOptionRow';
 import { isUserFullAccess } from '@/activities/modals';
+import { getContainerFocusBorderClass } from './roleModalHelpers';
 
 /**
  * Props for RoleSubjectsSection component.
@@ -27,21 +28,6 @@ interface AssignedUserChipProps {
   readonly iamUsers: readonly KubeIAMUser[];
   readonly colorMode: string;
   readonly onToggleAssignment: (username: string) => void;
-}
-
-/**
- * Computes border and ring styling for assigned users input based on open state and theme mode.
- *
- * @param isUserDropdownOpen whether dropdown is open
- * @param colorMode current theme mode
- * @returns CSS class string
- */
-export function getRoleSubjectsInputBorderClass(isUserDropdownOpen: boolean, colorMode: string): string {
-  const isDark = colorMode === 'dark';
-  if (isUserDropdownOpen) {
-    return isDark ? 'ring-2 ring-slate-400 border-slate-400' : 'ring-2 ring-slate-800 border-slate-800';
-  }
-  return isDark ? 'border-slate-700' : 'border-slate-300';
 }
 
 const AssignedUserChip: React.FC<AssignedUserChipProps> = ({
@@ -138,7 +124,7 @@ export const RoleSubjectsSection: React.FC<RoleSubjectsSectionProps> = ({
           htmlFor="assigned-users-input"
           className={cn(
             "min-h-[42px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-            getRoleSubjectsInputBorderClass(isUserDropdownOpen, colorMode),
+            getContainerFocusBorderClass(isUserDropdownOpen, colorMode),
             colorMode === 'dark' ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"
           )}
         >
