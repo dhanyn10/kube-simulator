@@ -161,7 +161,7 @@
   }
 
   .terminal-panel-container {
-    @apply absolute bottom-0 left-0 right-0 h-64 border-t z-30 flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
+    @apply fixed bottom-0 left-0 right-0 h-64 border-t z-40 flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
   }
 
   .terminal-toolbar {

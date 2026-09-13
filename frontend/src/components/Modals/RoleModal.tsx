@@ -102,7 +102,13 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 
       <div className="space-y-4">
         <div>
-          <label htmlFor="role-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+          <label
+            htmlFor="role-name-input"
+            className={cn(
+              "block text-xs font-semibold mb-1",
+              colorMode === 'dark' ? "text-slate-300" : "text-slate-800"
+            )}
+          >
             Role Name
           </label>
           <input
@@ -112,10 +118,10 @@ export const RoleModal: React.FC<RoleModalProps> = ({
             onChange={(e) => setRoleName(e.target.value)}
             placeholder="e.g. app-reader-role"
             className={cn(
-              "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
+              "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 transition-all",
               colorMode === 'dark'
-                ? "bg-slate-950 border-slate-800 text-slate-100"
-                : "bg-slate-50 border-slate-300 text-slate-900"
+                ? "bg-slate-950 border-slate-800 text-slate-100 focus:ring-slate-400"
+                : "bg-white border-slate-300 text-slate-900 focus:ring-slate-800"
             )}
           />
         </div>

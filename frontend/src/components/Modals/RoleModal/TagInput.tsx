@@ -31,8 +31,12 @@ export const TagInput: React.FC<TagInputProps> = ({
   placeholder = 'Add tag...',
   suggestions = [],
   colorMode,
-  tagBgClass = 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300',
+  tagBgClass,
 }) => {
+  const defaultTagBgClass = colorMode === 'dark'
+    ? 'bg-slate-900 border-slate-700 text-slate-200'
+    : 'bg-slate-100 border-slate-400 text-slate-900';
+  const effectiveTagBgClass = tagBgClass || defaultTagBgClass;
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
@@ -176,8 +180,14 @@ export const TagInput: React.FC<TagInputProps> = ({
         htmlFor={id}
         className={cn(
           "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-          isFocused ? "ring-2 ring-indigo-500/50 border-indigo-500/80" : "border-slate-700/60",
-          colorMode === 'dark' ? "bg-slate-900" : "bg-white"
+          isFocused
+            ? colorMode === 'dark'
+              ? "ring-2 ring-slate-400 border-slate-400"
+              : "ring-2 ring-slate-800 border-slate-800"
+            : colorMode === 'dark'
+              ? "border-slate-700"
+              : "border-slate-300",
+          colorMode === 'dark' ? "bg-slate-900 text-slate-100" : "bg-white text-slate-900"
         )}
       >
         {tags.map((tag, idx) => (
@@ -185,7 +195,7 @@ export const TagInput: React.FC<TagInputProps> = ({
             key={`tag-${tag}-${idx}`}
             className={cn(
               "px-2 py-0.5 rounded-md text-xs font-mono font-semibold flex items-center gap-1 border shadow-xs transition-all animate-in fade-in zoom-in-95 duration-150",
-              tagBgClass
+              effectiveTagBgClass
             )}
           >
             <span>{tag === '' ? 'Core API' : tag}</span>
