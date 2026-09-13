@@ -82,34 +82,12 @@ func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 	name := sanitizeName(data.Label)
 	namespace := getNamespace(node, ctx)
 
-	var obj interface{}
-
-	switch node.Type {
-	case "Namespace":
-		obj = generateNamespace(data, name)
-	case "Pod":
-		obj = generatePodOrDeployment(data, name, namespace, ctx)
-	case "Deployment":
-		obj = generateDeployment(data, name, namespace, ctx)
-	case "ReplicaSet":
-		obj = generateReplicaSet(data, name, namespace, ctx)
-	case "Service":
-		obj = generateService(data, name, namespace, ctx)
-	case "Ingress":
-		obj = generateIngress(data, name, namespace, ctx)
-	case "HPA":
-		obj = generateHPA(data, name, namespace, ctx)
-	case "PVC":
-		obj = generatePVC(data, name, namespace)
-	case "ConfigMap":
-		obj = generateConfigMap(data, name, namespace)
-	case "Secret":
-		obj = generateSecret(data, name, namespace)
-	default:
+	generator, ok := DefaultFactory.GetGenerator(node.Type)
+	if !ok {
 		return nil
 	}
 
-	return obj
+	return generator.Generate(data, name, namespace, ctx)
 }
 
 func sanitizeName(label string) string {
