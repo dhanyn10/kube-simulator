@@ -5,9 +5,9 @@ import {
   getNodeData, 
   sortNodes,
   resolveGlobalCollisions
-} from '../../helpers';
-import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
-import { FlowState } from '../../types';
+} from '@/store/helpers';
+import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { FlowState } from '@/store/types';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './dragUtils';
 
 /**

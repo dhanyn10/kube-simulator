@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
-import { getAbsPos, getNodeData } from '../../helpers';
-import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
-import { FlowState } from '../../types';
+import { getAbsPos, getNodeData } from '@/store/helpers';
+import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { FlowState } from '@/store/types';
 
 /**
  * Calculates overlap percentage and checks intersection between a node and a container.

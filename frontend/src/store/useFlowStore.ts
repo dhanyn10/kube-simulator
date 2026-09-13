@@ -1,11 +1,11 @@
 import { logger } from '../lib/logger';
 import { createStore, useStore } from 'zustand';
-import { FlowState } from './types';
-import { createFlowSlice } from './slices/createFlowSlice';
-import { createDeploymentSlice } from './slices/createDeploymentSlice';
-import { createNodeSlice } from './slices/createNodeSlice';
-import { createUiSlice } from './slices/createUiSlice';
-import { createLogSlice } from './slices/createLogSlice';
+import { FlowState } from '@/store/types';
+import { createFlowSlice } from '@/store/slices/createFlowSlice';
+import { createDeploymentSlice } from '@/store/slices/createDeploymentSlice';
+import { createNodeSlice } from '@/store/slices/createNodeSlice';
+import { createUiSlice } from '@/store/slices/createUiSlice';
+import { createLogSlice } from '@/store/slices/createLogSlice';
 
 /**
  * Formats a Date object into an autosave key with format: autosave-ddmmyyyyhis

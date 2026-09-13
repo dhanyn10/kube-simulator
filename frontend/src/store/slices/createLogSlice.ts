@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { FlowState, LogEntry, LogLevel, LogScope } from '../types';
+import { FlowState, LogEntry, LogLevel, LogScope } from '@/store/types';
 
 export interface LogSlice {
   logs: LogEntry[];

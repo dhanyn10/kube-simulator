@@ -1,15 +1,15 @@
 import { Node } from '@xyflow/react';
-import { K8sNodeData } from '../types';
-import { FlowState } from './types';
+import { K8sNodeData } from '@/types';
+import { FlowState } from '@/store/types';
 import { 
   getNodeData, 
   syncPodsInDeployment, 
   layoutPodsInDeployment, 
   resolveGlobalCollisions
-} from './helpers';
-import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../lib/podSizing';
-import { syncWorkloadMetadata, getInitialData } from './slices/node-handlers/nodeUtils';
-import { sanitizeSlug } from '../lib/utils';
+} from '@/store/helpers';
+import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
+import { syncWorkloadMetadata, getInitialData } from '@/store/slices/node-handlers/nodeUtils';
+import { sanitizeSlug } from '@/lib/utils';
 
 export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
   onDelete: () => {

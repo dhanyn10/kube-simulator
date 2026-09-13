@@ -2,9 +2,9 @@ import { Node } from '@xyflow/react';
 import { 
   layoutPodsInDeployment,
   getAbsPos
-} from '../../helpers';
+} from '@/store/helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../../../lib/podSizing';
-import { FlowState } from '../../types';
+import { FlowState } from '@/store/types';
 
 /**
  * Gets the minimum allowed size for a node during resize.

@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
-import { K8sNodeData } from '../types';
+import { K8sNodeData } from '@/types';
 import { getPodSpacing, getReplicaThresholds } from './layoutHelpers';
-import { getPodMinimumSize } from '../lib/podSizing';
+import { getPodMinimumSize } from '@/lib/podSizing';
 
 export const getNodeData = (node: Node): K8sNodeData => {
   return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
