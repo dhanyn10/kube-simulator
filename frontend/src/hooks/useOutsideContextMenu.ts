@@ -22,11 +22,11 @@ export function useOutsideContextMenu(
     };
 
     globalThis.addEventListener('click', handler);
-    globalThis.addEventListener('contextmenu', handler);
+    globalThis.addEventListener('contextmenu', handler, true);
 
     return () => {
       globalThis.removeEventListener('click', handler);
-      globalThis.removeEventListener('contextmenu', handler);
+      globalThis.removeEventListener('contextmenu', handler, true);
     };
   }, [ref, active, onOutsideClick]);
 }

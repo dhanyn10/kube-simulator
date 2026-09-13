@@ -16,7 +16,11 @@ export function useSidebarContextMenu() {
 
   useEffect(() => {
     window.addEventListener('click', closeContextMenu);
-    return () => window.removeEventListener('click', closeContextMenu);
+    window.addEventListener('contextmenu', closeContextMenu, true);
+    return () => {
+      window.removeEventListener('click', closeContextMenu);
+      window.removeEventListener('contextmenu', closeContextMenu, true);
+    };
   }, []);
 
   return { contextMenu, handleContextMenu, closeContextMenu };

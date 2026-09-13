@@ -39,6 +39,17 @@ export function useCanvasHandlers() {
   const [isYamlOpen, setIsYamlOpen] = useState(false);
   const [yamlContent, setYamlContent] = useState('');
 
+  React.useEffect(() => {
+    if (!contextMenu) return;
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('contextmenu', closeMenu, true);
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('contextmenu', closeMenu, true);
+    };
+  }, [contextMenu]);
+
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();

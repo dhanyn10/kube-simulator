@@ -140,9 +140,11 @@ export default function App() {
     const handleClose = () => setDefaultContextMenu(null);
 
     window.addEventListener('contextmenu', handleGlobalContextMenu);
+    window.addEventListener('contextmenu', handleClose, true);
     window.addEventListener('click', handleClose);
     return () => {
       window.removeEventListener('contextmenu', handleGlobalContextMenu);
+      window.removeEventListener('contextmenu', handleClose, true);
       window.removeEventListener('click', handleClose);
     };
   }, []);
