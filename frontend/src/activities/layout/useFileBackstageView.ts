@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { useFitView } from '@/hooks/useFitView';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import {
   BackstageTab,
-  RecentFileItem,
-  fetchRecentFiles,
   restoreRecentFile,
 } from './fileBackstageHelpers';
+import { useRecentFilesState } from './useRecentFilesState';
 
 export interface UseFileBackstageViewParams {
   readonly isOpen: boolean;
@@ -46,20 +45,20 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
   const [isSettingsExpanded, setIsSettingsExpanded] = useState<boolean>(true);
 
   const [newProjectName, setNewProjectName] = useState('');
-  const [recentFiles, setRecentFiles] = useState<RecentFileItem[]>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: RecentFileItem | null } | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  const {
+    recentFiles,
+    contextMenu,
+    setContextMenu,
+    contextMenuRef,
+    loadRecentFiles,
+    handleRowContextMenu,
+  } = useRecentFilesState(isOpen);
 
   const isCanvasEmpty = nodes.length === 0;
 
-  const loadRecentFiles = async () => {
-    const items = await fetchRecentFiles();
-    setRecentFiles(items);
-  };
-
   useEffect(() => {
     if (!isOpen) return;
-    loadRecentFiles();
 
     const currentKey = getCurrentSessionAutosaveKey();
     if (currentProject) {
@@ -70,22 +69,6 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
   }, [isOpen, currentProject]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-    if (contextMenu) {
-      globalThis.addEventListener('click', handleClickOutside);
-      globalThis.addEventListener('contextmenu', handleClickOutside);
-    }
-    return () => {
-      globalThis.removeEventListener('click', handleClickOutside);
-      globalThis.removeEventListener('contextmenu', handleClickOutside);
-    };
-  }, [contextMenu]);
-
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isOpen && e.key === 'Escape') {
         onClose();
@@ -94,12 +77,6 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
-
-  const handleRowContextMenu = (e: React.MouseEvent, item: RecentFileItem) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, item });
-  };
 
   const handleQuickSaveCurrent = async () => {
     const isAutosaveOn = useFlowStore.getState().isAutosaveEnabled;
@@ -144,7 +121,7 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     }
   };
 
-  const handleRestore = async (item: RecentFileItem) => {
+  const handleRestore = async (item: Parameters<typeof restoreRecentFile>[0]) => {
     await restoreRecentFile(item, onClose, fitView);
   };
 

@@ -1,12 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { generateTimestampedProjectName } from '@/components/UI/ResourceManager/resourceManagerHelpers';
 import { useFitView } from '@/hooks/useFitView';
-import {
-  fetchRecentFiles,
-  restoreRecentFile,
-  RecentFileItem,
-} from '@/activities/layout/fileBackstageHelpers';
+import { restoreRecentFile } from '@/activities/layout/fileBackstageHelpers';
+import { useRecentFilesState } from '@/activities/layout/useRecentFilesState';
 
 export interface UseSaveModalParams {
   readonly isOpen: boolean;
@@ -22,22 +19,21 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
   const currentProject = useFlowStore((state) => state.currentProject);
 
   const [newProjectName, setNewProjectName] = useState('');
-  const [recentFiles, setRecentFiles] = useState<RecentFileItem[]>([]);
   const [activeLocation, setActiveLocation] = useState<string>('~/.kube-simulator/app_settings_json');
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; item: RecentFileItem | null } | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
+  const {
+    recentFiles,
+    contextMenu,
+    setContextMenu,
+    contextMenuRef,
+    loadRecentFiles,
+    handleRowContextMenu,
+  } = useRecentFilesState(isOpen);
 
   const isCanvasEmpty = nodes.length === 0;
 
-  const loadRecentFiles = async () => {
-    const items = await fetchRecentFiles();
-    setRecentFiles(items);
-  };
-
   useEffect(() => {
     if (!isOpen) return;
-    loadRecentFiles();
 
     if (currentProject) {
       setActiveLocation(`~/.kube-simulator/projects/${currentProject.id}/architecture.infra`);
@@ -47,28 +43,6 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
       setNewProjectName(generateTimestampedProjectName());
     }
   }, [isOpen, currentProject]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-    if (contextMenu) {
-      globalThis.addEventListener('click', handleClickOutside);
-      globalThis.addEventListener('contextmenu', handleClickOutside);
-    }
-    return () => {
-      globalThis.removeEventListener('click', handleClickOutside);
-      globalThis.removeEventListener('contextmenu', handleClickOutside);
-    };
-  }, [contextMenu]);
-
-  const handleRowContextMenu = (e: React.MouseEvent, item: RecentFileItem) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, item });
-  };
 
   const handleQuickSaveCurrent = async () => {
     const content = JSON.stringify({ nodes, edges });
@@ -97,7 +71,7 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     }
   };
 
-  const handleRestoreFile = async (item: RecentFileItem) => {
+  const handleRestoreFile = async (item: Parameters<typeof restoreRecentFile>[0]) => {
     await restoreRecentFile(item, onClose, fitView);
   };
 

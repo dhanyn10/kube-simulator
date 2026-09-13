@@ -4,7 +4,8 @@ import { Modal } from './Modal';
 import { K8sConfigMapItem } from '../../types';
 import { useFlowStore } from '../../store';
 import { cn, sanitizeSlug } from '../../lib/utils';
-import { KeyValueFormSection, KeyValueItem } from './KeyValueFormSection';
+import { KeyValueFormSection } from './KeyValueFormSection';
+import { useKeyValueModalState } from '@/activities/modals/useKeyValueModalState';
 
 interface ConfigMapModalProps {
   isOpen: boolean;
@@ -14,6 +15,11 @@ interface ConfigMapModalProps {
   initialConfigMap?: K8sConfigMapItem | null;
   onSave: (configMapItem: K8sConfigMapItem) => void;
 }
+
+const DEFAULT_CM_ITEMS = [
+  { key: 'API_URL', value: 'https://api.example.com' },
+  { key: 'LOG_LEVEL', value: 'info' },
+];
 
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   isOpen,
@@ -26,10 +32,14 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const [cmName, setCmName] = useState<string>('app-config');
-  const [dataItems, setDataItems] = useState<KeyValueItem[]>([
-    { id: 'cm-kv-1', key: 'API_URL', value: 'https://api.example.com' },
-    { id: 'cm-kv-2', key: 'LOG_LEVEL', value: 'info' },
-  ]);
+  const {
+    dataItems,
+    setDataItems,
+    handleAddField,
+    handleRemoveField,
+    handleUpdateField,
+    getValidData,
+  } = useKeyValueModalState('cm', DEFAULT_CM_ITEMS);
 
   useEffect(() => {
     if (initialConfigMap) {
@@ -51,28 +61,12 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
         { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'LOG_LEVEL', value: 'info' },
       ]);
     }
-  }, [initialConfigMap, isOpen, targetNodeId]);
+  }, [initialConfigMap, isOpen, targetNodeId, setDataItems]);
 
   if (!isOpen) return null;
 
-  const handleAddField = () => {
-    setDataItems((prev) => [...prev, { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: '', value: '' }]);
-  };
-
-  const handleRemoveField = (id: string) => {
-    setDataItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleUpdateField = (id: string, field: 'key' | 'value', value: string) => {
-    setDataItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
-  };
-
   const handleSave = () => {
-    const validData = dataItems
-      .filter((item) => item.key.trim() !== '')
-      .map(({ key, value }) => ({ key, value }));
+    const validData = getValidData();
     const configMapItem: K8sConfigMapItem = {
       id: initialConfigMap?.id || `cm-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
       name: sanitizeSlug(cmName) || 'unnamed-configmap',
