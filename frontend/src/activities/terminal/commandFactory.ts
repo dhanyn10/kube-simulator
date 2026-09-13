@@ -38,14 +38,12 @@ export interface CommandHandlerOptions {
  * Handler for 'kubectl get' commands.
  */
 export class GetCommandHandler implements ICommandHandler {
-  constructor(private readonly options: CommandHandlerOptions) {}
-
   handle(ctx: CommandContext): boolean {
     return handleGetCommands(
       ctx.cmdLower,
       ctx.addActivityLog,
-      this.options.nodes,
-      this.options.isSimulating
+      ctx.nodes,
+      ctx.isSimulating
     );
   }
 }
@@ -54,14 +52,12 @@ export class GetCommandHandler implements ICommandHandler {
  * Handler for 'kubectl describe' commands.
  */
 export class DescribeCommandHandler implements ICommandHandler {
-  constructor(private readonly options: CommandHandlerOptions) {}
-
   handle(ctx: CommandContext): boolean {
     return handleDescribeCommand(
       ctx.cmd,
       ctx.addActivityLog,
-      this.options.nodes,
-      this.options.isSimulating
+      ctx.nodes,
+      ctx.isSimulating
     );
   }
 }
@@ -76,7 +72,7 @@ export class LogsCommandHandler implements ICommandHandler {
     return handleLogsCommand(
       ctx.cmd,
       ctx.addActivityLog,
-      this.options.nodes,
+      ctx.nodes,
       this.options.setTerminalSelectedResourceId,
       this.options.setTerminalActiveTab
     );
@@ -154,8 +150,8 @@ export class TerminalCommandFactory {
 export const createDefaultTerminalCommandFactory = (options: CommandHandlerOptions): TerminalCommandFactory => {
   const factory = new TerminalCommandFactory();
   factory.register(new ConfigCommandHandler());
-  factory.register(new GetCommandHandler(options));
-  factory.register(new DescribeCommandHandler(options));
+  factory.register(new GetCommandHandler());
+  factory.register(new DescribeCommandHandler());
   factory.register(new LogsCommandHandler(options));
   factory.register(new HistoryCommandHandler(options.historyEntries));
   factory.register(new HelpCommandHandler());

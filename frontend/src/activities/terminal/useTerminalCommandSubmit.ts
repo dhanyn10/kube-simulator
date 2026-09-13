@@ -30,20 +30,26 @@ export const executeKubectlCommand = (
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void,
   historyEntries: CommandHistoryEntry[] = []
 ) => {
-  if (handleAdminCommands(cmd, ctx)) {
+  const fullCtx: CommandContext = {
+    ...ctx,
+    cmd,
+    cmdLower: cmd.toLowerCase(),
+  };
+
+  if (handleAdminCommands(cmd, fullCtx)) {
     return;
   }
 
   const factory = createDefaultTerminalCommandFactory({
-    nodes: ctx.nodes,
-    isSimulating: ctx.isSimulating,
+    nodes: fullCtx.nodes,
+    isSimulating: fullCtx.isSimulating,
     historyEntries,
     setTerminalSelectedResourceId,
     setTerminalActiveTab,
   });
 
   // Evaluate RBAC permissions for operational commands
-  if (!evaluateRbacForCommand(cmd, ctx)) {
+  if (!evaluateRbacForCommand(cmd, fullCtx)) {
     return;
   }
 
@@ -65,14 +71,14 @@ export const executeKubectlCommand = (
   ];
 
   for (const handler of commandHandlers) {
-    if (handler(cmd, ctx)) return;
+    if (handler(cmd, fullCtx)) return;
   }
 
-  if (factory.execute(ctx)) {
+  if (factory.execute(fullCtx)) {
     return;
   }
 
-  ctx.addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
+  fullCtx.addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
 };
 
 export const useTerminalCommandSubmit = (
@@ -125,6 +131,8 @@ export const useTerminalCommandSubmit = (
     }
 
     const ctx: CommandContext = {
+      cmd,
+      cmdLower: cmd.toLowerCase(),
       nodes,
       isSimulating,
       addActivityLog,
