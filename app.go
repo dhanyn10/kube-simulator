@@ -17,8 +17,8 @@ import (
 
 	"build-wails/backend/db"
 	"build-wails/backend/logger"
+	"build-wails/backend/pkg/yaml_gen"
 	"build-wails/backend/system"
-	"build-wails/backend/yaml_gen"
 
 	"github.com/dgraph-io/badger/v4"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"

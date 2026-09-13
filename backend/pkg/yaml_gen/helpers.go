@@ -1,7 +1,7 @@
 package yaml_gen
 
 import (
-	"build-wails/backend/k8s"
+	"build-wails/backend/pkg/k8s"
 	"fmt"
 )
 

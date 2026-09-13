@@ -282,6 +282,9 @@ export const handleAdminCommands = (
   }
 
   if (isAdminAuth) {
+    if (cmdLower === 'help') {
+      return false;
+    }
     ctx.addActivityLog(`[Warning] You are currently in Admin Mode. Standard Kubernetes user commands are disabled.`);
     ctx.addActivityLog(`Type "logout" or "exit" to leave Admin Mode and return to standard CLI.`);
     return true;

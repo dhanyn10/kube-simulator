@@ -19,17 +19,8 @@ import {
   handleGetSecretsCommand,
   handleDescribeSecretCommand,
 } from './terminalCommands';
-import {
-  handleHelpCommand,
-  handleHistoryCommand,
-  handleGetCommands,
-  handleLogsCommand,
-  handleDescribeCommand,
-} from './terminalHandlers';
-import {
-  handleKubectlConfigCommand,
-  evaluateRbacForCommand,
-} from './terminalConfigCommands';
+import { evaluateRbacForCommand } from './terminalConfigCommands';
+import { createDefaultTerminalCommandFactory } from './commandFactory';
 import { CommandHistoryEntry, formatCommandTimestamp } from './terminalLogUtils';
 
 export const executeKubectlCommand = (
@@ -39,26 +30,26 @@ export const executeKubectlCommand = (
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void,
   historyEntries: CommandHistoryEntry[] = []
 ) => {
-  const cmdLower = cmd.toLowerCase();
+  const fullCtx: CommandContext = {
+    ...ctx,
+    cmd,
+    cmdLower: cmd.toLowerCase(),
+  };
 
-  if (handleHelpCommand(cmdLower, ctx)) {
+  if (handleAdminCommands(cmd, fullCtx)) {
     return;
   }
 
-  if (handleHistoryCommand(cmdLower, historyEntries, ctx.addActivityLog)) {
-    return;
-  }
-
-  if (handleKubectlConfigCommand(cmd, ctx)) {
-    return;
-  }
-
-  if (handleAdminCommands(cmd, ctx)) {
-    return;
-  }
+  const factory = createDefaultTerminalCommandFactory({
+    nodes: fullCtx.nodes,
+    isSimulating: fullCtx.isSimulating,
+    historyEntries,
+    setTerminalSelectedResourceId,
+    setTerminalActiveTab,
+  });
 
   // Evaluate RBAC permissions for operational commands
-  if (!evaluateRbacForCommand(cmd, ctx)) {
+  if (!evaluateRbacForCommand(cmd, fullCtx)) {
     return;
   }
 
@@ -80,22 +71,14 @@ export const executeKubectlCommand = (
   ];
 
   for (const handler of commandHandlers) {
-    if (handler(cmd, ctx)) return;
+    if (handler(cmd, fullCtx)) return;
   }
 
-  if (handleGetCommands(cmdLower, ctx.addActivityLog, ctx.nodes, ctx.isSimulating)) {
+  if (factory.execute(fullCtx)) {
     return;
   }
 
-  if (handleLogsCommand(cmd, ctx.addActivityLog, ctx.nodes, setTerminalSelectedResourceId, setTerminalActiveTab)) {
-    return;
-  }
-
-  if (handleDescribeCommand(cmd, ctx.addActivityLog, ctx.nodes, ctx.isSimulating)) {
-    return;
-  }
-
-  ctx.addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
+  fullCtx.addActivityLog(`kubectl-mock: command not found: "${cmd}". Type "help" to see available commands.`);
 };
 
 export const useTerminalCommandSubmit = (
@@ -148,6 +131,8 @@ export const useTerminalCommandSubmit = (
     }
 
     const ctx: CommandContext = {
+      cmd,
+      cmdLower: cmd.toLowerCase(),
       nodes,
       isSimulating,
       addActivityLog,
