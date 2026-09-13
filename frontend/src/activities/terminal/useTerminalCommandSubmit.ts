@@ -19,17 +19,8 @@ import {
   handleGetSecretsCommand,
   handleDescribeSecretCommand,
 } from './terminalCommands';
-import {
-  handleHelpCommand,
-  handleHistoryCommand,
-  handleGetCommands,
-  handleLogsCommand,
-  handleDescribeCommand,
-} from './terminalHandlers';
-import {
-  handleKubectlConfigCommand,
-  evaluateRbacForCommand,
-} from './terminalConfigCommands';
+import { evaluateRbacForCommand } from './terminalConfigCommands';
+import { createDefaultTerminalCommandFactory } from './commandFactory';
 import { CommandHistoryEntry, formatCommandTimestamp } from './terminalLogUtils';
 
 export const executeKubectlCommand = (
@@ -39,23 +30,17 @@ export const executeKubectlCommand = (
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void,
   historyEntries: CommandHistoryEntry[] = []
 ) => {
-  const cmdLower = cmd.toLowerCase();
-
-  if (handleHelpCommand(cmdLower, ctx)) {
-    return;
-  }
-
-  if (handleHistoryCommand(cmdLower, historyEntries, ctx.addActivityLog)) {
-    return;
-  }
-
-  if (handleKubectlConfigCommand(cmd, ctx)) {
-    return;
-  }
-
   if (handleAdminCommands(cmd, ctx)) {
     return;
   }
+
+  const factory = createDefaultTerminalCommandFactory({
+    nodes: ctx.nodes,
+    isSimulating: ctx.isSimulating,
+    historyEntries,
+    setTerminalSelectedResourceId,
+    setTerminalActiveTab,
+  });
 
   // Evaluate RBAC permissions for operational commands
   if (!evaluateRbacForCommand(cmd, ctx)) {
@@ -83,15 +68,7 @@ export const executeKubectlCommand = (
     if (handler(cmd, ctx)) return;
   }
 
-  if (handleGetCommands(cmdLower, ctx.addActivityLog, ctx.nodes, ctx.isSimulating)) {
-    return;
-  }
-
-  if (handleLogsCommand(cmd, ctx.addActivityLog, ctx.nodes, setTerminalSelectedResourceId, setTerminalActiveTab)) {
-    return;
-  }
-
-  if (handleDescribeCommand(cmd, ctx.addActivityLog, ctx.nodes, ctx.isSimulating)) {
+  if (factory.execute(ctx)) {
     return;
   }
 
