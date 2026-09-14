@@ -41,7 +41,13 @@ describe('createUiSlice', () => {
     delete (globalThis as any).runtime;
   });
 
-  it('toggles color mode and emits event', () => {
+  it('toggles color mode and emits event and posts to BroadcastChannel', () => {
+    const postMessageMock = vi.fn();
+    (globalThis as any).BroadcastChannel = vi.fn().mockImplementation(() => ({
+      postMessage: postMessageMock,
+      close: vi.fn(),
+    }));
+
     const { toggleColorMode } = useFlowStore.getState();
     toggleColorMode();
     expect(useFlowStore.getState().colorMode).toBe('light');
@@ -50,6 +56,8 @@ describe('createUiSlice', () => {
     toggleColorMode();
     expect(useFlowStore.getState().colorMode).toBe('dark');
     expect((globalThis as any).runtime.EventsEmit).toHaveBeenCalledWith('theme-sync', 'dark');
+
+    delete (globalThis as any).BroadcastChannel;
   });
 
   it('sets global edge colors and saves to backend', () => {
@@ -605,7 +613,14 @@ describe('createUiSlice', () => {
     await new Promise(process.nextTick);
     expect(useFlowStore.getState().iamUsers).toHaveLength(1);
 
-    // loadSettingsJson with invalid kube_iam_users JSON
+    // loadSettingsJson with invalid kube_iam_users JSON and non-array JSON
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'kube_iam_users') return Promise.resolve(JSON.stringify({ not: 'an array' }));
+      return Promise.resolve('');
+    });
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+
     (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
       if (key === 'kube_iam_users') return Promise.resolve('{invalid-json');
       return Promise.resolve('');
@@ -631,5 +646,112 @@ describe('createUiSlice', () => {
     stopSimulation();
     expect(useFlowStore.getState().isSimulating).toBe(false);
     expect(useFlowStore.getState().activityLogs.some((line) => line.includes('my-dep deleted'))).toBe(true);
+  });
+
+  it('covers IAM user update/delete edge cases, simulation start with node IDs, and rollout branches', () => {
+    const {
+      addIamUser,
+      updateIamUser,
+      deleteIamUser,
+      startSimulation,
+      stopSimulation,
+      loadSettingsJson,
+    } = useFlowStore.getState();
+
+    // 1. IAM update without username change or without SaveSetting backend
+    delete (globalThis as any).go.main.App.SaveSetting;
+    addIamUser({ username: 'same-user', accessType: 'Managed Access', policies: [] });
+    const user = useFlowStore.getState().iamUsers.find((u) => u.username === 'same-user')!;
+
+    // Update with same username
+    updateIamUser(user.id, { username: 'same-user', accessType: 'AdministratorAccess' });
+    expect(useFlowStore.getState().iamUsers.find((u) => u.id === user.id)?.accessType).toBe('AdministratorAccess');
+
+    // Update omitting username
+    updateIamUser(user.id, { accessType: 'ReadOnlyAccess' });
+
+    // Delete user without SaveSetting backend
+    deleteIamUser(user.id);
+    deleteIamUser('missing-user-id');
+
+    // 2. startSimulation with custom internetNodeIds array
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 5 } },
+        { id: 'i2', type: 'Internet', data: { trafficSpeed: 10 } },
+      ] as any,
+      edges: [],
+    });
+    startSimulation(['i2']);
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+    stopSimulation();
+
+    // 3. startSimulation with internetNodeIds matching nothing returns early
+    startSimulation(['non-existent-internet']);
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+
+    // 4. stopSimulation on empty canvas (no k8s resources)
+    useFlowStore.setState({ isSimulating: true, nodes: [{ id: 'i1', type: 'Internet', data: {} }] as any });
+    stopSimulation();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+
+    // 5. loadSettingsJson with empty auto_saved_profile_content or invalid empty json
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') return Promise.resolve(JSON.stringify({ nodes: [], edges: [] }));
+      return Promise.resolve('');
+    });
+    loadSettingsJson();
+  });
+
+  it('covers simulation tick activity logs, pending pod transitions, and rollout wait/completion', () => {
+    // Set up deployment and pods for rollout testing
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        {
+          id: 'dep-1',
+          type: 'Deployment',
+          data: {
+            label: 'api-dep',
+            isRollingUpdate: true,
+            rolloutTargetImage: 'nginx:alpine',
+            image: 'nginx:latest',
+          },
+        },
+        // Pod 1 is pending with rolloutTargetImage
+        { id: 'pod-pending', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-pending', status: 'pending', pendingTicks: 0, image: 'nginx:alpine' } },
+        // Pod 2 is ready with old image
+        { id: 'pod-ready-old', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-ready-old', status: 'ready', image: 'nginx:latest' } },
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'i1', target: 'dep-1' },
+      ] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Tick 1: pod-pending is pending, so rollout waits (hasPendingPod is true).
+    // Tick 1 also logs pending pods in activityLogs.
+    vi.advanceTimersByTime(1000);
+
+    let state = useFlowStore.getState();
+    expect(state.activityLogs.some((l) => l.includes('Pending'))).toBe(true);
+
+    // Tick 2: pod-pending transitions to ready (pendingTicks = 2).
+    // In the same tick, since no pods are pending anymore, rollout picks pod-ready-old and updates its image.
+    vi.advanceTimersByTime(1000);
+
+    state = useFlowStore.getState();
+    const pendingPodNow = state.nodes.find((n) => n.id === 'pod-pending');
+    expect(pendingPodNow?.data.status).toBe('ready');
+
+    const oldPodNow = state.nodes.find((n) => n.id === 'pod-ready-old');
+    expect(oldPodNow?.data.status).toBe('pending');
+    expect(oldPodNow?.data.image).toBe('nginx:alpine');
+
+    stopSimulation();
+    vi.useRealTimers();
   });
 });

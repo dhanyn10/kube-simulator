@@ -70,5 +70,30 @@ describe('dragUtils', () => {
     const oldNs = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;
     const result2 = handlePodMoveToDeployment('d2', targetDep, pod, [pod, oldNs, targetDep], 'ns1', get, pod);
     expect(result2).toBeDefined();
+
+    // Test with oldParentId undefined
+    const result3 = handlePodMoveToDeployment('d2', targetDep, pod, [pod, targetDep], undefined, get, pod);
+    expect(result3).toBeDefined();
+  });
+
+  it('syncOldParentDeployment handles ReplicaSet parent and missing old parent ID', () => {
+    const pod = { id: 'p1', type: 'Pod', parentId: 'rs1', data: { replicas: 1 } } as any;
+    const oldRS = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: { replicas: 3 } } as any;
+    const ns = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;
+    const get = () => ({}) as any;
+
+    // Move pod out of ReplicaSet
+    const resultRS = handleGenericContainerMove('ns1', pod, [pod, oldRS, ns], 'rs1', { x: 0, y: 0 }, get);
+    const updatedRS = resultRS.find(n => n.id === 'rs1');
+    expect(updatedRS?.data.replicas).toBe(2);
+
+    // Non-Pod node move with oldParentId provided
+    const svc = { id: 's1', type: 'Service', parentId: 'ns1', position: { x: 0, y: 0 } } as any;
+    const resultSvc = handleGenericContainerMove('ns1', svc, [svc, ns], 'old-parent-id', { x: 0, y: 0 }, get);
+    expect(resultSvc).toBeDefined();
+
+    // Move pod out when oldParentId is missing from nodes array
+    const resultMissingOld = handleGenericContainerMove('ns1', pod, [pod, ns], 'missing-old-id', { x: 0, y: 0 }, get);
+    expect(resultMissingOld).toBeDefined();
   });
 });
