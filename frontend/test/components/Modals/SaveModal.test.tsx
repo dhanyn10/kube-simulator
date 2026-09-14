@@ -217,6 +217,28 @@ describe('SaveModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
+  it('renders context menu without Load Profile button when target item is null', async () => {
+    render(<SaveModal {...defaultProps} />);
+
+    // Trigger context menu with null item on header
+    const header = screen.getByText('Save Architecture & Recent Files');
+    act(() => {
+      fireEvent.contextMenu(header);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Change Theme')).toBeInTheDocument();
+      expect(screen.queryByText('Load Profile')).not.toBeInTheDocument();
+      expect(screen.getByText('Exit')).toBeInTheDocument();
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByText('Exit'));
+    });
+
+    expect(defaultProps.onClose).toHaveBeenCalled();
+  });
+
   it('renders empty message when recent files list is empty', async () => {
     ((globalThis as any).go.main.App.GetSetting as any).mockResolvedValue('');
     ((globalThis as any).go.main.App.GetProjects as any).mockResolvedValue([]);

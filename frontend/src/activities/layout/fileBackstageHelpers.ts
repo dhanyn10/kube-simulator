@@ -1,6 +1,7 @@
 import { useFlowStore } from '@/store';
 import { mapProjectNodes, mapProjectEdges } from '@/components/UI/ResourceManager/resourceManagerHelpers';
 import { hydrateNodes } from '@/store/nodeHelpers';
+import { logger } from '@/lib/logger';
 
 export type BackstageTab = 'home' | 'settings-view' | 'settings-canvas';
 
@@ -46,8 +47,8 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
       try {
         const parsed = JSON.parse(latestAutosaveContent);
         if (parsed.timestamp) ts = parsed.timestamp;
-      } catch {
-        // fallback
+      } catch (err) {
+        logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
       }
       const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
       items.push({
@@ -109,28 +110,32 @@ export const restoreRecentFile = async (
         });
         onClose();
         setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
-      } catch {
-        // ignore error
+      } catch (err) {
+        logger.error('[FileBackstage] Failed to restore recent autosave file', err);
       }
     }
   } else if (typeof item.id === 'number') {
     const res = await app.LoadProject(item.id);
     if (res?.content) {
-      const data = JSON.parse(res.content);
-      const nodesWithStrings = mapProjectNodes(data.nodes);
-      const edgesWithStrings = mapProjectEdges(data.edges);
-      const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
+      try {
+        const data = JSON.parse(res.content);
+        const nodesWithStrings = mapProjectNodes(data.nodes);
+        const edgesWithStrings = mapProjectEdges(data.edges);
+        const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
 
-      useFlowStore.setState({
-        nodes: hydratedNodes,
-        edges: edgesWithStrings,
-        currentProject: { id: item.id, name: item.name },
-        lastSavedSnapshot: res.content,
-        lastActionId: `load-recent-${Date.now()}`,
-        lastActionName: 'Load Recent Project',
-      });
-      onClose();
-      setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
+        useFlowStore.setState({
+          nodes: hydratedNodes,
+          edges: edgesWithStrings,
+          currentProject: { id: item.id, name: item.name },
+          lastSavedSnapshot: res.content,
+          lastActionId: `load-recent-${Date.now()}`,
+          lastActionName: 'Load Recent Project',
+        });
+        onClose();
+        setTimeout(() => fitView({ padding: 0.1, duration: 800 }), 50);
+      } catch (err) {
+        logger.error(`[FileBackstage] Failed to load recent project ${item.id}`, err);
+      }
     }
   }
 };

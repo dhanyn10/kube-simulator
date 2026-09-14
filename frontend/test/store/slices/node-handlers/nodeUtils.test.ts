@@ -126,10 +126,28 @@ describe('nodeUtils', () => {
     const customResult = applyAutoImageLogic(customImgTarget, { runtime: 'nodejs' });
     expect(customResult).toEqual({ runtime: 'nodejs' });
 
-    // syncWorkloadMetadata with isAutoImage = false
-    const customWorkload = syncWorkloadMetadata('Pod', { runtime: 'nodejs', isAutoImage: false, image: 'custom:2.0' } as any);
+    // Target has empty image string and isAutoImage: false (evaluates !targetData.image branch as true)
+    const emptyImgTarget = { label: 'pod', image: '', isAutoImage: false } as any;
+    const emptyResult = applyAutoImageLogic(emptyImgTarget, { runtime: 'go' });
+    expect(emptyResult.image).toBe('golang:1.21-alpine');
+    expect(emptyResult.isAutoImage).toBe(true);
+
+    // Target has non-empty image and isAutoImage: true (evaluates targetData.isAutoImage branch as true)
+    const autoImgTarget = { label: 'pod', image: 'node:18-alpine', isAutoImage: true } as any;
+    const autoResult = applyAutoImageLogic(autoImgTarget, { runtime: 'python' });
+    expect(autoResult.image).toBe('python:3.11-slim');
+    expect(autoResult.isAutoImage).toBe(true);
+
+    // syncWorkloadMetadata for ReplicaSet with webserver and isAutoImage = false
+    const customWorkload = syncWorkloadMetadata('ReplicaSet', { webserver: 'apache', isAutoImage: false, image: 'custom:2.0' } as any);
     expect(customWorkload.status).toBe('ready');
     expect(customWorkload.image).toBe('custom:2.0');
+
+    // syncWorkloadMetadata for Pod with runtime and isAutoImage undefined
+    const podWorkload = syncWorkloadMetadata('Pod', { runtime: 'java' } as any);
+    expect(podWorkload.status).toBe('ready');
+    expect(podWorkload.image).toBe('openjdk:17-jdk-slim');
+    expect(podWorkload.isAutoImage).toBe(true);
 
     // syncWorkloadMetadata with runtime = 'none' and webserver = 'none'
     const pendingWorkload = syncWorkloadMetadata('Deployment', { runtime: 'none', webserver: 'none' } as any);

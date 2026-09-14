@@ -4,6 +4,8 @@ import {
   formatDateModified,
   fetchRecentFiles,
   restoreRecentFile,
+  getBackstageTabClass,
+  getSettingsSubmenuClass,
   getSidebarContainerClass,
   getBackButtonClass,
   getHomeItemClass,
@@ -95,7 +97,7 @@ describe('fileBackstageHelpers', () => {
       expect(items[3].name).toBe('Project 3');
     });
 
-    it('handles JSON parse error for autosave content gracefully', async () => {
+    it('handles JSON parse error for autosave content gracefully and logs error', async () => {
       const mockGetSetting = vi.fn().mockImplementation((key: string) => {
         if (key === 'auto_saved_profile_latest') return Promise.resolve('autosave-bad-json');
         if (key === 'auto_saved_profile_content') return Promise.resolve('INVALID_JSON');
@@ -113,6 +115,28 @@ describe('fileBackstageHelpers', () => {
       const items = await fetchRecentFiles();
       expect(items).toHaveLength(1);
       expect(items[0].name).toBe('autosave-bad-json');
+      expect(useFlowStore.getState().logs.some(l => l.message.includes('Failed to parse latest autosave timestamp'))).toBe(true);
+    });
+
+    it('handles autosave content without timestamp and GetProjects returning null', async () => {
+      const mockGetSetting = vi.fn().mockImplementation((key: string) => {
+        if (key === 'auto_saved_profile_latest') return Promise.resolve('autosave-no-ts');
+        if (key === 'auto_saved_profile_content') return Promise.resolve(JSON.stringify({ nodes: [] }));
+        return Promise.resolve(null);
+      });
+
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetSetting: mockGetSetting,
+            GetProjects: vi.fn().mockResolvedValue(null),
+          },
+        },
+      };
+
+      const items = await fetchRecentFiles();
+      expect(items).toHaveLength(1);
+      expect(items[0].name).toBe('autosave-no-ts');
     });
   });
 
@@ -166,7 +190,7 @@ describe('fileBackstageHelpers', () => {
       expect(useFlowStore.getState().nodes).toHaveLength(1);
     });
 
-    it('handles invalid autosave content without crashing', async () => {
+    it('handles invalid autosave content without crashing and logs error', async () => {
       const onClose = vi.fn();
       const fitView = vi.fn();
 
@@ -189,6 +213,7 @@ describe('fileBackstageHelpers', () => {
 
       await restoreRecentFile(item, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
+      expect(useFlowStore.getState().logs.some(l => l.message.includes('Failed to restore recent autosave file'))).toBe(true);
     });
 
     it('restores project by number id successfully', async () => {
@@ -222,9 +247,54 @@ describe('fileBackstageHelpers', () => {
       vi.advanceTimersByTime(100);
       expect(fitView).toHaveBeenCalledWith({ padding: 0.1, duration: 800 });
     });
+
+    it('handles LoadProject returning null, invalid JSON, or non-number non-autosave string ID', async () => {
+      const onClose = vi.fn();
+      const fitView = vi.fn();
+
+      const mockLoadProject = vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ content: 'BAD_JSON' });
+
+      (globalThis as any).go = {
+        main: {
+          App: {
+            LoadProject: mockLoadProject,
+          },
+        },
+      };
+
+      const projectItem: RecentFileItem = { id: 99, name: 'Proj 99', location: '', fullPath: '', updatedAt: '' };
+
+      // 1. LoadProject returns null
+      await restoreRecentFile(projectItem, onClose, fitView);
+      expect(onClose).not.toHaveBeenCalled();
+
+      // 2. LoadProject returns invalid JSON
+      await restoreRecentFile(projectItem, onClose, fitView);
+      expect(onClose).not.toHaveBeenCalled();
+      expect(useFlowStore.getState().logs.some(l => l.message.includes('Failed to load recent project 99'))).toBe(true);
+
+      // 3. String ID non-autosave item
+      const stringItem: RecentFileItem = { id: 'str-id-not-autosave', name: 'Other', location: '', fullPath: '', updatedAt: '' };
+      await restoreRecentFile(stringItem, onClose, fitView);
+      expect(onClose).not.toHaveBeenCalled();
+    });
   });
 
   describe('style helper functions', () => {
+    it('getBackstageTabClass and getSettingsSubmenuClass return expected tab and submenu style classes', () => {
+      expect(getBackstageTabClass('home', 'home', 'dark')).toBe('bg-blue-600 text-white');
+      expect(getBackstageTabClass('home', 'home', 'light')).toBe('bg-white text-blue-900 font-extrabold shadow-md');
+      expect(getBackstageTabClass('home', 'settings-view', 'dark')).toBe('text-slate-300 hover:bg-slate-800/80');
+      expect(getBackstageTabClass('home', 'settings-view', 'light')).toBe('text-blue-100 hover:bg-white/10');
+
+      expect(getSettingsSubmenuClass('settings-view', 'settings-view', 'dark')).toBe('bg-blue-600 text-white');
+      expect(getSettingsSubmenuClass('settings-view', 'settings-view', 'light')).toBe('bg-white text-blue-900 shadow-sm');
+      expect(getSettingsSubmenuClass('settings-view', 'home', 'dark')).toBe('text-slate-400 hover:text-white');
+      expect(getSettingsSubmenuClass('settings-view', 'home', 'light')).toBe('text-blue-100 hover:bg-white/10');
+    });
+
     it('getSidebarContainerClass returns correct class for dark/light modes', () => {
       expect(getSidebarContainerClass(true)).toBe('backstage-sidebar-dark');
       expect(getSidebarContainerClass(false)).toBe('backstage-sidebar-light');

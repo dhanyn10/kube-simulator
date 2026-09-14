@@ -86,7 +86,7 @@ describe('AutocompleteDropdown component', () => {
     expect(onSelectMock).toHaveBeenCalledWith(mockSuggestions[2], 'pod-1');
   });
 
-  it('toggles detailed description accordion on info button click', () => {
+  it('toggles detailed description accordion open and closed on info button click', () => {
     render(
       <AutocompleteDropdown
         suggestions={mockSuggestions}
@@ -98,8 +98,27 @@ describe('AutocompleteDropdown component', () => {
     const infoBtns = screen.getAllByTitle('Toggle detailed description');
     expect(infoBtns.length).toBeGreaterThan(0);
 
+    // Toggle open
     fireEvent.mouseDown(infoBtns[0]);
     expect(screen.getByText('Detailed Information')).toBeInTheDocument();
+
+    // Toggle closed
+    fireEvent.mouseDown(infoBtns[0]);
+    expect(screen.queryByText('Detailed Information')).not.toBeInTheDocument();
+  });
+
+  it('renders selected sub-item styling when item and sub-item are selected', () => {
+    render(
+      <AutocompleteDropdown
+        suggestions={mockSuggestions}
+        selectedIndex={2}
+        selectedSubIndex={0}
+        onSelect={vi.fn()}
+      />
+    );
+
+    const subItem = screen.getByText('pod-1');
+    expect(subItem.className).toContain('bg-indigo-600');
   });
 
   it('supports light mode styling and upward positioning class', () => {
