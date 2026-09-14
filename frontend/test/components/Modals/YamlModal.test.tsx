@@ -41,16 +41,21 @@ describe('YamlModal', () => {
     });
   });
 
-  it('closes on Escape key or backdrop click', () => {
+  it('closes on Escape key or backdrop click and ignores non-Escape keys', () => {
     render(<YamlModal content={content} colorMode="light" onClose={mockOnClose} />);
 
     // Click backdrop
     const backdrop = document.querySelector('button.fixed.inset-0');
     if (backdrop) fireEvent.click(backdrop);
-    expect(mockOnClose).toHaveBeenCalled();
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
 
+    // Non-Escape key should not trigger onClose
+    fireEvent.keyDown(globalThis, { key: 'Enter' });
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+
+    // Escape key triggers onClose
     fireEvent.keyDown(globalThis, { key: 'Escape' });
-    expect(mockOnClose).toHaveBeenCalled();
+    expect(mockOnClose).toHaveBeenCalledTimes(2);
   });
 
   it('renders default message when content is empty and handles copy failure', async () => {

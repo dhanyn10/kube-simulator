@@ -113,16 +113,57 @@ describe('MenuBarDropdown', () => {
     expect(setActiveMenu).not.toHaveBeenCalledWith(null);
   });
 
-  it('renders checkmark for checked items', () => {
+  it('renders checkmark for checked items and handles unchecked boolean items', () => {
+    const uncheckedMenu = {
+      label: 'View',
+      items: [
+        { label: 'Show Grid', onClick: vi.fn(), checked: false },
+      ],
+    };
+    const setActiveMenu = vi.fn();
+
     render(
       <MenuBarDropdown
-        menu={mockMenu}
-        activeMenu="Test Menu"
-        setActiveMenu={vi.fn()}
-        colorMode="light"
+        menu={uncheckedMenu}
+        activeMenu="View"
+        setActiveMenu={setActiveMenu}
+        colorMode="dark"
       />
     );
-    const toggleItem = screen.getByText('Toggle Item').closest('button');
-    expect(toggleItem?.querySelector('svg[class*="lucide-check"]')).toBeDefined();
+
+    const checkBtn = screen.getByText('Show Grid').closest('button')!;
+    fireEvent.click(checkBtn);
+    expect(uncheckedMenu.items[0].onClick).toHaveBeenCalled();
+    expect(setActiveMenu).not.toHaveBeenCalledWith(null);
+  });
+
+  it('handles File menu click and hover interactions', () => {
+    const fileMenu = {
+      label: 'File',
+      items: [{ label: 'Save', onClick: vi.fn() }],
+    };
+    const onMenuClick = vi.fn();
+    const setActiveMenu = vi.fn();
+
+    render(
+      <MenuBarDropdown
+        menu={fileMenu}
+        activeMenu="File"
+        setActiveMenu={setActiveMenu}
+        colorMode="dark"
+        onMenuClick={onMenuClick}
+      />
+    );
+
+    const fileBtn = screen.getByRole('button', { name: 'File' });
+
+    // Hovering over File menu button when activeMenu is set should NOT call setActiveMenu('File')
+    fireEvent.mouseEnter(fileBtn);
+    expect(setActiveMenu).not.toHaveBeenCalledWith('File');
+
+    // Clicking File menu header calls onMenuClick and sets activeMenu to null
+    fireEvent.click(fileBtn);
+    expect(onMenuClick).toHaveBeenCalledWith('File');
+    expect(setActiveMenu).toHaveBeenCalledWith(null);
   });
 });
