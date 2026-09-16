@@ -21,14 +21,39 @@ describe('Sidebar', () => {
     expect(screen.getByText('Workloads')).toBeDefined();
   });
 
-  it('filters items based on search term', () => {
+  it('filters items based on search term and automatically expands section containing matched item while hiding non-matched items in same section', () => {
+    render(<Sidebar onAddNode={vi.fn()} />);
+
+    // Initially, Networking section is closed, Service is hidden/not in expanded DOM branch
+    const searchInput = screen.getByPlaceholderText('Search...');
+
+    // Search for Service (located in Networking section, which is initially collapsed)
+    fireEvent.change(searchInput, { target: { value: 'Service' } });
+
+    expect(screen.getByText('Service')).toBeDefined();
+    // Deployment (in Workloads) and Namespace (in Networking) should not be shown
+    expect(screen.queryByText('Deployment')).toBeNull();
+    expect(screen.queryByText('Pod')).toBeNull();
+    expect(screen.queryByText('Namespace')).toBeNull();
+
+    // Clearing search restores original expanded states (Networking collapsed, Workloads expanded)
+    fireEvent.change(searchInput, { target: { value: '' } });
+    expect(screen.getByText('Pod')).toBeDefined();
+    expect(screen.getByText('Deployment')).toBeDefined();
+    const networkingBtn = screen.getByText('Networking');
+    const sectionContainer = networkingBtn.nextElementSibling;
+    expect(sectionContainer?.className).toContain('invisible');
+  });
+
+  it('filters strictly by card label and ignores matching text in desc', () => {
     render(<Sidebar onAddNode={vi.fn()} />);
 
     const searchInput = screen.getByPlaceholderText('Search...');
-    fireEvent.change(searchInput, { target: { value: 'Deployment' } });
+    // 'Atomic unit of K8s' is description of Pod, searching for 'Atomic' should yield no card match
+    fireEvent.change(searchInput, { target: { value: 'Atomic' } });
 
-    expect(screen.getByText('Deployment')).toBeDefined();
-    expect(screen.queryByText('Service')).toBeNull();
+    expect(screen.getByText('No elements found')).toBeDefined();
+    expect(screen.queryByText('Pod')).toBeNull();
   });
 
   it('shows "No elements found" when search yields no results', () => {
