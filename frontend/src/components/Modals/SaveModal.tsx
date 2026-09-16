@@ -148,16 +148,19 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                     </td>
                   </tr>
                 ) : (
-                  recentFiles.map((file) => (
-                    <tr
-                      key={String(file.id)}
-                      onContextMenu={(e) => handleRowContextMenu(e, file)}
-                      onDoubleClick={() => handleRestoreFile(file)}
-                      className={cn(
-                        "transition-colors group cursor-pointer select-none",
-                        getSaveRowBgClass(Boolean(file.isAutosave), colorMode === 'dark')
-                      )}
-                    >
+                  recentFiles.map((file) => {
+                    const isContextMenuActive = contextMenu?.item?.id === file.id;
+                    return (
+                      <tr
+                        key={String(file.id)}
+                        onContextMenu={(e) => handleRowContextMenu(e, file)}
+                        onDoubleClick={() => handleRestoreFile(file)}
+                        className={cn(
+                          "transition-colors group cursor-pointer select-none",
+                          getSaveRowBgClass(Boolean(file.isAutosave), colorMode === 'dark'),
+                          isContextMenuActive && (colorMode === 'dark' ? "bg-blue-900/40 ring-1 ring-blue-500/50" : "bg-blue-100/80 ring-1 ring-blue-400/50")
+                        )}
+                      >
                       {/* Name Column with Sub-block for Location */}
                       <td className="py-2.5 px-3">
                         <div className="flex items-start gap-2.5">
@@ -204,8 +207,9 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                       <td className="py-2.5 px-3 text-right text-[11px] font-mono text-slate-300 whitespace-nowrap align-top pt-3">
                         {file.updatedAt}
                       </td>
-                    </tr>
-                  ))
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -12,6 +12,7 @@ export interface BackstageHomeTabProps {
   readonly isCanvasEmpty: boolean;
   readonly currentProjectId?: number | string;
   readonly recentFiles: readonly RecentFileItem[];
+  readonly activeContextItem?: RecentFileItem | null;
   readonly handleQuickSaveCurrent: () => void;
   readonly onClose: () => void;
   readonly onSaveAs: () => void;
@@ -31,6 +32,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
   isCanvasEmpty,
   currentProjectId,
   recentFiles,
+  activeContextItem,
   handleQuickSaveCurrent,
   onClose,
   onSaveAs,
@@ -157,12 +159,17 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
                 recentFiles.map((file) => {
                   const rowClass = getTableRowClass(Boolean(file.isAutosave), isDark);
                   const isCurrentActive = currentProjectId === file.id;
+                  const isContextMenuActive = activeContextItem?.id === file.id;
                   return (
                     <tr
                       key={String(file.id)}
                       onContextMenu={(e) => handleRowContextMenu(e, file)}
                       onDoubleClick={() => handleRestoreFile(file)}
-                      className={cn("transition-colors cursor-pointer select-none", rowClass)}
+                      className={cn(
+                        "transition-colors cursor-pointer select-none",
+                        rowClass,
+                        isContextMenuActive && (isDark ? "bg-blue-900/40 ring-1 ring-blue-500/50" : "bg-blue-100/80 ring-1 ring-blue-400/50")
+                      )}
                     >
                       <td className="py-3 px-4">
                         <div className="flex items-start gap-3">

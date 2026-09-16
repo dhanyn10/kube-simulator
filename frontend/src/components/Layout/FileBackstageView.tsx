@@ -114,6 +114,7 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
               isCanvasEmpty={isCanvasEmpty}
               currentProjectId={currentProject?.id}
               recentFiles={recentFiles}
+              activeContextItem={contextMenu?.item}
               handleQuickSaveCurrent={handleQuickSaveCurrent}
               onClose={onClose}
               onSaveAs={onSaveAs}

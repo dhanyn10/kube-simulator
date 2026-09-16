@@ -303,28 +303,34 @@ func (a *App) OpenLogFile() bool {
 }
 
 func (a *App) OpenFileFolder(location string) bool {
-	if location == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return false
-		}
-		location = filepath.Join(homeDir, ".kube-simulator")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error("Failed to resolve user home dir: %v", err)
+		return false
 	}
 
 	targetPath := location
-	if strings.HasPrefix(targetPath, "~/") || targetPath == "~" {
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			targetPath = filepath.Join(homeDir, strings.TrimPrefix(targetPath, "~"))
-			if strings.HasPrefix(location, "~/") {
-				targetPath = filepath.Join(homeDir, location[2:])
-			}
-		}
+	if targetPath == "" {
+		targetPath = filepath.Join(homeDir, ".kube-simulator")
+	} else if strings.HasPrefix(targetPath, "~/") {
+		targetPath = filepath.Join(homeDir, targetPath[2:])
+	} else if targetPath == "~" {
+		targetPath = homeDir
+	} else if !filepath.IsAbs(targetPath) {
+		targetPath = filepath.Join(homeDir, targetPath)
+	}
+
+	folderPath := targetPath
+	if stat, err := os.Stat(targetPath); err == nil && !stat.IsDir() {
+		folderPath = filepath.Dir(targetPath)
+	} else if err != nil && os.IsNotExist(err) {
+		folderPath = filepath.Dir(targetPath)
+		_ = os.MkdirAll(folderPath, 0755)
 	}
 
 	if appCtx == nil || appCtx.Value(isTestKey) == nil {
-		if err := openInExplorer(targetPath); err != nil {
-			logger.Error("Failed to open folder %s: %v", targetPath, err)
+		if err := openInExplorer(folderPath); err != nil {
+			logger.Error("Failed to open folder %s: %v", folderPath, err)
 			return false
 		}
 	}
