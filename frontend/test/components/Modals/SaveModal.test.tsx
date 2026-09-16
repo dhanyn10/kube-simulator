@@ -59,7 +59,7 @@ describe('SaveModal', () => {
     await waitFor(() => {
       expect(screen.getByText('autosave-10092026120008')).toBeInTheDocument();
       expect(screen.getByText('Web Architecture')).toBeInTheDocument();
-      const pathSpan = screen.getByTitle('~/.kube-simulator/projects/1/architecture.infra');
+      const pathSpan = screen.getByTitle('~/.kube-simulator/projects/project_1.infra');
       expect(pathSpan).toBeInTheDocument();
     });
   });

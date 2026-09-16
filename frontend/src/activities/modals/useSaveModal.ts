@@ -36,10 +36,10 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     if (!isOpen) return;
 
     if (currentProject) {
-      setActiveLocation(`~/.kube-simulator/projects/${currentProject.id}/architecture.infra`);
+      setActiveLocation(`~/.kube-simulator/projects/project_${currentProject.id}.infra`);
       setNewProjectName(currentProject.name);
     } else {
-      setActiveLocation('~/.kube-simulator/app_settings_json');
+      setActiveLocation('~/.kube-simulator/projects');
       setNewProjectName(generateTimestampedProjectName());
     }
   }, [isOpen, currentProject]);

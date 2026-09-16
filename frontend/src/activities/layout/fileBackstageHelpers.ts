@@ -50,12 +50,12 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
       } catch (err) {
         logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
       }
-      const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
+      const autosaveLocation = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
       items.push({
         id: 'autosave-latest',
         name: latestAutosaveKey,
-        location: autosavePath,
-        fullPath: autosavePath,
+        location: autosaveLocation,
+        fullPath: autosaveLocation,
         updatedAt: formatDateModified(ts),
         isAutosave: true,
       });
@@ -66,12 +66,11 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
     const projects = await app.GetProjects();
     if (Array.isArray(projects)) {
       projects.forEach((p: any) => {
-        const relativePath = `.kube-simulator/projects/${p.id}`;
-        const fullPath = `~/.kube-simulator/projects/${p.id}/architecture.infra`;
+        const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
         items.push({
           id: p.id,
           name: p.name,
-          location: relativePath,
+          location: fullPath,
           fullPath,
           updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
         });

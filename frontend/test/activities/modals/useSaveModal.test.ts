@@ -23,7 +23,7 @@ describe('useSaveModal', () => {
   it('initializes default state when currentProject is null', () => {
     const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
 
-    expect(result.current.activeLocation).toBe('~/.kube-simulator/app_settings_json');
+    expect(result.current.activeLocation).toBe('~/.kube-simulator/projects');
     expect(result.current.newProjectName).toMatch(/^Project-/);
     expect(result.current.isCanvasEmpty).toBe(false);
   });
@@ -32,7 +32,7 @@ describe('useSaveModal', () => {
     useFlowStore.setState({ currentProject: { id: 3, name: 'Cluster Arch' } });
     const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
 
-    expect(result.current.activeLocation).toBe('~/.kube-simulator/projects/3/architecture.infra');
+    expect(result.current.activeLocation).toBe('~/.kube-simulator/projects/project_3.infra');
     expect(result.current.newProjectName).toBe('Cluster Arch');
   });
 
