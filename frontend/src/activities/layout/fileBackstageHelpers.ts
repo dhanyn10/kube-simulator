@@ -112,6 +112,15 @@ export const deleteRecentFile = async (
   await reloadFiles();
 };
 
+/**
+ * Execute open folder operation in OS file explorer for selected recent file item
+ */
+export const openRecentFileFolder = async (item: RecentFileItem): Promise<void> => {
+  const app = globalThis.go?.main?.App;
+  if (!app?.OpenFileFolder) return;
+  await app.OpenFileFolder(item.location || item.fullPath);
+};
+
 export const restoreRecentFile = async (
   item: RecentFileItem,
   onClose: () => void,

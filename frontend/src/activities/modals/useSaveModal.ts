@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { generateTimestampedProjectName } from '@/components/UI/ResourceManager/resourceManagerHelpers';
 import { useFitView } from '@/hooks/useFitView';
-import { restoreRecentFile, deleteRecentFile } from '@/activities/layout/fileBackstageHelpers';
+import { restoreRecentFile, deleteRecentFile, openRecentFileFolder } from '@/activities/layout/fileBackstageHelpers';
 import { useRecentFilesState } from '@/activities/layout/useRecentFilesState';
 
 export interface UseSaveModalParams {
@@ -79,6 +79,10 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     await deleteRecentFile(item, loadRecentFiles);
   };
 
+  const handleOpenFolder = async (item: Parameters<typeof openRecentFileFolder>[0]) => {
+    await openRecentFileFolder(item);
+  };
+
   return {
     colorMode,
     toggleColorMode,
@@ -95,5 +99,6 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     handleQuickSaveCurrent,
     handleRestoreFile,
     handleDeleteFile,
+    handleOpenFolder,
   };
 }

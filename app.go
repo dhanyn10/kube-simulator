@@ -302,6 +302,35 @@ func (a *App) OpenLogFile() bool {
 	return true
 }
 
+func (a *App) OpenFileFolder(location string) bool {
+	if location == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return false
+		}
+		location = filepath.Join(homeDir, ".kube-simulator")
+	}
+
+	targetPath := location
+	if strings.HasPrefix(targetPath, "~/") || targetPath == "~" {
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			targetPath = filepath.Join(homeDir, strings.TrimPrefix(targetPath, "~"))
+			if strings.HasPrefix(location, "~/") {
+				targetPath = filepath.Join(homeDir, location[2:])
+			}
+		}
+	}
+
+	if appCtx == nil || appCtx.Value(isTestKey) == nil {
+		if err := openInExplorer(targetPath); err != nil {
+			logger.Error("Failed to open folder %s: %v", targetPath, err)
+			return false
+		}
+	}
+	return true
+}
+
 func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false

@@ -1,15 +1,17 @@
 import React from 'react';
-import { Sun, Moon, PackageOpen, Trash2, X } from 'lucide-react';
+import { Sun, Moon, PackageOpen, FolderOpen, Trash2, X } from 'lucide-react';
 import { RecentFileItem } from '@/activities/layout/fileBackstageHelpers';
 import {
   getContextMenuContainerClass,
   getContextMenuButtonClass,
   getContextMenuLoadProfileClass,
+  getContextMenuOpenFolderClass,
   getContextMenuDeleteDocumentClass,
   getContextMenuExitClass,
   getContextMenuDividerClass,
   handleThemeToggleClick,
   handleLoadProfileClick,
+  handleOpenFolderClick,
   handleDeleteDocumentClick,
   handleExitClick,
 } from '@/activities/layout/backstageContextMenuHelpers';
@@ -22,6 +24,7 @@ export interface BackstageContextMenuProps {
   readonly setContextMenu: (val: { x: number; y: number; item: RecentFileItem | null } | null) => void;
   readonly handleRestoreFile: (item: RecentFileItem) => void;
   readonly handleDeleteFile?: (item: RecentFileItem) => void;
+  readonly handleOpenFolder?: (item: RecentFileItem) => void;
   readonly onClose: () => void;
 }
 
@@ -36,6 +39,7 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
   setContextMenu,
   handleRestoreFile,
   handleDeleteFile,
+  handleOpenFolder,
   onClose,
 }) => {
   if (!contextMenu) return null;
@@ -67,6 +71,16 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
             <PackageOpen size={15} />
             <span>Load Profile</span>
           </button>
+          {handleOpenFolder && (
+            <button
+              type="button"
+              onClick={() => handleOpenFolderClick(contextMenu.item, setContextMenu, handleOpenFolder)}
+              className={getContextMenuOpenFolderClass(isDark)}
+            >
+              <FolderOpen size={15} />
+              <span>Open Folder Location</span>
+            </button>
+          )}
           {handleDeleteFile && (
             <button
               type="button"

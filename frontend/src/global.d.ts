@@ -26,6 +26,7 @@ interface WailsApp {
   LoadProject(id: number): Promise<Project>;
   DeleteProject(id: number): Promise<boolean>;
   SaveSetting(key: string, value: string): Promise<boolean>;
+  OpenFileFolder(location: string): Promise<boolean>;
   GetSetting(key: string): Promise<string>;
   MinimizeWindow(): Promise<void>;
   MaximizeWindow(): Promise<void>;

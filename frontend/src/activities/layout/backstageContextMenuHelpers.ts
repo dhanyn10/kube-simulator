@@ -41,6 +41,16 @@ export function getContextMenuDeleteDocumentClass(isDark: boolean): string {
 }
 
 /**
+ * Returns Open Folder button class based on theme mode.
+ */
+export function getContextMenuOpenFolderClass(isDark: boolean): string {
+  if (isDark) {
+    return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-emerald-400 hover:text-emerald-300 cursor-pointer hover:bg-slate-800";
+  }
+  return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-emerald-600 hover:text-emerald-500 cursor-pointer hover:bg-slate-100";
+}
+
+/**
  * Returns Exit button class based on theme mode.
  */
 export function getContextMenuExitClass(isDark: boolean): string {
@@ -96,6 +106,20 @@ export function handleDeleteDocumentClick(
   setContextMenu(null);
   if (item) {
     handleDeleteFile(item);
+  }
+}
+
+/**
+ * Handles open folder click and closing context menu.
+ */
+export function handleOpenFolderClick(
+  item: RecentFileItem | null,
+  setContextMenu: (val: null) => void,
+  handleOpenFolder?: (item: RecentFileItem) => void
+): void {
+  setContextMenu(null);
+  if (item && handleOpenFolder) {
+    handleOpenFolder(item);
   }
 }
 

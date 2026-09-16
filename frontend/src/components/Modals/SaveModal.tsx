@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, PackageOpen, Trash2, X } from 'lucide-react';
+import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, PackageOpen, FolderOpen, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
 import { useSaveModal } from '@/activities/modals/useSaveModal';
@@ -32,6 +32,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     handleQuickSaveCurrent,
     handleRestoreFile,
     handleDeleteFile,
+    handleOpenFolder,
   } = useSaveModal({ isOpen, onClose });
 
   if (!isOpen) return null;
@@ -256,6 +257,21 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                 >
                   <PackageOpen size={14} />
                   <span>Load Profile</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetItem = contextMenu.item;
+                    setContextMenu(null);
+                    if (targetItem) handleOpenFolder(targetItem);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-emerald-400 hover:text-emerald-300 cursor-pointer",
+                    colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
+                  )}
+                >
+                  <FolderOpen size={14} />
+                  <span>Open Folder Location</span>
                 </button>
                 <button
                   type="button"

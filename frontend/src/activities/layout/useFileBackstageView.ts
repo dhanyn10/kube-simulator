@@ -6,6 +6,7 @@ import {
   BackstageTab,
   restoreRecentFile,
   deleteRecentFile,
+  openRecentFileFolder,
 } from './fileBackstageHelpers';
 import { useRecentFilesState } from './useRecentFilesState';
 
@@ -130,6 +131,10 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     await deleteRecentFile(item, loadRecentFiles);
   };
 
+  const handleOpenFolder = async (item: Parameters<typeof openRecentFileFolder>[0]) => {
+    await openRecentFileFolder(item);
+  };
+
   return {
     colorMode,
     toggleColorMode,
@@ -165,5 +170,6 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     handleQuickSaveCurrent,
     handleRestore,
     handleDeleteFile,
+    handleOpenFolder,
   };
 }
