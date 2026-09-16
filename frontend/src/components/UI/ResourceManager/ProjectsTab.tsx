@@ -1,4 +1,4 @@
-import { Plus, Clock } from 'lucide-react';
+import { Plus, Clock, PackageOpen } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { ArchitectureRow, Project } from './ArchitectureRow';
 
@@ -62,8 +62,9 @@ export const ProjectsTab = ({
         <button
           type="button"
           onClick={handleRestoreAutosave}
-          className="px-3 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow transition-colors"
+          className="px-3 py-1 text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow transition-colors flex items-center gap-1.5"
         >
+          <PackageOpen size={13} />
           Load Profile
         </button>
       </div>

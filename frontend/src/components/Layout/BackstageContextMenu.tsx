@@ -1,14 +1,16 @@
 import React from 'react';
-import { Sun, Moon, RotateCcw, X } from 'lucide-react';
+import { Sun, Moon, PackageOpen, Trash2, X } from 'lucide-react';
 import { RecentFileItem } from '@/activities/layout/fileBackstageHelpers';
 import {
   getContextMenuContainerClass,
   getContextMenuButtonClass,
   getContextMenuLoadProfileClass,
+  getContextMenuDeleteDocumentClass,
   getContextMenuExitClass,
   getContextMenuDividerClass,
   handleThemeToggleClick,
   handleLoadProfileClick,
+  handleDeleteDocumentClick,
   handleExitClick,
 } from '@/activities/layout/backstageContextMenuHelpers';
 
@@ -19,6 +21,7 @@ export interface BackstageContextMenuProps {
   readonly toggleColorMode: () => void;
   readonly setContextMenu: (val: { x: number; y: number; item: RecentFileItem | null } | null) => void;
   readonly handleRestoreFile: (item: RecentFileItem) => void;
+  readonly handleDeleteFile?: (item: RecentFileItem) => void;
   readonly onClose: () => void;
 }
 
@@ -32,6 +35,7 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
   toggleColorMode,
   setContextMenu,
   handleRestoreFile,
+  handleDeleteFile,
   onClose,
 }) => {
   if (!contextMenu) return null;
@@ -54,14 +58,26 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
       </button>
 
       {contextMenu.item && (
-        <button
-          type="button"
-          onClick={() => handleLoadProfileClick(contextMenu.item, setContextMenu, handleRestoreFile)}
-          className={getContextMenuLoadProfileClass(isDark)}
-        >
-          <RotateCcw size={15} />
-          <span>Load Profile</span>
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={() => handleLoadProfileClick(contextMenu.item, setContextMenu, handleRestoreFile)}
+            className={getContextMenuLoadProfileClass(isDark)}
+          >
+            <PackageOpen size={15} />
+            <span>Load Profile</span>
+          </button>
+          {handleDeleteFile && (
+            <button
+              type="button"
+              onClick={() => handleDeleteDocumentClick(contextMenu.item, setContextMenu, handleDeleteFile)}
+              className={getContextMenuDeleteDocumentClass(isDark)}
+            >
+              <Trash2 size={15} />
+              <span>Delete Document</span>
+            </button>
+          )}
+        </>
       )}
 
       <div className={getContextMenuDividerClass(isDark)} />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, RotateCcw, X } from 'lucide-react';
+import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, PackageOpen, Trash2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
 import { useSaveModal } from '@/activities/modals/useSaveModal';
@@ -31,6 +31,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     handleRowContextMenu,
     handleQuickSaveCurrent,
     handleRestoreFile,
+    handleDeleteFile,
   } = useSaveModal({ isOpen, onClose });
 
   if (!isOpen) return null;
@@ -240,21 +241,38 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
 
             {/* 2. Load Profile */}
             {contextMenu.item && (
-              <button
-                type="button"
-                onClick={() => {
-                  const targetItem = contextMenu.item;
-                  setContextMenu(null);
-                  if (targetItem) handleRestoreFile(targetItem);
-                }}
-                className={cn(
-                  "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-blue-400 hover:text-blue-300",
-                  colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
-                )}
-              >
-                <RotateCcw size={14} />
-                <span>Load Profile</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetItem = contextMenu.item;
+                    setContextMenu(null);
+                    if (targetItem) handleRestoreFile(targetItem);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-blue-400 hover:text-blue-300 cursor-pointer",
+                    colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
+                  )}
+                >
+                  <PackageOpen size={14} />
+                  <span>Load Profile</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetItem = contextMenu.item;
+                    setContextMenu(null);
+                    if (targetItem) handleDeleteFile(targetItem);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300 cursor-pointer",
+                    colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-100"
+                  )}
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Document</span>
+                </button>
+              </>
             )}
 
             <div className={cn("my-1 border-t", colorMode === 'dark' ? "border-slate-800" : "border-slate-100")} />

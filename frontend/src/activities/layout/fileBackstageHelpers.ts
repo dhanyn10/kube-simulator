@@ -85,6 +85,33 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
 /**
  * Execute restore operation for selected recent file item
  */
+/**
+ * Execute delete operation for selected recent file item
+ */
+export const deleteRecentFile = async (
+  item: RecentFileItem,
+  reloadFiles: () => Promise<void>
+): Promise<void> => {
+  const app = globalThis.go?.main?.App;
+  if (!app) return;
+
+  if (item.isAutosave) {
+    if (app.SaveSetting) {
+      await app.SaveSetting(item.name, '');
+      const latest = await app.GetSetting('auto_saved_profile_latest');
+      if (latest === item.name) {
+        await app.SaveSetting('auto_saved_profile_latest', '');
+        await app.SaveSetting('auto_saved_profile_content', '');
+      }
+    }
+  } else if (typeof item.id === 'number') {
+    if (app.DeleteProject) {
+      await app.DeleteProject(item.id);
+    }
+  }
+  await reloadFiles();
+};
+
 export const restoreRecentFile = async (
   item: RecentFileItem,
   onClose: () => void,
@@ -94,17 +121,21 @@ export const restoreRecentFile = async (
   if (!app) return;
 
   if (item.isAutosave) {
-    const content = await app.GetSetting('auto_saved_profile_content');
+    let content = await app.GetSetting(item.name);
+    if (!content) {
+      content = await app.GetSetting('auto_saved_profile_content');
+    }
     if (content) {
       try {
         const data = JSON.parse(content);
-        const nodesWithStrings = mapProjectNodes(data.nodes);
-        const edgesWithStrings = mapProjectEdges(data.edges);
+        const nodesWithStrings = mapProjectNodes(data.nodes || []);
+        const edgesWithStrings = mapProjectEdges(data.edges || []);
         const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
 
         useFlowStore.setState({
           nodes: hydratedNodes,
           edges: edgesWithStrings,
+          currentProject: null,
           lastActionId: `restore-save-${Date.now()}`,
           lastActionName: 'Restored Recent File',
         });
