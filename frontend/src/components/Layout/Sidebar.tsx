@@ -163,9 +163,10 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     { type: 'Secret', icon: Lock, label: 'Secret', desc: 'Sensitive Data' },
   ];
 
+  const trimmedSearchTerm = searchTerm.trim().toLowerCase();
+
   const filteredItems = items.filter(item =>
-    item.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.desc.toLowerCase().includes(searchTerm.toLowerCase())
+    item.label.toLowerCase().includes(trimmedSearchTerm)
   );
 
   const nodes = useFlowStore((state) => state.nodes);
@@ -254,19 +255,24 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       </div>
 
       <div className="sidebar-content-scroll custom-scrollbar">
-        {SECTIONS.map(section => (
-          <SidebarSection 
-            key={section.id}
-            title={section.title} 
-            items={filteredItems.filter(i => section.filter(i.type))}
-            isExpanded={expandedSections[section.id]}
-            onToggle={() => toggleSection(section.id)}
-            onAddNode={handleAddNode}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            colorMode={colorMode}
-          />
-        ))}
+        {SECTIONS.map(section => {
+          const sectionItems = filteredItems.filter(i => section.filter(i.type));
+          const isExpanded = trimmedSearchTerm !== '' ? sectionItems.length > 0 : Boolean(expandedSections[section.id]);
+
+          return (
+            <SidebarSection
+              key={section.id}
+              title={section.title}
+              items={sectionItems}
+              isExpanded={isExpanded}
+              onToggle={() => toggleSection(section.id)}
+              onAddNode={handleAddNode}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              colorMode={colorMode}
+            />
+          );
+        })}
 
         {filteredItems.length === 0 && (
           <div className={cn("text-center py-8", colorMode === 'dark' ? "text-slate-600" : "text-slate-400")}>
