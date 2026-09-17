@@ -51,30 +51,36 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
         logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
       }
       const autosaveLocation = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
-      items.push({
-        id: 'autosave-latest',
-        name: latestAutosaveKey,
-        location: autosaveLocation,
-        fullPath: autosaveLocation,
-        updatedAt: formatDateModified(ts),
-        isAutosave: true,
-      });
+      const exists = app.FileExists ? await app.FileExists(autosaveLocation) : true;
+      if (exists) {
+        items.push({
+          id: 'autosave-latest',
+          name: latestAutosaveKey,
+          location: autosaveLocation,
+          fullPath: autosaveLocation,
+          updatedAt: formatDateModified(ts),
+          isAutosave: true,
+        });
+      }
     }
   }
 
   if (app?.GetProjects) {
     const projects = await app.GetProjects();
     if (Array.isArray(projects)) {
-      projects.forEach((p: any) => {
+      for (const p of projects) {
         const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
-        items.push({
-          id: p.id,
-          name: p.name,
-          location: fullPath,
-          fullPath,
-          updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
-        });
-      });
+        const exists = app.FileExists ? await app.FileExists(fullPath) : true;
+        if (exists) {
+          items.push({
+            id: p.id,
+            name: p.name,
+            location: fullPath,
+            fullPath,
+            updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
+          });
+        }
+      }
     }
   }
 

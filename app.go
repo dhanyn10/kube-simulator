@@ -302,6 +302,32 @@ func (a *App) OpenLogFile() bool {
 	return true
 }
 
+func (a *App) FileExists(location string) bool {
+	if location == "" {
+		return false
+	}
+	targetPath := location
+	if strings.HasPrefix(targetPath, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return false
+		}
+		targetPath = filepath.Join(homeDir, targetPath[2:])
+	} else if targetPath == "~" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return false
+		}
+		targetPath = homeDir
+	}
+
+	stat, err := os.Stat(targetPath)
+	if err != nil || stat.IsDir() {
+		return false
+	}
+	return true
+}
+
 func (a *App) OpenFileFolder(location string) bool {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

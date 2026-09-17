@@ -101,7 +101,8 @@ export const initWailsMocks = () => {
                 CloseWindow: async () => (globalThis as any)._originalConsoleLog('Close Window'),
                 GetSetting: async () => "",
                 SaveSetting: async () => true,
-                OpenFileFolder: async () => true
+                OpenFileFolder: async () => true,
+                FileExists: async () => true
             }
         }
     };
