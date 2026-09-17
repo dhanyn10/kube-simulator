@@ -5,6 +5,7 @@ import {
   fetchRecentFiles,
   restoreRecentFile,
   deleteRecentFile,
+  openRecentFileFolder,
   getBackstageTabClass,
   getSettingsSubmenuClass,
   getSidebarContainerClass,
@@ -337,6 +338,30 @@ describe('fileBackstageHelpers', () => {
       expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_latest', '');
       expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_content', '');
       expect(reloadFiles).toHaveBeenCalled();
+    });
+  });
+
+  describe('openRecentFileFolder', () => {
+    it('calls OpenFileFolder with item location or fullPath', async () => {
+      const mockOpenFileFolder = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            OpenFileFolder: mockOpenFileFolder,
+          },
+        },
+      };
+
+      const item: RecentFileItem = {
+        id: 1,
+        name: 'Project 1',
+        location: '~/.kube-simulator/projects/project_1.infra',
+        fullPath: '~/.kube-simulator/projects/project_1.infra',
+        updatedAt: 'now',
+      };
+
+      await openRecentFileFolder(item);
+      expect(mockOpenFileFolder).toHaveBeenCalledWith('~/.kube-simulator/projects/project_1.infra');
     });
   });
 
