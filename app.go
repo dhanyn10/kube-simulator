@@ -486,6 +486,57 @@ func (a *App) GetSetting(key string) string {
 	return val
 }
 
+type AutosaveProfileItem struct {
+	Key       string `json:"key"`
+	Timestamp int64  `json:"timestamp"`
+	Location  string `json:"location"`
+}
+
+func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return []AutosaveProfileItem{}
+	}
+
+	dir := filepath.Join(userHome, ".kube-simulator", "autosaves")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return []AutosaveProfileItem{}
+	}
+
+	items := make([]AutosaveProfileItem, 0)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".infra") {
+			continue
+		}
+		key := strings.TrimSuffix(entry.Name(), ".infra")
+		fullPath := filepath.Join(dir, entry.Name())
+		info, err := entry.Info()
+		ts := time.Now().UnixMilli()
+		if err == nil {
+			ts = info.ModTime().UnixMilli()
+		}
+
+		// Also check inside JSON if timestamp is recorded
+		if contentBytes, errRead := os.ReadFile(fullPath); errRead == nil {
+			var parsed struct {
+				Timestamp int64 `json:"timestamp"`
+			}
+			if errJson := json.Unmarshal(contentBytes, &parsed); errJson == nil && parsed.Timestamp > 0 {
+				ts = parsed.Timestamp
+			}
+		}
+
+		locationPath := fmt.Sprintf("~/.kube-simulator/autosaves/%s", entry.Name())
+		items = append(items, AutosaveProfileItem{
+			Key:       key,
+			Timestamp: ts,
+			Location:  locationPath,
+		})
+	}
+	return items
+}
+
 // Window Control Actions
 
 func (a *App) MinimizeWindow() {

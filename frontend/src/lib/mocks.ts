@@ -102,7 +102,8 @@ export const initWailsMocks = () => {
                 GetSetting: async () => "",
                 SaveSetting: async () => true,
                 OpenFileFolder: async () => true,
-                FileExists: async () => true
+                FileExists: async () => true,
+                GetAutosaveProfiles: async () => []
             }
         }
     };

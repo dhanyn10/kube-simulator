@@ -38,7 +38,25 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
   const items: RecentFileItem[] = [];
   const app = globalThis.go?.main?.App;
 
-  if (app?.GetSetting) {
+  // 1. Scan all real-time autosave profile files on disk
+  if (app?.GetAutosaveProfiles) {
+    const autosaves = await app.GetAutosaveProfiles();
+    if (Array.isArray(autosaves)) {
+      autosaves.forEach((a) => {
+        items.push({
+          id: `autosave-${a.key}`,
+          name: a.key,
+          location: a.location,
+          fullPath: a.location,
+          updatedAt: formatDateModified(a.timestamp),
+          isAutosave: true,
+        });
+      });
+    }
+  }
+
+  // Fallback if GetAutosaveProfiles is not defined
+  if (items.length === 0 && app?.GetSetting) {
     const latestAutosaveKey = await app.GetSetting('auto_saved_profile_latest');
     const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
 
@@ -65,6 +83,7 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
     }
   }
 
+  // 2. Scan saved projects
   if (app?.GetProjects) {
     const projects = await app.GetProjects();
     if (Array.isArray(projects)) {
