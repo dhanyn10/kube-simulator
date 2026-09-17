@@ -253,7 +253,7 @@ describe('SaveModal', () => {
   it('handles Save As button click', () => {
     render(<SaveModal {...defaultProps} />);
 
-    const saveAsBtn = screen.getByRole('button', { name: /Save As\.\.\./i });
+    const saveAsBtn = screen.getByRole('button', { name: /Save As$/i });
     act(() => {
       fireEvent.click(saveAsBtn);
     });

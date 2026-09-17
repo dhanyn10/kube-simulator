@@ -115,7 +115,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                   : "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700"
               )}
             >
-              <FilePlus size={14} /> Save As...
+              <FilePlus size={14} /> Save As
             </button>
           </div>
         </div>
