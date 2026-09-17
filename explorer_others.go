@@ -9,12 +9,12 @@ import (
 )
 
 func openInExplorer(filePath string) error {
-	dir := filepath.Dir(filePath)
+	cleanPath := filepath.Clean(filePath)
 	var cmd *exec.Cmd
 	if runtime.GOOS == "darwin" {
-		cmd = exec.Command("open", dir)
+		cmd = exec.Command("open", cleanPath)
 	} else {
-		cmd = exec.Command("xdg-open", dir)
+		cmd = exec.Command("xdg-open", cleanPath)
 	}
 	if err := cmd.Start(); err != nil {
 		return err

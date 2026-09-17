@@ -38,7 +38,25 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
   const items: RecentFileItem[] = [];
   const app = globalThis.go?.main?.App;
 
-  if (app?.GetSetting) {
+  // 1. Scan all real-time autosave profile files on disk
+  if (app?.GetAutosaveProfiles) {
+    const autosaves = await app.GetAutosaveProfiles();
+    if (Array.isArray(autosaves)) {
+      autosaves.forEach((a) => {
+        items.push({
+          id: `autosave-${a.key}`,
+          name: a.key,
+          location: a.location,
+          fullPath: a.location,
+          updatedAt: formatDateModified(a.timestamp),
+          isAutosave: true,
+        });
+      });
+    }
+  }
+
+  // Fallback if GetAutosaveProfiles is not defined
+  if (items.length === 0 && app?.GetSetting) {
     const latestAutosaveKey = await app.GetSetting('auto_saved_profile_latest');
     const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
 
@@ -50,32 +68,38 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
       } catch (err) {
         logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
       }
-      const autosavePath = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
-      items.push({
-        id: 'autosave-latest',
-        name: latestAutosaveKey,
-        location: autosavePath,
-        fullPath: autosavePath,
-        updatedAt: formatDateModified(ts),
-        isAutosave: true,
-      });
+      const autosaveLocation = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
+      const exists = app.FileExists ? await app.FileExists(autosaveLocation) : true;
+      if (exists) {
+        items.push({
+          id: 'autosave-latest',
+          name: latestAutosaveKey,
+          location: autosaveLocation,
+          fullPath: autosaveLocation,
+          updatedAt: formatDateModified(ts),
+          isAutosave: true,
+        });
+      }
     }
   }
 
+  // 2. Scan saved projects
   if (app?.GetProjects) {
     const projects = await app.GetProjects();
     if (Array.isArray(projects)) {
-      projects.forEach((p: any) => {
-        const relativePath = `.kube-simulator/projects/${p.id}`;
-        const fullPath = `~/.kube-simulator/projects/${p.id}/architecture.infra`;
-        items.push({
-          id: p.id,
-          name: p.name,
-          location: relativePath,
-          fullPath,
-          updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
-        });
-      });
+      for (const p of projects) {
+        const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
+        const exists = app.FileExists ? await app.FileExists(fullPath) : true;
+        if (exists) {
+          items.push({
+            id: p.id,
+            name: p.name,
+            location: fullPath,
+            fullPath,
+            updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
+          });
+        }
+      }
     }
   }
 
@@ -85,6 +109,42 @@ export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
 /**
  * Execute restore operation for selected recent file item
  */
+/**
+ * Execute delete operation for selected recent file item
+ */
+export const deleteRecentFile = async (
+  item: RecentFileItem,
+  reloadFiles: () => Promise<void>
+): Promise<void> => {
+  const app = globalThis.go?.main?.App;
+  if (!app) return;
+
+  if (item.isAutosave) {
+    if (app.SaveSetting) {
+      await app.SaveSetting(item.name, '');
+      const latest = await app.GetSetting('auto_saved_profile_latest');
+      if (latest === item.name) {
+        await app.SaveSetting('auto_saved_profile_latest', '');
+        await app.SaveSetting('auto_saved_profile_content', '');
+      }
+    }
+  } else if (typeof item.id === 'number') {
+    if (app.DeleteProject) {
+      await app.DeleteProject(item.id);
+    }
+  }
+  await reloadFiles();
+};
+
+/**
+ * Execute open folder operation in OS file explorer for selected recent file item
+ */
+export const openRecentFileFolder = async (item: RecentFileItem): Promise<void> => {
+  const app = globalThis.go?.main?.App;
+  if (!app?.OpenFileFolder) return;
+  await app.OpenFileFolder(item.location || item.fullPath);
+};
+
 export const restoreRecentFile = async (
   item: RecentFileItem,
   onClose: () => void,
@@ -94,17 +154,21 @@ export const restoreRecentFile = async (
   if (!app) return;
 
   if (item.isAutosave) {
-    const content = await app.GetSetting('auto_saved_profile_content');
+    let content = await app.GetSetting(item.name);
+    if (!content) {
+      content = await app.GetSetting('auto_saved_profile_content');
+    }
     if (content) {
       try {
         const data = JSON.parse(content);
-        const nodesWithStrings = mapProjectNodes(data.nodes);
-        const edgesWithStrings = mapProjectEdges(data.edges);
+        const nodesWithStrings = mapProjectNodes(data.nodes || []);
+        const edgesWithStrings = mapProjectEdges(data.edges || []);
         const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
 
         useFlowStore.setState({
           nodes: hydratedNodes,
           edges: edgesWithStrings,
+          currentProject: null,
           lastActionId: `restore-save-${Date.now()}`,
           lastActionName: 'Restored Recent File',
         });

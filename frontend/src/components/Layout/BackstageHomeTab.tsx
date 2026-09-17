@@ -12,6 +12,7 @@ export interface BackstageHomeTabProps {
   readonly isCanvasEmpty: boolean;
   readonly currentProjectId?: number | string;
   readonly recentFiles: readonly RecentFileItem[];
+  readonly activeContextItem?: RecentFileItem | null;
   readonly handleQuickSaveCurrent: () => void;
   readonly onClose: () => void;
   readonly onSaveAs: () => void;
@@ -31,6 +32,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
   isCanvasEmpty,
   currentProjectId,
   recentFiles,
+  activeContextItem,
   handleQuickSaveCurrent,
   onClose,
   onSaveAs,
@@ -103,7 +105,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
             disabled={isCanvasEmpty}
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-900/10 transition-all cursor-pointer"
           >
-            <Save size={15} /> Save Active Profile
+            <Save size={15} /> Save
           </button>
           <button
             type="button"
@@ -118,7 +120,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
                 : "bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700"
             )}
           >
-            <FilePlus size={15} /> Save As File...
+            <FilePlus size={15} /> Save As
           </button>
         </div>
       </div>
@@ -157,12 +159,17 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
                 recentFiles.map((file) => {
                   const rowClass = getTableRowClass(Boolean(file.isAutosave), isDark);
                   const isCurrentActive = currentProjectId === file.id;
+                  const isContextMenuActive = activeContextItem?.id === file.id;
                   return (
                     <tr
                       key={String(file.id)}
                       onContextMenu={(e) => handleRowContextMenu(e, file)}
                       onDoubleClick={() => handleRestoreFile(file)}
-                      className={cn("transition-colors cursor-pointer select-none", rowClass)}
+                      className={cn(
+                        "transition-colors cursor-pointer select-none",
+                        rowClass,
+                        isContextMenuActive && (isDark ? "bg-blue-900/40 ring-1 ring-blue-500/50" : "bg-blue-100/80 ring-1 ring-blue-400/50")
+                      )}
                     >
                       <td className="py-3 px-4">
                         <div className="flex items-start gap-3">

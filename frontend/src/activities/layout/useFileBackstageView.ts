@@ -5,6 +5,8 @@ import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import {
   BackstageTab,
   restoreRecentFile,
+  deleteRecentFile,
+  openRecentFileFolder,
 } from './fileBackstageHelpers';
 import { useRecentFilesState } from './useRecentFilesState';
 
@@ -125,6 +127,14 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     await restoreRecentFile(item, onClose, fitView);
   };
 
+  const handleDeleteFile = async (item: Parameters<typeof deleteRecentFile>[0]) => {
+    await deleteRecentFile(item, loadRecentFiles);
+  };
+
+  const handleOpenFolder = async (item: Parameters<typeof openRecentFileFolder>[0]) => {
+    await openRecentFileFolder(item);
+  };
+
   return {
     colorMode,
     toggleColorMode,
@@ -159,5 +169,7 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     handleRowContextMenu,
     handleQuickSaveCurrent,
     handleRestore,
+    handleDeleteFile,
+    handleOpenFolder,
   };
 }

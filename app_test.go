@@ -637,3 +637,43 @@ func TestApp_GetTargetScreen_Empty(t *testing.T) {
 		t.Error("Expected GetTargetScreen to return false for empty screens slice")
 	}
 }
+
+func TestApp_FileExistsAndOpenFileFolder(t *testing.T) {
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	tmpDir, err := os.MkdirTemp("", "kube-test-file-exists-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	filePath := filepath.Join(tmpDir, "sample.infra")
+	_ = os.WriteFile(filePath, []byte("{}"), 0644)
+
+	// FileExists
+	if !app.FileExists(filePath) {
+		t.Errorf("Expected FileExists to return true for %s", filePath)
+	}
+	if app.FileExists(filepath.Join(tmpDir, "nonexistent.infra")) {
+		t.Errorf("Expected FileExists to return false for non-existent file")
+	}
+	if app.FileExists("") {
+		t.Error("Expected FileExists to return false for empty string")
+	}
+
+	// OpenFileFolder
+	if !app.OpenFileFolder(filePath) {
+		t.Error("Expected OpenFileFolder to return true")
+	}
+	if !app.OpenFileFolder("") {
+		t.Error("Expected OpenFileFolder to handle empty string and return true")
+	}
+
+	// GetAutosaveProfiles
+	app.SaveSetting("autosave-test1", `{"timestamp": 123456789}`)
+	profiles := app.GetAutosaveProfiles()
+	if len(profiles) == 0 {
+		t.Error("Expected GetAutosaveProfiles to return at least 1 profile")
+	}
+}

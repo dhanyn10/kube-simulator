@@ -1,8 +1,10 @@
 package db
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -64,6 +66,35 @@ func (p *ProjectManager) Close() {
 	}
 }
 
+func writePhysicalProjectFile(id int64, content string) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	dir := filepath.Join(userHome, ".kube-simulator", "projects")
+	_ = os.MkdirAll(dir, 0755)
+	filePath := filepath.Join(dir, fmt.Sprintf("project_%d.infra", id))
+	_ = os.WriteFile(filePath, []byte(content), 0644)
+}
+
+func writePhysicalAutosaveFile(key, content string) {
+	if !strings.HasPrefix(key, "autosave-") {
+		return
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	dir := filepath.Join(userHome, ".kube-simulator", "autosaves")
+	_ = os.MkdirAll(dir, 0755)
+	filePath := filepath.Join(dir, fmt.Sprintf("%s.infra", key))
+	if content == "" {
+		_ = os.Remove(filePath)
+	} else {
+		_ = os.WriteFile(filePath, []byte(content), 0644)
+	}
+}
+
 func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 	if p.db == nil {
 		return 0, gorm.ErrInvalidDB
@@ -73,6 +104,9 @@ func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 		Content: content,
 	}
 	result := p.db.Create(&project)
+	if result.Error == nil {
+		writePhysicalProjectFile(project.ID, content)
+	}
 	return project.ID, result.Error
 }
 
@@ -80,10 +114,14 @@ func (p *ProjectManager) UpdateProject(id int64, content string) error {
 	if p.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	return p.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
+	err := p.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"content":    content,
 		"updated_at": time.Now().Unix(),
 	}).Error
+	if err == nil {
+		writePhysicalProjectFile(id, content)
+	}
+	return err
 }
 
 func (p *ProjectManager) GetProjects() ([]Project, error) {
@@ -111,7 +149,15 @@ func (p *ProjectManager) DeleteProject(id int64) error {
 	if p.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	return p.db.Delete(&Project{}, id).Error
+	err := p.db.Delete(&Project{}, id).Error
+	if err == nil {
+		userHome, errHome := os.UserHomeDir()
+		if errHome == nil {
+			filePath := filepath.Join(userHome, ".kube-simulator", "projects", fmt.Sprintf("project_%d.infra", id))
+			_ = os.Remove(filePath)
+		}
+	}
+	return err
 }
 
 func (p *ProjectManager) SaveSetting(key, value string) error {
@@ -119,7 +165,11 @@ func (p *ProjectManager) SaveSetting(key, value string) error {
 		return gorm.ErrInvalidDB
 	}
 	setting := Setting{Key: key, Value: value}
-	return p.db.Save(&setting).Error
+	err := p.db.Save(&setting).Error
+	if err == nil {
+		writePhysicalAutosaveFile(key, value)
+	}
+	return err
 }
 
 func (p *ProjectManager) GetSetting(key string) (string, error) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { generateTimestampedProjectName } from '@/components/UI/ResourceManager/resourceManagerHelpers';
 import { useFitView } from '@/hooks/useFitView';
-import { restoreRecentFile } from '@/activities/layout/fileBackstageHelpers';
+import { restoreRecentFile, deleteRecentFile, openRecentFileFolder } from '@/activities/layout/fileBackstageHelpers';
 import { useRecentFilesState } from '@/activities/layout/useRecentFilesState';
 
 export interface UseSaveModalParams {
@@ -36,10 +36,10 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     if (!isOpen) return;
 
     if (currentProject) {
-      setActiveLocation(`~/.kube-simulator/projects/${currentProject.id}/architecture.infra`);
+      setActiveLocation(`~/.kube-simulator/projects/project_${currentProject.id}.infra`);
       setNewProjectName(currentProject.name);
     } else {
-      setActiveLocation('~/.kube-simulator/app_settings_json');
+      setActiveLocation('~/.kube-simulator/projects');
       setNewProjectName(generateTimestampedProjectName());
     }
   }, [isOpen, currentProject]);
@@ -75,6 +75,14 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     await restoreRecentFile(item, onClose, fitView);
   };
 
+  const handleDeleteFile = async (item: Parameters<typeof deleteRecentFile>[0]) => {
+    await deleteRecentFile(item, loadRecentFiles);
+  };
+
+  const handleOpenFolder = async (item: Parameters<typeof openRecentFileFolder>[0]) => {
+    await openRecentFileFolder(item);
+  };
+
   return {
     colorMode,
     toggleColorMode,
@@ -90,5 +98,7 @@ export function useSaveModal({ isOpen, onClose }: UseSaveModalParams) {
     handleRowContextMenu,
     handleQuickSaveCurrent,
     handleRestoreFile,
+    handleDeleteFile,
+    handleOpenFolder,
   };
 }

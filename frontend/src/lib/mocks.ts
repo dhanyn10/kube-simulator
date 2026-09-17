@@ -100,7 +100,10 @@ export const initWailsMocks = () => {
                 MaximizeWindow: async () => (globalThis as any)._originalConsoleLog('Maximize Window'),
                 CloseWindow: async () => (globalThis as any)._originalConsoleLog('Close Window'),
                 GetSetting: async () => "",
-                SaveSetting: async () => true
+                SaveSetting: async () => true,
+                OpenFileFolder: async () => true,
+                FileExists: async () => true,
+                GetAutosaveProfiles: async () => []
             }
         }
     };

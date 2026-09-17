@@ -59,6 +59,8 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
     handleRowContextMenu,
     handleQuickSaveCurrent,
     handleRestore,
+    handleDeleteFile,
+    handleOpenFolder,
   } = useFileBackstageView({ isOpen, onClose });
 
   if (!isOpen) return null;
@@ -112,6 +114,7 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
               isCanvasEmpty={isCanvasEmpty}
               currentProjectId={currentProject?.id}
               recentFiles={recentFiles}
+              activeContextItem={contextMenu?.item}
               handleQuickSaveCurrent={handleQuickSaveCurrent}
               onClose={onClose}
               onSaveAs={onSaveAs}
@@ -153,6 +156,8 @@ export const FileBackstageView: React.FC<FileBackstageViewProps> = ({
         toggleColorMode={toggleColorMode}
         setContextMenu={setContextMenu}
         handleRestoreFile={handleRestore}
+        handleDeleteFile={handleDeleteFile}
+        handleOpenFolder={handleOpenFolder}
         onClose={onClose}
       />
     </div>

@@ -302,6 +302,67 @@ func (a *App) OpenLogFile() bool {
 	return true
 }
 
+func (a *App) FileExists(location string) bool {
+	if location == "" {
+		return false
+	}
+	targetPath := location
+	if strings.HasPrefix(targetPath, "~/") {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return false
+		}
+		targetPath = filepath.Join(homeDir, targetPath[2:])
+	} else if targetPath == "~" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return false
+		}
+		targetPath = homeDir
+	}
+
+	stat, err := os.Stat(targetPath)
+	if err != nil || stat.IsDir() {
+		return false
+	}
+	return true
+}
+
+func (a *App) OpenFileFolder(location string) bool {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error("Failed to resolve user home dir: %v", err)
+		return false
+	}
+
+	targetPath := location
+	if targetPath == "" {
+		targetPath = filepath.Join(homeDir, ".kube-simulator")
+	} else if strings.HasPrefix(targetPath, "~/") {
+		targetPath = filepath.Join(homeDir, targetPath[2:])
+	} else if targetPath == "~" {
+		targetPath = homeDir
+	} else if !filepath.IsAbs(targetPath) {
+		targetPath = filepath.Join(homeDir, targetPath)
+	}
+
+	folderPath := targetPath
+	if stat, err := os.Stat(targetPath); err == nil && !stat.IsDir() {
+		folderPath = filepath.Dir(targetPath)
+	} else if err != nil && os.IsNotExist(err) {
+		folderPath = filepath.Dir(targetPath)
+		_ = os.MkdirAll(folderPath, 0755)
+	}
+
+	if appCtx == nil || appCtx.Value(isTestKey) == nil {
+		if err := openInExplorer(folderPath); err != nil {
+			logger.Error("Failed to open folder %s: %v", folderPath, err)
+			return false
+		}
+	}
+	return true
+}
+
 func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false
@@ -423,6 +484,57 @@ func (a *App) GetSetting(key string) string {
 		return ""
 	}
 	return val
+}
+
+type AutosaveProfileItem struct {
+	Key       string `json:"key"`
+	Timestamp int64  `json:"timestamp"`
+	Location  string `json:"location"`
+}
+
+func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return []AutosaveProfileItem{}
+	}
+
+	dir := filepath.Join(userHome, ".kube-simulator", "autosaves")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return []AutosaveProfileItem{}
+	}
+
+	items := make([]AutosaveProfileItem, 0)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".infra") {
+			continue
+		}
+		key := strings.TrimSuffix(entry.Name(), ".infra")
+		fullPath := filepath.Join(dir, entry.Name())
+		info, err := entry.Info()
+		ts := time.Now().UnixMilli()
+		if err == nil {
+			ts = info.ModTime().UnixMilli()
+		}
+
+		// Also check inside JSON if timestamp is recorded
+		if contentBytes, errRead := os.ReadFile(fullPath); errRead == nil {
+			var parsed struct {
+				Timestamp int64 `json:"timestamp"`
+			}
+			if errJson := json.Unmarshal(contentBytes, &parsed); errJson == nil && parsed.Timestamp > 0 {
+				ts = parsed.Timestamp
+			}
+		}
+
+		locationPath := fmt.Sprintf("~/.kube-simulator/autosaves/%s", entry.Name())
+		items = append(items, AutosaveProfileItem{
+			Key:       key,
+			Timestamp: ts,
+			Location:  locationPath,
+		})
+	}
+	return items
 }
 
 // Window Control Actions

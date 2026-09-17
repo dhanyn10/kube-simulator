@@ -4,6 +4,8 @@ import {
   formatDateModified,
   fetchRecentFiles,
   restoreRecentFile,
+  deleteRecentFile,
+  openRecentFileFolder,
   getBackstageTabClass,
   getSettingsSubmenuClass,
   getSidebarContainerClass,
@@ -279,6 +281,87 @@ describe('fileBackstageHelpers', () => {
       const stringItem: RecentFileItem = { id: 'str-id-not-autosave', name: 'Other', location: '', fullPath: '', updatedAt: '' };
       await restoreRecentFile(stringItem, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteRecentFile', () => {
+    it('returns early when app is not available', async () => {
+      const reloadFiles = vi.fn();
+      const item: RecentFileItem = { id: 1, name: 'P1', location: '', fullPath: '', updatedAt: '' };
+      await deleteRecentFile(item, reloadFiles);
+      expect(reloadFiles).not.toHaveBeenCalled();
+    });
+
+    it('deletes saved project by number id and reloads files', async () => {
+      const reloadFiles = vi.fn().mockResolvedValue(undefined);
+      const mockDeleteProject = vi.fn().mockResolvedValue(true);
+
+      (globalThis as any).go = {
+        main: {
+          App: {
+            DeleteProject: mockDeleteProject,
+          },
+        },
+      };
+
+      const item: RecentFileItem = { id: 10, name: 'Project 10', location: '', fullPath: '', updatedAt: '' };
+      await deleteRecentFile(item, reloadFiles);
+      expect(mockDeleteProject).toHaveBeenCalledWith(10);
+      expect(reloadFiles).toHaveBeenCalled();
+    });
+
+    it('deletes autosave profile item and reloads files', async () => {
+      const reloadFiles = vi.fn().mockResolvedValue(undefined);
+      const mockSaveSetting = vi.fn().mockResolvedValue(true);
+      const mockGetSetting = vi.fn().mockResolvedValue('autosave-123');
+
+      (globalThis as any).go = {
+        main: {
+          App: {
+            SaveSetting: mockSaveSetting,
+            GetSetting: mockGetSetting,
+          },
+        },
+      };
+
+      const item: RecentFileItem = {
+        id: 'autosave-latest',
+        name: 'autosave-123',
+        location: '',
+        fullPath: '',
+        updatedAt: '',
+        isAutosave: true,
+      };
+
+      await deleteRecentFile(item, reloadFiles);
+      expect(mockSaveSetting).toHaveBeenCalledWith('autosave-123', '');
+      expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_latest', '');
+      expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_content', '');
+      expect(reloadFiles).toHaveBeenCalled();
+    });
+  });
+
+  describe('openRecentFileFolder', () => {
+    it('calls OpenFileFolder with item location or fullPath', async () => {
+      const mockOpenFileFolder = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            OpenFileFolder: mockOpenFileFolder,
+          },
+        },
+      };
+
+      const item: RecentFileItem = {
+        id: 1,
+        name: 'Project 1',
+        location: '~/.kube-simulator/projects/project_1.infra',
+        fullPath: '~/.kube-simulator/projects/project_1.infra',
+        updatedAt: 'now',
+      };
+
+      await openRecentFileFolder(item);
+      expect(mockOpenFileFolder).toHaveBeenCalledWith('~/.kube-simulator/projects/project_1.infra');
     });
   });
 

@@ -8,9 +8,8 @@ import (
 )
 
 func openInExplorer(filePath string) error {
-	dir := filepath.Dir(filePath)
 	// explorer.exe is a GUI application; do NOT set HideWindow: true as it causes Windows to launch File Explorer in hidden mode.
-	cmd := exec.Command("explorer.exe", filepath.Clean(dir))
+	cmd := exec.Command("explorer.exe", filepath.Clean(filePath))
 	if err := cmd.Start(); err != nil {
 		return err
 	}

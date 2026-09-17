@@ -76,8 +76,8 @@ describe('FileBackstageView', () => {
     useFlowStore.setState({ isAutosaveEnabled: false });
     renderWithProvider(<FileBackstageView {...defaultProps} />);
 
-    const saveSidebarBtn = screen.getByRole('button', { name: /^Save$/i });
-    fireEvent.click(saveSidebarBtn);
+    const saveSidebarBtns = screen.getAllByRole('button', { name: /^Save$/i });
+    fireEvent.click(saveSidebarBtns[0]);
 
     await waitFor(() => {
       expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
