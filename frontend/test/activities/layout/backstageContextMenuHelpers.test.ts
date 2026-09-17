@@ -3,6 +3,7 @@ import {
   getContextMenuContainerClass,
   getContextMenuButtonClass,
   getContextMenuLoadProfileClass,
+  getContextMenuDeleteDocumentClass,
   getContextMenuExitClass,
   getContextMenuDividerClass,
   handleThemeToggleClick,
@@ -26,7 +27,9 @@ describe('backstageContextMenuHelpers', () => {
     expect(getContextMenuLoadProfileClass(false)).toContain('hover:bg-slate-100');
   });
 
-  it('returns exit button class for dark and light modes', () => {
+  it('returns delete document and exit button classes for dark and light modes', () => {
+    expect(getContextMenuDeleteDocumentClass(true)).toContain('text-rose-500');
+    expect(getContextMenuDeleteDocumentClass(false)).toContain('text-rose-500');
     expect(getContextMenuExitClass(true)).toContain('text-rose-500');
     expect(getContextMenuExitClass(false)).toContain('text-rose-500');
   });

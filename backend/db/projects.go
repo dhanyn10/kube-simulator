@@ -20,6 +20,8 @@ type Project struct {
 	UpdatedAt int64  `gorm:"autoUpdateTime" json:"updatedAt"`
 }
 
+const appDirName = ".kube-simulator"
+
 type Setting struct {
 	Key   string `gorm:"primaryKey" json:"key"`
 	Value string `gorm:"not null" json:"value"`
@@ -38,7 +40,7 @@ func (p *ProjectManager) Init() error {
 	if err != nil {
 		return err
 	}
-	dbPath := filepath.Join(userHome, ".kube-simulator", "app_data.db")
+	dbPath := filepath.Join(userHome, appDirName, "app_data.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), os.ModePerm); err != nil {
 		return err
 	}
@@ -71,7 +73,7 @@ func writePhysicalProjectFile(id int64, content string) {
 	if err != nil {
 		return
 	}
-	dir := filepath.Join(userHome, ".kube-simulator", "projects")
+	dir := filepath.Join(userHome, appDirName, "projects")
 	_ = os.MkdirAll(dir, 0755)
 	filePath := filepath.Join(dir, fmt.Sprintf("project_%d.infra", id))
 	_ = os.WriteFile(filePath, []byte(content), 0644)
@@ -85,7 +87,7 @@ func writePhysicalAutosaveFile(key, content string) {
 	if err != nil {
 		return
 	}
-	dir := filepath.Join(userHome, ".kube-simulator", "autosaves")
+	dir := filepath.Join(userHome, appDirName, "autosaves")
 	_ = os.MkdirAll(dir, 0755)
 	filePath := filepath.Join(dir, fmt.Sprintf("%s.infra", key))
 	if content == "" {
@@ -153,7 +155,7 @@ func (p *ProjectManager) DeleteProject(id int64) error {
 	if err == nil {
 		userHome, errHome := os.UserHomeDir()
 		if errHome == nil {
-			filePath := filepath.Join(userHome, ".kube-simulator", "projects", fmt.Sprintf("project_%d.infra", id))
+			filePath := filepath.Join(userHome, appDirName, "projects", fmt.Sprintf("project_%d.infra", id))
 			_ = os.Remove(filePath)
 		}
 	}
