@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   handleAdminCommands,
+  handleApplyCommand,
   handleScaleCommand,
   handleSetImageCommand,
   handleRolloutStatusCommand,
@@ -363,6 +364,39 @@ describe('terminalCommands', () => {
       activityLogs = [];
       handleAdminCommands('try status', mockCtx);
       expect(activityLogs.some(l => l.includes('Admin mode is inactive'))).toBe(true);
+    });
+  });
+
+  describe('handleApplyCommand and edge cases', () => {
+    it('handleApplyCommand outputs created resources or empty message', () => {
+      let handled = handleApplyCommand('kubectl apply -f k8s-manifest.yaml', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('deployment.apps/my-dep created'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('ingress.networking.k8s.io/my-ing created'))).toBe(true);
+
+      mockCtx.nodes = [];
+      activityLogs = [];
+      handled = handleApplyCommand('kubectl apply -f k8s-manifest.yaml', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No resources defined in the manifest.'))).toBe(true);
+
+      expect(handleApplyCommand('kubectl get pods', mockCtx)).toBe(false);
+    });
+
+    it('handleDeletePodCommand deletes pod inside a non-Deployment parent (e.g. Namespace)', () => {
+      const nsPod = { id: 'ns-pod-1', type: 'Pod', parentId: 'ns-1', data: { label: 'ns-pod' } };
+      mockCtx.nodes = [nsPod as any, { id: 'ns-1', type: 'Namespace', data: {} } as any];
+
+      const handled = handleDeletePodCommand('kubectl delete pod ns-pod', mockCtx);
+      expect(handled).toBe(true);
+      expect(mockCtx.deleteNodes).toHaveBeenCalledWith([nsPod]);
+    });
+
+    it('processVersionCurrentCmd queries current version when target version is missing', () => {
+      storeState.isAdminAuthenticated = true;
+      activityLogs = [];
+      handleAdminCommands('try version current', mockCtx);
+      expect(activityLogs.some(l => l.includes('Current assumed version'))).toBe(true);
     });
   });
 });

@@ -110,4 +110,64 @@ describe('useCustomEdge & edge helpers', () => {
       result.current.onAlertClick(mockEvent);
     });
   });
+
+  it('covers remaining branches in useCustomEdge and edge helpers', () => {
+    // 1. checkNodeUnready for Deployment with no child pods or ready child pods
+    const deployWithoutChildren = { id: 'd1', type: 'Deployment', data: { status: 'ready' } };
+    expect(checkNodeUnready(deployWithoutChildren, [])).toBe(false);
+
+    const deployWithReadyChild = { id: 'd2', type: 'Deployment', data: { status: 'ready' } };
+    const readyChildPod = { parentId: 'd2', type: 'Pod', data: { status: 'ready' } };
+    expect(checkNodeUnready(deployWithReadyChild, [deployWithReadyChild, readyChildPod])).toBe(false);
+
+    // 2. findDownstreamUnreadyNode fallback to target node or null
+    expect(findDownstreamUnreadyNode('non-existent', [], [], [])).toBeNull();
+
+    // 3. getTargetLoggableNode for non-workload target (e.g. Service or Internet)
+    const nodes = [
+      { id: 'svc-1', type: 'Service' },
+      { id: 'pod-1', type: 'Pod', data: { status: 'ready' } },
+    ];
+    const loggableNonWorkload = getTargetLoggableNode('svc-1', false, nodes, [], []);
+    expect(loggableNonWorkload).toBeNull();
+
+    // 4. useCustomEdge onRemove with isConfiguring = false, and onAlertClick for isTargetError with non-workload target
+    useFlowStore.setState({
+      configuringEdgeId: 'other-edge',
+      activeSimulationEdges: ['e2'],
+      nodes: [
+        { id: 's1', type: 'Service', data: { label: 'Svc1' } },
+        { id: 's2', type: 'Service', data: { label: 'Svc2' } },
+      ],
+      edges: [{ id: 'e2', source: 's1', target: 's2' }],
+      globalEdgeColor: '#ccc',
+      globalEdgeErrorColor: '#f00',
+    });
+
+    const { result } = renderHook(() =>
+      useCustomEdge({
+        id: 'e2',
+        source: 's1',
+        target: 's2',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    const mockEvent = { stopPropagation: vi.fn() } as any;
+
+    act(() => {
+      result.current.onRemove(mockEvent);
+    });
+
+    act(() => {
+      result.current.onAlertClick(mockEvent);
+    });
+    expect(useFlowStore.getState().terminalActiveTab).toBe('activity');
+  });
 });

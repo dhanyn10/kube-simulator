@@ -356,4 +356,40 @@ describe('simulation test suite', () => {
       vi.advanceTimersByTime(2000);
       expect(setMock).not.toHaveBeenCalled();
   });
+
+  it('covers remaining branches in simulation.ts: checkPvcReadiness without connected PVCs, scheduleRecovery with non-crashing pod, and HPA target CPU ratio within 10%', () => {
+    // 1. checkPvcReadiness without connected PVCs returns isBlocked: false
+    const ctx = getMockCtx();
+    const pvcRes = checkPvcReadiness(baseNodes[0], ctx);
+    expect(pvcRes.isBlocked).toBe(false);
+
+    // 2. handleBoundPvcs with pending pod lacking ready webserver/runtime
+    const unreadyPendingPod = createNode('pod-unready', 'Pod', { status: 'pending', webserver: 'none', runtime: 'none' });
+    ctx.updatedNodes.push(unreadyPendingPod);
+    ctx.nodeIndexMap?.set('pod-unready', ctx.updatedNodes.length - 1);
+
+    const boundRes = handleBoundPvcs([unreadyPendingPod], ctx);
+    expect(boundRes.hasChanges).toBe(false);
+
+    // 3. scheduleRecovery returns early if pod status is no longer 'crashing'
+    const nonCrashingPod = createNode('pod-recovered', 'Pod', { status: 'ready' });
+    const deleteNodes = vi.fn();
+    const ctxRecovery = getMockCtx({
+      get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], nonCrashingPod], deleteNodes })
+    });
+    scheduleRecovery(baseNodes[0], 'pod-recovered', ctxRecovery);
+    vi.advanceTimersByTime(3000);
+    expect(deleteNodes).not.toHaveBeenCalled();
+
+    // 4. handleHpaScaling with CPU ratio within 10% (cpuPercent = 52 on target 50) does not scale
+    const depHpa50 = createNode('dep-hpa-50', 'Deployment', {
+      replicas: 2,
+      hpas: [{ minReplicas: 1, maxReplicas: 10, targetCPU: 50 }]
+    });
+    const ctxHpa = getMockCtx();
+    ctxHpa.updatedNodes.push(depHpa50);
+    ctxHpa.nodeIndexMap?.set('dep-hpa-50', ctxHpa.updatedNodes.length - 1);
+    const scaled = handleHpaScaling(depHpa50, 52, ctxHpa); // ratio 52/50 = 1.04, diff <= 0.1
+    expect(scaled).toBe(false);
+  });
 });
