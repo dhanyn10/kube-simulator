@@ -139,10 +139,13 @@ export const syncDeployment = (
 const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const data = deployment.data as K8sNodeData;
   const isReplicaSet = deployment.type === 'ReplicaSet';
+  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0);
+  const bottomPadding = hasAttached ? 48 : 24;
+
   const paddingX = 20;
   const headerHeight = isReplicaSet ? 30 : 40;
   const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
-  const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + 20);
+  const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + bottomPadding);
 
   const maxPodX = Math.max(0, ...laidOut.map(p => {
     const minSize = getPodMinimumSize(p.data);
@@ -154,7 +157,7 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   }));
   
   let depW = maxPodX + paddingX;
-  let depH = maxPodY + 20;
+  let depH = maxPodY + bottomPadding;
 
   if (data.isManuallyResized) {
       depW = Math.max(depW, deployment.width || minWidth);

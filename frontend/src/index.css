@@ -359,6 +359,60 @@
   .backstage-table-row-normal-light {
     @apply hover:bg-slate-100/70;
   }
+
+  /* Node Attached Resources Footer Component Styles */
+  .node-attached-footer {
+    @apply mt-auto pt-1.5 pb-1 border-t border-slate-500/20 flex items-center justify-center gap-1.5 z-20 pointer-events-auto shrink-0 w-full;
+  }
+
+  .node-attached-badge-role {
+    @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  .node-attached-badge-configmap {
+    @apply p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  .node-attached-badge-secret {
+    @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  .node-attached-badge-hpa {
+    @apply p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  /* ReplicaSet Node Component Styles */
+  .replicaset-node-base {
+    @apply w-full h-full rounded-xl border-2 border-dashed transition-all duration-300 flex flex-col justify-between p-2 min-h-[100px];
+  }
+
+  .replicaset-node-badge-base {
+    @apply text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border;
+  }
+
+  .replicaset-node-container-dark {
+    @apply bg-emerald-500/5 border-emerald-500/20;
+  }
+
+  .replicaset-node-container-light {
+    @apply bg-emerald-500/[0.02] border-emerald-500/10;
+  }
+
+  .replicaset-node-selected-dark {
+    @apply border-emerald-400/60 bg-emerald-500/10;
+  }
+
+  .replicaset-node-selected-light {
+    @apply border-emerald-500/40 bg-emerald-500/[0.05];
+  }
+
+  .replicaset-node-badge-dark {
+    @apply bg-slate-900/80 text-emerald-400 border-emerald-500/30;
+  }
+
+  .replicaset-node-badge-light {
+    @apply bg-white/80 text-emerald-600 border-emerald-500/20;
+  }
 }
 
 

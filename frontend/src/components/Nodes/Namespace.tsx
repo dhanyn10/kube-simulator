@@ -1,6 +1,7 @@
 import  { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { Anchor } from 'lucide-react';
+import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -74,11 +75,13 @@ export const NamespaceNode = memo((props: NodeProps) => {
       />
 
       <div className={cn(
-        "pointer-events-none mt-auto text-[10px] uppercase tracking-[0.3em] font-black text-center italic opacity-20 pb-4 select-none",
+        "pointer-events-none mt-auto text-[10px] uppercase tracking-[0.3em] font-black text-center italic opacity-20 pb-2 select-none",
         colorMode === 'dark' ? "text-emerald-500" : "text-emerald-400"
       )}>
         Isolated Logic Cluster
       </div>
+
+      <AttachedResourcesFooter data={data} />
 
       <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0 !pointer-events-none" />
       <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0 !pointer-events-none" />

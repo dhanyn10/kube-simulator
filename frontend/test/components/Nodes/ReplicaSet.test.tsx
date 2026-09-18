@@ -46,18 +46,18 @@ describe('ReplicaSetNode', () => {
   it('applies light mode classes', () => {
     useFlowStore.setState({ colorMode: 'light' });
     const { container } = render(<ReplicaSetNode {...defaultProps} />);
-    expect(container.firstChild).toHaveClass('bg-emerald-500/[0.02]');
+    expect(container.firstChild).toHaveClass('replicaset-node-container-light');
   });
 
   it('applies dark mode classes', () => {
     useFlowStore.setState({ colorMode: 'dark' });
     const { container } = render(<ReplicaSetNode {...defaultProps} />);
-    expect(container.firstChild).toHaveClass('bg-emerald-500/5');
+    expect(container.firstChild).toHaveClass('replicaset-node-container-dark');
   });
 
   it('applies selected classes', () => {
     useFlowStore.setState({ colorMode: 'dark' });
     const { container } = render(<ReplicaSetNode {...defaultProps} selected={true} />);
-    expect(container.firstChild).toHaveClass('border-emerald-400/60');
+    expect(container.firstChild).toHaveClass('replicaset-node-selected-dark');
   });
 });

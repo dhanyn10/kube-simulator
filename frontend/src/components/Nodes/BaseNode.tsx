@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { AlertCircle, CheckCircle2, Shield, Settings, Lock, Activity } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { K8sNodeData } from '@/types';
 import { cn } from '@/lib/utils';
 import { QuickConnectArrows } from './QuickConnectArrows';
@@ -148,51 +149,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
 
-        {((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0) && (
-          <div className="flex items-center justify-center gap-1 mt-auto pt-1 border-t border-slate-500/20">
-            {data.roles?.map((role: any) => {
-              const usersText = role.assignedUsers && role.assignedUsers.length > 0
-                ? ` (Users: ${role.assignedUsers.join(', ')})`
-                : '';
-              return (
-                <span
-                  key={role.id || role.name}
-                  className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
-                  title={`Role: ${role.name}${usersText}`}
-                >
-                  <Shield size={11} />
-                </span>
-              );
-            })}
-            {data.configMaps?.map((cm: any) => (
-              <span
-                key={cm.id || cm.name}
-                className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm"
-                title={`ConfigMap: ${cm.name}`}
-              >
-                <Settings size={11} />
-              </span>
-            ))}
-            {data.secrets?.map((sec: any) => (
-              <span
-                key={sec.id || sec.name}
-                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
-                title={`Secret: ${sec.name}`}
-              >
-                <Lock size={11} />
-              </span>
-            ))}
-            {data.hpas?.map((hpa: any) => (
-              <span
-                key={hpa.id || hpa.name}
-                className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm"
-                title={`HPA: ${hpa.name} (Min: ${hpa.minReplicas}, Max: ${hpa.maxReplicas}, CPU: ${hpa.targetCPU}%)`}
-              >
-                <Activity size={11} />
-              </span>
-            ))}
-          </div>
-        )}
+        <AttachedResourcesFooter data={data} />
       </div>
 
       <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
