@@ -380,6 +380,31 @@
   .node-attached-badge-hpa {
     @apply p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm;
   }
+
+  /* ReplicaSet Node Component Styles */
+  .replicaset-node-container-dark {
+    @apply bg-emerald-500/5 border-emerald-500/20;
+  }
+
+  .replicaset-node-container-light {
+    @apply bg-emerald-500/[0.02] border-emerald-500/10;
+  }
+
+  .replicaset-node-selected-dark {
+    @apply border-emerald-400/60 bg-emerald-500/10;
+  }
+
+  .replicaset-node-selected-light {
+    @apply border-emerald-500/40 bg-emerald-500/[0.05];
+  }
+
+  .replicaset-node-badge-dark {
+    @apply bg-slate-900/80 text-emerald-400 border-emerald-500/30;
+  }
+
+  .replicaset-node-badge-light {
+    @apply bg-white/80 text-emerald-600 border-emerald-500/20;
+  }
 }
 
 
