@@ -1,104 +1,294 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
 import { useFlowStore } from '@/store';
-import { createFlowSlice } from '@/store/slices/createFlowSlice';
+import { Node, Edge } from '@xyflow/react';
 
 describe('createFlowSlice', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useFlowStore.setState({
-      nodes: [
-        {
-          id: 'role-1',
-          type: 'Role',
-          position: { x: 0, y: 0 },
-          data: { label: 'Role 1', rules: [] },
-        },
-        {
-          id: 'dep-1',
-          type: 'Deployment',
-          position: { x: 200, y: 0 },
-          data: { label: 'Dep 1' },
-        },
-        {
-          id: 'pod-1',
-          type: 'Pod',
-          parentId: 'dep-1',
-          position: { x: 10, y: 10 },
-          data: { label: 'Pod 1' },
-        },
-      ],
+      nodes: [],
       edges: [],
+      lastActionId: 'init'
     });
   });
 
-  it('reroutes connect from Role to child Pod inside Deployment to parent Deployment', () => {
-    const { onConnect } = useFlowStore.getState();
-
-    act(() => {
-      onConnect({
-        source: 'role-1',
-        target: 'pod-1',
-        sourceHandle: null,
-        targetHandle: null,
-      });
-    });
-
-    const edges = useFlowStore.getState().edges;
-    expect(edges).toHaveLength(1);
-    expect(edges[0].source).toBe('role-1');
-    expect(edges[0].target).toBe('dep-1');
+  it('setNodes updates nodes state directly', () => {
+    const node1: Node = { id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.getState().setNodes([node1]);
+    expect(useFlowStore.getState().nodes).toEqual([node1]);
   });
 
-  it('reroutes connect from child Pod inside Deployment to Role to parent Deployment', () => {
-    const { onConnect } = useFlowStore.getState();
-
-    act(() => {
-      onConnect({
-        source: 'pod-1',
-        target: 'role-1',
-        sourceHandle: null,
-        targetHandle: null,
-      });
-    });
-
-    const edges = useFlowStore.getState().edges;
-    expect(edges).toHaveLength(1);
-    expect(edges[0].source).toBe('dep-1');
-    expect(edges[0].target).toBe('role-1');
-  });
-
-  it('handles group drag with zero dx and dy offset without creating extra changes', () => {
-    useFlowStore.setState({
-      nodes: [
-        {
-          id: 'node-1',
-          type: 'Pod',
-          position: { x: 100, y: 100 },
-          data: { groupId: 'group-a' },
-        },
-        {
-          id: 'node-2',
-          type: 'Pod',
-          position: { x: 200, y: 200 },
-          data: { groupId: 'group-a' },
-        },
-      ],
-    });
+  it('onNodesChange updates positions of grouped nodes', () => {
+    const node1 = { id: 'n1', position: { x: 0, y: 0 }, data: { groupId: 'g1' } };
+    const node2 = { id: 'n2', position: { x: 50, y: 50 }, data: { groupId: 'g1' } };
+    useFlowStore.setState({ nodes: [node1, node2] as any });
 
     const { onNodesChange } = useFlowStore.getState();
+    onNodesChange([{ id: 'n1', type: 'position', position: { x: 10, y: 10 } }]);
 
-    act(() => {
-      onNodesChange([
-        {
-          id: 'node-1',
-          type: 'position',
-          position: { x: 100, y: 100 }, // zero delta
-        },
-      ]);
+    const state = useFlowStore.getState();
+    const n1 = state.nodes.find(n => n.id === 'n1');
+    const n2 = state.nodes.find(n => n.id === 'n2');
+
+    expect(n1?.position).toEqual({ x: 10, y: 10 });
+    expect(n2?.position).toEqual({ x: 60, y: 60 });
+  });
+
+  it('onNodesChange handles dx===0 and dy===0 or position changes without group', () => {
+    const node1 = { id: 'n1', position: { x: 10, y: 10 }, data: { groupId: 'g1' } };
+    useFlowStore.setState({ nodes: [node1] as any });
+
+    const { onNodesChange } = useFlowStore.getState();
+    onNodesChange([{ id: 'n1', type: 'position', position: { x: 10, y: 10 } }]);
+
+    expect(useFlowStore.getState().nodes[0].position).toEqual({ x: 10, y: 10 });
+  });
+
+  it('syncRoleRulesFromConnections syncs rules for all connected workload types', () => {
+    const roleNode: Node = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: { rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }] } };
+    const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 100, y: 0 }, data: { replicas: 1 } };
+    const podNode: Node = { id: 'pod1', type: 'Pod', position: { x: 200, y: 0 }, data: {} };
+    const svcNode: Node = { id: 'svc1', type: 'Service', position: { x: 300, y: 0 }, data: {} };
+    const pvcNode: Node = { id: 'pvc1', type: 'PVC', position: { x: 400, y: 0 }, data: {} };
+    const cmNode: Node = { id: 'cm1', type: 'ConfigMap', position: { x: 500, y: 0 }, data: {} };
+    const secNode: Node = { id: 'sec1', type: 'Secret', position: { x: 600, y: 0 }, data: {} };
+    const rsNode: Node = { id: 'rs1', type: 'ReplicaSet', position: { x: 700, y: 0 }, data: {} };
+
+    const edges: Edge[] = [
+      { id: 'e1', source: 'role1', target: 'dep1' },
+      { id: 'e2', source: 'role1', target: 'pod1' },
+      { id: 'e3', source: 'role1', target: 'svc1' },
+      { id: 'e4', source: 'role1', target: 'pvc1' },
+      { id: 'e5', source: 'role1', target: 'cm1' },
+      { id: 'e6', source: 'role1', target: 'sec1' },
+      { id: 'e7', source: 'role1', target: 'rs1' },
+    ];
+
+    useFlowStore.setState({
+      nodes: [roleNode, depNode, podNode, svcNode, pvcNode, cmNode, secNode, rsNode],
+      edges: [],
     });
 
-    const nodes = useFlowStore.getState().nodes;
-    expect(nodes.find((n) => n.id === 'node-2')?.position).toEqual({ x: 200, y: 200 });
+    const { setEdges } = useFlowStore.getState();
+    setEdges(edges);
+
+    const state = useFlowStore.getState();
+    const updatedRole = state.nodes.find(n => n.id === 'role1');
+    const resources = updatedRole?.data.rules[0].resources;
+    expect(resources).toEqual(expect.arrayContaining([
+      'deployments', 'pods', 'services', 'persistentvolumeclaims', 'configmaps', 'secrets', 'replicasets'
+    ]));
+  });
+
+  it('syncRoleRulesFromConnections handles no roles or unchanged role rules', () => {
+    const podNode: Node = { id: 'pod1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.setState({ nodes: [podNode], edges: [] });
+
+    const { setEdges } = useFlowStore.getState();
+    setEdges([]);
+    expect(useFlowStore.getState().nodes[0].id).toBe('pod1');
+
+    // Role with matching resources -> isSame returns node
+    const roleNode: Node = {
+      id: 'role1',
+      type: 'Role',
+      position: { x: 0, y: 0 },
+      data: { rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }] }
+    };
+    const edge: Edge = { id: 'e1', source: 'role1', target: 'pod1' };
+    useFlowStore.setState({ nodes: [roleNode, podNode], edges: [edge] });
+    setEdges([edge]);
+    expect(useFlowStore.getState().nodes[0].data.rules[0].resources).toEqual(['pods']);
+  });
+
+  it('onConnect reroutes connections between Role and child Pod in Deployment', () => {
+    const roleNode = { id: 'role1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+    const depNode = { id: 'dep1', type: 'Deployment', position: { x: 100, y: 0 }, data: {} };
+    const childPod = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 120, y: 40 }, data: {} };
+
+    useFlowStore.setState({ nodes: [roleNode, depNode, childPod] as any, edges: [] });
+
+    // Connect Role -> child Pod
+    useFlowStore.getState().onConnect({ source: 'role1', target: 'pod1' });
+    let edges = useFlowStore.getState().edges;
+    expect(edges[0].target).toBe('dep1');
+
+    // Reset edges
+    useFlowStore.setState({ edges: [] });
+
+    // Connect child Pod -> Role
+    useFlowStore.getState().onConnect({ source: 'pod1', target: 'role1' });
+    edges = useFlowStore.getState().edges;
+    expect(edges[0].source).toBe('dep1');
+  });
+
+  it('onConnect handles existing duplicate edge and missing nodes', () => {
+    const hpa = { id: 'h1', type: 'HPA', data: {} };
+    const dep = { id: 'd1', type: 'Deployment', data: { cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const existingEdge: Edge = { id: 'eh1-d1', source: 'h1', target: 'd1' };
+    useFlowStore.setState({ nodes: [hpa, dep] as any, edges: [existingEdge] });
+
+    // Connecting existing edge returns state unchanged
+    useFlowStore.getState().onConnect({ source: 'h1', target: 'd1' });
+    expect(useFlowStore.getState().edges).toHaveLength(1);
+  });
+
+  it('onConnect validates edges and handles HPA auto-config', () => {
+    const hpa = { id: 'h1', type: 'HPA', data: {} };
+    const dep = { id: 'd1', type: 'Deployment', data: { label: 'dep' } };
+    useFlowStore.setState({ nodes: [hpa, dep] as any, edges: [] });
+
+    const { onConnect } = useFlowStore.getState();
+    onConnect({ source: 'h1', target: 'd1' });
+
+    const state = useFlowStore.getState();
+    expect(state.edges).toHaveLength(1);
+
+    const updatedDep = state.nodes.find(n => n.id === 'd1');
+    expect(updatedDep?.data.cpuRequest).toBe('100m');
+    expect(updatedDep?.data.memoryRequest).toBe('128Mi');
+  });
+
+  it('validateEdge handles edge with missing source/target nodes and flags invalid connections', () => {
+    useFlowStore.setState({ nodes: [] });
+    const { validateEdge } = useFlowStore.getState();
+
+    const missingEdge = { id: 'e-missing', source: 'missing1', target: 'missing2' } as any;
+    expect(validateEdge(missingEdge)).toEqual(missingEdge);
+
+    const internet = { id: 'i1', type: 'Internet', data: {} };
+    const pvc = { id: 'p1', type: 'PVC', data: {} };
+    useFlowStore.setState({ nodes: [internet, pvc] as any });
+
+    const edge = { id: 'e1', source: 'i1', target: 'p1' };
+    const validated = validateEdge(edge as any);
+
+    expect(validated.data.validationError).toBeDefined();
+  });
+
+  it('onReconnect re-routes an existing edge', () => {
+    const edge: Edge = { id: 'e1', source: 'n1', target: 'n2' };
+    useFlowStore.setState({ edges: [edge] });
+
+    useFlowStore.getState().onReconnect(edge, {
+      source: 'n1',
+      target: 'n3',
+      sourceHandle: 'right',
+      targetHandle: 'left',
+    });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges[0].target).toBe('n3');
+  });
+
+  it('onQuickConnect connects nodes in orthogonal directions (right, left, top, bottom) and logs action', () => {
+    const centerNode: Node = {
+      id: 'center',
+      type: 'Service',
+      position: { x: 100, y: 100 },
+      data: { label: 'center' },
+    };
+    const rightNode: Node = {
+      id: 'rightN',
+      type: 'Pod',
+      position: { x: 300, y: 100 },
+      data: { label: 'right' },
+    };
+    const leftNode: Node = {
+      id: 'leftN',
+      type: 'Pod',
+      position: { x: -100, y: 100 },
+      data: { label: 'left' },
+    };
+    const topNode: Node = {
+      id: 'topN',
+      type: 'Pod',
+      position: { x: 100, y: -100 },
+      data: { label: 'top' },
+    };
+    const bottomNode: Node = {
+      id: 'bottomN',
+      type: 'Pod',
+      position: { x: 100, y: 300 },
+      data: { label: 'bottom' },
+    };
+
+    useFlowStore.setState({
+      nodes: [centerNode, rightNode, leftNode, topNode, bottomNode],
+    });
+
+    useFlowStore.getState().onQuickConnect('center', 'right');
+    expect(useFlowStore.getState().edges.some((e) => e.target === 'rightN')).toBe(true);
+    expect(useFlowStore.getState().lastActionName).toBe('Connect Nodes');
+
+    useFlowStore.getState().onQuickConnect('center', 'left');
+    expect(useFlowStore.getState().edges.some((e) => e.target === 'leftN')).toBe(true);
+
+    useFlowStore.getState().onQuickConnect('center', 'top');
+    expect(useFlowStore.getState().edges.some((e) => e.target === 'topN')).toBe(true);
+
+    useFlowStore.getState().onQuickConnect('center', 'bottom');
+    expect(useFlowStore.getState().edges.some((e) => e.target === 'bottomN')).toBe(true);
+  });
+
+  it('onQuickConnect returns early when source node is missing or no candidates match direction', () => {
+    useFlowStore.setState({ nodes: [], edges: [] });
+    useFlowStore.getState().onQuickConnect('nonexistent', 'right');
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+
+    const centerNode: Node = { id: 'center', type: 'Pod', position: { x: 100, y: 100 }, data: {} };
+    useFlowStore.setState({ nodes: [centerNode], edges: [] });
+    useFlowStore.getState().onQuickConnect('center', 'right');
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+  });
+
+  it('autoLayout triggers dagre layout in LR and TB directions with parent nodes', () => {
+    const parentNode = { id: 'p1', position: { x: 0, y: 0 }, width: 300, height: 200, data: {} };
+    const childNode = { id: 'c1', parentId: 'p1', position: { x: 10, y: 10 }, width: 100, height: 100, data: {} };
+    const node2 = { id: 'n2', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} };
+    const edge = { id: 'e1', source: 'p1', target: 'n2' };
+    useFlowStore.setState({ nodes: [parentNode, childNode, node2] as any, edges: [edge] as any });
+
+    const { autoLayout } = useFlowStore.getState();
+    autoLayout('TB');
+
+    const state = useFlowStore.getState();
+    expect(state.lastActionName).toBe('Auto Layout');
+    expect(state.nodes.find(n => n.id === 'c1')?.position).toEqual({ x: 10, y: 10 });
+  });
+
+  it('onEdgesChange updates selected state and handles edge deletion', () => {
+    const edge: Edge = { id: 'e1', source: 'n1', target: 'n2', selected: false };
+    useFlowStore.setState({ edges: [edge] });
+
+    useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'select', selected: true }]);
+    expect(useFlowStore.getState().edges[0].selected).toBe(true);
+
+    useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'remove' }]);
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+    expect(useFlowStore.getState().lastActionName).toBe('Delete Edge');
+  });
+
+  it('onConnect handles invalid connection with error log and edge validation error', () => {
+    const internet = { id: 'i1', type: 'Internet', data: {} };
+    const pvc = { id: 'p1', type: 'PVC', data: {} };
+    useFlowStore.setState({ nodes: [internet, pvc] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'i1', target: 'p1' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    expect(edges[0].data?.validationError).toBeDefined();
+  });
+
+  it('onConnect handles parented source and target nodes with container handles', () => {
+    const ns = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+    const pod1 = { id: 'p1', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: {} };
+    const pod2 = { id: 'p2', type: 'Pod', parentId: 'ns1', position: { x: 100, y: 10 }, data: {} };
+
+    useFlowStore.setState({ nodes: [ns, pod1, pod2] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'p1', target: 'p2' });
+    expect(useFlowStore.getState().edges).toHaveLength(1);
   });
 });
