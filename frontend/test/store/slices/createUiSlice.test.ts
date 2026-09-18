@@ -485,6 +485,12 @@ describe('createUiSlice', () => {
     expect(useFlowStore.getState().terminalLogs).toEqual({});
     expect(useFlowStore.getState().activityLogs).toEqual([]);
 
+    const { setKubeIamModalOpen } = useFlowStore.getState();
+    setKubeIamModalOpen(true);
+    expect(useFlowStore.getState().isKubeIamModalOpen).toBe(true);
+    setKubeIamModalOpen(false);
+    expect(useFlowStore.getState().isKubeIamModalOpen).toBe(false);
+
     setRoleModalTargetNode({ id: 'n1', label: 'Node 1' });
     expect(useFlowStore.getState().roleModalTargetNode).toEqual({ id: 'n1', label: 'Node 1' });
 
@@ -542,7 +548,9 @@ describe('createUiSlice', () => {
     expect(roleUsers).toEqual(['new-user', 'other-user']);
 
     // update non-existent user returns empty
-    updateIamUser('missing-id', { username: 'foo' });
+    const updatedStateBefore = useFlowStore.getState();
+    updateIamUser('non-existent-id-12345', { username: 'foo' });
+    expect(useFlowStore.getState().iamUsers).toEqual(updatedStateBefore.iamUsers);
 
     // 3. setDraggingSidebarItem null clears hovered states on nodes
     useFlowStore.setState({
@@ -609,8 +617,8 @@ describe('createUiSlice', () => {
       if (key === 'kube_iam_users') return Promise.resolve(JSON.stringify([{ id: 'u1', username: 'loaded-user' }]));
       return Promise.resolve('');
     });
-    await loadSettingsJson();
-    await new Promise(process.nextTick);
+    loadSettingsJson();
+    await new Promise((r) => setTimeout(r, 10));
     expect(useFlowStore.getState().iamUsers).toHaveLength(1);
 
     // loadSettingsJson with invalid kube_iam_users JSON and non-array JSON
@@ -695,7 +703,31 @@ describe('createUiSlice', () => {
     stopSimulation();
     expect(useFlowStore.getState().isSimulating).toBe(false);
 
-    // 5. loadSettingsJson with empty auto_saved_profile_content or invalid empty json
+    // 5. loadSettingsJson with various auto_saved_profile_content shapes
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') {
+        return Promise.resolve(JSON.stringify({ nodes: [{ id: 'restored-1' }], edges: [{ id: 'e-1' }] }));
+      }
+      return Promise.resolve('');
+    });
+    loadSettingsJson();
+
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') {
+        return Promise.resolve(JSON.stringify({ nodes: [{ id: 'r1' }], edges: 'not-array' }));
+      }
+      return Promise.resolve('');
+    });
+    loadSettingsJson();
+
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') {
+        return Promise.resolve(JSON.stringify({ nodes: 'not-array', edges: [] }));
+      }
+      return Promise.resolve('');
+    });
+    loadSettingsJson();
+
     (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
       if (key === 'auto_saved_profile_content') return Promise.resolve(JSON.stringify({ nodes: [], edges: [] }));
       return Promise.resolve('');
@@ -753,5 +785,119 @@ describe('createUiSlice', () => {
 
     stopSimulation();
     vi.useRealTimers();
+  });
+
+  it('builds initial activity logs for all k8s resource types and empty canvas when simulation starts', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: {} },
+        { id: 'dep-1', type: 'Deployment', data: { label: 'my-dep' } },
+        { id: 'rs-1', type: 'ReplicaSet', data: { label: 'my-rs' } },
+        { id: 'pod-1', type: 'Pod', data: { label: 'my-pod' } },
+        { id: 'svc-1', type: 'Service', data: { label: 'my-svc' } },
+        { id: 'ing-1', type: 'Ingress', data: { label: 'my-ing' } },
+        { id: 'hpa-1', type: 'HPA', data: { label: 'my-hpa' } },
+        { id: 'pvc-1', type: 'PVC', data: { label: 'my-pvc' } },
+        { id: 'cm-1', type: 'ConfigMap', data: { label: 'my-cm' } },
+        { id: 'sec-1', type: 'Secret', data: { label: 'my-sec' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'dep-1' }] as any,
+    });
+
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    let logs = useFlowStore.getState().activityLogs;
+    expect(logs.some((l) => l.includes('deployment.apps/my-dep created'))).toBe(true);
+    expect(logs.some((l) => l.includes('replicaset.apps/my-rs created'))).toBe(true);
+    expect(logs.some((l) => l.includes('ingress.networking.k8s.io/my-ing created'))).toBe(true);
+    expect(logs.some((l) => l.includes('hpa.autoscaling/my-hpa created'))).toBe(true);
+    expect(logs.some((l) => l.includes('pod/my-pod created'))).toBe(true);
+    stopSimulation();
+
+    // Simulation on canvas with only Internet node (no K8s resources defined)
+    useFlowStore.setState({
+      nodes: [{ id: 'i1', type: 'Internet', data: {} }] as any,
+      edges: [],
+    });
+    startSimulation();
+    logs = useFlowStore.getState().activityLogs;
+    expect(logs).toContain('No resources defined in the canvas.');
+    stopSimulation();
+  });
+
+  it('appends activity logs on ticks 1, 2, and 3', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'dep-1', type: 'Deployment', data: { label: 'my-dep' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'dep-1' }] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Tick 1
+    vi.advanceTimersByTime(1000);
+    let logs = useFlowStore.getState().activityLogs;
+    expect(logs.some((l) => l.includes('Pending'))).toBe(true);
+
+    // Tick 2
+    vi.advanceTimersByTime(1000);
+    logs = useFlowStore.getState().activityLogs;
+    expect(logs.some((l) => l.includes('ContainerCreating'))).toBe(true);
+
+    // Tick 3
+    vi.advanceTimersByTime(1000);
+    logs = useFlowStore.getState().activityLogs;
+    expect(logs.some((l) => l.includes('Running'))).toBe(true);
+
+    // Tick 4 (no additional tick log)
+    const countBefore = useFlowStore.getState().activityLogs.length;
+    vi.advanceTimersByTime(1000);
+    expect(useFlowStore.getState().activityLogs.length).toBe(countBefore);
+
+    stopSimulation();
+    vi.useRealTimers();
+  });
+
+  it('clears interval if isSimulating is set to false during a simulation tick', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'dep-1', type: 'Deployment', data: {} },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'dep-1' }] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Manually flip isSimulating to false without calling stopSimulation
+    useFlowStore.setState({ isSimulating: false });
+
+    // Next tick will run runSimulationTick, notice isSimulating is false, and clear interval
+    vi.advanceTimersByTime(1000);
+
+    vi.useRealTimers();
+  });
+
+  it('handles addActivityLog when WriteLog is missing or active_identity setting is loaded', async () => {
+    delete (globalThis as any).go.main.App.WriteLog;
+
+    const { addActivityLog, loadSettingsJson } = useFlowStore.getState();
+    addActivityLog('Log without WriteLog');
+    expect(useFlowStore.getState().activityLogs).toContain('Log without WriteLog');
+
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'active_identity') return Promise.resolve('dev-identity');
+      return Promise.resolve('');
+    });
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+    expect(useFlowStore.getState().activeIdentity).toBe('dev-identity');
   });
 });

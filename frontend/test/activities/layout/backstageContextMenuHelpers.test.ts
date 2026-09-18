@@ -4,6 +4,7 @@ import {
   getContextMenuButtonClass,
   getContextMenuLoadProfileClass,
   getContextMenuDeleteDocumentClass,
+  getContextMenuOpenFolderClass,
   getContextMenuExitClass,
   getContextMenuDividerClass,
   handleThemeToggleClick,
@@ -34,6 +35,11 @@ describe('backstageContextMenuHelpers', () => {
     expect(getContextMenuDeleteDocumentClass(false)).toContain('text-rose-500');
     expect(getContextMenuExitClass(true)).toContain('text-rose-500');
     expect(getContextMenuExitClass(false)).toContain('text-rose-500');
+  });
+
+  it('returns open folder class for dark and light modes', () => {
+    expect(getContextMenuOpenFolderClass(true)).toContain('text-emerald-400');
+    expect(getContextMenuOpenFolderClass(false)).toContain('text-emerald-600');
   });
 
   it('returns divider class for dark and light modes', () => {
