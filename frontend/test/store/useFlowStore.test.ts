@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useFlowStore, applyHistoryState, formatAutosaveKey } from '@/store/useFlowStore';
+import { useFlowStore, applyHistoryState, formatAutosaveKey, getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import { logger } from '@/lib/logger';
 
 vi.mock('@/lib/logger', () => ({
@@ -25,9 +25,14 @@ describe('useFlowStore', () => {
     };
   });
 
-  it('formatAutosaveKey generates correctly formatted timestamp string', () => {
+  it('formatAutosaveKey generates correctly formatted timestamp string and getCurrentSessionAutosaveKey caches key', () => {
     const d = new Date(2026, 8, 10, 12, 0, 8); // Sep 10, 2026 12:00:08
     expect(formatAutosaveKey(d)).toBe('autosave-10092026120008');
+
+    const key1 = getCurrentSessionAutosaveKey();
+    const key2 = getCurrentSessionAutosaveKey();
+    expect(key1).toBe(key2);
+    expect(key1).toMatch(/^autosave-\d+/);
   });
 
   it('initializes with default values and executes initial history timeout capture', async () => {
