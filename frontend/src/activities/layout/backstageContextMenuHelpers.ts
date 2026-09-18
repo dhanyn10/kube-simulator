@@ -54,10 +54,7 @@ export function getContextMenuOpenFolderClass(isDark: boolean): string {
  * Returns Exit button class based on theme mode.
  */
 export function getContextMenuExitClass(isDark: boolean): string {
-  if (isDark) {
-    return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-rose-500 hover:text-rose-400 cursor-pointer hover:bg-slate-800";
-  }
-  return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-rose-500 hover:text-rose-400 cursor-pointer hover:bg-slate-100";
+  return getContextMenuDeleteDocumentClass(isDark);
 }
 
 /**

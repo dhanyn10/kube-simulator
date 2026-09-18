@@ -139,4 +139,27 @@ describe('resizeHandlers', () => {
     storeState.nodes = [fallbackNode];
     handlers.onNodeResize({}, { id: 'f1', width: 0, height: 0 } as Node);
   });
+
+  it('covers all fallback branches in calculateMinContainerBounds, syncContainerSizeToBounds, and onNodeResizeStop', () => {
+    // 1. Child pod without position.x, position.y, width, height, or measured
+    const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 10, y: 20 }, width: 200, height: 150, data: { label: 'Dep' } };
+    const siblingNode: Node = { id: 'other1', type: 'Service', position: { x: 50, y: 50 }, data: {} };
+    const podNoPos: Node = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: {} as any, style: {} as any, data: {} };
+
+    storeState.nodes = [depNode, siblingNode, podNoPos];
+
+    const handlers = resizeHandlers(setStore, getStore);
+
+    // Resize pod without x/y or style.minHeight
+    handlers.onNodeResize({}, { id: 'pod1', width: 120, height: 70 } as Node);
+    expect(storeState.nodes.find((n: Node) => n.id === 'other1')).toEqual(siblingNode);
+
+    // Resize deployment with missing target node in storeState (testing currentNode fallback in onNodeResizeStop)
+    handlers.onNodeResizeStop({}, { id: 'missing-node', type: 'Service', position: { x: 5, y: 5 }, data: {} } as Node);
+    expect(storeState.addLog).toHaveBeenCalledWith(
+      'info',
+      expect.stringContaining("[Canvas Action] Resized card 'missing-node'"),
+      'UI'
+    );
+  });
 });

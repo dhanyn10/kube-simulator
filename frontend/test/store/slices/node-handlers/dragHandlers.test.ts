@@ -180,4 +180,52 @@ describe('dragHandlers', () => {
     expect(updatedPod?.parentId).toBe('ns1');
     expect(addLogSpy).toHaveBeenCalledWith('info', expect.stringContaining("Moved card 'n1'"), 'UI');
   });
+
+  it('covers remaining branches in dragHandlers: ReplicaSet pod detachment/internal move, hovering over self container, and collision resolution', () => {
+    const { onNodeDragStop, onNodeDrag } = useFlowStore.getState();
+
+    // 1. ReplicaSet pod detachment
+    useFlowStore.setState({
+      nodes: [
+        { id: 'pod1', type: 'Pod', parentId: 'rs1', position: { x: 10, y: 10 }, data: { replicas: 1 } },
+        { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, width: 300, height: 150, data: { replicas: 1 } }
+      ] as any,
+      detachingDeploymentId: 'rs1'
+    });
+
+    const rsPodNode = { id: 'pod1', type: 'Pod', parentId: 'rs1', position: { x: -100, y: -100 }, data: { replicas: 1 } } as any;
+    onNodeDragStop({} as any, rsPodNode);
+
+    let state = useFlowStore.getState();
+    let detachedPod = state.nodes.find(n => n.id === 'pod1');
+    expect(detachedPod?.parentId).toBeUndefined();
+
+    // 2. ReplicaSet internal pod move
+    useFlowStore.setState({
+      nodes: [
+        { id: 'pod1', type: 'Pod', parentId: 'rs1', position: { x: 10, y: 10 }, data: { replicas: 1 } },
+        { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, width: 300, height: 150, data: { replicas: 1 } }
+      ] as any,
+      detachingDeploymentId: null,
+      hoveredDeploymentId: null
+    });
+    onNodeDragStop({} as any, { id: 'pod1', type: 'Pod', parentId: 'rs1', position: { x: 15, y: 15 }, data: { replicas: 1 } } as any);
+    state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 'pod1')?.parentId).toBe('rs1');
+
+    // 3. Dragging a Deployment over itself (container.id === node.id in findHoveredContainer)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'd1', type: 'Deployment', position: { x: 100, y: 100 }, width: 320, height: 160, data: { label: 'dep' } }
+      ] as any
+    });
+    onNodeDrag({} as any, { id: 'd1', type: 'Deployment', position: { x: 105, y: 105 }, width: 320, height: 160, data: {} } as any);
+    expect(useFlowStore.getState().hoveredDeploymentId).toBeNull();
+
+    // 4. Standalone node drag stop without parent, hover, or detachment (global collision resolution & fallback dimensions)
+    const standaloneNode = { id: 'svc2', type: 'Service', position: { x: 0, y: 0 }, measured: { width: 120, height: 60 }, data: {} } as any;
+    useFlowStore.setState({ nodes: [standaloneNode] as any });
+    onNodeDragStop({} as any, standaloneNode);
+    expect(useFlowStore.getState().draggedNodeId).toBeNull();
+  });
 });

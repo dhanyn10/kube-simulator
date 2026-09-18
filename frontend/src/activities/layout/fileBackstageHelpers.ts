@@ -31,79 +31,80 @@ export const formatDateModified = (val?: string | number): string => {
   return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 };
 
+const fetchAutosaveProfiles = async (app: any): Promise<RecentFileItem[]> => {
+  if (!app?.GetAutosaveProfiles) return [];
+  const autosaves = await app.GetAutosaveProfiles();
+  if (!Array.isArray(autosaves)) return [];
+  return autosaves.map((a) => ({
+    id: `autosave-${a.key}`,
+    name: a.key,
+    location: a.location,
+    fullPath: a.location,
+    updatedAt: formatDateModified(a.timestamp),
+    isAutosave: true,
+  }));
+};
+
+const fetchFallbackAutosaveProfile = async (app: any): Promise<RecentFileItem[]> => {
+  if (!app?.GetSetting) return [];
+  const latestAutosaveKey = await app.GetSetting('auto_saved_profile_latest');
+  const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
+  if (!latestAutosaveKey || !latestAutosaveContent) return [];
+
+  let ts = Date.now();
+  try {
+    const parsed = JSON.parse(latestAutosaveContent);
+    if (parsed.timestamp) ts = parsed.timestamp;
+  } catch (err) {
+    logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
+  }
+  const autosaveLocation = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
+  const exists = app.FileExists ? await app.FileExists(autosaveLocation) : true;
+  if (!exists) return [];
+
+  return [{
+    id: 'autosave-latest',
+    name: latestAutosaveKey,
+    location: autosaveLocation,
+    fullPath: autosaveLocation,
+    updatedAt: formatDateModified(ts),
+    isAutosave: true,
+  }];
+};
+
+const fetchSavedProjects = async (app: any): Promise<RecentFileItem[]> => {
+  if (!app?.GetProjects) return [];
+  const projects = await app.GetProjects();
+  if (!Array.isArray(projects)) return [];
+
+  const items: RecentFileItem[] = [];
+  for (const p of projects) {
+    const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
+    const exists = app.FileExists ? await app.FileExists(fullPath) : true;
+    if (exists) {
+      items.push({
+        id: p.id,
+        name: p.name,
+        location: fullPath,
+        fullPath,
+        updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
+      });
+    }
+  }
+  return items;
+};
+
 /**
  * Load recent projects and auto-saved profiles from Wails backend
  */
 export const fetchRecentFiles = async (): Promise<RecentFileItem[]> => {
-  const items: RecentFileItem[] = [];
   const app = globalThis.go?.main?.App;
-
-  // 1. Scan all real-time autosave profile files on disk
-  if (app?.GetAutosaveProfiles) {
-    const autosaves = await app.GetAutosaveProfiles();
-    if (Array.isArray(autosaves)) {
-      autosaves.forEach((a) => {
-        items.push({
-          id: `autosave-${a.key}`,
-          name: a.key,
-          location: a.location,
-          fullPath: a.location,
-          updatedAt: formatDateModified(a.timestamp),
-          isAutosave: true,
-        });
-      });
-    }
+  let items = await fetchAutosaveProfiles(app);
+  if (items.length === 0) {
+    items = await fetchFallbackAutosaveProfile(app);
   }
-
-  // Fallback if GetAutosaveProfiles is not defined
-  if (items.length === 0 && app?.GetSetting) {
-    const latestAutosaveKey = await app.GetSetting('auto_saved_profile_latest');
-    const latestAutosaveContent = await app.GetSetting('auto_saved_profile_content');
-
-    if (latestAutosaveKey && latestAutosaveContent) {
-      let ts = Date.now();
-      try {
-        const parsed = JSON.parse(latestAutosaveContent);
-        if (parsed.timestamp) ts = parsed.timestamp;
-      } catch (err) {
-        logger.error('[FileBackstage] Failed to parse latest autosave timestamp', err);
-      }
-      const autosaveLocation = `~/.kube-simulator/autosaves/${latestAutosaveKey}.infra`;
-      const exists = app.FileExists ? await app.FileExists(autosaveLocation) : true;
-      if (exists) {
-        items.push({
-          id: 'autosave-latest',
-          name: latestAutosaveKey,
-          location: autosaveLocation,
-          fullPath: autosaveLocation,
-          updatedAt: formatDateModified(ts),
-          isAutosave: true,
-        });
-      }
-    }
-  }
-
-  // 2. Scan saved projects
-  if (app?.GetProjects) {
-    const projects = await app.GetProjects();
-    if (Array.isArray(projects)) {
-      for (const p of projects) {
-        const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
-        const exists = app.FileExists ? await app.FileExists(fullPath) : true;
-        if (exists) {
-          items.push({
-            id: p.id,
-            name: p.name,
-            location: fullPath,
-            fullPath,
-            updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
-          });
-        }
-      }
-    }
-  }
-
-  return items;
+  const savedProjects = await fetchSavedProjects(app);
+  return [...items, ...savedProjects];
 };
 
 /**
