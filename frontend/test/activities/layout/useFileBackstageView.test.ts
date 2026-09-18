@@ -2,10 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFlowStore } from '@/store';
 import { useFileBackstageView } from '@/activities/layout/useFileBackstageView';
+import * as fileBackstageHelpers from '@/activities/layout/fileBackstageHelpers';
 
 vi.mock('@/hooks/useFitView', () => ({
   useFitView: () => vi.fn(),
 }));
+
+vi.mock('@/activities/layout/fileBackstageHelpers', async (importOriginal) => {
+  const actual = await importOriginal<typeof fileBackstageHelpers>();
+  return {
+    ...actual,
+    restoreRecentFile: vi.fn(),
+    deleteRecentFile: vi.fn(),
+    openRecentFileFolder: vi.fn(),
+  };
+});
 
 describe('useFileBackstageView', () => {
   const onClose = vi.fn();
@@ -62,14 +73,27 @@ describe('useFileBackstageView', () => {
     document.body.removeChild(outsideEl);
   });
 
-  it('closes view on Escape key press when isOpen is true', () => {
+  it('closes view on Escape key press when isOpen is true and ignores other keys', () => {
     renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
+
+    act(() => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
 
     act(() => {
       globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     });
-
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('ignores Escape key press when isOpen is false', () => {
+    renderHook(() => useFileBackstageView({ isOpen: false, onClose }));
+
+    act(() => {
+      globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('handles row context menu', () => {
@@ -97,8 +121,51 @@ describe('useFileBackstageView', () => {
     expect(result.current.contextMenu).toEqual({ x: 200, y: 300, item: mockItem });
   });
 
+  it('handles quick save when autosave is enabled and current project exists', async () => {
+    useFlowStore.setState({ currentProject: { id: 5, name: 'Project 5' }, isAutosaveEnabled: true });
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: vi.fn(),
+        },
+      },
+    };
+
+    const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
+
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('handles quick save when UpdateProject fails for existing project', async () => {
+    useFlowStore.setState({ currentProject: { id: 5, name: 'Project 5' }, isAutosaveEnabled: false });
+    const mockUpdateProject = vi.fn().mockResolvedValue(false);
+    const mockSaveProject = vi.fn().mockResolvedValue(99);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: mockUpdateProject,
+          SaveProject: mockSaveProject,
+        },
+      },
+    };
+
+    const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
+
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(mockUpdateProject).toHaveBeenCalledWith(5, expect.any(String));
+    expect(mockSaveProject).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('handles quick save when autosave is enabled and setting save app API exists', async () => {
-    useFlowStore.setState({ isAutosaveEnabled: true });
+    useFlowStore.setState({ currentProject: null, isAutosaveEnabled: true });
     const mockSaveSetting = vi.fn();
     (globalThis as any).go = {
       main: {
@@ -118,7 +185,7 @@ describe('useFileBackstageView', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('handles quick save for existing project', async () => {
+  it('handles quick save for existing project successfully', async () => {
     useFlowStore.setState({ currentProject: { id: 5, name: 'Project 5' }, isAutosaveEnabled: false });
     const mockUpdateProject = vi.fn().mockResolvedValue(true);
     (globalThis as any).go = {
@@ -139,7 +206,7 @@ describe('useFileBackstageView', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('handles quick save as new project', async () => {
+  it('handles quick save as new project with empty name defaulting to session key', async () => {
     useFlowStore.setState({ currentProject: null, isAutosaveEnabled: false });
     const mockSaveProject = vi.fn().mockResolvedValue(12);
     (globalThis as any).go = {
@@ -153,15 +220,41 @@ describe('useFileBackstageView', () => {
     const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
 
     act(() => {
-      result.current.setNewProjectName('Brand New Arch');
+      result.current.setNewProjectName('   ');
     });
 
     await act(async () => {
       await result.current.handleQuickSaveCurrent();
     });
 
-    expect(mockSaveProject).toHaveBeenCalledWith('Brand New Arch', expect.any(String));
-    expect(useFlowStore.getState().currentProject).toEqual({ id: 12, name: 'Brand New Arch' });
+    expect(mockSaveProject).toHaveBeenCalledWith(expect.stringMatching(/^autosave-/), expect.any(String));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('calls handleRestore, handleDeleteFile, and handleOpenFolder wrapper functions', async () => {
+    const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
+
+    const mockItem = {
+      id: 1,
+      name: 'Item 1',
+      location: 'loc',
+      fullPath: 'path',
+      updatedAt: 'now',
+    };
+
+    await act(async () => {
+      await result.current.handleRestore(mockItem);
+    });
+    expect(fileBackstageHelpers.restoreRecentFile).toHaveBeenCalledWith(mockItem, onClose, expect.any(Function));
+
+    await act(async () => {
+      await result.current.handleDeleteFile(mockItem);
+    });
+    expect(fileBackstageHelpers.deleteRecentFile).toHaveBeenCalledWith(mockItem, expect.any(Function));
+
+    await act(async () => {
+      await result.current.handleOpenFolder(mockItem);
+    });
+    expect(fileBackstageHelpers.openRecentFileFolder).toHaveBeenCalledWith(mockItem);
   });
 });
