@@ -120,6 +120,17 @@ describe('createFlowSlice', () => {
     useFlowStore.getState().onConnect({ source: 'pod1', target: 'role1' });
     edges = useFlowStore.getState().edges;
     expect(edges[0].source).toBe('dep1');
+
+    // Connect child Pod (source) to Role (target) with parent Deployment
+    const roleTarget = { id: 'role-t', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+    const depParent = { id: 'dep-p', type: 'Deployment', position: { x: 100, y: 0 }, data: {} };
+    const childPodSource = { id: 'pod-s', type: 'Pod', parentId: 'dep-p', position: { x: 120, y: 40 }, data: {} };
+    useFlowStore.setState({ nodes: [roleTarget, depParent, childPodSource] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'pod-s', target: 'role-t' });
+    const edgesRerouted = useFlowStore.getState().edges;
+    expect(edgesRerouted[0].source).toBe('dep-p');
+    expect(edgesRerouted[0].target).toBe('role-t');
   });
 
   it('onConnect handles existing duplicate edge and missing nodes', () => {
@@ -237,8 +248,10 @@ describe('createFlowSlice', () => {
     expect(useFlowStore.getState().edges).toHaveLength(0);
 
     const centerNode: Node = { id: 'center', type: 'Pod', position: { x: 100, y: 100 }, data: {} };
-    useFlowStore.setState({ nodes: [centerNode], edges: [] });
-    useFlowStore.getState().onQuickConnect('center', 'right');
+    // Node positioned at bottom-right (not top)
+    const bottomRightNode: Node = { id: 'br', type: 'Pod', position: { x: 300, y: 300 }, data: {} };
+    useFlowStore.setState({ nodes: [centerNode, bottomRightNode], edges: [] });
+    useFlowStore.getState().onQuickConnect('center', 'top');
     expect(useFlowStore.getState().edges).toHaveLength(0);
   });
 

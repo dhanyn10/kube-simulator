@@ -44,4 +44,13 @@ describe('identityUtils', () => {
     expect(cert.subject).toBe('CN=admin-dev, O=kube-sim-users');
     expect(cert.authType).toBe('X.509 Certificate');
   });
+
+  it('handles empty username and missing userObj fallback', () => {
+    const certEmpty = generateDigitalCertificate('   ');
+    expect(certEmpty.user).toBe('system:admin');
+
+    const certCustom = generateDigitalCertificate('custom-user');
+    expect(certCustom.user).toBe('custom-user');
+    expect(certCustom.validFrom).toBe('2024-01-01T00:00:00Z');
+  });
 });

@@ -294,7 +294,7 @@ describe('useDropHandler', () => {
   });
 
   describe('Role & ConfigMap drag and drop handlers', () => {
-    it('onDragOver handles dragging an HPA item over a card inside deployment', () => {
+    it('onDragOver handles dragging Role, ConfigMap, and Secret items over cards', () => {
       const setHoveredDeploymentId = vi.fn();
       const depNode = {
         id: 'dep1',
@@ -305,29 +305,31 @@ describe('useDropHandler', () => {
         data: {}
       };
 
-      useFlowStore.setState({
-        draggingSidebarItem: 'HPA' as any,
-        setHoveredDeploymentId,
-        nodes: [depNode] as any
-      });
+      for (const itemType of ['Role', 'ConfigMap', 'Secret', 'HPA'] as const) {
+        useFlowStore.setState({
+          draggingSidebarItem: itemType as any,
+          setHoveredDeploymentId,
+          nodes: [depNode] as any
+        });
 
-      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+        const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
 
-      const mockEvent = {
-        preventDefault: vi.fn(),
-        clientX: 20,
-        clientY: 20,
-        dataTransfer: { dropEffect: '' }
-      } as any;
+        const mockEvent = {
+          preventDefault: vi.fn(),
+          clientX: 20,
+          clientY: 20,
+          dataTransfer: { dropEffect: '' }
+        } as any;
 
-      act(() => {
-        result.current.onDragOver(mockEvent);
-      });
+        act(() => {
+          result.current.onDragOver(mockEvent);
+        });
 
-      expect(setHoveredDeploymentId).toHaveBeenCalledWith('dep1');
+        expect(setHoveredDeploymentId).toHaveBeenCalledWith('dep1');
+      }
     });
 
-    it('onDrop handles dropping a Role onto a target workload', () => {
+    it('onDrop handles dropping a Role onto a target workload and onto empty canvas', () => {
       const depNode = {
         id: 'dep1',
         type: 'Deployment',
@@ -360,6 +362,32 @@ describe('useDropHandler', () => {
         id: 'dep1',
         label: 'My Deployment'
       });
+
+      // Role dropped on empty canvas
+      const addLogSpy = vi.fn();
+      useFlowStore.setState({
+        nodes: [],
+        addLog: addLogSpy
+      });
+
+      const emptyEvent = {
+        preventDefault: vi.fn(),
+        clientX: 500,
+        clientY: 500,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('Role')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(emptyEvent);
+      });
+
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'warn',
+        expect.stringContaining('Role must be dropped onto an existing card'),
+        'UI'
+      );
     });
 
     it('onDrop handles dropping a ConfigMap onto a target workload', () => {
@@ -693,6 +721,16 @@ describe('useDropHandler', () => {
 
       expect(setHoveredDeploymentId).toHaveBeenCalledWith(null);
       expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
+
+      // Null currentTarget
+      const nullTargetEvent = {
+        currentTarget: null,
+        relatedTarget: {}
+      } as any;
+
+      act(() => {
+        result.current.onDragLeave(nullTargetEvent);
+      });
     });
   });
 });
