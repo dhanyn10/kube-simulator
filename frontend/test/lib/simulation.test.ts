@@ -244,7 +244,7 @@ describe('simulation test suite', () => {
     expect(handleHpaScaling(depWithMinMax, 100, ctx3)).toBe(true);
   });
 
-  it('hpa scaling execution - scale down blocked by random check', () => {
+  it('hpa scaling execution - scale down blocked by random check or allowed when random >= 0.7', () => {
     (safeRandom as any).mockReturnValue(0.5); // < 0.7 triggers scale down dampening
     const depWith3 = createNode('d-scaled', 'Deployment', {
       replicas: 3,
@@ -256,6 +256,18 @@ describe('simulation test suite', () => {
 
     // cpuPercent = 10% on target 50% -> scale down attempt dampened
     expect(handleHpaScaling(depWith3, 10, ctx)).toBe(false);
+
+    // safeRandom >= 0.7 allows scale down
+    (safeRandom as any).mockReturnValue(0.8);
+    const depWith3Down = createNode('d-scaled-down', 'Deployment', {
+      replicas: 3,
+      hpas: [{ minReplicas: 1, maxReplicas: 5, targetCPU: 50 }]
+    });
+    const ctxDown = getMockCtx();
+    ctxDown.updatedNodes.push(depWith3Down);
+    ctxDown.nodeIndexMap?.set('d-scaled-down', ctxDown.updatedNodes.length - 1);
+
+    expect(handleHpaScaling(depWith3Down, 10, ctxDown)).toBe(true);
   });
 
   it('hpa scaling execution - update currentCPU', () => {

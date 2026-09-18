@@ -477,7 +477,7 @@ const startSimulationInternal = (
         simulationMetrics: {},
         isTerminalOpen: true,
         terminalActiveTab: 'activity',
-        activityLogs: [],
+        activityLogs: buildInitialActivity(nodes),
         terminalLogs: initialTerminalLogs,
       });
 
