@@ -1,6 +1,6 @@
 import  { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Anchor } from 'lucide-react';
+import { Anchor, Shield, Settings, Lock, Activity } from 'lucide-react';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -74,11 +74,57 @@ export const NamespaceNode = memo((props: NodeProps) => {
       />
 
       <div className={cn(
-        "pointer-events-none mt-auto text-[10px] uppercase tracking-[0.3em] font-black text-center italic opacity-20 pb-4 select-none",
+        "pointer-events-none mt-auto text-[10px] uppercase tracking-[0.3em] font-black text-center italic opacity-20 pb-2 select-none",
         colorMode === 'dark' ? "text-emerald-500" : "text-emerald-400"
       )}>
         Isolated Logic Cluster
       </div>
+
+      {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
+        <div className="mt-auto pt-1.5 pb-0.5 border-t border-slate-500/20 flex items-center justify-center gap-1 z-20 pointer-events-auto">
+          {data.roles?.map((role: any) => {
+            const usersText = role.assignedUsers && role.assignedUsers.length > 0
+              ? ` (Users: ${role.assignedUsers.join(', ')})`
+              : '';
+            return (
+              <span
+                key={role.id || role.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+                title={`Role: ${role.name}${usersText}`}
+              >
+                <Shield size={11} />
+              </span>
+            );
+          })}
+          {data.configMaps?.map((cm: any) => (
+            <span
+              key={cm.id || cm.name}
+              className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm"
+              title={`ConfigMap: ${cm.name}`}
+            >
+              <Settings size={11} />
+            </span>
+          ))}
+          {data.secrets?.map((sec: any) => (
+            <span
+              key={sec.id || sec.name}
+              className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+              title={`Secret: ${sec.name}`}
+            >
+              <Lock size={11} />
+            </span>
+          ))}
+          {data.hpas?.map((hpa: any) => (
+            <span
+              key={hpa.id || hpa.name}
+              className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm"
+              title={`HPA: ${hpa.name}`}
+            >
+              <Activity size={11} />
+            </span>
+          ))}
+        </div>
+      )}
 
       <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0 !pointer-events-none" />
       <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0 !pointer-events-none" />

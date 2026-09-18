@@ -122,58 +122,59 @@ export const DeploymentNode = memo((props: NodeProps) => {
       )}
 
       <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
-        {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
-          <div className="flex items-center gap-1 mb-1 px-2 py-1 rounded-md bg-indigo-950/40 border border-indigo-500/30 shadow-sm">
-            {data.roles?.map((role: any) => {
-              const usersText = role.assignedUsers && role.assignedUsers.length > 0
-                ? ` (Users: ${role.assignedUsers.join(', ')})`
-                : '';
-              return (
-                <span
-                  key={role.id || role.name}
-                  className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
-                  title={`Role: ${role.name}${usersText}`}
-                >
-                  <Shield size={12} />
-                </span>
-              );
-            })}
-            {data.configMaps?.map((cm: any) => (
-              <span
-                key={cm.id || cm.name}
-                className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer"
-                title={`ConfigMap: ${cm.name}`}
-              >
-                <Settings size={12} />
-              </span>
-            ))}
-            {data.secrets?.map((sec: any) => (
-              <span
-                key={sec.id || sec.name}
-                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer"
-                title={`Secret: ${sec.name}`}
-              >
-                <Lock size={12} />
-              </span>
-            ))}
-            {data.hpas?.map((hpa: any) => (
-              <span
-                key={hpa.id || hpa.name}
-                className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer"
-                title={`HPA: ${hpa.name}`}
-              >
-                <Activity size={12} />
-              </span>
-            ))}
-          </div>
-        )}
         <div className={cn(
-          "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40",
+          "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 mb-1",
           colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
         )}>
           Workload Zone
         </div>
       </div>
+
+      {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
+        <div className="mt-auto pt-1.5 pb-0.5 border-t border-slate-500/20 flex items-center justify-center gap-1 z-20 pointer-events-auto">
+          {data.roles?.map((role: any) => {
+            const usersText = role.assignedUsers && role.assignedUsers.length > 0
+              ? ` (Users: ${role.assignedUsers.join(', ')})`
+              : '';
+            return (
+              <span
+                key={role.id || role.name}
+                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+                title={`Role: ${role.name}${usersText}`}
+              >
+                <Shield size={11} />
+              </span>
+            );
+          })}
+          {data.configMaps?.map((cm: any) => (
+            <span
+              key={cm.id || cm.name}
+              className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm"
+              title={`ConfigMap: ${cm.name}`}
+            >
+              <Settings size={11} />
+            </span>
+          ))}
+          {data.secrets?.map((sec: any) => (
+            <span
+              key={sec.id || sec.name}
+              className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+              title={`Secret: ${sec.name}`}
+            >
+              <Lock size={11} />
+            </span>
+          ))}
+          {data.hpas?.map((hpa: any) => (
+            <span
+              key={hpa.id || hpa.name}
+              className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm"
+              title={`HPA: ${hpa.name}`}
+            >
+              <Activity size={11} />
+            </span>
+          ))}
+        </div>
+      )}
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2 z-[50]" />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-violet-600 !w-2 !h-2" />
