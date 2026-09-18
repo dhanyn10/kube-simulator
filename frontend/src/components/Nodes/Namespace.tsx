@@ -1,6 +1,7 @@
 import  { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
-import { Anchor, Shield, Settings, Lock, Activity } from 'lucide-react';
+import { Anchor } from 'lucide-react';
+import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { K8sNodeData } from '../../types';
 import { cn } from '../../lib/utils';
 import { useFlowStore } from '../../store';
@@ -80,51 +81,7 @@ export const NamespaceNode = memo((props: NodeProps) => {
         Isolated Logic Cluster
       </div>
 
-      {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
-        <div className="node-attached-footer">
-          {data.roles?.map((role: any) => {
-            const usersText = role.assignedUsers && role.assignedUsers.length > 0
-              ? ` (Users: ${role.assignedUsers.join(', ')})`
-              : '';
-            return (
-              <span
-                key={role.id || role.name}
-                className="node-attached-badge-role"
-                title={`Role: ${role.name}${usersText}`}
-              >
-                <Shield size={11} />
-              </span>
-            );
-          })}
-          {data.configMaps?.map((cm: any) => (
-            <span
-              key={cm.id || cm.name}
-              className="node-attached-badge-configmap"
-              title={`ConfigMap: ${cm.name}`}
-            >
-              <Settings size={11} />
-            </span>
-          ))}
-          {data.secrets?.map((sec: any) => (
-            <span
-              key={sec.id || sec.name}
-              className="node-attached-badge-secret"
-              title={`Secret: ${sec.name}`}
-            >
-              <Lock size={11} />
-            </span>
-          ))}
-          {data.hpas?.map((hpa: any) => (
-            <span
-              key={hpa.id || hpa.name}
-              className="node-attached-badge-hpa"
-              title={`HPA: ${hpa.name}`}
-            >
-              <Activity size={11} />
-            </span>
-          ))}
-        </div>
-      )}
+      <AttachedResourcesFooter data={data} />
 
       <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0 !pointer-events-none" />
       <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0 !pointer-events-none" />
