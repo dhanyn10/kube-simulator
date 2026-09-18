@@ -43,7 +43,7 @@ export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeDa
       <div className="flex-1" />
 
       {((data.roles && data.roles.length > 0) || (data.configMaps && data.configMaps.length > 0) || (data.secrets && data.secrets.length > 0) || (data.hpas && data.hpas.length > 0)) && (
-        <div className="mt-auto pt-1.5 pb-0.5 border-t border-slate-500/20 flex items-center justify-center gap-1 z-20 pointer-events-auto">
+        <div className="node-attached-footer">
           {data.roles?.map((role: any) => {
             const usersText = role.assignedUsers && role.assignedUsers.length > 0
               ? ` (Users: ${role.assignedUsers.join(', ')})`
@@ -51,7 +51,7 @@ export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeDa
             return (
               <span
                 key={role.id || role.name}
-                className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+                className="node-attached-badge-role"
                 title={`Role: ${role.name}${usersText}`}
               >
                 <Shield size={11} />
@@ -61,7 +61,7 @@ export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeDa
           {data.configMaps?.map((cm: any) => (
             <span
               key={cm.id || cm.name}
-              className="p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm"
+              className="node-attached-badge-configmap"
               title={`ConfigMap: ${cm.name}`}
             >
               <Settings size={11} />
@@ -70,7 +70,7 @@ export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeDa
           {data.secrets?.map((sec: any) => (
             <span
               key={sec.id || sec.name}
-              className="p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm"
+              className="node-attached-badge-secret"
               title={`Secret: ${sec.name}`}
             >
               <Lock size={11} />
@@ -79,7 +79,7 @@ export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeDa
           {data.hpas?.map((hpa: any) => (
             <span
               key={hpa.id || hpa.name}
-              className="p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm"
+              className="node-attached-badge-hpa"
               title={`HPA: ${hpa.name}`}
             >
               <Activity size={11} />

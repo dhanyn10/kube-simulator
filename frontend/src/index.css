@@ -359,6 +359,27 @@
   .backstage-table-row-normal-light {
     @apply hover:bg-slate-100/70;
   }
+
+  /* Node Attached Resources Footer Component Styles */
+  .node-attached-footer {
+    @apply mt-auto pt-1.5 pb-0.5 border-t border-slate-500/20 flex items-center justify-center gap-1 z-20 pointer-events-auto;
+  }
+
+  .node-attached-badge-role {
+    @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  .node-attached-badge-configmap {
+    @apply p-1 rounded-full bg-teal-600 text-white hover:bg-teal-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  .node-attached-badge-secret {
+    @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
+  }
+
+  .node-attached-badge-hpa {
+    @apply p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm;
+  }
 }
 
 
