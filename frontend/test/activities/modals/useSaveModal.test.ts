@@ -2,10 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFlowStore } from '@/store';
 import { useSaveModal } from '@/activities/modals/useSaveModal';
+import * as fileBackstageHelpers from '@/activities/layout/fileBackstageHelpers';
 
 vi.mock('@/hooks/useFitView', () => ({
   useFitView: () => vi.fn(),
 }));
+
+vi.mock('@/activities/layout/fileBackstageHelpers', async (importOriginal) => {
+  const actual = await importOriginal<typeof fileBackstageHelpers>();
+  return {
+    ...actual,
+    restoreRecentFile: vi.fn(),
+    deleteRecentFile: vi.fn(),
+    openRecentFileFolder: vi.fn(),
+  };
+});
 
 describe('useSaveModal', () => {
   const onClose = vi.fn();
@@ -87,7 +98,7 @@ describe('useSaveModal', () => {
     expect(result.current.contextMenu).toEqual({ x: 150, y: 250, item: mockItem });
   });
 
-  it('handles quick save current for existing project', async () => {
+  it('handles quick save current for existing project successfully', async () => {
     useFlowStore.setState({ currentProject: { id: 7, name: 'Project 7' } });
     const mockUpdateProject = vi.fn().mockResolvedValue(true);
     (globalThis as any).go = {
@@ -105,6 +116,30 @@ describe('useSaveModal', () => {
     });
 
     expect(mockUpdateProject).toHaveBeenCalledWith(7, expect.any(String));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('handles quick save when UpdateProject fails for existing project', async () => {
+    useFlowStore.setState({ currentProject: { id: 7, name: 'Project 7' } });
+    const mockUpdateProject = vi.fn().mockResolvedValue(false);
+    const mockSaveProject = vi.fn().mockResolvedValue(100);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: mockUpdateProject,
+          SaveProject: mockSaveProject,
+        },
+      },
+    };
+
+    const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
+
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(mockUpdateProject).toHaveBeenCalledWith(7, expect.any(String));
+    expect(mockSaveProject).toHaveBeenCalledWith('Project 7', expect.any(String));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -132,5 +167,32 @@ describe('useSaveModal', () => {
     expect(mockSaveProject).toHaveBeenCalledWith('New Architecture', expect.any(String));
     expect(useFlowStore.getState().currentProject).toEqual({ id: 15, name: 'New Architecture' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('calls handleRestoreFile, handleDeleteFile, and handleOpenFolder wrapper functions', async () => {
+    const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
+
+    const mockItem = {
+      id: 1,
+      name: 'Item 1',
+      location: 'loc',
+      fullPath: 'path',
+      updatedAt: 'now',
+    };
+
+    await act(async () => {
+      await result.current.handleRestoreFile(mockItem);
+    });
+    expect(fileBackstageHelpers.restoreRecentFile).toHaveBeenCalledWith(mockItem, onClose, expect.any(Function));
+
+    await act(async () => {
+      await result.current.handleDeleteFile(mockItem);
+    });
+    expect(fileBackstageHelpers.deleteRecentFile).toHaveBeenCalledWith(mockItem, expect.any(Function));
+
+    await act(async () => {
+      await result.current.handleOpenFolder(mockItem);
+    });
+    expect(fileBackstageHelpers.openRecentFileFolder).toHaveBeenCalledWith(mockItem);
   });
 });

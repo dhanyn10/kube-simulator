@@ -8,6 +8,8 @@ import {
   getContextMenuDividerClass,
   handleThemeToggleClick,
   handleLoadProfileClick,
+  handleDeleteDocumentClick,
+  handleOpenFolderClick,
   handleExitClick,
 } from '@/activities/layout/backstageContextMenuHelpers';
 
@@ -74,6 +76,59 @@ describe('backstageContextMenuHelpers', () => {
 
     expect(setContextMenu).toHaveBeenCalledWith(null);
     expect(handleRestoreFile).not.toHaveBeenCalled();
+  });
+
+  it('handles delete document click when item is present or null', () => {
+    const item = {
+      id: 1,
+      name: 'Test Project',
+      location: 'loc',
+      fullPath: 'path',
+      updatedAt: 'now',
+    };
+    const setContextMenu = vi.fn();
+    const handleDeleteFile = vi.fn();
+
+    handleDeleteDocumentClick(item, setContextMenu, handleDeleteFile);
+    expect(setContextMenu).toHaveBeenCalledWith(null);
+    expect(handleDeleteFile).toHaveBeenCalledWith(item);
+
+    setContextMenu.mockClear();
+    handleDeleteFile.mockClear();
+
+    handleDeleteDocumentClick(null, setContextMenu, handleDeleteFile);
+    expect(setContextMenu).toHaveBeenCalledWith(null);
+    expect(handleDeleteFile).not.toHaveBeenCalled();
+  });
+
+  it('handles open folder click when item and handleOpenFolder are present or missing', () => {
+    const item = {
+      id: 1,
+      name: 'Test Project',
+      location: 'loc',
+      fullPath: 'path',
+      updatedAt: 'now',
+    };
+    const setContextMenu = vi.fn();
+    const handleOpenFolder = vi.fn();
+
+    handleOpenFolderClick(item, setContextMenu, handleOpenFolder);
+    expect(setContextMenu).toHaveBeenCalledWith(null);
+    expect(handleOpenFolder).toHaveBeenCalledWith(item);
+
+    setContextMenu.mockClear();
+    handleOpenFolder.mockClear();
+
+    handleOpenFolderClick(null, setContextMenu, handleOpenFolder);
+    expect(setContextMenu).toHaveBeenCalledWith(null);
+    expect(handleOpenFolder).not.toHaveBeenCalled();
+
+    setContextMenu.mockClear();
+    handleOpenFolder.mockClear();
+
+    handleOpenFolderClick(item, setContextMenu, undefined);
+    expect(setContextMenu).toHaveBeenCalledWith(null);
+    expect(handleOpenFolder).not.toHaveBeenCalled();
   });
 
   it('handles exit click', () => {
