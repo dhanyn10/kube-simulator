@@ -8,6 +8,7 @@ import { useFlowStore } from '../../store';
 import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
+import { ForbiddenOverlay } from './ForbiddenOverlay';
 
 export const NamespaceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
@@ -32,6 +33,7 @@ export const NamespaceNode = memo((props: NodeProps) => {
       data.isDetaching && "border-solid border-red-500 bg-red-500/10 ring-8 ring-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
       isRoleDragging && data.isHovered && "role-drag-inside-ns"
     )}>
+      <ForbiddenOverlay nodeType="Namespace" data={data} />
       <NodeResizer
         minWidth={400}
         minHeight={280}

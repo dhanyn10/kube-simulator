@@ -24,6 +24,7 @@ import {
   emitLiveNodeCreatedCommand,
   emitLiveNodeDeletedCommand,
 } from '../../../activities/terminal/liveUpdateCommands';
+import { isNodeAccessForbidden } from '../../../activities/nodes/rbacNodeHelpers';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -258,11 +259,23 @@ export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () =>
   addNode: addNodeImpl(set, get),
   deleteNodes: deleteNodesImpl(set, get),
   updateNodeData: updateNodeDataImpl(set, get),
-  onNodeClick: (_event: MouseEvent, node: Node) => set({
-    activeDeploymentId: node.type === 'Deployment' ? node.id : null,
-    configuringNodeId: node.id,
-    configuringEdgeId: null
-  }),
+  onNodeClick: (_event: MouseEvent, node: Node) => {
+    const store = get();
+    const isForbidden = isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes);
+    if (isForbidden) {
+      store.addLog(
+        'warn',
+        `[API Server Auth] Access forbidden for user "${store.activeIdentity}" on card "${(node.data?.label as string) || node.id}" (${node.type})`,
+        'UI'
+      );
+      return;
+    }
+    set({
+      activeDeploymentId: node.type === 'Deployment' ? node.id : null,
+      configuringNodeId: node.id,
+      configuringEdgeId: null
+    });
+  },
   onPaneClick: () => set({ activeDeploymentId: null, configuringNodeId: null, configuringEdgeId: null }),
   groupNodes: (ids: string[]) => set({
     nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
