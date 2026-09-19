@@ -25,13 +25,13 @@ describe('ConfigMapModal', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders correctly with default initial state when initialConfigMap is null', () => {
+  it('renders correctly with default empty parameter rows when initialConfigMap is null', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
     expect(screen.getByText('Target card: My App Node')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
-    expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0);
+    expect(screen.getByText(/No parameters added yet/i)).toBeInTheDocument();
   });
 
   it('renders initialConfigMap data correctly when passed', () => {
@@ -54,21 +54,21 @@ describe('ConfigMapModal', () => {
     expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('allows editing values and custom key inputs', () => {
+  it('allows adding and filling parameter rows', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
+    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
     const valueInputs = screen.getAllByPlaceholderText(/e.g. 80, 1000/);
     fireEvent.change(valueInputs[0], { target: { value: '8080' } });
     expect(valueInputs[0]).toHaveValue('8080');
-
-    // Add new row
-    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
-    const allRows = screen.getAllByRole('combobox');
-    expect(allRows.length).toBe(5);
   });
 
   it('calls onSave and onClose when saving parameters', () => {
     render(<ConfigMapModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
+    const valueInputs = screen.getAllByPlaceholderText(/e.g. 80, 1000/);
+    fireEvent.change(valueInputs[0], { target: { value: '80' } });
 
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });
@@ -81,9 +81,6 @@ describe('ConfigMapModal', () => {
       name: 'my-custom-cm',
       configData: [
         { key: 'PORT', value: '80' },
-        { key: 'MAX_CONNECTIONS', value: '1000' },
-        { key: 'LOG_LEVEL', value: 'INFO' },
-        { key: 'CHAOS_MODE', value: 'disabled' },
       ],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();

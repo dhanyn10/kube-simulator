@@ -56,12 +56,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     } else {
       const randomSuffix = crypto.randomUUID().split('-')[0];
       setCmName(`cm-${randomSuffix}`);
-      setRows([
-        { id: `row-1-${Date.now()}`, key: 'PORT', value: '80' },
-        { id: `row-2-${Date.now()}`, key: 'MAX_CONNECTIONS', value: '1000' },
-        { id: `row-3-${Date.now()}`, key: 'LOG_LEVEL', value: 'INFO' },
-        { id: `row-4-${Date.now()}`, key: 'CHAOS_MODE', value: 'disabled' },
-      ]);
+      setRows([]);
     }
   }, [initialConfigMap, isOpen, targetNodeId]);
 
@@ -171,88 +166,97 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
             </button>
           </div>
 
-          <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
-            {rows.map((row) => {
-              const selectedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === row.key);
+          {rows.length === 0 ? (
+            <div className={cn(
+              "p-6 text-center border rounded-lg border-dashed text-xs",
+              colorMode === 'dark' ? "border-slate-800 text-slate-500" : "border-slate-300 text-slate-400"
+            )}>
+              No parameters added yet. Click <span className="font-semibold text-teal-400">"+ Add Parameter"</span> above to add a key-value entry.
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+              {rows.map((row) => {
+                const selectedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === row.key);
 
-              return (
-                <div
-                  key={row.id}
-                  className={cn(
-                    "p-3 rounded-lg border space-y-2 transition-all",
-                    colorMode === 'dark'
-                      ? "bg-slate-900/60 border-slate-800"
-                      : "bg-slate-50 border-slate-200"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    {/* Key Dropdown */}
-                    <div className="w-1/2">
-                      <label htmlFor={`cm-key-select-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
-                        Parameter Key
-                      </label>
-                      <select
-                        id={`cm-key-select-${row.id}`}
-                        value={row.key}
-                        onChange={(e) => handleRowChange(row.id, 'key', e.target.value)}
-                        className={cn(
-                          "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                          colorMode === 'dark'
-                            ? "bg-slate-950 border-slate-700 text-slate-200"
-                            : "bg-white border-slate-300 text-slate-800"
-                        )}
+                return (
+                  <div
+                    key={row.id}
+                    className={cn(
+                      "p-3 rounded-lg border space-y-2 transition-all",
+                      colorMode === 'dark'
+                        ? "bg-slate-900/60 border-slate-800"
+                        : "bg-slate-50 border-slate-200"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      {/* Key Dropdown */}
+                      <div className="w-1/2">
+                        <label htmlFor={`cm-key-select-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
+                          Parameter Key
+                        </label>
+                        <select
+                          id={`cm-key-select-${row.id}`}
+                          value={row.key}
+                          onChange={(e) => handleRowChange(row.id, 'key', e.target.value)}
+                          className={cn(
+                            "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+                            colorMode === 'dark'
+                              ? "bg-slate-950 border-slate-700 text-slate-200"
+                              : "bg-white border-slate-300 text-slate-800"
+                          )}
+                        >
+                          {PREDEFINED_KEYS.map((pk) => (
+                            <option key={pk.key} value={pk.key}>
+                              {pk.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Value Input */}
+                      <div className="w-1/2">
+                        <label htmlFor={`cm-val-input-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
+                          Parameter Value
+                        </label>
+                        <input
+                          id={`cm-val-input-${row.id}`}
+                          type="text"
+                          value={row.value}
+                          onChange={(e) => handleRowChange(row.id, 'value', e.target.value)}
+                          placeholder="e.g. 80, 1000, INFO, enabled"
+                          className={cn(
+                            "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+                            colorMode === 'dark'
+                              ? "bg-slate-950 border-slate-700 text-slate-100"
+                              : "bg-white border-slate-300 text-slate-900"
+                          )}
+                        />
+                      </div>
+
+                      {/* Delete button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRow(row.id)}
+                        className="mt-4 p-1.5 rounded hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
+                        title="Remove row"
+                        aria-label="Remove parameter row"
                       >
-                        {PREDEFINED_KEYS.map((pk) => (
-                          <option key={pk.key} value={pk.key}>
-                            {pk.label}
-                          </option>
-                        ))}
-                      </select>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
 
-                    {/* Value Input */}
-                    <div className="w-1/2">
-                      <label htmlFor={`cm-val-input-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
-                        Parameter Value
-                      </label>
-                      <input
-                        id={`cm-val-input-${row.id}`}
-                        type="text"
-                        value={row.value}
-                        onChange={(e) => handleRowChange(row.id, 'value', e.target.value)}
-                        placeholder="e.g. 80, 1000, INFO, enabled"
-                        className={cn(
-                          "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                          colorMode === 'dark'
-                            ? "bg-slate-950 border-slate-700 text-slate-100"
-                            : "bg-white border-slate-300 text-slate-900"
-                        )}
-                      />
-                    </div>
-
-                    {/* Delete button */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveRow(row.id)}
-                      className="mt-4 p-1.5 rounded hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
-                      title="Remove row"
-                      aria-label="Remove parameter row"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* Educational Hint */}
+                    {selectedKeyInfo && selectedKeyInfo.hint && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-0.5">
+                        <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                        <span>{selectedKeyInfo.hint}</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Educational Hint */}
-                  {selectedKeyInfo && selectedKeyInfo.hint && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-0.5">
-                      <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                      <span>{selectedKeyInfo.hint}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </Modal>
