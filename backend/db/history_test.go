@@ -17,11 +17,16 @@ func TestNewHistoryManager(t *testing.T) {
 
 func TestHistoryManager_Init(t *testing.T) {
 	originalHome := os.Getenv("HOME")
+	originalUserProfile := os.Getenv("USERPROFILE")
 	tmpDir, _ := os.MkdirTemp("", "kube-builder-history-init-test-*")
 	defer os.RemoveAll(tmpDir)
 
 	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", originalHome)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("USERPROFILE", originalUserProfile)
+	}()
 
 	hm := NewHistoryManager()
 	err := hm.Init()
@@ -55,11 +60,16 @@ func TestHistoryManager_Init_HomeError(t *testing.T) {
 
 func TestHistoryManager_Init_BadgerError(t *testing.T) {
 	originalHome := os.Getenv("HOME")
+	originalUserProfile := os.Getenv("USERPROFILE")
 	tmpDir, _ := os.MkdirTemp("", "kube-builder-history-fail-*")
 	defer os.RemoveAll(tmpDir)
 
 	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", originalHome)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("USERPROFILE", originalUserProfile)
+	}()
 
 	// Create a file where the directory history_db is expected
 	dbPath := filepath.Join(tmpDir, ".kube-simulator", "history_db")
