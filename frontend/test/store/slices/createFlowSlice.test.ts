@@ -8,6 +8,8 @@ describe('createFlowSlice', () => {
     useFlowStore.setState({
       nodes: [],
       edges: [],
+      activeIdentity: 'system:admin',
+      iamUsers: [],
       lastActionId: 'init'
     });
   });
@@ -32,6 +34,27 @@ describe('createFlowSlice', () => {
 
     expect(n1?.position).toEqual({ x: 10, y: 10 });
     expect(n2?.position).toEqual({ x: 60, y: 60 });
+  });
+
+  it('onNodesChange rejects position changes for forbidden nodes', () => {
+    const devUser = {
+      id: 'dev1',
+      username: 'dev-user',
+      policies: [{ name: 'ContainerDeveloperPolicy', description: 'Dev' }],
+      roles: [],
+    };
+    const svcNode = { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'svc1' } };
+    useFlowStore.setState({
+      nodes: [svcNode] as any,
+      iamUsers: [devUser] as any,
+      activeIdentity: 'dev-user',
+    });
+
+    const { onNodesChange } = useFlowStore.getState();
+    onNodesChange([{ id: 'svc1', type: 'position', position: { x: 100, y: 100 } }]);
+
+    const state = useFlowStore.getState();
+    expect(state.nodes[0].position).toEqual({ x: 0, y: 0 });
   });
 
   it('onNodesChange handles dx===0 and dy===0 or position changes without group', () => {

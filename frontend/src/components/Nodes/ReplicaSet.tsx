@@ -3,12 +3,14 @@ import { NodeProps, NodeResizer, Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { useReplicaSetNodeHandler } from '@/activities/nodes';
 import { AttachedResourcesFooter } from './AttachedResourcesFooter';
+import { ForbiddenOverlay } from './ForbiddenOverlay';
 
 export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeData>>) => {
   const { containerClass, badgeClass } = useReplicaSetNodeHandler(selected);
 
   return (
     <div className={containerClass}>
+      <ForbiddenOverlay nodeType="ReplicaSet" data={data} />
       <NodeResizer
         minWidth={180}
         minHeight={100}

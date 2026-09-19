@@ -51,6 +51,7 @@ import { useFileSystem } from './hooks/useFileSystem';
 import { useThemeSync } from './hooks/useThemeSync';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useAppInit, useAttachmentHandlers } from './hooks/useAppHelpers';
+import { isNodeAccessForbidden } from './activities/nodes/rbacNodeHelpers';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -89,8 +90,20 @@ export default function App() {
   // @ts-ignore
   if (globalThis !== undefined) globalThis.useFlowStore = useFlowStore;
 
-  const nodes = useFlowStore((state) => state.nodes);
+  const rawNodes = useFlowStore((state) => state.nodes);
   const edges = useFlowStore((state) => state.edges);
+  const activeIdentity = useFlowStore((state) => state.activeIdentity);
+  const iamUsers = useFlowStore((state) => state.iamUsers);
+
+  const nodes = React.useMemo(() => {
+    return rawNodes.map((node) => {
+      const isForbidden = isNodeAccessForbidden(activeIdentity, iamUsers || [], node.type, node.data, rawNodes);
+      return {
+        ...node,
+        draggable: !isForbidden,
+      };
+    });
+  }, [rawNodes, activeIdentity, iamUsers]);
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
   const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
   const onConnect = useFlowStore((state) => state.onConnect);

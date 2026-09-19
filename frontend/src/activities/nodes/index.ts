@@ -9,3 +9,4 @@ export * from './useBaseNode';
 export * from './useReplicaSetNode';
 export * from './nodeBadgeHelpers';
 export * from './useQuickConnect';
+export * from './rbacNodeHelpers';

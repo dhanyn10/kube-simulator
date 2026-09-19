@@ -18,6 +18,7 @@ import {
   emitLiveEdgeCreatedCommand,
   emitLiveEdgeDeletedCommand,
 } from '../../activities/terminal/liveUpdateCommands';
+import { isNodeAccessForbidden } from '../../activities/nodes/rbacNodeHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -218,9 +219,29 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     });
   },
   onNodesChange: (changes: NodeChange[]) => {
-    const extraChanges = getGroupDragExtraChanges(changes, get().nodes);
+    const { nodes, activeIdentity, iamUsers } = get();
+    const allowedChanges = changes.filter((change) => {
+      if (change.type === 'position' && change.id) {
+        const targetNode = nodes.find((n) => n.id === change.id);
+        if (targetNode) {
+          const isForbidden = isNodeAccessForbidden(
+            activeIdentity,
+            iamUsers || [],
+            targetNode.type,
+            targetNode.data,
+            nodes
+          );
+          if (isForbidden) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+
+    const extraChanges = getGroupDragExtraChanges(allowedChanges, nodes);
     set((state) => {
-      const nextNodes = applyNodeChanges([...changes, ...extraChanges], state.nodes);
+      const nextNodes = applyNodeChanges([...allowedChanges, ...extraChanges], state.nodes);
       const syncedNodes = syncRoleRulesFromConnections(nextNodes, state.edges);
       return { nodes: syncedNodes };
     });
@@ -269,12 +290,20 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     };
   },
   onConnect: (connection: Connection) => {
-    const { nodes, updateNodeData, validateEdge } = get();
+    const { nodes, updateNodeData, validateEdge, activeIdentity, iamUsers, addLog } = get();
     let sourceId = connection.source!;
     let targetId = connection.target!;
 
     let sourceNode = nodes.find((n) => n.id === sourceId);
     let targetNode = nodes.find((n) => n.id === targetId);
+
+    if (
+      isNodeAccessForbidden(activeIdentity, iamUsers || [], sourceNode?.type, sourceNode?.data, nodes) ||
+      isNodeAccessForbidden(activeIdentity, iamUsers || [], targetNode?.type, targetNode?.data, nodes)
+    ) {
+      addLog('warn', `[API Server Auth] Connection rejected: User "${activeIdentity}" cannot connect forbidden card(s).`, 'UI');
+      return;
+    }
 
     // If connecting Role <-> child Pod inside a Deployment, reroute connection to parent Deployment
     if (sourceNode?.type === 'Role' && targetNode?.type === 'Pod' && targetNode.parentId) {

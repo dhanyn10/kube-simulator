@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
+import { ForbiddenOverlay } from './ForbiddenOverlay';
 import { useBaseNodeHandler } from '@/activities/nodes';
 
 /**
@@ -103,7 +104,8 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
   } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
   return (
-    <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200")}>
+    <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200 relative")}>
+      <ForbiddenOverlay nodeType={data.type || title} data={data} />
       {replicas > 1 && (
         <div className={cn("absolute -right-1.5 -top-1.5 w-full h-full border-2 rounded-lg -z-10", colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300")} />
       )}

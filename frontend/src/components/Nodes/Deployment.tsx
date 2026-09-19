@@ -8,6 +8,7 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
 import { useNodeStyles } from '../../hooks/useNodeStyles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
+import { ForbiddenOverlay } from './ForbiddenOverlay';
 
 const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], nodes: any[]): boolean => {
   const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
@@ -68,6 +69,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
       roleDragClass
     )}>
+      <ForbiddenOverlay nodeType="Deployment" data={data} />
       <QuickConnectArrows nodeId={props.id} color="violet" />
       <NodeResizer
         minWidth={218}
