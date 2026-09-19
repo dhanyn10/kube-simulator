@@ -12,6 +12,7 @@ import {
   handleBoundPvcs,
   handleOomCrashes,
   scheduleRecovery,
+  checkConfigMapSimulationStatus,
   processWorkloadSimulation
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
@@ -403,5 +404,54 @@ describe('simulation test suite', () => {
     ctxHpa.nodeIndexMap?.set('dep-hpa-50', ctxHpa.updatedNodes.length - 1);
     const scaled = handleHpaScaling(depHpa50, 52, ctxHpa); // ratio 52/50 = 1.04, diff <= 0.1
     expect(scaled).toBe(false);
+  });
+
+  it('ConfigMap simulation chaos mode: SIMULATE_FAILURE set to true crashes pods and recovers when removed', () => {
+    const pod = createNode('pod-cm-test', 'Pod', { status: 'ready', webserver: 'nginx' });
+    const dep = createNode('dep-cm-test', 'Deployment', {
+      configMaps: [
+        {
+          id: 'cm1',
+          name: 'chaos-cm',
+          configData: [
+            { key: 'SIMULATE_FAILURE', value: 'true' },
+            { key: 'LOG_LEVEL', value: 'debug' }
+          ]
+        }
+      ]
+    });
+
+    const addLogMock = vi.fn();
+    const ctx = getMockCtx({
+      get: vi.fn().mockReturnValue({ addLog: addLogMock })
+    });
+    ctx.updatedNodes.push(pod, dep);
+    ctx.nodeIndexMap?.set('pod-cm-test', ctx.updatedNodes.length - 2);
+    ctx.nodeIndexMap?.set('dep-cm-test', ctx.updatedNodes.length - 1);
+
+    // Dynamic childPodMap lookup to match simulation loop behavior
+    Object.defineProperty(ctx, 'childPodMap', {
+      get: () => new Map([['dep-cm-test', [ctx.updatedNodes.find(n => n.id === 'pod-cm-test')!]]])
+    });
+
+    // Run ConfigMap simulation check
+    const cmStatus = checkConfigMapSimulationStatus(dep, ctx);
+    expect(cmStatus.isBlocked).toBe(true);
+    expect(cmStatus.hasChanges).toBe(true);
+    expect(ctx.updatedNodes.find(n => n.id === 'pod-cm-test')?.data.status).toBe('crashing');
+    expect(addLogMock).toHaveBeenCalledWith('warning', expect.stringContaining('SIMULATE_FAILURE=true'), 'Simulation');
+
+    // Run again while already crashing -> no extra changes
+    const cmStatus2 = checkConfigMapSimulationStatus(dep, ctx);
+    expect(cmStatus2.isBlocked).toBe(true);
+    expect(cmStatus2.hasChanges).toBe(false);
+
+    // Disable SIMULATE_FAILURE
+    dep.data.configMaps[0].configData[0].value = 'false';
+    const cmStatus3 = checkConfigMapSimulationStatus(dep, ctx);
+    expect(cmStatus3.isBlocked).toBe(false);
+    expect(cmStatus3.hasChanges).toBe(true);
+    expect(ctx.updatedNodes.find(n => n.id === 'pod-cm-test')?.data.status).toBe('ready');
+    expect(addLogMock).toHaveBeenCalledWith('info', expect.stringContaining('restored to ready'), 'Simulation');
   });
 });

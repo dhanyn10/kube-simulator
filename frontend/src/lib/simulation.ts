@@ -326,9 +326,70 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   return hasChanges;
 };
 
+export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
+  const dData = dep.data as K8sNodeData;
+  const configMaps = dData.configMaps || [];
+  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
+
+  let hasSimulatedFailure = false;
+  let failingCmName = '';
+
+  for (const cm of configMaps) {
+    if (!cm.configData) continue;
+    const failureItem = cm.configData.find(
+      (kv) => kv.key?.trim().toUpperCase() === 'SIMULATE_FAILURE' && kv.value?.trim().toLowerCase() === 'true'
+    );
+    if (failureItem) {
+      hasSimulatedFailure = true;
+      failingCmName = cm.name;
+      break;
+    }
+  }
+
+  let hasChanges = false;
+
+  if (hasSimulatedFailure) {
+    childPods.forEach((pod) => {
+      if (pod.data.status !== 'crashing') {
+        if (updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
+          hasChanges = true;
+          try {
+            ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] SIMULATE_FAILURE=true in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
+          } catch {
+            // Ignore log if context missing addLog in test harness
+          }
+        }
+      }
+    });
+    return { hasChanges, isBlocked: true };
+  }
+
+  // Recover pods if failure setting was turned off/removed
+  childPods.forEach((pod) => {
+    if (pod.data.status === 'crashing' && pod.data.simulatedFailureCM) {
+      const pData = pod.data as K8sNodeData;
+      const isReadyStatus = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
+      const nextStatus = isReadyStatus ? 'ready' : 'pending';
+      if (updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureCM: undefined })) {
+        hasChanges = true;
+        try {
+          ctx.get()?.addLog?.('info', `[ConfigMap Recovered] SIMULATE_FAILURE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
+        } catch {
+          // Ignore log if context missing
+        }
+      }
+    }
+  });
+
+  return { hasChanges, isBlocked: false };
+};
+
 export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
+  const cmResult = checkConfigMapSimulationStatus(dep, ctx);
+  if (cmResult.isBlocked) return { hasChanges: cmResult.hasChanges };
+
   const pvcResult = checkPvcReadiness(dep, ctx);
-  if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges };
+  if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges || cmResult.hasChanges };
 
   const trafficResult = calculateIncomingTraffic(dep, ctx);
   const metricsResult = calculateResourceMetrics(dep, trafficResult.traffic, ctx);
@@ -336,5 +397,5 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, ctx);
   const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx);
 
-  return { hasChanges: pvcResult.hasChanges || oomChanged || hpaChanged };
+  return { hasChanges: cmResult.hasChanges || pvcResult.hasChanges || oomChanged || hpaChanged };
 };

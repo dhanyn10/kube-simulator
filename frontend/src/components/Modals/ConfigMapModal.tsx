@@ -133,6 +133,50 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           />
         </div>
 
+        {/* Quick Simulation Presets */}
+        <div>
+          <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+            Quick Simulation Presets
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDataItems([
+                  { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_URL', value: 'https://api.example.com' },
+                  { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'LOG_LEVEL', value: 'info' },
+                  { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'SIMULATE_FAILURE', value: 'false' },
+                ]);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded text-xs font-medium border transition-colors cursor-pointer",
+                colorMode === 'dark'
+                  ? "bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800"
+                  : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200"
+              )}
+            >
+              Preset: Normal App Config
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDataItems([
+                  { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'SIMULATE_FAILURE', value: 'true' },
+                  { id: `cm-kv-${crypto.randomUUID().split('-')[0]}`, key: 'LOG_LEVEL', value: 'debug' },
+                ]);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded text-xs font-medium border transition-colors cursor-pointer",
+                colorMode === 'dark'
+                  ? "bg-rose-950/40 border-rose-800/60 text-rose-300 hover:bg-rose-900/50"
+                  : "bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100"
+              )}
+            >
+              Preset: Simulate Failure (Chaos)
+            </button>
+          </div>
+        </div>
+
         {/* Key-Value Data Section */}
         <KeyValueFormSection
           items={dataItems}
