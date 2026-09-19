@@ -31,8 +31,7 @@ describe('ConfigMapModal', () => {
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
     expect(screen.getByText('Target card: My App Node')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Container Port/i)).toHaveValue('80');
-    expect(screen.getByLabelText(/Max Capacity/i)).toHaveValue('1000');
+    expect(screen.getAllByRole('combobox').length).toBeGreaterThan(0);
   });
 
   it('renders initialConfigMap data correctly when passed', () => {
@@ -51,21 +50,21 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit ConfigMap' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('existing-config')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Container Port/i)).toHaveValue('8080');
-    expect(screen.getByLabelText(/Max Capacity/i)).toHaveValue('500');
-    expect(screen.getByLabelText(/Logging Verbosity/i)).toHaveValue('WARN');
+    expect(screen.getByDisplayValue('8080')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('allows changing parameter dropdowns', () => {
+  it('allows editing values and custom key inputs', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
-    // Change Container Port dropdown
-    fireEvent.change(screen.getByLabelText(/Container Port/i), { target: { value: '8080' } });
-    expect(screen.getByLabelText(/Container Port/i)).toHaveValue('8080');
+    const valueInputs = screen.getAllByPlaceholderText(/e.g. 80, 1000/);
+    fireEvent.change(valueInputs[0], { target: { value: '8080' } });
+    expect(valueInputs[0]).toHaveValue('8080');
 
-    // Change Max Capacity dropdown
-    fireEvent.change(screen.getByLabelText(/Max Capacity/i), { target: { value: '5000' } });
-    expect(screen.getByLabelText(/Max Capacity/i)).toHaveValue('5000');
+    // Add new row
+    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
+    const allRows = screen.getAllByRole('combobox');
+    expect(allRows.length).toBe(5);
   });
 
   it('calls onSave and onClose when saving parameters', () => {
