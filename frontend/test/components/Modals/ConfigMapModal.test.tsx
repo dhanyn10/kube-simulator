@@ -54,21 +54,28 @@ describe('ConfigMapModal', () => {
     expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('allows adding and filling parameter rows', () => {
+  it('allows adding parameter rows and adapts input control according to key type', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
-    const valueInputs = screen.getAllByPlaceholderText(/e.g. 80, 1000/);
-    fireEvent.change(valueInputs[0], { target: { value: '8080' } });
-    expect(valueInputs[0]).toHaveValue('8080');
+    // PORT defaults to number input
+    const portInput = screen.getByPlaceholderText(/e.g. 80, 8080/);
+    expect(portInput).toHaveAttribute('type', 'number');
+
+    // Change key to LOG_LEVEL
+    const keySelects = screen.getAllByRole('combobox');
+    fireEvent.change(keySelects[0], { target: { value: 'LOG_LEVEL' } });
+
+    // LOG_LEVEL changes value control to enum select dropdown
+    expect(screen.getByRole('option', { name: /DEBUG \(Verbose Diagnostics\)/i })).toBeInTheDocument();
   });
 
   it('calls onSave and onClose when saving parameters', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
-    const valueInputs = screen.getAllByPlaceholderText(/e.g. 80, 1000/);
-    fireEvent.change(valueInputs[0], { target: { value: '80' } });
+    const numberInput = screen.getByPlaceholderText(/e.g. 80, 8080/);
+    fireEvent.change(numberInput, { target: { value: '8080' } });
 
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });
@@ -80,7 +87,7 @@ describe('ConfigMapModal', () => {
       id: expect.any(String),
       name: 'my-custom-cm',
       configData: [
-        { key: 'PORT', value: '80' },
+        { key: 'PORT', value: '8080' },
       ],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();

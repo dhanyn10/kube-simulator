@@ -20,11 +20,62 @@ interface ConfigRow {
   value: string;
 }
 
-const PREDEFINED_KEYS = [
-  { key: 'PORT', label: 'PORT (Container Service Port)', hint: 'e.g. 80, 8080, 3000. Must match Service targetPort' },
-  { key: 'MAX_CONNECTIONS', label: 'MAX_CONNECTIONS (Traffic Capacity RPS)', hint: 'e.g. 100 (low/throttling), 1000 (normal)' },
-  { key: 'LOG_LEVEL', label: 'LOG_LEVEL (Console Log Verbosity)', hint: 'DEBUG, INFO, WARN, ERROR' },
-  { key: 'CHAOS_MODE', label: 'CHAOS_MODE (Simulate CrashLoopBackOff)', hint: 'enabled or disabled' },
+interface KeyDefinition {
+  key: string;
+  label: string;
+  type: 'number' | 'enum';
+  options?: { value: string; label: string }[];
+  defaultValue: string;
+  placeholder?: string;
+  hint: string;
+  min?: number;
+  max?: number;
+}
+
+const PREDEFINED_KEYS: KeyDefinition[] = [
+  {
+    key: 'PORT',
+    label: 'PORT (Container Service Port)',
+    type: 'number',
+    defaultValue: '80',
+    placeholder: 'e.g. 80, 8080, 3000',
+    min: 1,
+    max: 65535,
+    hint: 'Container listening port (number). Must match Service targetPort.',
+  },
+  {
+    key: 'MAX_CONNECTIONS',
+    label: 'MAX_CONNECTIONS (Traffic Capacity RPS)',
+    type: 'number',
+    defaultValue: '1000',
+    placeholder: 'e.g. 100, 500, 1000',
+    min: 1,
+    hint: 'Maximum traffic capacity limit in RPS (number). Excess traffic gets throttled.',
+  },
+  {
+    key: 'LOG_LEVEL',
+    label: 'LOG_LEVEL (Console Log Verbosity)',
+    type: 'enum',
+    defaultValue: 'INFO',
+    options: [
+      { value: 'INFO', label: 'INFO (Standard Activity Logs)' },
+      { value: 'DEBUG', label: 'DEBUG (Verbose Diagnostics)' },
+      { value: 'WARN', label: 'WARN (Warning Highlights Only)' },
+      { value: 'ERROR', label: 'ERROR (Errors Only)' },
+    ],
+    hint: 'Controls verbosity level of terminal activity logs.',
+  },
+  {
+    key: 'CHAOS_MODE',
+    label: 'CHAOS_MODE (Simulate CrashLoopBackOff)',
+    type: 'enum',
+    defaultValue: 'disabled',
+    options: [
+      { value: 'disabled', label: 'disabled (Normal Operation)' },
+      { value: 'enabled', label: 'enabled (Simulate CrashLoopBackOff)' },
+    ],
+    hint: 'Enables or disables simulated pod failures.',
+  },
 ];
 
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
@@ -63,9 +114,14 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   if (!isOpen) return null;
 
   const handleAddRow = () => {
+    const defaultKeyDef = PREDEFINED_KEYS[0];
     setRows((prev) => [
       ...prev,
-      { id: `row-${Date.now()}-${crypto.randomUUID().split('-')[0]}`, key: 'PORT', value: '' },
+      {
+        id: `row-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
+        key: defaultKeyDef.key,
+        value: defaultKeyDef.defaultValue,
+      },
     ]);
   };
 
@@ -73,9 +129,18 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     setRows((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleRowChange = (id: string, field: keyof ConfigRow, value: string) => {
+  const handleKeyChange = (id: string, newKey: string) => {
+    const keyDef = PREDEFINED_KEYS.find((pk) => pk.key === newKey) || PREDEFINED_KEYS[0];
     setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+      prev.map((row) =>
+        row.id === id ? { ...row, key: newKey, value: keyDef.defaultValue } : row
+      )
+    );
+  };
+
+  const handleValueChange = (id: string, value: string) => {
+    setRows((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, value } : row))
     );
   };
 
@@ -155,7 +220,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-300">Simulation ConfigMap Data (Key-Value)</p>
-              <p className="text-[11px] text-slate-400">Select parameter key from dropdown and enter desired value to test simulator response.</p>
+              <p className="text-[11px] text-slate-400">Select parameter key from dropdown and specify value matching key type.</p>
             </div>
             <button
               type="button"
@@ -176,7 +241,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           ) : (
             <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
               {rows.map((row) => {
-                const selectedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === row.key);
+                const selectedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === row.key) || PREDEFINED_KEYS[0];
 
                 return (
                   <div
@@ -197,7 +262,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                         <select
                           id={`cm-key-select-${row.id}`}
                           value={row.key}
-                          onChange={(e) => handleRowChange(row.id, 'key', e.target.value)}
+                          onChange={(e) => handleKeyChange(row.id, e.target.value)}
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
                             colorMode === 'dark'
@@ -213,24 +278,46 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                         </select>
                       </div>
 
-                      {/* Value Input */}
+                      {/* Value Control Adapts to Key Type */}
                       <div className="w-1/2">
                         <label htmlFor={`cm-val-input-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
-                          Parameter Value
+                          Parameter Value ({selectedKeyInfo.type === 'number' ? 'Number' : 'Selection'})
                         </label>
-                        <input
-                          id={`cm-val-input-${row.id}`}
-                          type="text"
-                          value={row.value}
-                          onChange={(e) => handleRowChange(row.id, 'value', e.target.value)}
-                          placeholder="e.g. 80, 1000, INFO, enabled"
-                          className={cn(
-                            "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                            colorMode === 'dark'
-                              ? "bg-slate-950 border-slate-700 text-slate-100"
-                              : "bg-white border-slate-300 text-slate-900"
-                          )}
-                        />
+                        {selectedKeyInfo.type === 'number' ? (
+                          <input
+                            id={`cm-val-input-${row.id}`}
+                            type="number"
+                            min={selectedKeyInfo.min}
+                            max={selectedKeyInfo.max}
+                            value={row.value}
+                            onChange={(e) => handleValueChange(row.id, e.target.value)}
+                            placeholder={selectedKeyInfo.placeholder}
+                            className={cn(
+                              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+                              colorMode === 'dark'
+                                ? "bg-slate-950 border-slate-700 text-slate-100"
+                                : "bg-white border-slate-300 text-slate-900"
+                            )}
+                          />
+                        ) : (
+                          <select
+                            id={`cm-val-input-${row.id}`}
+                            value={row.value}
+                            onChange={(e) => handleValueChange(row.id, e.target.value)}
+                            className={cn(
+                              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+                              colorMode === 'dark'
+                                ? "bg-slate-950 border-slate-700 text-slate-100"
+                                : "bg-white border-slate-300 text-slate-900"
+                            )}
+                          >
+                            {(selectedKeyInfo.options || []).map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
 
                       {/* Delete button */}
@@ -246,7 +333,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                     </div>
 
                     {/* Educational Hint */}
-                    {selectedKeyInfo && selectedKeyInfo.hint && (
+                    {selectedKeyInfo.hint && (
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-0.5">
                         <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                         <span>{selectedKeyInfo.hint}</span>
