@@ -14,13 +14,18 @@ func TestNewProjectManager(t *testing.T) {
 }
 
 func TestProjectManager_Init(t *testing.T) {
-	// Mock HOME for Init test to avoid messing with real user home
+	// Mock HOME and USERPROFILE for Init test to avoid messing with real user home
 	originalHome := os.Getenv("HOME")
+	originalUserProfile := os.Getenv("USERPROFILE")
 	tmpDir, _ := os.MkdirTemp("", "kube-builder-init-test-*")
 	defer os.RemoveAll(tmpDir)
 
 	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", originalHome)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("USERPROFILE", originalUserProfile)
+	}()
 
 	pm := NewProjectManager()
 	err := pm.Init()
@@ -57,6 +62,7 @@ func TestProjectManager_Init_Error(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "restricted", ".kube-simulator"), []byte("not a dir"), 0644)
 
 	os.Setenv("HOME", filepath.Join(tmpDir, "restricted"))
+	os.Setenv("USERPROFILE", filepath.Join(tmpDir, "restricted"))
 	pm2 := NewProjectManager()
 	err2 := pm2.Init()
 	if err2 == nil {
@@ -67,6 +73,7 @@ func TestProjectManager_Init_Error(t *testing.T) {
 	tmpDir3, _ := os.MkdirTemp("", "kube-builder-gormfail-*")
 	defer os.RemoveAll(tmpDir3)
 	os.Setenv("HOME", tmpDir3)
+	os.Setenv("USERPROFILE", tmpDir3)
 
 	// Create a directory where the db file should be
 	os.MkdirAll(filepath.Join(tmpDir3, ".kube-simulator", "app_data.db"), 0755)
