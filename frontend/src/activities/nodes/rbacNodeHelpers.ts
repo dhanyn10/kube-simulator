@@ -38,24 +38,39 @@ export const isResourceAllowedByIamPolicies = (
   resource: string
 ): boolean => {
   const policies = user.policies?.map((p) => p.name) || [];
-  if (policies.includes('AdministratorAccess')) {
-    return true;
-  }
-  if (policies.includes('PowerUserAccess')) {
+
+  // Full access policies
+  if (
+    policies.includes('AdministratorAccess') ||
+    policies.includes('PowerUserAccess') ||
+    policies.includes('ReadOnlyAccess')
+  ) {
     return true;
   }
 
   const res = (resource || '').toLowerCase();
-  if (policies.includes('ContainerDeveloperPolicy') && ['pods', 'deployments', 'replicasets'].includes(res)) {
+
+  // ContainerDeveloperPolicy: Workload containers and configurations
+  if (
+    policies.includes('ContainerDeveloperPolicy') &&
+    ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets'].includes(res)
+  ) {
     return true;
   }
-  if (policies.includes('NetworkingAdminPolicy') && ['services', 'ingresses'].includes(res)) {
+
+  // NetworkingAdminPolicy: Networking components
+  if (
+    policies.includes('NetworkingAdminPolicy') &&
+    ['services', 'ingresses'].includes(res)
+  ) {
     return true;
   }
-  if (policies.includes('StorageAdminPolicy') && ['pvcs'].includes(res)) {
-    return true;
-  }
-  if (policies.includes('ReadOnlyAccess')) {
+
+  // StorageAdminPolicy: Persistent storage components
+  if (
+    policies.includes('StorageAdminPolicy') &&
+    ['pvcs'].includes(res)
+  ) {
     return true;
   }
 

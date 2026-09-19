@@ -21,7 +21,7 @@ const checkIamPolicy = (
   }
 
   const res = resource.toLowerCase();
-  const isDevAllowed = ['pods', 'deployments', 'replicasets'].includes(res) && policies.includes('ContainerDeveloperPolicy');
+  const isDevAllowed = ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets'].includes(res) && policies.includes('ContainerDeveloperPolicy');
   const isNetAllowed = ['services', 'ingresses'].includes(res) && policies.includes('NetworkingAdminPolicy');
   const isStorageAllowed = ['pvcs'].includes(res) && policies.includes('StorageAdminPolicy');
 
