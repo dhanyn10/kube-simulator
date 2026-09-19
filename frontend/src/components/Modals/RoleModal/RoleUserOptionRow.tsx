@@ -42,7 +42,6 @@ export const RoleUserOptionRow: React.FC<RoleUserOptionRowProps> = ({
       type="button"
       onMouseDown={(e) => {
         e.preventDefault();
-        onToggle(user.username);
       }}
       onClick={() => onToggle(user.username)}
       className={cn(

@@ -410,7 +410,7 @@ describe('RoleModal component', () => {
 
     // Click on dev-user suggestion row in dropdown
     const devRow = screen.getAllByText('dev-user').find(el => el.closest('div'))!;
-    fireEvent.mouseDown(devRow);
+    fireEvent.click(devRow);
 
     expect(screen.getByText('RoleBinding Subjects / IAM Users (2)')).toBeInTheDocument();
 

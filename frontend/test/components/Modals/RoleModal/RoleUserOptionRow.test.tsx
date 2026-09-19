@@ -43,9 +43,10 @@ describe('RoleUserOptionRow', () => {
 
     const button = screen.getByRole('button');
     fireEvent.mouseDown(button);
-    expect(onToggle).toHaveBeenCalledWith('developer1');
+    expect(onToggle).not.toHaveBeenCalled();
 
     fireEvent.click(button);
+    expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onToggle).toHaveBeenCalledWith('developer1');
   });
 
