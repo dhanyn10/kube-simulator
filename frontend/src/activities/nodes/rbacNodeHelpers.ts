@@ -63,6 +63,42 @@ export const isResourceAllowedByIamPolicies = (
 };
 
 /**
+ * Evaluates whether node attached roles permit target user and resource.
+ */
+const checkNodeAttachedRoles = (roles: readonly any[], activeUser: string, targetRes: string): boolean => {
+  if (!Array.isArray(roles) || roles.length === 0) return false;
+  return roles.some((role: any) => {
+    if (!Array.isArray(role.assignedUsers) || !role.assignedUsers.includes(activeUser)) return false;
+    const rules = role.rules || [];
+    if (rules.length === 0) return true;
+    return rules.some((rule: any) => {
+      const resources = rule.resources || [];
+      return !targetRes || resources.includes('*') || resources.includes(targetRes);
+    });
+  });
+};
+
+/**
+ * Evaluates whether canvas standalone role cards permit target user and resource.
+ */
+const checkCanvasStandaloneRoles = (allNodes: readonly any[], activeUser: string, targetRes: string): boolean => {
+  if (!Array.isArray(allNodes)) return false;
+  const roleNodes = allNodes.filter((n) => n.type === 'Role');
+  return roleNodes.some((roleNode) => {
+    const roleData = roleNode.data;
+    if (!roleData || !Array.isArray(roleData.assignedUsers) || !roleData.assignedUsers.includes(activeUser)) {
+      return false;
+    }
+    const rules = roleData.rules || [];
+    if (rules.length === 0) return true;
+    return rules.some((rule: any) => {
+      const resources = rule.resources || [];
+      return !targetRes || resources.includes('*') || resources.includes(targetRes);
+    });
+  });
+};
+
+/**
  * Checks if a node or canvas has roles attached/configured that grant permissions to activeUser for target resource.
  */
 export const isResourceAllowedByCanvasRoles = (
@@ -72,42 +108,9 @@ export const isResourceAllowedByCanvasRoles = (
   allNodes?: readonly any[]
 ): boolean => {
   const targetRes = (resource || '').toLowerCase();
-
-  // 1. Check roles attached directly to the node
-  const roles = nodeData?.roles;
-  if (Array.isArray(roles) && roles.length > 0) {
-    const isAllowed = roles.some((role: any) => {
-      if (!Array.isArray(role.assignedUsers) || !role.assignedUsers.includes(activeUser)) return false;
-      const rules = role.rules || [];
-      if (rules.length === 0) return true;
-      return rules.some((rule: any) => {
-        const resources = rule.resources || [];
-        return !targetRes || resources.includes('*') || resources.includes(targetRes);
-      });
-    });
-    if (isAllowed) return true;
-  }
-
-  // 2. Check standalone Role nodes on the canvas
-  if (Array.isArray(allNodes)) {
-    const roleNodes = allNodes.filter((n) => n.type === 'Role');
-    for (const roleNode of roleNodes) {
-      const roleData = roleNode.data;
-      if (!roleData) continue;
-      const assignedUsers = roleData.assignedUsers;
-      if (Array.isArray(assignedUsers) && assignedUsers.includes(activeUser)) {
-        const rules = roleData.rules || [];
-        if (rules.length === 0) return true;
-        const matchesRule = rules.some((rule: any) => {
-          const resources = rule.resources || [];
-          return !targetRes || resources.includes('*') || resources.includes(targetRes);
-        });
-        if (matchesRule) return true;
-      }
-    }
-  }
-
-  return false;
+  const allowedByAttached = checkNodeAttachedRoles(nodeData?.roles, activeUser, targetRes);
+  if (allowedByAttached) return true;
+  return checkCanvasStandaloneRoles(allNodes || [], activeUser, targetRes);
 };
 
 /**

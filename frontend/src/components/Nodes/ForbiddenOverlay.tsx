@@ -15,10 +15,17 @@ export const ForbiddenOverlay = ({ nodeType, data }: { readonly nodeType?: strin
 
   return (
     <div
+      role="region"
+      aria-label={`Access Forbidden Overlay for user ${activeIdentity}`}
+      tabIndex={0}
       data-testid="forbidden-overlay"
-      className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-red-950/45 backdrop-blur-[1.5px] border-2 border-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.3)] cursor-not-allowed p-2 transition-all duration-200 select-none pointer-events-auto"
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-red-950/45 backdrop-blur-[1.5px] border-2 border-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.3)] cursor-not-allowed p-2 transition-all duration-200 select-none pointer-events-auto outline-none focus:ring-2 focus:ring-red-500"
       title={`Access Forbidden for user "${activeIdentity}"`}
       onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onKeyDown={(e) => {
         e.stopPropagation();
         e.preventDefault();
       }}
