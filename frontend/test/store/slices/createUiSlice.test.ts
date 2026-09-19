@@ -857,7 +857,7 @@ describe('createUiSlice', () => {
     // Tick 4 (no additional tick log)
     const countBefore = useFlowStore.getState().activityLogs.length;
     vi.advanceTimersByTime(1000);
-    expect(useFlowStore.getState().activityLogs.length).toBe(countBefore);
+    expect(useFlowStore.getState().activityLogs).toHaveLength(countBefore);
 
     stopSimulation();
     vi.useRealTimers();
@@ -881,6 +881,8 @@ describe('createUiSlice', () => {
 
     // Next tick will run runSimulationTick, notice isSimulating is false, and clear interval
     vi.advanceTimersByTime(1000);
+
+    expect(useFlowStore.getState().isSimulating).toBe(false);
 
     vi.useRealTimers();
   });
