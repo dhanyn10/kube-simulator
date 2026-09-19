@@ -30,8 +30,7 @@ describe('ForbiddenOverlay', () => {
     render(<ForbiddenOverlay nodeType="Service" data={{ label: 'my-service' } as any} />);
 
     expect(screen.getByTestId('forbidden-overlay')).toBeDefined();
-    expect(screen.getByText('Access Forbidden')).toBeDefined();
-    expect(screen.getByText('User: dev-user')).toBeDefined();
+    expect(screen.getByText('Restricted')).toBeDefined();
   });
 
   it('renders nothing when node type is allowed for activeIdentity', () => {

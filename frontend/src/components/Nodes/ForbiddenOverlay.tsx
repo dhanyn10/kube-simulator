@@ -16,11 +16,11 @@ export const ForbiddenOverlay = ({ nodeType, data }: { readonly nodeType?: strin
   return (
     <div
       role="region"
-      aria-label={`Access Forbidden Overlay for user ${activeIdentity}`}
+      aria-label={`Access Restricted for user ${activeIdentity}`}
       tabIndex={0}
       data-testid="forbidden-overlay"
-      className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-red-950/45 backdrop-blur-[1.5px] border-2 border-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.3)] cursor-not-allowed p-2 transition-all duration-200 select-none pointer-events-auto outline-none focus:ring-2 focus:ring-red-500"
-      title={`Access Forbidden for user "${activeIdentity}"`}
+      className="absolute inset-0 z-50 flex items-start justify-end p-1.5 rounded-lg bg-slate-950/20 backdrop-grayscale backdrop-contrast-50 border border-slate-500/30 cursor-not-allowed transition-all duration-200 select-none pointer-events-auto outline-none focus:ring-1 focus:ring-slate-400/50"
+      title={`Restricted Access for user "${activeIdentity}"`}
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -34,13 +34,10 @@ export const ForbiddenOverlay = ({ nodeType, data }: { readonly nodeType?: strin
         e.preventDefault();
       }}
     >
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600/90 text-white font-bold text-[9px] tracking-wider uppercase shadow-md animate-pulse">
-        <Lock size={12} className="text-white shrink-0" />
-        <span>Access Forbidden</span>
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/80 font-semibold text-[8px] tracking-tight uppercase shadow-sm">
+        <Lock size={10} className="text-amber-400 shrink-0" />
+        <span>Restricted</span>
       </div>
-      <span className="mt-1 text-[8px] font-semibold text-red-200/90 text-center line-clamp-1 max-w-[90%]">
-        User: {activeIdentity}
-      </span>
     </div>
   );
 };
