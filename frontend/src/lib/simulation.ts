@@ -326,37 +326,50 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   return hasChanges;
 };
 
-export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
+export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number } => {
   const dData = dep.data as K8sNodeData;
   const configMaps = dData.configMaps || [];
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
 
   let hasSimulatedFailure = false;
   let failingCmName = '';
+  let cmPort: number | null = null;
+  let maxConnections: number | null = null;
+  let logLevel = 'INFO';
 
   for (const cm of configMaps) {
     if (!cm.configData) continue;
-    const failureItem = cm.configData.find(
-      (kv) => kv.key?.trim().toUpperCase() === 'SIMULATE_FAILURE' && kv.value?.trim().toLowerCase() === 'true'
-    );
-    if (failureItem) {
-      hasSimulatedFailure = true;
-      failingCmName = cm.name;
-      break;
+    for (const kv of cm.configData) {
+      const k = kv.key?.trim().toUpperCase();
+      const v = kv.value?.trim();
+      if ((k === 'CHAOS_MODE' && v?.toLowerCase() === 'enabled') || (k === 'SIMULATE_FAILURE' && v?.toLowerCase() === 'true')) {
+        hasSimulatedFailure = true;
+        failingCmName = cm.name;
+      }
+      if (k === 'PORT' && v && !isNaN(Number(v))) {
+        cmPort = Number(v);
+      }
+      if (k === 'MAX_CONNECTIONS' && v && !isNaN(Number(v))) {
+        maxConnections = Number(v);
+      }
+      if (k === 'LOG_LEVEL' && v) {
+        logLevel = v.toUpperCase();
+      }
     }
   }
 
   let hasChanges = false;
 
+  // 1. Chaos Mode Failure Check
   if (hasSimulatedFailure) {
     childPods.forEach((pod) => {
       if (pod.data.status !== 'crashing') {
         if (updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
           hasChanges = true;
           try {
-            ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] SIMULATE_FAILURE=true in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
+            ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
           } catch {
-            // Ignore log if context missing addLog in test harness
+            // Ignore log if context missing
           }
         }
       }
@@ -364,7 +377,7 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
     return { hasChanges, isBlocked: true };
   }
 
-  // Recover pods if failure setting was turned off/removed
+  // Recover pods if chaos mode was turned off
   childPods.forEach((pod) => {
     if (pod.data.status === 'crashing' && pod.data.simulatedFailureCM) {
       const pData = pod.data as K8sNodeData;
@@ -373,7 +386,7 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
       if (updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureCM: undefined })) {
         hasChanges = true;
         try {
-          ctx.get()?.addLog?.('info', `[ConfigMap Recovered] SIMULATE_FAILURE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
+          ctx.get()?.addLog?.('info', `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
         } catch {
           // Ignore log if context missing
         }
@@ -381,7 +394,52 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
     }
   });
 
-  return { hasChanges, isBlocked: false };
+  // 2. Port Mismatch Detection
+  const incomingEdges = ctx.targetEdgeMap?.get(dep.id) || [];
+  for (const edge of incomingEdges) {
+    const sourceNode = ctx.nodeMap?.get(String(edge.source));
+    if (sourceNode?.type === 'Service') {
+      const sData = sourceNode.data as K8sNodeData;
+      const srvTargetPort = Number(sData.targetPort || sData.port || 80);
+
+      if (cmPort !== null && cmPort !== srvTargetPort) {
+        const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
+        if (edge.data?.validationError !== portErr) {
+          edge.data = { ...edge.data, validationError: portErr };
+          hasChanges = true;
+          try {
+            ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
+          } catch {
+            // Ignore
+          }
+        }
+        return { hasChanges: true, isBlocked: true };
+      } else if (edge.data?.validationError?.includes('Port Mismatch')) {
+        edge.data = { ...edge.data, validationError: undefined };
+        hasChanges = true;
+      }
+    }
+  }
+
+  // 3. Periodic Log Level Stream Log
+  if (ctx.ticks % 3 === 0 && safeRandom() > 0.4) {
+    try {
+      const podLabel = dep.data?.label || dep.id;
+      if (logLevel === 'DEBUG') {
+        ctx.get()?.addLog?.('info', `[ConfigMap Log DEBUG] [${podLabel}] Handling request stream - active threads: 8, memory heap: 42MB`, 'App');
+      } else if (logLevel === 'WARN') {
+        ctx.get()?.addLog?.('warning', `[ConfigMap Log WARN] [${podLabel}] Connection pool threshold > 75%`, 'App');
+      } else if (logLevel === 'ERROR') {
+        ctx.get()?.addLog?.('error', `[ConfigMap Log ERROR] [${podLabel}] Unhandled internal exception trace in worker process`, 'App');
+      } else {
+        ctx.get()?.addLog?.('info', `[ConfigMap Log INFO] [${podLabel}] HTTP 200 OK - Processing traffic stream`, 'App');
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  return { hasChanges, isBlocked: false, effectiveTrafficLimit: maxConnections ?? undefined };
 };
 
 export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
@@ -392,7 +450,22 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges || cmResult.hasChanges };
 
   const trafficResult = calculateIncomingTraffic(dep, ctx);
-  const metricsResult = calculateResourceMetrics(dep, trafficResult.traffic, ctx);
+
+  // Apply ConfigMap MAX_CONNECTIONS throttling if traffic exceeds capacity limit
+  let effectiveTraffic = trafficResult.traffic;
+  if (cmResult.effectiveTrafficLimit && effectiveTraffic > cmResult.effectiveTrafficLimit) {
+    const droppedCount = effectiveTraffic - cmResult.effectiveTrafficLimit;
+    effectiveTraffic = cmResult.effectiveTrafficLimit;
+    if (ctx.ticks % 2 === 0) {
+      try {
+        ctx.get()?.addLog?.('warning', `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${cmResult.effectiveTrafficLimit})`, 'Simulation');
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  const metricsResult = calculateResourceMetrics(dep, effectiveTraffic, ctx);
 
   const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, ctx);
   const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx);

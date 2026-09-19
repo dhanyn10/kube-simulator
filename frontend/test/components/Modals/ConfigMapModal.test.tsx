@@ -31,8 +31,8 @@ describe('ConfigMapModal', () => {
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
     expect(screen.getByText('Target card: My App Node')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue('API_URL')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('https://api.example.com')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Container Port/i)).toHaveValue('80');
+    expect(screen.getByLabelText(/Max Capacity/i)).toHaveValue('1000');
   });
 
   it('renders initialConfigMap data correctly when passed', () => {
@@ -40,8 +40,10 @@ describe('ConfigMapModal', () => {
       id: 'cm-123',
       name: 'existing-config',
       configData: [
-        { key: 'DB_HOST', value: 'localhost' },
-        { key: 'DB_PORT', value: '5432' },
+        { key: 'PORT', value: '8080' },
+        { key: 'MAX_CONNECTIONS', value: '500' },
+        { key: 'LOG_LEVEL', value: 'WARN' },
+        { key: 'CHAOS_MODE', value: 'disabled' },
       ],
     };
 
@@ -49,45 +51,28 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit ConfigMap' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('existing-config')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('DB_HOST')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('localhost')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('DB_PORT')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('5432')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Container Port/i)).toHaveValue('8080');
+    expect(screen.getByLabelText(/Max Capacity/i)).toHaveValue('500');
+    expect(screen.getByLabelText(/Logging Verbosity/i)).toHaveValue('WARN');
   });
 
-  it('allows adding, updating, and removing key-value fields', () => {
+  it('allows changing parameter dropdowns', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
-    // Add field
-    const addButton = screen.getByText(/Add Key-Value/i);
-    fireEvent.click(addButton);
+    // Change Container Port dropdown
+    fireEvent.change(screen.getByLabelText(/Container Port/i), { target: { value: '8080' } });
+    expect(screen.getByLabelText(/Container Port/i)).toHaveValue('8080');
 
-    const keyInputs = screen.getAllByPlaceholderText(/KEY/i);
-    const valueInputs = screen.getAllByPlaceholderText('Value');
-    expect(keyInputs).toHaveLength(3);
-
-    // Update field
-    fireEvent.change(keyInputs[2], { target: { value: 'NEW_KEY' } });
-    fireEvent.change(valueInputs[2], { target: { value: 'NEW_VAL' } });
-    expect(keyInputs[2]).toHaveValue('NEW_KEY');
-    expect(valueInputs[2]).toHaveValue('NEW_VAL');
-
-    // Remove field
-    const removeButtons = screen.getAllByTitle('Remove Pair');
-    expect(removeButtons.length).toBeGreaterThan(0);
-    fireEvent.click(removeButtons[0]);
-
-    expect(screen.getAllByPlaceholderText(/KEY/i)).toHaveLength(2);
+    // Change Max Capacity dropdown
+    fireEvent.change(screen.getByLabelText(/Max Capacity/i), { target: { value: '5000' } });
+    expect(screen.getByLabelText(/Max Capacity/i)).toHaveValue('5000');
   });
 
-  it('filters empty keys and calls onSave and onClose when saving', () => {
+  it('calls onSave and onClose when saving parameters', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });
-
-    // Add an empty field
-    fireEvent.click(screen.getByText(/Add Key-Value/i));
 
     const saveButton = screen.getByRole('button', { name: 'Attach ConfigMap' });
     fireEvent.click(saveButton);
@@ -96,8 +81,10 @@ describe('ConfigMapModal', () => {
       id: expect.any(String),
       name: 'my-custom-cm',
       configData: [
-        { key: 'API_URL', value: 'https://api.example.com' },
-        { key: 'LOG_LEVEL', value: 'info' },
+        { key: 'PORT', value: '80' },
+        { key: 'MAX_CONNECTIONS', value: '1000' },
+        { key: 'LOG_LEVEL', value: 'INFO' },
+        { key: 'CHAOS_MODE', value: 'disabled' },
       ],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();
