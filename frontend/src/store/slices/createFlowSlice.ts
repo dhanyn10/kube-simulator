@@ -219,9 +219,29 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     });
   },
   onNodesChange: (changes: NodeChange[]) => {
-    const extraChanges = getGroupDragExtraChanges(changes, get().nodes);
+    const { nodes, activeIdentity, iamUsers } = get();
+    const allowedChanges = changes.filter((change) => {
+      if (change.type === 'position' && change.id) {
+        const targetNode = nodes.find((n) => n.id === change.id);
+        if (targetNode) {
+          const isForbidden = isNodeAccessForbidden(
+            activeIdentity,
+            iamUsers || [],
+            targetNode.type,
+            targetNode.data,
+            nodes
+          );
+          if (isForbidden) {
+            return false;
+          }
+        }
+      }
+      return true;
+    });
+
+    const extraChanges = getGroupDragExtraChanges(allowedChanges, nodes);
     set((state) => {
-      const nextNodes = applyNodeChanges([...changes, ...extraChanges], state.nodes);
+      const nextNodes = applyNodeChanges([...allowedChanges, ...extraChanges], state.nodes);
       const syncedNodes = syncRoleRulesFromConnections(nextNodes, state.edges);
       return { nodes: syncedNodes };
     });

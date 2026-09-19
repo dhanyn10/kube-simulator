@@ -9,6 +9,7 @@ import {
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import { FlowState } from '@/store/types';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './dragUtils';
+import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 /**
  * Determines the relationship between a node and a potential container.
@@ -126,6 +127,10 @@ const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hov
 
 export const dragHandlers = (set: any, get: () => FlowState) => ({
   onNodeDragStart: (_event: any, node: Node) => {
+    const store = get();
+    if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
+      return;
+    }
     set({ draggedNodeId: node.id });
     if (node.type === 'Deployment') {
       get().setActiveDeploymentId(node.id);
@@ -141,7 +146,11 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
   },
 
   onNodeDrag: (_event: any, node: Node) => {
-    const { nodes } = get();
+    const store = get();
+    if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
+      return;
+    }
+    const { nodes } = store;
     
     const nodeAbs = getAbsPos(node.id, nodes, node);
     const { hoveredId, detachingId } = findHoveredContainer(node, nodeAbs, nodes);
@@ -162,7 +171,11 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
   },
 
   onNodeDragStop: (_event: any, node: Node) => {
-    const { detachingDeploymentId, hoveredDeploymentId } = get();
+    const store = get();
+    if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
+      return;
+    }
+    const { detachingDeploymentId, hoveredDeploymentId } = store;
 
     set((state: FlowState) => {
       let nextNodes = [...state.nodes];
