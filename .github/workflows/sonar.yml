@@ -6,13 +6,48 @@ on:
     branches: [main]
 
 jobs:
+  backend-windows-test:
+    name: Backend Windows Tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run Windows Backend Tests
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          mkdir -p frontend/dist
+          echo "dummy" > frontend/dist/index.html
+          go test ./backend/... . -v -coverprofile=coverage-backend-windows.out
+
+      - name: Upload Windows Backend Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-backend-coverage-out
+          path: coverage-backend-windows.out
+
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
+    needs: [backend-windows-test]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Download Windows Backend Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-backend-coverage-out
+          path: .
 
       - name: Set up Go
         uses: actions/setup-go@v5
