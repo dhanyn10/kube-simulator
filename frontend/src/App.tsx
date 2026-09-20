@@ -10,8 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { logger } from './lib/logger';
-import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView } from './components/Layout';
-import { CanvasControlsPanel } from './components/Layout/CanvasControlsPanel';
+import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel } from './components/Layout';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import {

@@ -603,6 +603,48 @@ describe('useDropHandler', () => {
       });
     });
 
+    it('isChildTypeAllowed covers all child and node container combinations', () => {
+      const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, width: 600, height: 400, data: {} } as any;
+      const depNode = { id: 'd1', type: 'Deployment', position: { x: 10, y: 10 }, width: 320, height: 160, data: {} } as any;
+      useFlowStore.setState({ nodes: [nsNode, depNode] });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      // Pod allowed in Deployment or Namespace
+      const dropPod = { preventDefault: vi.fn(), clientX: 20, clientY: 20, dataTransfer: { getData: () => 'Pod' } } as any;
+      act(() => { result.current.onDrop(dropPod); });
+      expect(useFlowStore.getState().addNode).toHaveBeenCalledWith('Pod', expect.any(Object), 'd1');
+
+      // Allowed child types in Namespace: 'Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role', 'ConfigMap', 'Secret'
+      const dropSvc = { preventDefault: vi.fn(), clientX: 200, clientY: 200, dataTransfer: { getData: () => 'Service' } } as any;
+      act(() => { result.current.onDrop(dropSvc); });
+      expect(useFlowStore.getState().addNode).toHaveBeenCalledWith('Service', expect.any(Object), 'ns1');
+
+      // Unallowed child types return false in isChildTypeAllowed
+      const dropUnallowed = { preventDefault: vi.fn(), clientX: 200, clientY: 200, dataTransfer: { getData: () => 'PVC' } } as any;
+      act(() => { result.current.onDrop(dropUnallowed); });
+      expect(useFlowStore.getState().addNode).toHaveBeenCalledWith('PVC', expect.any(Object), undefined);
+    });
+
+    it('isPositionInsideNode calculates absolute positions for nested parent containers', () => {
+      const parentNs = { id: 'ns1', type: 'Namespace', position: { x: 100, y: 100 }, width: 600, height: 400, data: {} } as any;
+      const childDep = { id: 'd1', parentId: 'ns1', type: 'Deployment', position: { x: 50, y: 50 }, width: 300, height: 200, data: {} } as any;
+      useFlowStore.setState({ nodes: [parentNs, childDep] });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      // Dragging a Role onto childDep at absolute pos (100+50+10, 100+50+10) = (160, 160)
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 160,
+        clientY: 160,
+        dataTransfer: { getData: () => 'Role' }
+      } as any;
+
+      act(() => { result.current.onDrop(mockEvent); });
+      expect(useFlowStore.getState().roleModalTargetNode?.id).toBe('d1');
+    });
+
     it('isPositionInsideNode falls back to default 320x160 for Deployment and 600x400 for non-Deployment when dimensions are missing', () => {
       const depWithoutDim = {
         id: 'dep-nodim',
