@@ -278,4 +278,54 @@ describe('nodeActions', () => {
     const state = useFlowStore.getState();
     expect(state.nodes.some(n => n.id === 'pod1')).toBe(false);
   });
+
+  it('covers forbidden node access in onNodeClick and addLog warning', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({
+      addLog: addLogSpy,
+      activeIdentity: 'dev-user',
+      iamUsers: [
+        { username: 'dev-user', role: 'ContainerDeveloper', policies: ['ContainerDeveloperPolicy'] }
+      ] as any,
+      nodes: [
+        { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'Forbidden Service' } }
+      ] as any
+    });
+
+    const { onNodeClick } = useFlowStore.getState();
+    const forbiddenNode = { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'Forbidden Service' } } as any;
+
+    onNodeClick({} as any, forbiddenNode);
+
+    expect(addLogSpy).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('Access forbidden for user "dev-user" on card "Forbidden Service"'),
+      'UI'
+    );
+    expect(useFlowStore.getState().configuringNodeId).toBeNull();
+  });
+
+  it('covers updateNodeData for Deployment/ReplicaSet container sync', () => {
+    const depNode = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'dep1', replicas: 2 }
+    };
+    const podNode = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 10, y: 10 },
+      data: { label: 'pod1' }
+    };
+
+    useFlowStore.setState({ nodes: [depNode, podNode] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('dep1', { label: 'dep1-updated' });
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 'dep1')?.data.label).toBe('dep1-updated');
+  });
 });

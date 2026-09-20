@@ -228,4 +228,60 @@ describe('dragHandlers', () => {
     onNodeDragStop({} as any, standaloneNode);
     expect(useFlowStore.getState().draggedNodeId).toBeNull();
   });
+
+  it('covers forbidden node access in onNodeDragStart, onNodeDrag, and onNodeDragStop', () => {
+    const { onNodeDragStart, onNodeDrag, onNodeDragStop } = useFlowStore.getState();
+
+    useFlowStore.setState({
+      activeIdentity: 'dev-user',
+      iamUsers: [
+        { username: 'dev-user', role: 'ContainerDeveloper', policies: ['ContainerDeveloperPolicy'] }
+      ] as any,
+      nodes: [
+        { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: {} }
+      ] as any
+    });
+
+    const forbiddenNode = { id: 'svc1', type: 'Service', position: { x: 0, y: 0 }, data: {} } as any;
+
+    onNodeDragStart({} as any, forbiddenNode);
+    expect(useFlowStore.getState().draggedNodeId).toBeNull();
+
+    onNodeDrag({} as any, forbiddenNode);
+    expect(useFlowStore.getState().hoveredDeploymentId).toBeNull();
+
+    onNodeDragStop({} as any, forbiddenNode);
+    expect(useFlowStore.getState().draggedNodeId).toBeNull();
+  });
+
+  it('covers applyNewParent when target container node does not exist or relationship is disallowed', () => {
+    const { onNodeDragStop } = useFlowStore.getState();
+
+    // Hovered target node does not exist in nextNodes
+    useFlowStore.setState({
+      nodes: [{ id: 'pod1', type: 'Pod', position: { x: 10, y: 10 }, data: {} }] as any,
+      hoveredDeploymentId: 'ghost-container'
+    });
+
+    const podNode = { id: 'pod1', type: 'Pod', position: { x: 10, y: 10 }, data: {} } as any;
+    onNodeDragStop({} as any, podNode);
+
+    let state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 'pod1')?.parentId).toBeUndefined();
+
+    // Hovered target container is not allowed (e.g. dragging Namespace onto Pod)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'pod1', type: 'Pod', position: { x: 10, y: 10 }, data: {} },
+        { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} }
+      ] as any,
+      hoveredDeploymentId: 'pod1'
+    });
+
+    const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;
+    onNodeDragStop({} as any, nsNode);
+
+    state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 'ns1')?.parentId).toBeUndefined();
+  });
 });
