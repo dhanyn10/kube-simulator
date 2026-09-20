@@ -23,6 +23,9 @@ export interface SimulationContext {
   nodeIndexMap?: Map<string, number>;
 }
 
+/**
+ * Traverses active non-error edges starting from entry nodes to determine reachable target node IDs.
+ */
 export const calculateReachability = (
   startNodes: Node[],
   edgeMap: Map<string, Edge[]>,
@@ -51,6 +54,9 @@ export const calculateReachability = (
   return reachableNodes;
 };
 
+/**
+ * Checks PVC binding status for connected workload nodes, marking pods as pending if PVC is unbound.
+ */
 export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
@@ -79,6 +85,9 @@ export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChang
   return { hasChanges: false, isBlocked: false };
 };
 
+/**
+ * Updates data properties of a node in the active simulation context.
+ */
 export const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
   let idx = ctx.nodeIndexMap?.get(id);
   if (idx === undefined) {
@@ -96,6 +105,9 @@ export const updateNodeData = (ctx: SimulationContext, id: string, newData: any)
   return false;
 };
 
+/**
+ * Handles unbound PVC state by attempting binding and updating dependent pod statuses to pending.
+ */
 export const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx: SimulationContext) => {
   let hasChanges = false;
 
@@ -114,6 +126,9 @@ export const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx:
   return { hasChanges, isBlocked: true };
 };
 
+/**
+ * Handles bound PVC state by restoring pending pods to ready when container runtimes are configured.
+ */
 export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   let hasChanges = false;
   childPods.forEach(pod => {
@@ -138,6 +153,9 @@ const canReachWorkload = (reachableNodes: Set<string>, depId: string, childPods?
   return children.some(child => reachableNodes.has(child.id));
 };
 
+/**
+ * Calculates total incoming web traffic reaching a workload from connected Internet nodes.
+ */
 export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
   if (!ctx.internetNodes || !ctx.internetReachableMap) return { traffic: 0, hasChanges: false };
 
@@ -161,6 +179,9 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
   return { traffic: totalTraffic, hasChanges: false };
 };
 
+/**
+ * Smoothly adjusts current internet traffic towards target traffic setting.
+ */
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
   const iData = internet.data as K8sNodeData;
   const targetTraffic = iData.traffic ?? 1000;
@@ -180,6 +201,9 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   return { traffic: nextTraffic, hasChanges };
 };
 
+/**
+ * Computes CPU and Memory usage metrics and throttle/OOM flags for a workload node based on traffic load.
+ */
 export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
   const dData = dep.data as K8sNodeData;
   const replicas = (dData.replicas as number) || 1;
@@ -205,6 +229,9 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
   return { cpuPercent, isOOM };
 };
 
+/**
+ * Simulates random container crashes when memory usage exceeds memory limits (OOM state).
+ */
 export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationContext) => {
   if (!isOOM || safeRandom() <= 0.5) return false;
 
@@ -219,6 +246,9 @@ export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationConte
   return changed;
 };
 
+/**
+ * Schedules automated recovery for crashing pods after a delay.
+ */
 export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
   setTimeout(() => {
     const currentState = ctx.get();
@@ -270,6 +300,9 @@ const calculateDesiredReplicas = (
   return desired;
 };
 
+/**
+ * Evaluates connected HPA parameters and automatically scales workload replicas based on CPU load.
+ */
 export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
   const depData = dep.data as K8sNodeData;
   let hpaConfig: { minReplicas: number; maxReplicas: number; targetCPU: number } | null = null;
@@ -327,6 +360,9 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   return hasChanges;
 };
 
+/**
+ * Parses ConfigMap entries for simulation parameter overrides like CHAOS_MODE, PORT, MAX_CONNECTIONS, and LOG_LEVEL.
+ */
 export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
   let hasSimulatedFailure = false;
   let failingCmName = '';
@@ -358,6 +394,9 @@ export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
   return { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel };
 };
 
+/**
+ * Simulates pod crashes or recoveries based on ConfigMap CHAOS_MODE setting.
+ */
 export const handleChaosModeSimulation = (
   childPods: Node[],
   ctx: SimulationContext,
@@ -399,6 +438,9 @@ export const handleChaosModeSimulation = (
   return { hasChanges, isBlocked: false };
 };
 
+/**
+ * Detects target port mismatches between connecting Service and container PORT setting in ConfigMap.
+ */
 export const checkPortMismatch = (
   dep: Node,
   ctx: SimulationContext,
@@ -437,6 +479,9 @@ export const checkPortMismatch = (
   return { hasChanges, isBlocked: false };
 };
 
+/**
+ * Logs request stream messages to terminal console matching configured ConfigMap LOG_LEVEL.
+ */
 export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: string) => {
   if (ctx.ticks % 3 !== 0 || safeRandom() <= 0.4) return;
 
@@ -456,6 +501,9 @@ export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: s
   }
 };
 
+/**
+ * Evaluates attached ConfigMap settings during runtime simulation.
+ */
 export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number } => {
   const dData = dep.data as K8sNodeData;
   const configMaps = dData.configMaps || [];
@@ -482,6 +530,9 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
   };
 };
 
+/**
+ * Orchestrates complete simulation cycle for workload nodes (ConfigMaps, PVCs, traffic, OOM, and HPAs).
+ */
 export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
   const cmResult = checkConfigMapSimulationStatus(dep, ctx);
   if (cmResult.isBlocked) return { hasChanges: cmResult.hasChanges };
