@@ -83,7 +83,7 @@ describe('InternetProfileModal', () => {
     const nameInput = screen.getByPlaceholderText('e.g. Weekend Flash Sale');
     fireEvent.change(nameInput, { target: { value: 'Flash Sale Promo' } });
 
-    const saveBtn = screen.getByText('Save Profile Template');
+    const saveBtn = screen.getByText('Save & Apply Profile');
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -105,9 +105,6 @@ describe('InternetProfileModal', () => {
       expect(screen.getByText('Custom Peak Profile')).toBeDefined();
     });
 
-    // Click the custom profile template card to select it
-    fireEvent.click(screen.getByText('Custom Peak Profile'));
-
     const deleteBtn = screen.getByTitle('Delete Template');
     fireEvent.click(deleteBtn);
 
@@ -116,7 +113,7 @@ describe('InternetProfileModal', () => {
     });
   });
 
-  it('activates profile and triggers performUpdate when Activate Profile is clicked', async () => {
+  it('applies profile directly when Apply button is clicked and shows top-right applied checkmark badge', async () => {
     render(
       <InternetProfileModal
         isOpen={true}
@@ -126,16 +123,40 @@ describe('InternetProfileModal', () => {
       />
     );
 
-    const activateBtn = screen.getByText('Activate Profile');
-    fireEvent.click(activateBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Custom Peak Profile')).toBeDefined();
+    });
+
+    const applyBtns = screen.getAllByText('Apply');
+    fireEvent.click(applyBtns[0]);
 
     expect(performUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeProfileName: 'E-Commerce Simulation',
-        traffic: 1500
+        activeProfileName: 'Custom Peak Profile',
+        traffic: 2000
       })
     );
-    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('opens detailed full profile view when Details button is clicked', async () => {
+    render(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={onClose}
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Custom Peak Profile')).toBeDefined();
+    });
+
+    const detailsBtns = screen.getAllByText('Details');
+    fireEvent.click(detailsBtns[0]);
+
+    expect(screen.getByText('Back to Profiles Gallery')).toBeDefined();
+    expect(screen.getByText('Daily Traffic Allocation Schedule')).toBeDefined();
   });
 
   it('does not render when isOpen is false', () => {

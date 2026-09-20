@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid } from 'lucide-react';
+import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
 import {
@@ -22,7 +22,7 @@ const MiniCurvePreview = ({
   readonly profile: InternetProfileItem;
 }) => {
   const width = 220;
-  const height = 60;
+  const height = 55;
   const padLeft = 10;
   const padRight = 10;
   const padTop = 10;
@@ -50,7 +50,7 @@ const MiniCurvePreview = ({
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-14 overflow-visible my-1">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible my-1">
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
@@ -74,7 +74,7 @@ const DetailedTrafficChart = ({
   readonly colorMode: string;
 }) => {
   const width = 680;
-  const height = 210;
+  const height = 240;
   const padLeft = 60;
   const padRight = 30;
   const padTop = 30;
@@ -107,23 +107,23 @@ const DetailedTrafficChart = ({
 
   return (
     <div className={cn(
-      "p-4 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
+      "p-5 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
       colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
     )}>
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <Activity size={16} className="text-blue-500" />
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-            Detailed Profile Chart: <span className="text-blue-400">{profile.name}</span>
+          <Activity size={18} className="text-blue-500" />
+          <span className="text-sm font-bold uppercase tracking-wider text-slate-200">
+            Profile Traffic Schedule: <span className="text-blue-400">{profile.name}</span>
           </span>
         </div>
-        <div className="flex items-center gap-3 text-[11px] font-mono font-semibold">
-          <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
-          <span className="text-slate-400">Max: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
+        <div className="flex items-center gap-4 text-xs font-mono font-semibold">
+          <span className="text-slate-400">Min Traffic: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
+          <span className="text-slate-400">Peak Traffic: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[210px] overflow-visible">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[240px] overflow-visible">
         <defs>
           <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
@@ -131,7 +131,7 @@ const DetailedTrafficChart = ({
           </linearGradient>
         </defs>
 
-        {/* Y-axis horizontal grid lines & explicit user count scale ticks */}
+        {/* Y-axis horizontal grid lines */}
         {yTicks.map((tick, i) => (
           <g key={`y-tick-${i}`}>
             <line
@@ -148,7 +148,7 @@ const DetailedTrafficChart = ({
               y={tick.y + 3}
               textAnchor="end"
               className={cn(
-                "text-[9px] font-mono font-bold",
+                "text-[10px] font-mono font-bold",
                 colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
               )}
             >
@@ -181,7 +181,7 @@ const DetailedTrafficChart = ({
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Data points & X-axis Day labels (Senin - Minggu) */}
+        {/* Data points & X-axis Day labels */}
         {points.map((pt) => (
           <g key={`pt-${pt.day}`}>
             <circle
@@ -195,13 +195,13 @@ const DetailedTrafficChart = ({
               x={pt.x}
               y={pt.y - 10}
               textAnchor="middle"
-              className="text-[9px] font-mono font-bold fill-blue-500 dark:fill-blue-400"
+              className="text-[10px] font-mono font-bold fill-blue-500 dark:fill-blue-400"
             >
               {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
             </text>
             <text
               x={pt.x}
-              y={padTop + chartHeight + 18}
+              y={padTop + chartHeight + 20}
               textAnchor="middle"
               className={cn(
                 "text-[10px] font-bold font-mono uppercase tracking-wider",
@@ -230,16 +230,17 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     profiles,
     activeProfileName,
     activeProfile,
-    isCreating,
-    setIsCreating,
+    viewMode,
+    setViewMode,
+    detailProfile,
     newProfileName,
     setNewProfileName,
     newDailyValues,
     setNewDailyValues,
-    handleSelectProfile,
+    handleApplyProfile,
+    handleOpenDetails,
     handleSaveCustomProfile,
-    handleDeleteProfile,
-    handleActivateProfile
+    handleDeleteProfile
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
   return (
@@ -254,136 +255,224 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
       maxHeightClass="max-h-[85vh] h-[75vh]"
     >
       <div className="space-y-5">
-        {/* Gallery Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
-          <div className="flex items-center gap-2">
-            <LayoutGrid size={16} className="text-blue-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Select Connection Simulation Profile
-            </h3>
-          </div>
-          <span className="text-[11px] font-medium text-slate-400">
-            {profiles.length} Available Profile{profiles.length > 1 ? 's' : ''}
-          </span>
-        </div>
+        {viewMode === 'grid' && (
+          <>
+            {/* Gallery Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+              <div className="flex items-center gap-2">
+                <LayoutGrid size={16} className="text-blue-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                  Select Connection Simulation Profile
+                </h3>
+              </div>
+              <span className="text-[11px] font-medium text-slate-400">
+                {profiles.length} Available Profile{profiles.length > 1 ? 's' : ''}
+              </span>
+            </div>
 
-        {/* MS Word-style Template Gallery Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {profiles.map((p) => {
-            const isSelected = p.name === activeProfileName;
-            const values = DAYS_OF_WEEK.map((d) => p.daily[d] || 0);
-            const minVal = Math.min(...values);
-            const maxVal = Math.max(...values);
+            {/* MS Word-style Template Gallery Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {profiles.map((p) => {
+                const isApplied = p.name === activeProfileName;
+                const values = DAYS_OF_WEEK.map((d) => p.daily[d] || 0);
+                const minVal = Math.min(...values);
+                const maxVal = Math.max(...values);
 
-            return (
+                return (
+                  <div
+                    key={p.name}
+                    className={cn(
+                      "relative p-3.5 rounded-xl border transition-all flex flex-col justify-between select-none outline-none",
+                      isApplied
+                        ? (colorMode === 'dark' ? "bg-slate-900 border-blue-500 shadow-md shadow-blue-500/20 ring-1 ring-blue-500" : "bg-blue-50/70 border-blue-500 shadow-md ring-1 ring-blue-500")
+                        : (colorMode === 'dark' ? "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/50" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50")
+                    )}
+                  >
+                    {/* Top Right Checkmark Badge when Applied */}
+                    {isApplied && (
+                      <div
+                        data-testid={`applied-badge-${p.name.replaceAll(/\s+/g, '-')}`}
+                        className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold shadow-md animate-in fade-in zoom-in duration-200"
+                      >
+                        <Check size={12} strokeWidth={3} />
+                        <span>Applied</span>
+                      </div>
+                    )}
+
+                    <div>
+                      {/* Top Header Row */}
+                      <div className="flex items-center justify-between mb-1.5 pr-16">
+                        <span className={cn(
+                          "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider",
+                          p.name === ECOMMERCE_PROFILE.name
+                            ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                            : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                        )}>
+                          {p.name === ECOMMERCE_PROFILE.name ? 'Default' : 'Custom'}
+                        </span>
+
+                        {p.name !== ECOMMERCE_PROFILE.name && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProfile(p.name);
+                            }}
+                            className="p-1 rounded text-rose-400 hover:bg-rose-500/20 transition-colors"
+                            title="Delete Template"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Template Title */}
+                      <h4 className="text-xs font-bold text-slate-200 dark:text-slate-100 line-clamp-1 mb-1">
+                        {p.name}
+                      </h4>
+
+                      {/* Curve Preview */}
+                      <MiniCurvePreview profile={p} />
+                    </div>
+
+                    {/* Metrics Summary */}
+                    <div className="pt-2 my-1 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono font-semibold text-slate-400">
+                      <span>Min: <strong className="text-slate-200">{minVal >= 1000 ? `${(minVal / 1000).toFixed(1)}k` : minVal}</strong></span>
+                      <span className="text-blue-400">Max: <strong className="text-blue-400">{maxVal >= 1000 ? `${(maxVal / 1000).toFixed(1)}k` : maxVal}</strong></span>
+                    </div>
+
+                    {/* Action Buttons: Apply & Details */}
+                    <div className="pt-2 flex items-center gap-2 border-t border-slate-800/40">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyProfile(p.name)}
+                        className={cn(
+                          "flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all shadow",
+                          isApplied
+                            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                            : "bg-blue-600 hover:bg-blue-500 text-white"
+                        )}
+                      >
+                        <Check size={14} />
+                        <span>{isApplied ? 'Applied' : 'Apply'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetails(p.name)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border",
+                          colorMode === 'dark'
+                            ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
+                            : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                        )}
+                      >
+                        <Eye size={13} />
+                        <span>Details</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add Custom Profile Template Card */}
               <div
-                key={p.name}
                 role="button"
                 tabIndex={0}
-                onClick={() => handleSelectProfile(p.name)}
+                onClick={() => setViewMode('custom')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    handleSelectProfile(p.name);
+                    setViewMode('custom');
                   }
                 }}
                 className={cn(
-                  "relative p-3.5 rounded-xl border transition-all cursor-pointer group flex flex-col justify-between select-none outline-none focus:ring-2 focus:ring-blue-500/50",
-                  isSelected
-                    ? (colorMode === 'dark' ? "bg-slate-900 border-blue-500 shadow-md shadow-blue-500/20 ring-1 ring-blue-500" : "bg-blue-50/70 border-blue-500 shadow-md ring-1 ring-blue-500")
-                    : (colorMode === 'dark' ? "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/50" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50")
+                  "p-4 rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 select-none min-h-[160px] outline-none focus:ring-2 focus:ring-blue-500/50",
+                  colorMode === 'dark' ? "border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/40 text-slate-400 hover:text-slate-200" : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 text-slate-500 hover:text-slate-700"
                 )}
               >
-                <div>
-                  {/* Top Header Row */}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={cn(
-                      "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider",
-                      p.name === ECOMMERCE_PROFILE.name
-                        ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                        : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                    )}>
-                      {p.name === ECOMMERCE_PROFILE.name ? 'Default' : 'Custom'}
-                    </span>
-
-                    <div className="flex items-center gap-1">
-                      {isSelected && (
-                        <span className="p-0.5 rounded-full bg-blue-600 text-white shadow">
-                          <Check size={12} />
-                        </span>
-                      )}
-                      {p.name !== ECOMMERCE_PROFILE.name && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteProfile(p.name);
-                          }}
-                          className="p-1 rounded text-rose-400 hover:bg-rose-500/20 transition-colors"
-                          title="Delete Template"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Template Title */}
-                  <h4 className="text-xs font-bold text-slate-200 dark:text-slate-100 line-clamp-1 mb-1">
-                    {p.name}
-                  </h4>
-
-                  {/* Curve Preview */}
-                  <MiniCurvePreview profile={p} />
+                <div className="p-2.5 rounded-full bg-blue-600/20 text-blue-400">
+                  <Plus size={20} />
                 </div>
-
-                {/* Footer Metrics Summary: Lower Bound (Min) & Upper Bound (Max) */}
-                <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono font-semibold text-slate-400">
-                  <span>Min: <strong className="text-slate-200">{minVal >= 1000 ? `${(minVal / 1000).toFixed(1)}k` : minVal}</strong></span>
-                  <span className="text-blue-400">Max: <strong className="text-blue-400">{maxVal >= 1000 ? `${(maxVal / 1000).toFixed(1)}k` : maxVal}</strong></span>
-                </div>
+                <span className="text-xs font-bold">Add Custom Profile</span>
+                <span className="text-[10px] text-slate-500">Create new weekly connection schedule</span>
               </div>
-            );
-          })}
-
-          {/* Add Custom Profile Template Card */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setIsCreating(!isCreating)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                setIsCreating(!isCreating);
-              }
-            }}
-            className={cn(
-              "p-4 rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 select-none min-h-[140px] outline-none focus:ring-2 focus:ring-blue-500/50",
-              isCreating
-                ? "border-blue-500 bg-blue-500/10 text-blue-400"
-                : (colorMode === 'dark' ? "border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/40 text-slate-400 hover:text-slate-200" : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 text-slate-500 hover:text-slate-700")
-            )}
-          >
-            <div className="p-2.5 rounded-full bg-blue-600/20 text-blue-400">
-              <Plus size={20} />
             </div>
-            <span className="text-xs font-bold">Add Custom Profile</span>
-            <span className="text-[10px] text-slate-500">Create new weekly connection schedule</span>
+          </>
+        )}
+
+        {/* Detailed Full Profile View */}
+        {viewMode === 'details' && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <ArrowLeft size={16} />
+                <span>Back to Profiles Gallery</span>
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleApplyProfile(detailProfile.name)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition-all",
+                    detailProfile.name === activeProfileName
+                      ? "bg-emerald-600 text-white"
+                      : "bg-blue-600 hover:bg-blue-500 text-white"
+                  )}
+                >
+                  <Check size={14} />
+                  <span>{detailProfile.name === activeProfileName ? 'Active Profile' : 'Apply Profile'}</span>
+                </button>
+              </div>
+            </div>
+
+            <DetailedTrafficChart profile={detailProfile} colorMode={colorMode} />
+
+            {/* Daily Traffic Values Grid Breakdown */}
+            <div className={cn(
+              "p-4 rounded-xl border space-y-2",
+              colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
+            )}>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Daily Traffic Allocation Schedule
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1">
+                {DAYS_OF_WEEK.map((day) => (
+                  <div key={day} className="p-2.5 rounded-lg border bg-slate-900/50 border-slate-800 text-center space-y-1">
+                    <span className="block text-[10px] font-mono font-bold text-slate-400 uppercase">{day}</span>
+                    <span className="block text-xs font-mono font-extrabold text-blue-400">
+                      {(detailProfile.daily[day] || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Detailed Profile Inspector Chart with explicit X (Senin-Minggu) & Y (User count) axes */}
-        <DetailedTrafficChart profile={activeProfile} colorMode={colorMode} />
-
-        {/* Custom Profile Creation Form Drawer */}
-        {isCreating && (
+        {/* Custom Profile Creation Screen */}
+        {viewMode === 'custom' && (
           <div className={cn(
-            "p-4 rounded-xl border space-y-4 animate-in fade-in duration-200",
+            "p-5 rounded-xl border space-y-4 animate-in fade-in duration-200",
             colorMode === 'dark' ? "bg-slate-900/80 border-slate-800" : "bg-slate-100 border-slate-300"
           )}>
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-blue-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                Create Custom Connection Profile Template
-              </h3>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-blue-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                  Create Custom Connection Profile Template
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-200"
+              >
+                <ArrowLeft size={14} />
+                <span>Cancel</span>
+              </button>
             </div>
 
             <div>
@@ -397,7 +486,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                 value={newProfileName}
                 onChange={(e) => setNewProfileName(e.target.value)}
                 className={cn(
-                  "w-full px-3 py-1.5 rounded-lg border text-xs font-medium outline-none focus:border-blue-500",
+                  "w-full px-3 py-2 rounded-lg border text-xs font-medium outline-none focus:border-blue-500",
                   colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-300 text-slate-800"
                 )}
               />
@@ -422,7 +511,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         })
                       }
                       className={cn(
-                        "w-full px-2 py-1 rounded border text-xs font-mono font-bold text-blue-400 outline-none focus:border-blue-500",
+                        "w-full px-2 py-1.5 rounded border text-xs font-mono font-bold text-blue-400 outline-none focus:border-blue-500",
                         colorMode === 'dark' ? "bg-slate-950 border-slate-800" : "bg-white border-slate-300"
                       )}
                     />
@@ -431,11 +520,11 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/50">
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800/50">
               <button
                 type="button"
-                onClick={() => setIsCreating(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200"
+                onClick={() => setViewMode('grid')}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200"
               >
                 Cancel
               </button>
@@ -443,9 +532,9 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                 type="button"
                 onClick={handleSaveCustomProfile}
                 disabled={!newProfileName.trim()}
-                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow"
+                className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow"
               >
-                Save Profile Template
+                Save & Apply Profile
               </button>
             </div>
           </div>
@@ -454,28 +543,18 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
           <p className="text-[11px] text-slate-400 font-medium">
-            Selected Template: <span className="text-blue-400 font-bold">{activeProfile.name}</span>
+            Active Connection Profile: <span className="text-blue-400 font-bold">{activeProfile.name}</span>
           </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className={cn(
-                "px-4 py-2 rounded-lg text-xs font-medium transition-colors",
-                colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-              )}
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              onClick={handleActivateProfile}
-              className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow transition-colors"
-            >
-              <Check size={16} />
-              <span>Activate Profile</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              "px-5 py-2 rounded-lg text-xs font-bold transition-colors shadow",
+              colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+            )}
+          >
+            Close
+          </button>
         </div>
       </div>
     </Modal>

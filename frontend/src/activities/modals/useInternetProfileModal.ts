@@ -36,7 +36,8 @@ export const useInternetProfileModal = (
   const [activeProfileName, setActiveProfileName] = useState<string>(
     selectedNode?.data?.activeProfileName || ECOMMERCE_PROFILE.name
   );
-  const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'details' | 'custom'>('grid');
+  const [detailProfileName, setDetailProfileName] = useState<string>(ECOMMERCE_PROFILE.name);
   const [newProfileName, setNewProfileName] = useState<string>('');
   const [newDailyValues, setNewDailyValues] = useState<Record<string, number>>({
     Monday: 1000,
@@ -69,13 +70,26 @@ export const useInternetProfileModal = (
     if (isOpen) {
       fetchProfiles();
       setActiveProfileName(selectedNode?.data?.activeProfileName || ECOMMERCE_PROFILE.name);
+      setViewMode('grid');
     }
   }, [isOpen, fetchProfiles, selectedNode]);
 
   const activeProfile = profiles.find((p) => p.name === activeProfileName) || ECOMMERCE_PROFILE;
+  const detailProfile = profiles.find((p) => p.name === detailProfileName) || activeProfile;
 
-  const handleSelectProfile = (name: string) => {
-    setActiveProfileName(name);
+  const handleApplyProfile = (profileName: string) => {
+    const profileToApply = profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
+    setActiveProfileName(profileToApply.name);
+    performUpdate({
+      connectionProfile: profileToApply,
+      activeProfileName: profileToApply.name,
+      traffic: profileToApply.daily['Monday'] || 1000
+    });
+  };
+
+  const handleOpenDetails = (profileName: string) => {
+    setDetailProfileName(profileName);
+    setViewMode('details');
   };
 
   const handleSaveCustomProfile = async () => {
@@ -97,8 +111,8 @@ export const useInternetProfileModal = (
     }
 
     await fetchProfiles();
-    setActiveProfileName(newProfile.name);
-    setIsCreating(false);
+    handleApplyProfile(newProfile.name);
+    setViewMode('grid');
     setNewProfileName('');
   };
 
@@ -112,17 +126,13 @@ export const useInternetProfileModal = (
     }
 
     await fetchProfiles();
-    setActiveProfileName(ECOMMERCE_PROFILE.name);
-  };
-
-  const handleActivateProfile = () => {
-    const profileToActivate = profiles.find((p) => p.name === activeProfileName) || ECOMMERCE_PROFILE;
-    performUpdate({
-      connectionProfile: profileToActivate,
-      activeProfileName: profileToActivate.name,
-      traffic: profileToActivate.daily['Monday'] || 1000
-    });
-    onClose();
+    if (activeProfileName === name) {
+      handleApplyProfile(ECOMMERCE_PROFILE.name);
+    }
+    if (detailProfileName === name) {
+      setDetailProfileName(ECOMMERCE_PROFILE.name);
+      setViewMode('grid');
+    }
   };
 
   return {
@@ -130,15 +140,16 @@ export const useInternetProfileModal = (
     profiles,
     activeProfileName,
     activeProfile,
-    isCreating,
-    setIsCreating,
+    viewMode,
+    setViewMode,
+    detailProfile,
     newProfileName,
     setNewProfileName,
     newDailyValues,
     setNewDailyValues,
-    handleSelectProfile,
+    handleApplyProfile,
+    handleOpenDetails,
     handleSaveCustomProfile,
-    handleDeleteProfile,
-    handleActivateProfile
+    handleDeleteProfile
   };
 };
