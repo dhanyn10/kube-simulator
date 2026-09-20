@@ -425,31 +425,30 @@ export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
   return acc;
 };
 
-/**
- * Simulates pod crashes or recoveries based on ConfigMap CHAOS_MODE setting.
- */
-export const handleChaosModeSimulation = (
+const applySimulatedFailures = (
   childPods: Node[],
   ctx: SimulationContext,
-  hasSimulatedFailure: boolean,
   failingCmName: string
-): { hasChanges: boolean; isBlocked: boolean } => {
+): boolean => {
   let hasChanges = false;
-
-  if (hasSimulatedFailure) {
-    for (const pod of childPods) {
-      if (pod.data.status !== 'crashing' && updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
-        hasChanges = true;
-        try {
-          ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
-        } catch (e) {
-          logger.error('[ConfigMap Simulation] Failed to add log', e);
-        }
+  for (const pod of childPods) {
+    if (pod.data.status !== 'crashing' && updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
+      hasChanges = true;
+      try {
+        ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
+      } catch (e) {
+        logger.error('[ConfigMap Simulation] Failed to add log', e);
       }
     }
-    return { hasChanges, isBlocked: true };
   }
+  return hasChanges;
+};
 
+const recoverFromSimulatedFailures = (
+  childPods: Node[],
+  ctx: SimulationContext
+): boolean => {
+  let hasChanges = false;
   for (const pod of childPods) {
     if (pod.data.status === 'crashing' && pod.data.simulatedFailureCM) {
       const pData = pod.data as K8sNodeData;
@@ -465,8 +464,60 @@ export const handleChaosModeSimulation = (
       }
     }
   }
+  return hasChanges;
+};
 
+/**
+ * Simulates pod crashes or recoveries based on ConfigMap CHAOS_MODE setting.
+ */
+export const handleChaosModeSimulation = (
+  childPods: Node[],
+  ctx: SimulationContext,
+  hasSimulatedFailure: boolean,
+  failingCmName: string
+): { hasChanges: boolean; isBlocked: boolean } => {
+  if (hasSimulatedFailure) {
+    const hasChanges = applySimulatedFailures(childPods, ctx, failingCmName);
+    return { hasChanges, isBlocked: true };
+  }
+
+  const hasChanges = recoverFromSimulatedFailures(childPods, ctx);
   return { hasChanges, isBlocked: false };
+};
+
+const validateEdgePortMismatch = (
+  edge: Edge,
+  dep: Node,
+  ctx: SimulationContext,
+  cmPort: number
+): { hasChanges: boolean; isBlocked: boolean } => {
+  const sourceNode = ctx.nodeMap?.get(String(edge.source));
+  if (sourceNode?.type !== 'Service') return { hasChanges: false, isBlocked: false };
+
+  const sData = sourceNode.data as K8sNodeData;
+  const srvTargetPort = Number(sData.targetPort || sData.port || 80);
+
+  if (cmPort !== srvTargetPort) {
+    const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
+    let hasChanges = false;
+    if (edge.data?.validationError !== portErr) {
+      edge.data = { ...edge.data, validationError: portErr };
+      hasChanges = true;
+      try {
+        ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
+      } catch (e) {
+        logger.error('[ConfigMap Simulation] Failed to add log', e);
+      }
+    }
+    return { hasChanges, isBlocked: true };
+  }
+
+  if (edge.data?.validationError?.includes('Port Mismatch')) {
+    edge.data = { ...edge.data, validationError: undefined };
+    return { hasChanges: true, isBlocked: false };
+  }
+
+  return { hasChanges: false, isBlocked: false };
 };
 
 /**
@@ -477,33 +528,15 @@ export const checkPortMismatch = (
   ctx: SimulationContext,
   cmPort: number | null
 ): { hasChanges: boolean; isBlocked: boolean } => {
+  if (cmPort === null) return { hasChanges: false, isBlocked: false };
+
   let hasChanges = false;
   const incomingEdges = ctx.targetEdgeMap?.get(dep.id) || [];
 
   for (const edge of incomingEdges) {
-    const sourceNode = ctx.nodeMap?.get(String(edge.source));
-    if (sourceNode?.type !== 'Service') continue;
-
-    const sData = sourceNode.data as K8sNodeData;
-    const srvTargetPort = Number(sData.targetPort || sData.port || 80);
-
-    if (cmPort !== null && cmPort !== srvTargetPort) {
-      const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
-      if (edge.data?.validationError !== portErr) {
-        edge.data = { ...edge.data, validationError: portErr };
-        try {
-          ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
-        } catch (e) {
-          logger.error('[ConfigMap Simulation] Failed to add log', e);
-        }
-      }
-      return { hasChanges: true, isBlocked: true };
-    }
-
-    if (edge.data?.validationError?.includes('Port Mismatch')) {
-      edge.data = { ...edge.data, validationError: undefined };
-      hasChanges = true;
-    }
+    const result = validateEdgePortMismatch(edge, dep, ctx, cmPort);
+    if (result.hasChanges) hasChanges = true;
+    if (result.isBlocked) return { hasChanges: true, isBlocked: true };
   }
 
   return { hasChanges, isBlocked: false };
