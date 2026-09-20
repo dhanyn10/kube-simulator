@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Settings, Plus, Trash2, HelpCircle, TerminalSquare } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
 import { K8sConfigMapItem } from '../../types';
 import { useFlowStore } from '../../store';
@@ -89,7 +90,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
   // Autocomplete state
   const [activeDropdown, setActiveDropdown] = useState<{ rowId: string; field: 'key' | 'value' } | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const activeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (initialConfigMap && initialConfigMap.configData && initialConfigMap.configData.length > 0) {
@@ -107,15 +109,40 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     }
   }, [initialConfigMap, isOpen, targetNodeId]);
 
+  const updateDropdownPos = (inputElem: HTMLInputElement) => {
+    const rect = inputElem.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + window.scrollY + 4,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+    });
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      const popupElem = document.getElementById('configmap-autocomplete-portal');
+      if (
+        popupElem && !popupElem.contains(e.target as Node) &&
+        activeInputRef.current && !activeInputRef.current.contains(e.target as Node)
+      ) {
         setActiveDropdown(null);
       }
     };
+    const handleScrollOrResize = () => {
+      if (activeInputRef.current && activeDropdown) {
+        updateDropdownPos(activeInputRef.current);
+      }
+    };
+
     window.addEventListener('mousedown', handleClickOutside);
-    return () => window.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [activeDropdown]);
 
   if (!isOpen) return null;
 
@@ -132,6 +159,9 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
   const handleRemoveRow = (id: string) => {
     setRows((prev) => prev.filter((r) => r.id !== id));
+    if (activeDropdown?.rowId === id) {
+      setActiveDropdown(null);
+    }
   };
 
   const handleRowChange = (id: string, field: keyof ConfigRow, value: string) => {
@@ -178,6 +208,23 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     </div>
   );
 
+  // Active row for autocomplete portal
+  const activeRow = rows.find((r) => r.id === activeDropdown?.rowId);
+  const activeKeyInfo = activeRow ? PREDEFINED_KEYS.find((pk) => pk.key === activeRow.key.trim().toUpperCase()) : null;
+
+  const filteredKeys = activeRow
+    ? PREDEFINED_KEYS.filter((pk) => pk.key.toLowerCase().includes(activeRow.key.toLowerCase()))
+    : [];
+
+  const valueOpts = activeKeyInfo ? activeKeyInfo.valueSuggestions : [];
+  const filteredValues = activeRow
+    ? valueOpts.filter(
+        (opt) =>
+          opt.value.toLowerCase().includes(activeRow.value.toLowerCase()) ||
+          opt.description.toLowerCase().includes(activeRow.value.toLowerCase())
+      )
+    : [];
+
   return (
     <Modal
       isOpen={isOpen}
@@ -190,7 +237,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       maxHeightClass="h-[75vh]"
       footer={footer}
     >
-      <div className="space-y-4" ref={dropdownRef}>
+      <div className="space-y-4">
         {/* ConfigMap Name */}
         <div>
           <label htmlFor="configmap-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
@@ -245,25 +292,10 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               No key-value pairs added. Click <span className="font-semibold text-teal-400">"+ Add Row"</span> above to add an entry.
             </div>
           ) : (
-            <div className="border rounded-b-lg divide-y divide-slate-800/60 max-h-[40vh] overflow-y-auto custom-scrollbar">
+            <div className="border rounded-b-lg divide-y divide-slate-800/60 max-h-[35vh] overflow-y-auto custom-scrollbar">
               {rows.map((row) => {
                 const upperKey = row.key.trim().toUpperCase();
                 const matchedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === upperKey);
-
-                // Filter Key Suggestions
-                const filteredKeys = PREDEFINED_KEYS.filter((pk) =>
-                  pk.key.toLowerCase().includes(row.key.toLowerCase())
-                );
-
-                // Filter Value Suggestions
-                const valueOpts = matchedKeyInfo ? matchedKeyInfo.valueSuggestions : [];
-                const filteredValues = valueOpts.filter((opt) =>
-                  opt.value.toLowerCase().includes(row.value.toLowerCase()) ||
-                  opt.description.toLowerCase().includes(row.value.toLowerCase())
-                );
-
-                const isKeyDropdownOpen = activeDropdown?.rowId === row.id && activeDropdown.field === 'key';
-                const isValueDropdownOpen = activeDropdown?.rowId === row.id && activeDropdown.field === 'value';
 
                 return (
                   <div
@@ -276,16 +308,22 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      {/* Key Field with Kube Console Style Autocomplete Dropdown */}
-                      <div className="w-1/2 relative">
+                      {/* Key Field with Fixed Portal Dropdown */}
+                      <div className="w-1/2">
                         <input
                           id={`cm-key-input-${row.id}`}
                           aria-label="Key"
                           type="text"
                           value={row.key}
-                          onFocus={() => setActiveDropdown({ rowId: row.id, field: 'key' })}
+                          onFocus={(e) => {
+                            activeInputRef.current = e.currentTarget;
+                            updateDropdownPos(e.currentTarget);
+                            setActiveDropdown({ rowId: row.id, field: 'key' });
+                          }}
                           onChange={(e) => {
                             handleRowChange(row.id, 'key', e.target.value);
+                            activeInputRef.current = e.currentTarget;
+                            updateDropdownPos(e.currentTarget);
                             setActiveDropdown({ rowId: row.id, field: 'key' });
                           }}
                           placeholder="e.g. PORT, LOG_LEVEL"
@@ -296,58 +334,24 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                               : "bg-slate-50 border-slate-300 text-slate-800"
                           )}
                         />
-
-                        {/* Kube Console Style Autocomplete Dropdown for Key */}
-                        {isKeyDropdownOpen && filteredKeys.length > 0 && (
-                          <div
-                            data-testid="key-autocomplete-popup"
-                            className={cn(
-                              "absolute top-full left-0 mt-1 w-full max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-50 divide-y custom-scrollbar",
-                              isDark
-                                ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
-                                : "bg-white border-slate-200 text-slate-800 divide-slate-100"
-                            )}
-                          >
-                            {filteredKeys.map((item) => (
-                              <button
-                                type="button"
-                                key={`key-option-${item.key}`}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  handleRowChange(row.id, 'key', item.key);
-                                  setActiveDropdown(null);
-                                }}
-                                className={cn(
-                                  "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
-                                  isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
-                                )}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <TerminalSquare size={12} className="text-teal-400 shrink-0" />
-                                  <span className="font-semibold text-[11px]">{item.key}</span>
-                                </div>
-                                <span className={cn(
-                                  "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
-                                  isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
-                                )}>
-                                  KEY
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
-                      {/* Value Field with Kube Console Style Autocomplete Dropdown */}
-                      <div className="w-1/2 relative">
+                      {/* Value Field with Fixed Portal Dropdown */}
+                      <div className="w-1/2">
                         <input
                           id={`cm-val-input-${row.id}`}
                           aria-label="Value"
                           type="text"
                           value={row.value}
-                          onFocus={() => setActiveDropdown({ rowId: row.id, field: 'value' })}
+                          onFocus={(e) => {
+                            activeInputRef.current = e.currentTarget;
+                            updateDropdownPos(e.currentTarget);
+                            setActiveDropdown({ rowId: row.id, field: 'value' });
+                          }}
                           onChange={(e) => {
                             handleRowChange(row.id, 'value', e.target.value);
+                            activeInputRef.current = e.currentTarget;
+                            updateDropdownPos(e.currentTarget);
                             setActiveDropdown({ rowId: row.id, field: 'value' });
                           }}
                           placeholder="e.g. 80, INFO, enabled"
@@ -358,43 +362,6 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                               : "bg-slate-50 border-slate-300 text-slate-900"
                           )}
                         />
-
-                        {/* Kube Console Style Autocomplete Dropdown for Value */}
-                        {isValueDropdownOpen && filteredValues.length > 0 && (
-                          <div
-                            data-testid="value-autocomplete-popup"
-                            className={cn(
-                              "absolute top-full left-0 mt-1 w-full max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-50 divide-y custom-scrollbar",
-                              isDark
-                                ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
-                                : "bg-white border-slate-200 text-slate-800 divide-slate-100"
-                            )}
-                          >
-                            {filteredValues.map((opt) => (
-                              <button
-                                type="button"
-                                key={`val-option-${opt.value}`}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  handleRowChange(row.id, 'value', opt.value);
-                                  setActiveDropdown(null);
-                                }}
-                                className={cn(
-                                  "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
-                                  isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
-                                )}
-                              >
-                                <div className="flex items-center gap-2 overflow-hidden">
-                                  <TerminalSquare size={12} className="text-teal-400 shrink-0" />
-                                  <span className="font-semibold text-[11px]">{opt.value}</span>
-                                </div>
-                                <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                                  {opt.description}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
                       {/* Delete button */}
@@ -423,6 +390,80 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Viewport Fixed Autocomplete Portal (Renders above all scroll containers without clipping) */}
+      {activeDropdown && dropdownPos && activeRow && createPortal(
+        <div
+          id="configmap-autocomplete-portal"
+          style={{
+            position: 'fixed',
+            top: `${dropdownPos.top}px`,
+            left: `${dropdownPos.left}px`,
+            width: `${dropdownPos.width}px`,
+            zIndex: 9999,
+          }}
+          className={cn(
+            "max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] divide-y custom-scrollbar animate-in fade-in-50 duration-100",
+            isDark
+              ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
+              : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+          )}
+        >
+          {activeDropdown.field === 'key' && filteredKeys.map((item) => (
+            <button
+              type="button"
+              key={`portal-key-${item.key}`}
+              data-testid={`key-option-${item.key}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleRowChange(activeRow.id, 'key', item.key);
+                setActiveDropdown(null);
+              }}
+              className={cn(
+                "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
+                isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <TerminalSquare size={12} className="text-teal-400 shrink-0" />
+                <span className="font-semibold text-[11px]">{item.key}</span>
+              </div>
+              <span className={cn(
+                "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+                isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
+              )}>
+                KEY
+              </span>
+            </button>
+          ))}
+
+          {activeDropdown.field === 'value' && filteredValues.map((opt) => (
+            <button
+              type="button"
+              key={`portal-val-${opt.value}`}
+              data-testid={`val-option-${opt.value}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleRowChange(activeRow.id, 'value', opt.value);
+                setActiveDropdown(null);
+              }}
+              className={cn(
+                "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
+                isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
+              )}
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                <TerminalSquare size={12} className="text-teal-400 shrink-0" />
+                <span className="font-semibold text-[11px]">{opt.value}</span>
+              </div>
+              <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                {opt.description}
+              </span>
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
     </Modal>
   );
 };

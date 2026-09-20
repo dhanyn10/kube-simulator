@@ -54,7 +54,7 @@ describe('ConfigMapModal', () => {
     expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('renders Kube Console style autocomplete dropdown popup when focusing inputs', () => {
+  it('renders Kube Console style portal autocomplete dropdown popup when focusing inputs', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
@@ -62,11 +62,10 @@ describe('ConfigMapModal', () => {
     const keyInput = screen.getByLabelText('Key');
     fireEvent.focus(keyInput);
 
-    expect(screen.getByTestId('key-autocomplete-popup')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /MAX_CONNECTIONS KEY/i })).toBeInTheDocument();
+    expect(screen.getByTestId('key-option-MAX_CONNECTIONS')).toBeInTheDocument();
 
-    // Select option from dropdown
-    fireEvent.mouseDown(screen.getByRole('button', { name: /MAX_CONNECTIONS KEY/i }));
+    // Select option from portal dropdown
+    fireEvent.mouseDown(screen.getByTestId('key-option-MAX_CONNECTIONS'));
     expect(keyInput).toHaveValue('MAX_CONNECTIONS');
   });
 
