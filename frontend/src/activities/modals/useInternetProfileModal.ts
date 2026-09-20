@@ -23,6 +23,20 @@ export const ECOMMERCE_PROFILE: InternetProfileItem = {
 };
 
 /**
+ * Generates custom profile key formatted as custom-ddmmyyyyhis
+ */
+export const generateCustomProfileKey = (): string => {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const h = String(now.getHours()).padStart(2, '0');
+  const i = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  return `custom-${dd}${mm}${yyyy}${h}${i}${s}`;
+};
+
+/**
  * Custom hook providing business logic for Internet Connection Profile Simulation Modal.
  */
 export const useInternetProfileModal = (
@@ -37,7 +51,8 @@ export const useInternetProfileModal = (
     selectedNode?.data?.activeProfileName || ECOMMERCE_PROFILE.name
   );
   const [viewMode, setViewMode] = useState<'grid' | 'details' | 'custom'>('grid');
-  const [detailProfileName, setDetailProfileName] = useState<string>(ECOMMERCE_PROFILE.name);
+  const [detailProfile, setDetailProfile] = useState<InternetProfileItem>(ECOMMERCE_PROFILE);
+  const [isModifiedCustom, setIsModifiedCustom] = useState<boolean>(false);
   const [newProfileName, setNewProfileName] = useState<string>('');
   const [newDailyValues, setNewDailyValues] = useState<Record<string, number>>({
     Monday: 1000,
@@ -71,14 +86,14 @@ export const useInternetProfileModal = (
       fetchProfiles();
       setActiveProfileName(selectedNode?.data?.activeProfileName || ECOMMERCE_PROFILE.name);
       setViewMode('grid');
+      setIsModifiedCustom(false);
     }
   }, [isOpen, fetchProfiles, selectedNode]);
 
   const activeProfile = profiles.find((p) => p.name === activeProfileName) || ECOMMERCE_PROFILE;
-  const detailProfile = profiles.find((p) => p.name === detailProfileName) || activeProfile;
 
-  const handleApplyProfile = (profileName: string) => {
-    const profileToApply = profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
+  const handleApplyProfile = (profileName: string, profileObj?: InternetProfileItem) => {
+    const profileToApply = profileObj || profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
     setActiveProfileName(profileToApply.name);
     performUpdate({
       connectionProfile: profileToApply,
@@ -88,8 +103,58 @@ export const useInternetProfileModal = (
   };
 
   const handleOpenDetails = (profileName: string) => {
-    setDetailProfileName(profileName);
+    const target = profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
+    setDetailProfile({ ...target, daily: { ...target.daily } });
+    setIsModifiedCustom(false);
     setViewMode('details');
+  };
+
+  const handleUpdateDetailPoint = (day: string, newValue: number) => {
+    setDetailProfile((prev) => {
+      let updatedName = prev.name;
+      if (!isModifiedCustom && !prev.name.startsWith('custom-')) {
+        updatedName = generateCustomProfileKey();
+        setIsModifiedCustom(true);
+      }
+      return {
+        ...prev,
+        name: updatedName,
+        daily: {
+          ...prev.daily,
+          [day]: newValue
+        }
+      };
+    });
+  };
+
+  const handleUpdateDetailName = (newName: string) => {
+    setDetailProfile((prev) => ({
+      ...prev,
+      name: newName
+    }));
+  };
+
+  const handleSaveAndApplyDetailProfile = async () => {
+    if (!detailProfile.name.trim()) return;
+
+    const profileToSave: InternetProfileItem = {
+      name: detailProfile.name.trim(),
+      daily: { ...detailProfile.daily },
+      timestamp: Date.now()
+    };
+
+    try {
+      await window.go?.main?.App?.SaveInternetProfile?.(
+        profileToSave.name,
+        JSON.stringify(profileToSave)
+      );
+    } catch {
+      // Fallback
+    }
+
+    await fetchProfiles();
+    handleApplyProfile(profileToSave.name, profileToSave);
+    setViewMode('grid');
   };
 
   const handleSaveCustomProfile = async () => {
@@ -111,7 +176,7 @@ export const useInternetProfileModal = (
     }
 
     await fetchProfiles();
-    handleApplyProfile(newProfile.name);
+    handleApplyProfile(newProfile.name, newProfile);
     setViewMode('grid');
     setNewProfileName('');
   };
@@ -129,8 +194,7 @@ export const useInternetProfileModal = (
     if (activeProfileName === name) {
       handleApplyProfile(ECOMMERCE_PROFILE.name);
     }
-    if (detailProfileName === name) {
-      setDetailProfileName(ECOMMERCE_PROFILE.name);
+    if (detailProfile.name === name) {
       setViewMode('grid');
     }
   };
@@ -143,12 +207,16 @@ export const useInternetProfileModal = (
     viewMode,
     setViewMode,
     detailProfile,
+    isModifiedCustom,
     newProfileName,
     setNewProfileName,
     newDailyValues,
     setNewDailyValues,
     handleApplyProfile,
     handleOpenDetails,
+    handleUpdateDetailPoint,
+    handleUpdateDetailName,
+    handleSaveAndApplyDetailProfile,
     handleSaveCustomProfile,
     handleDeleteProfile
   };

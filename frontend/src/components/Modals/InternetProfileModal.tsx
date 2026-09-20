@@ -1,5 +1,5 @@
-import React from 'react';
-import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
 import {
@@ -66,25 +66,33 @@ const MiniCurvePreview = ({
   );
 };
 
-const DetailedTrafficChart = ({
+const InteractiveTrafficChart = ({
   profile,
-  colorMode
+  colorMode,
+  onUpdatePoint,
+  onUpdateName
 }: {
   readonly profile: InternetProfileItem;
   readonly colorMode: string;
+  readonly onUpdatePoint: (day: string, newValue: number) => void;
+  readonly onUpdateName: (newName: string) => void;
 }) => {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [draggingDay, setDraggingDay] = useState<string | null>(null);
+
   const width = 680;
-  const height = 240;
-  const padLeft = 60;
-  const padRight = 30;
-  const padTop = 30;
-  const padBottom = 40;
+  const height = 280;
+  const padLeft = 65;
+  const padRight = 35;
+  const padTop = 35;
+  const padBottom = 45;
 
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
   const values = DAYS_OF_WEEK.map((day) => profile.daily[day] || 0);
-  const maxVal = Math.max(...values, 1000);
+  const currentMax = Math.max(...values, 1000);
+  const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
   const minVal = 0;
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -105,25 +113,78 @@ const DetailedTrafficChart = ({
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
+  const handlePointerDown = (day: string, e: React.PointerEvent) => {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    setDraggingDay(day);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!draggingDay || !svgRef.current) return;
+
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientY = e.clientY - rect.top;
+    const svgY = (clientY / rect.height) * height;
+
+    const clampedY = Math.max(padTop, Math.min(padTop + chartHeight, svgY));
+    const ratio = (padTop + chartHeight - clampedY) / chartHeight;
+    const calculatedVal = Math.round(minVal + ratio * (maxVal - minVal));
+    const finalVal = Math.max(10, Math.min(maxVal, calculatedVal));
+
+    onUpdatePoint(draggingDay, finalVal);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (draggingDay) {
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      setDraggingDay(null);
+    }
+  };
+
   return (
     <div className={cn(
       "p-5 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
       colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
     )}>
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <Activity size={18} className="text-blue-500" />
-          <span className="text-sm font-bold uppercase tracking-wider text-slate-200">
-            Profile Traffic Schedule: <span className="text-blue-400">{profile.name}</span>
-          </span>
+      {/* Title Header with In-Place Editable Name */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3 px-1">
+        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+          <Activity size={18} className="text-blue-500 shrink-0" />
+          <div className="flex items-center gap-1.5 flex-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 shrink-0">
+              Profile:
+            </span>
+            <div className="relative flex-1 max-w-sm flex items-center">
+              <input
+                type="text"
+                value={profile.name}
+                onChange={(e) => onUpdateName(e.target.value)}
+                className={cn(
+                  "w-full px-2.5 py-1 rounded-lg border text-xs font-bold text-blue-400 outline-none transition-all focus:ring-2 focus:ring-blue-500/50",
+                  colorMode === 'dark' ? "bg-slate-900 border-slate-700" : "bg-white border-slate-300"
+                )}
+              />
+              <Edit2 size={13} className="absolute right-2.5 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
         </div>
+
         <div className="flex items-center gap-4 text-xs font-mono font-semibold">
-          <span className="text-slate-400">Min Traffic: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
-          <span className="text-slate-400">Peak Traffic: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
+          <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
+          <span className="text-slate-400">Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[240px] overflow-visible">
+      <p className="text-[11px] font-medium text-slate-400 mb-2 px-1">
+        💡 Drag data points vertically up/down on the Y-axis to dynamically modify daily traffic values.
+      </p>
+
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
+      >
         <defs>
           <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
@@ -181,37 +242,75 @@ const DetailedTrafficChart = ({
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Data points & X-axis Day labels */}
-        {points.map((pt) => (
-          <g key={`pt-${pt.day}`}>
-            <circle
-              cx={pt.x}
-              cy={pt.y}
-              r="5"
-              className="fill-blue-500 stroke-white dark:stroke-slate-900"
-              strokeWidth="2"
-            />
-            <text
-              x={pt.x}
-              y={pt.y - 10}
-              textAnchor="middle"
-              className="text-[10px] font-mono font-bold fill-blue-500 dark:fill-blue-400"
-            >
-              {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
-            </text>
-            <text
-              x={pt.x}
-              y={padTop + chartHeight + 20}
-              textAnchor="middle"
-              className={cn(
-                "text-[10px] font-bold font-mono uppercase tracking-wider",
-                colorMode === 'dark' ? "fill-slate-300" : "fill-slate-700"
+        {/* Interactive Data points & X-axis Day labels */}
+        {points.map((pt) => {
+          const isDraggingThis = draggingDay === pt.day;
+
+          return (
+            <g key={`pt-${pt.day}`}>
+              {/* Vertical Guide Line when dragging */}
+              {isDraggingThis && (
+                <line
+                  x1={pt.x}
+                  y1={padTop}
+                  x2={pt.x}
+                  y2={padTop + chartHeight}
+                  stroke="#3b82f6"
+                  strokeDasharray="2 2"
+                  strokeWidth="1.5"
+                />
               )}
-            >
-              {pt.day}
-            </text>
-          </g>
-        ))}
+
+              {/* Invisible touch target for drag ease */}
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r="16"
+                className="fill-transparent cursor-ns-resize"
+                onPointerDown={(e) => handlePointerDown(pt.day, e)}
+              />
+
+              {/* Visible Circle */}
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r={isDraggingThis ? 8 : 6}
+                className={cn(
+                  "cursor-ns-resize transition-all",
+                  isDraggingThis ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50" : "fill-blue-500 stroke-white dark:stroke-slate-900"
+                )}
+                strokeWidth="2"
+                onPointerDown={(e) => handlePointerDown(pt.day, e)}
+              />
+
+              {/* Value Label */}
+              <text
+                x={pt.x}
+                y={pt.y - 12}
+                textAnchor="middle"
+                className={cn(
+                  "text-[10px] font-mono font-bold select-none",
+                  isDraggingThis ? "fill-blue-400 text-xs font-extrabold" : "fill-blue-500 dark:fill-blue-400"
+                )}
+              >
+                {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
+              </text>
+
+              {/* Day Label */}
+              <text
+                x={pt.x}
+                y={padTop + chartHeight + 22}
+                textAnchor="middle"
+                className={cn(
+                  "text-[10px] font-bold font-mono uppercase tracking-wider select-none",
+                  colorMode === 'dark' ? "fill-slate-300" : "fill-slate-700"
+                )}
+              >
+                {pt.day}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
@@ -233,14 +332,17 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     viewMode,
     setViewMode,
     detailProfile,
+    handleApplyProfile,
+    handleOpenDetails,
+    handleUpdateDetailPoint,
+    handleUpdateDetailName,
+    handleSaveAndApplyDetailProfile,
+    handleSaveCustomProfile,
+    handleDeleteProfile,
     newProfileName,
     setNewProfileName,
     newDailyValues,
-    setNewDailyValues,
-    handleApplyProfile,
-    handleOpenDetails,
-    handleSaveCustomProfile,
-    handleDeleteProfile
+    setNewDailyValues
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
   return (
@@ -414,7 +516,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleApplyProfile(detailProfile.name)}
+                  onClick={handleSaveAndApplyDetailProfile}
                   className={cn(
                     "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition-all",
                     detailProfile.name === activeProfileName
@@ -423,32 +525,17 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                   )}
                 >
                   <Check size={14} />
-                  <span>{detailProfile.name === activeProfileName ? 'Active Profile' : 'Apply Profile'}</span>
+                  <span>{detailProfile.name === activeProfileName ? 'Applied' : 'Save & Apply Profile'}</span>
                 </button>
               </div>
             </div>
 
-            <DetailedTrafficChart profile={detailProfile} colorMode={colorMode} />
-
-            {/* Daily Traffic Values Grid Breakdown */}
-            <div className={cn(
-              "p-4 rounded-xl border space-y-2",
-              colorMode === 'dark' ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"
-            )}>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Daily Traffic Allocation Schedule
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1">
-                {DAYS_OF_WEEK.map((day) => (
-                  <div key={day} className="p-2.5 rounded-lg border bg-slate-900/50 border-slate-800 text-center space-y-1">
-                    <span className="block text-[10px] font-mono font-bold text-slate-400 uppercase">{day}</span>
-                    <span className="block text-xs font-mono font-extrabold text-blue-400">
-                      {(detailProfile.daily[day] || 0).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <InteractiveTrafficChart
+              profile={detailProfile}
+              colorMode={colorMode}
+              onUpdatePoint={handleUpdateDetailPoint}
+              onUpdateName={handleUpdateDetailName}
+            />
           </div>
         )}
 

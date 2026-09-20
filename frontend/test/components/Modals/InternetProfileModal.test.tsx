@@ -21,7 +21,6 @@ describe('InternetProfileModal', () => {
     vi.clearAllMocks();
     useFlowStore.setState({ colorMode: 'dark' });
 
-    // Mock window.go.main.App methods
     (globalThis as any).go = {
       main: {
         App: {
@@ -138,7 +137,7 @@ describe('InternetProfileModal', () => {
     );
   });
 
-  it('opens detailed full profile view when Details button is clicked', async () => {
+  it('opens interactive full profile details view when Details button is clicked without Daily Traffic Allocation Schedule', async () => {
     render(
       <InternetProfileModal
         isOpen={true}
@@ -156,7 +155,8 @@ describe('InternetProfileModal', () => {
     fireEvent.click(detailsBtns[0]);
 
     expect(screen.getByText('Back to Profiles Gallery')).toBeDefined();
-    expect(screen.getByText('Daily Traffic Allocation Schedule')).toBeDefined();
+    expect(screen.queryByText('Daily Traffic Allocation Schedule')).toBeNull();
+    expect(screen.getByText(/Drag data points vertically up\/down/)).toBeDefined();
   });
 
   it('does not render when isOpen is false', () => {
