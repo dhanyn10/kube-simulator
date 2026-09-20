@@ -5,3 +5,4 @@ export * from './useRoleModal';
 export * from './kubeIamHelpers';
 export * from './attachedResourceListHelpers';
 export * from './useConfigMapModal';
+export * from './useInternetProfileModal';

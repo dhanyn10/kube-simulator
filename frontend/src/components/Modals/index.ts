@@ -14,3 +14,4 @@ export * from './HPAModal';
 export * from './HPAListModal';
 export * from './KubeIAMModal';
 export * from './SaveModal';
+export * from './InternetProfileModal';

@@ -677,3 +677,53 @@ func TestApp_FileExistsAndOpenFileFolder(t *testing.T) {
 		t.Error("Expected GetAutosaveProfiles to return at least 1 profile")
 	}
 }
+
+func TestApp_InternetProfiles(t *testing.T) {
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	// 1. Initial GetInternetProfiles should be empty or non-nil
+	initial := app.GetInternetProfiles()
+	if len(initial) != 0 {
+		t.Errorf("Expected 0 profiles initially, got %d", len(initial))
+	}
+
+	// 2. Save invalid profile
+	if app.SaveInternetProfile("", "") != false {
+		t.Error("Expected SaveInternetProfile to fail with empty name")
+	}
+
+	// 3. Save valid profile
+	sampleProfile := `{"name":"Custom Peak","daily":{"Senin":100,"Selasa":200,"Rabu":150,"Kamis":300,"Jumat":250,"Sabtu":500,"Minggu":400},"timestamp":1700000000}`
+	ok := app.SaveInternetProfile("Custom Peak", sampleProfile)
+	if !ok {
+		t.Error("Expected SaveInternetProfile to succeed")
+	}
+
+	// 4. GetInternetProfiles should find the saved profile
+	savedList := app.GetInternetProfiles()
+	if len(savedList) != 1 {
+		t.Fatalf("Expected 1 profile, got %d", len(savedList))
+	}
+	if savedList[0].Name != "Custom Peak" {
+		t.Errorf("Expected profile name 'Custom Peak', got '%s'", savedList[0].Name)
+	}
+	if savedList[0].Daily["Sabtu"] != 500 {
+		t.Errorf("Expected Sabtu daily value 500, got %d", savedList[0].Daily["Sabtu"])
+	}
+
+	// 5. Delete profile
+	if app.DeleteInternetProfile("") != false {
+		t.Error("Expected DeleteInternetProfile to return false for empty name")
+	}
+
+	deletedOk := app.DeleteInternetProfile("Custom Peak")
+	if !deletedOk {
+		t.Error("Expected DeleteInternetProfile to succeed")
+	}
+
+	afterDelete := app.GetInternetProfiles()
+	if len(afterDelete) != 0 {
+		t.Errorf("Expected 0 profiles after delete, got %d", len(afterDelete))
+	}
+}

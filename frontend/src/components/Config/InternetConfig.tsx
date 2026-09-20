@@ -1,14 +1,14 @@
-
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useFlowStore } from '@/store';
-import { Network, Layers } from 'lucide-react';
-import { ConfigSection, AdvancedSection } from '../UI/ConfigUI';
+import { Network, Layers, Sparkles } from 'lucide-react';
+import { ConfigSection } from '../UI/ConfigUI';
 import { SelectorGroup } from '../UI/SelectorGroup';
+import { InternetProfileModal } from '../Modals/InternetProfileModal';
 
 interface InternetConfigProps {
-  selectedNode: any;
-  performUpdate: (updates: any) => void;
-  toggleVisibility: (field: string) => void;
+  readonly selectedNode: any;
+  readonly performUpdate: (updates: any) => void;
+  readonly toggleVisibility: (field: string) => void;
 }
 
 const formatNumberCompact = (num: number): string => {
@@ -21,6 +21,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const colorMode = useFlowStore((state) => state.colorMode);
   const data = selectedNode.data;
   const currentTraffic = Math.max(1, data.traffic || 1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Calculate dynamic maxRange based on current traffic (minimum 1000)
   const maxRange = useMemo(() => {
@@ -49,109 +50,126 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
   return (
     <div className="space-y-4">
-      <AdvancedSection colorMode={colorMode}>
-        <ConfigSection
-          title="Data Traffic"
-          icon={Network}
-          isVisible={data.displaySettings?.traffic}
-          onToggle={() => toggleVisibility('traffic')}
-        >
-          <div className="px-1 py-2 space-y-2">
-            <div className="flex justify-between items-center text-xs font-mono">
-              <span className="text-[10px] text-slate-400 uppercase font-bold">Visits / Duration</span>
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min="1"
-                  value={currentTraffic}
-                  onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
-                  data-testid="traffic-numeric-input"
-                  className="w-20 text-right bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-bold text-blue-400 font-mono outline-none focus:border-blue-500"
-                />
-                <span className="text-[9px] font-normal text-slate-400">visits</span>
-              </div>
-            </div>
+      {/* Explore More button placed below node name */}
+      <button
+        type="button"
+        onClick={() => setIsModalOpen(true)}
+        className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow"
+      >
+        <Sparkles size={14} />
+        <span>Explore More</span>
+      </button>
 
-            <div className="relative pt-1 pb-5">
+      {/* Permanently open configuration sections without collapsible toggle */}
+      <ConfigSection
+        title="Data Traffic"
+        icon={Network}
+        isVisible={data.displaySettings?.traffic}
+        onToggle={() => toggleVisibility('traffic')}
+      >
+        <div className="px-1 py-2 space-y-2">
+          <div className="flex justify-between items-center text-xs font-mono">
+            <span className="text-[10px] text-slate-400 uppercase font-bold">Visits / Duration</span>
+            <div className="flex items-center gap-1">
               <input
-                type="range"
+                type="number"
                 min="1"
-                max={maxRange}
-                step={maxRange > 10000 ? 50 : 1}
                 value={currentTraffic}
                 onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
-                className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer custom-traffic-slider outline-none"
+                data-testid="traffic-numeric-input"
+                className="w-20 text-right bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-bold text-blue-400 font-mono outline-none focus:border-blue-500"
               />
-
-              {/* Interactive 4-part ruler scale with track padding offset matching 20px thumb center */}
-              <div className="relative w-full text-[8px] font-mono text-slate-500 h-6 mt-1 px-2.5">
-                {rulerTicks.map((tick, idx) => (
-                  <button
-                    type="button"
-                    key={`tick-${tick.label}-${idx}`}
-                    onClick={() => handleSliderChange(tick.val)}
-                    data-testid={`ruler-tick-${tick.val}`}
-                    title={`Set traffic to ${tick.val.toLocaleString()}`}
-                    style={{ left: `calc(10px + (100% - 20px) * ${idx / 4})`, transform: 'translateX(-50%)' }}
-                    className="absolute top-0 flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
-                  >
-                    <div className="w-0.5 h-2 bg-slate-600 rounded-full group-hover:bg-blue-400" />
-                    <span className="font-bold tracking-tighter whitespace-nowrap">{tick.label}</span>
-                  </button>
-                ))}
-              </div>
+              <span className="text-[9px] font-normal text-slate-400">visits</span>
             </div>
-
-            <style>{`
-              .custom-traffic-slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 20px;
-                height: 28px;
-                background-color: #3b82f6;
-                clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);
-                cursor: pointer;
-                transition: background-color 0.15s ease;
-                margin-top: -10px;
-              }
-              .custom-traffic-slider::-webkit-slider-thumb:hover {
-                background-color: #60a5fa;
-              }
-              .custom-traffic-slider::-moz-range-thumb {
-                width: 20px;
-                height: 28px;
-                background-color: #3b82f6;
-                border: none;
-                clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);
-                cursor: pointer;
-                transition: background-color 0.15s ease;
-              }
-              .custom-traffic-slider::-moz-range-thumb:hover {
-                background-color: #60a5fa;
-              }
-            `}</style>
           </div>
-        </ConfigSection>
 
-        <ConfigSection
-          title="Data Duration"
-          icon={Layers}
-          isVisible={data.displaySettings?.duration}
-          onToggle={() => toggleVisibility('duration')}
-        >
-          <SelectorGroup
-            options={[
-              { label: 'ms', value: 'millisecond' },
-              { label: 'sec', value: 'second' },
-              { label: 'min', value: 'minute' }
-            ]}
-            currentValue={data.durationUnit || 'second'}
-            onSelect={(val) => performUpdate({ durationUnit: val })}
-            colorMode={colorMode}
-            className="grid grid-cols-3"
-          />
-        </ConfigSection>
-      </AdvancedSection>
+          <div className="relative pt-1 pb-5">
+            <input
+              type="range"
+              min="1"
+              max={maxRange}
+              step={maxRange > 10000 ? 50 : 1}
+              value={currentTraffic}
+              onChange={(e) => handleSliderChange(Number.parseInt(e.target.value, 10) || 1)}
+              className="w-full h-2 bg-slate-800 rounded appearance-none cursor-pointer custom-traffic-slider outline-none"
+            />
+
+            {/* Interactive 4-part ruler scale with track padding offset matching 20px thumb center */}
+            <div className="relative w-full text-[8px] font-mono text-slate-500 h-6 mt-1 px-2.5">
+              {rulerTicks.map((tick, idx) => (
+                <button
+                  type="button"
+                  key={`tick-${tick.label}-${idx}`}
+                  onClick={() => handleSliderChange(tick.val)}
+                  data-testid={`ruler-tick-${tick.val}`}
+                  title={`Set traffic to ${tick.val.toLocaleString()}`}
+                  style={{ left: `calc(10px + (100% - 20px) * ${idx / 4})`, transform: 'translateX(-50%)' }}
+                  className="absolute top-0 flex flex-col items-center gap-0.5 hover:text-blue-400 transition-colors group focus:outline-none"
+                >
+                  <div className="w-0.5 h-2 bg-slate-600 rounded-full group-hover:bg-blue-400" />
+                  <span className="font-bold tracking-tighter whitespace-nowrap">{tick.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <style>{`
+            .custom-traffic-slider::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 20px;
+              height: 28px;
+              background-color: #3b82f6;
+              clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);
+              cursor: pointer;
+              transition: background-color 0.15s ease;
+              margin-top: -10px;
+            }
+            .custom-traffic-slider::-webkit-slider-thumb:hover {
+              background-color: #60a5fa;
+            }
+            .custom-traffic-slider::-moz-range-thumb {
+              width: 20px;
+              height: 28px;
+              background-color: #3b82f6;
+              border: none;
+              clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 50% 100%, 0% 70%);
+              cursor: pointer;
+              transition: background-color 0.15s ease;
+            }
+            .custom-traffic-slider::-moz-range-thumb:hover {
+              background-color: #60a5fa;
+            }
+          `}</style>
+        </div>
+      </ConfigSection>
+
+      <ConfigSection
+        title="Data Duration"
+        icon={Layers}
+        isVisible={data.displaySettings?.duration}
+        onToggle={() => toggleVisibility('duration')}
+      >
+        <SelectorGroup
+          options={[
+            { label: 'ms', value: 'millisecond' },
+            { label: 'sec', value: 'second' },
+            { label: 'min', value: 'minute' }
+          ]}
+          currentValue={data.durationUnit || 'second'}
+          onSelect={(val) => performUpdate({ durationUnit: val })}
+          colorMode={colorMode}
+          className="grid grid-cols-3"
+        />
+      </ConfigSection>
+
+      {/* Modal for Internet Connection Profiles */}
+      <InternetProfileModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+      />
     </div>
   );
 };

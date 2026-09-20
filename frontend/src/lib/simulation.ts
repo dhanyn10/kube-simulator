@@ -207,7 +207,18 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
  */
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
   const iData = internet.data as K8sNodeData;
-  const targetTraffic = iData.traffic ?? 1000;
+  let targetTraffic = iData.traffic ?? 1000;
+
+  if (iData.connectionProfile?.daily) {
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    const dayIndex = Math.floor(ctx.ticks / 5) % 7;
+    const currentDay = days[dayIndex];
+    const profileDailyVal = iData.connectionProfile.daily[currentDay];
+    if (typeof profileDailyVal === 'number') {
+      targetTraffic = profileDailyVal;
+    }
+  }
+
   const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
