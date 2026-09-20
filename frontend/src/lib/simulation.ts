@@ -1,8 +1,9 @@
 import { Node, Edge } from '@xyflow/react';
-import { K8sNodeData } from '../types';
+import { K8sNodeData, K8sConfigMapItem } from '../types';
 import { SimulationMetricPoint, FlowState } from '../store/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
 import { syncDeployment } from '../store/nodeHelpers';
+import { logger } from './logger';
 
 export interface SimulationContext {
   nodes: Node[];
@@ -326,11 +327,7 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   return hasChanges;
 };
 
-export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number } => {
-  const dData = dep.data as K8sNodeData;
-  const configMaps = dData.configMaps || [];
-  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
-
+export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
   let hasSimulatedFailure = false;
   let failingCmName = '';
   let cmPort: number | null = null;
@@ -346,10 +343,10 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
         hasSimulatedFailure = true;
         failingCmName = cm.name;
       }
-      if (k === 'PORT' && v && !isNaN(Number(v))) {
+      if (k === 'PORT' && v && !Number.isNaN(Number(v))) {
         cmPort = Number(v);
       }
-      if (k === 'MAX_CONNECTIONS' && v && !isNaN(Number(v))) {
+      if (k === 'MAX_CONNECTIONS' && v && !Number.isNaN(Number(v))) {
         maxConnections = Number(v);
       }
       if (k === 'LOG_LEVEL' && v) {
@@ -358,27 +355,32 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
     }
   }
 
+  return { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel };
+};
+
+export const handleChaosModeSimulation = (
+  childPods: Node[],
+  ctx: SimulationContext,
+  hasSimulatedFailure: boolean,
+  failingCmName: string
+): { hasChanges: boolean; isBlocked: boolean } => {
   let hasChanges = false;
 
-  // 1. Chaos Mode Failure Check
   if (hasSimulatedFailure) {
-    childPods.forEach((pod) => {
-      if (pod.data.status !== 'crashing') {
-        if (updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
-          hasChanges = true;
-          try {
-            ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
-          } catch {
-            // Ignore log if context missing
-          }
+    for (const pod of childPods) {
+      if (pod.data.status !== 'crashing' && updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
+        hasChanges = true;
+        try {
+          ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
+        } catch (e) {
+          logger.error('[ConfigMap Simulation] Failed to add log', e);
         }
       }
-    });
+    }
     return { hasChanges, isBlocked: true };
   }
 
-  // Recover pods if chaos mode was turned off
-  childPods.forEach((pod) => {
+  for (const pod of childPods) {
     if (pod.data.status === 'crashing' && pod.data.simulatedFailureCM) {
       const pData = pod.data as K8sNodeData;
       const isReadyStatus = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
@@ -387,59 +389,97 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
         hasChanges = true;
         try {
           ctx.get()?.addLog?.('info', `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
-        } catch {
-          // Ignore log if context missing
+        } catch (e) {
+          logger.error('[ConfigMap Simulation] Failed to add log', e);
         }
       }
     }
-  });
+  }
 
-  // 2. Port Mismatch Detection
+  return { hasChanges, isBlocked: false };
+};
+
+export const checkPortMismatch = (
+  dep: Node,
+  ctx: SimulationContext,
+  cmPort: number | null
+): { hasChanges: boolean; isBlocked: boolean } => {
+  let hasChanges = false;
   const incomingEdges = ctx.targetEdgeMap?.get(dep.id) || [];
+
   for (const edge of incomingEdges) {
     const sourceNode = ctx.nodeMap?.get(String(edge.source));
-    if (sourceNode?.type === 'Service') {
-      const sData = sourceNode.data as K8sNodeData;
-      const srvTargetPort = Number(sData.targetPort || sData.port || 80);
+    if (sourceNode?.type !== 'Service') continue;
 
-      if (cmPort !== null && cmPort !== srvTargetPort) {
-        const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
-        if (edge.data?.validationError !== portErr) {
-          edge.data = { ...edge.data, validationError: portErr };
-          hasChanges = true;
-          try {
-            ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
-          } catch {
-            // Ignore
-          }
-        }
-        return { hasChanges: true, isBlocked: true };
-      } else if (edge.data?.validationError?.includes('Port Mismatch')) {
-        edge.data = { ...edge.data, validationError: undefined };
+    const sData = sourceNode.data as K8sNodeData;
+    const srvTargetPort = Number(sData.targetPort || sData.port || 80);
+
+    if (cmPort !== null && cmPort !== srvTargetPort) {
+      const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
+      if (edge.data?.validationError !== portErr) {
+        edge.data = { ...edge.data, validationError: portErr };
         hasChanges = true;
+        try {
+          ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
+        } catch (e) {
+          logger.error('[ConfigMap Simulation] Failed to add log', e);
+        }
       }
+      return { hasChanges: true, isBlocked: true };
+    }
+
+    if (edge.data?.validationError?.includes('Port Mismatch')) {
+      edge.data = { ...edge.data, validationError: undefined };
+      hasChanges = true;
     }
   }
 
-  // 3. Periodic Log Level Stream Log
-  if (ctx.ticks % 3 === 0 && safeRandom() > 0.4) {
-    try {
-      const podLabel = dep.data?.label || dep.id;
-      if (logLevel === 'DEBUG') {
-        ctx.get()?.addLog?.('info', `[ConfigMap Log DEBUG] [${podLabel}] Handling request stream - active threads: 8, memory heap: 42MB`, 'App');
-      } else if (logLevel === 'WARN') {
-        ctx.get()?.addLog?.('warning', `[ConfigMap Log WARN] [${podLabel}] Connection pool threshold > 75%`, 'App');
-      } else if (logLevel === 'ERROR') {
-        ctx.get()?.addLog?.('error', `[ConfigMap Log ERROR] [${podLabel}] Unhandled internal exception trace in worker process`, 'App');
-      } else {
-        ctx.get()?.addLog?.('info', `[ConfigMap Log INFO] [${podLabel}] HTTP 200 OK - Processing traffic stream`, 'App');
-      }
-    } catch {
-      // Ignore
+  return { hasChanges, isBlocked: false };
+};
+
+export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: string) => {
+  if (ctx.ticks % 3 !== 0 || safeRandom() <= 0.4) return;
+
+  try {
+    const podLabel = dep.data?.label || dep.id;
+    if (logLevel === 'DEBUG') {
+      ctx.get()?.addLog?.('info', `[ConfigMap Log DEBUG] [${podLabel}] Handling request stream - active threads: 8, memory heap: 42MB`, 'App');
+    } else if (logLevel === 'WARN') {
+      ctx.get()?.addLog?.('warning', `[ConfigMap Log WARN] [${podLabel}] Connection pool threshold > 75%`, 'App');
+    } else if (logLevel === 'ERROR') {
+      ctx.get()?.addLog?.('error', `[ConfigMap Log ERROR] [${podLabel}] Unhandled internal exception trace in worker process`, 'App');
+    } else {
+      ctx.get()?.addLog?.('info', `[ConfigMap Log INFO] [${podLabel}] HTTP 200 OK - Processing traffic stream`, 'App');
     }
+  } catch (e) {
+    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  }
+};
+
+export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number } => {
+  const dData = dep.data as K8sNodeData;
+  const configMaps = dData.configMaps || [];
+  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
+
+  const { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel } = parseConfigMapSettings(configMaps);
+
+  const chaosResult = handleChaosModeSimulation(childPods, ctx, hasSimulatedFailure, failingCmName);
+  if (chaosResult.isBlocked) {
+    return { hasChanges: chaosResult.hasChanges, isBlocked: true };
   }
 
-  return { hasChanges, isBlocked: false, effectiveTrafficLimit: maxConnections ?? undefined };
+  const portResult = checkPortMismatch(dep, ctx, cmPort);
+  if (portResult.isBlocked) {
+    return { hasChanges: chaosResult.hasChanges || portResult.hasChanges, isBlocked: true };
+  }
+
+  logLogLevelStream(dep, ctx, logLevel);
+
+  return {
+    hasChanges: chaosResult.hasChanges || portResult.hasChanges,
+    isBlocked: false,
+    effectiveTrafficLimit: maxConnections ?? undefined,
+  };
 };
 
 export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { hasChanges: boolean } => {
@@ -459,8 +499,8 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
     if (ctx.ticks % 2 === 0) {
       try {
         ctx.get()?.addLog?.('warning', `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${cmResult.effectiveTrafficLimit})`, 'Simulation');
-      } catch {
-        // Ignore
+      } catch (e) {
+        logger.error('[ConfigMap Simulation] Failed to add log', e);
       }
     }
   }
