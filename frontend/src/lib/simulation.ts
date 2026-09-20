@@ -54,14 +54,11 @@ export const calculateReachability = (
   return reachableNodes;
 };
 
-/**
- * Checks PVC binding status for connected workload nodes, marking pods as pending if PVC is unbound.
- */
-export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
+const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   const workloadIds = [dep.id, ...childPods.map(p => p.id)];
-
   const connectedPVCs: Node[] = [];
+
   for (const wId of workloadIds) {
     const outgoing = ctx.edgeMap?.get(wId);
     if (!outgoing) continue;
@@ -74,15 +71,25 @@ export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChang
     }
   }
 
-  const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
+  return connectedPVCs;
+};
 
-  if (connectedPVCs.length > 0) {
-    return hasUnboundPVC
-      ? handleUnboundPvcs(connectedPVCs, childPods, ctx)
-      : handleBoundPvcs(childPods, ctx);
+/**
+ * Checks PVC binding status for connected workload nodes, marking pods as pending if PVC is unbound.
+ */
+export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
+  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
+  const connectedPVCs = findConnectedPVCs(dep, ctx);
+
+  if (connectedPVCs.length === 0) {
+    return { hasChanges: false, isBlocked: false };
   }
 
-  return { hasChanges: false, isBlocked: false };
+  const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
+
+  return hasUnboundPVC
+    ? handleUnboundPvcs(connectedPVCs, childPods, ctx)
+    : handleBoundPvcs(childPods, ctx);
 };
 
 /**
@@ -300,38 +307,65 @@ const calculateDesiredReplicas = (
   return desired;
 };
 
+const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minReplicas: number; maxReplicas: number; targetCPU: number } | null; connectedHPA: Node | undefined } => {
+  const depData = dep.data as K8sNodeData;
+  if (Array.isArray(depData.hpas) && depData.hpas.length > 0) {
+    const first = depData.hpas[0];
+    return {
+      config: {
+        minReplicas: first.minReplicas || 1,
+        maxReplicas: first.maxReplicas || 10,
+        targetCPU: first.targetCPU || 50,
+      },
+      connectedHPA: undefined,
+    };
+  }
+
+  const connectedHPA = findConnectedHPA(dep.id, ctx);
+  if (connectedHPA) {
+    const hData = connectedHPA.data as K8sNodeData;
+    return {
+      config: {
+        minReplicas: hData.minReplicas || 1,
+        maxReplicas: hData.maxReplicas || 10,
+        targetCPU: hData.targetCPU || 50,
+      },
+      connectedHPA,
+    };
+  }
+
+  if (depData.minReplicas && depData.maxReplicas) {
+    return {
+      config: {
+        minReplicas: depData.minReplicas,
+        maxReplicas: depData.maxReplicas,
+        targetCPU: depData.targetCPU || 50,
+      },
+      connectedHPA: undefined,
+    };
+  }
+
+  return { config: null, connectedHPA: undefined };
+};
+
+const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext): boolean => {
+  const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(n => n.id === dep.id);
+  if (nodeIndex === -1) return false;
+
+  const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, diff, ctx.get);
+  const filteredNodes = ctx.updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+  ctx.updatedNodes.length = 0;
+  ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
+  ctx.nodeIndexMap?.clear();
+  return true;
+};
+
 /**
  * Evaluates connected HPA parameters and automatically scales workload replicas based on CPU load.
  */
 export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
   const depData = dep.data as K8sNodeData;
-  let hpaConfig: { minReplicas: number; maxReplicas: number; targetCPU: number } | null = null;
-  let connectedHPA: Node | undefined = undefined;
-
-  if (Array.isArray(depData.hpas) && depData.hpas.length > 0) {
-    const first = depData.hpas[0];
-    hpaConfig = {
-      minReplicas: first.minReplicas || 1,
-      maxReplicas: first.maxReplicas || 10,
-      targetCPU: first.targetCPU || 50,
-    };
-  } else {
-    connectedHPA = findConnectedHPA(dep.id, ctx);
-    if (connectedHPA) {
-      const hData = connectedHPA.data as K8sNodeData;
-      hpaConfig = {
-        minReplicas: hData.minReplicas || 1,
-        maxReplicas: hData.maxReplicas || 10,
-        targetCPU: hData.targetCPU || 50,
-      };
-    } else if (depData.minReplicas && depData.maxReplicas) {
-      hpaConfig = {
-        minReplicas: depData.minReplicas,
-        maxReplicas: depData.maxReplicas,
-        targetCPU: depData.targetCPU || 50,
-      };
-    }
-  }
+  const { config: hpaConfig, connectedHPA } = resolveHpaConfig(dep, ctx);
 
   if (!hpaConfig) return false;
 
@@ -340,17 +374,7 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any);
 
   if (desiredReplicas !== replicas) {
-    const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(n => n.id === dep.id);
-    if (nodeIndex !== -1) {
-      const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, desiredReplicas - replicas, ctx.get);
-
-      const filteredNodes = ctx.updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-      ctx.updatedNodes.length = 0;
-      ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
-
-      ctx.nodeIndexMap?.clear();
-      hasChanges = true;
-    }
+    hasChanges = scaleDeploymentReplicas(dep, desiredReplicas - replicas, ctx);
   }
 
   if (connectedHPA && updateNodeData(ctx, connectedHPA.id, { currentCPU: Math.round(cpuPercent) })) {
@@ -360,38 +384,45 @@ export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationC
   return hasChanges;
 };
 
+const parseConfigKeyValuePair = (
+  key: string | undefined,
+  val: string | undefined,
+  cmName: string,
+  acc: { hasSimulatedFailure: boolean; failingCmName: string; cmPort: number | null; maxConnections: number | null; logLevel: string }
+) => {
+  const k = key?.trim().toUpperCase();
+  const v = val?.trim();
+  if (!k || !v) return;
+
+  if ((k === 'CHAOS_MODE' && v.toLowerCase() === 'enabled') || (k === 'SIMULATE_FAILURE' && v.toLowerCase() === 'true')) {
+    acc.hasSimulatedFailure = true;
+    acc.failingCmName = cmName;
+  }
+  if (k === 'PORT' && !Number.isNaN(Number(v))) {
+    acc.cmPort = Number(v);
+  }
+  if (k === 'MAX_CONNECTIONS' && !Number.isNaN(Number(v))) {
+    acc.maxConnections = Number(v);
+  }
+  if (k === 'LOG_LEVEL') {
+    acc.logLevel = v.toUpperCase();
+  }
+};
+
 /**
  * Parses ConfigMap entries for simulation parameter overrides like CHAOS_MODE, PORT, MAX_CONNECTIONS, and LOG_LEVEL.
  */
 export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
-  let hasSimulatedFailure = false;
-  let failingCmName = '';
-  let cmPort: number | null = null;
-  let maxConnections: number | null = null;
-  let logLevel = 'INFO';
+  const acc = { hasSimulatedFailure: false, failingCmName: '', cmPort: null as number | null, maxConnections: null as number | null, logLevel: 'INFO' };
 
   for (const cm of configMaps) {
     if (!cm.configData) continue;
     for (const kv of cm.configData) {
-      const k = kv.key?.trim().toUpperCase();
-      const v = kv.value?.trim();
-      if ((k === 'CHAOS_MODE' && v?.toLowerCase() === 'enabled') || (k === 'SIMULATE_FAILURE' && v?.toLowerCase() === 'true')) {
-        hasSimulatedFailure = true;
-        failingCmName = cm.name;
-      }
-      if (k === 'PORT' && v && !Number.isNaN(Number(v))) {
-        cmPort = Number(v);
-      }
-      if (k === 'MAX_CONNECTIONS' && v && !Number.isNaN(Number(v))) {
-        maxConnections = Number(v);
-      }
-      if (k === 'LOG_LEVEL' && v) {
-        logLevel = v.toUpperCase();
-      }
+      parseConfigKeyValuePair(kv.key, kv.value, cm.name, acc);
     }
   }
 
-  return { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel };
+  return acc;
 };
 
 /**
@@ -460,7 +491,6 @@ export const checkPortMismatch = (
       const portErr = `Port Mismatch: Service "${sData.label || sourceNode.id}" targets port ${srvTargetPort}, but container PORT is ${cmPort}`;
       if (edge.data?.validationError !== portErr) {
         edge.data = { ...edge.data, validationError: portErr };
-        hasChanges = true;
         try {
           ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
         } catch (e) {
