@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
-import { K8sNodeData, K8sSecretItem } from '../../types';
+import { K8sNodeData, K8sSecretItem } from '@/types';
 import { SecretModal } from '../Modals/SecretModal';
 import { SecretListModal } from '../Modals/SecretListModal';
 import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';

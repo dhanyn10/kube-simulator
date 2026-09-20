@@ -1,5 +1,5 @@
 
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 import { Globe, Code } from 'lucide-react';
 import { ConfigInput, ConfigSection, AdvancedSection } from '../UI/ConfigUI';
 

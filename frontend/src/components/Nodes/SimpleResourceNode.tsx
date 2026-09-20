@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { BaseNode } from './BaseNode';
-import { K8sNodeData } from '../../types';
+import { K8sNodeData } from '@/types';
 
 export interface SimpleResourceNodeProps extends NodeProps {
   title: string;

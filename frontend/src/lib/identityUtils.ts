@@ -1,4 +1,4 @@
-import { K8sDigitalCertificate, KubeIAMUser } from '../types';
+import { K8sDigitalCertificate, KubeIAMUser } from '@/types';
 
 /**
  * Generates a formatted random hex serial number string (e.g., "7F:3A:91:02:4B:88:E1:90").

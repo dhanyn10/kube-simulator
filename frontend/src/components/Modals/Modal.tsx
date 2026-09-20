@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Sun, Moon } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
 
 interface ModalProps {

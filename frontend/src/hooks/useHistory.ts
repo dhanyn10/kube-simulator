@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { applyHistoryState, useFlowStore } from '../store';
+import { applyHistoryState, useFlowStore } from '@/store';
 
 export function useHistory() {
   const historyLogs = useFlowStore((state) => state.historyLogs);

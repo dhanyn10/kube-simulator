@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { FlowState } from '../types';
+import { FlowState } from '@/store/types';
 
 export interface DeploymentSlice {
   activeDeploymentId: string | null;

@@ -1,4 +1,4 @@
-import { useFlowStore } from '../store';
+import { useFlowStore } from '@/store';
 
 /**
  * Centralized logger that sends logs to the internal application log store.

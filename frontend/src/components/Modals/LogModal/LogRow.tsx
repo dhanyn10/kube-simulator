@@ -1,7 +1,7 @@
 import React from 'react';
-import { LogEntry } from '../../../store/types';
+import { LogEntry } from '@/store/types';
 import { AlertCircle, AlertTriangle, Info, Trash2, CheckSquare, Square } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface LogRowProps {
   log: LogEntry;

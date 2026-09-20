@@ -1,6 +1,6 @@
-import { LogEntry } from '../../store/types';
+import { LogEntry } from '@/store/types';
 import { OpenLogFile } from '@wailsjs/go/main/App';
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 
 /**
  * Formats timestamp to ISO-like local date time string: YYYY-MM-DD HH:mm:ss

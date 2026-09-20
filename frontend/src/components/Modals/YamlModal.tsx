@@ -1,7 +1,7 @@
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 import React from 'react';
 import { X, CheckCircle2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface YamlModalProps {
   content: string;

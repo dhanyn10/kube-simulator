@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
-import { K8sResourceType, K8sNodeData } from '../../../types';
-import { FlowState } from '../../types';
-import { sanitizeSlug } from '../../../lib/utils';
+import { K8sResourceType, K8sNodeData } from '@/types';
+import { FlowState } from '@/store/types';
+import { sanitizeSlug } from '@/lib/utils';
 
 export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onDelete: () => {

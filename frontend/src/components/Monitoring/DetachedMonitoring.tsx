@@ -1,7 +1,7 @@
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Activity, Cpu, Database, AlertTriangle, ZapOff } from 'lucide-react';
-import { cn, formatCPU, formatMemory } from '../../lib/utils';
+import { cn, formatCPU, formatMemory } from '@/lib/utils';
 import { LineChart } from './LineChart';
 
 const setupDetachedListeners = (

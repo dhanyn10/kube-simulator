@@ -1,11 +1,11 @@
 import  { useState } from 'react';
 import { BookOpen, GraduationCap, Zap, AlertCircle } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { scenarios, Scenario } from '../../scenarios';
-import { hydrateNodes } from '../../store/nodeHelpers';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { scenarios, Scenario } from '@/scenarios';
+import { hydrateNodes } from '@/store/nodeHelpers';
 import { Modal } from './Modal';
-import { useFitView } from '../../hooks/useFitView';
+import { useFitView } from '@/hooks/useFitView';
 
 interface ScenarioModalProps {
   isOpen: boolean;

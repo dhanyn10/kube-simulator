@@ -3,9 +3,9 @@ import {
   FileCode, Save, Upload, FolderOpen, BookOpen, Info, Bug,
   Activity, ExternalLink, Bell, PlayCircle, Sliders, Terminal
 } from 'lucide-react';
-import { useFlowStore, FlowState } from '../../store';
-import { validateHpaTargets } from '../../store/slices/simulationManager';
-import { startTour } from '../../lib/tour';
+import { useFlowStore, FlowState } from '@/store';
+import { validateHpaTargets } from '@/store/slices/simulationManager';
+import { startTour } from '@/lib/tour';
 
 export interface MenuBarStateOptions {
   readonly onExportYaml: () => void;

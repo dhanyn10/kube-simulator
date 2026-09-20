@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { cn } from '../../lib/utils';
-import { useHistory } from '../../hooks/useHistory';
-import { useFlowStore } from '../../store';
+import { cn } from '@/lib/utils';
+import { useHistory } from '@/hooks/useHistory';
+import { useFlowStore } from '@/store';
 
 interface HistoryPanelProps {
   colorMode: 'dark' | 'light';

@@ -1,12 +1,12 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from '@xyflow/react';
 import { AttachedResourcesFooter } from './AttachedResourcesFooter';
-import { K8sNodeData } from '../../types';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { K8sNodeData } from '@/types';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { QuickConnectArrows } from './QuickConnectArrows';
-import { useNodeRename, useNodeResize } from '../../hooks/useNodeEditor';
-import { useNodeStyles } from '../../hooks/useNodeStyles';
+import { useNodeRename, useNodeResize } from '@/hooks/useNodeEditor';
+import { useNodeStyles } from '@/hooks/useNodeStyles';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
 

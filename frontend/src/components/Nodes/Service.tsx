@@ -2,8 +2,8 @@ import  { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { Network } from 'lucide-react';
 import { BaseNode } from './BaseNode';
-import { K8sNodeData } from '../../types';
-import { useFlowStore } from '../../store';
+import { K8sNodeData } from '@/types';
+import { useFlowStore } from '@/store';
 
 export const ServiceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;

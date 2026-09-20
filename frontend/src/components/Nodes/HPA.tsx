@@ -2,9 +2,9 @@ import { memo, useCallback } from 'react';
 import { NodeProps, Handle, Position } from '@xyflow/react';
 import { Activity } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
-import { K8sNodeData } from '../../types';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { K8sNodeData } from '@/types';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 import { ProgressBar } from '../Monitoring/ProgressBar';
 
 export const HPANode = memo((props: NodeProps) => {

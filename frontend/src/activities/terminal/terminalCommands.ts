@@ -1,5 +1,5 @@
 import { Node } from '@xyflow/react';
-import { syncDeployment } from '../../store/nodeHelpers';
+import { syncDeployment } from '@/store/nodeHelpers';
 import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
 
 export interface CommandContext {

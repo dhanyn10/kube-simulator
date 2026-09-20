@@ -1,6 +1,6 @@
 
 import { useMemo } from 'react';
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 import { Network, Layers } from 'lucide-react';
 import { ConfigSection, AdvancedSection } from '../UI/ConfigUI';
 import { SelectorGroup } from '../UI/SelectorGroup';

@@ -1,7 +1,7 @@
 import { type MouseEvent } from 'react';
 import { Node, Edge } from '@xyflow/react';
-import { K8sResourceType, K8sNodeData } from '../../../types';
-import { FlowState } from '../../types';
+import { K8sResourceType, K8sNodeData } from '@/types';
+import { FlowState } from '@/store/types';
 import {
   getNodeData,
   sortNodes,
@@ -16,15 +16,15 @@ import {
   createNodeHandlers,
   syncWorkloadMetadata
 } from './nodeUtils';
-import { safeRandom } from '../../../lib/utils';
+import { safeRandom } from '@/lib/utils';
 import {
   emitLiveScaleCommand,
   emitLiveSetImageCommand,
   emitLiveSetResourcesCommand,
   emitLiveNodeCreatedCommand,
   emitLiveNodeDeletedCommand,
-} from '../../../activities/terminal/liveUpdateCommands';
-import { isNodeAccessForbidden } from '../../../activities/nodes/rbacNodeHelpers';
+} from '@/activities/terminal/liveUpdateCommands';
+import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 

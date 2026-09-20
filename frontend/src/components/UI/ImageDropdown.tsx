@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, Globe, Box, ChevronDown, Plus, Check } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
-import { DEFAULT_REGISTRY_IMAGES } from '../../constants/config';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
+import { DEFAULT_REGISTRY_IMAGES } from '@/constants/config';
 
 interface ImageDropdownProps {
   value: string;

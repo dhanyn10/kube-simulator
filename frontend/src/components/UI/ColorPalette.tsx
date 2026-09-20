@@ -1,6 +1,6 @@
 
-import { cn } from '../../lib/utils';
-import { MATERIAL_COLORS } from '../../lib/colors';
+import { cn } from '@/lib/utils';
+import { MATERIAL_COLORS } from '@/lib/colors';
 
 interface ColorPaletteProps {
   selectedColor: string;

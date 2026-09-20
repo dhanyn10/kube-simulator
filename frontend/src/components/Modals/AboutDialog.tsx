@@ -1,9 +1,9 @@
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { X as CloseIcon, ExternalLink } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 
 interface AboutDialogProps {
   isOpen: boolean;

@@ -1,8 +1,8 @@
-import { logger } from '../lib/logger';
+import { logger } from '@/lib/logger';
 import React, { useCallback } from 'react';
-import { useFlowStore } from '../store';
-import { generateYaml } from '../lib/utils';
-import { hydrateNodes } from '../store/nodeHelpers';
+import { useFlowStore } from '@/store';
+import { generateYaml } from '@/lib/utils';
+import { hydrateNodes } from '@/store/nodeHelpers';
 import { Node, Edge } from '@xyflow/react';
 
 const parseAndHydrateProject = (json: string) => {

@@ -1,4 +1,4 @@
-import { useFlowStore } from '../../store';
+import { useFlowStore } from '@/store';
 import { Settings, Type, Lock, Shield } from 'lucide-react';
 import { KeyValueConfig } from './KeyValueConfig';
 

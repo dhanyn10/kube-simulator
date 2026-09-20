@@ -2,7 +2,7 @@ import  { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { Settings } from 'lucide-react';
 import { BaseNode } from './BaseNode';
-import { K8sNodeData } from '../../types';
+import { K8sNodeData } from '@/types';
 
 export const ConfigMapNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;

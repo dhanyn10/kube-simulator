@@ -1,8 +1,8 @@
 import { Node, Edge } from '@xyflow/react';
-import { K8sNodeData, K8sConfigMapItem } from '../types';
-import { SimulationMetricPoint, FlowState } from '../store/types';
+import { K8sNodeData, K8sConfigMapItem } from '@/types';
+import { SimulationMetricPoint, FlowState } from '@/store/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
-import { syncDeployment } from '../store/nodeHelpers';
+import { syncDeployment } from '@/store/nodeHelpers';
 import { logger } from './logger';
 
 export interface SimulationContext {

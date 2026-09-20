@@ -1,6 +1,6 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
-import { K8sNodeData, K8sHpaItem } from '../../types';
+import { K8sNodeData, K8sHpaItem } from '@/types';
 import { HPAModal } from '../Modals/HPAModal';
 import { HPAListModal } from '../Modals/HPAListModal';
 import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';

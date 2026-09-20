@@ -1,15 +1,15 @@
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
-import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sResourceType, KubeIAMUser } from '../../types';
-import { safeRandom } from '../../lib/utils';
+import { FlowState, SimulationMetricPoint } from '@/store/types';
+import { K8sResourceType, KubeIAMUser } from '@/types';
+import { safeRandom } from '@/lib/utils';
 import {
   processWorkloadSimulation,
   calculateReachability,
   SimulationContext,
   updateInternetTraffic
-} from '../../lib/simulation';
+} from '@/lib/simulation';
 import {
   stopSimulation as stopSimulationInternal,
   broadcastMetrics,
@@ -25,7 +25,7 @@ import {
   purgeUserFromNodes,
   renameUserInNodeRoles,
 } from './ui-handlers';
-import { dispatchLiveCommand } from '../../activities/terminal/liveUpdateCommands';
+import { dispatchLiveCommand } from '@/activities/terminal/liveUpdateCommands';
 
 export interface UiSlice {
   colorMode: 'dark' | 'light';

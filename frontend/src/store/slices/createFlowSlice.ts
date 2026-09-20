@@ -10,15 +10,15 @@ import {
   applyEdgeChanges,
   addEdge,
 } from '@xyflow/react';
-import { FlowState } from '../types';
-import { K8sNodeData } from '../../types';
-import { getConnectionError } from '../../constants/connections';
+import { FlowState } from '@/store/types';
+import { K8sNodeData } from '@/types';
+import { getConnectionError } from '@/constants/connections';
 import { getAbsPos } from '../helpers';
 import {
   emitLiveEdgeCreatedCommand,
   emitLiveEdgeDeletedCommand,
-} from '../../activities/terminal/liveUpdateCommands';
-import { isNodeAccessForbidden } from '../../activities/nodes/rbacNodeHelpers';
+} from '@/activities/terminal/liveUpdateCommands';
+import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';

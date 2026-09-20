@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useFlowStore } from '../../../store';
-import { cn } from '../../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 import {
   getAutocompleteSuggestions,
   SuggestionItem,
@@ -11,7 +11,7 @@ import {
   useTerminalScroll,
   generateLogFilename,
   exportLogFile,
-} from '../../../activities/terminal';
+} from '@/activities/terminal';
 import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';

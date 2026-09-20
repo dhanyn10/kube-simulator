@@ -1,4 +1,4 @@
-import { logger } from '../lib/logger';
+import { logger } from '@/lib/logger';
 import { createStore, useStore } from 'zustand';
 import { FlowState } from '@/store/types';
 import { createFlowSlice } from '@/store/slices/createFlowSlice';

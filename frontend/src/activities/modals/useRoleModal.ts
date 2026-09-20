@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Node } from '@xyflow/react';
-import { K8sRoleItem, K8sRoleRule, KubeIAMUser } from '../../types';
-import { useFlowStore } from '../../store';
-import { sanitizeSlug } from '../../lib/utils';
+import { K8sRoleItem, K8sRoleRule, KubeIAMUser } from '@/types';
+import { useFlowStore } from '@/store';
+import { sanitizeSlug } from '@/lib/utils';
 
 export const COMMON_SUGGESTIONS: Record<string, string[]> = {
   resources: ['pods', 'deployments', 'services', 'configmaps', 'secrets', 'persistentvolumeclaims', '*'],

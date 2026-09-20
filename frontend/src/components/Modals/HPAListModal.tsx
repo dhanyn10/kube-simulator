@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
 import { AttachedResourceListModal } from './AttachedResourceListModal';
-import { K8sHpaItem } from '../../types';
+import { K8sHpaItem } from '@/types';
 
 interface HPAListModalProps {
   isOpen: boolean;

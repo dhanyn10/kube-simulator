@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { UserCheck } from 'lucide-react';
 import { Modal } from './Modal';
-import { useFlowStore } from '../../store';
-import { KubeIAMUser } from '../../types';
-import { useKubeIamWizard, getAttachedRolesForUser } from '../../activities/modals';
+import { useFlowStore } from '@/store';
+import { KubeIAMUser } from '@/types';
+import { useKubeIamWizard, getAttachedRolesForUser } from '@/activities/modals';
 import {
   IAMUserDetailView,
   IAMUserListView,

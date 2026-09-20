@@ -1,1 +1,1 @@
-export * from '../../../activities/modals/logExport';
+export * from '@/activities/modals/logExport';

@@ -2,8 +2,8 @@ import React from 'react';
 import { Settings, Plus, Trash2, HelpCircle, TerminalSquare } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
-import { K8sConfigMapItem } from '../../types';
-import { cn } from '../../lib/utils';
+import { K8sConfigMapItem } from '@/types';
+import { cn } from '@/lib/utils';
 import { useConfigMapModal, PREDEFINED_KEYS } from '@/activities/modals';
 
 interface ConfigMapModalProps {

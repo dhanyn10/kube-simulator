@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight, Activity, Database, Settings, Lock, ShieldCheck, UserCheck } from 'lucide-react';
-import { K8sResourceType } from '../../types';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { K8sResourceType } from '@/types';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
 
 interface SidebarProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Network } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 export interface PortMappingConfigProps {
   port: number | string;
