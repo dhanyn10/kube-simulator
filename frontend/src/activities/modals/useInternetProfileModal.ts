@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useFlowStore } from '@/store';
+import { safeRandom } from '@/lib/utils';
 
 export interface InternetProfileItem {
   name: string;
@@ -37,6 +38,19 @@ export const generateCustomProfileKey = (): string => {
 };
 
 /**
+ * Generates randomized daily traffic values for Monday - Sunday (range 500 - 5000)
+ */
+export const generateRandomDailyValues = (): Record<string, number> => {
+  const result: Record<string, number> = {};
+  DAYS_OF_WEEK.forEach((day) => {
+    // Generate random value rounded to nearest 50 between 500 and 5000 using safeRandom()
+    const rand = Math.floor(safeRandom() * 91) * 50 + 500;
+    result[day] = rand;
+  });
+  return result;
+};
+
+/**
  * Custom hook providing business logic for Internet Connection Profile Simulation Modal.
  */
 export const useInternetProfileModal = (
@@ -54,15 +68,9 @@ export const useInternetProfileModal = (
   const [detailProfile, setDetailProfile] = useState<InternetProfileItem>(ECOMMERCE_PROFILE);
   const [isModifiedCustom, setIsModifiedCustom] = useState<boolean>(false);
   const [newProfileName, setNewProfileName] = useState<string>('');
-  const [newDailyValues, setNewDailyValues] = useState<Record<string, number>>({
-    Monday: 1000,
-    Tuesday: 1000,
-    Wednesday: 1000,
-    Thursday: 1000,
-    Friday: 1000,
-    Saturday: 1000,
-    Sunday: 1000
-  });
+  const [customDailyValues, setCustomDailyValues] = useState<Record<string, number>>(() =>
+    generateRandomDailyValues()
+  );
 
   const fetchProfiles = useCallback(async () => {
     try {
@@ -89,6 +97,23 @@ export const useInternetProfileModal = (
       setIsModifiedCustom(false);
     }
   }, [isOpen, fetchProfiles, selectedNode]);
+
+  const handleStartCustomProfile = () => {
+    setNewProfileName(generateCustomProfileKey());
+    setCustomDailyValues(generateRandomDailyValues());
+    setViewMode('custom');
+  };
+
+  const handleRandomizeCustomValues = () => {
+    setCustomDailyValues(generateRandomDailyValues());
+  };
+
+  const handleUpdateCustomPoint = (day: string, newValue: number) => {
+    setCustomDailyValues((prev) => ({
+      ...prev,
+      [day]: newValue
+    }));
+  };
 
   const activeProfile = profiles.find((p) => p.name === activeProfileName) || ECOMMERCE_PROFILE;
 
@@ -162,7 +187,7 @@ export const useInternetProfileModal = (
 
     const newProfile: InternetProfileItem = {
       name: newProfileName.trim(),
-      daily: { ...newDailyValues },
+      daily: { ...customDailyValues },
       timestamp: Date.now()
     };
 
@@ -210,8 +235,11 @@ export const useInternetProfileModal = (
     isModifiedCustom,
     newProfileName,
     setNewProfileName,
-    newDailyValues,
-    setNewDailyValues,
+    customDailyValues,
+    setCustomDailyValues,
+    handleStartCustomProfile,
+    handleRandomizeCustomValues,
+    handleUpdateCustomPoint,
     handleApplyProfile,
     handleOpenDetails,
     handleUpdateDetailPoint,

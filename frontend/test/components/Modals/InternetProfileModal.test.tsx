@@ -79,7 +79,7 @@ describe('InternetProfileModal', () => {
     expect(screen.getByText(/Back to Profiles Gallery/i)).toBeDefined();
   });
 
-  it('allows switching to custom profile creation view', () => {
+  it('allows switching to graphical custom profile creation view', () => {
     render(
       <InternetProfileModal
         isOpen={true}
@@ -92,6 +92,7 @@ describe('InternetProfileModal', () => {
     const addCustomCard = screen.getByText('Add Custom Profile');
     fireEvent.click(addCustomCard);
 
-    expect(screen.getByText('Create Custom Connection Profile Template')).toBeDefined();
+    expect(screen.getByText('Randomize Graph')).toBeDefined();
+    expect(screen.getByText(/Save & Apply Custom Profile/i)).toBeDefined();
   });
 });

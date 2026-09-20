@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye, Edit2 } from 'lucide-react';
+import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye, Edit2, Shuffle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
 import {
@@ -341,8 +341,10 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     handleDeleteProfile,
     newProfileName,
     setNewProfileName,
-    newDailyValues,
-    setNewDailyValues
+    customDailyValues,
+    handleStartCustomProfile,
+    handleRandomizeCustomValues,
+    handleUpdateCustomPoint
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
   return (
@@ -483,10 +485,10 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => setViewMode('custom')}
+                onClick={handleStartCustomProfile}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    setViewMode('custom');
+                    handleStartCustomProfile();
                   }
                 }}
                 className={cn(
@@ -498,7 +500,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                   <Plus size={20} />
                 </div>
                 <span className="text-xs font-bold">Add Custom Profile</span>
-                <span className="text-[10px] text-slate-500">Create new weekly connection schedule</span>
+                <span className="text-[10px] text-slate-500">Create new randomized weekly connection schedule</span>
               </div>
             </div>
           </>
@@ -542,91 +544,52 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
           </div>
         )}
 
-        {/* Custom Profile Creation Screen */}
+        {/* Custom Graphical Profile Creation Screen */}
         {viewMode === 'custom' && (
-          <div className={cn(
-            "p-5 rounded-xl border space-y-4 animate-in fade-in duration-200",
-            colorMode === 'dark' ? "bg-slate-900/80 border-slate-800" : "bg-slate-100 border-slate-300"
-          )}>
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className="flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <ArrowLeft size={16} />
+                <span>Cancel Custom Creation</span>
+              </button>
+
               <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-blue-500" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                  Create Custom Connection Profile Template
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-200"
-              >
-                <ArrowLeft size={14} />
-                <span>Cancel</span>
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={handleRandomizeCustomValues}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border border-slate-700 bg-slate-800 hover:bg-slate-700 text-blue-400 transition-all shadow-sm"
+                  title="Randomize daily traffic values"
+                >
+                  <Shuffle size={14} />
+                  <span>Randomize Graph</span>
+                </button>
 
-            <div>
-              <label htmlFor="new-profile-name" className="block text-[11px] font-bold text-slate-400 mb-1">
-                Profile Name
-              </label>
-              <input
-                id="new-profile-name"
-                type="text"
-                placeholder="e.g. Weekend Flash Sale"
-                value={newProfileName}
-                onChange={(e) => setNewProfileName(e.target.value)}
-                className={cn(
-                  "w-full px-3 py-2 rounded-lg border text-xs font-medium outline-none focus:border-blue-500",
-                  colorMode === 'dark' ? "bg-slate-950 border-slate-800 text-slate-100" : "bg-white border-slate-300 text-slate-800"
-                )}
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-2">
-                Daily Traffic Levels (Visits / Day)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                {DAYS_OF_WEEK.map((day) => (
-                  <div key={day} className="space-y-1">
-                    <span className="text-[10px] font-mono text-slate-400 uppercase">{day}</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={newDailyValues[day] || 1000}
-                      onChange={(e) =>
-                        setNewDailyValues({
-                          ...newDailyValues,
-                          [day]: Math.max(1, Number.parseInt(e.target.value, 10) || 1)
-                        })
-                      }
-                      className={cn(
-                        "w-full px-2 py-1.5 rounded border text-xs font-mono font-bold text-blue-400 outline-none focus:border-blue-500",
-                        colorMode === 'dark' ? "bg-slate-950 border-slate-800" : "bg-white border-slate-300"
-                      )}
-                    />
-                  </div>
-                ))}
+                <button
+                  type="button"
+                  onClick={handleSaveCustomProfile}
+                  disabled={!newProfileName.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white shadow-sm disabled:opacity-50 transition-all"
+                >
+                  <Sparkles size={14} />
+                  <span>Save & Apply Custom Profile</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800/50">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveCustomProfile}
-                disabled={!newProfileName.trim()}
-                className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold shadow"
-              >
-                Save & Apply Profile
-              </button>
-            </div>
+            {/* Graphical Chart for Custom Profile */}
+            <InteractiveTrafficChart
+              profile={{
+                name: newProfileName,
+                daily: customDailyValues
+              }}
+              colorMode={colorMode}
+              onUpdatePoint={handleUpdateCustomPoint}
+              onUpdateName={setNewProfileName}
+            />
           </div>
         )}
 
