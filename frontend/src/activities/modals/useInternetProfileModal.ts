@@ -7,18 +7,18 @@ export interface InternetProfileItem {
   timestamp?: number;
 }
 
-export const DAYS_OF_WEEK = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+export const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export const ECOMMERCE_PROFILE: InternetProfileItem = {
   name: 'E-Commerce Simulation',
   daily: {
-    Senin: 1500,
-    Selasa: 1200,
-    Rabu: 1800,
-    Kamis: 2200,
-    Jumat: 3500,
-    Sabtu: 5000,
-    Minggu: 4200
+    Monday: 1500,
+    Tuesday: 1200,
+    Wednesday: 1800,
+    Thursday: 2200,
+    Friday: 3500,
+    Saturday: 5000,
+    Sunday: 4200
   }
 };
 
@@ -39,13 +39,13 @@ export const useInternetProfileModal = (
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [newProfileName, setNewProfileName] = useState<string>('');
   const [newDailyValues, setNewDailyValues] = useState<Record<string, number>>({
-    Senin: 1000,
-    Selasa: 1000,
-    Rabu: 1000,
-    Kamis: 1000,
-    Jumat: 1000,
-    Sabtu: 1000,
-    Minggu: 1000
+    Monday: 1000,
+    Tuesday: 1000,
+    Wednesday: 1000,
+    Thursday: 1000,
+    Friday: 1000,
+    Saturday: 1000,
+    Sunday: 1000
   });
 
   const fetchProfiles = useCallback(async () => {
@@ -120,7 +120,7 @@ export const useInternetProfileModal = (
     performUpdate({
       connectionProfile: profileToActivate,
       activeProfileName: profileToActivate.name,
-      traffic: profileToActivate.daily['Senin'] || 1000
+      traffic: profileToActivate.daily['Monday'] || 1000
     });
     onClose();
   };

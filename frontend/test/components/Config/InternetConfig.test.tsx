@@ -51,7 +51,7 @@ describe('InternetConfig', () => {
     );
 
     fireEvent.click(screen.getByText('Explore More'));
-    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Senin - Minggu)')).toBeDefined();
+    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Monday - Sunday)')).toBeDefined();
   });
 
   it('handles traffic updates and slider min 1 and ruler ticks', () => {

@@ -47,7 +47,7 @@ const MiniCurvePreview = ({
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
-  const gradientId = `miniGrad-${profile.name.replace(/\s+/g, '-')}`;
+  const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-14 overflow-visible my-1">
@@ -63,6 +63,157 @@ const MiniCurvePreview = ({
         <circle key={`pt-${idx}`} cx={pt.x} cy={pt.y} r="2.5" className="fill-blue-500 stroke-white dark:stroke-slate-900" strokeWidth="1" />
       ))}
     </svg>
+  );
+};
+
+const DetailedTrafficChart = ({
+  profile,
+  colorMode
+}: {
+  readonly profile: InternetProfileItem;
+  readonly colorMode: string;
+}) => {
+  const width = 680;
+  const height = 210;
+  const padLeft = 60;
+  const padRight = 30;
+  const padTop = 30;
+  const padBottom = 40;
+
+  const chartWidth = width - padLeft - padRight;
+  const chartHeight = height - padTop - padBottom;
+
+  const values = DAYS_OF_WEEK.map((day) => profile.daily[day] || 0);
+  const maxVal = Math.max(...values, 1000);
+  const minVal = 0;
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+    const val = Math.round(minVal + (maxVal - minVal) * (1 - ratio));
+    const y = padTop + chartHeight * ratio;
+    return { val, y };
+  });
+
+  const points = values.map((val, idx) => {
+    const x = padLeft + (idx / (DAYS_OF_WEEK.length - 1)) * chartWidth;
+    const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
+    return { x, y, val, day: DAYS_OF_WEEK[idx] };
+  });
+
+  const pathD = points.reduce((acc, pt, i) => {
+    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+  }, '');
+
+  const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+
+  return (
+    <div className={cn(
+      "p-4 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
+      colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
+    )}>
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div className="flex items-center gap-2">
+          <Activity size={16} className="text-blue-500" />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            Detailed Profile Chart: <span className="text-blue-400">{profile.name}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] font-mono font-semibold">
+          <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
+          <span className="text-slate-400">Max: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[210px] overflow-visible">
+        <defs>
+          <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {/* Y-axis horizontal grid lines & explicit user count scale ticks */}
+        {yTicks.map((tick, i) => (
+          <g key={`y-tick-${i}`}>
+            <line
+              x1={padLeft}
+              y1={tick.y}
+              x2={width - padRight}
+              y2={tick.y}
+              stroke={colorMode === 'dark' ? '#334155' : '#e2e8f0'}
+              strokeDasharray="3 3"
+              strokeWidth="1"
+            />
+            <text
+              x={padLeft - 8}
+              y={tick.y + 3}
+              textAnchor="end"
+              className={cn(
+                "text-[9px] font-mono font-bold",
+                colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
+              )}
+            >
+              {tick.val >= 1000 ? `${(tick.val / 1000).toFixed(1)}k` : tick.val}
+            </text>
+          </g>
+        ))}
+
+        {/* Axis main border lines */}
+        <line
+          x1={padLeft}
+          y1={padTop}
+          x2={padLeft}
+          y2={padTop + chartHeight}
+          stroke={colorMode === 'dark' ? '#475569' : '#cbd5e1'}
+          strokeWidth="2"
+        />
+        <line
+          x1={padLeft}
+          y1={padTop + chartHeight}
+          x2={width - padRight}
+          y2={padTop + chartHeight}
+          stroke={colorMode === 'dark' ? '#475569' : '#cbd5e1'}
+          strokeWidth="2"
+        />
+
+        {/* Area fill */}
+        <path d={areaD} fill="url(#detailGradient)" />
+
+        {/* Curve line */}
+        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Data points & X-axis Day labels (Senin - Minggu) */}
+        {points.map((pt) => (
+          <g key={`pt-${pt.day}`}>
+            <circle
+              cx={pt.x}
+              cy={pt.y}
+              r="5"
+              className="fill-blue-500 stroke-white dark:stroke-slate-900"
+              strokeWidth="2"
+            />
+            <text
+              x={pt.x}
+              y={pt.y - 10}
+              textAnchor="middle"
+              className="text-[9px] font-mono font-bold fill-blue-500 dark:fill-blue-400"
+            >
+              {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
+            </text>
+            <text
+              x={pt.x}
+              y={padTop + chartHeight + 18}
+              textAnchor="middle"
+              className={cn(
+                "text-[10px] font-bold font-mono uppercase tracking-wider",
+                colorMode === 'dark' ? "fill-slate-300" : "fill-slate-700"
+              )}
+            >
+              {pt.day}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 };
 
@@ -96,7 +247,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={cardName}
-      subtitle="Weekly Connection Simulation Profile Templates (Senin - Minggu)"
+      subtitle="Weekly Connection Simulation Profile Templates (Monday - Sunday)"
       icon={Globe}
       iconColorClass="text-blue-500"
       widthClass="w-full max-w-4xl"
@@ -121,7 +272,8 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
           {profiles.map((p) => {
             const isSelected = p.name === activeProfileName;
             const values = DAYS_OF_WEEK.map((d) => p.daily[d] || 0);
-            const peakVal = Math.max(...values);
+            const minVal = Math.min(...values);
+            const maxVal = Math.max(...values);
 
             return (
               <div
@@ -184,13 +336,10 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                   <MiniCurvePreview profile={p} />
                 </div>
 
-                {/* Footer Metrics */}
+                {/* Footer Metrics Summary: Lower Bound (Min) & Upper Bound (Max) */}
                 <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] font-mono font-semibold text-slate-400">
-                  <span className="flex items-center gap-1 text-blue-400">
-                    <Activity size={12} />
-                    Peak: {peakVal.toLocaleString()}
-                  </span>
-                  <span className="text-slate-500">Sen-Ming</span>
+                  <span>Min: <strong className="text-slate-200">{minVal >= 1000 ? `${(minVal / 1000).toFixed(1)}k` : minVal}</strong></span>
+                  <span className="text-blue-400">Max: <strong className="text-blue-400">{maxVal >= 1000 ? `${(maxVal / 1000).toFixed(1)}k` : maxVal}</strong></span>
                 </div>
               </div>
             );
@@ -220,6 +369,9 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             <span className="text-[10px] text-slate-500">Create new weekly connection schedule</span>
           </div>
         </div>
+
+        {/* Detailed Profile Inspector Chart with explicit X (Senin-Minggu) & Y (User count) axes */}
+        <DetailedTrafficChart profile={activeProfile} colorMode={colorMode} />
 
         {/* Custom Profile Creation Form Drawer */}
         {isCreating && (

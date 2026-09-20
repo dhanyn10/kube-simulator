@@ -29,13 +29,13 @@ describe('InternetProfileModal', () => {
             {
               name: 'Custom Peak Profile',
               daily: {
-                Senin: 2000,
-                Selasa: 2500,
-                Rabu: 3000,
-                Kamis: 3500,
-                Jumat: 4000,
-                Sabtu: 6000,
-                Minggu: 5000
+                Monday: 2000,
+                Tuesday: 2500,
+                Wednesday: 3000,
+                Thursday: 3500,
+                Friday: 4000,
+                Saturday: 6000,
+                Sunday: 5000
               }
             }
           ]),
@@ -57,7 +57,7 @@ describe('InternetProfileModal', () => {
     );
 
     expect(screen.getByText('Main Internet Gateway')).toBeDefined();
-    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Senin - Minggu)')).toBeDefined();
+    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Monday - Sunday)')).toBeDefined();
 
     await waitFor(() => {
       expect(screen.getAllByText('E-Commerce Simulation').length).toBeGreaterThan(0);

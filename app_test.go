@@ -694,7 +694,7 @@ func TestApp_InternetProfiles(t *testing.T) {
 	}
 
 	// 3. Save valid profile
-	sampleProfile := `{"name":"Custom Peak","daily":{"Senin":100,"Selasa":200,"Rabu":150,"Kamis":300,"Jumat":250,"Sabtu":500,"Minggu":400},"timestamp":1700000000}`
+	sampleProfile := `{"name":"Custom Peak","daily":{"Monday":100,"Tuesday":200,"Wednesday":150,"Thursday":300,"Friday":250,"Saturday":500,"Sunday":400},"timestamp":1700000000}`
 	ok := app.SaveInternetProfile("Custom Peak", sampleProfile)
 	if !ok {
 		t.Error("Expected SaveInternetProfile to succeed")
@@ -708,8 +708,8 @@ func TestApp_InternetProfiles(t *testing.T) {
 	if savedList[0].Name != "Custom Peak" {
 		t.Errorf("Expected profile name 'Custom Peak', got '%s'", savedList[0].Name)
 	}
-	if savedList[0].Daily["Sabtu"] != 500 {
-		t.Errorf("Expected Sabtu daily value 500, got %d", savedList[0].Daily["Sabtu"])
+	if savedList[0].Daily["Saturday"] != 500 {
+		t.Errorf("Expected Saturday daily value 500, got %d", savedList[0].Daily["Saturday"])
 	}
 
 	// 5. Delete profile

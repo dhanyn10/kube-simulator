@@ -210,7 +210,7 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   let targetTraffic = iData.traffic ?? 1000;
 
   if (iData.connectionProfile?.daily) {
-    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayIndex = Math.floor(ctx.ticks / 5) % 7;
     const currentDay = days[dayIndex];
     const profileDailyVal = iData.connectionProfile.daily[currentDay];
