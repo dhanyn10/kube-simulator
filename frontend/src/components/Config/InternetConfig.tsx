@@ -50,15 +50,17 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
 
   return (
     <div className="space-y-4">
-      {/* Explore More button placed below node name */}
-      <button
-        type="button"
-        onClick={() => setIsModalOpen(true)}
-        className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow"
-      >
-        <Sparkles size={14} />
-        <span>Explore More</span>
-      </button>
+      {/* Small floating right-aligned Explore More button */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="py-1 px-2.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+        >
+          <Sparkles size={12} />
+          <span>Explore More</span>
+        </button>
+      </div>
 
       {/* Permanently open configuration sections without collapsible toggle */}
       <ConfigSection

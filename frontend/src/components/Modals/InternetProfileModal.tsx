@@ -390,20 +390,20 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         : (colorMode === 'dark' ? "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/50" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50")
                     )}
                   >
-                    {/* Top Right Checkmark Badge when Applied */}
+                    {/* Top Right Checkmark Badge (Only icon, no text label) */}
                     {isApplied && (
                       <div
                         data-testid={`applied-badge-${p.name.replaceAll(/\s+/g, '-')}`}
-                        className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold shadow-md animate-in fade-in zoom-in duration-200"
+                        className="absolute top-2.5 right-2.5 z-10 p-1 rounded-full bg-blue-600 text-white shadow-md animate-in fade-in zoom-in duration-200"
+                        title="Applied Profile"
                       >
                         <Check size={12} strokeWidth={3} />
-                        <span>Applied</span>
                       </div>
                     )}
 
                     <div>
                       {/* Top Header Row */}
-                      <div className="flex items-center justify-between mb-1.5 pr-16">
+                      <div className="flex items-center justify-between mb-1.5 pr-10">
                         <span className={cn(
                           "text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider",
                           p.name === ECOMMERCE_PROFILE.name
@@ -443,26 +443,29 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       <span className="text-blue-400">Max: <strong className="text-blue-400">{maxVal >= 1000 ? `${(maxVal / 1000).toFixed(1)}k` : maxVal}</strong></span>
                     </div>
 
-                    {/* Action Buttons: Apply & Details */}
+                    {/* Action Buttons: Apply & Details (Both typical outline buttons) */}
                     <div className="pt-2 flex items-center gap-2 border-t border-slate-800/40">
                       <button
                         type="button"
                         onClick={() => handleApplyProfile(p.name)}
                         className={cn(
-                          "flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all shadow",
+                          "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
                           isApplied
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-white"
-                            : "bg-blue-600 hover:bg-blue-500 text-white"
+                            ? "border-blue-500 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+                            : (colorMode === 'dark'
+                              ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
+                              : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700")
                         )}
                       >
-                        <Check size={14} />
-                        <span>{isApplied ? 'Applied' : 'Apply'}</span>
+                        <Check size={13} />
+                        <span>Apply</span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleOpenDetails(p.name)}
                         className={cn(
-                          "px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border",
+                          "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
                           colorMode === 'dark'
                             ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
                             : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
@@ -518,10 +521,10 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                   type="button"
                   onClick={handleSaveAndApplyDetailProfile}
                   className={cn(
-                    "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition-all",
+                    "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border shadow-sm transition-all",
                     detailProfile.name === activeProfileName
-                      ? "bg-emerald-600 text-white"
-                      : "bg-blue-600 hover:bg-blue-500 text-white"
+                      ? "border-blue-500 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+                      : "bg-blue-600 hover:bg-blue-500 text-white border-transparent"
                   )}
                 >
                   <Check size={14} />

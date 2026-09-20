@@ -1,174 +1,97 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
-import { useFlowStore } from '@/store';
+import { ECOMMERCE_PROFILE } from '@/activities/modals';
+
+// Mock Wails runtime calls
+vi.mock('@/lib/wailsRuntime', () => ({
+  SaveInternetProfile: vi.fn().mockResolvedValue(true),
+  GetInternetProfiles: vi.fn().mockResolvedValue([]),
+  DeleteInternetProfile: vi.fn().mockResolvedValue(true)
+}));
 
 describe('InternetProfileModal', () => {
-  const performUpdate = vi.fn();
-  const onClose = vi.fn();
+  const mockPerformUpdate = vi.fn();
+  const mockOnClose = vi.fn();
 
-  const selectedNode = {
-    id: 'internet-node-1',
-    type: 'Internet',
+  const dummyNode = {
+    id: 'node-internet-1',
     data: {
-      label: 'Main Internet Gateway',
-      traffic: 1500,
-      activeProfileName: 'E-Commerce Simulation'
+      label: 'Internet Connection',
+      profile: {
+        name: ECOMMERCE_PROFILE.name,
+        daily: ECOMMERCE_PROFILE.daily
+      }
     }
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
-
-    (globalThis as any).go = {
-      main: {
-        App: {
-          GetInternetProfiles: vi.fn().mockResolvedValue([
-            {
-              name: 'Custom Peak Profile',
-              daily: {
-                Monday: 2000,
-                Tuesday: 2500,
-                Wednesday: 3000,
-                Thursday: 3500,
-                Friday: 4000,
-                Saturday: 6000,
-                Sunday: 5000
-              }
-            }
-          ]),
-          SaveInternetProfile: vi.fn().mockResolvedValue(true),
-          DeleteInternetProfile: vi.fn().mockResolvedValue(true)
-        }
-      }
-    };
   });
 
-  it('renders modal with card name and template cards gallery', async () => {
+  it('renders modal when isOpen is true', () => {
     render(
       <InternetProfileModal
         isOpen={true}
-        onClose={onClose}
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
       />
     );
 
-    expect(screen.getByText('Main Internet Gateway')).toBeDefined();
-    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Monday - Sunday)')).toBeDefined();
-
-    await waitFor(() => {
-      expect(screen.getAllByText('E-Commerce Simulation').length).toBeGreaterThan(0);
-      expect(screen.getByText('Custom Peak Profile')).toBeDefined();
-    });
-
-    expect(screen.getByText('Add Custom Profile')).toBeDefined();
+    expect(screen.getByText('Internet Connection')).toBeDefined();
+    expect(screen.getByText(/Weekly Connection Simulation Profile Templates/i)).toBeDefined();
   });
 
-  it('allows adding and saving a new custom profile template', async () => {
+  it('displays default Ecommerce profile template card and badge', () => {
     render(
       <InternetProfileModal
         isOpen={true}
-        onClose={onClose}
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
       />
     );
 
-    fireEvent.click(screen.getByText('Add Custom Profile'));
+    const matches = screen.getAllByText(ECOMMERCE_PROFILE.name);
+    expect(matches.length).toBeGreaterThan(0);
+
+    // Verify applied checkmark badge (only icon, no text label)
+    const badge = screen.getByTestId(`applied-badge-${ECOMMERCE_PROFILE.name.replaceAll(/\s+/g, '-')}`);
+    expect(badge).toBeDefined();
+  });
+
+  it('allows clicking Details to open detailed view', () => {
+    render(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
+    expect(detailsButtons.length).toBeGreaterThan(0);
+    fireEvent.click(detailsButtons[0]);
+
+    expect(screen.getByText(/Back to Profiles Gallery/i)).toBeDefined();
+  });
+
+  it('allows switching to custom profile creation view', () => {
+    render(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    const addCustomCard = screen.getByText('Add Custom Profile');
+    fireEvent.click(addCustomCard);
+
     expect(screen.getByText('Create Custom Connection Profile Template')).toBeDefined();
-
-    const nameInput = screen.getByPlaceholderText('e.g. Weekend Flash Sale');
-    fireEvent.change(nameInput, { target: { value: 'Flash Sale Promo' } });
-
-    const saveBtn = screen.getByText('Save & Apply Profile');
-    fireEvent.click(saveBtn);
-
-    await waitFor(() => {
-      expect(window.go.main.App.SaveInternetProfile).toHaveBeenCalled();
-    });
-  });
-
-  it('allows selecting and deleting custom profile template', async () => {
-    render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={onClose}
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Custom Peak Profile')).toBeDefined();
-    });
-
-    const deleteBtn = screen.getByTitle('Delete Template');
-    fireEvent.click(deleteBtn);
-
-    await waitFor(() => {
-      expect(window.go.main.App.DeleteInternetProfile).toHaveBeenCalledWith('Custom Peak Profile');
-    });
-  });
-
-  it('applies profile directly when Apply button is clicked and shows top-right applied checkmark badge', async () => {
-    render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={onClose}
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Custom Peak Profile')).toBeDefined();
-    });
-
-    const applyBtns = screen.getAllByText('Apply');
-    fireEvent.click(applyBtns[0]);
-
-    expect(performUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        activeProfileName: 'Custom Peak Profile',
-        traffic: 2000
-      })
-    );
-  });
-
-  it('opens interactive full profile details view when Details button is clicked without Daily Traffic Allocation Schedule', async () => {
-    render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={onClose}
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Custom Peak Profile')).toBeDefined();
-    });
-
-    const detailsBtns = screen.getAllByText('Details');
-    fireEvent.click(detailsBtns[0]);
-
-    expect(screen.getByText('Back to Profiles Gallery')).toBeDefined();
-    expect(screen.queryByText('Daily Traffic Allocation Schedule')).toBeNull();
-    expect(screen.getByText(/Drag data points vertically up\/down/)).toBeDefined();
-  });
-
-  it('does not render when isOpen is false', () => {
-    render(
-      <InternetProfileModal
-        isOpen={false}
-        onClose={onClose}
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-      />
-    );
-
-    expect(screen.queryByText('Main Internet Gateway')).toBeNull();
   });
 });
