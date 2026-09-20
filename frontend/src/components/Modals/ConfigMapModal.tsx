@@ -377,7 +377,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                     </div>
 
                     {/* Educational Hint */}
-                    {matchedKeyInfo && matchedKeyInfo.hint && (
+                    {matchedKeyInfo?.hint && (
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
                         <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                         <span>{matchedKeyInfo.hint}</span>
