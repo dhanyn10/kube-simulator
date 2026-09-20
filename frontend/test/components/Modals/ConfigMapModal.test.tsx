@@ -31,7 +31,7 @@ describe('ConfigMapModal', () => {
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
     expect(screen.getByText('Target card: My App Node')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
-    expect(screen.getByText(/No parameters added yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/No key-value pairs added/i)).toBeInTheDocument();
   });
 
   it('renders initialConfigMap data correctly when passed', () => {
@@ -50,33 +50,30 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit ConfigMap' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('existing-config')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('8080')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('500')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('8080 (Alt Web Server)')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('500 RPS (Medium Limit)')).toBeInTheDocument();
   });
 
-  it('allows adding parameter rows and adapts input control according to key type', () => {
+  it('allows adding Postman-style Key and Value dropdown rows', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
-    // PORT defaults to number input
-    const portInput = screen.getByPlaceholderText(/e.g. 80, 8080/);
-    expect(portInput).toHaveAttribute('type', 'number');
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
 
-    // Change key to LOG_LEVEL
-    const keySelects = screen.getAllByRole('combobox');
+    const keySelects = screen.getAllByRole('combobox', { name: 'Key' });
+    const valueSelects = screen.getAllByRole('combobox', { name: 'Value' });
+
+    expect(keySelects.length).toBe(1);
+    expect(valueSelects.length).toBe(1);
+
+    // Change Key to LOG_LEVEL
     fireEvent.change(keySelects[0], { target: { value: 'LOG_LEVEL' } });
-
-    // LOG_LEVEL changes value control to enum select dropdown
     expect(screen.getByRole('option', { name: /DEBUG \(Verbose Diagnostics\)/i })).toBeInTheDocument();
   });
 
   it('calls onSave and onClose when saving parameters', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Add Parameter/i }));
-    const numberInput = screen.getByPlaceholderText(/e.g. 80, 8080/);
-    fireEvent.change(numberInput, { target: { value: '8080' } });
-
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });
 
@@ -87,7 +84,7 @@ describe('ConfigMapModal', () => {
       id: expect.any(String),
       name: 'my-custom-cm',
       configData: [
-        { key: 'PORT', value: '8080' },
+        { key: 'PORT', value: '80' },
       ],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();

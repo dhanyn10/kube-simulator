@@ -23,41 +23,42 @@ interface ConfigRow {
 interface KeyDefinition {
   key: string;
   label: string;
-  type: 'number' | 'enum';
-  options?: { value: string; label: string }[];
+  valueOptions: { value: string; label: string }[];
   defaultValue: string;
-  placeholder?: string;
   hint: string;
-  min?: number;
-  max?: number;
 }
 
 const PREDEFINED_KEYS: KeyDefinition[] = [
   {
     key: 'PORT',
-    label: 'PORT (Container Service Port)',
-    type: 'number',
+    label: 'PORT',
     defaultValue: '80',
-    placeholder: 'e.g. 80, 8080, 3000',
-    min: 1,
-    max: 65535,
-    hint: 'Container listening port (number). Must match Service targetPort.',
+    valueOptions: [
+      { value: '80', label: '80 (Standard HTTP)' },
+      { value: '8080', label: '8080 (Alt Web Server)' },
+      { value: '3000', label: '3000 (Node.js/React)' },
+      { value: '5000', label: '5000 (Flask/Python)' },
+      { value: '8443', label: '8443 (HTTPS)' },
+    ],
+    hint: 'Container listening port. Must match Service targetPort.',
   },
   {
     key: 'MAX_CONNECTIONS',
-    label: 'MAX_CONNECTIONS (Traffic Capacity RPS)',
-    type: 'number',
+    label: 'MAX_CONNECTIONS',
     defaultValue: '1000',
-    placeholder: 'e.g. 100, 500, 1000',
-    min: 1,
-    hint: 'Maximum traffic capacity limit in RPS (number). Excess traffic gets throttled.',
+    valueOptions: [
+      { value: '100', label: '100 RPS (Low Limit - Throttling)' },
+      { value: '500', label: '500 RPS (Medium Limit)' },
+      { value: '1000', label: '1000 RPS (Standard High Limit)' },
+      { value: '5000', label: '5000 RPS (Enterprise Scale)' },
+    ],
+    hint: 'Maximum traffic capacity limit in RPS. Excess traffic gets throttled.',
   },
   {
     key: 'LOG_LEVEL',
-    label: 'LOG_LEVEL (Console Log Verbosity)',
-    type: 'enum',
+    label: 'LOG_LEVEL',
     defaultValue: 'INFO',
-    options: [
+    valueOptions: [
       { value: 'INFO', label: 'INFO (Standard Activity Logs)' },
       { value: 'DEBUG', label: 'DEBUG (Verbose Diagnostics)' },
       { value: 'WARN', label: 'WARN (Warning Highlights Only)' },
@@ -67,10 +68,9 @@ const PREDEFINED_KEYS: KeyDefinition[] = [
   },
   {
     key: 'CHAOS_MODE',
-    label: 'CHAOS_MODE (Simulate CrashLoopBackOff)',
-    type: 'enum',
+    label: 'CHAOS_MODE',
     defaultValue: 'disabled',
-    options: [
+    valueOptions: [
       { value: 'disabled', label: 'disabled (Normal Operation)' },
       { value: 'enabled', label: 'enabled (Simulate CrashLoopBackOff)' },
     ],
@@ -215,31 +215,41 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           />
         </div>
 
-        {/* Dynamic Key-Value Rows */}
+        {/* Postman-style Key-Value Table */}
         <div className="space-y-3 pt-2 border-t border-slate-800/40">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-300">Simulation ConfigMap Data (Key-Value)</p>
-              <p className="text-[11px] text-slate-400">Select parameter key from dropdown and specify value matching key type.</p>
+              <p className="text-xs font-semibold text-slate-300">Data (Key-Value)</p>
+              <p className="text-[11px] text-slate-400">Specify Key and Value pairs for simulation parameters.</p>
             </div>
             <button
               type="button"
               onClick={handleAddRow}
               className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600/20 text-teal-400 border border-teal-500/30 hover:bg-teal-600/30 transition-colors cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" /> Add Parameter
+              <Plus className="w-3.5 h-3.5" /> Add Row
             </button>
+          </div>
+
+          {/* Table Header */}
+          <div className={cn(
+            "rounded-t-lg border border-b-0 px-3 py-1.5 flex items-center gap-2 text-xs font-bold text-slate-400 font-mono uppercase tracking-wider",
+            colorMode === 'dark' ? "bg-slate-900/90 border-slate-800" : "bg-slate-100 border-slate-300"
+          )}>
+            <div className="w-1/2">Key</div>
+            <div className="w-1/2">Value</div>
+            <div className="w-8 shrink-0"></div>
           </div>
 
           {rows.length === 0 ? (
             <div className={cn(
-              "p-6 text-center border rounded-lg border-dashed text-xs",
+              "p-6 text-center border rounded-b-lg border-dashed text-xs",
               colorMode === 'dark' ? "border-slate-800 text-slate-500" : "border-slate-300 text-slate-400"
             )}>
-              No parameters added yet. Click <span className="font-semibold text-teal-400">"+ Add Parameter"</span> above to add a key-value entry.
+              No key-value pairs added. Click <span className="font-semibold text-teal-400">"+ Add Row"</span> above to add an entry.
             </div>
           ) : (
-            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="border rounded-b-lg divide-y divide-slate-800/60 max-h-[40vh] overflow-y-auto custom-scrollbar">
               {rows.map((row) => {
                 const selectedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === row.key) || PREDEFINED_KEYS[0];
 
@@ -247,27 +257,25 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                   <div
                     key={row.id}
                     className={cn(
-                      "p-3 rounded-lg border space-y-2 transition-all",
+                      "p-2.5 space-y-1.5 transition-all",
                       colorMode === 'dark'
-                        ? "bg-slate-900/60 border-slate-800"
-                        : "bg-slate-50 border-slate-200"
+                        ? "bg-slate-900/40 hover:bg-slate-900/80"
+                        : "bg-white hover:bg-slate-50"
                     )}
                   >
                     <div className="flex items-center gap-2">
                       {/* Key Dropdown */}
                       <div className="w-1/2">
-                        <label htmlFor={`cm-key-select-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
-                          Parameter Key
-                        </label>
                         <select
                           id={`cm-key-select-${row.id}`}
+                          aria-label="Key"
                           value={row.key}
                           onChange={(e) => handleKeyChange(row.id, e.target.value)}
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
                             colorMode === 'dark'
                               ? "bg-slate-950 border-slate-700 text-slate-200"
-                              : "bg-white border-slate-300 text-slate-800"
+                              : "bg-slate-50 border-slate-300 text-slate-800"
                           )}
                         >
                           {PREDEFINED_KEYS.map((pk) => (
@@ -278,55 +286,35 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                         </select>
                       </div>
 
-                      {/* Value Control Adapts to Key Type */}
+                      {/* Value Dropdown Select */}
                       <div className="w-1/2">
-                        <label htmlFor={`cm-val-input-${row.id}`} className="block text-[10px] font-semibold mb-1 text-slate-400">
-                          Parameter Value ({selectedKeyInfo.type === 'number' ? 'Number' : 'Selection'})
-                        </label>
-                        {selectedKeyInfo.type === 'number' ? (
-                          <input
-                            id={`cm-val-input-${row.id}`}
-                            type="number"
-                            min={selectedKeyInfo.min}
-                            max={selectedKeyInfo.max}
-                            value={row.value}
-                            onChange={(e) => handleValueChange(row.id, e.target.value)}
-                            placeholder={selectedKeyInfo.placeholder}
-                            className={cn(
-                              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                              colorMode === 'dark'
-                                ? "bg-slate-950 border-slate-700 text-slate-100"
-                                : "bg-white border-slate-300 text-slate-900"
-                            )}
-                          />
-                        ) : (
-                          <select
-                            id={`cm-val-input-${row.id}`}
-                            value={row.value}
-                            onChange={(e) => handleValueChange(row.id, e.target.value)}
-                            className={cn(
-                              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                              colorMode === 'dark'
-                                ? "bg-slate-950 border-slate-700 text-slate-100"
-                                : "bg-white border-slate-300 text-slate-900"
-                            )}
-                          >
-                            {(selectedKeyInfo.options || []).map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        )}
+                        <select
+                          id={`cm-val-select-${row.id}`}
+                          aria-label="Value"
+                          value={row.value}
+                          onChange={(e) => handleValueChange(row.id, e.target.value)}
+                          className={cn(
+                            "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+                            colorMode === 'dark'
+                              ? "bg-slate-950 border-slate-700 text-slate-100"
+                              : "bg-slate-50 border-slate-300 text-slate-900"
+                          )}
+                        >
+                          {selectedKeyInfo.valueOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Delete button */}
                       <button
                         type="button"
                         onClick={() => handleRemoveRow(row.id)}
-                        className="mt-4 p-1.5 rounded hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
+                        className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer shrink-0"
                         title="Remove row"
-                        aria-label="Remove parameter row"
+                        aria-label="Remove row"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -334,7 +322,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
                     {/* Educational Hint */}
                     {selectedKeyInfo.hint && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-0.5">
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
                         <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                         <span>{selectedKeyInfo.hint}</span>
                       </div>
