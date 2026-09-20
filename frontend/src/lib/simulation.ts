@@ -23,6 +23,22 @@ export interface SimulationContext {
   nodeIndexMap?: Map<string, number>;
 }
 
+const processOutgoingEdges = (
+  currId: string,
+  edgeMap: Map<string, Edge[]>,
+  activeEdgesSet: Set<string>,
+  queue: string[]
+) => {
+  const outgoing = edgeMap.get(currId);
+  if (!outgoing) return;
+
+  for (const e of outgoing) {
+    if (activeEdgesSet.has(String(e.id)) && !e.data?.validationError) {
+      queue.push(String(e.target));
+    }
+  }
+};
+
 /**
  * Traverses active non-error edges starting from entry nodes to determine reachable target node IDs.
  */
@@ -42,14 +58,7 @@ export const calculateReachability = (
     if (reachableNodes.has(currId)) continue;
     reachableNodes.add(currId);
 
-    const outgoing = edgeMap.get(currId);
-    if (!outgoing) continue;
-
-    for (const e of outgoing) {
-      if (activeEdgesSet.has(String(e.id)) && !e.data?.validationError) {
-        queue.push(String(e.target));
-      }
-    }
+    processOutgoingEdges(currId, edgeMap, activeEdgesSet, queue);
   }
   return reachableNodes;
 };
@@ -160,27 +169,34 @@ const canReachWorkload = (reachableNodes: Set<string>, depId: string, childPods?
   return children.some(child => reachableNodes.has(child.id));
 };
 
+const getInternetNodeTraffic = (
+  node: Node,
+  depId: string,
+  children: Node[] | undefined,
+  internetReachableMap: Map<string, Set<string>>
+): number => {
+  const reachableNodes = internetReachableMap.get(node.id);
+  if (!reachableNodes) return 0;
+
+  if (!canReachWorkload(reachableNodes, depId, children)) return 0;
+
+  const nData = node.data as K8sNodeData;
+  const internetTraffic = nData.currentTraffic || 0;
+  const multiplier = getTrafficMultiplier(nData.durationUnit);
+  return internetTraffic * multiplier;
+};
+
 /**
  * Calculates total incoming web traffic reaching a workload from connected Internet nodes.
  */
 export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { traffic: number; hasChanges: boolean } => {
   if (!ctx.internetNodes || !ctx.internetReachableMap) return { traffic: 0, hasChanges: false };
 
-  let totalTraffic = 0;
   const children = ctx.childPodMap?.get(dep.id);
+  let totalTraffic = 0;
 
   for (const node of ctx.internetNodes) {
-    const reachableNodes = ctx.internetReachableMap.get(node.id);
-    if (!reachableNodes) continue;
-
-    const nData = node.data as K8sNodeData;
-    const internetTraffic = nData.currentTraffic || 0;
-    const multiplier = getTrafficMultiplier(nData.durationUnit);
-    const effectiveTraffic = internetTraffic * multiplier;
-
-    if (canReachWorkload(reachableNodes, dep.id, children)) {
-      totalTraffic += effectiveTraffic;
-    }
+    totalTraffic += getInternetNodeTraffic(node, dep.id, children, ctx.internetReachableMap);
   }
 
   return { traffic: totalTraffic, hasChanges: false };
@@ -307,21 +323,20 @@ const calculateDesiredReplicas = (
   return desired;
 };
 
-const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minReplicas: number; maxReplicas: number; targetCPU: number } | null; connectedHPA: Node | undefined } => {
-  const depData = dep.data as K8sNodeData;
+const resolveDirectHpaConfig = (depData: K8sNodeData) => {
   if (Array.isArray(depData.hpas) && depData.hpas.length > 0) {
     const first = depData.hpas[0];
     return {
-      config: {
-        minReplicas: first.minReplicas || 1,
-        maxReplicas: first.maxReplicas || 10,
-        targetCPU: first.targetCPU || 50,
-      },
-      connectedHPA: undefined,
+      minReplicas: first.minReplicas || 1,
+      maxReplicas: first.maxReplicas || 10,
+      targetCPU: first.targetCPU || 50,
     };
   }
+  return null;
+};
 
-  const connectedHPA = findConnectedHPA(dep.id, ctx);
+const resolveConnectedHpaConfig = (depId: string, ctx: SimulationContext) => {
+  const connectedHPA = findConnectedHPA(depId, ctx);
   if (connectedHPA) {
     const hData = connectedHPA.data as K8sNodeData;
     return {
@@ -333,17 +348,30 @@ const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minRep
       connectedHPA,
     };
   }
+  return null;
+};
 
+const resolveNodeBoundHpaConfig = (depData: K8sNodeData) => {
   if (depData.minReplicas && depData.maxReplicas) {
     return {
-      config: {
-        minReplicas: depData.minReplicas,
-        maxReplicas: depData.maxReplicas,
-        targetCPU: depData.targetCPU || 50,
-      },
-      connectedHPA: undefined,
+      minReplicas: depData.minReplicas,
+      maxReplicas: depData.maxReplicas,
+      targetCPU: depData.targetCPU || 50,
     };
   }
+  return null;
+};
+
+const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minReplicas: number; maxReplicas: number; targetCPU: number } | null; connectedHPA: Node | undefined } => {
+  const depData = dep.data as K8sNodeData;
+  const directConfig = resolveDirectHpaConfig(depData);
+  if (directConfig) return { config: directConfig, connectedHPA: undefined };
+
+  const connectedResult = resolveConnectedHpaConfig(dep.id, ctx);
+  if (connectedResult) return connectedResult;
+
+  const nodeBoundConfig = resolveNodeBoundHpaConfig(depData);
+  if (nodeBoundConfig) return { config: nodeBoundConfig, connectedHPA: undefined };
 
   return { config: null, connectedHPA: undefined };
 };
@@ -502,14 +530,13 @@ const validateEdgePortMismatch = (
     let hasChanges = false;
     if (edge.data?.validationError !== portErr) {
       edge.data = { ...edge.data, validationError: portErr };
-      hasChanges = true;
       try {
         ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
       } catch (e) {
         logger.error('[ConfigMap Simulation] Failed to add log', e);
       }
     }
-    return { hasChanges, isBlocked: true };
+    return { hasChanges: true, isBlocked: true };
   }
 
   if (edge.data?.validationError?.includes('Port Mismatch')) {
@@ -593,6 +620,25 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
   };
 };
 
+const handleTrafficThrottling = (
+  dep: Node,
+  traffic: number,
+  limit: number | undefined,
+  ctx: SimulationContext
+): number => {
+  if (!limit || traffic <= limit) return traffic;
+
+  const droppedCount = traffic - limit;
+  if (ctx.ticks % 2 === 0) {
+    try {
+      ctx.get()?.addLog?.('warning', `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${limit})`, 'Simulation');
+    } catch (e) {
+      logger.error('[ConfigMap Simulation] Failed to add log', e);
+    }
+  }
+  return limit;
+};
+
 /**
  * Orchestrates complete simulation cycle for workload nodes (ConfigMaps, PVCs, traffic, OOM, and HPAs).
  */
@@ -604,20 +650,7 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges || cmResult.hasChanges };
 
   const trafficResult = calculateIncomingTraffic(dep, ctx);
-
-  // Apply ConfigMap MAX_CONNECTIONS throttling if traffic exceeds capacity limit
-  let effectiveTraffic = trafficResult.traffic;
-  if (cmResult.effectiveTrafficLimit && effectiveTraffic > cmResult.effectiveTrafficLimit) {
-    const droppedCount = effectiveTraffic - cmResult.effectiveTrafficLimit;
-    effectiveTraffic = cmResult.effectiveTrafficLimit;
-    if (ctx.ticks % 2 === 0) {
-      try {
-        ctx.get()?.addLog?.('warning', `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${cmResult.effectiveTrafficLimit})`, 'Simulation');
-      } catch (e) {
-        logger.error('[ConfigMap Simulation] Failed to add log', e);
-      }
-    }
-  }
+  const effectiveTraffic = handleTrafficThrottling(dep, trafficResult.traffic, cmResult.effectiveTrafficLimit, ctx);
 
   const metricsResult = calculateResourceMetrics(dep, effectiveTraffic, ctx);
 
