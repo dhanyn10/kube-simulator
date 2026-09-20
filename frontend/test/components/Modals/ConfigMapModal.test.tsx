@@ -25,14 +25,13 @@ describe('ConfigMapModal', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders correctly with default initial state when initialConfigMap is null', () => {
+  it('renders correctly with default empty parameter rows when initialConfigMap is null', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
     expect(screen.getByText('Target card: My App Node')).toBeInTheDocument();
     expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue('API_URL')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('https://api.example.com')).toBeInTheDocument();
+    expect(screen.getByText(/No key-value pairs added/i)).toBeInTheDocument();
   });
 
   it('renders initialConfigMap data correctly when passed', () => {
@@ -40,8 +39,10 @@ describe('ConfigMapModal', () => {
       id: 'cm-123',
       name: 'existing-config',
       configData: [
-        { key: 'DB_HOST', value: 'localhost' },
-        { key: 'DB_PORT', value: '5432' },
+        { key: 'PORT', value: '8080' },
+        { key: 'MAX_CONNECTIONS', value: '500' },
+        { key: 'LOG_LEVEL', value: 'WARN' },
+        { key: 'CHAOS_MODE', value: 'disabled' },
       ],
     };
 
@@ -49,45 +50,38 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit ConfigMap' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('existing-config')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('DB_HOST')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('localhost')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('DB_PORT')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('5432')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('8080')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('allows adding, updating, and removing key-value fields', () => {
+  it('renders Kube Console style portal autocomplete dropdown popup when focusing inputs', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
-    // Add field
-    const addButton = screen.getByText(/Add Key-Value/i);
-    fireEvent.click(addButton);
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
 
-    const keyInputs = screen.getAllByPlaceholderText(/KEY/i);
-    const valueInputs = screen.getAllByPlaceholderText('Value');
-    expect(keyInputs).toHaveLength(3);
+    const keyInput = screen.getByLabelText('Key');
+    fireEvent.focus(keyInput);
 
-    // Update field
-    fireEvent.change(keyInputs[2], { target: { value: 'NEW_KEY' } });
-    fireEvent.change(valueInputs[2], { target: { value: 'NEW_VAL' } });
-    expect(keyInputs[2]).toHaveValue('NEW_KEY');
-    expect(valueInputs[2]).toHaveValue('NEW_VAL');
+    expect(screen.getByTestId('key-option-MAX_CONNECTIONS')).toBeInTheDocument();
 
-    // Remove field
-    const removeButtons = screen.getAllByTitle('Remove Pair');
-    expect(removeButtons.length).toBeGreaterThan(0);
-    fireEvent.click(removeButtons[0]);
-
-    expect(screen.getAllByPlaceholderText(/KEY/i)).toHaveLength(2);
+    // Select option from portal dropdown
+    fireEvent.mouseDown(screen.getByTestId('key-option-MAX_CONNECTIONS'));
+    expect(keyInput).toHaveValue('MAX_CONNECTIONS');
   });
 
-  it('filters empty keys and calls onSave and onClose when saving', () => {
+  it('calls onSave and onClose when saving parameters', () => {
     render(<ConfigMapModal {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+
+    const keyInput = screen.getByLabelText('Key');
+    const valueInput = screen.getByLabelText('Value');
+
+    fireEvent.change(keyInput, { target: { value: 'PORT' } });
+    fireEvent.change(valueInput, { target: { value: '80' } });
 
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });
-
-    // Add an empty field
-    fireEvent.click(screen.getByText(/Add Key-Value/i));
 
     const saveButton = screen.getByRole('button', { name: 'Attach ConfigMap' });
     fireEvent.click(saveButton);
@@ -96,8 +90,7 @@ describe('ConfigMapModal', () => {
       id: expect.any(String),
       name: 'my-custom-cm',
       configData: [
-        { key: 'API_URL', value: 'https://api.example.com' },
-        { key: 'LOG_LEVEL', value: 'info' },
+        { key: 'PORT', value: '80' },
       ],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();

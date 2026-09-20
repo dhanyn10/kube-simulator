@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -9,7 +10,7 @@
   --color-slate-600: #5a5d61;
   
   --font-sans: "Inter", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Courier New", ui-monospace, SFMono-Regular, monospace;
+  --font-mono: "Ubuntu Mono", "Courier New", ui-monospace, SFMono-Regular, monospace;
 
   /* Material Design 500 Colors */
   --color-mat-red: #f44336;
@@ -41,6 +42,21 @@
 
   html {
     overscroll-behavior: none;
+  }
+
+  /* Universal Ubuntu Mono styling for forms, dropdowns, inputs, textareas, CLI terminal, and code blocks */
+  input,
+  select,
+  textarea,
+  option,
+  code,
+  pre,
+  .font-mono,
+  .terminal-content-area,
+  .terminal-footer,
+  .terminal-pagination-bar,
+  .terminal-autocomplete-popup {
+    font-family: var(--font-mono) !important;
   }
 }
 

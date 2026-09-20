@@ -12,6 +12,7 @@ import {
   handleBoundPvcs,
   handleOomCrashes,
   scheduleRecovery,
+  checkConfigMapSimulationStatus,
   processWorkloadSimulation
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
@@ -403,5 +404,56 @@ describe('simulation test suite', () => {
     ctxHpa.nodeIndexMap?.set('dep-hpa-50', ctxHpa.updatedNodes.length - 1);
     const scaled = handleHpaScaling(depHpa50, 52, ctxHpa); // ratio 52/50 = 1.04, diff <= 0.1
     expect(scaled).toBe(false);
+  });
+
+  it('ConfigMap simulation PLAY mode: Port mismatch, capacity throttling, logging, and chaos mode', () => {
+    const pod = createNode('pod-cm-test', 'Pod', { status: 'ready', webserver: 'nginx' });
+    const srv = createNode('srv1', 'Service', { targetPort: 80 });
+    const dep = createNode('dep-cm-test', 'Deployment', {
+      configMaps: [
+        {
+          id: 'cm1',
+          name: 'app-cm',
+          configData: [
+            { key: 'PORT', value: '8080' },
+            { key: 'MAX_CONNECTIONS', value: '100' },
+            { key: 'LOG_LEVEL', value: 'DEBUG' },
+            { key: 'CHAOS_MODE', value: 'disabled' }
+          ]
+        }
+      ]
+    });
+
+    const edgeSrvDep = { id: 'e-srv-dep', source: 'srv1', target: 'dep-cm-test', data: {} } as Edge;
+    const addLogMock = vi.fn();
+    const ctx = getMockCtx({
+      get: vi.fn().mockReturnValue({ addLog: addLogMock }),
+      targetEdgeMap: new Map([['dep-cm-test', [edgeSrvDep]]]),
+      nodeMap: new Map([['srv1', srv], ['dep-cm-test', dep]])
+    });
+    ctx.updatedNodes.push(pod, dep, srv);
+    ctx.nodeIndexMap?.set('pod-cm-test', ctx.updatedNodes.length - 3);
+    ctx.nodeIndexMap?.set('dep-cm-test', ctx.updatedNodes.length - 2);
+
+    Object.defineProperty(ctx, 'childPodMap', {
+      get: () => new Map([['dep-cm-test', [ctx.updatedNodes.find(n => n.id === 'pod-cm-test')!]]])
+    });
+
+    // 1. Port mismatch test (Service 80 vs ConfigMap 8080)
+    const cmStatus1 = checkConfigMapSimulationStatus(dep, ctx);
+    expect(cmStatus1.isBlocked).toBe(true);
+    expect(edgeSrvDep.data?.validationError).toContain('Port Mismatch');
+
+    // Resolve port mismatch
+    dep.data.configMaps[0].configData[0].value = '80';
+    const cmStatus2 = checkConfigMapSimulationStatus(dep, ctx);
+    expect(cmStatus2.isBlocked).toBe(false);
+    expect(cmStatus2.effectiveTrafficLimit).toBe(100);
+
+    // Enable Chaos mode
+    dep.data.configMaps[0].configData[3].value = 'enabled';
+    const cmStatusChaos = checkConfigMapSimulationStatus(dep, ctx);
+    expect(cmStatusChaos.isBlocked).toBe(true);
+    expect(ctx.updatedNodes.find(n => n.id === 'pod-cm-test')?.data.status).toBe('crashing');
   });
 });
