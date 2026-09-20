@@ -11,43 +11,40 @@ export function getContextMenuContainerClass(isDark: boolean): string {
 }
 
 /**
+ * Helper to generate backstage context menu option button class based on theme and text colors.
+ */
+function getBackstageContextMenuOptionClass(isDark: boolean, darkTextColor: string, lightTextColor: string): string {
+  const hoverBg = isDark ? "hover:bg-slate-800" : "hover:bg-slate-100";
+  const textColor = isDark ? darkTextColor : lightTextColor;
+  return `w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors cursor-pointer ${hoverBg} ${textColor}`;
+}
+
+/**
  * Returns standard menu option button class based on theme mode.
  */
 export function getContextMenuButtonClass(isDark: boolean): string {
-  if (isDark) {
-    return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors cursor-pointer hover:bg-slate-800 text-slate-200";
-  }
-  return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors cursor-pointer hover:bg-slate-100 text-slate-700";
+  return getBackstageContextMenuOptionClass(isDark, "text-slate-200", "text-slate-700");
 }
 
 /**
  * Returns Load Profile button class based on theme mode.
  */
 export function getContextMenuLoadProfileClass(isDark: boolean): string {
-  if (isDark) {
-    return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-blue-500 hover:text-blue-400 cursor-pointer hover:bg-slate-800";
-  }
-  return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-blue-500 hover:text-blue-400 cursor-pointer hover:bg-slate-100";
+  return getBackstageContextMenuOptionClass(isDark, "text-blue-500 hover:text-blue-400", "text-blue-500 hover:text-blue-400");
 }
 
 /**
  * Returns Delete Document button class based on theme mode.
  */
 export function getContextMenuDeleteDocumentClass(isDark: boolean): string {
-  if (isDark) {
-    return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-rose-500 hover:text-rose-400 cursor-pointer hover:bg-slate-800";
-  }
-  return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-rose-500 hover:text-rose-400 cursor-pointer hover:bg-slate-100";
+  return getBackstageContextMenuOptionClass(isDark, "text-rose-500 hover:text-rose-400", "text-rose-500 hover:text-rose-400");
 }
 
 /**
  * Returns Open Folder button class based on theme mode.
  */
 export function getContextMenuOpenFolderClass(isDark: boolean): string {
-  if (isDark) {
-    return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-emerald-400 hover:text-emerald-300 cursor-pointer hover:bg-slate-800";
-  }
-  return "w-full px-3.5 py-2 text-left flex items-center gap-2.5 font-medium transition-colors text-emerald-600 hover:text-emerald-500 cursor-pointer hover:bg-slate-100";
+  return getBackstageContextMenuOptionClass(isDark, "text-emerald-400 hover:text-emerald-300", "text-emerald-600 hover:text-emerald-500");
 }
 
 /**

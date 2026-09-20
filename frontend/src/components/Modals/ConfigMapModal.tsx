@@ -94,7 +94,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   const activeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (initialConfigMap && initialConfigMap.configData && initialConfigMap.configData.length > 0) {
+    if (initialConfigMap?.configData?.length) {
       setCmName(initialConfigMap.name || 'app-config');
       const loadedRows: ConfigRow[] = initialConfigMap.configData.map((item, idx) => ({
         id: `row-${idx}-${Date.now()}`,

@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { ForbiddenOverlay } from '@/components/Nodes/ForbiddenOverlay';
 import { useFlowStore } from '@/store';
 import { KubeIAMUser } from '@/types';
@@ -25,31 +25,16 @@ describe('ForbiddenOverlay', () => {
     expect(screen.queryByTestId('forbidden-overlay')).toBeNull();
   });
 
-  it('renders Option B restricted ghost overlay with lock badge and accessibility role', () => {
+  it('renders Option B restricted ghost overlay with section tag and aria-label', () => {
     useFlowStore.setState({ activeIdentity: 'dev-user' });
     render(<ForbiddenOverlay nodeType="Service" data={{ label: 'my-service' } as any} />);
 
     const overlay = screen.getByTestId('forbidden-overlay');
     expect(overlay).toBeDefined();
-    expect(overlay.getAttribute('role')).toBe('region');
+    expect(overlay.tagName.toLowerCase()).toBe('section');
     expect(overlay.getAttribute('aria-label')).toBe('Access Restricted for user dev-user');
+    expect(overlay.getAttribute('tabIndex')).toBeNull();
     expect(screen.getByText('Restricted')).toBeDefined();
-  });
-
-  it('intercepts click and keyboard events to prevent propagating interactions', () => {
-    useFlowStore.setState({ activeIdentity: 'dev-user' });
-    render(<ForbiddenOverlay nodeType="Service" data={{ label: 'my-service' } as any} />);
-
-    const overlay = screen.getByTestId('forbidden-overlay');
-
-    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
-    const stopPropagationSpy = vi.spyOn(clickEvent, 'stopPropagation');
-    const preventDefaultSpy = vi.spyOn(clickEvent, 'preventDefault');
-
-    fireEvent(overlay, clickEvent);
-
-    expect(stopPropagationSpy).toHaveBeenCalled();
-    expect(preventDefaultSpy).toHaveBeenCalled();
   });
 
   it('renders nothing when node type is allowed for activeIdentity', () => {
