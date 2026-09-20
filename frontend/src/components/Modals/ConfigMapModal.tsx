@@ -74,6 +74,55 @@ const PREDEFINED_KEYS: KeySuggestion[] = [
   },
 ];
 
+interface AutocompleteOptionItemProps {
+  readonly testId: string;
+  readonly primaryText: string;
+  readonly secondaryText?: string;
+  readonly badgeText?: string;
+  readonly isDark: boolean;
+  readonly onSelect: () => void;
+}
+
+const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
+  testId,
+  primaryText,
+  secondaryText,
+  badgeText,
+  isDark,
+  onSelect,
+}) => (
+  <button
+    type="button"
+    data-testid={testId}
+    onMouseDown={(e) => {
+      e.preventDefault();
+      onSelect();
+    }}
+    className={cn(
+      "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
+      isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
+    )}
+  >
+    <div className="flex items-center gap-2 overflow-hidden">
+      <TerminalSquare size={12} className="text-teal-400 shrink-0" />
+      <span className="font-semibold text-[11px]">{primaryText}</span>
+    </div>
+    {badgeText && (
+      <span className={cn(
+        "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+        isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
+      )}>
+        {badgeText}
+      </span>
+    )}
+    {secondaryText && (
+      <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+        {secondaryText}
+      </span>
+    )}
+  </button>
+);
+
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   isOpen,
   onClose,
@@ -116,6 +165,20 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       left: rect.left + window.scrollX,
       width: rect.width,
     });
+  };
+
+  const handleInputFocusOrChange = (
+    elem: HTMLInputElement,
+    rowId: string,
+    field: 'key' | 'value',
+    value?: string
+  ) => {
+    if (value !== undefined) {
+      handleRowChange(rowId, field, value);
+    }
+    activeInputRef.current = elem;
+    updateDropdownPos(elem);
+    setActiveDropdown({ rowId, field });
   };
 
   useEffect(() => {
@@ -315,17 +378,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                           aria-label="Key"
                           type="text"
                           value={row.key}
-                          onFocus={(e) => {
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'key' });
-                          }}
-                          onChange={(e) => {
-                            handleRowChange(row.id, 'key', e.target.value);
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'key' });
-                          }}
+                          onFocus={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'key')}
+                          onChange={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'key', e.target.value)}
                           placeholder="e.g. PORT, LOG_LEVEL"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
@@ -343,17 +397,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                           aria-label="Value"
                           type="text"
                           value={row.value}
-                          onFocus={(e) => {
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'value' });
-                          }}
-                          onChange={(e) => {
-                            handleRowChange(row.id, 'value', e.target.value);
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'value' });
-                          }}
+                          onFocus={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'value')}
+                          onChange={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'value', e.target.value)}
                           placeholder="e.g. 80, INFO, enabled"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
@@ -410,56 +455,31 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           )}
         >
           {activeDropdown.field === 'key' && filteredKeys.map((item) => (
-            <button
-              type="button"
+            <AutocompleteOptionItem
               key={`portal-key-${item.key}`}
-              data-testid={`key-option-${item.key}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
+              testId={`key-option-${item.key}`}
+              primaryText={item.key}
+              badgeText="KEY"
+              isDark={isDark}
+              onSelect={() => {
                 handleRowChange(activeRow.id, 'key', item.key);
                 setActiveDropdown(null);
               }}
-              className={cn(
-                "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
-                isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <TerminalSquare size={12} className="text-teal-400 shrink-0" />
-                <span className="font-semibold text-[11px]">{item.key}</span>
-              </div>
-              <span className={cn(
-                "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
-                isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
-              )}>
-                KEY
-              </span>
-            </button>
+            />
           ))}
 
           {activeDropdown.field === 'value' && filteredValues.map((opt) => (
-            <button
-              type="button"
+            <AutocompleteOptionItem
               key={`portal-val-${opt.value}`}
-              data-testid={`val-option-${opt.value}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
+              testId={`val-option-${opt.value}`}
+              primaryText={opt.value}
+              secondaryText={opt.description}
+              isDark={isDark}
+              onSelect={() => {
                 handleRowChange(activeRow.id, 'value', opt.value);
                 setActiveDropdown(null);
               }}
-              className={cn(
-                "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
-                isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
-              )}
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
-                <TerminalSquare size={12} className="text-teal-400 shrink-0" />
-                <span className="font-semibold text-[11px]">{opt.value}</span>
-              </div>
-              <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
-                {opt.description}
-              </span>
-            </button>
+            />
           ))}
         </div>,
         document.body
