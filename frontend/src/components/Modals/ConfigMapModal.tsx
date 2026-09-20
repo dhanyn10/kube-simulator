@@ -20,20 +20,18 @@ interface ConfigRow {
   value: string;
 }
 
-interface KeyDefinition {
+interface KeySuggestion {
   key: string;
   label: string;
-  valueOptions: { value: string; label: string }[];
-  defaultValue: string;
+  valueSuggestions: { value: string; label: string }[];
   hint: string;
 }
 
-const PREDEFINED_KEYS: KeyDefinition[] = [
+const PREDEFINED_KEYS: KeySuggestion[] = [
   {
     key: 'PORT',
     label: 'PORT',
-    defaultValue: '80',
-    valueOptions: [
+    valueSuggestions: [
       { value: '80', label: '80 (Standard HTTP)' },
       { value: '8080', label: '8080 (Alt Web Server)' },
       { value: '3000', label: '3000 (Node.js/React)' },
@@ -45,8 +43,7 @@ const PREDEFINED_KEYS: KeyDefinition[] = [
   {
     key: 'MAX_CONNECTIONS',
     label: 'MAX_CONNECTIONS',
-    defaultValue: '1000',
-    valueOptions: [
+    valueSuggestions: [
       { value: '100', label: '100 RPS (Low Limit - Throttling)' },
       { value: '500', label: '500 RPS (Medium Limit)' },
       { value: '1000', label: '1000 RPS (Standard High Limit)' },
@@ -57,8 +54,7 @@ const PREDEFINED_KEYS: KeyDefinition[] = [
   {
     key: 'LOG_LEVEL',
     label: 'LOG_LEVEL',
-    defaultValue: 'INFO',
-    valueOptions: [
+    valueSuggestions: [
       { value: 'INFO', label: 'INFO (Standard Activity Logs)' },
       { value: 'DEBUG', label: 'DEBUG (Verbose Diagnostics)' },
       { value: 'WARN', label: 'WARN (Warning Highlights Only)' },
@@ -69,8 +65,7 @@ const PREDEFINED_KEYS: KeyDefinition[] = [
   {
     key: 'CHAOS_MODE',
     label: 'CHAOS_MODE',
-    defaultValue: 'disabled',
-    valueOptions: [
+    valueSuggestions: [
       { value: 'disabled', label: 'disabled (Normal Operation)' },
       { value: 'enabled', label: 'enabled (Simulate CrashLoopBackOff)' },
     ],
@@ -94,15 +89,11 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   useEffect(() => {
     if (initialConfigMap && initialConfigMap.configData && initialConfigMap.configData.length > 0) {
       setCmName(initialConfigMap.name || 'app-config');
-      const loadedRows: ConfigRow[] = initialConfigMap.configData.map((item, idx) => {
-        const uppercaseKey = item.key.toUpperCase();
-        const isValidKey = PREDEFINED_KEYS.some((pk) => pk.key === uppercaseKey);
-        return {
-          id: `row-${idx}-${Date.now()}`,
-          key: isValidKey ? uppercaseKey : 'PORT',
-          value: item.value,
-        };
-      });
+      const loadedRows: ConfigRow[] = initialConfigMap.configData.map((item, idx) => ({
+        id: `row-${idx}-${Date.now()}`,
+        key: item.key,
+        value: item.value,
+      }));
       setRows(loadedRows);
     } else {
       const randomSuffix = crypto.randomUUID().split('-')[0];
@@ -114,13 +105,12 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   if (!isOpen) return null;
 
   const handleAddRow = () => {
-    const defaultKeyDef = PREDEFINED_KEYS[0];
     setRows((prev) => [
       ...prev,
       {
         id: `row-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-        key: defaultKeyDef.key,
-        value: defaultKeyDef.defaultValue,
+        key: '',
+        value: '',
       },
     ]);
   };
@@ -129,24 +119,15 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     setRows((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const handleKeyChange = (id: string, newKey: string) => {
-    const keyDef = PREDEFINED_KEYS.find((pk) => pk.key === newKey) || PREDEFINED_KEYS[0];
+  const handleRowChange = (id: string, field: keyof ConfigRow, value: string) => {
     setRows((prev) =>
-      prev.map((row) =>
-        row.id === id ? { ...row, key: newKey, value: keyDef.defaultValue } : row
-      )
-    );
-  };
-
-  const handleValueChange = (id: string, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, value } : row))
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
   };
 
   const handleSave = () => {
     const configData = rows
-      .map((row) => ({ key: row.key, value: row.value.trim() }))
+      .map((row) => ({ key: row.key.trim(), value: row.value.trim() }))
       .filter((item) => item.key.length > 0);
 
     const configMapItem: K8sConfigMapItem = {
@@ -215,12 +196,21 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           />
         </div>
 
+        {/* Global Datalist Autocomplete Sources */}
+        <datalist id="cm-key-options">
+          {PREDEFINED_KEYS.map((pk) => (
+            <option key={pk.key} value={pk.key}>
+              {pk.label}
+            </option>
+          ))}
+        </datalist>
+
         {/* Postman-style Key-Value Table */}
         <div className="space-y-3 pt-2 border-t border-slate-800/40">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-300">Data (Key-Value)</p>
-              <p className="text-[11px] text-slate-400">Specify Key and Value pairs for simulation parameters.</p>
+              <p className="text-[11px] text-slate-400">Type text or choose suggestions from dropdown for simulation parameters.</p>
             </div>
             <button
               type="button"
@@ -251,7 +241,9 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           ) : (
             <div className="border rounded-b-lg divide-y divide-slate-800/60 max-h-[40vh] overflow-y-auto custom-scrollbar">
               {rows.map((row) => {
-                const selectedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === row.key) || PREDEFINED_KEYS[0];
+                const upperKey = row.key.trim().toUpperCase();
+                const matchedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === upperKey);
+                const datalistValId = `cm-val-options-${row.id}`;
 
                 return (
                   <div
@@ -263,49 +255,54 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                         : "bg-white hover:bg-slate-50"
                     )}
                   >
+                    {/* Unique Datalist for Value based on Key */}
+                    {matchedKeyInfo && (
+                      <datalist id={datalistValId}>
+                        {matchedKeyInfo.valueSuggestions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </datalist>
+                    )}
+
                     <div className="flex items-center gap-2">
-                      {/* Key Dropdown */}
+                      {/* Key Editable Input with Dropdown Autocomplete Suggestions */}
                       <div className="w-1/2">
-                        <select
-                          id={`cm-key-select-${row.id}`}
+                        <input
+                          id={`cm-key-input-${row.id}`}
                           aria-label="Key"
+                          type="text"
+                          list="cm-key-options"
                           value={row.key}
-                          onChange={(e) => handleKeyChange(row.id, e.target.value)}
+                          onChange={(e) => handleRowChange(row.id, 'key', e.target.value)}
+                          placeholder="e.g. PORT, LOG_LEVEL"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
                             colorMode === 'dark'
                               ? "bg-slate-950 border-slate-700 text-slate-200"
                               : "bg-slate-50 border-slate-300 text-slate-800"
                           )}
-                        >
-                          {PREDEFINED_KEYS.map((pk) => (
-                            <option key={pk.key} value={pk.key}>
-                              {pk.label}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </div>
 
-                      {/* Value Dropdown Select */}
+                      {/* Value Editable Input with Dropdown Autocomplete Suggestions */}
                       <div className="w-1/2">
-                        <select
-                          id={`cm-val-select-${row.id}`}
+                        <input
+                          id={`cm-val-input-${row.id}`}
                           aria-label="Value"
+                          type="text"
+                          list={matchedKeyInfo ? datalistValId : undefined}
                           value={row.value}
-                          onChange={(e) => handleValueChange(row.id, e.target.value)}
+                          onChange={(e) => handleRowChange(row.id, 'value', e.target.value)}
+                          placeholder="e.g. 80, INFO, enabled"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
                             colorMode === 'dark'
                               ? "bg-slate-950 border-slate-700 text-slate-100"
                               : "bg-slate-50 border-slate-300 text-slate-900"
                           )}
-                        >
-                          {selectedKeyInfo.valueOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </div>
 
                       {/* Delete button */}
@@ -321,10 +318,10 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                     </div>
 
                     {/* Educational Hint */}
-                    {selectedKeyInfo.hint && (
+                    {matchedKeyInfo && matchedKeyInfo.hint && (
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
                         <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                        <span>{selectedKeyInfo.hint}</span>
+                        <span>{matchedKeyInfo.hint}</span>
                       </div>
                     )}
                   </div>

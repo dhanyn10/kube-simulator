@@ -50,30 +50,41 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Edit ConfigMap' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('existing-config')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('8080 (Alt Web Server)')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('500 RPS (Medium Limit)')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('8080')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('allows adding Postman-style Key and Value dropdown rows', () => {
+  it('allows adding Postman-style text inputs with autocomplete suggestions', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
 
-    const keySelects = screen.getAllByRole('combobox', { name: 'Key' });
-    const valueSelects = screen.getAllByRole('combobox', { name: 'Value' });
+    const keyInputs = screen.getAllByLabelText('Key');
+    const valueInputs = screen.getAllByLabelText('Value');
 
-    expect(keySelects.length).toBe(1);
-    expect(valueSelects.length).toBe(1);
+    expect(keyInputs.length).toBe(1);
+    expect(valueInputs.length).toBe(1);
 
-    // Change Key to LOG_LEVEL
-    fireEvent.change(keySelects[0], { target: { value: 'LOG_LEVEL' } });
-    expect(screen.getByRole('option', { name: /DEBUG \(Verbose Diagnostics\)/i })).toBeInTheDocument();
+    // Type Key
+    fireEvent.change(keyInputs[0], { target: { value: 'PORT' } });
+    expect(keyInputs[0]).toHaveValue('PORT');
+
+    // Type Value
+    fireEvent.change(valueInputs[0], { target: { value: '8080' } });
+    expect(valueInputs[0]).toHaveValue('8080');
   });
 
   it('calls onSave and onClose when saving parameters', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+
+    const keyInputs = screen.getAllByLabelText('Key');
+    const valueInputs = screen.getAllByLabelText('Value');
+
+    fireEvent.change(keyInputs[0], { target: { value: 'PORT' } });
+    fireEvent.change(valueInputs[0], { target: { value: '80' } });
+
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });
 
