@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TerminalSquare, Info } from 'lucide-react';
-import { cn } from '../../../lib/utils';
-import { SuggestionItem } from '../../../activities/terminal';
+import { cn } from '@/lib/utils';
+import { SuggestionItem } from '@/activities/terminal';
 
 export interface AutocompleteItemProps {
   item: SuggestionItem;

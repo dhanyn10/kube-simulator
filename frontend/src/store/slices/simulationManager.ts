@@ -1,8 +1,8 @@
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 import { Node, Edge } from '@xyflow/react';
-import { FlowState, SimulationMetricPoint } from '../types';
-import { K8sNodeData } from '../../types';
-import { validateResourceLimits } from '../../lib/utils';
+import { FlowState, SimulationMetricPoint } from '@/store/types';
+import { K8sNodeData } from '@/types';
+import { validateResourceLimits } from '@/lib/utils';
 
 // Centralize side-effect handlers
 const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;

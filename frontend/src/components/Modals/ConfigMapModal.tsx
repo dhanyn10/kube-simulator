@@ -1,78 +1,68 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Settings, Plus, Trash2, HelpCircle, TerminalSquare } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
-import { K8sConfigMapItem } from '../../types';
-import { useFlowStore } from '../../store';
-import { cn, sanitizeSlug } from '../../lib/utils';
+import { K8sConfigMapItem } from '@/types';
+import { cn } from '@/lib/utils';
+import { useConfigMapModal, PREDEFINED_KEYS } from '@/activities/modals';
 
 interface ConfigMapModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  targetNodeId: string | null;
-  targetNodeLabel?: string;
-  initialConfigMap?: K8sConfigMapItem | null;
-  onSave: (configMapItem: K8sConfigMapItem) => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly targetNodeId: string | null;
+  readonly targetNodeLabel?: string;
+  readonly initialConfigMap?: K8sConfigMapItem | null;
+  readonly onSave: (configMapItem: K8sConfigMapItem) => void;
 }
 
-interface ConfigRow {
-  id: string;
-  key: string;
-  value: string;
+interface AutocompleteOptionItemProps {
+  readonly testId: string;
+  readonly primaryText: string;
+  readonly secondaryText?: string;
+  readonly badgeText?: string;
+  readonly isDark: boolean;
+  readonly onSelect: () => void;
 }
 
-interface KeySuggestion {
-  key: string;
-  label: string;
-  valueSuggestions: { value: string; label: string; description: string }[];
-  hint: string;
-}
-
-const PREDEFINED_KEYS: KeySuggestion[] = [
-  {
-    key: 'PORT',
-    label: 'PORT',
-    valueSuggestions: [
-      { value: '80', label: '80', description: 'Standard HTTP Port' },
-      { value: '8080', label: '8080', description: 'Alt Web Server Port' },
-      { value: '3000', label: '3000', description: 'Node.js / React Port' },
-      { value: '5000', label: '5000', description: 'Flask / Python Port' },
-      { value: '8443', label: '8443', description: 'HTTPS Secure Port' },
-    ],
-    hint: 'Container listening port. Must match Service targetPort.',
-  },
-  {
-    key: 'MAX_CONNECTIONS',
-    label: 'MAX_CONNECTIONS',
-    valueSuggestions: [
-      { value: '100', label: '100', description: '100 RPS (Low Limit - Throttling)' },
-      { value: '500', label: '500', description: '500 RPS (Medium Limit)' },
-      { value: '1000', label: '1000', description: '1000 RPS (Standard High Limit)' },
-      { value: '5000', label: '5000', description: '5000 RPS (Enterprise Scale)' },
-    ],
-    hint: 'Maximum traffic capacity limit in RPS. Excess traffic gets throttled.',
-  },
-  {
-    key: 'LOG_LEVEL',
-    label: 'LOG_LEVEL',
-    valueSuggestions: [
-      { value: 'INFO', label: 'INFO', description: 'Standard Activity Logs' },
-      { value: 'DEBUG', label: 'DEBUG', description: 'Verbose Diagnostics' },
-      { value: 'WARN', label: 'WARN', description: 'Warning Highlights Only' },
-      { value: 'ERROR', label: 'ERROR', description: 'Errors Only' },
-    ],
-    hint: 'Controls verbosity level of terminal activity logs.',
-  },
-  {
-    key: 'CHAOS_MODE',
-    label: 'CHAOS_MODE',
-    valueSuggestions: [
-      { value: 'disabled', label: 'disabled', description: 'Normal Operation' },
-      { value: 'enabled', label: 'enabled', description: 'Simulate CrashLoopBackOff' },
-    ],
-    hint: 'Enables or disables simulated pod failures.',
-  },
-];
+const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
+  testId,
+  primaryText,
+  secondaryText,
+  badgeText,
+  isDark,
+  onSelect,
+}) => (
+  <button
+    type="button"
+    data-testid={testId}
+    onMouseDown={(e) => {
+      e.preventDefault();
+      onSelect();
+    }}
+    className={cn(
+      "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
+      isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
+    )}
+  >
+    <div className="flex items-center gap-2 overflow-hidden">
+      <TerminalSquare size={12} className="text-teal-400 shrink-0" />
+      <span className="font-semibold text-[11px]">{primaryText}</span>
+    </div>
+    {badgeText && (
+      <span className={cn(
+        "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+        isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
+      )}>
+        {badgeText}
+      </span>
+    )}
+    {secondaryText && (
+      <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+        {secondaryText}
+      </span>
+    )}
+  </button>
+);
 
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   isOpen,
@@ -82,107 +72,31 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   initialConfigMap,
   onSave,
 }) => {
-  const colorMode = useFlowStore((state) => state.colorMode);
-  const isDark = colorMode === 'dark';
-
-  const [cmName, setCmName] = useState<string>('app-config');
-  const [rows, setRows] = useState<ConfigRow[]>([]);
-
-  // Autocomplete state
-  const [activeDropdown, setActiveDropdown] = useState<{ rowId: string; field: 'key' | 'value' } | null>(null);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
-  const activeInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (initialConfigMap?.configData?.length) {
-      setCmName(initialConfigMap.name || 'app-config');
-      const loadedRows: ConfigRow[] = initialConfigMap.configData.map((item, idx) => ({
-        id: `row-${idx}-${Date.now()}`,
-        key: item.key,
-        value: item.value,
-      }));
-      setRows(loadedRows);
-    } else {
-      const randomSuffix = crypto.randomUUID().split('-')[0];
-      setCmName(`cm-${randomSuffix}`);
-      setRows([]);
-    }
-  }, [initialConfigMap, isOpen, targetNodeId]);
-
-  const updateDropdownPos = (inputElem: HTMLInputElement) => {
-    const rect = inputElem.getBoundingClientRect();
-    setDropdownPos({
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
-      width: rect.width,
-    });
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const popupElem = document.getElementById('configmap-autocomplete-portal');
-      if (
-        popupElem && !popupElem.contains(e.target as Node) &&
-        activeInputRef.current && !activeInputRef.current.contains(e.target as Node)
-      ) {
-        setActiveDropdown(null);
-      }
-    };
-    const handleScrollOrResize = () => {
-      if (activeInputRef.current && activeDropdown) {
-        updateDropdownPos(activeInputRef.current);
-      }
-    };
-
-    window.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-    return () => {
-      window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [activeDropdown]);
+  const {
+    isDark,
+    cmName,
+    setCmName,
+    rows,
+    activeDropdown,
+    setActiveDropdown,
+    dropdownPos,
+    activeRow,
+    filteredKeys,
+    filteredValues,
+    handleAddRow,
+    handleRemoveRow,
+    handleRowChange,
+    handleInputFocusOrChange,
+    handleSave,
+  } = useConfigMapModal({
+    isOpen,
+    onClose,
+    targetNodeId,
+    initialConfigMap,
+    onSave,
+  });
 
   if (!isOpen) return null;
-
-  const handleAddRow = () => {
-    setRows((prev) => [
-      ...prev,
-      {
-        id: `row-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-        key: '',
-        value: '',
-      },
-    ]);
-  };
-
-  const handleRemoveRow = (id: string) => {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    if (activeDropdown?.rowId === id) {
-      setActiveDropdown(null);
-    }
-  };
-
-  const handleRowChange = (id: string, field: keyof ConfigRow, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  };
-
-  const handleSave = () => {
-    const configData = rows
-      .map((row) => ({ key: row.key.trim(), value: row.value.trim() }))
-      .filter((item) => item.key.length > 0);
-
-    const configMapItem: K8sConfigMapItem = {
-      id: initialConfigMap?.id || `cm-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-      name: sanitizeSlug(cmName) || 'unnamed-configmap',
-      configData,
-    };
-    onSave(configMapItem);
-    onClose();
-  };
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
@@ -207,23 +121,6 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       </button>
     </div>
   );
-
-  // Active row for autocomplete portal
-  const activeRow = rows.find((r) => r.id === activeDropdown?.rowId);
-  const activeKeyInfo = activeRow ? PREDEFINED_KEYS.find((pk) => pk.key === activeRow.key.trim().toUpperCase()) : null;
-
-  const filteredKeys = activeRow
-    ? PREDEFINED_KEYS.filter((pk) => pk.key.toLowerCase().includes(activeRow.key.toLowerCase()))
-    : [];
-
-  const valueOpts = activeKeyInfo ? activeKeyInfo.valueSuggestions : [];
-  const filteredValues = activeRow
-    ? valueOpts.filter(
-        (opt) =>
-          opt.value.toLowerCase().includes(activeRow.value.toLowerCase()) ||
-          opt.description.toLowerCase().includes(activeRow.value.toLowerCase())
-      )
-    : [];
 
   return (
     <Modal
@@ -315,17 +212,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                           aria-label="Key"
                           type="text"
                           value={row.key}
-                          onFocus={(e) => {
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'key' });
-                          }}
-                          onChange={(e) => {
-                            handleRowChange(row.id, 'key', e.target.value);
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'key' });
-                          }}
+                          onFocus={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'key')}
+                          onChange={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'key', e.target.value)}
                           placeholder="e.g. PORT, LOG_LEVEL"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
@@ -343,17 +231,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                           aria-label="Value"
                           type="text"
                           value={row.value}
-                          onFocus={(e) => {
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'value' });
-                          }}
-                          onChange={(e) => {
-                            handleRowChange(row.id, 'value', e.target.value);
-                            activeInputRef.current = e.currentTarget;
-                            updateDropdownPos(e.currentTarget);
-                            setActiveDropdown({ rowId: row.id, field: 'value' });
-                          }}
+                          onFocus={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'value')}
+                          onChange={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'value', e.target.value)}
                           placeholder="e.g. 80, INFO, enabled"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
@@ -377,7 +256,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                     </div>
 
                     {/* Educational Hint */}
-                    {matchedKeyInfo && matchedKeyInfo.hint && (
+                    {matchedKeyInfo?.hint && (
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
                         <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                         <span>{matchedKeyInfo.hint}</span>
@@ -410,56 +289,31 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           )}
         >
           {activeDropdown.field === 'key' && filteredKeys.map((item) => (
-            <button
-              type="button"
+            <AutocompleteOptionItem
               key={`portal-key-${item.key}`}
-              data-testid={`key-option-${item.key}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
+              testId={`key-option-${item.key}`}
+              primaryText={item.key}
+              badgeText="KEY"
+              isDark={isDark}
+              onSelect={() => {
                 handleRowChange(activeRow.id, 'key', item.key);
                 setActiveDropdown(null);
               }}
-              className={cn(
-                "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
-                isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <TerminalSquare size={12} className="text-teal-400 shrink-0" />
-                <span className="font-semibold text-[11px]">{item.key}</span>
-              </div>
-              <span className={cn(
-                "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
-                isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
-              )}>
-                KEY
-              </span>
-            </button>
+            />
           ))}
 
           {activeDropdown.field === 'value' && filteredValues.map((opt) => (
-            <button
-              type="button"
+            <AutocompleteOptionItem
               key={`portal-val-${opt.value}`}
-              data-testid={`val-option-${opt.value}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
+              testId={`val-option-${opt.value}`}
+              primaryText={opt.value}
+              secondaryText={opt.description}
+              isDark={isDark}
+              onSelect={() => {
                 handleRowChange(activeRow.id, 'value', opt.value);
                 setActiveDropdown(null);
               }}
-              className={cn(
-                "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
-                isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
-              )}
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
-                <TerminalSquare size={12} className="text-teal-400 shrink-0" />
-                <span className="font-semibold text-[11px]">{opt.value}</span>
-              </div>
-              <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
-                {opt.description}
-              </span>
-            </button>
+            />
           ))}
         </div>,
         document.body

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
 import { Plus, Minus, Maximize, Minimize } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
-import { useFitView } from '../../hooks/useFitView';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
+import { useFitView } from '@/hooks/useFitView';
 
 export const CanvasControlsPanel: React.FC = () => {
   const colorMode = useFlowStore((state) => state.colorMode);

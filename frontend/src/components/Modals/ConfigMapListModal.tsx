@@ -1,7 +1,7 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
 import { AttachedResourceListModal } from './AttachedResourceListModal';
-import { K8sConfigMapItem } from '../../types';
+import { K8sConfigMapItem } from '@/types';
 
 interface ConfigMapListModalProps {
   isOpen: boolean;

@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useReactFlow, Node, Edge } from '@xyflow/react';
-import { useFlowStore } from '../store';
-import { getAbsPos, generateYaml } from '../lib/utils';
-import { isNodeAccessForbidden } from '../activities/nodes/rbacNodeHelpers';
+import { useFlowStore } from '@/store';
+import { getAbsPos, generateYaml } from '@/lib/utils';
+import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 function computeAutofocusZoom(node: Node) {
   let zoom = 1.5;

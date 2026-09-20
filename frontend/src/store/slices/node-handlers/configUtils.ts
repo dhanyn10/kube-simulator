@@ -1,5 +1,5 @@
 import { syncWorkloadMetadata } from './nodeUtils';
-import { sanitizeSlug } from '../../../lib/utils';
+import { sanitizeSlug } from '@/lib/utils';
 
 /**
  * Checks if a node is a peer pod of the selected node.

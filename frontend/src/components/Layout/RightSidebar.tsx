@@ -13,8 +13,8 @@ import {
   History
 } from 'lucide-react';
 import { HistoryPanel } from '../Monitoring/HistoryPanel';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
 import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';

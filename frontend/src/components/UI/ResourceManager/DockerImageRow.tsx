@@ -1,5 +1,5 @@
 import { Globe, Box, Trash2 } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '@/lib/utils';
 
 export interface DockerImageCardProps {
   img: { name: string; desc: string };

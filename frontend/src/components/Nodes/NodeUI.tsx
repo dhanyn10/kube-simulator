@@ -1,7 +1,7 @@
 
 import { Settings, Trash2 } from 'lucide-react';
-import { cn, sanitizeSlug } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { cn, sanitizeSlug } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 
 export const NodeActionButtons = ({ 
   id, 

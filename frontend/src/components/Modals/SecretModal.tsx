@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Lock } from 'lucide-react';
 import { Modal } from './Modal';
-import { K8sSecretItem } from '../../types';
-import { useFlowStore } from '../../store';
-import { cn, sanitizeSlug } from '../../lib/utils';
+import { K8sSecretItem } from '@/types';
+import { useFlowStore } from '@/store';
+import { cn, sanitizeSlug } from '@/lib/utils';
 import { KeyValueFormSection } from './KeyValueFormSection';
 import { useKeyValueModalState } from '@/activities/modals/useKeyValueModalState';
 

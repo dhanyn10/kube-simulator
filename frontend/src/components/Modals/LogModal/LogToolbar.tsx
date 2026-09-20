@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Search, Trash2, CheckSquare, Square, MinusSquare, ChevronDown, FolderOpen, Filter } from 'lucide-react';
-import { cn } from '../../../lib/utils';
-import { LogEntry } from '../../../store/types';
+import { cn } from '@/lib/utils';
+import { LogEntry } from '@/store/types';
 
 export type FilterLevel = 'all' | 'error' | 'warn' | 'info';
 

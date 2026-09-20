@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useFlowStore } from '../../store';
-import { KubeIAMPolicy } from '../../types';
+import { useFlowStore } from '@/store';
+import { KubeIAMPolicy } from '@/types';
 
 export type IAMStep = 1 | 2 | 3;
 export type IAMAccessType = 'Full Access' | 'Managed Access';

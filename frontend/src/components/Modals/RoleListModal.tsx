@@ -1,7 +1,7 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { AttachedResourceListModal } from './AttachedResourceListModal';
-import { K8sRoleItem } from '../../types';
+import { K8sRoleItem } from '@/types';
 
 interface RoleListModalProps {
   isOpen: boolean;

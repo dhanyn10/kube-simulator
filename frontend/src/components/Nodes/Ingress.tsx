@@ -2,9 +2,9 @@ import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { Globe } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
-import { K8sNodeData } from '../../types';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { K8sNodeData } from '@/types';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 
 export const IngressNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;

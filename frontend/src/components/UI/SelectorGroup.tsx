@@ -1,4 +1,4 @@
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 interface SelectorGroupProps {
   options: readonly { label: string; value: string; desc?: string }[] | readonly { id: string; label: string; desc?: string }[];

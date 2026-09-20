@@ -1,5 +1,5 @@
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { Database, ShieldCheck } from 'lucide-react';
 import { SelectorGroup } from '../UI/SelectorGroup';
 import { AdvancedSection, ConfigSection, ConfigInput } from '../UI/ConfigUI';

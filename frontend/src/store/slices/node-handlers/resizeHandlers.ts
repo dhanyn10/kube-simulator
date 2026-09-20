@@ -3,7 +3,7 @@ import {
   layoutPodsInDeployment,
   getAbsPos
 } from '@/store/helpers';
-import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '../../../lib/podSizing';
+import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
 import { FlowState } from '@/store/types';
 
 /**

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { Lock } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
-import { K8sNodeData } from '../../types';
+import { K8sNodeData } from '@/types';
 
 export const SecretNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;

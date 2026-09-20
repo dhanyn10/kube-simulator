@@ -1,8 +1,8 @@
 
-import { cn } from '../../lib/utils';
-import { useFlowStore } from '../../store';
+import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { Activity, Layers } from 'lucide-react';
-import { K8sNodeData } from '../../types';
+import { K8sNodeData } from '@/types';
 import { ConfigSection, ConfigLabel, NumberStepper, RangeInput, AdvancedSection } from '../UI/ConfigUI';
 import { SelectorGroup } from '../UI/SelectorGroup';
 

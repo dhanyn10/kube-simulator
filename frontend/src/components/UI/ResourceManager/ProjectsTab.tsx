@@ -1,5 +1,5 @@
 import { Plus, Clock, PackageOpen } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { cn } from '@/lib/utils';
 import { ArchitectureRow, Project } from './ArchitectureRow';
 
 export interface ProjectsTabProps {

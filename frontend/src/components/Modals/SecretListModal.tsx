@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
 import { AttachedResourceListModal } from './AttachedResourceListModal';
-import { K8sSecretItem } from '../../types';
+import { K8sSecretItem } from '@/types';
 
 interface SecretListModalProps {
   isOpen: boolean;

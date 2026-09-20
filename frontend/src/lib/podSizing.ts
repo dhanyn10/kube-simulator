@@ -1,4 +1,4 @@
-import { K8sNodeData } from '../types';
+import { K8sNodeData } from '@/types';
 
 export const POD_MIN_DIMENSIONS = {
   width: 168,

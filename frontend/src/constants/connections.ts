@@ -1,4 +1,4 @@
-import { K8sResourceType } from '../types';
+import { K8sResourceType } from '@/types';
 
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
   Internet: ['Ingress', 'Service', 'Deployment', 'Pod', 'ReplicaSet'],

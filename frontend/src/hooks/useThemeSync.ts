@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useFlowStore } from '../store';
+import { useFlowStore } from '@/store';
 
 export const useThemeSync = () => {
   const colorMode = useFlowStore((state) => state.colorMode);

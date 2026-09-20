@@ -1,6 +1,6 @@
 import React from 'react';
 import { Node } from '@xyflow/react';
-import { cleanProjectName, sanitizeSlug } from '../../lib/utils';
+import { cleanProjectName, sanitizeSlug } from '@/lib/utils';
 
 /**
  * Represents a single command entry in the execution history log.

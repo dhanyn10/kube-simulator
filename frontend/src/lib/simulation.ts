@@ -1,8 +1,8 @@
 import { Node, Edge } from '@xyflow/react';
-import { K8sNodeData, K8sConfigMapItem } from '../types';
-import { SimulationMetricPoint, FlowState } from '../store/types';
+import { K8sNodeData, K8sConfigMapItem } from '@/types';
+import { SimulationMetricPoint, FlowState } from '@/store/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
-import { syncDeployment } from '../store/nodeHelpers';
+import { syncDeployment } from '@/store/nodeHelpers';
 import { logger } from './logger';
 
 export interface SimulationContext {
@@ -453,6 +453,23 @@ export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
   return acc;
 };
 
+const applyPodSimulatedFailure = (
+  pod: Node,
+  ctx: SimulationContext,
+  failingCmName: string
+): boolean => {
+  if (pod.data.status === 'crashing') return false;
+  if (!updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
+    return false;
+  }
+  try {
+    ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
+  } catch (e) {
+    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  }
+  return true;
+};
+
 const applySimulatedFailures = (
   childPods: Node[],
   ctx: SimulationContext,
@@ -460,16 +477,34 @@ const applySimulatedFailures = (
 ): boolean => {
   let hasChanges = false;
   for (const pod of childPods) {
-    if (pod.data.status !== 'crashing' && updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureCM: failingCmName })) {
+    if (applyPodSimulatedFailure(pod, ctx, failingCmName)) {
       hasChanges = true;
-      try {
-        ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
-      } catch (e) {
-        logger.error('[ConfigMap Simulation] Failed to add log', e);
-      }
     }
   }
   return hasChanges;
+};
+
+const isPodReadyConfigured = (pData: K8sNodeData): boolean => {
+  const hasWeb = !!(pData.webserver && pData.webserver !== 'none');
+  const hasRuntime = !!(pData.runtime && pData.runtime !== 'none');
+  return hasWeb || hasRuntime;
+};
+
+const recoverSinglePod = (pod: Node, ctx: SimulationContext): boolean => {
+  if (pod.data.status !== 'crashing' || !pod.data.simulatedFailureCM) {
+    return false;
+  }
+  const pData = pod.data as K8sNodeData;
+  const nextStatus = isPodReadyConfigured(pData) ? 'ready' : 'pending';
+  if (!updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureCM: undefined })) {
+    return false;
+  }
+  try {
+    ctx.get()?.addLog?.('info', `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
+  } catch (e) {
+    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  }
+  return true;
 };
 
 const recoverFromSimulatedFailures = (
@@ -478,18 +513,8 @@ const recoverFromSimulatedFailures = (
 ): boolean => {
   let hasChanges = false;
   for (const pod of childPods) {
-    if (pod.data.status === 'crashing' && pod.data.simulatedFailureCM) {
-      const pData = pod.data as K8sNodeData;
-      const isReadyStatus = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
-      const nextStatus = isReadyStatus ? 'ready' : 'pending';
-      if (updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureCM: undefined })) {
-        hasChanges = true;
-        try {
-          ctx.get()?.addLog?.('info', `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
-        } catch (e) {
-          logger.error('[ConfigMap Simulation] Failed to add log', e);
-        }
-      }
+    if (recoverSinglePod(pod, ctx)) {
+      hasChanges = true;
     }
   }
   return hasChanges;
@@ -513,6 +538,26 @@ export const handleChaosModeSimulation = (
   return { hasChanges, isBlocked: false };
 };
 
+const logPortMismatchError = (
+  ctx: SimulationContext,
+  sData: K8sNodeData,
+  sourceNodeId: string,
+  srvTargetPort: number,
+  podLabel: string | undefined,
+  podId: string,
+  cmPort: number
+) => {
+  try {
+    ctx.get()?.addLog?.(
+      'error',
+      `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNodeId}" (port ${srvTargetPort}) -> Pod "${podLabel || podId}" (listening on PORT ${cmPort})`,
+      'Simulation'
+    );
+  } catch (e) {
+    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  }
+};
+
 const validateEdgePortMismatch = (
   edge: Edge,
   dep: Node,
@@ -530,11 +575,7 @@ const validateEdgePortMismatch = (
     let hasChanges = false;
     if (edge.data?.validationError !== portErr) {
       edge.data = { ...edge.data, validationError: portErr };
-      try {
-        ctx.get()?.addLog?.('error', `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNode.id}" (port ${srvTargetPort}) -> Pod "${dep.data?.label || dep.id}" (listening on PORT ${cmPort})`, 'Simulation');
-      } catch (e) {
-        logger.error('[ConfigMap Simulation] Failed to add log', e);
-      }
+      logPortMismatchError(ctx, sData, sourceNode.id, srvTargetPort, dep.data?.label, dep.id, cmPort);
     }
     return { hasChanges: true, isBlocked: true };
   }
@@ -572,20 +613,29 @@ export const checkPortMismatch = (
 /**
  * Logs request stream messages to terminal console matching configured ConfigMap LOG_LEVEL.
  */
+const getLogMessageForLevel = (logLevel: string, podLabel: string): { type: 'info' | 'warning' | 'error'; message: string } => {
+  if (logLevel === 'DEBUG') {
+    return { type: 'info', message: `[ConfigMap Log DEBUG] [${podLabel}] Handling request stream - active threads: 8, memory heap: 42MB` };
+  }
+  if (logLevel === 'WARN') {
+    return { type: 'warning', message: `[ConfigMap Log WARN] [${podLabel}] Connection pool threshold > 75%` };
+  }
+  if (logLevel === 'ERROR') {
+    return { type: 'error', message: `[ConfigMap Log ERROR] [${podLabel}] Unhandled internal exception trace in worker process` };
+  }
+  return { type: 'info', message: `[ConfigMap Log INFO] [${podLabel}] HTTP 200 OK - Processing traffic stream` };
+};
+
+/**
+ * Logs request stream messages to terminal console matching configured ConfigMap LOG_LEVEL.
+ */
 export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: string) => {
   if (ctx.ticks % 3 !== 0 || safeRandom() <= 0.4) return;
 
   try {
     const podLabel = dep.data?.label || dep.id;
-    if (logLevel === 'DEBUG') {
-      ctx.get()?.addLog?.('info', `[ConfigMap Log DEBUG] [${podLabel}] Handling request stream - active threads: 8, memory heap: 42MB`, 'App');
-    } else if (logLevel === 'WARN') {
-      ctx.get()?.addLog?.('warning', `[ConfigMap Log WARN] [${podLabel}] Connection pool threshold > 75%`, 'App');
-    } else if (logLevel === 'ERROR') {
-      ctx.get()?.addLog?.('error', `[ConfigMap Log ERROR] [${podLabel}] Unhandled internal exception trace in worker process`, 'App');
-    } else {
-      ctx.get()?.addLog?.('info', `[ConfigMap Log INFO] [${podLabel}] HTTP 200 OK - Processing traffic stream`, 'App');
-    }
+    const { type, message } = getLogMessageForLevel(logLevel, podLabel);
+    ctx.get()?.addLog?.(type, message, 'App');
   } catch (e) {
     logger.error('[ConfigMap Simulation] Failed to add log', e);
   }

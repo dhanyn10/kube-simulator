@@ -1,15 +1,15 @@
 import React, { useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import { EventsOn } from '@wailsjs/runtime';
-import { useFlowStore } from '../store';
-import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem } from '../types';
-import { logger } from '../lib/logger';
+import { useFlowStore } from '@/store';
+import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem } from '@/types';
+import { logger } from '@/lib/logger';
 import {
   emitLiveRoleCommand,
   emitLiveSecretCommand,
   emitLiveConfigMapCommand,
   emitLiveHpaCommand,
-} from '../activities/terminal/liveUpdateCommands';
+} from '@/activities/terminal/liveUpdateCommands';
 
 export function useAppInit(
   isDetachedMode: boolean,

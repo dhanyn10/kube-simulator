@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useFlowStore } from '../store';
+import { useFlowStore } from '@/store';
 
 export const useNodeRename = (initialLabel: string, onRename?: (newName: string) => void) => {
   const [isEditing, setIsEditing] = useState(false);

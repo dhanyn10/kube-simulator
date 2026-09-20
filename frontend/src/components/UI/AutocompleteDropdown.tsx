@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TerminalSquare, Info } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 export interface AutocompleteSuggestion {
   label: string;

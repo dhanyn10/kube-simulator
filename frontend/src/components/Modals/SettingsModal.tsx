@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Sliders, Eye, Grid, RefreshCw } from 'lucide-react';
-import { useFlowStore } from '../../store';
-import { cn } from '../../lib/utils';
+import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
-import { ColorPalette } from '../UI/ColorPalette';
+import { ColorPalette } from '@/components/UI/ColorPalette';
 
 interface SettingsModalProps {
   isOpen: boolean;

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Activity } from 'lucide-react';
 import { Modal } from './Modal';
-import { K8sHpaItem } from '../../types';
-import { useFlowStore } from '../../store';
-import { cn, sanitizeSlug } from '../../lib/utils';
+import { K8sHpaItem } from '@/types';
+import { useFlowStore } from '@/store';
+import { cn, sanitizeSlug } from '@/lib/utils';
 
 interface HPAModalProps {
   isOpen: boolean;

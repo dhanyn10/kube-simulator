@@ -1,6 +1,6 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
-import { K8sNodeData, K8sConfigMapItem } from '../../types';
+import { K8sNodeData, K8sConfigMapItem } from '@/types';
 import { ConfigMapModal } from '../Modals/ConfigMapModal';
 import { ConfigMapListModal } from '../Modals/ConfigMapListModal';
 import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';

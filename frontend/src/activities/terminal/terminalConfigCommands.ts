@@ -1,5 +1,5 @@
 import { CommandContext } from './terminalCommands';
-import { KubeIAMUser } from '../../types';
+import { KubeIAMUser } from '@/types';
 
 /**
  * Evaluates whether an IAM user's policies allow a specific verb and resource.

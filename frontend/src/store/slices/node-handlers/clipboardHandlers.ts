@@ -1,8 +1,8 @@
 import { Node } from '@xyflow/react';
 import { sortNodes, getNodeData } from '../../helpers';
 import { hydrateNodes } from '../../nodeHelpers';
-import { FlowState } from '../../types';
-import { randomId } from '../../../lib/utils';
+import { FlowState } from '@/store/types';
+import { randomId } from '@/lib/utils';
 
 const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNodeData: any): boolean => {
   const clipboardPod = clipboardNodes.find((n: Node) => n.type === 'Pod');

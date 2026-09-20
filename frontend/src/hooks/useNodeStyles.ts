@@ -1,4 +1,4 @@
-import { useFlowStore } from '../store';
+import { useFlowStore } from '@/store';
 
 export const useNodeStyles = (id: string) => {
   const draggedNodeId = useFlowStore((state) => state.draggedNodeId);
