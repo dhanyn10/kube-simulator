@@ -54,24 +54,20 @@ describe('ConfigMapModal', () => {
     expect(screen.getByDisplayValue('500')).toBeInTheDocument();
   });
 
-  it('allows adding Postman-style text inputs with autocomplete suggestions', () => {
+  it('renders Kube Console style autocomplete dropdown popup when focusing inputs', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
 
-    const keyInputs = screen.getAllByLabelText('Key');
-    const valueInputs = screen.getAllByLabelText('Value');
+    const keyInput = screen.getByLabelText('Key');
+    fireEvent.focus(keyInput);
 
-    expect(keyInputs.length).toBe(1);
-    expect(valueInputs.length).toBe(1);
+    expect(screen.getByTestId('key-autocomplete-popup')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /MAX_CONNECTIONS KEY/i })).toBeInTheDocument();
 
-    // Type Key
-    fireEvent.change(keyInputs[0], { target: { value: 'PORT' } });
-    expect(keyInputs[0]).toHaveValue('PORT');
-
-    // Type Value
-    fireEvent.change(valueInputs[0], { target: { value: '8080' } });
-    expect(valueInputs[0]).toHaveValue('8080');
+    // Select option from dropdown
+    fireEvent.mouseDown(screen.getByRole('button', { name: /MAX_CONNECTIONS KEY/i }));
+    expect(keyInput).toHaveValue('MAX_CONNECTIONS');
   });
 
   it('calls onSave and onClose when saving parameters', () => {
@@ -79,11 +75,11 @@ describe('ConfigMapModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
 
-    const keyInputs = screen.getAllByLabelText('Key');
-    const valueInputs = screen.getAllByLabelText('Value');
+    const keyInput = screen.getByLabelText('Key');
+    const valueInput = screen.getByLabelText('Value');
 
-    fireEvent.change(keyInputs[0], { target: { value: 'PORT' } });
-    fireEvent.change(valueInputs[0], { target: { value: '80' } });
+    fireEvent.change(keyInput, { target: { value: 'PORT' } });
+    fireEvent.change(valueInput, { target: { value: '80' } });
 
     const nameInput = screen.getByPlaceholderText('e.g. app-config');
     fireEvent.change(nameInput, { target: { value: 'my Custom-CM! ' } });

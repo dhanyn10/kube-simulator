@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Plus, Trash2, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, Plus, Trash2, HelpCircle, TerminalSquare } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sConfigMapItem } from '../../types';
 import { useFlowStore } from '../../store';
@@ -23,7 +23,7 @@ interface ConfigRow {
 interface KeySuggestion {
   key: string;
   label: string;
-  valueSuggestions: { value: string; label: string }[];
+  valueSuggestions: { value: string; label: string; description: string }[];
   hint: string;
 }
 
@@ -32,11 +32,11 @@ const PREDEFINED_KEYS: KeySuggestion[] = [
     key: 'PORT',
     label: 'PORT',
     valueSuggestions: [
-      { value: '80', label: '80 (Standard HTTP)' },
-      { value: '8080', label: '8080 (Alt Web Server)' },
-      { value: '3000', label: '3000 (Node.js/React)' },
-      { value: '5000', label: '5000 (Flask/Python)' },
-      { value: '8443', label: '8443 (HTTPS)' },
+      { value: '80', label: '80', description: 'Standard HTTP Port' },
+      { value: '8080', label: '8080', description: 'Alt Web Server Port' },
+      { value: '3000', label: '3000', description: 'Node.js / React Port' },
+      { value: '5000', label: '5000', description: 'Flask / Python Port' },
+      { value: '8443', label: '8443', description: 'HTTPS Secure Port' },
     ],
     hint: 'Container listening port. Must match Service targetPort.',
   },
@@ -44,10 +44,10 @@ const PREDEFINED_KEYS: KeySuggestion[] = [
     key: 'MAX_CONNECTIONS',
     label: 'MAX_CONNECTIONS',
     valueSuggestions: [
-      { value: '100', label: '100 RPS (Low Limit - Throttling)' },
-      { value: '500', label: '500 RPS (Medium Limit)' },
-      { value: '1000', label: '1000 RPS (Standard High Limit)' },
-      { value: '5000', label: '5000 RPS (Enterprise Scale)' },
+      { value: '100', label: '100', description: '100 RPS (Low Limit - Throttling)' },
+      { value: '500', label: '500', description: '500 RPS (Medium Limit)' },
+      { value: '1000', label: '1000', description: '1000 RPS (Standard High Limit)' },
+      { value: '5000', label: '5000', description: '5000 RPS (Enterprise Scale)' },
     ],
     hint: 'Maximum traffic capacity limit in RPS. Excess traffic gets throttled.',
   },
@@ -55,10 +55,10 @@ const PREDEFINED_KEYS: KeySuggestion[] = [
     key: 'LOG_LEVEL',
     label: 'LOG_LEVEL',
     valueSuggestions: [
-      { value: 'INFO', label: 'INFO (Standard Activity Logs)' },
-      { value: 'DEBUG', label: 'DEBUG (Verbose Diagnostics)' },
-      { value: 'WARN', label: 'WARN (Warning Highlights Only)' },
-      { value: 'ERROR', label: 'ERROR (Errors Only)' },
+      { value: 'INFO', label: 'INFO', description: 'Standard Activity Logs' },
+      { value: 'DEBUG', label: 'DEBUG', description: 'Verbose Diagnostics' },
+      { value: 'WARN', label: 'WARN', description: 'Warning Highlights Only' },
+      { value: 'ERROR', label: 'ERROR', description: 'Errors Only' },
     ],
     hint: 'Controls verbosity level of terminal activity logs.',
   },
@@ -66,8 +66,8 @@ const PREDEFINED_KEYS: KeySuggestion[] = [
     key: 'CHAOS_MODE',
     label: 'CHAOS_MODE',
     valueSuggestions: [
-      { value: 'disabled', label: 'disabled (Normal Operation)' },
-      { value: 'enabled', label: 'enabled (Simulate CrashLoopBackOff)' },
+      { value: 'disabled', label: 'disabled', description: 'Normal Operation' },
+      { value: 'enabled', label: 'enabled', description: 'Simulate CrashLoopBackOff' },
     ],
     hint: 'Enables or disables simulated pod failures.',
   },
@@ -82,9 +82,14 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   onSave,
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const isDark = colorMode === 'dark';
 
   const [cmName, setCmName] = useState<string>('app-config');
   const [rows, setRows] = useState<ConfigRow[]>([]);
+
+  // Autocomplete state
+  const [activeDropdown, setActiveDropdown] = useState<{ rowId: string; field: 'key' | 'value' } | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialConfigMap && initialConfigMap.configData && initialConfigMap.configData.length > 0) {
@@ -101,6 +106,16 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       setRows([]);
     }
   }, [initialConfigMap, isOpen, targetNodeId]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -146,7 +161,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
         onClick={onClose}
         className={cn(
           "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-          colorMode === 'dark'
+          isDark
             ? "border-slate-700 hover:bg-slate-800 text-slate-300"
             : "border-slate-300 hover:bg-slate-100 text-slate-700"
         )}
@@ -175,7 +190,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       maxHeightClass="h-[75vh]"
       footer={footer}
     >
-      <div className="space-y-4">
+      <div className="space-y-4" ref={dropdownRef}>
         {/* ConfigMap Name */}
         <div>
           <label htmlFor="configmap-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
@@ -189,21 +204,12 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
             placeholder="e.g. app-config"
             className={cn(
               "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-teal-500/50 transition-all",
-              colorMode === 'dark'
+              isDark
                 ? "bg-slate-950 border-slate-800 text-slate-100"
                 : "bg-slate-50 border-slate-300 text-slate-900"
             )}
           />
         </div>
-
-        {/* Global Datalist Autocomplete Sources */}
-        <datalist id="cm-key-options">
-          {PREDEFINED_KEYS.map((pk) => (
-            <option key={pk.key} value={pk.key}>
-              {pk.label}
-            </option>
-          ))}
-        </datalist>
 
         {/* Postman-style Key-Value Table */}
         <div className="space-y-3 pt-2 border-t border-slate-800/40">
@@ -224,7 +230,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           {/* Table Header */}
           <div className={cn(
             "rounded-t-lg border border-b-0 px-3 py-1.5 flex items-center gap-2 text-xs font-bold text-slate-400 font-mono uppercase tracking-wider",
-            colorMode === 'dark' ? "bg-slate-900/90 border-slate-800" : "bg-slate-100 border-slate-300"
+            isDark ? "bg-slate-900/90 border-slate-800" : "bg-slate-100 border-slate-300"
           )}>
             <div className="w-1/2">Key</div>
             <div className="w-1/2">Value</div>
@@ -234,7 +240,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           {rows.length === 0 ? (
             <div className={cn(
               "p-6 text-center border rounded-b-lg border-dashed text-xs",
-              colorMode === 'dark' ? "border-slate-800 text-slate-500" : "border-slate-300 text-slate-400"
+              isDark ? "border-slate-800 text-slate-500" : "border-slate-300 text-slate-400"
             )}>
               No key-value pairs added. Click <span className="font-semibold text-teal-400">"+ Add Row"</span> above to add an entry.
             </div>
@@ -243,66 +249,152 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               {rows.map((row) => {
                 const upperKey = row.key.trim().toUpperCase();
                 const matchedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === upperKey);
-                const datalistValId = `cm-val-options-${row.id}`;
+
+                // Filter Key Suggestions
+                const filteredKeys = PREDEFINED_KEYS.filter((pk) =>
+                  pk.key.toLowerCase().includes(row.key.toLowerCase())
+                );
+
+                // Filter Value Suggestions
+                const valueOpts = matchedKeyInfo ? matchedKeyInfo.valueSuggestions : [];
+                const filteredValues = valueOpts.filter((opt) =>
+                  opt.value.toLowerCase().includes(row.value.toLowerCase()) ||
+                  opt.description.toLowerCase().includes(row.value.toLowerCase())
+                );
+
+                const isKeyDropdownOpen = activeDropdown?.rowId === row.id && activeDropdown.field === 'key';
+                const isValueDropdownOpen = activeDropdown?.rowId === row.id && activeDropdown.field === 'value';
 
                 return (
                   <div
                     key={row.id}
                     className={cn(
-                      "p-2.5 space-y-1.5 transition-all",
-                      colorMode === 'dark'
+                      "p-2.5 space-y-1.5 transition-all relative",
+                      isDark
                         ? "bg-slate-900/40 hover:bg-slate-900/80"
                         : "bg-white hover:bg-slate-50"
                     )}
                   >
-                    {/* Unique Datalist for Value based on Key */}
-                    {matchedKeyInfo && (
-                      <datalist id={datalistValId}>
-                        {matchedKeyInfo.valueSuggestions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </datalist>
-                    )}
-
                     <div className="flex items-center gap-2">
-                      {/* Key Editable Input with Dropdown Autocomplete Suggestions */}
-                      <div className="w-1/2">
+                      {/* Key Field with Kube Console Style Autocomplete Dropdown */}
+                      <div className="w-1/2 relative">
                         <input
                           id={`cm-key-input-${row.id}`}
                           aria-label="Key"
                           type="text"
-                          list="cm-key-options"
                           value={row.key}
-                          onChange={(e) => handleRowChange(row.id, 'key', e.target.value)}
+                          onFocus={() => setActiveDropdown({ rowId: row.id, field: 'key' })}
+                          onChange={(e) => {
+                            handleRowChange(row.id, 'key', e.target.value);
+                            setActiveDropdown({ rowId: row.id, field: 'key' });
+                          }}
                           placeholder="e.g. PORT, LOG_LEVEL"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                            colorMode === 'dark'
+                            isDark
                               ? "bg-slate-950 border-slate-700 text-slate-200"
                               : "bg-slate-50 border-slate-300 text-slate-800"
                           )}
                         />
+
+                        {/* Kube Console Style Autocomplete Dropdown for Key */}
+                        {isKeyDropdownOpen && filteredKeys.length > 0 && (
+                          <div
+                            data-testid="key-autocomplete-popup"
+                            className={cn(
+                              "absolute top-full left-0 mt-1 w-full max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-50 divide-y custom-scrollbar",
+                              isDark
+                                ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
+                                : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+                            )}
+                          >
+                            {filteredKeys.map((item) => (
+                              <button
+                                type="button"
+                                key={`key-option-${item.key}`}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleRowChange(row.id, 'key', item.key);
+                                  setActiveDropdown(null);
+                                }}
+                                className={cn(
+                                  "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
+                                  isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <TerminalSquare size={12} className="text-teal-400 shrink-0" />
+                                  <span className="font-semibold text-[11px]">{item.key}</span>
+                                </div>
+                                <span className={cn(
+                                  "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
+                                  isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"
+                                )}>
+                                  KEY
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Value Editable Input with Dropdown Autocomplete Suggestions */}
-                      <div className="w-1/2">
+                      {/* Value Field with Kube Console Style Autocomplete Dropdown */}
+                      <div className="w-1/2 relative">
                         <input
                           id={`cm-val-input-${row.id}`}
                           aria-label="Value"
                           type="text"
-                          list={matchedKeyInfo ? datalistValId : undefined}
                           value={row.value}
-                          onChange={(e) => handleRowChange(row.id, 'value', e.target.value)}
+                          onFocus={() => setActiveDropdown({ rowId: row.id, field: 'value' })}
+                          onChange={(e) => {
+                            handleRowChange(row.id, 'value', e.target.value);
+                            setActiveDropdown({ rowId: row.id, field: 'value' });
+                          }}
                           placeholder="e.g. 80, INFO, enabled"
                           className={cn(
                             "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                            colorMode === 'dark'
+                            isDark
                               ? "bg-slate-950 border-slate-700 text-slate-100"
                               : "bg-slate-50 border-slate-300 text-slate-900"
                           )}
                         />
+
+                        {/* Kube Console Style Autocomplete Dropdown for Value */}
+                        {isValueDropdownOpen && filteredValues.length > 0 && (
+                          <div
+                            data-testid="value-autocomplete-popup"
+                            className={cn(
+                              "absolute top-full left-0 mt-1 w-full max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-50 divide-y custom-scrollbar",
+                              isDark
+                                ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
+                                : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+                            )}
+                          >
+                            {filteredValues.map((opt) => (
+                              <button
+                                type="button"
+                                key={`val-option-${opt.value}`}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleRowChange(row.id, 'value', opt.value);
+                                  setActiveDropdown(null);
+                                }}
+                                className={cn(
+                                  "w-full px-3 py-1.5 flex items-center justify-between text-left transition-colors cursor-pointer",
+                                  isDark ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-blue-50 text-slate-800"
+                                )}
+                              >
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <TerminalSquare size={12} className="text-teal-400 shrink-0" />
+                                  <span className="font-semibold text-[11px]">{opt.value}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
+                                  {opt.description}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Delete button */}
