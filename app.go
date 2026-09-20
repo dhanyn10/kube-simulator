@@ -537,6 +537,112 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 	return items
 }
 
+type InternetProfile struct {
+	Name      string         `json:"name"`
+	Daily     map[string]int `json:"daily"`
+	Timestamp int64          `json:"timestamp,omitempty"`
+}
+
+func (a *App) GetInternetProfiles() []InternetProfile {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return []InternetProfile{}
+	}
+
+	dir := filepath.Join(userHome, ".kube-simulator", "internet_profiles")
+	_ = os.MkdirAll(dir, 0755)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return []InternetProfile{}
+	}
+
+	profiles := make([]InternetProfile, 0)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		filePath := filepath.Join(dir, entry.Name())
+		contentBytes, errRead := os.ReadFile(filePath)
+		if errRead != nil {
+			continue
+		}
+		var p InternetProfile
+		if errJson := json.Unmarshal(contentBytes, &p); errJson == nil && p.Name != "" {
+			profiles = append(profiles, p)
+		}
+	}
+	return profiles
+}
+
+func (a *App) SaveInternetProfile(name, profileJson string) bool {
+	if name == "" || profileJson == "" {
+		return false
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error("Failed to resolve user home dir: %v", err)
+		return false
+	}
+
+	dir := filepath.Join(userHome, ".kube-simulator", "internet_profiles")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		logger.Error("Failed to create internet profiles dir: %v", err)
+		return false
+	}
+
+	sanitized := strings.ToLower(name)
+	sanitized = strings.ReplaceAll(sanitized, " ", "_")
+	var builder strings.Builder
+	for _, r := range sanitized {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			builder.WriteRune(r)
+		}
+	}
+	filename := builder.String()
+	if filename == "" {
+		filename = "profile"
+	}
+
+	filePath := filepath.Join(dir, fmt.Sprintf("%s.json", filename))
+	if err := os.WriteFile(filePath, []byte(profileJson), 0644); err != nil {
+		logger.Error("Error writing internet profile file: %v", err)
+		return false
+	}
+	return true
+}
+
+func (a *App) DeleteInternetProfile(name string) bool {
+	if name == "" {
+		return false
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+
+	dir := filepath.Join(userHome, ".kube-simulator", "internet_profiles")
+	sanitized := strings.ToLower(name)
+	sanitized = strings.ReplaceAll(sanitized, " ", "_")
+	var builder strings.Builder
+	for _, r := range sanitized {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			builder.WriteRune(r)
+		}
+	}
+	filename := builder.String()
+	if filename == "" {
+		filename = "profile"
+	}
+
+	filePath := filepath.Join(dir, fmt.Sprintf("%s.json", filename))
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		logger.Error("Error deleting internet profile file: %v", err)
+		return false
+	}
+	return true
+}
+
 // Window Control Actions
 
 func (a *App) MinimizeWindow() {

@@ -103,7 +103,25 @@ export const initWailsMocks = () => {
                 SaveSetting: async () => true,
                 OpenFileFolder: async () => true,
                 FileExists: async () => true,
-                GetAutosaveProfiles: async () => []
+                GetAutosaveProfiles: async () => [],
+                GetInternetProfiles: async () => JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]'),
+                SaveInternetProfile: async (name: string, profileJson: string) => {
+                    const profiles = JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]');
+                    const parsed = JSON.parse(profileJson);
+                    const idx = profiles.findIndex((p: any) => p.name === name);
+                    if (idx !== -1) {
+                        profiles[idx] = parsed;
+                    } else {
+                        profiles.push(parsed);
+                    }
+                    localStorage.setItem('mock_internet_profiles', JSON.stringify(profiles));
+                    return true;
+                },
+                DeleteInternetProfile: async (name: string) => {
+                    const profiles = JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]');
+                    localStorage.setItem('mock_internet_profiles', JSON.stringify(profiles.filter((p: any) => p.name !== name)));
+                    return true;
+                }
             }
         }
     };

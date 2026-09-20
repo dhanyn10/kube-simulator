@@ -23,7 +23,7 @@ describe('InternetConfig', () => {
     useFlowStore.setState({ colorMode: 'dark' });
   });
 
-  it('renders correctly after opening advanced section', () => {
+  it('renders permanently open sections without Advanced Options toggle', () => {
     render(
       <InternetConfig
         selectedNode={selectedNode}
@@ -32,12 +32,26 @@ describe('InternetConfig', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Advanced Options'));
+    expect(screen.queryByText('Advanced Options')).toBeNull();
+    expect(screen.getByText('Explore More')).toBeDefined();
     expect(screen.getByText('Data Traffic')).toBeDefined();
     const numInput = screen.getByTestId('traffic-numeric-input') as HTMLInputElement;
     expect(numInput.value).toBe('5000');
     expect(screen.getByText('visits')).toBeDefined();
     expect(screen.getByText('Data Duration')).toBeDefined();
+  });
+
+  it('opens Explore More modal when Explore More button is clicked', () => {
+    render(
+      <InternetConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Explore More'));
+    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Monday - Sunday)')).toBeDefined();
   });
 
   it('handles traffic updates and slider min 1 and ruler ticks', () => {
@@ -60,7 +74,6 @@ describe('InternetConfig', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Advanced Options'));
     let range = screen.getByRole('slider') as HTMLInputElement;
     expect(range.min).toBe('1');
     expect(range.max).toBe('1000');
@@ -114,8 +127,6 @@ describe('InternetConfig', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Advanced Options'));
-
     // Click ruler tick 250
     const tick250 = screen.getByTestId('ruler-tick-250');
     fireEvent.click(tick250);
@@ -151,8 +162,6 @@ describe('InternetConfig', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Advanced Options'));
-
     fireEvent.click(screen.getByText('ms'));
     expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'millisecond' });
 
@@ -183,7 +192,6 @@ describe('InternetConfig', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Advanced Options'));
     expect(screen.getByTestId('ruler-tick-2048000')).toBeDefined();
 
     const numInput = screen.getByTestId('traffic-numeric-input');
