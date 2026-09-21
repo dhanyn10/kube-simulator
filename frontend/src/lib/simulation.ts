@@ -194,6 +194,57 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
   return { traffic: totalTraffic, hasChanges: false };
 };
 
+const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolean => {
+  if (!node) return true;
+  const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet';
+  if (isWorkload && node.data?.status !== 'ready') return true;
+
+  if (node.type === 'Deployment') {
+    const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
+    if (childPods.length > 0 && childPods.some((p) => p.data?.status !== 'ready')) return true;
+  }
+  return false;
+};
+
+/**
+ * Checks if outgoing edges from internet node or downstream workload paths have validation errors or unready nodes.
+ */
+export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext): boolean => {
+  const outgoing = ctx.edgeMap?.get(internet.id) || [];
+  if (outgoing.length === 0) return true;
+
+  const activeEdgesSet = new Set(ctx.activeSimulationEdges);
+
+  for (const edge of outgoing) {
+    if (edge.data?.validationError) return true;
+
+    const visited = new Set<string>();
+    const queue = [String(edge.target)];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const node = ctx.nodeMap?.get(currentId) || ctx.nodes.find(n => String(n.id) === currentId);
+      if (checkNodeUnreadyInternal(node, ctx.nodes)) {
+        return true;
+      }
+
+      const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(e =>
+        activeEdgesSet.size === 0 || activeEdgesSet.has(String(e.id))
+      );
+
+      for (const downEdge of downstreamEdges) {
+        if (downEdge.data?.validationError) return true;
+        queue.push(String(downEdge.target));
+      }
+    }
+  }
+
+  return false;
+};
+
 /**
  * Smoothly adjusts current internet traffic towards target traffic setting.
  */
@@ -204,13 +255,18 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const state = ctx.get?.();
   const speed = state?.simulationSpeed || 1;
 
+  // Track profileTicks to advance traffic cycle index only when connection is healthy
+  const isRed = isInternetConnectionRed(internet, ctx);
+  const prevProfileTicks = iData.profileTicks ?? 0;
+  const currentProfileTicks = isRed ? prevProfileTicks : (prevProfileTicks + 1);
+
+  // Scale hour indexing by simulation speed across 24-hour cycle
+  const currentHourIndex = Math.floor((currentProfileTicks * speed) / 3) % 24;
+
   if (iData.connectionProfile) {
     const profile = iData.connectionProfile;
     const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-
-    // Scale hour indexing by simulation speed
-    const hourIndex = Math.floor((ctx.ticks * speed) / 3) % 24;
-    const currentHour = hours[hourIndex];
+    const currentHour = hours[currentHourIndex];
 
     const profileVal = profile.hourly?.[currentHour] ?? profile.daily?.[currentHour];
     if (typeof profileVal === 'number') {
@@ -221,16 +277,23 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
-  const step = 1000 * speed;
-  if (currentTraffic < targetTraffic) {
-    nextTraffic = Math.min(targetTraffic, currentTraffic + step);
-  } else if (currentTraffic > targetTraffic) {
-    nextTraffic = Math.max(targetTraffic, currentTraffic - step * 2);
+  // Hold traffic at 0 during container initialization startup delay (ticks 1..3) or when connection is red
+  if (ctx.ticks <= 3) {
+    nextTraffic = 0;
+  } else if (isRed) {
+    nextTraffic = 0;
+  } else {
+    const step = 1000 * speed;
+    if (currentTraffic < targetTraffic) {
+      nextTraffic = Math.min(targetTraffic, currentTraffic + step);
+    } else if (currentTraffic > targetTraffic) {
+      nextTraffic = Math.max(targetTraffic, currentTraffic - step * 2);
+    }
   }
 
   let hasChanges = false;
-  if (nextTraffic !== currentTraffic) {
-    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic });
+  if (nextTraffic !== currentTraffic || iData.currentHourIndex !== currentHourIndex || iData.profileTicks !== currentProfileTicks) {
+    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic, currentHourIndex, profileTicks: currentProfileTicks });
   }
   return { traffic: nextTraffic, hasChanges };
 };
@@ -283,22 +346,17 @@ export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationConte
 /**
  * Schedules automated recovery for crashing pods after a delay.
  */
-export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
+export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationContext) => {
   setTimeout(() => {
     const currentState = ctx.get();
     const nodeToRecover = currentState.nodes.find(n => n.id === podId);
     if (nodeToRecover?.data.status !== 'crashing') return;
 
-    currentState.deleteNodes([nodeToRecover]);
-    setTimeout(() => {
-      const latestState = ctx.get();
-      const parentDep = latestState.nodes.find(n => n.id === dep.id);
-      if (!parentDep) return;
+    const pData = nodeToRecover.data as K8sNodeData;
+    const isReadyConfigured = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
+    const nextStatus = isReadyConfigured ? 'ready' : 'pending';
 
-      const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, ctx.get);
-      const filteredNodes = latestState.nodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-      ctx.set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
-    }, 2000);
+    currentState.updateNodeData?.(podId, { status: nextStatus, simulatedFailureCM: undefined });
   }, 3000);
 };
 

@@ -55,8 +55,16 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     }
   };
 
-  const isReady = data.status === 'ready' ||
-    ['Deployment', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret', 'Role'].includes(selectedNode.type);
+  const isWorkload = selectedNode.type === 'Pod' || selectedNode.type === 'Deployment' || selectedNode.type === 'ReplicaSet';
+  const isConfiguredWorkload = isWorkload
+    ? data.status === 'ready' &&
+      ((!!data.webserver && data.webserver !== 'none') || (!!data.runtime && data.runtime !== 'none'))
+    : true;
+
+  const isReady = isConfiguredWorkload && (
+    data.status === 'ready' ||
+    ['Deployment', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret', 'Role'].includes(selectedNode.type)
+  );
 
   return (
     <div className="space-y-4">

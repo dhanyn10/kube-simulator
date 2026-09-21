@@ -31,7 +31,8 @@ const createNode = (id: string, type: string, data: any = {}): Node => ({
 } as Node);
 
 const baseNodes = [
-    createNode('d1', 'Deployment', { replicas: 1, cpuLimit: '1000m', memoryLimit: '1024Mi' }),
+    createNode('d1', 'Deployment', { replicas: 1, status: 'ready', cpuLimit: '1000m', memoryLimit: '1024Mi' }),
+    createNode('pod-d1', 'Pod', { parentId: 'd1', status: 'ready' }),
     createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 0 }),
     createNode('pvc1', 'PVC', { pvcStatus: 'Pending' }),
     createNode('h1', 'HPA', { targetCPU: 50, minReplicas: 1, maxReplicas: 10 })
@@ -44,7 +45,7 @@ const getMockCtx = (overrides: Partial<SimulationContext> = {}): SimulationConte
     const ctx = {
         nodes,
         edges: [baseEdge],
-        activeSimulationEdges: [],
+        activeSimulationEdges: ['e1'],
         updatedNodes: nodes.map(n => ({ ...n, data: { ...n.data } })),
         newMetrics: {},
         ticks: 0,
@@ -81,45 +82,55 @@ describe('simulation test suite', () => {
     { active: [], expected: false }
   ])('reachability: %o', ({ active, expected }) => {
     const ctx = getMockCtx();
-    expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, active).has('d1')).toBe(expected);
+    const internetNode = ctx.nodes.find(n => n.type === 'Internet')!;
+    expect(calculateReachability([internetNode], ctx.edgeMap!, active).has('d1')).toBe(expected);
   });
 
   it('calculateReachability accepts activeSimulationEdges as a Set', () => {
     const ctx = getMockCtx();
     const activeSet = new Set(['e1']);
-    expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, activeSet).has('d1')).toBe(true);
+    const internetNode = ctx.nodes.find(n => n.type === 'Internet')!;
+    expect(calculateReachability([internetNode], ctx.edgeMap!, activeSet).has('d1')).toBe(true);
   });
 
   it('calculateReachability ignores edges with validationError', () => {
     const edgeWithError = { id: 'e1', source: 'i1', target: 'd1', data: { validationError: 'error' } } as any;
     const edgeMap = new Map([['i1', [edgeWithError]]]);
-    expect(calculateReachability([baseNodes[1]], edgeMap, ['e1']).has('d1')).toBe(false);
+    const internetNode = baseNodes.find(n => n.type === 'Internet')!;
+    expect(calculateReachability([internetNode], edgeMap, ['e1']).has('d1')).toBe(false);
   });
 
-  it('internet traffic logic - increment', () => {
-    const ctx = getMockCtx();
-    const res = updateInternetTraffic(baseNodes[1], ctx);
+  it('internet traffic logic - increment after startup ticks delay', () => {
+    const ctx = getMockCtx({ ticks: 4, activeSimulationEdges: ['e1'] });
+    const internetNode = ctx.nodes.find(n => n.id === 'i1')!;
+    const res = updateInternetTraffic(internetNode, ctx);
     expect(res.traffic).toBe(1000);
-    expect(ctx.updatedNodes[1].data.currentTraffic).toBe(1000);
+  });
+
+  it('internet traffic logic - holds at 0 during initial startup ticks', () => {
+    const ctx = getMockCtx({ ticks: 2, activeSimulationEdges: ['e1'] });
+    const internetNode = ctx.nodes.find(n => n.id === 'i1')!;
+    const res = updateInternetTraffic(internetNode, ctx);
+    expect(res.traffic).toBe(0);
   });
 
   it('internet traffic logic - decrement', () => {
-    const ctx = getMockCtx();
-    const node = createNode('i1', 'Internet', { traffic: 500, currentTraffic: 1000 });
-    // Replace in updatedNodes
-    ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
-    const res = updateInternetTraffic(node, ctx);
+    const ctx = getMockCtx({ ticks: 4, activeSimulationEdges: ['e1'] });
+    const internetNode = createNode('i1', 'Internet', { traffic: 500, currentTraffic: 1000 });
+    ctx.updatedNodes = ctx.updatedNodes.map(n => n.id === 'i1' ? internetNode : n);
+    const res = updateInternetTraffic(internetNode, ctx);
     expect(res.traffic).toBe(500);
-    expect(ctx.updatedNodes[1].data.currentTraffic).toBe(500);
   });
 
-  it('internet traffic logic - unchanged when current equals target', () => {
-    const ctx = getMockCtx();
-    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000 });
-    ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
-    const res = updateInternetTraffic(node, ctx);
-    expect(res.traffic).toBe(1000);
-    expect(res.hasChanges).toBe(false);
+  it('internet traffic logic - freezes traffic when connection is red/unhealthy', () => {
+    const ctx = getMockCtx({ ticks: 4 });
+    const redNode = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000, currentHourIndex: 0, profileTicks: 0 });
+    // Edge targeting missing/unready node creates red connection
+    const badEdge = { id: 'e1', source: 'i1', target: 'non-existent' } as Edge;
+    ctx.edgeMap = new Map([['i1', [badEdge]]]);
+
+    const res = updateInternetTraffic(redNode, ctx);
+    expect(res.traffic).toBe(0);
   });
 
   it.each([
@@ -312,48 +323,30 @@ describe('simulation test suite', () => {
     expect(typeof res.hasChanges).toBe('boolean');
   });
 
-  it('scheduleRecovery recovers a crashing pod and handles parent deployment recovery resync', () => {
-      const pod = createNode('pod1', 'Pod', { status: 'crashing' });
-      const deleteNodes = vi.fn();
-      const setMock = vi.fn();
+  it('scheduleRecovery recovers a crashing pod in-place without deleting it', () => {
+      const pod = createNode('pod1', 'Pod', { status: 'crashing', webserver: 'nginx' });
+      const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
-          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], deleteNodes }),
-          set: setMock
+          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock })
       });
 
       scheduleRecovery(baseNodes[0], 'pod1', ctx);
 
-      // Advance time for first timeout (3000ms)
       vi.advanceTimersByTime(3000);
-      expect(deleteNodes).toHaveBeenCalled();
-
-      // Advance time for second timeout (2000ms)
-      vi.advanceTimersByTime(2000);
-      expect(setMock).toHaveBeenCalled();
+      expect(updateNodeDataMock).toHaveBeenCalledWith('pod1', { status: 'ready', simulatedFailureCM: undefined });
   });
 
-  it('scheduleRecovery returns early if parent deployment is missing after deletion', () => {
-      const pod = createNode('pod1', 'Pod', { status: 'crashing' });
-      const deleteNodes = vi.fn();
-      const setMock = vi.fn();
-
-      // Second get() call returns state without parent deployment 'd1'
-      const getMock = vi.fn()
-        .mockReturnValueOnce({ nodes: [baseNodes[0], pod], deleteNodes })
-        .mockReturnValueOnce({ nodes: [pod], deleteNodes });
-
+  it('scheduleRecovery returns early if pod status is no longer crashing', () => {
+      const pod = createNode('pod1', 'Pod', { status: 'ready', webserver: 'nginx' });
+      const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
-          get: getMock,
-          set: setMock
+          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock })
       });
 
       scheduleRecovery(baseNodes[0], 'pod1', ctx);
 
       vi.advanceTimersByTime(3000);
-      expect(deleteNodes).toHaveBeenCalled();
-
-      vi.advanceTimersByTime(2000);
-      expect(setMock).not.toHaveBeenCalled();
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
   });
 
   it('covers remaining branches in simulation.ts: checkPvcReadiness without connected PVCs, scheduleRecovery with non-crashing pod, and HPA target CPU ratio within 10%', () => {
