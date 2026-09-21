@@ -25,6 +25,8 @@ const ReadOnlyProfileChart = ({
   readonly currentHourIndex?: number;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+
   const width = 240;
   const height = 80;
   const padLeft = 8;
@@ -52,7 +54,25 @@ const ReadOnlyProfileChart = ({
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const currentPt = points[safeHourIdx] || points[0];
+  const activeDisplayIdx = hoveredHourIdx !== null ? hoveredHourIdx : safeHourIdx;
+  const currentPt = points[activeDisplayIdx] || points[0];
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const targetEl = e.currentTarget;
+    const rect = targetEl.getBoundingClientRect();
+    const rectWidth = rect.width || width;
+    const clientX = e.clientX ?? 0;
+    const mouseX = clientX - rect.left;
+    const relativeX = (mouseX / rectWidth) * width;
+    const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
+    const ratio = (clampedX - padLeft) / chartWidth;
+    const hourIdx = Math.min(23, Math.max(0, Math.round(ratio * (HOURS_OF_DAY.length - 1))));
+    setHoveredHourIdx(hourIdx);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredHourIdx(null);
+  };
 
   return (
     <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5" data-testid="profile-chart-preview">
@@ -64,12 +84,17 @@ const ReadOnlyProfileChart = ({
         {isSimulating && (
           <span className="text-[10px] font-mono text-emerald-400 font-extrabold flex items-center gap-1 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            {currentPt.hour}
+            {points[safeHourIdx]?.hour || '00:00'}
           </span>
         )}
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-16 overflow-visible cursor-pointer"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <defs>
           <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
@@ -79,16 +104,21 @@ const ReadOnlyProfileChart = ({
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Traffic Position Dot with Hover Tooltip */}
-        <g key={`traffic-dot-sidebar-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
+        {/* Traffic Position Dot */}
+        <g key={`traffic-dot-sidebar-${activeDisplayIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
           <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
-          <title>{`${currentPt.hour} - ${currentPt.val.toLocaleString()} visits`}</title>
         </g>
       </svg>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
-        <span>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
+        <span>
+          {hoveredHourIdx !== null ? (
+            <>Traffic ({currentPt.hour}): <strong className="text-blue-400">{currentPt.val.toLocaleString()} visits</strong></>
+          ) : (
+            <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
+          )}
+        </span>
         <span>Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong></span>
       </div>
     </div>
