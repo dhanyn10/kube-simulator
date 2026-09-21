@@ -95,6 +95,19 @@ const MiniCurvePreview = ({
         <path d={areaD} fill={`url(#${gradientId})`} />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
+        {/* Chart.js-style Vertical Crosshair Line when Hovered */}
+        {isHovered && (
+          <line
+            x1={currentPt.x}
+            y1={padTop}
+            x2={currentPt.x}
+            y2={padTop + chartHeight}
+            stroke="#3b82f6"
+            strokeDasharray="3 3"
+            strokeWidth="1.5"
+          />
+        )}
+
         {/* Traffic Position Dot with Hover Freeze and Custom Floating Tooltip */}
         {isApplied && (
           <g
@@ -102,7 +115,14 @@ const MiniCurvePreview = ({
             data-testid="mini-active-traffic-dot"
           >
             <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-            <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform" strokeWidth="1.5" />
+            {isHovered ? (
+              <>
+                <circle cx={currentPt.x} cy={currentPt.y} r="6" className="fill-blue-500/30 stroke-blue-400 animate-pulse" strokeWidth="1.5" />
+                <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+              </>
+            ) : (
+              <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform" strokeWidth="1.5" />
+            )}
           </g>
         )}
       </svg>
@@ -110,16 +130,17 @@ const MiniCurvePreview = ({
       {isApplied && isHovered && (
         <div
           data-testid="mini-traffic-dot-tooltip"
-          className="absolute z-30 px-2 py-1 text-[10px] font-mono font-bold bg-slate-950 text-white border border-blue-500/80 rounded shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 animate-in fade-in duration-150 whitespace-nowrap"
+          className="absolute z-30 px-2 py-1 text-[10px] font-mono font-bold bg-slate-950/95 text-white border border-blue-500/80 rounded-md shadow-2xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap"
           style={{
             left: `${(currentPt.x / width) * 100}%`,
             top: `${(currentPt.y / height) * 100}%`
           }}
         >
           <div className="flex items-center gap-1.5">
-            <span className="text-blue-400">{currentHour}</span>
+            <span className="text-blue-400 font-extrabold">{currentHour}</span>
             <span className="text-slate-200">{currentVal.toLocaleString()} visits</span>
           </div>
+          <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-950/95" />
         </div>
       )}
     </div>
@@ -337,6 +358,19 @@ const InteractiveTrafficChart = ({
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
+        {/* Chart.js-style Vertical Crosshair Line when Hovered */}
+        {hoveredPoint && (
+          <line
+            x1={hoveredPoint.x}
+            y1={padTop}
+            x2={hoveredPoint.x}
+            y2={padTop + chartHeight}
+            stroke="#3b82f6"
+            strokeDasharray="3 3"
+            strokeWidth="1.5"
+          />
+        )}
+
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
@@ -418,16 +452,17 @@ const InteractiveTrafficChart = ({
       {hoveredPoint && (
         <div
           data-testid="interactive-chart-tooltip"
-          className="absolute z-30 px-2.5 py-1 text-xs font-mono font-bold bg-slate-950 text-white border border-blue-500/80 rounded shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 animate-in fade-in duration-150 whitespace-nowrap"
+          className="absolute z-30 px-2.5 py-1 text-xs font-mono font-bold bg-slate-950/95 text-white border border-blue-500/80 rounded-md shadow-2xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1.5 animate-in fade-in zoom-in-95 duration-150 whitespace-nowrap"
           style={{
             left: `${(hoveredPoint.x / width) * 100}%`,
             top: `${(hoveredPoint.y / height) * 100}%`
           }}
         >
           <div className="flex items-center gap-1.5">
-            <span className="text-blue-400 font-bold">{hoveredPoint.hour}</span>
+            <span className="text-blue-400 font-extrabold">{hoveredPoint.hour}</span>
             <span className="text-slate-200">{hoveredPoint.val.toLocaleString()} visits</span>
           </div>
+          <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 border-4 border-transparent border-t-slate-950/95" />
         </div>
       )}
     </div>
