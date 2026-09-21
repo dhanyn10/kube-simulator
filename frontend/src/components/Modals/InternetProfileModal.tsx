@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye, Edit2, Shuffle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
@@ -20,11 +20,13 @@ interface InternetProfileModalProps {
 const MiniCurvePreview = ({
   profile,
   isApplied,
-  currentHourIndex
+  currentHourIndex,
+  isRed
 }: {
   readonly profile: InternetProfileItem;
   readonly isApplied?: boolean;
   readonly currentHourIndex?: number;
+  readonly isRed?: boolean;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
@@ -100,7 +102,13 @@ const MiniCurvePreview = ({
       {isApplied && (
         <g key={`mini-traffic-dot-active-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
+          <circle
+            cx={currentPt.x}
+            cy={currentPt.y}
+            r="3.5"
+            className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125"}
+            strokeWidth="1.5"
+          />
           <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
         </g>
       )}
@@ -108,7 +116,13 @@ const MiniCurvePreview = ({
       {/* Hover Position Indicator Dot */}
       {hoveredPt && (
         <g key={`mini-traffic-dot-hover-${hoveredHourIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
-          <circle cx={hoveredPt.x} cy={hoveredPt.y} r="4" className="fill-blue-300 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+          <circle
+            cx={hoveredPt.x}
+            cy={hoveredPt.y}
+            r="4"
+            className={hoveredHourIdx === safeHourIdx ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900") : "fill-blue-300 stroke-white dark:stroke-slate-900"}
+            strokeWidth="1.5"
+          />
           <title>{`${hoveredHour} - ${hoveredVal.toLocaleString()} visits`}</title>
         </g>
       )}
@@ -121,6 +135,7 @@ const InteractiveTrafficChart = ({
   colorMode,
   isApplied,
   currentHourIndex,
+  isRed,
   onUpdatePoint,
   onUpdateName
 }: {
@@ -128,6 +143,7 @@ const InteractiveTrafficChart = ({
   readonly colorMode: string;
   readonly isApplied?: boolean;
   readonly currentHourIndex?: number;
+  readonly isRed?: boolean;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
   readonly onUpdateName: (newName: string) => void;
 }) => {
@@ -331,7 +347,7 @@ const InteractiveTrafficChart = ({
                   y1={padTop}
                   x2={pt.x}
                   y2={padTop + chartHeight}
-                  stroke={isSimulatingActive && !isHoveredThis ? "#34d399" : "#3b82f6"}
+                  stroke={isHoveredThis && idx === safeHourIdx ? (isRed ? "#f43f5e" : "#10b981") : (isSimulatingActive && !isHoveredThis ? (isRed ? "#f43f5e" : "#34d399") : "#3b82f6")}
                   strokeDasharray="2 2"
                   strokeWidth={isSimulatingActive || isHoveredThis ? "2" : "1.5"}
                 />
@@ -353,11 +369,13 @@ const InteractiveTrafficChart = ({
                 r={isDraggingThis || isHoveredThis || isSimulatingActive ? 6 : 4}
                 className={cn(
                   "cursor-ns-resize transition-all hover:scale-125",
-                  isSimulatingActive && !isHoveredThis
-                    ? "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50"
-                    : isDraggingThis || isHoveredThis
-                      ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
-                      : "fill-blue-500 stroke-white dark:stroke-slate-900"
+                  isHoveredThis && idx === safeHourIdx
+                    ? (isRed ? "fill-rose-500 stroke-white ring-4 ring-rose-500/50" : "fill-emerald-400 stroke-white ring-4 ring-emerald-500/50")
+                    : isSimulatingActive && !isHoveredThis
+                      ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 ring-4 ring-rose-500/50" : "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50")
+                      : isDraggingThis || isHoveredThis
+                        ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
+                        : "fill-blue-500 stroke-white dark:stroke-slate-900"
                 )}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
@@ -423,6 +441,17 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
   const cardName = selectedNode?.data?.label || 'Internet';
 
   const currentHourIndex = selectedNode?.data?.currentHourIndex;
+
+  const edges = useFlowStore((state) => state.edges);
+  const nodes = useFlowStore((state) => state.nodes);
+
+  const outgoingEdges = edges.filter((e) => String(e.source) === String(selectedNode?.id));
+  const isRed = useMemo(() => {
+    if (outgoingEdges.length === 0) return true;
+    if (outgoingEdges.some((e) => e.data?.validationError)) return true;
+    const targets = outgoingEdges.map((e) => nodes.find((n) => String(n.id) === String(e.target)));
+    return targets.some((t) => !t || (t.type === 'Pod' || t.type === 'Deployment') && t.data?.status !== 'ready');
+  }, [outgoingEdges, nodes]);
 
   const {
     colorMode,
@@ -536,7 +565,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       </h4>
 
                       {/* Curve Preview */}
-                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} />
+                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} isRed={isRed} />
                     </div>
 
                     {/* Metrics Summary */}
@@ -640,6 +669,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               colorMode={colorMode}
               isApplied={detailProfile.name === activeProfileName}
               currentHourIndex={currentHourIndex}
+              isRed={isRed}
               onUpdatePoint={handleUpdateDetailPoint}
               onUpdateName={handleUpdateDetailName}
             />
@@ -691,6 +721,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               colorMode={colorMode}
               isApplied={false}
               currentHourIndex={currentHourIndex}
+              isRed={isRed}
               onUpdatePoint={handleUpdateCustomPoint}
               onUpdateName={setNewProfileName}
             />

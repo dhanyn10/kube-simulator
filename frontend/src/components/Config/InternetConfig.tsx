@@ -19,10 +19,12 @@ const formatNumberCompact = (num: number): string => {
 
 const ReadOnlyProfileChart = ({
   profile,
-  currentHourIndex
+  currentHourIndex,
+  isRed
 }: {
   readonly profile: any;
   readonly currentHourIndex?: number;
+  readonly isRed?: boolean;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
@@ -105,14 +107,26 @@ const ReadOnlyProfileChart = ({
         {/* Active Simulation Traffic Position Dot (Always locked at safeHourIdx) */}
         <g key={`traffic-dot-sidebar-active-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
+          <circle
+            cx={currentPt.x}
+            cy={currentPt.y}
+            r="4.5"
+            className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125"}
+            strokeWidth="1.5"
+          />
         </g>
 
         {/* Hover Position Dot & Guide Line */}
         {hoveredPt && (
           <g key={`traffic-dot-sidebar-hover-${hoveredHourIdx}`} data-testid="hover-traffic-dot">
-            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke="#60a5fa" strokeDasharray="2 2" strokeWidth="1" />
-            <circle cx={hoveredPt.x} cy={hoveredPt.y} r="5" className="fill-blue-300 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke={hoveredHourIdx === safeHourIdx ? (isRed ? "#f43f5e" : "#10b981") : "#60a5fa"} strokeDasharray="2 2" strokeWidth="1" />
+            <circle
+              cx={hoveredPt.x}
+              cy={hoveredPt.y}
+              r="5"
+              className={hoveredHourIdx === safeHourIdx ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900") : "fill-blue-300 stroke-white dark:stroke-slate-900"}
+              strokeWidth="1.5"
+            />
           </g>
         )}
       </svg>
@@ -137,6 +151,21 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const activeProfile = data.connectionProfile;
   const currentHourIndex = data.currentHourIndex;
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const edges = useFlowStore((state) => state.edges);
+  const activeSimulationEdges = useFlowStore((state) => state.activeSimulationEdges);
+  const nodes = useFlowStore((state) => state.nodes);
+
+  // Determine if internet connection is disconnected / has error / missing outgoing edge
+  const outgoingEdges = edges.filter((e) => String(e.source) === String(selectedNode.id));
+  const isRed = useMemo(() => {
+    if (outgoingEdges.length === 0) return true;
+    const hasEdgeError = outgoingEdges.some((e) => e.data?.validationError);
+    if (hasEdgeError) return true;
+    const targets = outgoingEdges.map((e) => nodes.find((n) => String(n.id) === String(e.target)));
+    const hasUnreadyTarget = targets.some((t) => !t || (t.type === 'Pod' || t.type === 'Deployment') && t.data?.status !== 'ready');
+    return hasUnreadyTarget;
+  }, [outgoingEdges, nodes]);
 
   // Calculate dynamic maxRange based on current traffic (minimum 1000)
   const maxRange = useMemo(() => {
@@ -186,7 +215,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
       >
         <div className="px-1 py-2 space-y-2">
           {activeProfile ? (
-            <ReadOnlyProfileChart profile={activeProfile} currentHourIndex={currentHourIndex} />
+            <ReadOnlyProfileChart profile={activeProfile} currentHourIndex={currentHourIndex} isRed={isRed} />
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono">
