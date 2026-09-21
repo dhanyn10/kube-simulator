@@ -464,7 +464,9 @@ const startSimulationInternal = (
         edgeMap.set(source, existing);
       }
 
-      const startNodes = internetNodeIds ? nodes.filter(n => internetNodeIds.includes(n.id)) : nodes.filter(n => n.type === 'Internet');
+      const startNodes = (Array.isArray(internetNodeIds) && internetNodeIds.length > 0)
+        ? nodes.filter(n => internetNodeIds.includes(n.id))
+        : nodes.filter(n => n.type === 'Internet');
       if (startNodes.length === 0) return;
 
       const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)));

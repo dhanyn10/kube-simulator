@@ -82,7 +82,7 @@ export const SimulationControls = ({
       ) : (
         <button
           type="button"
-          onClick={startSimulation}
+          onClick={() => startSimulation()}
           disabled={!hasInternet}
           title={title}
           className={cn(
