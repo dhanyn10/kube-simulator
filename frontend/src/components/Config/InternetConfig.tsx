@@ -25,6 +25,9 @@ const ReadOnlyProfileChart = ({
   readonly currentHourIndex?: number;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const [frozenHourIndex, setFrozenHourIndex] = useState<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
   const width = 240;
   const height = 80;
   const padLeft = 8;
@@ -51,11 +54,22 @@ const ReadOnlyProfileChart = ({
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const liveHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const safeHourIdx = frozenHourIndex !== null ? frozenHourIndex : liveHourIdx;
   const currentPt = points[safeHourIdx] || points[0];
 
+  const handleMouseEnter = () => {
+    setFrozenHourIndex(liveHourIdx);
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setFrozenHourIndex(null);
+    setIsHovered(false);
+  };
+
   return (
-    <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5" data-testid="profile-chart-preview">
+    <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5 relative" data-testid="profile-chart-preview">
       <div className="flex items-center justify-between text-[11px] font-bold">
         <div className="flex items-center gap-1.5 text-blue-400">
           <Activity size={13} className="shrink-0" />
@@ -69,23 +83,46 @@ const ReadOnlyProfileChart = ({
         )}
       </div>
 
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible">
-        <defs>
-          <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-        <path d={areaD} fill="url(#sidebarChartGrad)" />
-        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+      <div className="relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible">
+          <defs>
+            <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill="url(#sidebarChartGrad)" />
+          <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Traffic Position Dot with Hover Tooltip */}
-        <g key={`traffic-dot-sidebar-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
-          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
-          <title>{`${currentPt.hour} - ${currentPt.val.toLocaleString()} visits`}</title>
-        </g>
-      </svg>
+          {/* Traffic Position Dot with Hover Freeze and Custom Floating Tooltip */}
+          <g
+            key={`traffic-dot-sidebar-${safeHourIdx}`}
+            data-testid="active-traffic-dot"
+            className="group/dot cursor-pointer"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+            <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
+          </g>
+        </svg>
+
+        {isHovered && (
+          <div
+            data-testid="traffic-dot-tooltip"
+            className="absolute z-30 px-2 py-1 text-[10px] font-mono font-bold bg-slate-950 text-white border border-blue-500/80 rounded shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 animate-in fade-in duration-150 whitespace-nowrap"
+            style={{
+              left: `${(currentPt.x / width) * 100}%`,
+              top: `${(currentPt.y / height) * 100}%`
+            }}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="text-blue-400">{currentPt.hour}</span>
+              <span className="text-slate-200">{currentPt.val.toLocaleString()} visits</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
         <span>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>

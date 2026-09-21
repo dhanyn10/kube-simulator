@@ -172,6 +172,43 @@ describe('InternetConfig', () => {
     expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
   });
 
+  it('freezes traffic dot position and displays custom tooltip on hover in ReadOnlyProfileChart', () => {
+    useFlowStore.setState({ isSimulating: true });
+
+    const activeProfileNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: 1000,
+        currentHourIndex: 3,
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Custom Profile',
+          hourly: { '00:00': 1500, '03:00': 2000, '12:00': 3000 }
+        }
+      }
+    };
+
+    render(
+      <InternetConfig
+        selectedNode={activeProfileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    const activeDot = screen.getByTestId('active-traffic-dot');
+    fireEvent.mouseEnter(activeDot);
+
+    const tooltip = screen.getByTestId('traffic-dot-tooltip');
+    expect(tooltip).toBeDefined();
+    expect(tooltip.textContent).toContain('03:00');
+
+    fireEvent.mouseLeave(activeDot);
+    expect(screen.queryByTestId('traffic-dot-tooltip')).toBeNull();
+  });
+
   it('handles large traffic values formatting and visibility toggles', () => {
     const largeNode = {
       id: 'int1',

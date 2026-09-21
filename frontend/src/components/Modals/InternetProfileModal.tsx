@@ -27,6 +27,9 @@ const MiniCurvePreview = ({
   readonly currentHourIndex?: number;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const [frozenHourIndex, setFrozenHourIndex] = useState<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
   const width = 220;
   const height = 55;
   const padLeft = 10;
@@ -55,31 +58,65 @@ const MiniCurvePreview = ({
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const liveHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const safeHourIdx = frozenHourIndex !== null ? frozenHourIndex : liveHourIdx;
   const currentPt = points[safeHourIdx] || points[0];
   const currentVal = values[safeHourIdx] ?? 0;
   const currentHour = HOURS_OF_DAY[safeHourIdx] || '00:00';
 
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible my-1">
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#${gradientId})`} />
-      <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+  const handleMouseEnter = () => {
+    setFrozenHourIndex(liveHourIdx);
+    setIsHovered(true);
+  };
 
-      {/* Traffic Position Dot with Hover Tooltip for Applied Profile */}
-      {isApplied && (
-        <g key={`mini-traffic-dot-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
-          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
-          <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
-        </g>
+  const handleMouseLeave = () => {
+    setFrozenHourIndex(null);
+    setIsHovered(false);
+  };
+
+  return (
+    <div className="relative my-1">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible">
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <path d={areaD} fill={`url(#${gradientId})`} />
+        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+
+        {/* Traffic Position Dot with Hover Freeze and Custom Floating Tooltip */}
+        {isApplied && (
+          <g
+            key={`mini-traffic-dot-${safeHourIdx}`}
+            data-testid="mini-active-traffic-dot"
+            className="group/minidot cursor-pointer"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+            <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
+          </g>
+        )}
+      </svg>
+
+      {isApplied && isHovered && (
+        <div
+          data-testid="mini-traffic-dot-tooltip"
+          className="absolute z-30 px-2 py-1 text-[10px] font-mono font-bold bg-slate-950 text-white border border-blue-500/80 rounded shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 animate-in fade-in duration-150 whitespace-nowrap"
+          style={{
+            left: `${(currentPt.x / width) * 100}%`,
+            top: `${(currentPt.y / height) * 100}%`
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="text-blue-400">{currentHour}</span>
+            <span className="text-slate-200">{currentVal.toLocaleString()} visits</span>
+          </div>
+        </div>
       )}
-    </svg>
+    </div>
   );
 };
 
@@ -101,6 +138,8 @@ const InteractiveTrafficChart = ({
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<{ hour: string; val: number; x: number; y: number } | null>(null);
+  const [frozenTrafficHourIndex, setFrozenTrafficHourIndex] = useState<number | null>(null);
 
   const width = 680;
   const height = 280;
@@ -134,6 +173,17 @@ const InteractiveTrafficChart = ({
   }, '');
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+
+  const liveTrafficIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const activeTrafficIdx = frozenTrafficHourIndex !== null ? frozenTrafficHourIndex : liveTrafficIdx;
+
+  const handleTrafficDotMouseEnter = () => {
+    setFrozenTrafficHourIndex(liveTrafficIdx);
+  };
+
+  const handleTrafficDotMouseLeave = () => {
+    setFrozenTrafficHourIndex(null);
+  };
 
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -268,7 +318,7 @@ const InteractiveTrafficChart = ({
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
-          const isCurrentTrafficHour = isSimulating && isApplied && idx === ((currentHourIndex ?? 0) % 24);
+          const isCurrentTrafficHour = isSimulating && isApplied && idx === activeTrafficIdx;
 
           return (
             <g key={`pt-${pt.hour}`}>
@@ -292,10 +342,17 @@ const InteractiveTrafficChart = ({
                 r="12"
                 className="fill-transparent cursor-ns-resize"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
+                onMouseEnter={() => {
+                  if (isCurrentTrafficHour) handleTrafficDotMouseEnter();
+                  setHoveredPoint({ hour: pt.hour, val: pt.val, x: pt.x, y: pt.y });
+                }}
+                onMouseLeave={() => {
+                  if (isCurrentTrafficHour) handleTrafficDotMouseLeave();
+                  setHoveredPoint(null);
+                }}
               />
 
-
-              {/* Visible Circle with Hover Tooltip */}
+              {/* Visible Circle with Hover Freeze and Custom Floating Tooltip */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
@@ -310,11 +367,17 @@ const InteractiveTrafficChart = ({
                 )}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              >
-                <title>{`${pt.hour} - ${pt.val.toLocaleString()} visits`}</title>
-              </circle>
+                onMouseEnter={() => {
+                  if (isCurrentTrafficHour) handleTrafficDotMouseEnter();
+                  setHoveredPoint({ hour: pt.hour, val: pt.val, x: pt.x, y: pt.y });
+                }}
+                onMouseLeave={() => {
+                  if (isCurrentTrafficHour) handleTrafficDotMouseLeave();
+                  setHoveredPoint(null);
+                }}
+              />
 
-              {/* Value Label (only when dragging or for specific key points) */}
+              {/* Value Label (only when dragging) */}
               {isDraggingThis && (
                 <text
                   x={pt.x}
@@ -344,6 +407,22 @@ const InteractiveTrafficChart = ({
           );
         })}
       </svg>
+
+      {hoveredPoint && (
+        <div
+          data-testid="interactive-chart-tooltip"
+          className="absolute z-30 px-2.5 py-1 text-xs font-mono font-bold bg-slate-950 text-white border border-blue-500/80 rounded shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full mb-1 animate-in fade-in duration-150 whitespace-nowrap"
+          style={{
+            left: `${(hoveredPoint.x / width) * 100}%`,
+            top: `${(hoveredPoint.y / height) * 100}%`
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="text-blue-400 font-bold">{hoveredPoint.hour}</span>
+            <span className="text-slate-200">{hoveredPoint.val.toLocaleString()} visits</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
