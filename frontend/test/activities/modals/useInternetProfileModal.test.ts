@@ -3,8 +3,8 @@ import { renderHook, act } from '@testing-library/react';
 import {
   useInternetProfileModal,
   generateCustomProfileKey,
-  generateRandomDailyValues,
-  DAYS_OF_WEEK,
+  generateRandomHourlyValues,
+  HOURS_OF_DAY,
   ECOMMERCE_PROFILE
 } from '@/activities/modals/useInternetProfileModal';
 
@@ -36,12 +36,12 @@ describe('useInternetProfileModal', () => {
     expect(key).toMatch(/^custom-\d{14}$/);
   });
 
-  it('generateRandomDailyValues generates random values for all 7 days of the week', () => {
-    const randoms = generateRandomDailyValues();
-    DAYS_OF_WEEK.forEach((day) => {
-      expect(randoms[day]).toBeGreaterThanOrEqual(500);
-      expect(randoms[day]).toBeLessThanOrEqual(5000);
-      expect(randoms[day] % 50).toBe(0);
+  it('generateRandomHourlyValues generates random values for all 24 hours of the day', () => {
+    const randoms = generateRandomHourlyValues();
+    HOURS_OF_DAY.forEach((hour) => {
+      expect(randoms[hour]).toBeGreaterThanOrEqual(500);
+      expect(randoms[hour]).toBeLessThanOrEqual(5000);
+      expect(randoms[hour] % 50).toBe(0);
     });
   });
 
@@ -55,9 +55,18 @@ describe('useInternetProfileModal', () => {
     expect(result.current.profiles.length).toBeGreaterThan(0);
   });
 
-  it('handles apply profile', () => {
+  it('handles apply profile and deselect toggle', () => {
+    const inactiveNode = {
+      id: 'node-internet-1',
+      data: {
+        label: 'Internet Connection',
+        activeProfileName: '',
+        connectionProfile: undefined
+      }
+    };
+
     const { result } = renderHook(() =>
-      useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      useInternetProfileModal(true, inactiveNode, mockPerformUpdate, mockOnClose)
     );
 
     act(() => {
@@ -67,6 +76,18 @@ describe('useInternetProfileModal', () => {
     expect(mockPerformUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         activeProfileName: ECOMMERCE_PROFILE.name
+      })
+    );
+
+    // Clicking again on active profile toggles it OFF (deselect)
+    act(() => {
+      result.current.handleApplyProfile(ECOMMERCE_PROFILE.name);
+    });
+
+    expect(mockPerformUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        activeProfileName: '',
+        connectionProfile: undefined
       })
     );
   });
@@ -83,10 +104,10 @@ describe('useInternetProfileModal', () => {
     expect(result.current.viewMode).toBe('details');
 
     act(() => {
-      result.current.handleUpdateDetailPoint('Monday', 2500);
+      result.current.handleUpdateDetailPoint('00:00', 2500);
     });
 
-    expect(result.current.detailProfile.daily['Monday']).toBe(2500);
+    expect(result.current.detailProfile.hourly['00:00']).toBe(2500);
     expect(result.current.detailProfile.name).toMatch(/^custom-\d{14}$/);
   });
 
@@ -102,19 +123,17 @@ describe('useInternetProfileModal', () => {
     expect(result.current.viewMode).toBe('custom');
     expect(result.current.newProfileName).toMatch(/^custom-\d{14}$/);
 
-    const initialValues = { ...result.current.customDailyValues };
-
     act(() => {
       result.current.handleRandomizeCustomValues();
     });
 
-    expect(result.current.customDailyValues).toBeDefined();
+    expect(result.current.customHourlyValues).toBeDefined();
 
     act(() => {
-      result.current.handleUpdateCustomPoint('Monday', 4000);
+      result.current.handleUpdateCustomPoint('00:00', 4000);
     });
 
-    expect(result.current.customDailyValues['Monday']).toBe(4000);
+    expect(result.current.customHourlyValues['00:00']).toBe(4000);
   });
 
   it('handles saving custom profile', async () => {

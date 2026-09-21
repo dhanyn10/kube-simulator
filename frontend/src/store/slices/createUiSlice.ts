@@ -612,6 +612,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isSidebarVisible: true,
   isRightSidebarVisible: true,
   isSimulating: false,
+  simulationSpeed: 1,
   activeSimulationEdges: [],
   simulationMetrics: {},
   isMonitoringOpen: false,
@@ -834,6 +835,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   /**
    * Public action to stop the simulation.
    */
+  setSimulationSpeed: (speed: 1 | 5 | 10) => {
+    set({ simulationSpeed: speed });
+  },
   stopSimulation: () => {
     const { nodes } = get();
     handleStopSimulation(nodes, set, get);

@@ -72,8 +72,7 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
     case 'Internet':
       return {
         ...base,
-        durationUnit: 'second',
-        displaySettings: { traffic: false, duration: false }
+        displaySettings: { traffic: false }
       };
     case 'PVC':
       return {

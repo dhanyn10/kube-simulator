@@ -13,8 +13,7 @@ describe('InternetConfig', () => {
     data: {
       label: 'Internet',
       traffic: 5000,
-      durationUnit: 'minute',
-      displaySettings: { traffic: true, duration: true }
+      displaySettings: { traffic: true }
     }
   };
 
@@ -38,7 +37,7 @@ describe('InternetConfig', () => {
     const numInput = screen.getByTestId('traffic-numeric-input') as HTMLInputElement;
     expect(numInput.value).toBe('5000');
     expect(screen.getByText('visits')).toBeDefined();
-    expect(screen.getByText('Data Duration')).toBeDefined();
+    expect(screen.queryByText('Data Duration')).toBeNull();
   });
 
   it('opens Explore More modal when Explore More button is clicked', () => {
@@ -51,7 +50,7 @@ describe('InternetConfig', () => {
     );
 
     fireEvent.click(screen.getByText('Explore More'));
-    expect(screen.getByText('Weekly Connection Simulation Profile Templates (Monday - Sunday)')).toBeDefined();
+    expect(screen.getByText('24-Hour Connection Simulation Profile Templates (00:00 - 23:00)')).toBeDefined();
   });
 
   it('handles traffic updates and slider min 1 and ruler ticks', () => {
@@ -61,8 +60,7 @@ describe('InternetConfig', () => {
       data: {
         label: 'Internet',
         traffic: 100,
-        durationUnit: 'second',
-        displaySettings: { traffic: true, duration: true }
+        displaySettings: { traffic: true }
       }
     };
 
@@ -114,8 +112,7 @@ describe('InternetConfig', () => {
       data: {
         label: 'Internet',
         traffic: 100,
-        durationUnit: 'second',
-        displaySettings: { traffic: true, duration: true }
+        displaySettings: { traffic: true }
       }
     };
 
@@ -142,34 +139,32 @@ describe('InternetConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
   });
 
-  it('handles duration unit updates for ms, sec, and min, and handles undefined data fallbacks', () => {
-    const fallbackNode = {
-      id: 'int2',
+  it('displays ReadOnlyProfileChart when a connection profile is active', () => {
+    const activeProfileNode = {
+      id: 'int1',
       type: 'Internet',
       data: {
         label: 'Internet',
-        traffic: undefined,
-        durationUnit: undefined,
-        displaySettings: { traffic: true, duration: true }
+        traffic: 1000,
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Custom Profile',
+          hourly: { '00:00': 1500, '12:00': 3000 }
+        }
       }
     };
 
     render(
       <InternetConfig
-        selectedNode={fallbackNode}
+        selectedNode={activeProfileNode}
         performUpdate={performUpdate}
         toggleVisibility={toggleVisibility}
       />
     );
 
-    fireEvent.click(screen.getByText('ms'));
-    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'millisecond' });
-
-    fireEvent.click(screen.getByText('sec'));
-    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'second' });
-
-    fireEvent.click(screen.getByText('min'));
-    expect(performUpdate).toHaveBeenCalledWith({ durationUnit: 'minute' });
+    expect(screen.getByTestId('profile-chart-preview')).toBeDefined();
+    expect(screen.getByText('Custom Profile')).toBeDefined();
+    expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
   });
 
   it('handles large traffic values formatting and visibility toggles', () => {
@@ -179,8 +174,7 @@ describe('InternetConfig', () => {
       data: {
         label: 'Internet',
         traffic: 2000000,
-        durationUnit: 'second',
-        displaySettings: { traffic: true, duration: true }
+        displaySettings: { traffic: true }
       }
     };
 
@@ -201,9 +195,6 @@ describe('InternetConfig', () => {
     const eyeButtons = screen.getAllByTitle('Show/Hide on Card');
     fireEvent.click(eyeButtons[0]);
     expect(toggleVisibility).toHaveBeenCalledWith('traffic');
-
-    fireEvent.click(eyeButtons[1]);
-    expect(toggleVisibility).toHaveBeenCalledWith('duration');
 
     // Test decimal M (e.g. 1.5M) and decimal k (e.g. 2.5k) formatting
     rerender(

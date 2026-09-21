@@ -4,23 +4,25 @@ import { safeRandom } from '@/lib/utils';
 
 export interface InternetProfileItem {
   name: string;
-  daily: Record<string, number>;
+  hourly: Record<string, number>;
+  daily?: Record<string, number>;
   timestamp?: number;
 }
 
-export const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+export const HOURS_OF_DAY = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+const DEFAULT_HOURLY_PATTERN = [
+  500, 300, 200, 150, 100, 200, 500, 1200,
+  2200, 3100, 3800, 4200, 4500, 4300, 4000, 3800,
+  3600, 3900, 4800, 5200, 4500, 3200, 2000, 1100
+];
 
 export const ECOMMERCE_PROFILE: InternetProfileItem = {
   name: 'E-Commerce Simulation',
-  daily: {
-    Monday: 1500,
-    Tuesday: 1200,
-    Wednesday: 1800,
-    Thursday: 2200,
-    Friday: 3500,
-    Saturday: 5000,
-    Sunday: 4200
-  }
+  hourly: HOURS_OF_DAY.reduce((acc, hour, idx) => {
+    acc[hour] = DEFAULT_HOURLY_PATTERN[idx];
+    return acc;
+  }, {} as Record<string, number>)
 };
 
 /**
@@ -38,14 +40,14 @@ export const generateCustomProfileKey = (): string => {
 };
 
 /**
- * Generates randomized daily traffic values for Monday - Sunday (range 500 - 5000)
+ * Generates randomized hourly traffic values for 00:00 - 23:00 (range 500 - 5000)
  */
-export const generateRandomDailyValues = (): Record<string, number> => {
+export const generateRandomHourlyValues = (): Record<string, number> => {
   const result: Record<string, number> = {};
-  DAYS_OF_WEEK.forEach((day) => {
+  HOURS_OF_DAY.forEach((hour) => {
     // Generate random value rounded to nearest 50 between 500 and 5000 using safeRandom()
     const rand = Math.floor(safeRandom() * 91) * 50 + 500;
-    result[day] = rand;
+    result[hour] = rand;
   });
   return result;
 };
@@ -68,17 +70,31 @@ export const useInternetProfileModal = (
   const [detailProfile, setDetailProfile] = useState<InternetProfileItem>(ECOMMERCE_PROFILE);
   const [isModifiedCustom, setIsModifiedCustom] = useState<boolean>(false);
   const [newProfileName, setNewProfileName] = useState<string>('');
-  const [customDailyValues, setCustomDailyValues] = useState<Record<string, number>>(() =>
-    generateRandomDailyValues()
+  const [customHourlyValues, setCustomHourlyValues] = useState<Record<string, number>>(() =>
+    generateRandomHourlyValues()
   );
+
+  const normalizeProfile = useCallback((p: any): InternetProfileItem => {
+    if (p.hourly && Object.keys(p.hourly).length > 0) {
+      return p as InternetProfileItem;
+    }
+    // Backward compatibility for legacy daily profiles
+    const hourly: Record<string, number> = {};
+    const legacyValues = p.daily ? Object.values(p.daily) as number[] : [];
+    HOURS_OF_DAY.forEach((hour, idx) => {
+      hourly[hour] = legacyValues[idx % Math.max(1, legacyValues.length)] || 1000;
+    });
+    return { name: p.name, hourly, timestamp: p.timestamp };
+  }, []);
 
   const fetchProfiles = useCallback(async () => {
     try {
       const savedProfiles = await window.go?.main?.App?.GetInternetProfiles?.();
       if (Array.isArray(savedProfiles) && savedProfiles.length > 0) {
+        const normalizedSaved = savedProfiles.map(normalizeProfile);
         const merged = [
           ECOMMERCE_PROFILE,
-          ...savedProfiles.filter((p) => p.name !== ECOMMERCE_PROFILE.name)
+          ...normalizedSaved.filter((p) => p.name !== ECOMMERCE_PROFILE.name)
         ];
         setProfiles(merged);
       } else {
@@ -87,12 +103,12 @@ export const useInternetProfileModal = (
     } catch {
       setProfiles([ECOMMERCE_PROFILE]);
     }
-  }, []);
+  }, [normalizeProfile]);
 
   useEffect(() => {
     if (isOpen) {
       fetchProfiles();
-      setActiveProfileName(selectedNode?.data?.activeProfileName || ECOMMERCE_PROFILE.name);
+      setActiveProfileName(selectedNode?.data?.activeProfileName || '');
       setViewMode('grid');
       setIsModifiedCustom(false);
     }
@@ -100,41 +116,52 @@ export const useInternetProfileModal = (
 
   const handleStartCustomProfile = () => {
     setNewProfileName(generateCustomProfileKey());
-    setCustomDailyValues(generateRandomDailyValues());
+    setCustomHourlyValues(generateRandomHourlyValues());
     setViewMode('custom');
   };
 
   const handleRandomizeCustomValues = () => {
-    setCustomDailyValues(generateRandomDailyValues());
+    setCustomHourlyValues(generateRandomHourlyValues());
   };
 
-  const handleUpdateCustomPoint = (day: string, newValue: number) => {
-    setCustomDailyValues((prev) => ({
+  const handleUpdateCustomPoint = (hour: string, newValue: number) => {
+    setCustomHourlyValues((prev) => ({
       ...prev,
-      [day]: newValue
+      [hour]: newValue
     }));
   };
 
-  const activeProfile = profiles.find((p) => p.name === activeProfileName) || ECOMMERCE_PROFILE;
+  const activeProfile = profiles.find((p) => p.name === activeProfileName) || null;
 
   const handleApplyProfile = (profileName: string, profileObj?: InternetProfileItem) => {
+    // If clicking on already active profile, toggle OFF (deselect)
+    if (activeProfileName === profileName && !profileObj) {
+      setActiveProfileName('');
+      performUpdate({
+        connectionProfile: undefined,
+        activeProfileName: '',
+        traffic: selectedNode?.data?.traffic || 1000
+      });
+      return;
+    }
+
     const profileToApply = profileObj || profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
     setActiveProfileName(profileToApply.name);
     performUpdate({
       connectionProfile: profileToApply,
       activeProfileName: profileToApply.name,
-      traffic: profileToApply.daily['Monday'] || 1000
+      traffic: profileToApply.hourly['00:00'] || 1000
     });
   };
 
   const handleOpenDetails = (profileName: string) => {
     const target = profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
-    setDetailProfile({ ...target, daily: { ...target.daily } });
+    setDetailProfile({ ...target, hourly: { ...target.hourly } });
     setIsModifiedCustom(false);
     setViewMode('details');
   };
 
-  const handleUpdateDetailPoint = (day: string, newValue: number) => {
+  const handleUpdateDetailPoint = (hour: string, newValue: number) => {
     setDetailProfile((prev) => {
       let updatedName = prev.name;
       if (!isModifiedCustom && !prev.name.startsWith('custom-')) {
@@ -144,9 +171,9 @@ export const useInternetProfileModal = (
       return {
         ...prev,
         name: updatedName,
-        daily: {
-          ...prev.daily,
-          [day]: newValue
+        hourly: {
+          ...prev.hourly,
+          [hour]: newValue
         }
       };
     });
@@ -164,7 +191,7 @@ export const useInternetProfileModal = (
 
     const profileToSave: InternetProfileItem = {
       name: detailProfile.name.trim(),
-      daily: { ...detailProfile.daily },
+      hourly: { ...detailProfile.hourly },
       timestamp: Date.now()
     };
 
@@ -187,7 +214,7 @@ export const useInternetProfileModal = (
 
     const newProfile: InternetProfileItem = {
       name: newProfileName.trim(),
-      daily: { ...customDailyValues },
+      hourly: { ...customHourlyValues },
       timestamp: Date.now()
     };
 
@@ -235,8 +262,8 @@ export const useInternetProfileModal = (
     isModifiedCustom,
     newProfileName,
     setNewProfileName,
-    customDailyValues,
-    setCustomDailyValues,
+    customHourlyValues,
+    setCustomHourlyValues,
     handleStartCustomProfile,
     handleRandomizeCustomValues,
     handleUpdateCustomPoint,
