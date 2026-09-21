@@ -14,6 +14,19 @@ const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel(
 const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
 /**
+ * Pauses the simulation without resetting metrics or traffic positions.
+ * @param set Zustand store setter.
+ * @param simulationInterval Ref to the current interval object.
+ */
+export const pauseSimulation = (set: (state: Partial<FlowState>) => void, simulationInterval: { current: ReturnType<typeof setInterval> | null }) => {
+  if (simulationInterval.current) {
+    clearInterval(simulationInterval.current);
+    simulationInterval.current = null;
+  }
+  set({ isSimulating: false });
+};
+
+/**
  * Stops the simulation and resets relevant state.
  * @param set Zustand store setter.
  * @param get Zustand store getter.
@@ -24,7 +37,15 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
     clearInterval(simulationInterval.current);
     simulationInterval.current = null;
   }
-  const resetNodes = get().nodes.map(n => n.type === 'PVC' ? { ...n, data: { ...n.data, pvcStatus: 'Pending' } } : n);
+  const resetNodes = get().nodes.map(n => {
+    if (n.type === 'PVC') {
+      return { ...n, data: { ...n.data, pvcStatus: 'Pending' } };
+    }
+    if (n.type === 'Internet') {
+      return { ...n, data: { ...n.data, currentHourIndex: 0, profileTicks: 0 } };
+    }
+    return n;
+  });
   set({ isSimulating: false, activeSimulationEdges: [], simulationMetrics: {}, nodes: resetNodes });
 };
 

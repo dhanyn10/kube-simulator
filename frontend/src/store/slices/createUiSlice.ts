@@ -12,6 +12,7 @@ import {
 } from '@/lib/simulation';
 import {
   stopSimulation as stopSimulationInternal,
+  pauseSimulation as pauseSimulationInternal,
   broadcastMetrics,
   checkEmergencyStop,
   validateHpaTargets,
@@ -106,6 +107,7 @@ export interface UiSlice {
   setSidebarVisible: (visible: boolean) => void;
   setRightSidebarVisible: (visible: boolean) => void;
   startSimulation: (internetNodeIds?: string[]) => void;
+  pauseSimulation: () => void;
   stopSimulation: () => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
@@ -462,7 +464,9 @@ const startSimulationInternal = (
         edgeMap.set(source, existing);
       }
 
-      const startNodes = internetNodeIds ? nodes.filter(n => internetNodeIds.includes(n.id)) : nodes.filter(n => n.type === 'Internet');
+      const startNodes = (Array.isArray(internetNodeIds) && internetNodeIds.length > 0)
+        ? nodes.filter(n => internetNodeIds.includes(n.id))
+        : nodes.filter(n => n.type === 'Internet');
       if (startNodes.length === 0) return;
 
       const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)));
@@ -831,6 +835,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
    */
   startSimulation: (internetNodeIds) => {
     startSimulationInternal(internetNodeIds, set, get);
+  },
+  /**
+   * Public action to pause the simulation.
+   */
+  pauseSimulation: () => {
+    pauseSimulationInternal(set, simulationIntervalObj);
   },
   /**
    * Public action to stop the simulation.

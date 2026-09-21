@@ -10,14 +10,14 @@ describe('useSimulationControls & helpers', () => {
   it('getSimulationButtonTitle returns appropriate title', () => {
     expect(getSimulationButtonTitle(false, false, false)).toBe('Add an Internet card to start simulation');
     expect(getSimulationButtonTitle(true, true, false)).toBe('HPA requires Resource Limits on target workloads');
-    expect(getSimulationButtonTitle(true, false, true)).toBe('Stop Simulation');
+    expect(getSimulationButtonTitle(true, false, true)).toBe('Pause Simulation');
     expect(getSimulationButtonTitle(true, false, false)).toBe('Start Simulation');
   });
 
   it('getSimulationButtonClass returns appropriate classes', () => {
     expect(getSimulationButtonClass(false, false, false)).toContain('cursor-not-allowed');
-    expect(getSimulationButtonClass(true, true, true)).toContain('bg-red-600 animate-pulse');
-    expect(getSimulationButtonClass(true, true, false)).toContain('bg-red-500');
+    expect(getSimulationButtonClass(true, true, true)).toContain('bg-amber-600 animate-pulse');
+    expect(getSimulationButtonClass(true, true, false)).toContain('bg-amber-500');
     expect(getSimulationButtonClass(true, false, true)).toContain('bg-amber-500/50');
     expect(getSimulationButtonClass(true, false, false)).toContain('bg-emerald-500');
   });

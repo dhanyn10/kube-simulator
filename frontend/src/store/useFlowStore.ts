@@ -152,6 +152,10 @@ export const applyHistoryState = (json: string) => {
   }
 };
 
+if (typeof window !== 'undefined') {
+  (window as any).useFlowStore = flowStore;
+}
+
 export const useFlowStore = Object.assign(
   <T>(selector: (state: FlowState) => T) => useStore(flowStore, selector),
   flowStore

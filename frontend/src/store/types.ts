@@ -142,6 +142,7 @@ export interface FlowState {
   toggleAutosave: () => void;
   toggleAutofocus: () => void;
   startSimulation: (internetNodeIds?: string[]) => void;
+  pauseSimulation: () => void;
   stopSimulation: () => void;
   setSimulationSpeed: (speed: 1 | 5 | 10) => void;
   setMonitoringOpen: (open: boolean) => void;

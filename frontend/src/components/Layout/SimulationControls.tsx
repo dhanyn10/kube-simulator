@@ -1,44 +1,45 @@
-import { useMemo } from 'react';
-import { Play, Square } from 'lucide-react';
+import { Play, Pause, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSimulationControls } from '@/activities/layout';
-import { useFlowStore } from '@/store';
 
-export { getSimulationButtonTitle, getSimulationButtonClass } from '@/activities/layout';
+export { getSimulationButtonTitle, getSimulationButtonClass, getStopButtonClass } from '@/activities/layout';
 
 interface SimulationControlsProps {
   readonly isSimulating: boolean;
   readonly startSimulation: () => void;
   readonly stopSimulation: () => void;
+  readonly pauseSimulation?: () => void;
   readonly hasInternet: boolean;
   readonly hasHpaValidationError: boolean;
   readonly colorMode: 'dark' | 'light';
 }
 
+/**
+ * Presentational UI component for simulation control buttons and speed acceleration toggles.
+ */
 export const SimulationControls = ({
   isSimulating,
   startSimulation,
   stopSimulation,
+  pauseSimulation,
   hasInternet,
   hasHpaValidationError,
   colorMode
 }: SimulationControlsProps) => {
-  const { title, buttonClass } = useSimulationControls({
+  const {
+    title,
+    buttonClass,
+    stopButtonClass,
+    handlePause,
+    simulationSpeed,
+    setSimulationSpeed,
+    showSpeedControls,
+  } = useSimulationControls({
     isSimulating,
     hasInternet,
     hasHpaValidationError,
+    pauseSimulation,
   });
-
-  const nodes = useFlowStore((state) => state.nodes);
-  const simulationSpeed = useFlowStore((state) => state.simulationSpeed);
-  const setSimulationSpeed = useFlowStore((state) => state.setSimulationSpeed);
-
-  // Check if any Internet node has an active connectionProfile
-  const hasActiveProfile = useMemo(() => {
-    return nodes.some((n: any) => n.type === 'Internet' && n.data?.connectionProfile);
-  }, [nodes]);
-
-  const showSpeedControls = isSimulating && hasActiveProfile;
 
   return (
     <div
@@ -49,21 +50,52 @@ export const SimulationControls = ({
       )}
       style={{ '--wails-draggable': 'no-drag' }}
     >
-      <button
-        type="button"
-        onClick={() => isSimulating ? stopSimulation() : startSimulation()}
-        disabled={!hasInternet}
-        title={title}
-        className={cn(
-          "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
-          buttonClass
-        )}
-      >
-        {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
-        {isSimulating ? "Stop" : "Play"}
-      </button>
+      {isSimulating ? (
+        <div data-testid="simulation-button-group" className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handlePause}
+            disabled={!hasInternet}
+            title={hasHpaValidationError ? 'HPA requires Resource Limits on target workloads' : 'Pause Simulation'}
+            className={cn(
+              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+              buttonClass
+            )}
+          >
+            <Pause size={10} fill="currentColor" />
+            Pause
+          </button>
+          <button
+            type="button"
+            onClick={stopSimulation}
+            disabled={!hasInternet}
+            title="Stop Simulation"
+            className={cn(
+              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+              stopButtonClass
+            )}
+          >
+            <Square size={10} fill="currentColor" />
+            Stop
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => startSimulation()}
+          disabled={!hasInternet}
+          title={title}
+          className={cn(
+            "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+            buttonClass
+          )}
+        >
+          <Play size={10} fill="currentColor" />
+          Play
+        </button>
+      )}
 
-      {/* Cities: Skylines 1 style speed acceleration button group */}
+      {/* Speed acceleration button group */}
       {showSpeedControls && (
         <div
           data-testid="speed-controls-group"
