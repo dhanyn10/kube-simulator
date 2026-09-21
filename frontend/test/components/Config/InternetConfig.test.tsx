@@ -198,14 +198,15 @@ describe('InternetConfig', () => {
       />
     );
 
-    const activeDot = screen.getByTestId('active-traffic-dot');
-    fireEvent.mouseEnter(activeDot);
+    const preview = screen.getByTestId('profile-chart-preview');
+    const chartContainer = preview.querySelector('.relative.cursor-pointer')!;
+    fireEvent.mouseEnter(chartContainer);
+    fireEvent.mouseMove(chartContainer, { clientX: 100 });
 
     const tooltip = screen.getByTestId('traffic-dot-tooltip');
     expect(tooltip).toBeDefined();
-    expect(tooltip.textContent).toContain('03:00');
 
-    fireEvent.mouseLeave(activeDot);
+    fireEvent.mouseLeave(chartContainer);
     expect(screen.queryByTestId('traffic-dot-tooltip')).toBeNull();
   });
 

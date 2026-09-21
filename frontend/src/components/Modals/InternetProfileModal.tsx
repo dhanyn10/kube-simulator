@@ -64,19 +64,28 @@ const MiniCurvePreview = ({
   const currentVal = values[safeHourIdx] ?? 0;
   const currentHour = HOURS_OF_DAY[safeHourIdx] || '00:00';
 
-  const handleMouseEnter = () => {
-    setFrozenHourIndex(liveHourIdx);
+  const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, (mouseX - padLeft) / chartWidth));
+    const hourIdx = Math.round(ratio * (HOURS_OF_DAY.length - 1));
+    setFrozenHourIndex(hourIdx);
     setIsHovered(true);
   };
 
-  const handleMouseLeave = () => {
+  const handleChartMouseLeave = () => {
     setFrozenHourIndex(null);
     setIsHovered(false);
   };
 
   return (
-    <div className="relative my-1">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible">
+    <div
+      className="relative my-1 cursor-pointer select-none"
+      onMouseEnter={handleChartMouseMove}
+      onMouseMove={handleChartMouseMove}
+      onMouseLeave={handleChartMouseLeave}
+    >
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible pointer-events-none">
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
@@ -91,12 +100,9 @@ const MiniCurvePreview = ({
           <g
             key={`mini-traffic-dot-${safeHourIdx}`}
             data-testid="mini-active-traffic-dot"
-            className="group/minidot cursor-pointer"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
           >
             <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-            <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
+            <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform" strokeWidth="1.5" />
           </g>
         )}
       </svg>
@@ -177,14 +183,6 @@ const InteractiveTrafficChart = ({
   const liveTrafficIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   const activeTrafficIdx = frozenTrafficHourIndex !== null ? frozenTrafficHourIndex : liveTrafficIdx;
 
-  const handleTrafficDotMouseEnter = () => {
-    setFrozenTrafficHourIndex(liveTrafficIdx);
-  };
-
-  const handleTrafficDotMouseLeave = () => {
-    setFrozenTrafficHourIndex(null);
-  };
-
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     setDraggingHour(hour);
@@ -203,6 +201,30 @@ const InteractiveTrafficChart = ({
     const finalVal = Math.max(10, Math.min(maxVal, calculatedVal));
 
     onUpdatePoint(draggingHour, finalVal);
+  };
+
+  const handleSvgPointerMove = (e: React.PointerEvent) => {
+    if (draggingHour) {
+      handlePointerMove(e);
+      return;
+    }
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, (clientX - padLeft) / chartWidth));
+    const hourIdx = Math.round(ratio * (HOURS_OF_DAY.length - 1));
+    const pt = points[hourIdx] || points[0];
+    setHoveredPoint({ hour: pt.hour, val: pt.val, x: pt.x, y: pt.y });
+    setFrozenTrafficHourIndex(hourIdx);
+  };
+
+  const handleSvgPointerLeave = (e: React.PointerEvent) => {
+    if (draggingHour) {
+      handlePointerUp(e);
+      return;
+    }
+    setHoveredPoint(null);
+    setFrozenTrafficHourIndex(null);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -253,7 +275,8 @@ const InteractiveTrafficChart = ({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        onPointerMove={handlePointerMove}
+        onPointerMove={handleSvgPointerMove}
+        onPointerLeave={handleSvgPointerLeave}
         onPointerUp={handlePointerUp}
         className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
       >
@@ -342,14 +365,6 @@ const InteractiveTrafficChart = ({
                 r="12"
                 className="fill-transparent cursor-ns-resize"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-                onMouseEnter={() => {
-                  if (isCurrentTrafficHour) handleTrafficDotMouseEnter();
-                  setHoveredPoint({ hour: pt.hour, val: pt.val, x: pt.x, y: pt.y });
-                }}
-                onMouseLeave={() => {
-                  if (isCurrentTrafficHour) handleTrafficDotMouseLeave();
-                  setHoveredPoint(null);
-                }}
               />
 
               {/* Visible Circle with Hover Freeze and Custom Floating Tooltip */}
@@ -367,14 +382,6 @@ const InteractiveTrafficChart = ({
                 )}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-                onMouseEnter={() => {
-                  if (isCurrentTrafficHour) handleTrafficDotMouseEnter();
-                  setHoveredPoint({ hour: pt.hour, val: pt.val, x: pt.x, y: pt.y });
-                }}
-                onMouseLeave={() => {
-                  if (isCurrentTrafficHour) handleTrafficDotMouseLeave();
-                  setHoveredPoint(null);
-                }}
               />
 
               {/* Value Label (only when dragging) */}

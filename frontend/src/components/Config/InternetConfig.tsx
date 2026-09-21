@@ -58,18 +58,22 @@ const ReadOnlyProfileChart = ({
   const safeHourIdx = frozenHourIndex !== null ? frozenHourIndex : liveHourIdx;
   const currentPt = points[safeHourIdx] || points[0];
 
-  const handleMouseEnter = () => {
-    setFrozenHourIndex(liveHourIdx);
+  const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, (mouseX - padLeft) / chartWidth));
+    const hourIdx = Math.round(ratio * (HOURS_OF_DAY.length - 1));
+    setFrozenHourIndex(hourIdx);
     setIsHovered(true);
   };
 
-  const handleMouseLeave = () => {
+  const handleChartMouseLeave = () => {
     setFrozenHourIndex(null);
     setIsHovered(false);
   };
 
   return (
-    <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5 relative" data-testid="profile-chart-preview">
+    <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5 relative select-none" data-testid="profile-chart-preview">
       <div className="flex items-center justify-between text-[11px] font-bold">
         <div className="flex items-center gap-1.5 text-blue-400">
           <Activity size={13} className="shrink-0" />
@@ -83,8 +87,13 @@ const ReadOnlyProfileChart = ({
         )}
       </div>
 
-      <div className="relative">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible">
+      <div
+        className="relative cursor-pointer py-1"
+        onMouseEnter={handleChartMouseMove}
+        onMouseMove={handleChartMouseMove}
+        onMouseLeave={handleChartMouseLeave}
+      >
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible pointer-events-none">
           <defs>
             <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
@@ -98,12 +107,9 @@ const ReadOnlyProfileChart = ({
           <g
             key={`traffic-dot-sidebar-${safeHourIdx}`}
             data-testid="active-traffic-dot"
-            className="group/dot cursor-pointer"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
           >
             <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-            <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
+            <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform" strokeWidth="1.5" />
           </g>
         </svg>
 

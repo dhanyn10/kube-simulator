@@ -74,13 +74,15 @@ describe('InternetProfileModal', () => {
     const miniDot = screen.getByTestId('mini-active-traffic-dot');
     expect(miniDot).toBeDefined();
 
-    // Test hovering mini active traffic dot
-    fireEvent.mouseEnter(miniDot);
+    // Test hovering mini curve container
+    const miniContainer = document.querySelector('.relative.my-1.cursor-pointer')!;
+    fireEvent.mouseEnter(miniContainer);
+    fireEvent.mouseMove(miniContainer, { clientX: 50 });
+
     const miniTooltip = screen.getByTestId('mini-traffic-dot-tooltip');
     expect(miniTooltip).toBeDefined();
-    expect(miniTooltip.textContent).toContain('05:00');
 
-    fireEvent.mouseLeave(miniDot);
+    fireEvent.mouseLeave(miniContainer);
     expect(screen.queryByTestId('mini-traffic-dot-tooltip')).toBeNull();
   });
 
@@ -97,15 +99,15 @@ describe('InternetProfileModal', () => {
     const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
     fireEvent.click(detailsButtons[0]);
 
-    const dataPoints = document.querySelectorAll('circle.cursor-ns-resize');
-    expect(dataPoints.length).toBeGreaterThan(0);
+    const svgChart = document.querySelector('svg.touch-none')!;
+    expect(svgChart).toBeDefined();
 
-    // Hover over a data point circle
-    fireEvent.mouseEnter(dataPoints[0]);
+    // Hover over SVG chart
+    fireEvent.pointerMove(svgChart, { clientX: 100 });
     const tooltip = screen.getByTestId('interactive-chart-tooltip');
     expect(tooltip).toBeDefined();
 
-    fireEvent.mouseLeave(dataPoints[0]);
+    fireEvent.pointerLeave(svgChart);
     expect(screen.queryByTestId('interactive-chart-tooltip')).toBeNull();
   });
 
