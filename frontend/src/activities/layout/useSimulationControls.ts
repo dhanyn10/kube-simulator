@@ -5,7 +5,7 @@ export const getSimulationButtonTitle = (
 ): string => {
   if (!hasInternet) return 'Add an Internet card to start simulation';
   if (hasHpaValidationError) return 'HPA requires Resource Limits on target workloads';
-  return isSimulating ? 'Stop Simulation' : 'Start Simulation';
+  return isSimulating ? 'Pause Simulation' : 'Start Simulation';
 };
 
 export const getSimulationButtonClass = (
@@ -17,8 +17,8 @@ export const getSimulationButtonClass = (
 
   if (isSimulating) {
     return hasHpaValidationError
-      ? 'bg-red-600 animate-pulse text-white'
-      : 'bg-red-500 text-white hover:bg-red-600';
+      ? 'bg-amber-600 animate-pulse text-white hover:bg-amber-700'
+      : 'bg-amber-500 text-white hover:bg-amber-600';
   }
 
   return hasHpaValidationError

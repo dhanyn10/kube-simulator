@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Play, Square } from 'lucide-react';
+import { Play, Pause, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSimulationControls } from '@/activities/layout';
 import { useFlowStore } from '@/store';
@@ -10,6 +10,7 @@ interface SimulationControlsProps {
   readonly isSimulating: boolean;
   readonly startSimulation: () => void;
   readonly stopSimulation: () => void;
+  readonly pauseSimulation?: () => void;
   readonly hasInternet: boolean;
   readonly hasHpaValidationError: boolean;
   readonly colorMode: 'dark' | 'light';
@@ -19,6 +20,7 @@ export const SimulationControls = ({
   isSimulating,
   startSimulation,
   stopSimulation,
+  pauseSimulation: pauseSimulationProp,
   hasInternet,
   hasHpaValidationError,
   colorMode
@@ -32,6 +34,8 @@ export const SimulationControls = ({
   const nodes = useFlowStore((state) => state.nodes);
   const simulationSpeed = useFlowStore((state) => state.simulationSpeed);
   const setSimulationSpeed = useFlowStore((state) => state.setSimulationSpeed);
+  const storePauseSimulation = useFlowStore((state) => state.pauseSimulation);
+  const handlePause = pauseSimulationProp || storePauseSimulation;
 
   // Check if any Internet node has an active connectionProfile
   const hasActiveProfile = useMemo(() => {
@@ -49,19 +53,52 @@ export const SimulationControls = ({
       )}
       style={{ '--wails-draggable': 'no-drag' }}
     >
-      <button
-        type="button"
-        onClick={() => isSimulating ? stopSimulation() : startSimulation()}
-        disabled={!hasInternet}
-        title={title}
-        className={cn(
-          "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
-          buttonClass
-        )}
-      >
-        {isSimulating ? <Square size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
-        {isSimulating ? "Stop" : "Play"}
-      </button>
+      {isSimulating ? (
+        <div data-testid="simulation-button-group" className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handlePause}
+            disabled={!hasInternet}
+            title={hasHpaValidationError ? 'HPA requires Resource Limits on target workloads' : 'Pause Simulation'}
+            className={cn(
+              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+              buttonClass
+            )}
+          >
+            <Pause size={10} fill="currentColor" />
+            Pause
+          </button>
+          <button
+            type="button"
+            onClick={stopSimulation}
+            disabled={!hasInternet}
+            title="Stop Simulation"
+            className={cn(
+              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+              hasHpaValidationError
+                ? "bg-red-600 animate-pulse text-white"
+                : "bg-red-500 text-white hover:bg-red-600"
+            )}
+          >
+            <Square size={10} fill="currentColor" />
+            Stop
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startSimulation}
+          disabled={!hasInternet}
+          title={title}
+          className={cn(
+            "h-7 px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+            buttonClass
+          )}
+        >
+          <Play size={10} fill="currentColor" />
+          Play
+        </button>
+      )}
 
       {/* Cities: Skylines 1 style speed acceleration button group */}
       {showSpeedControls && (

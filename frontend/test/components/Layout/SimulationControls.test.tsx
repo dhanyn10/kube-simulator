@@ -27,19 +27,30 @@ describe('SimulationControls', () => {
     expect(startSimulation).toHaveBeenCalled();
   });
 
-  it('renders stop button when simulating', () => {
+  it('renders pause and stop button group when simulating', () => {
     const startSimulation = vi.fn();
     const stopSimulation = vi.fn();
+    const pauseSimulation = vi.fn();
     render(
       <SimulationControls
         isSimulating={true}
         startSimulation={startSimulation}
         stopSimulation={stopSimulation}
+        pauseSimulation={pauseSimulation}
         hasInternet={true}
         hasHpaValidationError={false}
         colorMode="dark"
       />
     );
+
+    expect(screen.getByTestId('simulation-button-group')).toBeDefined();
+
+    const pauseButton = screen.getByRole('button', { name: /pause/i });
+    expect(pauseButton.textContent).toContain('Pause');
+    expect(pauseButton.title).toBe('Pause Simulation');
+
+    fireEvent.click(pauseButton);
+    expect(pauseSimulation).toHaveBeenCalled();
 
     const stopButton = screen.getByRole('button', { name: /stop/i });
     expect(stopButton.textContent).toContain('Stop');
@@ -49,12 +60,13 @@ describe('SimulationControls', () => {
     expect(stopSimulation).toHaveBeenCalled();
   });
 
-  it('shows red pulsing button when simulating with HPA validation error in light mode', () => {
+  it('shows red pulsing stop button when simulating with HPA validation error in light mode', () => {
     render(
       <SimulationControls
         isSimulating={true}
         startSimulation={vi.fn()}
         stopSimulation={vi.fn()}
+        pauseSimulation={vi.fn()}
         hasInternet={true}
         hasHpaValidationError={true}
         colorMode="light"
