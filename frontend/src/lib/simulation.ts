@@ -221,11 +221,16 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
-  const step = 1000 * speed;
-  if (currentTraffic < targetTraffic) {
-    nextTraffic = Math.min(targetTraffic, currentTraffic + step);
-  } else if (currentTraffic > targetTraffic) {
-    nextTraffic = Math.max(targetTraffic, currentTraffic - step * 2);
+  // Hold traffic at 0 during container initialization startup delay (ticks 1..3)
+  if (ctx.ticks <= 3) {
+    nextTraffic = 0;
+  } else {
+    const step = 1000 * speed;
+    if (currentTraffic < targetTraffic) {
+      nextTraffic = Math.min(targetTraffic, currentTraffic + step);
+    } else if (currentTraffic > targetTraffic) {
+      nextTraffic = Math.max(targetTraffic, currentTraffic - step * 2);
+    }
   }
 
   let hasChanges = false;

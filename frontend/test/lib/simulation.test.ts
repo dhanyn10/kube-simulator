@@ -96,15 +96,21 @@ describe('simulation test suite', () => {
     expect(calculateReachability([baseNodes[1]], edgeMap, ['e1']).has('d1')).toBe(false);
   });
 
-  it('internet traffic logic - increment', () => {
-    const ctx = getMockCtx();
+  it('internet traffic logic - increment after startup ticks delay', () => {
+    const ctx = getMockCtx({ ticks: 4 });
     const res = updateInternetTraffic(baseNodes[1], ctx);
     expect(res.traffic).toBe(1000);
     expect(ctx.updatedNodes[1].data.currentTraffic).toBe(1000);
   });
 
+  it('internet traffic logic - holds at 0 during initial startup ticks', () => {
+    const ctx = getMockCtx({ ticks: 2 });
+    const res = updateInternetTraffic(baseNodes[1], ctx);
+    expect(res.traffic).toBe(0);
+  });
+
   it('internet traffic logic - decrement', () => {
-    const ctx = getMockCtx();
+    const ctx = getMockCtx({ ticks: 4 });
     const node = createNode('i1', 'Internet', { traffic: 500, currentTraffic: 1000 });
     // Replace in updatedNodes
     ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
@@ -114,8 +120,8 @@ describe('simulation test suite', () => {
   });
 
   it('internet traffic logic - unchanged when current equals target and hour index matches', () => {
-    const ctx = getMockCtx();
-    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000, currentHourIndex: 0 });
+    const ctx = getMockCtx({ ticks: 4 });
+    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000, currentHourIndex: 1 });
     ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
     const res = updateInternetTraffic(node, ctx);
     expect(res.traffic).toBe(1000);
