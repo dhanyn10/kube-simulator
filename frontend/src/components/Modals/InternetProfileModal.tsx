@@ -57,6 +57,8 @@ const MiniCurvePreview = ({
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   const currentPt = points[safeHourIdx] || points[0];
+  const currentVal = values[safeHourIdx] ?? 0;
+  const currentHour = HOURS_OF_DAY[safeHourIdx] || '00:00';
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible my-1">
@@ -69,10 +71,12 @@ const MiniCurvePreview = ({
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Animated Solid Traffic Position Dot for Active Profile during Simulation */}
-      {isSimulating && isApplied && (
-        <g key={`mini-traffic-dot-${safeHourIdx}`} data-testid="mini-active-traffic-dot">
-          <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+      {/* Traffic Position Dot with Hover Tooltip for Applied Profile */}
+      {isApplied && (
+        <g key={`mini-traffic-dot-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
+          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+          <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
+          <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
         </g>
       )}
     </svg>
@@ -291,13 +295,13 @@ const InteractiveTrafficChart = ({
               />
 
 
-              {/* Visible Circle */}
+              {/* Visible Circle with Hover Tooltip */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
                 r={isDraggingThis || isCurrentTrafficHour ? 6 : 4}
                 className={cn(
-                  "cursor-ns-resize transition-all",
+                  "cursor-ns-resize transition-all hover:scale-125",
                   isCurrentTrafficHour
                     ? "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50"
                     : isDraggingThis
@@ -306,7 +310,9 @@ const InteractiveTrafficChart = ({
                 )}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              />
+              >
+                <title>{`${pt.hour} - ${pt.val.toLocaleString()} visits`}</title>
+              </circle>
 
               {/* Value Label (only when dragging or for specific key points) */}
               {isDraggingThis && (

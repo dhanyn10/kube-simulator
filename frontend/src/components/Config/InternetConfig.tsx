@@ -79,13 +79,12 @@ const ReadOnlyProfileChart = ({
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Animated Solid Traffic Position Dot during Simulation */}
-        {isSimulating && (
-          <g key={`traffic-dot-sidebar-${safeHourIdx}`} data-testid="active-traffic-dot">
-            {/* Center solid dot */}
-            <circle cx={currentPt.x} cy={currentPt.y} r="4" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
-          </g>
-        )}
+        {/* Traffic Position Dot with Hover Tooltip */}
+        <g key={`traffic-dot-sidebar-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
+          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+          <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
+          <title>{`${currentPt.hour} - ${currentPt.val.toLocaleString()} visits`}</title>
+        </g>
       </svg>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
