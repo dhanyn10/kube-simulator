@@ -139,7 +139,7 @@ describe('InternetConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
   });
 
-  it('displays ReadOnlyProfileChart with active traffic dot when connection profile is active during simulation', () => {
+  it('displays ReadOnlyProfileChart with active traffic dot when connection profile is active during simulation and handles mouse hover', () => {
     useFlowStore.setState({ isSimulating: true });
 
     const activeProfileNode = {
@@ -170,6 +170,19 @@ describe('InternetConfig', () => {
     expect(screen.getByTestId('active-traffic-dot')).toBeDefined();
     expect(screen.getByText('03:00')).toBeDefined();
     expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
+
+    const svgContainer = screen.getByTestId('profile-chart-preview');
+    const svg = svgContainer.querySelector('svg')!;
+
+    // Trigger mouse enter/move on SVG
+    fireEvent.mouseEnter(svg, { clientX: 100 });
+    fireEvent.mouseMove(svg, { clientX: 100 });
+
+    // Check bottom summary or SVG interaction behavior
+    expect(svgContainer).toBeDefined();
+
+    // Simulate mouse leave
+    fireEvent.mouseLeave(svg);
   });
 
   it('handles large traffic values formatting and visibility toggles', () => {

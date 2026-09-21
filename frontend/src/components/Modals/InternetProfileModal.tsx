@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { Globe, Plus, Trash2, Check, Activity, Sparkles, LayoutGrid, ArrowLeft, Eye, Edit2, Shuffle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
@@ -20,13 +20,17 @@ interface InternetProfileModalProps {
 const MiniCurvePreview = ({
   profile,
   isApplied,
-  currentHourIndex
+  currentHourIndex,
+  isRed
 }: {
   readonly profile: InternetProfileItem;
   readonly isApplied?: boolean;
   readonly currentHourIndex?: number;
+  readonly isRed?: boolean;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
+  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+
   const width = 220;
   const height = 55;
   const padLeft = 10;
@@ -60,8 +64,31 @@ const MiniCurvePreview = ({
   const currentVal = values[safeHourIdx] ?? 0;
   const currentHour = HOURS_OF_DAY[safeHourIdx] || '00:00';
 
+  const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
+  const hoveredVal = hoveredHourIdx !== null ? (values[hoveredHourIdx] ?? 0) : 0;
+  const hoveredHour = hoveredHourIdx !== null ? (HOURS_OF_DAY[hoveredHourIdx] || '00:00') : '00:00';
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const relativeX = (mouseX / rect.width) * width;
+    const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
+    const ratio = (clampedX - padLeft) / chartWidth;
+    const hourIdx = Math.min(23, Math.max(0, Math.round(ratio * (HOURS_OF_DAY.length - 1))));
+    setHoveredHourIdx(hourIdx);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredHourIdx(null);
+  };
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible my-1">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full h-12 overflow-visible my-1 cursor-pointer"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
@@ -71,12 +98,32 @@ const MiniCurvePreview = ({
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Traffic Position Dot with Hover Tooltip for Applied Profile */}
+      {/* Traffic Position Dot for Applied Profile (Always locked at safeHourIdx) */}
       {isApplied && (
-        <g key={`mini-traffic-dot-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
+        <g key={`mini-traffic-dot-active-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
+          <circle
+            cx={currentPt.x}
+            cy={currentPt.y}
+            r="3.5"
+            className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125"}
+            strokeWidth="1.5"
+          />
           <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
+        </g>
+      )}
+
+      {/* Hover Position Indicator Dot */}
+      {hoveredPt && (
+        <g key={`mini-traffic-dot-hover-${hoveredHourIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
+          <circle
+            cx={hoveredPt.x}
+            cy={hoveredPt.y}
+            r="4"
+            className={hoveredHourIdx === safeHourIdx ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900") : "fill-blue-300 stroke-white dark:stroke-slate-900"}
+            strokeWidth="1.5"
+          />
+          <title>{`${hoveredHour} - ${hoveredVal.toLocaleString()} visits`}</title>
         </g>
       )}
     </svg>
@@ -88,6 +135,7 @@ const InteractiveTrafficChart = ({
   colorMode,
   isApplied,
   currentHourIndex,
+  isRed,
   onUpdatePoint,
   onUpdateName
 }: {
@@ -95,12 +143,14 @@ const InteractiveTrafficChart = ({
   readonly colorMode: string;
   readonly isApplied?: boolean;
   readonly currentHourIndex?: number;
+  readonly isRed?: boolean;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
   readonly onUpdateName: (newName: string) => void;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
+  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
 
   const width = 680;
   const height = 280;
@@ -135,12 +185,24 @@ const InteractiveTrafficChart = ({
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
+  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     setDraggingHour(hour);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      const clientX = e.clientX - rect.left;
+      const svgX = (clientX / rect.width) * width;
+      const clampedX = Math.max(padLeft, Math.min(width - padRight, svgX));
+      const ratioX = (clampedX - padLeft) / chartWidth;
+      const hourIdx = Math.min(23, Math.max(0, Math.round(ratioX * (HOURS_OF_DAY.length - 1))));
+      setHoveredHourIdx(hourIdx);
+    }
+
     if (!draggingHour || !svgRef.current) return;
 
     const rect = svgRef.current.getBoundingClientRect();
@@ -160,6 +222,10 @@ const InteractiveTrafficChart = ({
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
       setDraggingHour(null);
     }
+  };
+
+  const handlePointerLeave = () => {
+    setHoveredHourIdx(null);
   };
 
   return (
@@ -205,6 +271,7 @@ const InteractiveTrafficChart = ({
         viewBox={`0 0 ${width} ${height}`}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
         className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
       >
         <defs>
@@ -267,21 +334,22 @@ const InteractiveTrafficChart = ({
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
+          const isHoveredThis = hoveredHourIdx === idx;
+          const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
-          const isCurrentTrafficHour = isSimulating && isApplied && idx === ((currentHourIndex ?? 0) % 24);
 
           return (
             <g key={`pt-${pt.hour}`}>
-              {/* Vertical Guide Line when dragging or active traffic tick */}
-              {(isDraggingThis || isCurrentTrafficHour) && (
+              {/* Vertical Guide Line when dragging, hovered, or active simulation tick */}
+              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
                 <line
                   x1={pt.x}
                   y1={padTop}
                   x2={pt.x}
                   y2={padTop + chartHeight}
-                  stroke={isCurrentTrafficHour ? "#34d399" : "#3b82f6"}
+                  stroke={isHoveredThis && idx === safeHourIdx ? (isRed ? "#f43f5e" : "#10b981") : (isSimulatingActive && !isHoveredThis ? (isRed ? "#f43f5e" : "#34d399") : "#3b82f6")}
                   strokeDasharray="2 2"
-                  strokeWidth={isCurrentTrafficHour ? "2" : "1.5"}
+                  strokeWidth={isSimulatingActive || isHoveredThis ? "2" : "1.5"}
                 />
               )}
 
@@ -294,36 +362,52 @@ const InteractiveTrafficChart = ({
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-
-              {/* Visible Circle with Hover Tooltip */}
+              {/* Visible Circle */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isDraggingThis || isCurrentTrafficHour ? 6 : 4}
+                r={isDraggingThis || isHoveredThis || isSimulatingActive ? 6 : 4}
                 className={cn(
                   "cursor-ns-resize transition-all hover:scale-125",
-                  isCurrentTrafficHour
-                    ? "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50"
-                    : isDraggingThis
-                      ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
-                      : "fill-blue-500 stroke-white dark:stroke-slate-900"
+                  isHoveredThis && idx === safeHourIdx
+                    ? (isRed ? "fill-rose-500 stroke-white ring-4 ring-rose-500/50" : "fill-emerald-400 stroke-white ring-4 ring-emerald-500/50")
+                    : isSimulatingActive && !isHoveredThis
+                      ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 ring-4 ring-rose-500/50" : "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50")
+                      : isDraggingThis || isHoveredThis
+                        ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
+                        : "fill-blue-500 stroke-white dark:stroke-slate-900"
                 )}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              >
-                <title>{`${pt.hour} - ${pt.val.toLocaleString()} visits`}</title>
-              </circle>
+              />
 
-              {/* Value Label (only when dragging or for specific key points) */}
-              {isDraggingThis && (
-                <text
-                  x={pt.x}
-                  y={pt.y - 10}
-                  textAnchor="middle"
-                  className="text-[10px] font-mono font-bold fill-blue-400 select-none"
-                >
-                  {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
-                </text>
+              {/* Tooltip Card directly on chart when hovered or dragging */}
+              {(isDraggingThis || isHoveredThis) && (
+                <g transform={`translate(${pt.x}, ${Math.max(padTop + 20, pt.y - 32)})`}>
+                  <rect
+                    x="-45"
+                    y="-14"
+                    width="90"
+                    height="22"
+                    rx="6"
+                    className={cn(
+                      "shadow-lg backdrop-blur-md",
+                      colorMode === 'dark' ? "fill-slate-900/90 stroke-blue-500/50" : "fill-white/95 stroke-blue-400"
+                    )}
+                    strokeWidth="1"
+                  />
+                  <text
+                    x="0"
+                    y="1"
+                    textAnchor="middle"
+                    className={cn(
+                      "text-[10px] font-mono font-bold select-none",
+                      colorMode === 'dark' ? "fill-blue-400" : "fill-blue-600"
+                    )}
+                  >
+                    {`${pt.hour} • ${pt.val.toLocaleString()}`}
+                  </text>
+                </g>
               )}
 
               {/* Hour Label */}
@@ -357,6 +441,17 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
   const cardName = selectedNode?.data?.label || 'Internet';
 
   const currentHourIndex = selectedNode?.data?.currentHourIndex;
+
+  const edges = useFlowStore((state) => state.edges);
+  const nodes = useFlowStore((state) => state.nodes);
+
+  const outgoingEdges = edges.filter((e) => String(e.source) === String(selectedNode?.id));
+  const isRed = useMemo(() => {
+    if (outgoingEdges.length === 0) return true;
+    if (outgoingEdges.some((e) => e.data?.validationError)) return true;
+    const targets = outgoingEdges.map((e) => nodes.find((n) => String(n.id) === String(e.target)));
+    return targets.some((t) => !t || (t.type === 'Pod' || t.type === 'Deployment') && t.data?.status !== 'ready');
+  }, [outgoingEdges, nodes]);
 
   const {
     colorMode,
@@ -470,7 +565,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       </h4>
 
                       {/* Curve Preview */}
-                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} />
+                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} isRed={isRed} />
                     </div>
 
                     {/* Metrics Summary */}
@@ -574,6 +669,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               colorMode={colorMode}
               isApplied={detailProfile.name === activeProfileName}
               currentHourIndex={currentHourIndex}
+              isRed={isRed}
               onUpdatePoint={handleUpdateDetailPoint}
               onUpdateName={handleUpdateDetailName}
             />
@@ -625,6 +721,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               colorMode={colorMode}
               isApplied={false}
               currentHourIndex={currentHourIndex}
+              isRed={isRed}
               onUpdatePoint={handleUpdateCustomPoint}
               onUpdateName={setNewProfileName}
             />
