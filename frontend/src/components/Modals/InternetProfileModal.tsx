@@ -69,11 +69,9 @@ const MiniCurvePreview = ({
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Animated Traffic Position Dot & Ripple Wave Effect for Active Profile during Simulation */}
+      {/* Animated Solid Traffic Position Dot for Active Profile during Simulation */}
       {isSimulating && isApplied && (
         <g key={`mini-traffic-dot-${safeHourIdx}`} data-testid="mini-active-traffic-dot">
-          <circle cx={currentPt.x} cy={currentPt.y} r="9" className="fill-none stroke-blue-400/60 animate-ping" strokeWidth="1" />
-          <circle cx={currentPt.x} cy={currentPt.y} r="5" className="fill-none stroke-blue-400/80 animate-pulse" strokeWidth="1.5" />
           <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
         </g>
       )}
@@ -292,13 +290,6 @@ const InteractiveTrafficChart = ({
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Animated Traffic Position Dot & Ripple Wave Effect during Simulation */}
-              {isCurrentTrafficHour && (
-                <g key={`interactive-traffic-dot-${idx}`} data-testid="interactive-active-traffic-dot">
-                  <circle cx={pt.x} cy={pt.y} r="14" className="fill-none stroke-emerald-400/60 animate-ping" strokeWidth="1.5" />
-                  <circle cx={pt.x} cy={pt.y} r="9" className="fill-none stroke-emerald-400/80 animate-pulse" strokeWidth="2" />
-                </g>
-              )}
 
               {/* Visible Circle */}
               <circle

@@ -283,22 +283,17 @@ export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationConte
 /**
  * Schedules automated recovery for crashing pods after a delay.
  */
-export const scheduleRecovery = (dep: Node, podId: string, ctx: SimulationContext) => {
+export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationContext) => {
   setTimeout(() => {
     const currentState = ctx.get();
     const nodeToRecover = currentState.nodes.find(n => n.id === podId);
     if (nodeToRecover?.data.status !== 'crashing') return;
 
-    currentState.deleteNodes([nodeToRecover]);
-    setTimeout(() => {
-      const latestState = ctx.get();
-      const parentDep = latestState.nodes.find(n => n.id === dep.id);
-      if (!parentDep) return;
+    const pData = nodeToRecover.data as K8sNodeData;
+    const isReadyConfigured = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
+    const nextStatus = isReadyConfigured ? 'ready' : 'pending';
 
-      const { updatedDeployment, laidOut } = syncDeployment(parentDep, latestState.nodes, 0, ctx.get);
-      const filteredNodes = latestState.nodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
-      ctx.set({ nodes: [...filteredNodes, updatedDeployment, ...laidOut] });
-    }, 2000);
+    currentState.updateNodeData?.(podId, { status: nextStatus, simulatedFailureCM: undefined });
   }, 3000);
 };
 

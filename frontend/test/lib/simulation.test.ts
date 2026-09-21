@@ -312,48 +312,30 @@ describe('simulation test suite', () => {
     expect(typeof res.hasChanges).toBe('boolean');
   });
 
-  it('scheduleRecovery recovers a crashing pod and handles parent deployment recovery resync', () => {
-      const pod = createNode('pod1', 'Pod', { status: 'crashing' });
-      const deleteNodes = vi.fn();
-      const setMock = vi.fn();
+  it('scheduleRecovery recovers a crashing pod in-place without deleting it', () => {
+      const pod = createNode('pod1', 'Pod', { status: 'crashing', webserver: 'nginx' });
+      const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
-          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], deleteNodes }),
-          set: setMock
+          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock })
       });
 
       scheduleRecovery(baseNodes[0], 'pod1', ctx);
 
-      // Advance time for first timeout (3000ms)
       vi.advanceTimersByTime(3000);
-      expect(deleteNodes).toHaveBeenCalled();
-
-      // Advance time for second timeout (2000ms)
-      vi.advanceTimersByTime(2000);
-      expect(setMock).toHaveBeenCalled();
+      expect(updateNodeDataMock).toHaveBeenCalledWith('pod1', { status: 'ready', simulatedFailureCM: undefined });
   });
 
-  it('scheduleRecovery returns early if parent deployment is missing after deletion', () => {
-      const pod = createNode('pod1', 'Pod', { status: 'crashing' });
-      const deleteNodes = vi.fn();
-      const setMock = vi.fn();
-
-      // Second get() call returns state without parent deployment 'd1'
-      const getMock = vi.fn()
-        .mockReturnValueOnce({ nodes: [baseNodes[0], pod], deleteNodes })
-        .mockReturnValueOnce({ nodes: [pod], deleteNodes });
-
+  it('scheduleRecovery returns early if pod status is no longer crashing', () => {
+      const pod = createNode('pod1', 'Pod', { status: 'ready', webserver: 'nginx' });
+      const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
-          get: getMock,
-          set: setMock
+          get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock })
       });
 
       scheduleRecovery(baseNodes[0], 'pod1', ctx);
 
       vi.advanceTimersByTime(3000);
-      expect(deleteNodes).toHaveBeenCalled();
-
-      vi.advanceTimersByTime(2000);
-      expect(setMock).not.toHaveBeenCalled();
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
   });
 
   it('covers remaining branches in simulation.ts: checkPvcReadiness without connected PVCs, scheduleRecovery with non-crashing pod, and HPA target CPU ratio within 10%', () => {

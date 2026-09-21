@@ -79,13 +79,9 @@ const ReadOnlyProfileChart = ({
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Animated Traffic Position Dot & Ripple Wave Effect during Simulation */}
+        {/* Animated Solid Traffic Position Dot during Simulation */}
         {isSimulating && (
           <g key={`traffic-dot-sidebar-${safeHourIdx}`} data-testid="active-traffic-dot">
-            {/* Outer expanding ripple wave ring 1 */}
-            <circle cx={currentPt.x} cy={currentPt.y} r="10" className="fill-none stroke-blue-400/60 animate-ping" strokeWidth="1" />
-            {/* Outer expanding ripple wave ring 2 */}
-            <circle cx={currentPt.x} cy={currentPt.y} r="6" className="fill-none stroke-blue-400/80 animate-pulse" strokeWidth="1.5" />
             {/* Center solid dot */}
             <circle cx={currentPt.x} cy={currentPt.y} r="4" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
           </g>
