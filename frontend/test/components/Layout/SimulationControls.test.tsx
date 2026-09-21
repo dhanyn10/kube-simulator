@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SimulationControls } from '@/components/Layout/SimulationControls';
+import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
 
 describe('SimulationControls', () => {
@@ -95,5 +96,47 @@ describe('SimulationControls', () => {
 
     const playButton = screen.getByRole('button', { name: /play/i });
     expect(playButton.title).toBe('HPA requires Resource Limits on target workloads');
+  });
+
+  it('renders Cities Skylines 1 style speed controls when simulating with an active internet profile', () => {
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'int1',
+          type: 'Internet',
+          data: {
+            label: 'Internet',
+            connectionProfile: { name: 'E-Commerce', hourly: {} }
+          }
+        } as any
+      ],
+      simulationSpeed: 1
+    });
+
+    render(
+      <SimulationControls
+        isSimulating={true}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
+        hasInternet={true}
+        hasHpaValidationError={false}
+        colorMode="dark"
+      />
+    );
+
+    expect(screen.getByTestId('speed-controls-group')).toBeDefined();
+    const btn1x = screen.getByTestId('speed-btn-1x');
+    const btn5x = screen.getByTestId('speed-btn-5x');
+    const btn10x = screen.getByTestId('speed-btn-10x');
+
+    expect(btn1x).toBeDefined();
+    expect(btn5x).toBeDefined();
+    expect(btn10x).toBeDefined();
+
+    fireEvent.click(btn5x);
+    expect(useFlowStore.getState().simulationSpeed).toBe(5);
+
+    fireEvent.click(btn10x);
+    expect(useFlowStore.getState().simulationSpeed).toBe(10);
   });
 });

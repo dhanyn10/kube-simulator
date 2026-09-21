@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
 import {
   useInternetProfileModal,
-  DAYS_OF_WEEK,
+  HOURS_OF_DAY,
   ECOMMERCE_PROFILE,
   InternetProfileItem
 } from '@/activities/modals';
@@ -31,12 +31,12 @@ const MiniCurvePreview = ({
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
-  const values = DAYS_OF_WEEK.map((day) => profile.daily[day] || 0);
+  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
   const maxVal = Math.max(...values, 1000);
   const minVal = 0;
 
   const points = values.map((val, idx) => {
-    const x = padLeft + (idx / (DAYS_OF_WEEK.length - 1)) * chartWidth;
+    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
     const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
     return { x, y };
   });
@@ -59,9 +59,6 @@ const MiniCurvePreview = ({
       </defs>
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
-      {points.map((pt, idx) => (
-        <circle key={`pt-${idx}`} cx={pt.x} cy={pt.y} r="2.5" className="fill-blue-500 stroke-white dark:stroke-slate-900" strokeWidth="1" />
-      ))}
     </svg>
   );
 };
@@ -74,11 +71,11 @@ const InteractiveTrafficChart = ({
 }: {
   readonly profile: InternetProfileItem;
   readonly colorMode: string;
-  readonly onUpdatePoint: (day: string, newValue: number) => void;
+  readonly onUpdatePoint: (hour: string, newValue: number) => void;
   readonly onUpdateName: (newName: string) => void;
 }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [draggingDay, setDraggingDay] = useState<string | null>(null);
+  const [draggingHour, setDraggingHour] = useState<string | null>(null);
 
   const width = 680;
   const height = 280;
@@ -90,7 +87,7 @@ const InteractiveTrafficChart = ({
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
-  const values = DAYS_OF_WEEK.map((day) => profile.daily[day] || 0);
+  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
   const currentMax = Math.max(...values, 1000);
   const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
   const minVal = 0;
@@ -102,9 +99,9 @@ const InteractiveTrafficChart = ({
   });
 
   const points = values.map((val, idx) => {
-    const x = padLeft + (idx / (DAYS_OF_WEEK.length - 1)) * chartWidth;
+    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
     const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y, val, day: DAYS_OF_WEEK[idx] };
+    return { x, y, val, hour: HOURS_OF_DAY[idx] };
   });
 
   const pathD = points.reduce((acc, pt, i) => {
@@ -113,13 +110,13 @@ const InteractiveTrafficChart = ({
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
-  const handlePointerDown = (day: string, e: React.PointerEvent) => {
+  const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    setDraggingDay(day);
+    setDraggingHour(hour);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingDay || !svgRef.current) return;
+    if (!draggingHour || !svgRef.current) return;
 
     const rect = svgRef.current.getBoundingClientRect();
     const clientY = e.clientY - rect.top;
@@ -130,13 +127,13 @@ const InteractiveTrafficChart = ({
     const calculatedVal = Math.round(minVal + ratio * (maxVal - minVal));
     const finalVal = Math.max(10, Math.min(maxVal, calculatedVal));
 
-    onUpdatePoint(draggingDay, finalVal);
+    onUpdatePoint(draggingHour, finalVal);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (draggingDay) {
+    if (draggingHour) {
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
-      setDraggingDay(null);
+      setDraggingHour(null);
     }
   };
 
@@ -175,7 +172,7 @@ const InteractiveTrafficChart = ({
       </div>
 
       <p className="text-[11px] font-medium text-slate-400 mb-2 px-1">
-        💡 Drag data points vertically up/down on the Y-axis to dynamically modify daily traffic values.
+        💡 Drag data points vertically up/down on the Y-axis to dynamically modify hourly traffic values.
       </p>
 
       <svg
@@ -242,12 +239,13 @@ const InteractiveTrafficChart = ({
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Interactive Data points & X-axis Day labels */}
-        {points.map((pt) => {
-          const isDraggingThis = draggingDay === pt.day;
+        {/* Interactive Data points & X-axis Hour labels */}
+        {points.map((pt, idx) => {
+          const isDraggingThis = draggingHour === pt.hour;
+          const showLabel = idx % 3 === 0 || idx === points.length - 1;
 
           return (
-            <g key={`pt-${pt.day}`}>
+            <g key={`pt-${pt.hour}`}>
               {/* Vertical Guide Line when dragging */}
               {isDraggingThis && (
                 <line
@@ -265,49 +263,50 @@ const InteractiveTrafficChart = ({
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r="16"
+                r="12"
                 className="fill-transparent cursor-ns-resize"
-                onPointerDown={(e) => handlePointerDown(pt.day, e)}
+                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
               {/* Visible Circle */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isDraggingThis ? 8 : 6}
+                r={isDraggingThis ? 6 : 4}
                 className={cn(
                   "cursor-ns-resize transition-all",
                   isDraggingThis ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50" : "fill-blue-500 stroke-white dark:stroke-slate-900"
                 )}
-                strokeWidth="2"
-                onPointerDown={(e) => handlePointerDown(pt.day, e)}
+                strokeWidth="1.5"
+                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Value Label */}
-              <text
-                x={pt.x}
-                y={pt.y - 12}
-                textAnchor="middle"
-                className={cn(
-                  "text-[10px] font-mono font-bold select-none",
-                  isDraggingThis ? "fill-blue-400 text-xs font-extrabold" : "fill-blue-500 dark:fill-blue-400"
-                )}
-              >
-                {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
-              </text>
+              {/* Value Label (only when dragging or for specific key points) */}
+              {isDraggingThis && (
+                <text
+                  x={pt.x}
+                  y={pt.y - 10}
+                  textAnchor="middle"
+                  className="text-[10px] font-mono font-bold fill-blue-400 select-none"
+                >
+                  {pt.val >= 1000 ? `${(pt.val / 1000).toFixed(1)}k` : pt.val}
+                </text>
+              )}
 
-              {/* Day Label */}
-              <text
-                x={pt.x}
-                y={padTop + chartHeight + 22}
-                textAnchor="middle"
-                className={cn(
-                  "text-[10px] font-bold font-mono uppercase tracking-wider select-none",
-                  colorMode === 'dark' ? "fill-slate-300" : "fill-slate-700"
-                )}
-              >
-                {pt.day}
-              </text>
+              {/* Hour Label */}
+              {showLabel && (
+                <text
+                  x={pt.x}
+                  y={padTop + chartHeight + 20}
+                  textAnchor="middle"
+                  className={cn(
+                    "text-[9px] font-bold font-mono tracking-wider select-none",
+                    colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
+                  )}
+                >
+                  {pt.hour}
+                </text>
+              )}
             </g>
           );
         })}
@@ -341,7 +340,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     handleDeleteProfile,
     newProfileName,
     setNewProfileName,
-    customDailyValues,
+    customHourlyValues,
     handleStartCustomProfile,
     handleRandomizeCustomValues,
     handleUpdateCustomPoint
@@ -352,7 +351,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={cardName}
-      subtitle="Weekly Connection Simulation Profile Templates (Monday - Sunday)"
+      subtitle="24-Hour Connection Simulation Profile Templates (00:00 - 23:00)"
       icon={Globe}
       iconColorClass="text-blue-500"
       widthClass="w-full max-w-4xl"
@@ -378,7 +377,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {profiles.map((p) => {
                 const isApplied = p.name === activeProfileName;
-                const values = DAYS_OF_WEEK.map((d) => p.daily[d] || 0);
+                const values = HOURS_OF_DAY.map((h) => p.hourly?.[h] ?? 0);
                 const minVal = Math.min(...values);
                 const maxVal = Math.max(...values);
 
@@ -584,7 +583,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             <InteractiveTrafficChart
               profile={{
                 name: newProfileName,
-                daily: customDailyValues
+                hourly: customHourlyValues
               }}
               colorMode={colorMode}
               onUpdatePoint={handleUpdateCustomPoint}
@@ -596,7 +595,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
           <p className="text-[11px] text-slate-400 font-medium">
-            Active Connection Profile: <span className="text-blue-400 font-bold">{activeProfile.name}</span>
+            Active Connection Profile: <span className="text-blue-400 font-bold">{activeProfile ? activeProfile.name : 'None'}</span>
           </p>
           <button
             type="button"

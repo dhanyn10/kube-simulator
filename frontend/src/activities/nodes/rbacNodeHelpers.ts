@@ -50,18 +50,18 @@ export const isResourceAllowedByIamPolicies = (
 
   const res = (resource || '').toLowerCase();
 
-  // ContainerDeveloperPolicy: Workload containers and configurations
+  // ContainerDeveloperPolicy: Workload containers, configurations, and internet
   if (
     policies.includes('ContainerDeveloperPolicy') &&
-    ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets'].includes(res)
+    ['pods', 'deployments', 'replicasets', 'configmaps', 'secrets', 'internet'].includes(res)
   ) {
     return true;
   }
 
-  // NetworkingAdminPolicy: Networking components
+  // NetworkingAdminPolicy: Networking components and internet
   if (
     policies.includes('NetworkingAdminPolicy') &&
-    ['services', 'ingresses'].includes(res)
+    ['services', 'ingresses', 'internet'].includes(res)
   ) {
     return true;
   }

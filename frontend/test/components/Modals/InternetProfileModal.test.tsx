@@ -19,10 +19,8 @@ describe('InternetProfileModal', () => {
     id: 'node-internet-1',
     data: {
       label: 'Internet Connection',
-      profile: {
-        name: ECOMMERCE_PROFILE.name,
-        daily: ECOMMERCE_PROFILE.daily
-      }
+      activeProfileName: ECOMMERCE_PROFILE.name,
+      connectionProfile: ECOMMERCE_PROFILE
     }
   };
 
@@ -41,7 +39,7 @@ describe('InternetProfileModal', () => {
     );
 
     expect(screen.getByText('Internet Connection')).toBeDefined();
-    expect(screen.getByText(/Weekly Connection Simulation Profile Templates/i)).toBeDefined();
+    expect(screen.getByText(/24-Hour Connection Simulation Profile Templates/i)).toBeDefined();
   });
 
   it('displays default Ecommerce profile template card and badge', () => {

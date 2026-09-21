@@ -62,6 +62,7 @@ export interface FlowState {
 
   // Simulation state
   isSimulating: boolean;
+  simulationSpeed: 1 | 5 | 10;
   activeSimulationEdges: string[];
   simulationMetrics: Record<string, SimulationMetricPoint[]>;
   isMonitoringOpen: boolean;
@@ -142,6 +143,7 @@ export interface FlowState {
   toggleAutofocus: () => void;
   startSimulation: (internetNodeIds?: string[]) => void;
   stopSimulation: () => void;
+  setSimulationSpeed: (speed: 1 | 5 | 10) => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
   setSidebarVisible: (visible: boolean) => void;

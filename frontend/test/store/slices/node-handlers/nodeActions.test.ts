@@ -328,4 +328,34 @@ describe('nodeActions', () => {
     const state = useFlowStore.getState();
     expect(state.nodes.find(n => n.id === 'dep1')?.data.label).toBe('dep1-updated');
   });
+
+  it('guarantees that every card type on canvas can be selected and deleted', () => {
+    const cardTypes = ['Internet', 'Pod', 'Deployment', 'Service', 'Ingress', 'HPA', 'PVC', 'ConfigMap', 'Secret', 'Role', 'Namespace'];
+
+    const initialNodes = cardTypes.map((type, idx) => ({
+      id: `card-${type.toLowerCase()}-${idx}`,
+      type,
+      position: { x: idx * 100, y: 100 },
+      data: { label: `My ${type}`, type }
+    }));
+
+    useFlowStore.setState({ nodes: initialNodes as any, edges: [] });
+
+    // Verify all 11 cards exist on canvas
+    expect(useFlowStore.getState().nodes).toHaveLength(11);
+
+    // Test deleting each card individually
+    cardTypes.forEach((type, idx) => {
+      const cardId = `card-${type.toLowerCase()}-${idx}`;
+      const targetNode = useFlowStore.getState().nodes.find(n => n.id === cardId);
+      expect(targetNode).toBeDefined();
+
+      useFlowStore.getState().deleteNodes([targetNode!] as any);
+
+      expect(useFlowStore.getState().nodes.some(n => n.id === cardId)).toBe(false);
+    });
+
+    // Verify canvas is now completely empty
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
+  });
 });

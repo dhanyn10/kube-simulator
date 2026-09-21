@@ -182,13 +182,13 @@ describe('simulation test suite', () => {
     expect(calculateIncomingTraffic(baseNodes[0], ctxUnreachable).traffic).toBe(0);
   });
 
-  it('incoming traffic calculation with durationUnit multipliers and child pod reachability', () => {
-    // Default / 'second' durationUnit (multiplier 1)
-    const ctxSecond = getMockCtx({
-      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 3000, durationUnit: 'second' })],
+  it('incoming traffic calculation and child pod reachability', () => {
+    // Standard traffic calculation
+    const ctxStandard = getMockCtx({
+      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 3000 })],
       internetReachableMap: new Map([['i1', new Set(['d1'])]])
     });
-    expect(calculateIncomingTraffic(baseNodes[0], ctxSecond).traffic).toBe(3000);
+    expect(calculateIncomingTraffic(baseNodes[0], ctxStandard).traffic).toBe(3000);
 
     // Reaching workload via child pod
     const childPod = createNode('pod1', 'Pod', { parentId: 'd1' });
@@ -198,20 +198,6 @@ describe('simulation test suite', () => {
       childPodMap: new Map([['d1', [childPod]]])
     });
     expect(calculateIncomingTraffic(baseNodes[0], ctxChild).traffic).toBe(2000);
-
-    // 'millisecond' durationUnit (multiplier 1000)
-    const ctxMs = getMockCtx({
-      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 5, durationUnit: 'millisecond' })],
-      internetReachableMap: new Map([['i1', new Set(['d1'])]])
-    });
-    expect(calculateIncomingTraffic(baseNodes[0], ctxMs).traffic).toBe(5000);
-
-    // 'minute' durationUnit (multiplier 1/60)
-    const ctxMin = getMockCtx({
-      internetNodes: [createNode('i1', 'Internet', { currentTraffic: 6000, durationUnit: 'minute' })],
-      internetReachableMap: new Map([['i1', new Set(['d1'])]])
-    });
-    expect(calculateIncomingTraffic(baseNodes[0], ctxMin).traffic).toBe(100);
   });
 
   it('hpa scaling execution - scale up with attached hpas array or node config', () => {

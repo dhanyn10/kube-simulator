@@ -54,10 +54,6 @@ export function useCanvasHandlers() {
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       event.preventDefault();
-      const store = useFlowStore.getState();
-      if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
-        return;
-      }
       if (!node.selected) {
         useFlowStore.setState({
           nodes: nodes.map((n) => ({ ...n, selected: n.id === node.id })),
@@ -76,13 +72,8 @@ export function useCanvasHandlers() {
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       const store = useFlowStore.getState();
-      if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
       onNodeClickStore(event, node);
-      if (isAutofocusEnabled) {
+      if (isAutofocusEnabled && !isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
         const absPos = getAbsPos(node.id, nodes);
         const nodeW = node.measured?.width ?? node.width ?? 150;
         const nodeH = node.measured?.height ?? node.height ?? 100;

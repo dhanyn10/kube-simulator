@@ -157,12 +157,6 @@ export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   return { hasChanges, isBlocked: false };
 };
 
-const getTrafficMultiplier = (unit?: string): number => {
-  if (unit === 'millisecond') return 1000;
-  if (unit === 'minute') return 1 / 60;
-  return 1;
-};
-
 const canReachWorkload = (reachableNodes: Set<string>, depId: string, childPods?: Node[]): boolean => {
   if (reachableNodes.has(depId)) return true;
   const children = childPods || [];
@@ -181,9 +175,7 @@ const getInternetNodeTraffic = (
   if (!canReachWorkload(reachableNodes, depId, children)) return 0;
 
   const nData = node.data as K8sNodeData;
-  const internetTraffic = nData.currentTraffic || 0;
-  const multiplier = getTrafficMultiplier(nData.durationUnit);
-  return internetTraffic * multiplier;
+  return nData.currentTraffic || 0;
 };
 
 /**
@@ -209,23 +201,31 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const iData = internet.data as K8sNodeData;
   let targetTraffic = iData.traffic ?? 1000;
 
-  if (iData.connectionProfile?.daily) {
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const dayIndex = Math.floor(ctx.ticks / 5) % 7;
-    const currentDay = days[dayIndex];
-    const profileDailyVal = iData.connectionProfile.daily[currentDay];
-    if (typeof profileDailyVal === 'number') {
-      targetTraffic = profileDailyVal;
+  const state = ctx.get?.();
+  const speed = state?.simulationSpeed || 1;
+
+  if (iData.connectionProfile) {
+    const profile = iData.connectionProfile;
+    const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+    // Scale hour indexing by simulation speed
+    const hourIndex = Math.floor((ctx.ticks * speed) / 3) % 24;
+    const currentHour = hours[hourIndex];
+
+    const profileVal = profile.hourly?.[currentHour] ?? profile.daily?.[currentHour];
+    if (typeof profileVal === 'number') {
+      targetTraffic = profileVal;
     }
   }
 
   const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
+  const step = 1000 * speed;
   if (currentTraffic < targetTraffic) {
-    nextTraffic = Math.min(targetTraffic, currentTraffic + 1000);
+    nextTraffic = Math.min(targetTraffic, currentTraffic + step);
   } else if (currentTraffic > targetTraffic) {
-    nextTraffic = Math.max(targetTraffic, currentTraffic - 2000);
+    nextTraffic = Math.max(targetTraffic, currentTraffic - step * 2);
   }
 
   let hasChanges = false;
