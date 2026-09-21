@@ -48,11 +48,8 @@ const ReadOnlyProfileChart = ({ profile }: { readonly profile: any }) => {
       <div className="flex items-center justify-between text-[11px] font-bold">
         <div className="flex items-center gap-1.5 text-blue-400">
           <Activity size={13} className="shrink-0" />
-          <span className="truncate max-w-[130px]">{profile.name}</span>
+          <span className="truncate max-w-[200px]">{profile.name}</span>
         </div>
-        <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-          Active Profile
-        </span>
       </div>
 
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible">
