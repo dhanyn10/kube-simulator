@@ -64,7 +64,7 @@ export const useInternetProfileModal = (
   const colorMode = useFlowStore((state) => state.colorMode);
   const [profiles, setProfiles] = useState<InternetProfileItem[]>([ECOMMERCE_PROFILE]);
   const [activeProfileName, setActiveProfileName] = useState<string>(
-    selectedNode?.data?.activeProfileName || ECOMMERCE_PROFILE.name
+    selectedNode?.data?.activeProfileName || ''
   );
   const [viewMode, setViewMode] = useState<'grid' | 'details' | 'custom'>('grid');
   const [detailProfile, setDetailProfile] = useState<InternetProfileItem>(ECOMMERCE_PROFILE);
