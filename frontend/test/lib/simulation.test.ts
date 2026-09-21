@@ -31,7 +31,7 @@ const createNode = (id: string, type: string, data: any = {}): Node => ({
 } as Node);
 
 const baseNodes = [
-    createNode('d1', 'Deployment', { replicas: 1, cpuLimit: '1000m', memoryLimit: '1024Mi' }),
+    createNode('d1', 'Deployment', { replicas: 1, status: 'ready', cpuLimit: '1000m', memoryLimit: '1024Mi' }),
     createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 0 }),
     createNode('pvc1', 'PVC', { pvcStatus: 'Pending' }),
     createNode('h1', 'HPA', { targetCPU: 50, minReplicas: 1, maxReplicas: 10 })
@@ -119,13 +119,15 @@ describe('simulation test suite', () => {
     expect(ctx.updatedNodes[1].data.currentTraffic).toBe(500);
   });
 
-  it('internet traffic logic - unchanged when current equals target and hour index matches', () => {
+  it('internet traffic logic - freezes traffic when connection is red/unhealthy', () => {
     const ctx = getMockCtx({ ticks: 4 });
-    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000, currentHourIndex: 1 });
-    ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
-    const res = updateInternetTraffic(node, ctx);
-    expect(res.traffic).toBe(1000);
-    expect(res.hasChanges).toBe(false);
+    const redNode = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000, currentHourIndex: 0, profileTicks: 0 });
+    // Edge targeting missing/unready node creates red connection
+    const badEdge = { id: 'e1', source: 'i1', target: 'non-existent' } as Edge;
+    ctx.edgeMap = new Map([['i1', [badEdge]]]);
+
+    const res = updateInternetTraffic(redNode, ctx);
+    expect(res.traffic).toBe(0);
   });
 
   it.each([

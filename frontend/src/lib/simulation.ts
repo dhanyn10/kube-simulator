@@ -195,6 +195,27 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
 };
 
 /**
+ * Checks if outgoing edges from internet node or downstream workload paths have validation errors or unready nodes.
+ */
+export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext): boolean => {
+  const outgoing = ctx.edgeMap?.get(internet.id) || [];
+  if (outgoing.length === 0) return true;
+
+  for (const edge of outgoing) {
+    if (edge.data?.validationError) return true;
+
+    const targetNode = ctx.nodeMap?.get(String(edge.target));
+    if (!targetNode) return true;
+
+    const isWorkload = targetNode.type === 'Pod' || targetNode.type === 'Deployment' || targetNode.type === 'ReplicaSet';
+    if (isWorkload && targetNode.data?.status !== 'ready') {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
  * Smoothly adjusts current internet traffic towards target traffic setting.
  */
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
@@ -204,8 +225,13 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const state = ctx.get?.();
   const speed = state?.simulationSpeed || 1;
 
+  // Track profileTicks to advance traffic cycle index only when connection is healthy
+  const isRed = isInternetConnectionRed(internet, ctx);
+  const prevProfileTicks = iData.profileTicks ?? 0;
+  const currentProfileTicks = isRed ? prevProfileTicks : (prevProfileTicks + 1);
+
   // Scale hour indexing by simulation speed across 24-hour cycle
-  const currentHourIndex = Math.floor((ctx.ticks * speed) / 3) % 24;
+  const currentHourIndex = Math.floor((currentProfileTicks * speed) / 3) % 24;
 
   if (iData.connectionProfile) {
     const profile = iData.connectionProfile;
@@ -221,8 +247,10 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
-  // Hold traffic at 0 during container initialization startup delay (ticks 1..3)
+  // Hold traffic at 0 during container initialization startup delay (ticks 1..3) or when connection is red
   if (ctx.ticks <= 3) {
+    nextTraffic = 0;
+  } else if (isRed) {
     nextTraffic = 0;
   } else {
     const step = 1000 * speed;
@@ -234,8 +262,8 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   }
 
   let hasChanges = false;
-  if (nextTraffic !== currentTraffic || iData.currentHourIndex !== currentHourIndex) {
-    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic, currentHourIndex });
+  if (nextTraffic !== currentTraffic || iData.currentHourIndex !== currentHourIndex || iData.profileTicks !== currentProfileTicks) {
+    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic, currentHourIndex, profileTicks: currentProfileTicks });
   }
   return { traffic: nextTraffic, hasChanges };
 };
