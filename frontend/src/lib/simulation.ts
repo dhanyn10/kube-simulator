@@ -194,6 +194,18 @@ export const calculateIncomingTraffic = (dep: Node, ctx: SimulationContext): { t
   return { traffic: totalTraffic, hasChanges: false };
 };
 
+const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolean => {
+  if (!node) return true;
+  const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet';
+  if (isWorkload && node.data?.status !== 'ready') return true;
+
+  if (node.type === 'Deployment') {
+    const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
+    if (childPods.length > 0 && childPods.some((p) => p.data?.status !== 'ready')) return true;
+  }
+  return false;
+};
+
 /**
  * Checks if outgoing edges from internet node or downstream workload paths have validation errors or unready nodes.
  */
@@ -201,17 +213,35 @@ export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext):
   const outgoing = ctx.edgeMap?.get(internet.id) || [];
   if (outgoing.length === 0) return true;
 
+  const activeEdgesSet = new Set(ctx.activeSimulationEdges);
+
   for (const edge of outgoing) {
     if (edge.data?.validationError) return true;
 
-    const targetNode = ctx.nodeMap?.get(String(edge.target));
-    if (!targetNode) return true;
+    const visited = new Set<string>();
+    const queue = [String(edge.target)];
 
-    const isWorkload = targetNode.type === 'Pod' || targetNode.type === 'Deployment' || targetNode.type === 'ReplicaSet';
-    if (isWorkload && targetNode.data?.status !== 'ready') {
-      return true;
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      const node = ctx.nodeMap?.get(currentId) || ctx.nodes.find(n => String(n.id) === currentId);
+      if (checkNodeUnreadyInternal(node, ctx.nodes)) {
+        return true;
+      }
+
+      const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(e =>
+        activeEdgesSet.size === 0 || activeEdgesSet.has(String(e.id))
+      );
+
+      for (const downEdge of downstreamEdges) {
+        if (downEdge.data?.validationError) return true;
+        queue.push(String(downEdge.target));
+      }
     }
   }
+
   return false;
 };
 

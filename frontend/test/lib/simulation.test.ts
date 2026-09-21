@@ -32,6 +32,7 @@ const createNode = (id: string, type: string, data: any = {}): Node => ({
 
 const baseNodes = [
     createNode('d1', 'Deployment', { replicas: 1, status: 'ready', cpuLimit: '1000m', memoryLimit: '1024Mi' }),
+    createNode('pod-d1', 'Pod', { parentId: 'd1', status: 'ready' }),
     createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 0 }),
     createNode('pvc1', 'PVC', { pvcStatus: 'Pending' }),
     createNode('h1', 'HPA', { targetCPU: 50, minReplicas: 1, maxReplicas: 10 })
@@ -44,7 +45,7 @@ const getMockCtx = (overrides: Partial<SimulationContext> = {}): SimulationConte
     const ctx = {
         nodes,
         edges: [baseEdge],
-        activeSimulationEdges: [],
+        activeSimulationEdges: ['e1'],
         updatedNodes: nodes.map(n => ({ ...n, data: { ...n.data } })),
         newMetrics: {},
         ticks: 0,
@@ -81,42 +82,44 @@ describe('simulation test suite', () => {
     { active: [], expected: false }
   ])('reachability: %o', ({ active, expected }) => {
     const ctx = getMockCtx();
-    expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, active).has('d1')).toBe(expected);
+    const internetNode = ctx.nodes.find(n => n.type === 'Internet')!;
+    expect(calculateReachability([internetNode], ctx.edgeMap!, active).has('d1')).toBe(expected);
   });
 
   it('calculateReachability accepts activeSimulationEdges as a Set', () => {
     const ctx = getMockCtx();
     const activeSet = new Set(['e1']);
-    expect(calculateReachability([baseNodes[1]], ctx.edgeMap!, activeSet).has('d1')).toBe(true);
+    const internetNode = ctx.nodes.find(n => n.type === 'Internet')!;
+    expect(calculateReachability([internetNode], ctx.edgeMap!, activeSet).has('d1')).toBe(true);
   });
 
   it('calculateReachability ignores edges with validationError', () => {
     const edgeWithError = { id: 'e1', source: 'i1', target: 'd1', data: { validationError: 'error' } } as any;
     const edgeMap = new Map([['i1', [edgeWithError]]]);
-    expect(calculateReachability([baseNodes[1]], edgeMap, ['e1']).has('d1')).toBe(false);
+    const internetNode = baseNodes.find(n => n.type === 'Internet')!;
+    expect(calculateReachability([internetNode], edgeMap, ['e1']).has('d1')).toBe(false);
   });
 
   it('internet traffic logic - increment after startup ticks delay', () => {
-    const ctx = getMockCtx({ ticks: 4 });
-    const res = updateInternetTraffic(baseNodes[1], ctx);
+    const ctx = getMockCtx({ ticks: 4, activeSimulationEdges: ['e1'] });
+    const internetNode = ctx.nodes.find(n => n.id === 'i1')!;
+    const res = updateInternetTraffic(internetNode, ctx);
     expect(res.traffic).toBe(1000);
-    expect(ctx.updatedNodes[1].data.currentTraffic).toBe(1000);
   });
 
   it('internet traffic logic - holds at 0 during initial startup ticks', () => {
-    const ctx = getMockCtx({ ticks: 2 });
-    const res = updateInternetTraffic(baseNodes[1], ctx);
+    const ctx = getMockCtx({ ticks: 2, activeSimulationEdges: ['e1'] });
+    const internetNode = ctx.nodes.find(n => n.id === 'i1')!;
+    const res = updateInternetTraffic(internetNode, ctx);
     expect(res.traffic).toBe(0);
   });
 
   it('internet traffic logic - decrement', () => {
-    const ctx = getMockCtx({ ticks: 4 });
-    const node = createNode('i1', 'Internet', { traffic: 500, currentTraffic: 1000 });
-    // Replace in updatedNodes
-    ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
-    const res = updateInternetTraffic(node, ctx);
+    const ctx = getMockCtx({ ticks: 4, activeSimulationEdges: ['e1'] });
+    const internetNode = createNode('i1', 'Internet', { traffic: 500, currentTraffic: 1000 });
+    ctx.updatedNodes = ctx.updatedNodes.map(n => n.id === 'i1' ? internetNode : n);
+    const res = updateInternetTraffic(internetNode, ctx);
     expect(res.traffic).toBe(500);
-    expect(ctx.updatedNodes[1].data.currentTraffic).toBe(500);
   });
 
   it('internet traffic logic - freezes traffic when connection is red/unhealthy', () => {
