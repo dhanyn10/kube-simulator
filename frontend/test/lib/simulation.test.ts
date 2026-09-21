@@ -113,9 +113,9 @@ describe('simulation test suite', () => {
     expect(ctx.updatedNodes[1].data.currentTraffic).toBe(500);
   });
 
-  it('internet traffic logic - unchanged when current equals target', () => {
+  it('internet traffic logic - unchanged when current equals target and hour index matches', () => {
     const ctx = getMockCtx();
-    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000 });
+    const node = createNode('i1', 'Internet', { traffic: 1000, currentTraffic: 1000, currentHourIndex: 0 });
     ctx.updatedNodes[1] = { ...node, data: { ...node.data } };
     const res = updateInternetTraffic(node, ctx);
     expect(res.traffic).toBe(1000);

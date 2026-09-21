@@ -204,13 +204,13 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const state = ctx.get?.();
   const speed = state?.simulationSpeed || 1;
 
+  // Scale hour indexing by simulation speed across 24-hour cycle
+  const currentHourIndex = Math.floor((ctx.ticks * speed) / 3) % 24;
+
   if (iData.connectionProfile) {
     const profile = iData.connectionProfile;
     const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-
-    // Scale hour indexing by simulation speed
-    const hourIndex = Math.floor((ctx.ticks * speed) / 3) % 24;
-    const currentHour = hours[hourIndex];
+    const currentHour = hours[currentHourIndex];
 
     const profileVal = profile.hourly?.[currentHour] ?? profile.daily?.[currentHour];
     if (typeof profileVal === 'number') {
@@ -229,8 +229,8 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   }
 
   let hasChanges = false;
-  if (nextTraffic !== currentTraffic) {
-    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic });
+  if (nextTraffic !== currentTraffic || iData.currentHourIndex !== currentHourIndex) {
+    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic, currentHourIndex });
   }
   return { traffic: nextTraffic, hasChanges };
 };

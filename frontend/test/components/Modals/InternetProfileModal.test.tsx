@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
 import { ECOMMERCE_PROFILE } from '@/activities/modals';
+import { useFlowStore } from '@/store/useFlowStore';
 
 // Mock Wails runtime calls
 vi.mock('@/lib/wailsRuntime', () => ({
@@ -42,12 +43,22 @@ describe('InternetProfileModal', () => {
     expect(screen.getByText(/24-Hour Connection Simulation Profile Templates/i)).toBeDefined();
   });
 
-  it('displays default Ecommerce profile template card and badge', () => {
+  it('displays default Ecommerce profile template card, badge, and active traffic dots during simulation', () => {
+    useFlowStore.setState({ isSimulating: true });
+
+    const activeSimNode = {
+      ...dummyNode,
+      data: {
+        ...dummyNode.data,
+        currentHourIndex: 5
+      }
+    };
+
     render(
       <InternetProfileModal
         isOpen={true}
         onClose={mockOnClose}
-        selectedNode={dummyNode}
+        selectedNode={activeSimNode}
         performUpdate={mockPerformUpdate}
       />
     );
@@ -55,9 +66,13 @@ describe('InternetProfileModal', () => {
     const matches = screen.getAllByText(ECOMMERCE_PROFILE.name);
     expect(matches.length).toBeGreaterThan(0);
 
-    // Verify applied checkmark badge (only icon, no text label)
+    // Verify applied checkmark badge
     const badge = screen.getByTestId(`applied-badge-${ECOMMERCE_PROFILE.name.replaceAll(/\s+/g, '-')}`);
     expect(badge).toBeDefined();
+
+    // Verify mini active traffic dot on active applied card
+    const miniDot = screen.getByTestId('mini-active-traffic-dot');
+    expect(miniDot).toBeDefined();
   });
 
   it('allows clicking Details to open detailed view', () => {

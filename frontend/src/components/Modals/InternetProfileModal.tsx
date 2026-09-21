@@ -8,6 +8,7 @@ import {
   ECOMMERCE_PROFILE,
   InternetProfileItem
 } from '@/activities/modals';
+import { useFlowStore } from '@/store/useFlowStore';
 
 interface InternetProfileModalProps {
   readonly isOpen: boolean;
@@ -17,10 +18,15 @@ interface InternetProfileModalProps {
 }
 
 const MiniCurvePreview = ({
-  profile
+  profile,
+  isApplied,
+  currentHourIndex
 }: {
   readonly profile: InternetProfileItem;
+  readonly isApplied?: boolean;
+  readonly currentHourIndex?: number;
 }) => {
+  const isSimulating = useFlowStore((state) => state.isSimulating);
   const width = 220;
   const height = 55;
   const padLeft = 10;
@@ -49,6 +55,9 @@ const MiniCurvePreview = ({
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
+  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const currentPt = points[safeHourIdx] || points[0];
+
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-12 overflow-visible my-1">
       <defs>
@@ -59,6 +68,15 @@ const MiniCurvePreview = ({
       </defs>
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+
+      {/* Animated Traffic Position Dot & Ripple Wave Effect for Active Profile during Simulation */}
+      {isSimulating && isApplied && (
+        <g key={`mini-traffic-dot-${safeHourIdx}`} data-testid="mini-active-traffic-dot">
+          <circle cx={currentPt.x} cy={currentPt.y} r="9" className="fill-none stroke-blue-400/60 animate-ping" strokeWidth="1" />
+          <circle cx={currentPt.x} cy={currentPt.y} r="5" className="fill-none stroke-blue-400/80 animate-pulse" strokeWidth="1.5" />
+          <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+        </g>
+      )}
     </svg>
   );
 };
@@ -66,14 +84,19 @@ const MiniCurvePreview = ({
 const InteractiveTrafficChart = ({
   profile,
   colorMode,
+  isApplied,
+  currentHourIndex,
   onUpdatePoint,
   onUpdateName
 }: {
   readonly profile: InternetProfileItem;
   readonly colorMode: string;
+  readonly isApplied?: boolean;
+  readonly currentHourIndex?: number;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
   readonly onUpdateName: (newName: string) => void;
 }) => {
+  const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
 
@@ -243,19 +266,20 @@ const InteractiveTrafficChart = ({
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
+          const isCurrentTrafficHour = isSimulating && isApplied && idx === ((currentHourIndex ?? 0) % 24);
 
           return (
             <g key={`pt-${pt.hour}`}>
-              {/* Vertical Guide Line when dragging */}
-              {isDraggingThis && (
+              {/* Vertical Guide Line when dragging or active traffic tick */}
+              {(isDraggingThis || isCurrentTrafficHour) && (
                 <line
                   x1={pt.x}
                   y1={padTop}
                   x2={pt.x}
                   y2={padTop + chartHeight}
-                  stroke="#3b82f6"
+                  stroke={isCurrentTrafficHour ? "#34d399" : "#3b82f6"}
                   strokeDasharray="2 2"
-                  strokeWidth="1.5"
+                  strokeWidth={isCurrentTrafficHour ? "2" : "1.5"}
                 />
               )}
 
@@ -268,14 +292,26 @@ const InteractiveTrafficChart = ({
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
+              {/* Animated Traffic Position Dot & Ripple Wave Effect during Simulation */}
+              {isCurrentTrafficHour && (
+                <g key={`interactive-traffic-dot-${idx}`} data-testid="interactive-active-traffic-dot">
+                  <circle cx={pt.x} cy={pt.y} r="14" className="fill-none stroke-emerald-400/60 animate-ping" strokeWidth="1.5" />
+                  <circle cx={pt.x} cy={pt.y} r="9" className="fill-none stroke-emerald-400/80 animate-pulse" strokeWidth="2" />
+                </g>
+              )}
+
               {/* Visible Circle */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isDraggingThis ? 6 : 4}
+                r={isDraggingThis || isCurrentTrafficHour ? 6 : 4}
                 className={cn(
                   "cursor-ns-resize transition-all",
-                  isDraggingThis ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50" : "fill-blue-500 stroke-white dark:stroke-slate-900"
+                  isCurrentTrafficHour
+                    ? "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50"
+                    : isDraggingThis
+                      ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
+                      : "fill-blue-500 stroke-white dark:stroke-slate-900"
                 )}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
@@ -322,6 +358,8 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
   performUpdate
 }) => {
   const cardName = selectedNode?.data?.label || 'Internet';
+
+  const currentHourIndex = selectedNode?.data?.currentHourIndex;
 
   const {
     colorMode,
@@ -435,7 +473,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       </h4>
 
                       {/* Curve Preview */}
-                      <MiniCurvePreview profile={p} />
+                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} />
                     </div>
 
                     {/* Metrics Summary */}
@@ -537,6 +575,8 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             <InteractiveTrafficChart
               profile={detailProfile}
               colorMode={colorMode}
+              isApplied={detailProfile.name === activeProfileName}
+              currentHourIndex={currentHourIndex}
               onUpdatePoint={handleUpdateDetailPoint}
               onUpdateName={handleUpdateDetailName}
             />
@@ -586,6 +626,8 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                 hourly: customHourlyValues
               }}
               colorMode={colorMode}
+              isApplied={false}
+              currentHourIndex={currentHourIndex}
               onUpdatePoint={handleUpdateCustomPoint}
               onUpdateName={setNewProfileName}
             />

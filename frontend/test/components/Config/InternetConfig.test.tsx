@@ -139,17 +139,20 @@ describe('InternetConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
   });
 
-  it('displays ReadOnlyProfileChart when a connection profile is active', () => {
+  it('displays ReadOnlyProfileChart with active traffic dot when connection profile is active during simulation', () => {
+    useFlowStore.setState({ isSimulating: true });
+
     const activeProfileNode = {
       id: 'int1',
       type: 'Internet',
       data: {
         label: 'Internet',
         traffic: 1000,
+        currentHourIndex: 3,
         displaySettings: { traffic: true },
         connectionProfile: {
           name: 'Custom Profile',
-          hourly: { '00:00': 1500, '12:00': 3000 }
+          hourly: { '00:00': 1500, '03:00': 2000, '12:00': 3000 }
         }
       }
     };
@@ -164,6 +167,8 @@ describe('InternetConfig', () => {
 
     expect(screen.getByTestId('profile-chart-preview')).toBeDefined();
     expect(screen.getByText('Custom Profile')).toBeDefined();
+    expect(screen.getByTestId('active-traffic-dot')).toBeDefined();
+    expect(screen.getByText('03:00')).toBeDefined();
     expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
   });
 

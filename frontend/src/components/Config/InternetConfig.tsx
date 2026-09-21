@@ -3,6 +3,7 @@ import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '../UI/ConfigUI';
 import { InternetProfileModal } from '../Modals/InternetProfileModal';
 import { HOURS_OF_DAY } from '@/activities/modals';
+import { useFlowStore } from '@/store/useFlowStore';
 
 interface InternetConfigProps {
   readonly selectedNode: any;
@@ -16,7 +17,14 @@ const formatNumberCompact = (num: number): string => {
   return num.toString();
 };
 
-const ReadOnlyProfileChart = ({ profile }: { readonly profile: any }) => {
+const ReadOnlyProfileChart = ({
+  profile,
+  currentHourIndex
+}: {
+  readonly profile: any;
+  readonly currentHourIndex?: number;
+}) => {
+  const isSimulating = useFlowStore((state) => state.isSimulating);
   const width = 240;
   const height = 80;
   const padLeft = 8;
@@ -34,7 +42,7 @@ const ReadOnlyProfileChart = ({ profile }: { readonly profile: any }) => {
   const points = values.map((val, idx) => {
     const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
     const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y };
+    return { x, y, hour: HOURS_OF_DAY[idx], val };
   });
 
   const pathD = points.reduce((acc, pt, i) => {
@@ -43,13 +51,22 @@ const ReadOnlyProfileChart = ({ profile }: { readonly profile: any }) => {
 
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
+  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  const currentPt = points[safeHourIdx] || points[0];
+
   return (
     <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5" data-testid="profile-chart-preview">
       <div className="flex items-center justify-between text-[11px] font-bold">
         <div className="flex items-center gap-1.5 text-blue-400">
           <Activity size={13} className="shrink-0" />
-          <span className="truncate max-w-[200px]">{profile.name}</span>
+          <span className="truncate max-w-[140px]">{profile.name}</span>
         </div>
+        {isSimulating && (
+          <span className="text-[10px] font-mono text-emerald-400 font-extrabold flex items-center gap-1 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            {currentPt.hour}
+          </span>
+        )}
       </div>
 
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-16 overflow-visible">
@@ -61,6 +78,18 @@ const ReadOnlyProfileChart = ({ profile }: { readonly profile: any }) => {
         </defs>
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+
+        {/* Animated Traffic Position Dot & Ripple Wave Effect during Simulation */}
+        {isSimulating && (
+          <g key={`traffic-dot-sidebar-${safeHourIdx}`} data-testid="active-traffic-dot">
+            {/* Outer expanding ripple wave ring 1 */}
+            <circle cx={currentPt.x} cy={currentPt.y} r="10" className="fill-none stroke-blue-400/60 animate-ping" strokeWidth="1" />
+            {/* Outer expanding ripple wave ring 2 */}
+            <circle cx={currentPt.x} cy={currentPt.y} r="6" className="fill-none stroke-blue-400/80 animate-pulse" strokeWidth="1.5" />
+            {/* Center solid dot */}
+            <circle cx={currentPt.x} cy={currentPt.y} r="4" className="fill-blue-400 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+          </g>
+        )}
       </svg>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
@@ -75,6 +104,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const data = selectedNode.data;
   const currentTraffic = Math.max(1, data.traffic || 1);
   const activeProfile = data.connectionProfile;
+  const currentHourIndex = data.currentHourIndex;
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Calculate dynamic maxRange based on current traffic (minimum 1000)
@@ -125,7 +155,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
       >
         <div className="px-1 py-2 space-y-2">
           {activeProfile ? (
-            <ReadOnlyProfileChart profile={activeProfile} />
+            <ReadOnlyProfileChart profile={activeProfile} currentHourIndex={currentHourIndex} />
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono">
