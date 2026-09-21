@@ -54,15 +54,13 @@ const ReadOnlyProfileChart = ({
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const activeDisplayIdx = hoveredHourIdx !== null ? hoveredHourIdx : safeHourIdx;
-  const currentPt = points[activeDisplayIdx] || points[0];
+  const currentPt = points[safeHourIdx] || points[0];
+  const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const targetEl = e.currentTarget;
-    const rect = targetEl.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     const rectWidth = rect.width || width;
-    const clientX = e.clientX ?? 0;
-    const mouseX = clientX - rect.left;
+    const mouseX = e.clientX - rect.left;
     const relativeX = (mouseX / rectWidth) * width;
     const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
     const ratio = (clampedX - padLeft) / chartWidth;
@@ -84,7 +82,7 @@ const ReadOnlyProfileChart = ({
         {isSimulating && (
           <span className="text-[10px] font-mono text-emerald-400 font-extrabold flex items-center gap-1 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            {points[safeHourIdx]?.hour || '00:00'}
+            {currentPt.hour}
           </span>
         )}
       </div>
@@ -104,17 +102,25 @@ const ReadOnlyProfileChart = ({
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Traffic Position Dot */}
-        <g key={`traffic-dot-sidebar-${activeDisplayIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
+        {/* Active Simulation Traffic Position Dot (Always locked at safeHourIdx) */}
+        <g key={`traffic-dot-sidebar-active-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
           <circle cx={currentPt.x} cy={currentPt.y} r="4.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" strokeWidth="1.5" />
         </g>
+
+        {/* Hover Position Dot & Guide Line */}
+        {hoveredPt && (
+          <g key={`traffic-dot-sidebar-hover-${hoveredHourIdx}`} data-testid="hover-traffic-dot">
+            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke="#60a5fa" strokeDasharray="2 2" strokeWidth="1" />
+            <circle cx={hoveredPt.x} cy={hoveredPt.y} r="5" className="fill-blue-300 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+          </g>
+        )}
       </svg>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
         <span>
-          {hoveredHourIdx !== null ? (
-            <>Traffic ({currentPt.hour}): <strong className="text-blue-400">{currentPt.val.toLocaleString()} visits</strong></>
+          {hoveredPt ? (
+            <>Traffic ({hoveredPt.hour}): <strong className="text-blue-400">{hoveredPt.val.toLocaleString()} visits</strong></>
           ) : (
             <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
           )}

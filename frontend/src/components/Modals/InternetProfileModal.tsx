@@ -58,10 +58,13 @@ const MiniCurvePreview = ({
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const activeDisplayIdx = hoveredHourIdx !== null ? hoveredHourIdx : safeHourIdx;
-  const currentPt = points[activeDisplayIdx] || points[0];
-  const currentVal = values[activeDisplayIdx] ?? 0;
-  const currentHour = HOURS_OF_DAY[activeDisplayIdx] || '00:00';
+  const currentPt = points[safeHourIdx] || points[0];
+  const currentVal = values[safeHourIdx] ?? 0;
+  const currentHour = HOURS_OF_DAY[safeHourIdx] || '00:00';
+
+  const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
+  const hoveredVal = hoveredHourIdx !== null ? (values[hoveredHourIdx] ?? 0) : 0;
+  const hoveredHour = hoveredHourIdx !== null ? (HOURS_OF_DAY[hoveredHourIdx] || '00:00') : '00:00';
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -93,12 +96,20 @@ const MiniCurvePreview = ({
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Traffic Position Dot with Hover Tooltip for Applied Profile or when Hovering */}
-      {(isApplied || hoveredHourIdx !== null) && (
-        <g key={`mini-traffic-dot-${activeDisplayIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
+      {/* Traffic Position Dot for Applied Profile (Always locked at safeHourIdx) */}
+      {isApplied && (
+        <g key={`mini-traffic-dot-active-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
           <circle cx={currentPt.x} cy={currentPt.y} r="3.5" className="fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" strokeWidth="1.5" />
           <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
+        </g>
+      )}
+
+      {/* Hover Position Indicator Dot */}
+      {hoveredPt && (
+        <g key={`mini-traffic-dot-hover-${hoveredHourIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
+          <circle cx={hoveredPt.x} cy={hoveredPt.y} r="4" className="fill-blue-300 stroke-white dark:stroke-slate-900" strokeWidth="1.5" />
+          <title>{`${hoveredHour} - ${hoveredVal.toLocaleString()} visits`}</title>
         </g>
       )}
     </svg>
@@ -159,7 +170,6 @@ const InteractiveTrafficChart = ({
   const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const activeHourIdx = hoveredHourIdx !== null ? hoveredHourIdx : (isSimulating && isApplied ? safeHourIdx : null);
 
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -308,21 +318,22 @@ const InteractiveTrafficChart = ({
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
+          const isHoveredThis = hoveredHourIdx === idx;
+          const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
-          const isCurrentTrafficHour = activeHourIdx === idx;
 
           return (
             <g key={`pt-${pt.hour}`}>
-              {/* Vertical Guide Line when dragging or active traffic tick */}
-              {(isDraggingThis || isCurrentTrafficHour) && (
+              {/* Vertical Guide Line when dragging, hovered, or active simulation tick */}
+              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
                 <line
                   x1={pt.x}
                   y1={padTop}
                   x2={pt.x}
                   y2={padTop + chartHeight}
-                  stroke={hoveredHourIdx === idx ? "#3b82f6" : (isSimulating && isApplied && safeHourIdx === idx ? "#34d399" : "#3b82f6")}
+                  stroke={isSimulatingActive && !isHoveredThis ? "#34d399" : "#3b82f6"}
                   strokeDasharray="2 2"
-                  strokeWidth={isCurrentTrafficHour ? "2" : "1.5"}
+                  strokeWidth={isSimulatingActive || isHoveredThis ? "2" : "1.5"}
                 />
               )}
 
@@ -335,19 +346,16 @@ const InteractiveTrafficChart = ({
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-
               {/* Visible Circle */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isDraggingThis || isCurrentTrafficHour ? 6 : 4}
+                r={isDraggingThis || isHoveredThis || isSimulatingActive ? 6 : 4}
                 className={cn(
                   "cursor-ns-resize transition-all hover:scale-125",
-                  isCurrentTrafficHour
-                    ? (hoveredHourIdx === idx
-                      ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
-                      : "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50")
-                    : isDraggingThis
+                  isSimulatingActive && !isHoveredThis
+                    ? "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50"
+                    : isDraggingThis || isHoveredThis
                       ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
                       : "fill-blue-500 stroke-white dark:stroke-slate-900"
                 )}
@@ -355,8 +363,8 @@ const InteractiveTrafficChart = ({
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Tooltip Card directly on chart when active/hovered or dragging */}
-              {(isDraggingThis || (hoveredHourIdx === idx)) && (
+              {/* Tooltip Card directly on chart when hovered or dragging */}
+              {(isDraggingThis || isHoveredThis) && (
                 <g transform={`translate(${pt.x}, ${Math.max(padTop + 20, pt.y - 32)})`}>
                   <rect
                     x="-45"
