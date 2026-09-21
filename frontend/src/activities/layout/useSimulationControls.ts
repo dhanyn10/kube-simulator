@@ -1,3 +1,9 @@
+import { useMemo } from 'react';
+import { useFlowStore } from '@/store';
+
+/**
+ * Returns the tooltip title text for the simulation action button based on state.
+ */
 export const getSimulationButtonTitle = (
   hasInternet: boolean,
   hasHpaValidationError: boolean,
@@ -8,6 +14,9 @@ export const getSimulationButtonTitle = (
   return isSimulating ? 'Pause Simulation' : 'Start Simulation';
 };
 
+/**
+ * Returns the CSS class names for the primary play/pause button.
+ */
 export const getSimulationButtonClass = (
   hasInternet: boolean,
   isSimulating: boolean,
@@ -26,13 +35,54 @@ export const getSimulationButtonClass = (
     : 'bg-emerald-500 text-white hover:bg-emerald-600';
 };
 
-export const useSimulationControls = (props: {
-  isSimulating: boolean;
-  hasInternet: boolean;
-  hasHpaValidationError: boolean;
-}) => {
-  const title = getSimulationButtonTitle(props.hasInternet, props.hasHpaValidationError, props.isSimulating);
-  const buttonClass = getSimulationButtonClass(props.hasInternet, props.isSimulating, props.hasHpaValidationError);
+/**
+ * Returns the CSS class names for the stop simulation button.
+ */
+export const getStopButtonClass = (hasHpaValidationError: boolean): string => {
+  return hasHpaValidationError
+    ? 'bg-red-600 animate-pulse text-white'
+    : 'bg-red-500 text-white hover:bg-red-600';
+};
 
-  return { title, buttonClass };
+export interface UseSimulationControlsProps {
+  readonly isSimulating: boolean;
+  readonly hasInternet: boolean;
+  readonly hasHpaValidationError: boolean;
+  readonly pauseSimulation?: () => void;
+}
+
+/**
+ * Custom activity hook managing state, speed calculations, and button action handlers for simulation controls.
+ */
+export const useSimulationControls = (props: UseSimulationControlsProps) => {
+  const { isSimulating, hasInternet, hasHpaValidationError, pauseSimulation: pauseSimulationProp } = props;
+
+  const title = getSimulationButtonTitle(hasInternet, hasHpaValidationError, isSimulating);
+  const buttonClass = getSimulationButtonClass(hasInternet, isSimulating, hasHpaValidationError);
+  const stopButtonClass = getStopButtonClass(hasHpaValidationError);
+
+  const nodes = useFlowStore((state) => state.nodes);
+  const simulationSpeed = useFlowStore((state) => state.simulationSpeed);
+  const setSimulationSpeed = useFlowStore((state) => state.setSimulationSpeed);
+  const storePauseSimulation = useFlowStore((state) => state.pauseSimulation);
+
+  const handlePause = pauseSimulationProp || storePauseSimulation;
+
+  const hasActiveProfile = useMemo(() => {
+    return nodes.some((n: { type: string; data?: { connectionProfile?: unknown } }) => (
+      n.type === 'Internet' && Boolean(n.data?.connectionProfile)
+    ));
+  }, [nodes]);
+
+  const showSpeedControls = isSimulating && hasActiveProfile;
+
+  return {
+    title,
+    buttonClass,
+    stopButtonClass,
+    handlePause,
+    simulationSpeed,
+    setSimulationSpeed,
+    showSpeedControls,
+  };
 };

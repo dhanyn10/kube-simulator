@@ -1,10 +1,8 @@
-import { useMemo } from 'react';
 import { Play, Pause, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSimulationControls } from '@/activities/layout';
-import { useFlowStore } from '@/store';
 
-export { getSimulationButtonTitle, getSimulationButtonClass } from '@/activities/layout';
+export { getSimulationButtonTitle, getSimulationButtonClass, getStopButtonClass } from '@/activities/layout';
 
 interface SimulationControlsProps {
   readonly isSimulating: boolean;
@@ -16,33 +14,32 @@ interface SimulationControlsProps {
   readonly colorMode: 'dark' | 'light';
 }
 
+/**
+ * Presentational UI component for simulation control buttons and speed acceleration toggles.
+ */
 export const SimulationControls = ({
   isSimulating,
   startSimulation,
   stopSimulation,
-  pauseSimulation: pauseSimulationProp,
+  pauseSimulation,
   hasInternet,
   hasHpaValidationError,
   colorMode
 }: SimulationControlsProps) => {
-  const { title, buttonClass } = useSimulationControls({
+  const {
+    title,
+    buttonClass,
+    stopButtonClass,
+    handlePause,
+    simulationSpeed,
+    setSimulationSpeed,
+    showSpeedControls,
+  } = useSimulationControls({
     isSimulating,
     hasInternet,
     hasHpaValidationError,
+    pauseSimulation,
   });
-
-  const nodes = useFlowStore((state) => state.nodes);
-  const simulationSpeed = useFlowStore((state) => state.simulationSpeed);
-  const setSimulationSpeed = useFlowStore((state) => state.setSimulationSpeed);
-  const storePauseSimulation = useFlowStore((state) => state.pauseSimulation);
-  const handlePause = pauseSimulationProp || storePauseSimulation;
-
-  // Check if any Internet node has an active connectionProfile
-  const hasActiveProfile = useMemo(() => {
-    return nodes.some((n: any) => n.type === 'Internet' && n.data?.connectionProfile);
-  }, [nodes]);
-
-  const showSpeedControls = isSimulating && hasActiveProfile;
 
   return (
     <div
@@ -75,9 +72,7 @@ export const SimulationControls = ({
             title="Stop Simulation"
             className={cn(
               "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
-              hasHpaValidationError
-                ? "bg-red-600 animate-pulse text-white"
-                : "bg-red-500 text-white hover:bg-red-600"
+              stopButtonClass
             )}
           >
             <Square size={10} fill="currentColor" />
@@ -100,7 +95,7 @@ export const SimulationControls = ({
         </button>
       )}
 
-      {/* Cities: Skylines 1 style speed acceleration button group */}
+      {/* Speed acceleration button group */}
       {showSpeedControls && (
         <div
           data-testid="speed-controls-group"
