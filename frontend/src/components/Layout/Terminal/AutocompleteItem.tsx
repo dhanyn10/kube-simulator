@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TerminalSquare, Info } from 'lucide-react';
+import { TerminalSquare, Info, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SuggestionItem } from '@/activities/terminal';
 
@@ -14,7 +14,7 @@ export interface AutocompleteItemProps {
 
 const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean): string => {
   if (isSelected) {
-    return isDark ? "bg-slate-800 text-white border-blue-600/80" : "bg-blue-50 text-slate-900 border-blue-400/80";
+    return "bg-slate-800 text-white border-blue-600/80";
   }
   return isDark ? "hover:bg-slate-800/80 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100";
 };
@@ -85,10 +85,10 @@ export const AutocompleteItem = ({
           type="button"
           data-testid={`autocomplete-item-${index}`}
           onClick={() => onSelectSuggestion(item)}
-          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none"
+          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none min-w-0"
         >
           <TerminalSquare size={12} className={isSelected ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
-          <span className="font-semibold truncate text-[11px]">{item.label}</span>
+          <span className="font-semibold truncate text-[11px] w-full">{item.label}</span>
         </button>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -106,24 +106,22 @@ export const AutocompleteItem = ({
           </span>
 
           {/* Info toggle button visible on hover */}
-          {item.description && (
-            <button
-              type="button"
-              data-testid={`autocomplete-info-btn-${index}`}
-              title="Toggle detailed description"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsInfoOpen(prev => !prev);
-              }}
-              className={cn(
-                "p-0.5 rounded transition-all focus:outline-none",
-                isHovered || isInfoOpen ? "opacity-100" : "opacity-0",
-                infoBtnClass
-              )}
-            >
-              <Info size={12} />
-            </button>
-          )}
+          <button
+            type="button"
+            data-testid={`autocomplete-info-btn-${index}`}
+            title="Toggle details & full command"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsInfoOpen(prev => !prev);
+            }}
+            className={cn(
+              "p-0.5 rounded transition-all focus:outline-none",
+              isHovered || isInfoOpen ? "opacity-100" : "opacity-0",
+              infoBtnClass
+            )}
+          >
+            <Info size={12} />
+          </button>
         </div>
       </div>
 
@@ -159,22 +157,36 @@ export const AutocompleteItem = ({
         </div>
       )}
 
-      {/* Accordion dropdown for full description */}
-      {isInfoOpen && item.description && (
+      {/* Accordion dropdown for full command and detailed description */}
+      {isInfoOpen && (
         <div
           data-testid={`autocomplete-description-accordion-${index}`}
           className={cn(
-            "px-3 py-1.5 text-[10px] border-t leading-relaxed animate-in slide-in-from-top-1 duration-150",
+            "px-3 py-2 text-[10px] border-t leading-relaxed space-y-2 animate-in slide-in-from-top-1 duration-150",
             accordionClass
           )}
         >
+          {/* Full Command Section */}
           <div className="flex items-start gap-1.5">
-            <Info size={11} className="mt-0.5 shrink-0 opacity-80" />
-            <div>
-              <p className="font-bold mb-0.5 uppercase text-[9px] tracking-wider opacity-90">Detailed Information</p>
-              <p className="select-text whitespace-normal break-words">{item.description}</p>
+            <Terminal size={11} className="mt-0.5 shrink-0 text-blue-400" />
+            <div className="w-full min-w-0">
+              <p className="font-bold uppercase text-[9px] tracking-wider text-blue-400 mb-0.5">Full Command</p>
+              <p className="select-text whitespace-normal break-all font-mono text-[11px] font-bold bg-black/20 p-1.5 rounded border border-blue-500/20">
+                {item.label}
+              </p>
             </div>
           </div>
+
+          {/* Detailed Information Description Section */}
+          {item.description && (
+            <div className="flex items-start gap-1.5">
+              <Info size={11} className="mt-0.5 shrink-0 opacity-80" />
+              <div>
+                <p className="font-bold uppercase text-[9px] tracking-wider opacity-90 mb-0.5">Detailed Information</p>
+                <p className="select-text whitespace-normal break-words">{item.description}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -163,7 +163,39 @@ export const exportLogFile = (logs: string[], filename: string) => {
 };
 
 /** Category classification for terminal log line styling. */
-type LogCategory = 'success' | 'error' | 'warn' | 'cmd' | 'divider' | 'resource' | 'default';
+type LogCategory = 'header' | 'success' | 'error' | 'warn' | 'cmd' | 'divider' | 'resource' | 'default';
+
+/**
+ * Checks if a log line represents CLI table column headers (e.g. NAME, STATUS, READY, etc.).
+ *
+ * @param line - Raw log line string.
+ * @returns True if the line is a table column header line.
+ */
+const isHeaderLine = (line: string): boolean => {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith('---') || trimmed.startsWith('===')) return false;
+
+  const upper = trimmed.toUpperCase();
+
+  const hasNameHeader = upper.includes('NAME') && (
+    upper.includes('READY') ||
+    upper.includes('STATUS') ||
+    upper.includes('TYPE') ||
+    upper.includes('DATA') ||
+    upper.includes('CLUSTER') ||
+    upper.includes('ROLE') ||
+    upper.includes('ATTACHED') ||
+    upper.includes('CLASS') ||
+    upper.includes('REFERENCE') ||
+    upper.includes('HOSTS')
+  );
+
+  const hasCurrentHeader = upper.startsWith('CURRENT') && upper.includes('NAME');
+  const hasEventHeader = upper.includes('TYPE') && upper.includes('REASON') && upper.includes('AGE');
+
+  return hasNameHeader || hasCurrentHeader || hasEventHeader;
+};
 
 /**
  * Determines the category classification of a log line string for color mapping.
@@ -172,19 +204,83 @@ type LogCategory = 'success' | 'error' | 'warn' | 'cmd' | 'divider' | 'resource'
  * @returns Category key for color styling.
  */
 const getLogCategory = (line: string): LogCategory => {
-  if (line.includes('[SUCCESS]') || line.includes('READY')) return 'success';
-  if (line.includes('[ERROR]') || line.includes('[FATAL]') || line.includes('Err') || line.includes('Failed')) return 'error';
-  if (line.includes('[WARN]') || line.includes('[WARNING]') || line.includes('Pending')) return 'warn';
+  if (isHeaderLine(line)) return 'header';
+
+  // Check for error / failed execution (Red)
+  if (
+    line.includes('[ERROR]') ||
+    line.includes('[FATAL]') ||
+    line.includes('Error from server') ||
+    line.includes('error:') ||
+    line.includes('command not found') ||
+    line.includes('Access Denied') ||
+    line.includes('Failed') ||
+    line.includes('ErrImagePull') ||
+    line.includes('ImagePullBackOff') ||
+    line.includes('CrashLoopBackOff') ||
+    line.includes('OOMKilled') ||
+    line.includes('NotFound') ||
+    line.includes('Forbidden') ||
+    line.includes('-> Error') ||
+    line.includes('-> Failed')
+  ) {
+    return 'error';
+  }
+
+  // Check for positive status transitions & successful execution (Green) FIRST to avoid 'Pending' substring collisions
+  if (
+    line.includes('[SUCCESS]') ||
+    line.includes('Pending -> Running') ||
+    line.includes('pending -> ready') ||
+    line.includes('1/1') ||
+    line.includes('Container ready') ||
+    line.includes('Started container') ||
+    line.includes('Successfully') ||
+    line.includes('Switched to context') ||
+    line.includes('created') ||
+    line.includes('applied') ||
+    line.includes('Secret Mode Unlocked') ||
+    line.includes('Unlocked!') ||
+    line.includes('Verified') ||
+    (line.includes('READY') && !isHeaderLine(line))
+  ) {
+    return 'success';
+  }
+
+  // Check for negative transitions & warnings (Orange)
+  if (
+    line.includes('[WARN]') ||
+    line.includes('[WARNING]') ||
+    line.includes('warning:') ||
+    line.includes('Pending') ||
+    line.includes('Waiting') ||
+    line.includes('Terminated') ||
+    line.includes('Terminating') ||
+    line.includes('Scaling down') ||
+    line.includes('Stopping') ||
+    line.includes('Running -> Pending') ||
+    line.includes('ready -> pending') ||
+    line.includes('0/1')
+  ) {
+    return 'warn';
+  }
+
+  if (line.includes('Running')) {
+    return 'success';
+  }
+
   if (line.startsWith('$') || line.startsWith('>')) return 'cmd';
   if (line.includes('===') || line.includes('---')) return 'divider';
   if (line.includes('POD:') || line.includes('DEPLOYMENT:') || line.includes('SERVICE:')) return 'resource';
+
   return 'default';
 };
 
 const LOG_COLOR_MAP: Record<LogCategory, { dark: string; light: string }> = {
+  header: { dark: 'text-white font-bold', light: 'text-slate-900 font-bold' },
   success: { dark: 'text-emerald-400 font-semibold', light: 'text-emerald-600 font-semibold' },
   error: { dark: 'text-rose-400 font-semibold', light: 'text-rose-600 font-semibold' },
-  warn: { dark: 'text-amber-400', light: 'text-amber-600' },
+  warn: { dark: 'text-amber-400 font-semibold', light: 'text-amber-600 font-semibold' },
   cmd: { dark: 'text-cyan-400 font-bold', light: 'text-cyan-600 font-bold' },
   divider: { dark: 'text-slate-500 font-bold', light: 'text-slate-400 font-bold' },
   resource: { dark: 'text-purple-400 font-semibold', light: 'text-purple-600 font-semibold' },
