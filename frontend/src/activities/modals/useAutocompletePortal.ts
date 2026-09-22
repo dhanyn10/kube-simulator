@@ -42,8 +42,8 @@ export const useAutocompletePortal = (portalId = 'configmap-autocomplete-portal'
       onValueChange?: (rowId: string, field: 'key' | 'value', val: string) => void,
       value?: string
     ) => {
-      if (value !== undefined && onValueChange) {
-        onValueChange(rowId, field, value);
+      if (value !== undefined) {
+        onValueChange?.(rowId, field, value);
       }
       activeInputRef.current = elem;
       updateDropdownPos(elem);
@@ -60,8 +60,7 @@ export const useAutocompletePortal = (portalId = 'configmap-autocomplete-portal'
       if (
         popupElem &&
         !popupElem.contains(e.target as Node) &&
-        activeInputRef.current &&
-        !activeInputRef.current.contains(e.target as Node)
+        !activeInputRef.current?.contains(e.target as Node)
       ) {
         setActiveDropdown(null);
       }
