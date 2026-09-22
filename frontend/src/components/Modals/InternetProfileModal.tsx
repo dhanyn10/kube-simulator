@@ -17,6 +17,32 @@ interface InternetProfileModalProps {
   readonly performUpdate: (updates: any) => void;
 }
 
+/**
+ * Calculates card container background styling classes based on profile application status and color mode.
+ */
+const getProfileCardBgClass = (isApplied: boolean, colorMode: string): string => {
+  if (isApplied) {
+    return colorMode === 'dark'
+      ? 'bg-slate-900 border-blue-500 shadow-md shadow-blue-500/20 ring-1 ring-blue-500'
+      : 'bg-blue-50/70 border-blue-500 shadow-md ring-1 ring-blue-500';
+  }
+  return colorMode === 'dark'
+    ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/50'
+    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50';
+};
+
+/**
+ * Calculates Apply button styling classes based on profile application status and color mode.
+ */
+const getApplyButtonClass = (isApplied: boolean, colorMode: string): string => {
+  if (isApplied) {
+    return 'border-blue-500 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20';
+  }
+  return colorMode === 'dark'
+    ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+    : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700';
+};
+
 export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
   isOpen,
   onClose,
@@ -101,9 +127,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                     key={p.name}
                     className={cn(
                       "relative p-3.5 rounded-xl border transition-all flex flex-col justify-between select-none outline-none",
-                      isApplied
-                        ? (colorMode === 'dark' ? "bg-slate-900 border-blue-500 shadow-md shadow-blue-500/20 ring-1 ring-blue-500" : "bg-blue-50/70 border-blue-500 shadow-md ring-1 ring-blue-500")
-                        : (colorMode === 'dark' ? "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/50" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50")
+                      getProfileCardBgClass(isApplied, colorMode)
                     )}
                   >
                     {/* Top Right Checkmark Badge (Only icon, no text label) */}
@@ -166,11 +190,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         onClick={() => handleApplyProfile(p.name)}
                         className={cn(
                           "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
-                          isApplied
-                            ? "border-blue-500 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
-                            : (colorMode === 'dark'
-                              ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
-                              : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700")
+                          getApplyButtonClass(isApplied, colorMode)
                         )}
                       >
                         <Check size={13} />

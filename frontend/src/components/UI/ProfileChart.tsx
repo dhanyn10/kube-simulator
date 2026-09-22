@@ -112,6 +112,50 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   );
 };
 
+/**
+ * Calculates guide line stroke color based on hover, simulation, and error state.
+ */
+const getGuideLineStroke = (
+  isHoveredThis: boolean,
+  isSimulatingActive: boolean,
+  isSameHour: boolean,
+  isRed?: boolean
+): string => {
+  if (isHoveredThis && isSameHour) {
+    return isRed ? '#f43f5e' : '#10b981';
+  }
+  if (isSimulatingActive && !isHoveredThis) {
+    return isRed ? '#f43f5e' : '#34d399';
+  }
+  return '#3b82f6';
+};
+
+/**
+ * Calculates point fill styling classes based on hover, drag, simulation, and error state.
+ */
+const getPointFillClass = (
+  isHoveredThis: boolean,
+  isSameHour: boolean,
+  isSimulatingActive: boolean,
+  isDraggingThis: boolean,
+  isRed?: boolean
+): string => {
+  if (isHoveredThis && isSameHour) {
+    return isRed
+      ? 'fill-rose-500 stroke-white ring-4 ring-rose-500/50'
+      : 'fill-emerald-400 stroke-white ring-4 ring-emerald-500/50';
+  }
+  if (isSimulatingActive && !isHoveredThis) {
+    return isRed
+      ? 'fill-rose-500 stroke-white dark:stroke-slate-900 ring-4 ring-rose-500/50'
+      : 'fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50';
+  }
+  if (isDraggingThis || isHoveredThis) {
+    return 'fill-blue-400 stroke-white ring-4 ring-blue-500/50';
+  }
+  return 'fill-blue-500 stroke-white dark:stroke-slate-900';
+};
+
 export interface InteractiveTrafficChartProps {
   readonly profile: InternetProfileItem;
   readonly colorMode: string;
@@ -302,7 +346,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           const isDraggingThis = draggingHour === pt.hour;
           const isHoveredThis = hoveredHourIdx === idx;
           const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
+          const isSameHour = idx === safeHourIdx;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
+
+          const guideLineStroke = getGuideLineStroke(isHoveredThis, isSimulatingActive, isSameHour, isRed);
+          const pointFillClass = getPointFillClass(isHoveredThis, isSameHour, isSimulatingActive, isDraggingThis, isRed);
 
           return (
             <g key={`pt-${pt.hour}`}>
@@ -313,7 +361,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                   y1={padTop}
                   x2={pt.x}
                   y2={padTop + chartHeight}
-                  stroke={isHoveredThis && idx === safeHourIdx ? (isRed ? "#f43f5e" : "#10b981") : (isSimulatingActive && !isHoveredThis ? (isRed ? "#f43f5e" : "#34d399") : "#3b82f6")}
+                  stroke={guideLineStroke}
                   strokeDasharray="2 2"
                   strokeWidth={isSimulatingActive || isHoveredThis ? "2" : "1.5"}
                 />
@@ -333,16 +381,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 cx={pt.x}
                 cy={pt.y}
                 r={isDraggingThis || isHoveredThis || isSimulatingActive ? 6 : 4}
-                className={cn(
-                  "cursor-ns-resize transition-all hover:scale-125",
-                  isHoveredThis && idx === safeHourIdx
-                    ? (isRed ? "fill-rose-500 stroke-white ring-4 ring-rose-500/50" : "fill-emerald-400 stroke-white ring-4 ring-emerald-500/50")
-                    : isSimulatingActive && !isHoveredThis
-                      ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 ring-4 ring-rose-500/50" : "fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50")
-                      : isDraggingThis || isHoveredThis
-                        ? "fill-blue-400 stroke-white ring-4 ring-blue-500/50"
-                        : "fill-blue-500 stroke-white dark:stroke-slate-900"
-                )}
+                className={cn("cursor-ns-resize transition-all hover:scale-125", pointFillClass)}
                 strokeWidth="1.5"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
