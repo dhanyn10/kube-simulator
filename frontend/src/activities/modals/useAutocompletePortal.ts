@@ -27,7 +27,7 @@ export const useAutocompletePortal = (portalId = 'configmap-autocomplete-portal'
       width: rect.width,
     };
     setDropdownPos((prev) => {
-      if (prev && prev.top === newPos.top && prev.left === newPos.left && prev.width === newPos.width) {
+      if (prev?.top === newPos.top && prev?.left === newPos.left && prev?.width === newPos.width) {
         return prev;
       }
       return newPos;

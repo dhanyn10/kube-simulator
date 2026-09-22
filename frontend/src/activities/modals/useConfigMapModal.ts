@@ -4,16 +4,14 @@ import { useFlowStore } from '@/store';
 import { useKeyValueModalState } from './useKeyValueModalState';
 import { useAutocompletePortal } from './useAutocompletePortal';
 import {
-  ConfigRow,
-  PREDEFINED_KEYS,
   findActiveKeyInfo,
   filterKeysByQuery,
   filterValuesByQuery,
   buildConfigMapItem,
 } from './configMapModalHelpers';
 
-export { PREDEFINED_KEYS };
-export type { ConfigRow };
+export { PREDEFINED_KEYS } from './configMapModalHelpers';
+export type { ConfigRow } from './configMapModalHelpers';
 
 interface UseConfigMapModalProps {
   readonly isOpen: boolean;
@@ -69,7 +67,7 @@ export const useConfigMapModal = ({
 
     if (initialConfigMap?.configData?.length) {
       setCmName(initialConfigMap.name || 'app-config');
-      const loadedRows: ConfigRow[] = initialConfigMap.configData.map((item, idx) => ({
+      const loadedRows = initialConfigMap.configData.map((item, idx) => ({
         id: `row-${idx}-${Date.now()}`,
         key: item.key,
         value: item.value,
