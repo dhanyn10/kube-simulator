@@ -1,6 +1,7 @@
 import { Boxes, Box, FileCode, Trash2, Copy, Clipboard, Terminal, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContextMenuHandler } from '@/activities/ui';
+import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 
 interface ContextMenuProps {
   x: number;
@@ -33,6 +34,8 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
     handleMenuKeyDown,
   } = useContextMenuHandler({ onClose });
 
+  const position = useContextMenuPosition(x, y, menuRef);
+
   const itemClass = cn(
     "w-full px-3 py-2 text-xs flex items-center gap-3 transition-colors",
     colorMode === 'dark'
@@ -62,7 +65,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
           "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001] outline-none",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}
-        style={{ left: x, top: y }}
+        style={{ left: position.left, top: position.top }}
         onKeyDown={handleMenuKeyDown}
       >
         {/* Inspect */}

@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { Sun, Moon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 
 export { useSidebarContextMenu } from '@/activities/ui';
 
@@ -27,11 +29,14 @@ export function SidebarContextMenu({
   closeTestId = 'context-menu-close-sidebar',
 }: SidebarContextMenuProps) {
   const isDark = colorMode === 'dark';
+  const menuRef = useRef<HTMLDivElement>(null);
+  const position = useContextMenuPosition(x, y, menuRef);
 
   return (
     <div
+      ref={menuRef}
       data-testid={testId}
-      style={{ top: y, left: x }}
+      style={{ top: position.top, left: position.left }}
       className={cn(
         "fixed z-[3000] min-w-[150px] py-1 rounded-lg border shadow-2xl animate-in fade-in zoom-in-95 duration-100",
         isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
