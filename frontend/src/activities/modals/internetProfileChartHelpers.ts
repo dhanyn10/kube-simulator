@@ -1,4 +1,11 @@
-import { HOURS_OF_DAY, InternetProfileItem } from './useInternetProfileModal';
+export interface InternetProfileItem {
+  name: string;
+  hourly: Record<string, number>;
+  daily?: Record<string, number>;
+  timestamp?: number;
+}
+
+export const HOURS_OF_DAY = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
 /**
  * Calculates point coordinates and SVG path data for traffic profile charts.
