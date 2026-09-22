@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { TerminalSquare, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SuggestionItem } from '@/activities/terminal';
@@ -14,7 +14,7 @@ export interface AutocompleteItemProps {
 
 const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean): string => {
   if (isSelected) {
-    return isDark ? "bg-slate-800 text-white border-blue-600/80" : "bg-blue-50 text-slate-900 border-blue-400/80";
+    return "bg-slate-800 text-white border-blue-600/80";
   }
   return isDark ? "hover:bg-slate-800/80 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100";
 };
@@ -60,6 +60,29 @@ export const AutocompleteItem = ({
 }: AutocompleteItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const [isMarqueeActive, setIsMarqueeActive] = useState(false);
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isHovered) {
+      timerRef.current = setTimeout(() => {
+        setIsMarqueeActive(true);
+      }, 2000);
+    } else {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setIsMarqueeActive(false);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [isHovered]);
 
   const containerClass = getAutocompleteItemClass(isSelected, isDark);
   const categoryBadgeClass = getCategoryBadgeClass(isSelected, isDark);
@@ -85,10 +108,20 @@ export const AutocompleteItem = ({
           type="button"
           data-testid={`autocomplete-item-${index}`}
           onClick={() => onSelectSuggestion(item)}
-          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none"
+          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none min-w-0"
         >
           <TerminalSquare size={12} className={isSelected ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
-          <span className="font-semibold truncate text-[11px]">{item.label}</span>
+          <div className="overflow-hidden whitespace-nowrap w-full">
+            <span
+              data-testid={`autocomplete-label-${index}`}
+              className={cn(
+                "font-semibold text-[11px] inline-block",
+                isMarqueeActive ? "animate-marquee pr-8" : "truncate w-full"
+              )}
+            >
+              {isMarqueeActive ? `${item.label}   —   ${item.label}` : item.label}
+            </span>
+          </div>
         </button>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
