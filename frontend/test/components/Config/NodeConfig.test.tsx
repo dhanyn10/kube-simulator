@@ -59,10 +59,11 @@ describe('NodeConfig', () => {
     expect(screen.queryByTestId('workload-config')).toBeNull();
   });
 
-  it('updates node name', async () => {
-    const node = { id: 'n1', type: 'Pod', data: { label: 'pod-1' } };
+  it('updates node name and handles missing data.label', async () => {
+    const node = { id: 'n1', type: 'Pod', data: {} };
     render(<NodeConfig selectedNode={node} />);
-    const input = screen.getByPlaceholderText('node-name');
+    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
+    expect(input.value).toBe('');
 
     fireEvent.change(input, { target: { value: 'New Pod Name' } });
     expect(mockUpdateNodeData).toHaveBeenCalledWith('n1', { label: 'new-pod-name' });
@@ -125,9 +126,18 @@ describe('NodeConfig', () => {
     });
   });
 
-  it('shows correct status badge', () => {
+  it('shows correct status badge for configured and unconfigured workloads', () => {
     const readyNode = { id: 'n1', type: 'Service', data: { label: 'svc' } };
     const { rerender } = render(<NodeConfig selectedNode={readyNode} />);
+    expect(screen.getByText(/Ready to Deploy/i)).toBeDefined();
+
+    // Workload with status ready and configured webserver
+    const configuredPod = {
+      id: 'p1',
+      type: 'Pod',
+      data: { label: 'pod', status: 'ready', webserver: 'nginx' }
+    };
+    rerender(<NodeConfig selectedNode={configuredPod} />);
     expect(screen.getByText(/Ready to Deploy/i)).toBeDefined();
 
     const notReadyNode = { id: 'n2', type: 'Pod', data: { label: 'pod', status: 'pending' } };
@@ -135,7 +145,9 @@ describe('NodeConfig', () => {
     expect(screen.getByText(/Configuration Required/i)).toBeDefined();
   });
 
-  it('renders View Logs button for Pod/Deployment/ReplicaSet and opens terminal on click', () => {
+  it('renders View Logs button for Pod/Deployment/ReplicaSet in light mode and dark mode, opening terminal on click', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
     const setTerminalOpen = vi.fn();
     const setTerminalActiveTab = vi.fn();
     const setTerminalSelectedResourceId = vi.fn();
@@ -151,6 +163,7 @@ describe('NodeConfig', () => {
 
     const logsBtn = screen.getByText('View Logs (kubectl logs)');
     expect(logsBtn).toBeDefined();
+    expect(logsBtn.className).toContain('bg-slate-100');
 
     fireEvent.click(logsBtn);
 

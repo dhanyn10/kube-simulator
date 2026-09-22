@@ -174,6 +174,22 @@ describe('BaseNode', () => {
     expect(c2.querySelector('.rounded-full.w-1\\.5')).toBeNull();
   });
 
+  it('renders title fallback from data.type when title is empty and handles hideSettings prop', () => {
+    render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          title=""
+          hideSettings={true}
+          data={{ label: 'No Title Pod', type: 'Pod' }}
+        />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Pod')).toBeInTheDocument();
+    expect(screen.queryByTitle('Configure Node')).toBeNull();
+  });
+
   it('renders secrets, hpas, light mode, and nested namespace parent container styles', () => {
     useFlowStore.setState({
       colorMode: 'light',
