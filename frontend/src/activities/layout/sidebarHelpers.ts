@@ -1,5 +1,3 @@
-import { K8sResourceType } from '@/types';
-
 export const ITEM_STYLES: Record<string, { border: string; text: string }> = {
   Deployment: { border: 'border-l-violet-500 hover:border-violet-500', text: 'text-violet-400' },
   Pod: { border: 'border-l-cyan-500 hover:border-cyan-500', text: 'text-cyan-400' },

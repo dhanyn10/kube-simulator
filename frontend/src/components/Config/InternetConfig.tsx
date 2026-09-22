@@ -5,7 +5,6 @@ import { InternetProfileModal } from '../Modals/InternetProfileModal';
 import { HOURS_OF_DAY } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
-  formatNumberCompact,
   calculateMaxTrafficRange,
   generateTrafficRulerTicks,
   isInternetConnectionRed
@@ -16,6 +15,28 @@ interface InternetConfigProps {
   readonly performUpdate: (updates: any) => void;
   readonly toggleVisibility: (field: string) => void;
 }
+
+/**
+ * Calculates hover line stroke color based on hover state and error status.
+ */
+const getHoverDotStroke = (isHoveredSameHour: boolean, isRed?: boolean): string => {
+  if (isHoveredSameHour) {
+    return isRed ? '#f43f5e' : '#10b981';
+  }
+  return '#60a5fa';
+};
+
+/**
+ * Calculates hover dot fill class based on hover state and error status.
+ */
+const getHoverDotClass = (isHoveredSameHour: boolean, isRed?: boolean): string => {
+  if (isHoveredSameHour) {
+    return isRed
+      ? 'fill-rose-500 stroke-white dark:stroke-slate-900'
+      : 'fill-emerald-400 stroke-white dark:stroke-slate-900';
+  }
+  return 'fill-blue-300 stroke-white dark:stroke-slate-900';
+};
 
 const ReadOnlyProfileChart = ({
   profile,
@@ -53,7 +74,8 @@ const ReadOnlyProfileChart = ({
     return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
   }, '');
 
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+  const lastPoint = points.at(-1) || points[0];
+  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   const currentPt = points[safeHourIdx] || points[0];
@@ -119,12 +141,12 @@ const ReadOnlyProfileChart = ({
         {/* Hover Position Dot & Guide Line */}
         {hoveredPt && (
           <g key={`traffic-dot-sidebar-hover-${hoveredHourIdx}`} data-testid="hover-traffic-dot">
-            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke={hoveredHourIdx === safeHourIdx ? (isRed ? "#f43f5e" : "#10b981") : "#60a5fa"} strokeDasharray="2 2" strokeWidth="1" />
+            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke={getHoverDotStroke(hoveredHourIdx === safeHourIdx, isRed)} strokeDasharray="2 2" strokeWidth="1" />
             <circle
               cx={hoveredPt.x}
               cy={hoveredPt.y}
               r="5"
-              className={hoveredHourIdx === safeHourIdx ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900") : "fill-blue-300 stroke-white dark:stroke-slate-900"}
+              className={getHoverDotClass(hoveredHourIdx === safeHourIdx, isRed)}
               strokeWidth="1.5"
             />
           </g>

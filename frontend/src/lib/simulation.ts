@@ -201,8 +201,42 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
 
   if (node.type === 'Deployment') {
     const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
-    if (childPods.length > 0 && childPods.some((p) => p.data?.status !== 'ready')) return true;
+    if (childPods.some((p) => p.data?.status !== 'ready')) return true;
   }
+  return false;
+};
+
+/**
+ * Traverses downstream paths starting from target ID to detect unready nodes or edge validation errors.
+ */
+const hasUnreadyDownstreamPath = (
+  startTargetId: string,
+  ctx: SimulationContext,
+  activeEdgesSet: Set<string>
+): boolean => {
+  const visited = new Set<string>();
+  const queue = [startTargetId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    if (visited.has(currentId)) continue;
+    visited.add(currentId);
+
+    const node = ctx.nodeMap?.get(currentId) || ctx.nodes.find(n => String(n.id) === currentId);
+    if (checkNodeUnreadyInternal(node, ctx.nodes)) {
+      return true;
+    }
+
+    const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(e =>
+      activeEdgesSet.size === 0 || activeEdgesSet.has(String(e.id))
+    );
+
+    for (const downEdge of downstreamEdges) {
+      if (downEdge.data?.validationError) return true;
+      queue.push(String(downEdge.target));
+    }
+  }
+
   return false;
 };
 
@@ -217,28 +251,8 @@ export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext):
 
   for (const edge of outgoing) {
     if (edge.data?.validationError) return true;
-
-    const visited = new Set<string>();
-    const queue = [String(edge.target)];
-
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-      if (visited.has(currentId)) continue;
-      visited.add(currentId);
-
-      const node = ctx.nodeMap?.get(currentId) || ctx.nodes.find(n => String(n.id) === currentId);
-      if (checkNodeUnreadyInternal(node, ctx.nodes)) {
-        return true;
-      }
-
-      const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(e =>
-        activeEdgesSet.size === 0 || activeEdgesSet.has(String(e.id))
-      );
-
-      for (const downEdge of downstreamEdges) {
-        if (downEdge.data?.validationError) return true;
-        queue.push(String(downEdge.target));
-      }
+    if (hasUnreadyDownstreamPath(String(edge.target), ctx, activeEdgesSet)) {
+      return true;
     }
   }
 
