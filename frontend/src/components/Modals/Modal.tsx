@@ -134,7 +134,7 @@ export const Modal = ({
           ref={contextMenuRef}
           style={{ top: position.top, left: position.left }}
           className={cn(
-            "fixed z-[200] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100",
+            "fixed z-[200] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md",
             colorMode === 'dark'
               ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
               : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"

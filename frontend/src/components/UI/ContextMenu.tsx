@@ -62,7 +62,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
         tabIndex={-1}
         aria-label="Canvas context menu"
         className={cn(
-          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl animate-in fade-in zoom-in duration-100 z-[2001] outline-none",
+          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl z-[2001] outline-none",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}
         style={{ left: position.left, top: position.top }}
