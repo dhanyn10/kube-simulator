@@ -91,7 +91,7 @@ describe('useInternetProfileModal', () => {
       // Trigger effect
     });
 
-    expect(result.current.profiles.length).toBe(3);
+    expect(result.current.profiles).toHaveLength(3);
     expect(result.current.profiles.find((p) => p.name === 'Custom 1')).toBeDefined();
     const normalizedLegacy = result.current.profiles.find((p) => p.name === 'Legacy Daily Profile');
     expect(normalizedLegacy).toBeDefined();
