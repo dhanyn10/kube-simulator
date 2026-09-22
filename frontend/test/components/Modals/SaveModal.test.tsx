@@ -38,6 +38,8 @@ describe('SaveModal', () => {
           SaveProject: vi.fn().mockResolvedValue(100),
           UpdateProject: vi.fn().mockResolvedValue(true),
           LoadProject: vi.fn().mockResolvedValue({ content: JSON.stringify({ nodes: [], edges: [] }) }),
+          OpenFileFolder: vi.fn().mockResolvedValue(true),
+          DeleteProject: vi.fn().mockResolvedValue(true),
         },
       },
     };
@@ -154,7 +156,7 @@ describe('SaveModal', () => {
     });
   });
 
-  it('supports row right-click context menu options (Change Theme, Load Profile, Exit) in dark mode', async () => {
+  it('supports row right-click context menu options (Change Theme, Load Profile, Open Folder, Delete, Exit) in dark/light mode', async () => {
     render(<SaveModal {...defaultProps} />);
 
     await waitFor(() => {
@@ -169,6 +171,8 @@ describe('SaveModal', () => {
     await waitFor(() => {
       expect(screen.getByText('Change Theme')).toBeInTheDocument();
       expect(screen.getByText('Load Profile')).toBeInTheDocument();
+      expect(screen.getByText('Open Folder Location')).toBeInTheDocument();
+      expect(screen.getByText('Delete Document')).toBeInTheDocument();
       expect(screen.getByText('Exit')).toBeInTheDocument();
     });
 
@@ -177,6 +181,26 @@ describe('SaveModal', () => {
       fireEvent.click(screen.getByText('Change Theme'));
     });
     expect(useFlowStore.getState().colorMode).toBe('light');
+
+    // Re-open context menu and test Open Folder Location button
+    act(() => {
+      fireEvent.contextMenu(itemRow);
+    });
+    await waitFor(() => expect(screen.getByText('Open Folder Location')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Open Folder Location'));
+    });
+
+    // Re-open context menu and test Delete Document button
+    act(() => {
+      fireEvent.contextMenu(itemRow);
+    });
+    await waitFor(() => expect(screen.getByText('Delete Document')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Delete Document'));
+    });
 
     // Re-open context menu and test Load Profile button
     act(() => {

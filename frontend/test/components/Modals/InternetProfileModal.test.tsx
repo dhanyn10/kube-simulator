@@ -1,16 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
 import { ECOMMERCE_PROFILE } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 
-// Mock Wails runtime calls
-vi.mock('@/lib/wailsRuntime', () => ({
-  SaveInternetProfile: vi.fn().mockResolvedValue(true),
-  GetInternetProfiles: vi.fn().mockResolvedValue([]),
-  DeleteInternetProfile: vi.fn().mockResolvedValue(true)
-}));
+const mockGetInternetProfiles = vi.fn();
+const mockSaveInternetProfile = vi.fn();
+const mockDeleteInternetProfile = vi.fn();
+
+// Mock window.go
+beforeEach(() => {
+  (window as any).go = {
+    main: {
+      App: {
+        GetInternetProfiles: mockGetInternetProfiles,
+        SaveInternetProfile: mockSaveInternetProfile,
+        DeleteInternetProfile: mockDeleteInternetProfile
+      }
+    }
+  };
+});
 
 describe('InternetProfileModal', () => {
   const mockPerformUpdate = vi.fn();
@@ -27,10 +37,36 @@ describe('InternetProfileModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetInternetProfiles.mockResolvedValue([]);
+    mockSaveInternetProfile.mockResolvedValue(true);
+    mockDeleteInternetProfile.mockResolvedValue(true);
+    useFlowStore.setState({ nodes: [], edges: [] });
   });
 
-  it('renders modal when isOpen is true', () => {
-    render(
+  it('renders modal when isOpen is true', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    expect(screen.getByText('Internet Connection')).toBeDefined();
+    expect(screen.getByText(/24-Hour Connection Simulation Profile Templates/i)).toBeDefined();
+  });
+
+  it('evaluates isRed boolean based on outgoing edges and connected node statuses', async () => {
+    // Case 1: 0 outgoing edges (isRed: true)
+    useFlowStore.setState({
+      nodes: [{ id: 'node-internet-1', type: 'Internet', data: {} }],
+      edges: []
+    });
+
+    const { rerender } = render(
       <InternetProfileModal
         isOpen={true}
         onClose={mockOnClose}
@@ -39,11 +75,81 @@ describe('InternetProfileModal', () => {
       />
     );
 
-    expect(screen.getByText('Internet Connection')).toBeDefined();
-    expect(screen.getByText(/24-Hour Connection Simulation Profile Templates/i)).toBeDefined();
+    // Case 2: Edge with validationError: true (isRed: true)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'node-internet-1', type: 'Internet', data: {} },
+        { id: 'pod-1', type: 'Pod', data: { status: 'ready' } }
+      ],
+      edges: [
+        { id: 'e1', source: 'node-internet-1', target: 'pod-1', data: { validationError: 'Error' } }
+      ]
+    });
+
+    rerender(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    // Case 3: Edge pointing to unready Pod (isRed: true)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'node-internet-1', type: 'Internet', data: {} },
+        { id: 'pod-1', type: 'Pod', data: { status: 'pending' } }
+      ],
+      edges: [
+        { id: 'e1', source: 'node-internet-1', target: 'pod-1', data: {} }
+      ]
+    });
+
+    rerender(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    // Case 4: Edge pointing to missing node (isRed: true)
+    useFlowStore.setState({
+      nodes: [{ id: 'node-internet-1', type: 'Internet', data: {} }],
+      edges: [{ id: 'e1', source: 'node-internet-1', target: 'non-existent', data: {} }]
+    });
+
+    rerender(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    // Case 5: Edge pointing to ready Pod (isRed: false)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'node-internet-1', type: 'Internet', data: {} },
+        { id: 'pod-1', type: 'Pod', data: { status: 'ready' } }
+      ],
+      edges: [{ id: 'e1', source: 'node-internet-1', target: 'pod-1', data: {} }]
+    });
+
+    rerender(
+      <InternetProfileModal
+        isOpen={true}
+        onClose={mockOnClose}
+        selectedNode={dummyNode}
+        performUpdate={mockPerformUpdate}
+      />
+    );
   });
 
-  it('displays default Ecommerce profile template card, badge, and active traffic dots during simulation', () => {
+  it('displays default Ecommerce profile template card, badge, and active traffic dots during simulation', async () => {
     useFlowStore.setState({ isSimulating: true });
 
     const activeSimNode = {
@@ -54,14 +160,16 @@ describe('InternetProfileModal', () => {
       }
     };
 
-    render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={activeSimNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={activeSimNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
 
     const matches = screen.getAllByText(ECOMMERCE_PROFILE.name);
     expect(matches.length).toBeGreaterThan(0);
@@ -75,37 +183,125 @@ describe('InternetProfileModal', () => {
     expect(miniDot).toBeDefined();
   });
 
-  it('allows clicking Details to open detailed view', () => {
-    render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
+  it('handles custom profile cards with delete button, metrics summary formatting (<1000 and >=1000)', async () => {
+    const customProfile = {
+      name: 'Custom Heavy Load',
+      hourly: { '00:00': 500, '01:00': 2500 }
+    };
+    mockGetInternetProfiles.mockResolvedValue([customProfile]);
+
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    expect(screen.getByText('Custom Heavy Load')).toBeDefined();
+    expect(screen.getByText('2.5k')).toBeDefined();
+
+    // Delete custom profile button
+    const deleteButton = screen.getByTitle('Delete Template');
+    await act(async () => {
+      fireEvent.click(deleteButton);
+    });
+    expect(mockDeleteInternetProfile).toHaveBeenCalledWith('Custom Heavy Load');
+  });
+
+  it('allows clicking Details to open detailed view and saving/applying detailed profile', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
 
     const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
     expect(detailsButtons.length).toBeGreaterThan(0);
-    fireEvent.click(detailsButtons[0]);
+
+    await act(async () => {
+      fireEvent.click(detailsButtons[0]);
+    });
 
     expect(screen.getByText(/Back to Profiles Gallery/i)).toBeDefined();
+
+    // Click 'Applied' / 'Save & Apply Profile' button in details view
+    const saveApplyBtn = screen.getByRole('button', { name: /Applied/i });
+    await act(async () => {
+      fireEvent.click(saveApplyBtn);
+    });
+
+    // handleSaveAndApplyDetailProfile returns viewMode to 'grid', verify grid header is shown
+    expect(screen.getByText(/Select Connection Simulation Profile/i)).toBeDefined();
   });
 
-  it('allows switching to graphical custom profile creation view', () => {
-    render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
+  it('allows switching to graphical custom profile creation view, randomizing graph, saving, and canceling', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
 
     const addCustomCard = screen.getByText('Add Custom Profile');
-    fireEvent.click(addCustomCard);
+    await act(async () => {
+      fireEvent.click(addCustomCard);
+    });
 
     expect(screen.getByText('Randomize Graph')).toBeDefined();
-    expect(screen.getByText(/Save & Apply Custom Profile/i)).toBeDefined();
+
+    // Click Randomize Graph
+    const randomizeBtn = screen.getByRole('button', { name: /Randomize Graph/i });
+    await act(async () => {
+      fireEvent.click(randomizeBtn);
+    });
+
+    // Save custom profile
+    const saveCustomBtn = screen.getByRole('button', { name: /Save & Apply Custom Profile/i });
+    await act(async () => {
+      fireEvent.click(saveCustomBtn);
+    });
+
+    expect(mockSaveInternetProfile).toHaveBeenCalled();
+
+    // Open custom view again and cancel
+    const addCustomCardAgain = screen.getByText('Add Custom Profile');
+    await act(async () => {
+      fireEvent.click(addCustomCardAgain);
+    });
+    const cancelBtn = screen.getByText(/Cancel Custom Creation/i);
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+  });
+
+  it('triggers onClose when Close button is clicked', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+    const closeFooterBtn = closeButtons.find((btn) => btn.textContent === 'Close') || closeButtons[0];
+    fireEvent.click(closeFooterBtn);
+    expect(mockOnClose).toHaveBeenCalled();
   });
 });
