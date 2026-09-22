@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sun, Moon, PackageOpen, FolderOpen, Trash2, X } from 'lucide-react';
 import { RecentFileItem } from '@/activities/layout/fileBackstageHelpers';
+import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 import {
   getContextMenuContainerClass,
   getContextMenuButtonClass,
@@ -45,11 +46,12 @@ export const BackstageContextMenu: React.FC<BackstageContextMenuProps> = ({
   if (!contextMenu) return null;
 
   const isDark = colorMode === 'dark';
+  const position = useContextMenuPosition(contextMenu.x, contextMenu.y, contextMenuRef);
 
   return (
     <div
       ref={contextMenuRef}
-      style={{ top: contextMenu.y, left: contextMenu.x }}
+      style={{ top: position.top, left: position.left }}
       className={getContextMenuContainerClass(isDark)}
     >
       <button

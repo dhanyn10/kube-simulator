@@ -3,6 +3,7 @@ import { X, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { useOutsideContextMenu } from '@/hooks/useOutsideContextMenu';
+import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 
 interface ModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const Modal = ({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -130,9 +132,9 @@ export const Modal = ({
       {contextMenu && (
         <div
           ref={contextMenuRef}
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          style={{ top: position.top, left: position.left }}
           className={cn(
-            "fixed z-[200] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100",
+            "fixed z-[200] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md",
             colorMode === 'dark'
               ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
               : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"

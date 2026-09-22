@@ -3,6 +3,7 @@ import { Save, Folder, Clock, FileText, Check, FilePlus, Sun, Moon, PackageOpen,
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
 import { useSaveModal } from '@/activities/modals/useSaveModal';
+import { useContextMenuPosition } from '@/lib/contextMenuUtils';
 import {
   formatDateModified,
   getSaveRowBgClass,
@@ -34,6 +35,8 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
     handleDeleteFile,
     handleOpenFolder,
   } = useSaveModal({ isOpen, onClose });
+
+  const position = useContextMenuPosition(contextMenu?.x ?? 0, contextMenu?.y ?? 0, contextMenuRef);
 
   if (!isOpen) return null;
 
@@ -220,9 +223,9 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
         {contextMenu && (
           <div
             ref={contextMenuRef}
-            style={{ top: contextMenu.y, left: contextMenu.x }}
+            style={{ top: position.top, left: position.left }}
             className={cn(
-              "fixed z-[250] min-w-[170px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md animate-in fade-in zoom-in-95 duration-100",
+              "fixed z-[250] min-w-[170px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md",
               colorMode === 'dark'
                 ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
                 : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"
