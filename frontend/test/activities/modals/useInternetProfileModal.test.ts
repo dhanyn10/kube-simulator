@@ -4,9 +4,9 @@ import {
   useInternetProfileModal,
   generateCustomProfileKey,
   generateRandomHourlyValues,
-  HOURS_OF_DAY,
   ECOMMERCE_PROFILE
 } from '@/activities/modals/useInternetProfileModal';
+import { HOURS_OF_DAY } from '@/activities/modals/internetProfileChartHelpers';
 
 vi.mock('@/lib/wailsRuntime', () => ({
   SaveInternetProfile: vi.fn().mockResolvedValue(true),
