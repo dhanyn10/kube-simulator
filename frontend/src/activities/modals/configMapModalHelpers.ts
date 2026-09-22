@@ -20,50 +20,45 @@ export interface KeySuggestion {
   readonly hint: string;
 }
 
+const createSuggestion = (
+  key: string,
+  hint: string,
+  suggestions: readonly (readonly [value: string, description: string])[]
+): KeySuggestion => ({
+  key,
+  label: key,
+  hint,
+  valueSuggestions: suggestions.map(([v, desc]) => ({
+    value: v,
+    label: v,
+    description: desc,
+  })),
+});
+
 export const PREDEFINED_KEYS: readonly KeySuggestion[] = [
-  {
-    key: 'PORT',
-    label: 'PORT',
-    valueSuggestions: [
-      { value: '80', label: '80', description: 'Standard HTTP Port' },
-      { value: '8080', label: '8080', description: 'Alt Web Server Port' },
-      { value: '3000', label: '3000', description: 'Node.js / React Port' },
-      { value: '5000', label: '5000', description: 'Flask / Python Port' },
-      { value: '8443', label: '8443', description: 'HTTPS Secure Port' },
-    ],
-    hint: 'Container listening port. Must match Service targetPort.',
-  },
-  {
-    key: 'MAX_CONNECTIONS',
-    label: 'MAX_CONNECTIONS',
-    valueSuggestions: [
-      { value: '100', label: '100', description: '100 RPS (Low Limit - Throttling)' },
-      { value: '500', label: '500', description: '500 RPS (Medium Limit)' },
-      { value: '1000', label: '1000', description: '1000 RPS (Standard High Limit)' },
-      { value: '5000', label: '5000', description: '5000 RPS (Enterprise Scale)' },
-    ],
-    hint: 'Maximum traffic capacity limit in RPS. Excess traffic gets throttled.',
-  },
-  {
-    key: 'LOG_LEVEL',
-    label: 'LOG_LEVEL',
-    valueSuggestions: [
-      { value: 'INFO', label: 'INFO', description: 'Standard Activity Logs' },
-      { value: 'DEBUG', label: 'DEBUG', description: 'Verbose Diagnostics' },
-      { value: 'WARN', label: 'WARN', description: 'Warning Highlights Only' },
-      { value: 'ERROR', label: 'ERROR', description: 'Errors Only' },
-    ],
-    hint: 'Controls verbosity level of terminal activity logs.',
-  },
-  {
-    key: 'CHAOS_MODE',
-    label: 'CHAOS_MODE',
-    valueSuggestions: [
-      { value: 'disabled', label: 'disabled', description: 'Normal Operation' },
-      { value: 'enabled', label: 'enabled', description: 'Simulate CrashLoopBackOff' },
-    ],
-    hint: 'Enables or disables simulated pod failures.',
-  },
+  createSuggestion('PORT', 'Container listening port. Must match Service targetPort.', [
+    ['80', 'Standard HTTP Port'],
+    ['8080', 'Alt Web Server Port'],
+    ['3000', 'Node.js / React Port'],
+    ['5000', 'Flask / Python Port'],
+    ['8443', 'HTTPS Secure Port'],
+  ]),
+  createSuggestion('MAX_CONNECTIONS', 'Maximum traffic capacity limit in RPS. Excess traffic gets throttled.', [
+    ['100', '100 RPS (Low Limit - Throttling)'],
+    ['500', '500 RPS (Medium Limit)'],
+    ['1000', '1000 RPS (Standard High Limit)'],
+    ['5000', '5000 RPS (Enterprise Scale)'],
+  ]),
+  createSuggestion('LOG_LEVEL', 'Controls verbosity level of terminal activity logs.', [
+    ['INFO', 'Standard Activity Logs'],
+    ['DEBUG', 'Verbose Diagnostics'],
+    ['WARN', 'Warning Highlights Only'],
+    ['ERROR', 'Errors Only'],
+  ]),
+  createSuggestion('CHAOS_MODE', 'Enables or disables simulated pod failures.', [
+    ['disabled', 'Normal Operation'],
+    ['enabled', 'Simulate CrashLoopBackOff'],
+  ]),
 ];
 
 /**
