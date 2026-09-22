@@ -4,6 +4,8 @@ export * from './useKubeIamWizard';
 export * from './useRoleModal';
 export * from './kubeIamHelpers';
 export * from './attachedResourceListHelpers';
+export * from './configMapModalHelpers';
+export * from './useAutocompletePortal';
 export * from './useConfigMapModal';
 export * from './useInternetProfileModal';
 export * from './internetProfileChartHelpers';
