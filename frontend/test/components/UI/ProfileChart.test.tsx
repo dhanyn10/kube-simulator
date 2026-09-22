@@ -133,6 +133,23 @@ describe('ProfileChart Component', () => {
       hoverCircle = screen.getByTestId('mini-hover-traffic-dot').querySelector('circle')!;
       expect(hoverCircle.className.baseVal || hoverCircle.getAttribute('class')).toContain('fill-blue-300');
     });
+
+    it('handles fallback profile without hourly or daily values and undefined currentHourIndex', () => {
+      const emptyProfile = {
+        name: 'Empty Mini Profile'
+      };
+
+      const { container } = render(
+        <MiniCurvePreview
+          profile={emptyProfile}
+          isApplied={true}
+          // currentHourIndex omitted
+        />
+      );
+
+      expect(container.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
+    });
   });
 
   describe('InteractiveTrafficChart', () => {
@@ -211,7 +228,7 @@ describe('ProfileChart Component', () => {
       };
       vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(mockRect);
 
-      // Pointer move on chart to set hovered hour
+      // Pointer move on chart when draggingHour is null (triggers !draggingHour return in pointerMove)
       fireEvent.pointerMove(svg, { clientX: 100, clientY: 100 });
 
       // Find SVG circles
@@ -221,7 +238,7 @@ describe('ProfileChart Component', () => {
       // Pointer down on first point circle ('00:00')
       fireEvent.pointerDown(circles[0], { pointerId: 1, clientY: 100 });
 
-      // Move pointer on circle itself or svg
+      // Move pointer on circle itself or svg while dragging
       fireEvent.pointerMove(circles[0], { clientX: 80, clientY: 120 });
       fireEvent.pointerMove(svg, { clientX: 80, clientY: 120 });
 
@@ -229,6 +246,9 @@ describe('ProfileChart Component', () => {
 
       // Pointer up releases drag
       fireEvent.pointerUp(circles[0], { pointerId: 1 });
+
+      // Pointer up when not dragging (should not throw)
+      fireEvent.pointerUp(svg, { pointerId: 1 });
 
       // Pointer leave resets hover
       fireEvent.pointerLeave(svg);
@@ -259,7 +279,7 @@ describe('ProfileChart Component', () => {
         toJSON: () => {}
       });
 
-      // 1. Hover on active simulation hour (00:00) with isRed = false
+      // 1. Hover on active simulation hour (00:00) with isRed = false (isHoveredThis && isSameHour)
       fireEvent.pointerMove(svg, { clientX: 70, clientY: 100 });
 
       // 2. Hover on active simulation hour (00:00) with isRed = true
@@ -273,10 +293,10 @@ describe('ProfileChart Component', () => {
       );
       fireEvent.pointerMove(svg, { clientX: 70, clientY: 100 });
 
-      // 3. Hover on different hour (03:00) with isRed = true (simulation active on hour 0)
+      // 3. Simulation active on hour 0, but hovering on different hour (03:00) with isRed = true (isSimulatingActive && !isHoveredThis with isRed)
       fireEvent.pointerMove(svg, { clientX: 150, clientY: 100 });
 
-      // 4. Hover on different hour with isRed = false
+      // 4. Simulation active on hour 0, hovering on different hour with isRed = false (isSimulatingActive && !isHoveredThis without isRed)
       rerender(
         <InteractiveTrafficChart
           {...defaultProps}

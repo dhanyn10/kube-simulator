@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { K8sConfigMapItem } from '@/types';
 import { useFlowStore } from '@/store';
 import { sanitizeSlug } from '@/lib/utils';
+import { useKeyValueModalState } from './useKeyValueModalState';
 
 export interface ConfigRow {
   readonly id: string;
@@ -84,7 +85,15 @@ export const useConfigMapModal = ({
   const isDark = colorMode === 'dark';
 
   const [cmName, setCmName] = useState<string>('app-config');
-  const [rows, setRows] = useState<ConfigRow[]>([]);
+
+  const {
+    dataItems: rows,
+    setDataItems: setRows,
+    handleAddField: handleAddRow,
+    handleRemoveField,
+    handleUpdateField: handleRowChange,
+    getValidData,
+  } = useKeyValueModalState('cm', []);
 
   // Autocomplete state
   const [activeDropdown, setActiveDropdown] = useState<{ readonly rowId: string; readonly field: 'key' | 'value' } | null>(null);
@@ -105,7 +114,7 @@ export const useConfigMapModal = ({
       setCmName(`cm-${randomSuffix}`);
       setRows([]);
     }
-  }, [initialConfigMap, isOpen, targetNodeId]);
+  }, [initialConfigMap, isOpen, targetNodeId, setRows]);
 
   const updateDropdownPos = (inputElem: HTMLInputElement) => {
     const rect = inputElem.getBoundingClientRect();
@@ -156,34 +165,15 @@ export const useConfigMapModal = ({
     };
   }, [activeDropdown]);
 
-  const handleAddRow = () => {
-    setRows((prev) => [
-      ...prev,
-      {
-        id: `row-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-        key: '',
-        value: '',
-      },
-    ]);
-  };
-
   const handleRemoveRow = (id: string) => {
-    setRows((prev) => prev.filter((r) => r.id !== id));
+    handleRemoveField(id);
     if (activeDropdown?.rowId === id) {
       setActiveDropdown(null);
     }
   };
 
-  const handleRowChange = (id: string, field: keyof ConfigRow, value: string) => {
-    setRows((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
-    );
-  };
-
   const handleSave = () => {
-    const configData = rows
-      .map((row) => ({ key: row.key.trim(), value: row.value.trim() }))
-      .filter((item) => item.key.length > 0);
+    const configData = getValidData();
 
     const configMapItem: K8sConfigMapItem = {
       id: initialConfigMap?.id || `cm-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,

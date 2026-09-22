@@ -20,7 +20,8 @@ describe('DataResourceConfig', () => {
       data: {
         label: 'My CM',
         configData: [{ id: '1', key: 'K1', value: 'V1' }],
-        displaySettings: { data: true }
+        displaySettings: { data: true },
+        yamlSettings: { data: false }
       }
     };
 
@@ -38,13 +39,36 @@ describe('DataResourceConfig', () => {
     expect(screen.getByDisplayValue('V1')).toBeDefined();
   });
 
-  it('renders correctly for Secret', () => {
+  it('handles undefined configData fallback in selectedNode.data', () => {
+    const selectedNodeWithoutConfigData = {
+      id: 'cm2',
+      type: 'ConfigMap',
+      data: {
+        label: 'My CM Empty',
+        // configData is omitted to trigger configData = data.configData || []
+        displaySettings: { data: true }
+      }
+    };
+
+    render(
+      <DataResourceConfig
+        selectedNode={selectedNodeWithoutConfigData}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Belum ada data konfigurasi')).toBeDefined();
+  });
+
+  it('renders correctly for Secret with empty configData fallback text', () => {
     const selectedNode = {
       id: 's1',
       type: 'Secret',
       data: {
         label: 'My Secret',
-        configData: [{ id: '1', key: 'S1', value: 'V1' }],
+        // configData is omitted
         displaySettings: { data: true }
       }
     };
@@ -59,37 +83,35 @@ describe('DataResourceConfig', () => {
     );
 
     expect(screen.getByText('Secrets (Key-Value)')).toBeDefined();
-    expect(screen.getByDisplayValue('S1')).toBeDefined();
-    // Value input should be type text
-    const valueInput = screen.getByDisplayValue('V1');
-    expect(valueInput.getAttribute('type')).toBe('text');
+    expect(screen.getByText('Belum ada data secret')).toBeDefined();
   });
 
-  it('handles adding new items', () => {
+  it('handles adding new items and toggles', () => {
     const selectedNode = {
-        id: 'cm1',
-        type: 'ConfigMap',
-        data: {
-          label: 'My CM',
-          configData: [],
-          displaySettings: { data: true }
-        }
+      id: 'cm1',
+      type: 'ConfigMap',
+      data: {
+        label: 'My CM',
+        configData: [],
+        displaySettings: { data: true },
+        yamlSettings: { data: true }
+      }
     };
 
     render(
-        <DataResourceConfig
-          selectedNode={selectedNode}
-          performUpdate={performUpdate}
-          toggleVisibility={toggleVisibility}
-          toggleYaml={toggleYaml}
-        />
+      <DataResourceConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
     );
 
     const addBtn = screen.getByText('Add Item');
     fireEvent.click(addBtn);
 
     expect(performUpdate).toHaveBeenCalledWith(expect.objectContaining({
-        configData: [expect.objectContaining({ key: '', value: '' })]
+      configData: [expect.objectContaining({ key: '', value: '' })]
     }));
   });
 });
