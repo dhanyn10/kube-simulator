@@ -150,6 +150,19 @@ describe('ProfileChart Component', () => {
       expect(container.querySelector('svg')).toBeInTheDocument();
       expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
     });
+
+    it('handles currentHourIndex wrapping with modulo 24', () => {
+      render(
+        <MiniCurvePreview
+          profile={ECOMMERCE_PROFILE}
+          isApplied={true}
+          currentHourIndex={25} // 25 % 24 = 1
+          isRed={false}
+        />
+      );
+
+      expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
+    });
   });
 
   describe('InteractiveTrafficChart', () => {
@@ -252,6 +265,72 @@ describe('ProfileChart Component', () => {
 
       // Pointer leave resets hover
       fireEvent.pointerLeave(svg);
+    });
+
+    it('handles setPointerCapture and releasePointerCapture when defined and undefined', () => {
+      const { container } = render(
+        <InteractiveTrafficChart {...defaultProps} />
+      );
+
+      const svg = container.querySelector('svg')!;
+      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+        left: 0, top: 0, width: 680, height: 280, right: 680, bottom: 280, x: 0, y: 0, toJSON: () => {}
+      });
+
+      const circles = container.querySelectorAll('circle');
+      const targetCircle = circles[0];
+
+      // Attach setPointerCapture and releasePointerCapture mock functions
+      const setPointerCaptureMock = vi.fn();
+      const releasePointerCaptureMock = vi.fn();
+      (targetCircle as any).setPointerCapture = setPointerCaptureMock;
+      (targetCircle as any).releasePointerCapture = releasePointerCaptureMock;
+
+      fireEvent.pointerDown(targetCircle, { pointerId: 1 });
+      expect(setPointerCaptureMock).toHaveBeenCalledWith(1);
+
+      fireEvent.pointerUp(targetCircle, { pointerId: 1 });
+      expect(releasePointerCaptureMock).toHaveBeenCalledWith(1);
+
+      // Test when setPointerCapture / releasePointerCapture are undefined
+      delete (targetCircle as any).setPointerCapture;
+      delete (targetCircle as any).releasePointerCapture;
+
+      expect(() => {
+        fireEvent.pointerDown(targetCircle, { pointerId: 2 });
+        fireEvent.pointerUp(targetCircle, { pointerId: 2 });
+      }).not.toThrow();
+    });
+
+    it('covers tooltip Y-position clamp with high data values (low pt.y)', () => {
+      const highPeakProfile = {
+        name: 'Peak Profile',
+        hourly: {
+          '00:00': 100000,
+          '01:00': 50000
+        }
+      };
+
+      const { container } = render(
+        <InteractiveTrafficChart {...defaultProps} profile={highPeakProfile} colorMode="light" />
+      );
+
+      const circles = container.querySelectorAll('circle');
+      // Second circle of point 0 (index 1 in SVG circles array: 0 is touch target, 1 is visible circle)
+      const visibleCircle = circles[1];
+
+      // Pointer down on circle directly sets draggingHour
+      fireEvent.pointerDown(visibleCircle, { pointerId: 1, clientY: 10 });
+
+      // While dragging, tooltip is rendered!
+      expect(screen.getByText(/00:00 • 100,000/i)).toBeInTheDocument();
+    });
+
+    it('renders all X-axis labels including last element (23:00)', () => {
+      render(<InteractiveTrafficChart {...defaultProps} />);
+      expect(screen.getByText('23:00')).toBeInTheDocument();
+      expect(screen.getByText('00:00')).toBeInTheDocument();
+      expect(screen.getByText('03:00')).toBeInTheDocument();
     });
 
     it('covers all guide line and point fill combinations during active simulation, hover, and error state', () => {
