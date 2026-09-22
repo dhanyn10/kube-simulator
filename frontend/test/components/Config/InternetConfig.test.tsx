@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { InternetConfig } from '@/components/Config/InternetConfig';
 import { useFlowStore } from '@/store';
 
@@ -19,7 +19,7 @@ describe('InternetConfig', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
+    useFlowStore.setState({ colorMode: 'dark', isSimulating: false, nodes: [], edges: [] });
   });
 
   it('renders permanently open sections without Advanced Options toggle', () => {
@@ -139,7 +139,7 @@ describe('InternetConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
   });
 
-  it('displays ReadOnlyProfileChart with active traffic dot when connection profile is active during simulation and handles mouse hover', () => {
+  it('displays ReadOnlyProfileChart with active traffic dot when connection profile is active during simulation and handles mouse hover', async () => {
     useFlowStore.setState({ isSimulating: true });
 
     const activeProfileNode = {
@@ -157,7 +157,7 @@ describe('InternetConfig', () => {
       }
     };
 
-    render(
+    const { container } = render(
       <InternetConfig
         selectedNode={activeProfileNode}
         performUpdate={performUpdate}
@@ -171,18 +171,118 @@ describe('InternetConfig', () => {
     expect(screen.getByText('03:00')).toBeDefined();
     expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
 
-    const svgContainer = screen.getByTestId('profile-chart-preview');
-    const svg = svgContainer.querySelector('svg')!;
+    const chartSvg = container.querySelector('svg[viewBox="0 0 240 80"]')!;
+    vi.spyOn(chartSvg, 'getBoundingClientRect').mockReturnValue({
+      width: 240,
+      height: 80,
+      top: 0,
+      left: 0,
+      bottom: 80,
+      right: 240,
+      x: 0,
+      y: 0,
+      toJSON: () => {}
+    });
 
-    // Trigger mouse enter/move on SVG
-    fireEvent.mouseEnter(svg, { clientX: 100 });
-    fireEvent.mouseMove(svg, { clientX: 100 });
+    // Hover at x matching hour 3 (same as safeHourIdx = 3) -> clientX = 37
+    await act(async () => {
+      fireEvent.mouseMove(chartSvg, { clientX: 37, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
-    // Check bottom summary or SVG interaction behavior
-    expect(svgContainer).toBeDefined();
+    // Hover at different hour (e.g. hour 12) -> clientX = 124
+    await act(async () => {
+      fireEvent.mouseMove(chartSvg, { clientX: 124, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
-    // Simulate mouse leave
-    fireEvent.mouseLeave(svg);
+    // Mouse leave
+    await act(async () => {
+      fireEvent.mouseLeave(chartSvg);
+    });
+    expect(screen.queryByTestId('hover-traffic-dot')).toBeNull();
+  });
+
+  it('handles ReadOnlyProfileChart when isRed is true (error/disconnected status) and fallback daily traffic profile data', async () => {
+    useFlowStore.setState({
+      isSimulating: false,
+      nodes: [{ id: 'int1', type: 'Internet', data: {} }],
+      edges: [] // No outgoing edges -> isRed = true
+    });
+
+    const activeProfileDailyNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        // currentHourIndex is undefined -> safeHourIdx fallback to 0
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Daily Profile',
+          // profile without hourly, using daily fallback
+          daily: { '00:00': 500, '01:00': 1000 }
+        }
+      }
+    };
+
+    const { container } = render(
+      <InternetConfig
+        selectedNode={activeProfileDailyNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    expect(screen.getByText('Daily Profile')).toBeDefined();
+
+    const chartSvg = container.querySelector('svg[viewBox="0 0 240 80"]')!;
+    vi.spyOn(chartSvg, 'getBoundingClientRect').mockReturnValue({
+      width: 240,
+      height: 80,
+      top: 0,
+      left: 0,
+      bottom: 80,
+      right: 240,
+      x: 0,
+      y: 0,
+      toJSON: () => {}
+    });
+
+    // Hover at safeHourIdx (0) with isRed = true (clientX: 8)
+    await act(async () => {
+      fireEvent.mouseMove(chartSvg, { clientX: 8, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+
+    // Hover at non-safeHourIdx with isRed = true (clientX: 200)
+    await act(async () => {
+      fireEvent.mouseMove(chartSvg, { clientX: 200, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+  });
+
+  it('handles profile with completely empty hourly and daily values', () => {
+    const emptyProfileNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        connectionProfile: {
+          name: 'Empty Profile'
+          // no hourly, no daily
+        }
+      }
+    };
+
+    render(
+      <InternetConfig
+        selectedNode={emptyProfileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    expect(screen.getByText('Empty Profile')).toBeDefined();
   });
 
   it('handles large traffic values formatting and visibility toggles', () => {
