@@ -216,17 +216,11 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               })}
 
               {/* Add Custom Profile Template Card */}
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={handleStartCustomProfile}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    handleStartCustomProfile();
-                  }
-                }}
                 className={cn(
-                  "p-4 rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 select-none min-h-[160px] outline-none focus:ring-2 focus:ring-blue-500/50",
+                  "p-4 rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 select-none min-h-[160px] outline-none focus:ring-2 focus:ring-blue-500/50 w-full",
                   colorMode === 'dark' ? "border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/40 text-slate-400 hover:text-slate-200" : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 text-slate-500 hover:text-slate-700"
                 )}
               >
@@ -235,7 +229,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                 </div>
                 <span className="text-xs font-bold">Add Custom Profile</span>
                 <span className="text-[10px] text-slate-500">Create new randomized weekly connection schedule</span>
-              </div>
+              </button>
             </div>
           </>
         )}

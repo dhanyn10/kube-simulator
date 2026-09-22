@@ -102,7 +102,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
             cx={hoveredPt.x}
             cy={hoveredPt.y}
             r="4"
-            className={hoveredHourIdx === safeHourIdx ? (isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900") : "fill-blue-300 stroke-white dark:stroke-slate-900"}
+            className={getMiniHoverDotClass(hoveredHourIdx === safeHourIdx, isRed)}
             strokeWidth="1.5"
           />
           <title>{`${hoveredHour} - ${hoveredVal.toLocaleString()} visits`}</title>
@@ -110,6 +110,18 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
       )}
     </svg>
   );
+};
+
+/**
+ * Calculates hover dot fill class for mini curve previews.
+ */
+const getMiniHoverDotClass = (isSameHour: boolean, isRed?: boolean): string => {
+  if (isSameHour) {
+    return isRed
+      ? 'fill-rose-500 stroke-white dark:stroke-slate-900'
+      : 'fill-emerald-400 stroke-white dark:stroke-slate-900';
+  }
+  return 'fill-blue-300 stroke-white dark:stroke-slate-900';
 };
 
 /**
@@ -292,8 +304,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         </defs>
 
         {/* Y-axis horizontal grid lines */}
-        {yTicks.map((tick, i) => (
-          <g key={`y-tick-${i}`}>
+        {yTicks.map((tick) => (
+          <g key={`y-tick-${tick.val}-${tick.y}`}>
             <line
               x1={padLeft}
               y1={tick.y}
