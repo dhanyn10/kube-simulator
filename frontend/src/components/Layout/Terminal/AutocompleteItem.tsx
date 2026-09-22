@@ -92,12 +92,6 @@ export const AutocompleteItem = ({
         </button>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
-          {item.description && (
-            <span className={cn("text-[9px] truncate max-w-[120px] hidden sm:inline-block", isSelected ? "text-slate-300" : "text-slate-400")}>
-              {item.description}
-            </span>
-          )}
-
           <span className={cn(
             "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
             categoryBadgeClass

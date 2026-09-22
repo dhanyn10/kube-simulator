@@ -35,7 +35,7 @@ describe('AutocompleteItem', () => {
     const mainBtn = screen.getByTestId('autocomplete-item-0');
     expect(mainBtn).toBeInTheDocument();
     expect(screen.getByText('kubectl get pods')).toBeInTheDocument();
-    expect(screen.getByText('List all pods on the active canvas')).toBeInTheDocument();
+    expect(screen.queryByText('List all pods on the active canvas')).not.toBeInTheDocument();
     expect(screen.getByText('get')).toBeInTheDocument();
 
     // Mouse enter & mouse leave
