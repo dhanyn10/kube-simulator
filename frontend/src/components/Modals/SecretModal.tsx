@@ -1,25 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Lock } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sSecretItem } from '@/types';
 import { useFlowStore } from '@/store';
-import { cn, sanitizeSlug } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { KeyValueFormSection } from './KeyValueFormSection';
-import { useKeyValueModalState } from '@/activities/modals/useKeyValueModalState';
+import { useSecretModal } from '@/activities/modals';
 
 interface SecretModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  targetNodeId: string | null;
-  targetNodeLabel?: string;
-  initialSecret?: K8sSecretItem | null;
-  onSave: (secretItem: K8sSecretItem) => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly targetNodeId: string | null;
+  readonly targetNodeLabel?: string;
+  readonly initialSecret?: K8sSecretItem | null;
+  readonly onSave: (secretItem: K8sSecretItem) => void;
 }
-
-const DEFAULT_SECRET_ITEMS = [
-  { key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
-  { key: 'API_KEY', value: 'secret-token-xyz' },
-];
 
 export const SecretModal: React.FC<SecretModalProps> = ({
   isOpen,
@@ -31,54 +26,19 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const [secretName, setSecretName] = useState<string>('app-secret');
-  const [secretType, setSecretType] = useState<string>('Opaque');
   const {
+    secretName,
+    setSecretName,
+    secretType,
+    setSecretType,
     dataItems,
-    setDataItems,
     handleAddField,
     handleRemoveField,
     handleUpdateField,
-    getValidData,
-  } = useKeyValueModalState('sec', DEFAULT_SECRET_ITEMS);
-
-  useEffect(() => {
-    if (initialSecret) {
-      setSecretName(initialSecret.name || 'app-secret');
-      setSecretType(initialSecret.type || 'Opaque');
-      setDataItems(
-        initialSecret.secretData && initialSecret.secretData.length > 0
-          ? initialSecret.secretData.map((item) => ({
-              id: `sec-kv-${crypto.randomUUID().split('-')[0]}`,
-              key: item.key,
-              value: item.value,
-            }))
-          : [{ id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'DB_PASSWORD', value: 's3cr3tp@ss' }]
-      );
-    } else {
-      const randomSuffix = crypto.randomUUID().split('-')[0];
-      setSecretName(`secret-${randomSuffix}`);
-      setSecretType('Opaque');
-      setDataItems([
-        { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
-        { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_KEY', value: 'secret-token-xyz' },
-      ]);
-    }
-  }, [initialSecret, isOpen, targetNodeId, setDataItems]);
+    handleSave,
+  } = useSecretModal(isOpen, targetNodeId, initialSecret, onSave, onClose);
 
   if (!isOpen) return null;
-
-  const handleSave = () => {
-    const validData = getValidData();
-    const secretItem: K8sSecretItem = {
-      id: initialSecret?.id || `secret-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-      name: sanitizeSlug(secretName) || 'unnamed-secret',
-      type: secretType || 'Opaque',
-      secretData: validData,
-    };
-    onSave(secretItem);
-    onClose();
-  };
 
   const footer = (
     <div className="flex items-center justify-end gap-2">

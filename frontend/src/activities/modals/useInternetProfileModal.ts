@@ -1,15 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useFlowStore } from '@/store';
 import { safeRandom } from '@/lib/utils';
+import { HOURS_OF_DAY, InternetProfileItem } from './internetProfileChartHelpers';
 
-export interface InternetProfileItem {
-  name: string;
-  hourly: Record<string, number>;
-  daily?: Record<string, number>;
-  timestamp?: number;
-}
-
-export const HOURS_OF_DAY = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+export type { InternetProfileItem };
 
 const DEFAULT_HOURLY_PATTERN = [
   500, 300, 200, 150, 100, 200, 500, 1200,

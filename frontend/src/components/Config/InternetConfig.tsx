@@ -4,18 +4,18 @@ import { ConfigSection } from '../UI/ConfigUI';
 import { InternetProfileModal } from '../Modals/InternetProfileModal';
 import { HOURS_OF_DAY } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
+import {
+  formatNumberCompact,
+  calculateMaxTrafficRange,
+  generateTrafficRulerTicks,
+  isInternetConnectionRed
+} from '@/activities/config';
 
 interface InternetConfigProps {
   readonly selectedNode: any;
   readonly performUpdate: (updates: any) => void;
   readonly toggleVisibility: (field: string) => void;
 }
-
-const formatNumberCompact = (num: number): string => {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}k`;
-  return num.toString();
-};
 
 const ReadOnlyProfileChart = ({
   profile,
@@ -153,27 +153,16 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const edges = useFlowStore((state) => state.edges);
-  const activeSimulationEdges = useFlowStore((state) => state.activeSimulationEdges);
   const nodes = useFlowStore((state) => state.nodes);
 
   // Determine if internet connection is disconnected / has error / missing outgoing edge
-  const outgoingEdges = edges.filter((e) => String(e.source) === String(selectedNode.id));
   const isRed = useMemo(() => {
-    if (outgoingEdges.length === 0) return true;
-    const hasEdgeError = outgoingEdges.some((e) => e.data?.validationError);
-    if (hasEdgeError) return true;
-    const targets = outgoingEdges.map((e) => nodes.find((n) => String(n.id) === String(e.target)));
-    const hasUnreadyTarget = targets.some((t) => !t || (t.type === 'Pod' || t.type === 'Deployment') && t.data?.status !== 'ready');
-    return hasUnreadyTarget;
-  }, [outgoingEdges, nodes]);
+    return isInternetConnectionRed(selectedNode.id, edges, nodes);
+  }, [selectedNode.id, edges, nodes]);
 
-  // Calculate dynamic maxRange based on current traffic (minimum 1000)
+  // Calculate dynamic maxRange based on current traffic
   const maxRange = useMemo(() => {
-    let limit = 1000;
-    while (currentTraffic >= limit) {
-      limit *= 2;
-    }
-    return limit;
+    return calculateMaxTrafficRange(currentTraffic);
   }, [currentTraffic]);
 
   const handleSliderChange = (newVal: number) => {
@@ -182,14 +171,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   };
 
   const rulerTicks = useMemo(() => {
-    const step = maxRange / 4;
-    return [
-      { label: '1', val: 1 },
-      { label: formatNumberCompact(Math.round(step * 1)), val: Math.round(step * 1) },
-      { label: formatNumberCompact(Math.round(step * 2)), val: Math.round(step * 2) },
-      { label: formatNumberCompact(Math.round(step * 3)), val: Math.round(step * 3) },
-      { label: formatNumberCompact(maxRange), val: maxRange }
-    ];
+    return generateTrafficRulerTicks(maxRange);
   }, [maxRange]);
 
   return (

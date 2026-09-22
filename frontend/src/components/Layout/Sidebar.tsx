@@ -4,35 +4,16 @@ import { K8sResourceType } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
+import {
+  ITEM_STYLES,
+  SIDEBAR_SECTIONS,
+  toggleSidebarAccordionSection,
+  filterSidebarItems
+} from '@/activities/layout';
 
 interface SidebarProps {
-  onAddNode: (type: K8sResourceType, position?: { x: number, y: number }) => void;
+  readonly onAddNode: (type: K8sResourceType, position?: { x: number; y: number }) => void;
 }
-
-const ITEM_STYLES: Record<string, { border: string, text: string }> = {
-  Deployment: { border: "border-l-violet-500 hover:border-violet-500", text: "text-violet-400" },
-  Pod: { border: "border-l-cyan-500 hover:border-cyan-500", text: "text-cyan-400" },
-  Service: { border: "border-l-amber-500 hover:border-amber-500", text: "text-amber-400" },
-  Ingress: { border: "border-l-rose-500 hover:border-rose-500", text: "text-rose-400" },
-  HPA: { border: "border-l-fuchsia-500 hover:border-fuchsia-500", text: "text-fuchsia-400" },
-  Internet: { border: "border-l-blue-500 hover:border-blue-500", text: "text-blue-400" },
-  PVC: { border: "border-l-orange-500 hover:border-orange-500", text: "text-orange-400" },
-  Namespace: { border: "border-l-emerald-500 hover:border-emerald-500", text: "text-emerald-400" },
-  ConfigMap: { border: "border-l-teal-500 hover:border-teal-500", text: "text-teal-400" },
-  Secret: { border: "border-l-rose-400 hover:border-rose-400", text: "text-rose-400" },
-  Role: { border: "border-l-indigo-500 hover:border-indigo-500", text: "text-indigo-400" },
-  IAM: { border: "border-l-emerald-400 hover:border-emerald-400", text: "text-emerald-400" },
-};
-
-const SECTIONS = [
-  { id: 'useful-resources', title: 'Useful Resources', filter: (type: string) => type === 'IAM' },
-  { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
-  { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
-  { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
-  { id: 'configuration', title: 'Configuration', filter: (type: string) => type === 'ConfigMap' || type === 'Secret' },
-  { id: 'scaling', title: 'Scaling', filter: (type: string) => type === 'HPA' },
-  { id: 'others', title: 'Others', filter: (type: string) => type === 'Internet' || type === 'PVC' },
-];
 
 const SidebarSection = ({ 
   title, 
@@ -44,14 +25,14 @@ const SidebarSection = ({
   onDragEnd, 
   colorMode 
 }: { 
-  title: string; 
-  items: any[]; 
-  isExpanded: boolean; 
-  onToggle: () => void; 
-  onAddNode: (type: K8sResourceType) => void;
-  onDragStart: (event: React.DragEvent, type: K8sResourceType) => void;
-  onDragEnd: () => void;
-  colorMode: string;
+  readonly title: string;
+  readonly items: any[];
+  readonly isExpanded: boolean;
+  readonly onToggle: () => void;
+  readonly onAddNode: (type: K8sResourceType) => void;
+  readonly onDragStart: (event: React.DragEvent, type: K8sResourceType) => void;
+  readonly onDragEnd: () => void;
+  readonly colorMode: string;
 }) => {
   if (items.length === 0) return null;
 
@@ -140,12 +121,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   });
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => {
-      const isCurrentlyExpanded = prev[section];
-      const newState = { 'useful-resources': false, workloads: false, networking: false, configuration: false, scaling: false, others: false };
-      newState[section as keyof typeof newState] = !isCurrentlyExpanded;
-      return newState;
-    });
+    setExpandedSections((prev) => toggleSidebarAccordionSection(prev, section));
   };
 
   const items: { type: K8sResourceType; icon: any; label: string; desc: string }[] = [
@@ -164,10 +140,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   ];
 
   const trimmedSearchTerm = searchTerm.trim().toLowerCase();
-
-  const filteredItems = items.filter(item =>
-    item.label.toLowerCase().includes(trimmedSearchTerm)
-  );
+  const filteredItems = filterSidebarItems(items, searchTerm);
 
   const nodes = useFlowStore((state) => state.nodes);
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
@@ -255,8 +228,8 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       </div>
 
       <div className="sidebar-content-scroll custom-scrollbar">
-        {SECTIONS.map(section => {
-          const sectionItems = filteredItems.filter(i => section.filter(i.type));
+        {SIDEBAR_SECTIONS.map((section) => {
+          const sectionItems = filteredItems.filter((i) => section.filter(i.type));
           const isExpanded = trimmedSearchTerm !== '' ? sectionItems.length > 0 : Boolean(expandedSections[section.id]);
 
           return (
