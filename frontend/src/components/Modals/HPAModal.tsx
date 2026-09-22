@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Activity } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sHpaItem } from '@/types';
 import { useFlowStore } from '@/store';
-import { cn, sanitizeSlug } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { useHpaModal } from '@/activities/modals';
 
 interface HPAModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  targetNodeId: string | null;
-  targetNodeLabel?: string;
-  initialHpa?: K8sHpaItem | null;
-  onSave: (hpaItem: K8sHpaItem) => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly targetNodeId: string | null;
+  readonly targetNodeLabel?: string;
+  readonly initialHpa?: K8sHpaItem | null;
+  readonly onSave: (hpaItem: K8sHpaItem) => void;
 }
 
 export const HPAModal: React.FC<HPAModalProps> = ({
@@ -24,50 +25,21 @@ export const HPAModal: React.FC<HPAModalProps> = ({
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const [hpaName, setHpaName] = useState<string>('app-hpa');
-  const [minReplicas, setMinReplicas] = useState<number>(1);
-  const [maxReplicas, setMaxReplicas] = useState<number>(10);
-  const [targetCPU, setTargetCPU] = useState<number>(80);
-  const [targetMemory, setTargetMemory] = useState<number | undefined>(undefined);
-
-  useEffect(() => {
-    if (initialHpa) {
-      setHpaName(initialHpa.name || 'app-hpa');
-      setMinReplicas(initialHpa.minReplicas ?? 1);
-      setMaxReplicas(initialHpa.maxReplicas ?? 10);
-      setTargetCPU(initialHpa.targetCPU ?? 80);
-      setTargetMemory(initialHpa.targetMemory);
-    } else {
-      const randomSuffix = crypto.randomUUID().split('-')[0];
-      setHpaName(`hpa-${randomSuffix}`);
-      setMinReplicas(1);
-      setMaxReplicas(10);
-      setTargetCPU(80);
-      setTargetMemory(undefined);
-    }
-  }, [initialHpa, isOpen, targetNodeId]);
+  const {
+    hpaName,
+    setHpaName,
+    minReplicas,
+    setMinReplicas,
+    maxReplicas,
+    setMaxReplicas,
+    targetCPU,
+    setTargetCPU,
+    targetMemory,
+    setTargetMemory,
+    handleSave,
+  } = useHpaModal(isOpen, targetNodeId, initialHpa, onSave, onClose);
 
   if (!isOpen) return null;
-
-  const handleSave = () => {
-    const minVal = Math.max(1, Number(minReplicas) || 1);
-    const maxVal = Math.max(minVal, Number(maxReplicas) || 10);
-    const cpuVal = Math.min(100, Math.max(1, Number(targetCPU) || 80));
-    const memVal = targetMemory !== undefined && targetMemory !== null && targetMemory > 0
-      ? Math.min(100, Math.max(1, Number(targetMemory)))
-      : undefined;
-
-    const hpaItem: K8sHpaItem = {
-      id: initialHpa?.id || `hpa-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-      name: sanitizeSlug(hpaName) || 'unnamed-hpa',
-      minReplicas: minVal,
-      maxReplicas: maxVal,
-      targetCPU: cpuVal,
-      ...(memVal !== undefined ? { targetMemory: memVal } : {}),
-    };
-    onSave(hpaItem);
-    onClose();
-  };
 
   const footer = (
     <div className="flex items-center justify-end gap-2">

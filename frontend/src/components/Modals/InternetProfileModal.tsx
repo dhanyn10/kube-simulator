@@ -6,7 +6,10 @@ import {
   useInternetProfileModal,
   HOURS_OF_DAY,
   ECOMMERCE_PROFILE,
-  InternetProfileItem
+  InternetProfileItem,
+  calculateProfileChartData,
+  calculateHourIndexFromX,
+  calculateYValueFromPointer
 } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 
@@ -28,7 +31,6 @@ const MiniCurvePreview = ({
   readonly currentHourIndex?: number;
   readonly isRed?: boolean;
 }) => {
-  const isSimulating = useFlowStore((state) => state.isSimulating);
   const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
 
   const width = 220;
@@ -38,24 +40,15 @@ const MiniCurvePreview = ({
   const padTop = 10;
   const padBottom = 10;
 
-  const chartWidth = width - padLeft - padRight;
-  const chartHeight = height - padTop - padBottom;
-
-  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
-  const maxVal = Math.max(...values, 1000);
-  const minVal = 0;
-
-  const points = values.map((val, idx) => {
-    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
-    const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y };
-  });
-
-  const pathD = points.reduce((acc, pt, i) => {
-    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
-  }, '');
-
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+  const { values, points, pathD, areaD, chartWidth } = calculateProfileChartData(
+    profile,
+    width,
+    height,
+    padLeft,
+    padRight,
+    padTop,
+    padBottom
+  );
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
@@ -71,10 +64,7 @@ const MiniCurvePreview = ({
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
-    const relativeX = (mouseX / rect.width) * width;
-    const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
-    const ratio = (clampedX - padLeft) / chartWidth;
-    const hourIdx = Math.min(23, Math.max(0, Math.round(ratio * (HOURS_OF_DAY.length - 1))));
+    const hourIdx = calculateHourIndexFromX(mouseX, rect.width, width, padLeft, padRight, chartWidth);
     setHoveredHourIdx(hourIdx);
   };
 
@@ -159,31 +149,21 @@ const InteractiveTrafficChart = ({
   const padTop = 35;
   const padBottom = 45;
 
-  const chartWidth = width - padLeft - padRight;
-  const chartHeight = height - padTop - padBottom;
-
-  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
-  const currentMax = Math.max(...values, 1000);
-  const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
-  const minVal = 0;
+  const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
+    profile,
+    width,
+    height,
+    padLeft,
+    padRight,
+    padTop,
+    padBottom
+  );
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
     const val = Math.round(minVal + (maxVal - minVal) * (1 - ratio));
     const y = padTop + chartHeight * ratio;
     return { val, y };
   });
-
-  const points = values.map((val, idx) => {
-    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
-    const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y, val, hour: HOURS_OF_DAY[idx] };
-  });
-
-  const pathD = points.reduce((acc, pt, i) => {
-    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
-  }, '');
-
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
 
@@ -196,10 +176,7 @@ const InteractiveTrafficChart = ({
     if (svgRef.current) {
       const rect = svgRef.current.getBoundingClientRect();
       const clientX = e.clientX - rect.left;
-      const svgX = (clientX / rect.width) * width;
-      const clampedX = Math.max(padLeft, Math.min(width - padRight, svgX));
-      const ratioX = (clampedX - padLeft) / chartWidth;
-      const hourIdx = Math.min(23, Math.max(0, Math.round(ratioX * (HOURS_OF_DAY.length - 1))));
+      const hourIdx = calculateHourIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
       setHoveredHourIdx(hourIdx);
     }
 
@@ -207,12 +184,7 @@ const InteractiveTrafficChart = ({
 
     const rect = svgRef.current.getBoundingClientRect();
     const clientY = e.clientY - rect.top;
-    const svgY = (clientY / rect.height) * height;
-
-    const clampedY = Math.max(padTop, Math.min(padTop + chartHeight, svgY));
-    const ratio = (padTop + chartHeight - clampedY) / chartHeight;
-    const calculatedVal = Math.round(minVal + ratio * (maxVal - minVal));
-    const finalVal = Math.max(10, Math.min(maxVal, calculatedVal));
+    const finalVal = calculateYValueFromPointer(clientY, rect.height, height, padTop, chartHeight, minVal, maxVal);
 
     onUpdatePoint(draggingHour, finalVal);
   };
