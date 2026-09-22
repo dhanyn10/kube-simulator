@@ -71,13 +71,19 @@ describe('MenuBar', () => {
     expect(screen.queryByTestId('menubar-identity-passport-btn')).toBeNull();
   });
 
-  it('renders identity badge when user switched to a Kube IAM identity', async () => {
+  it('renders identity badge when user switched to a Kube IAM identity and triggers KubeIAMModal on click', async () => {
+    const setKubeIamModalOpen = vi.spyOn(useFlowStore.getState(), 'setKubeIamModalOpen');
     await act(async () => {
       useFlowStore.setState({ activeIdentity: 'budi' });
     });
     render(<MenuBar {...defaultProps} />);
-    expect(screen.getByTestId('menubar-identity-passport-btn')).toBeInTheDocument();
+
+    const identityBtn = screen.getByTestId('menubar-identity-passport-btn');
+    expect(identityBtn).toBeInTheDocument();
     expect(screen.getByText('budi')).toBeInTheDocument();
+
+    fireEvent.click(identityBtn);
+    expect(setKubeIamModalOpen).toHaveBeenCalledWith(true);
   });
 
   it('checks for updates on mount and displays update button', async () => {

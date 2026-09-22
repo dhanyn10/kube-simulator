@@ -71,4 +71,37 @@ describe('RoleUserOptionRow', () => {
     expect(checkbox).toBeChecked();
     expect(checkbox).toBeDisabled();
   });
+
+  it('renders checked row in dark mode and unchecked row in light mode to cover all style branches', () => {
+    const onToggle = vi.fn();
+
+    // Checked in dark mode
+    const { rerender } = render(
+      <RoleUserOptionRow
+        {...defaultProps}
+        isChecked={true}
+        isFullAccess={false}
+        colorMode="dark"
+        onToggle={onToggle}
+      />
+    );
+
+    const buttonDark = screen.getByRole('button');
+    expect(buttonDark.className).toContain('bg-indigo-600/30');
+
+    // Unchecked in light mode with policies
+    rerender(
+      <RoleUserOptionRow
+        {...defaultProps}
+        isChecked={false}
+        isFullAccess={false}
+        colorMode="light"
+        onToggle={onToggle}
+      />
+    );
+
+    const buttonLight = screen.getByRole('button');
+    expect(buttonLight.className).toContain('hover:bg-slate-50');
+    expect(screen.getByText('ReadOnlyAccess').className).toContain('bg-slate-100');
+  });
 });
