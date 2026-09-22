@@ -158,4 +158,74 @@ describe('WorkloadConfig', () => {
 
     expect(performUpdate).toHaveBeenCalledWith({ runtime: 'nodejs', framework: '' });
   });
+
+  it('handles Pod with empty/missing image, webserver set to none, and runtime set to none in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const selectedNode = {
+      id: 'p2',
+      type: 'Pod',
+      data: {
+        label: 'Pod with None settings',
+        image: '',
+        webserver: 'none',
+        runtime: 'none',
+        displaySettings: { image: true, webserver: true, runtime: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Container Image')).toBeDefined();
+    expect(screen.getByText('Web Server')).toBeDefined();
+    expect(screen.getByText('App Runtime')).toBeDefined();
+
+    // Verify select element has light mode background class
+    const select = screen.getByDisplayValue('None');
+    expect(select.className).toContain('bg-slate-50');
+  });
+
+  it('handles updating webserver via SelectorGroup selection and image via ImageDropdown', () => {
+    const selectedNode = {
+      id: 'p3',
+      type: 'Pod',
+      data: {
+        label: 'Pod WS test',
+        image: 'nginx:latest',
+        webserver: 'none',
+        displaySettings: { image: true, webserver: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const nginxButton = screen.getByText('Nginx');
+    fireEvent.click(nginxButton);
+    expect(performUpdate).toHaveBeenCalledWith({ webserver: 'nginx' });
+
+    // Open image dropdown and select another image option
+    const dropdownTrigger = screen.getByText('nginx:latest');
+    fireEvent.click(dropdownTrigger);
+
+    const redisOption = screen.getByText('redis:alpine');
+    fireEvent.click(redisOption);
+
+    expect(performUpdate).toHaveBeenCalledWith({ image: 'redis:alpine' });
+  });
 });

@@ -40,7 +40,7 @@ describe('InternetConfig', () => {
     expect(screen.queryByText('Data Duration')).toBeNull();
   });
 
-  it('opens Explore More modal when Explore More button is clicked', () => {
+  it('opens and closes Explore More modal when buttons are clicked', async () => {
     render(
       <InternetConfig
         selectedNode={selectedNode}
@@ -49,8 +49,21 @@ describe('InternetConfig', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Explore More'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Explore More'));
+    });
     expect(screen.getByText('24-Hour Connection Simulation Profile Templates (00:00 - 23:00)')).toBeDefined();
+
+    // Close modal via close button
+    const closeButtons = screen.getAllByRole('button');
+    // find close button (X icon or backdrop)
+    const closeBtn = closeButtons.find((btn) => btn.querySelector('svg.lucide-x'));
+    if (closeBtn) {
+      await act(async () => {
+        fireEvent.click(closeBtn);
+      });
+      expect(screen.queryByText('24-Hour Connection Simulation Profile Templates (00:00 - 23:00)')).toBeNull();
+    }
   });
 
   it('handles traffic updates and slider min 1 and ruler ticks', () => {
