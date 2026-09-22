@@ -29,14 +29,17 @@ export interface AdjustedPosition {
 export function adjustContextMenuPosition(
   pos: PositionInput,
   dim: DimensionsInput,
-  viewport: ViewportInput = { innerWidth: globalThis.innerWidth || 1024, innerHeight: globalThis.innerHeight || 768 },
+  viewport?: ViewportInput,
   padding: number = 8
 ): AdjustedPosition {
+  const vWidth = viewport?.innerWidth ?? (globalThis.innerWidth || 1024);
+  const vHeight = viewport?.innerHeight ?? (globalThis.innerHeight || 768);
+
   let left = pos.x;
   let top = pos.y;
 
-  const overflowRight = pos.x + dim.width > viewport.innerWidth - padding;
-  const overflowBottom = pos.y + dim.height > viewport.innerHeight - padding;
+  const overflowRight = pos.x + dim.width > vWidth - padding;
+  const overflowBottom = pos.y + dim.height > vHeight - padding;
 
   if (overflowRight) {
     left = pos.x - dim.width;
@@ -47,8 +50,8 @@ export function adjustContextMenuPosition(
   }
 
   // Ensure menu stays within safety margins of viewport
-  const maxLeft = Math.max(padding, viewport.innerWidth - dim.width - padding);
-  const maxTop = Math.max(padding, viewport.innerHeight - dim.height - padding);
+  const maxLeft = Math.max(padding, vWidth - dim.width - padding);
+  const maxTop = Math.max(padding, vHeight - dim.height - padding);
 
   left = Math.max(padding, Math.min(left, maxLeft));
   top = Math.max(padding, Math.min(top, maxTop));
