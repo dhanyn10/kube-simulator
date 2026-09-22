@@ -201,7 +201,7 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
 
   if (node.type === 'Deployment') {
     const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
-    if (childPods.length > 0 && childPods.some((p) => p.data?.status !== 'ready')) return true;
+    if (childPods.some((p) => p.data?.status !== 'ready')) return true;
   }
   return false;
 };

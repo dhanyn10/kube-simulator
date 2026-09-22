@@ -5,7 +5,6 @@ import { InternetProfileModal } from '../Modals/InternetProfileModal';
 import { HOURS_OF_DAY } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
-  formatNumberCompact,
   calculateMaxTrafficRange,
   generateTrafficRulerTicks,
   isInternetConnectionRed
@@ -75,7 +74,8 @@ const ReadOnlyProfileChart = ({
     return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
   }, '');
 
-  const areaD = `${pathD} L ${points[points.length - 1].x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+  const lastPoint = points.at(-1) || points[0];
+  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   const currentPt = points[safeHourIdx] || points[0];
