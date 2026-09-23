@@ -1,4 +1,4 @@
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 import { Node } from '@xyflow/react';
 import { safeRandom } from '@/lib/utils';
 

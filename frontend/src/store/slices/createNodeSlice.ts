@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { Node } from '@xyflow/react';
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 import { K8sResourceType, K8sNodeData } from '@/types';
 
 // Import modular handlers

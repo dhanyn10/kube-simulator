@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
 import { sortNodes, getNodeData } from '../../helpers';
 import { hydrateNodes } from '../../nodeHelpers';
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 import { randomId } from '@/lib/utils';
 
 const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNodeData: any): boolean => {

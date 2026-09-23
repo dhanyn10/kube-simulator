@@ -1,7 +1,7 @@
 import { logger } from '@/lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
-import { FlowState, SimulationMetricPoint } from '@/store/types';
+import type { FlowState, SimulationMetricPoint } from '@/store/types';
 import { K8sResourceType, KubeIAMUser } from '@/types';
 import { safeRandom } from '@/lib/utils';
 import {

@@ -125,6 +125,38 @@ export const randomId = (prefix: string = ''): string => {
 };
 
 /**
+ * Generates a random alphanumeric hash string of specified length for Kubernetes pod names.
+ *
+ * @param length - Desired length of the random hash string (default: 5).
+ * @returns Lowercase alphanumeric hash string (e.g. `'x8k2p'`).
+ */
+export const generateRandomHash = (length = 5): string => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    const idx = Math.floor(safeRandom() * chars.length);
+    result += chars[idx];
+  }
+  return result;
+};
+
+/**
+ * Generates a standard Kubernetes pod name formatted with base prefix, optional deployment/replicaset hash, and random pod suffix.
+ *
+ * @param baseName - Base resource name (e.g. `'nginx'`).
+ * @param rsHash - Optional ReplicaSet hash (e.g. `'68b6d779c5'`).
+ * @param suffix - Optional Pod random suffix (e.g. `'x8k2p'`).
+ * @returns Formatted pod name (e.g. `'nginx-68b6d779c5-x8k2p'`).
+ */
+export const formatPodName = (baseName: string, rsHash?: string, suffix?: string): string => {
+  const cleanBase = sanitizeSlug(baseName || 'pod');
+  const parts = [cleanBase];
+  if (rsHash) parts.push(rsHash);
+  if (suffix) parts.push(suffix);
+  return parts.join('-');
+};
+
+/**
  * Parses a Kubernetes CPU limit or request specification into millicores (`m`).
  * Handles millicore strings (`'500m'`), core strings (`'1.5'`, `'2'`), and numeric inputs.
  *

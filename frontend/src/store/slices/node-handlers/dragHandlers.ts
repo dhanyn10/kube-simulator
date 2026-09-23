@@ -7,7 +7,7 @@ import {
   resolveGlobalCollisions
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './dragUtils';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 

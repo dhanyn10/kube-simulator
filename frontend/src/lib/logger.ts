@@ -1,4 +1,9 @@
-import { useFlowStore } from '@/store';
+const getStoreState = () => {
+  if (typeof globalThis !== 'undefined' && (globalThis as any).useFlowStore?.getState) {
+    return (globalThis as any).useFlowStore.getState();
+  }
+  return null;
+};
 
 /**
  * Centralized logger that sends logs to the internal application log store.
@@ -7,28 +12,28 @@ import { useFlowStore } from '@/store';
 export const logger = {
   info: (message: string, ...args: any[]) => {
     const formatted = formatMessage(message, args);
-    useFlowStore.getState().addLog('info', formatted);
+    getStoreState()?.addLog?.('info', formatted);
   },
   warn: (message: string, ...args: any[]) => {
     const formatted = formatMessage(message, args);
-    useFlowStore.getState().addLog('warn', formatted);
+    getStoreState()?.addLog?.('warn', formatted);
   },
   error: (message: string, ...args: any[]) => {
     const formatted = formatMessage(message, args);
-    useFlowStore.getState().addLog('error', formatted);
+    getStoreState()?.addLog?.('error', formatted);
   },
   withScope: (scope: string) => ({
     info: (message: string, ...args: any[]) => {
       const formatted = formatMessage(message, args);
-      useFlowStore.getState().addLog('info', formatted, scope);
+      getStoreState()?.addLog?.('info', formatted, scope);
     },
     warn: (message: string, ...args: any[]) => {
       const formatted = formatMessage(message, args);
-      useFlowStore.getState().addLog('warn', formatted, scope);
+      getStoreState()?.addLog?.('warn', formatted, scope);
     },
     error: (message: string, ...args: any[]) => {
       const formatted = formatMessage(message, args);
-      useFlowStore.getState().addLog('error', formatted, scope);
+      getStoreState()?.addLog?.('error', formatted, scope);
     },
   }),
 };

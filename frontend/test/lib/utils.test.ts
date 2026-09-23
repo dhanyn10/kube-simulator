@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName } from '@/lib/utils';
+import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -25,6 +25,26 @@ describe('utils', () => {
       expect(cleanProjectName('Scenario: Basic Deployment')).toBe('scenario-basic-deployment');
       expect(cleanProjectName('scenario:   My  App!!!')).toBe('scenario-my-app');
       expect(cleanProjectName('My Custom Project')).toBe('my-custom-project');
+    });
+  });
+
+  describe('generateRandomHash', () => {
+    it('generates a random alphanumeric hash of default or specified length', () => {
+      const hash1 = generateRandomHash();
+      expect(hash1).toHaveLength(5);
+      expect(hash1).toMatch(/^[a-z0-9]{5}$/);
+
+      const hash2 = generateRandomHash(8);
+      expect(hash2).toHaveLength(8);
+      expect(hash2).toMatch(/^[a-z0-9]{8}$/);
+    });
+  });
+
+  describe('formatPodName', () => {
+    it('formats pod names with base, rsHash, and suffix correctly', () => {
+      expect(formatPodName('nginx', '68b6d779c5', 'x8k2p')).toBe('nginx-68b6d779c5-x8k2p');
+      expect(formatPodName('web-app', undefined, 'abc12')).toBe('web-app-abc12');
+      expect(formatPodName('api')).toBe('api');
     });
   });
 

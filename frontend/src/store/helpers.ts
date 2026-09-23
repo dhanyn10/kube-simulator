@@ -2,6 +2,7 @@ import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { getPodSpacing, getReplicaThresholds } from './layoutHelpers';
 import { getPodMinimumSize } from '@/lib/podSizing';
+import { generateRandomHash, formatPodName } from '@/lib/utils';
 
 export const getNodeData = (node: Node): K8sNodeData => {
   return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
@@ -76,7 +77,15 @@ const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: 
 };
 
 // Helper to update an existing pod node
-const updatePodNode = (existingPod: Node, commonData: any, replicas: number, totalReplicas: number, deploymentId: string): Node => {
+const updatePodNode = (
+  existingPod: Node,
+  commonData: any,
+  replicas: number,
+  totalReplicas: number,
+  deploymentId: string,
+  podName: string,
+  podHash: string
+): Node => {
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
   const width = existingPod.data?.isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
@@ -96,6 +105,8 @@ const updatePodNode = (existingPod: Node, commonData: any, replicas: number, tot
     data: { 
       ...existingPod.data, 
       ...commonData, 
+      label: podName,
+      podHash,
       replicas, 
       parentReplicas: totalReplicas 
     }
@@ -103,7 +114,14 @@ const updatePodNode = (existingPod: Node, commonData: any, replicas: number, tot
 };
 
 // Helper to create a new pod node
-const createPodNode = (commonData: any, replicas: number, totalReplicas: number, deploymentId: string): Node => {
+const createPodNode = (
+  commonData: any,
+  replicas: number,
+  totalReplicas: number,
+  deploymentId: string,
+  podName: string,
+  podHash: string
+): Node => {
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
   const minSize = getPodMinimumSize({ ...commonData, replicas });
   return {
@@ -121,6 +139,8 @@ const createPodNode = (commonData: any, replicas: number, totalReplicas: number,
       replicas,
       parentReplicas: totalReplicas,
       ...commonData,
+      label: podName,
+      podHash,
       onDelete: () => {},
       onRename: () => {},
     }
@@ -134,11 +154,19 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
   const targetPodReplicas = getReplicaThresholds(totalReplicas);
   const commonData = getCommonPodData(deployment, currentPods, dataTemplate);
 
+  const baseLabel = (data.label as string) || commonData.label || 'pod';
+  const deployHash = (data.deployHash as string) || generateRandomHash(8);
+
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
+    const podHash = existingPod?.data?.podHash || generateRandomHash(5);
+    const podName = targetPodReplicas.length > 1 || totalReplicas > 1
+      ? formatPodName(baseLabel, deployHash.substring(0, 5), podHash)
+      : (existingPod?.data?.label || formatPodName(baseLabel, deployHash.substring(0, 5), podHash));
+
     return existingPod 
-      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id)
-      : createPodNode(commonData, replicas, totalReplicas, deployment.id);
+      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, podHash)
+      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, podHash);
   });
 };
 
