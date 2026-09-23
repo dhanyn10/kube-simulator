@@ -10,6 +10,24 @@ export interface SuggestionItem {
   disabledReason?: string;
 }
 
+const NO_DEPLOYMENT_REASON = '(no Deployment on canvas)';
+const NO_POD_REASON = '(no Pod on canvas)';
+
+const createDisabledSuggestion = (
+  value: string,
+  label: string,
+  category: SuggestionItem['category'],
+  description: string,
+  disabledReason: string
+): SuggestionItem => ({
+  value,
+  label,
+  category,
+  description,
+  disabled: true,
+  disabledReason,
+});
+
 export const ADMIN_SUGGESTIONS: SuggestionItem[] = [
   { value: 'try version update 0.5.0', label: 'try version update <version>', category: 'Admin', description: 'Simulate update notification badge button' },
   { value: 'try version current 0.4.0', label: 'try version current <version>', category: 'Admin', description: 'Simulate current application version' },
@@ -64,6 +82,21 @@ export const getPodNames = (nodes: Node[]): string[] => {
   return pods.map(p => String(p.data?.label || p.id));
 };
 
+const mapDeploymentsToSuggestions = (
+  deployNames: string[],
+  valueFn: (name: string) => string,
+  labelFn: (name: string) => string,
+  category: SuggestionItem['category'],
+  descFn: (name: string) => string
+): SuggestionItem[] => {
+  return deployNames.map(name => ({
+    value: valueFn(name),
+    label: labelFn(name),
+    category,
+    description: descFn(name),
+  }));
+};
+
 export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []): SuggestionItem[] => {
   const list: SuggestionItem[] = [];
   const deployNames = getDeploymentNames(nodes);
@@ -88,14 +121,7 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
         );
       });
     } else {
-      list.push({
-        value: 'kubectl rollout status deploy/',
-        label: 'rollout status deploy/',
-        category: 'Command',
-        description: 'Check rolling update progress',
-        disabled: true,
-        disabledReason: '(no Deployment on canvas)',
-      });
+      list.push(createDisabledSuggestion('kubectl rollout status deploy/', 'rollout status deploy/', 'Command', 'Check rolling update progress', NO_DEPLOYMENT_REASON));
     }
   }
   if (sub === 'logs' || 'logs'.startsWith(sub)) {
@@ -106,13 +132,13 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
       description: 'Stream container logs',
       subItems: podNames,
       disabled: !hasPods,
-      disabledReason: !hasPods ? '(no Pod on canvas)' : undefined,
+      disabledReason: !hasPods ? NO_POD_REASON : undefined,
     });
   }
   if (sub === 'describe' || 'describe'.startsWith(sub)) {
     list.push(
-      { value: 'kubectl describe deploy ', label: 'describe deploy', category: 'Subcommand', description: 'Describe deployment specs', disabled: !hasDeployments, disabledReason: !hasDeployments ? '(no Deployment on canvas)' : undefined },
-      { value: 'kubectl describe pod ', label: 'describe pod', category: 'Subcommand', description: 'Describe pod specs & events', disabled: !hasPods, disabledReason: !hasPods ? '(no Pod on canvas)' : undefined },
+      { value: 'kubectl describe deploy ', label: 'describe deploy', category: 'Subcommand', description: 'Describe deployment specs', disabled: !hasDeployments, disabledReason: !hasDeployments ? NO_DEPLOYMENT_REASON : undefined },
+      { value: 'kubectl describe pod ', label: 'describe pod', category: 'Subcommand', description: 'Describe pod specs & events', disabled: !hasPods, disabledReason: !hasPods ? NO_POD_REASON : undefined },
       { value: 'kubectl describe role ', label: 'describe role', category: 'Subcommand', description: 'Describe role specs & rules' },
       { value: 'kubectl describe rolebinding ', label: 'describe rolebinding', category: 'Subcommand', description: 'Describe rolebinding specs & subjects' },
       { value: 'kubectl describe cm ', label: 'describe cm', category: 'Subcommand', description: 'Describe configmap data' },
@@ -121,44 +147,16 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
   }
   if (sub === 'scale' || 'scale'.startsWith(sub)) {
     if (hasDeployments) {
-      deployNames.forEach(name => {
-        list.push({
-          value: `kubectl scale deployment/${name} --replicas=3`,
-          label: `scale deployment/${name} --replicas=3`,
-          category: 'Subcommand',
-          description: `Scale deployment ${name}`,
-        });
-      });
+      list.push(...mapDeploymentsToSuggestions(deployNames, n => `kubectl scale deployment/${n} --replicas=3`, n => `scale deployment/${n} --replicas=3`, 'Subcommand', n => `Scale deployment ${n}`));
     } else {
-      list.push({
-        value: 'kubectl scale deployment/',
-        label: 'scale deployment/',
-        category: 'Subcommand',
-        description: 'Scale deployment replicas',
-        disabled: true,
-        disabledReason: '(no Deployment on canvas)',
-      });
+      list.push(createDisabledSuggestion('kubectl scale deployment/', 'scale deployment/', 'Subcommand', 'Scale deployment replicas', NO_DEPLOYMENT_REASON));
     }
   }
   if (sub === 'set' || 'set'.startsWith(sub)) {
     if (hasDeployments) {
-      deployNames.forEach(name => {
-        list.push({
-          value: `kubectl set image deployment/${name} app-container=nginx:1.25`,
-          label: `set image deployment/${name} app-container=nginx:1.25`,
-          category: 'Subcommand',
-          description: `Set image for ${name}`,
-        });
-      });
+      list.push(...mapDeploymentsToSuggestions(deployNames, n => `kubectl set image deployment/${n} app-container=nginx:1.25`, n => `set image deployment/${n} app-container=nginx:1.25`, 'Subcommand', n => `Set image for ${n}`));
     } else {
-      list.push({
-        value: 'kubectl set image deployment/',
-        label: 'set image deployment/',
-        category: 'Subcommand',
-        description: 'Set container image',
-        disabled: true,
-        disabledReason: '(no Deployment on canvas)',
-      });
+      list.push(createDisabledSuggestion('kubectl set image deployment/', 'set image deployment/', 'Subcommand', 'Set container image', NO_DEPLOYMENT_REASON));
     }
   }
   if (sub === 'delete' || 'delete'.startsWith(sub)) {
@@ -168,7 +166,7 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
       category: 'Subcommand',
       description: 'Delete pod',
       disabled: !hasPods,
-      disabledReason: !hasPods ? '(no Pod on canvas)' : undefined,
+      disabledReason: !hasPods ? NO_POD_REASON : undefined,
     });
   }
   return list;
@@ -204,25 +202,11 @@ export const getAutocompleteSuggestions = (
     const rest = scaleMatch ? (scaleMatch[1] || '') : '';
 
     if (!hasDeployments) {
-      return [
-        {
-          value: 'kubectl scale deployment/',
-          label: 'scale deployment/',
-          category: 'Subcommand',
-          description: 'Scale a deployment resource',
-          disabled: true,
-          disabledReason: '(no Deployment on canvas)',
-        },
-      ];
+      return [createDisabledSuggestion('kubectl scale deployment/', 'scale deployment/', 'Subcommand', 'Scale a deployment resource', NO_DEPLOYMENT_REASON)];
     }
 
     if (!rest || !rest.trim()) {
-      return deployNames.map(name => ({
-        value: `kubectl scale deployment/${name} `,
-        label: `deployment/${name}`,
-        category: 'Deployment',
-        description: `Deployment ${name}`,
-      }));
+      return mapDeploymentsToSuggestions(deployNames, n => `kubectl scale deployment/${n} `, n => `deployment/${n}`, 'Deployment', n => `Deployment ${n}`);
     }
 
     const restTrimmed = rest.trim();
@@ -260,12 +244,7 @@ export const getAutocompleteSuggestions = (
         }
       } else {
         const matchedDeploys = deployNames.filter(name => name.toLowerCase().startsWith(depNamePart));
-        return matchedDeploys.map(name => ({
-          value: `kubectl scale deployment/${name} `,
-          label: `deployment/${name}`,
-          category: 'Deployment',
-          description: `Deployment ${name}`,
-        }));
+        return mapDeploymentsToSuggestions(matchedDeploys, n => `kubectl scale deployment/${n} `, n => `deployment/${n}`, 'Deployment', n => `Deployment ${n}`);
       }
     }
   }
@@ -273,35 +252,16 @@ export const getAutocompleteSuggestions = (
   // 2. `kubectl set image ...` sequence
   if (/^kubectl\s+set(?:\s+.*)?$/.test(normalizedInput)) {
     if (!hasDeployments) {
-      return [
-        {
-          value: 'kubectl set image deployment/',
-          label: 'set image deployment/',
-          category: 'Subcommand',
-          description: 'Update deployment container image',
-          disabled: true,
-          disabledReason: '(no Deployment on canvas)',
-        },
-      ];
+      return [createDisabledSuggestion('kubectl set image deployment/', 'set image deployment/', 'Subcommand', 'Update deployment container image', NO_DEPLOYMENT_REASON)];
     }
     if (/^kubectl\s+set(?:\s+i|\s+im|\s+ima|\s+imag|\s+image)?\s*$/.test(normalizedInput)) {
-      return deployNames.map(name => ({
-        value: `kubectl set image deployment/${name} `,
-        label: `deployment/${name}`,
-        category: 'Deployment',
-        description: `Deployment ${name}`,
-      }));
+      return mapDeploymentsToSuggestions(deployNames, n => `kubectl set image deployment/${n} `, n => `deployment/${n}`, 'Deployment', n => `Deployment ${n}`);
     }
     if (normalizedInput.startsWith('kubectl set image deployment/')) {
       const rest = normalizedInput.slice('kubectl set image deployment/'.length);
       if (!rest.includes(' ')) {
         const matched = deployNames.filter(name => name.toLowerCase().startsWith(rest));
-        return matched.map(name => ({
-          value: `kubectl set image deployment/${name} `,
-          label: `deployment/${name}`,
-          category: 'Deployment',
-          description: `Deployment ${name}`,
-        }));
+        return mapDeploymentsToSuggestions(matched, n => `kubectl set image deployment/${n} `, n => `deployment/${n}`, 'Deployment', n => `Deployment ${n}`);
       } else {
         const [depName] = rest.split(/\s+/);
         return [{
@@ -317,16 +277,7 @@ export const getAutocompleteSuggestions = (
   // 3. `kubectl rollout ...` sequence
   if (/^kubectl\s+rollout(?:\s+.*)?$/.test(normalizedInput)) {
     if (!hasDeployments) {
-      return [
-        {
-          value: 'kubectl rollout status deploy/',
-          label: 'rollout status deploy/',
-          category: 'Subcommand',
-          description: 'Show rollout status',
-          disabled: true,
-          disabledReason: '(no Deployment on canvas)',
-        },
-      ];
+      return [createDisabledSuggestion('kubectl rollout status deploy/', 'rollout status deploy/', 'Subcommand', 'Show rollout status', NO_DEPLOYMENT_REASON)];
     }
     if (/^kubectl\s+rollout\s*$/.test(normalizedInput)) {
       const items: SuggestionItem[] = [];
@@ -344,12 +295,7 @@ export const getAutocompleteSuggestions = (
       const action = rolloutMatch[1];
       const depNamePart = rolloutMatch[2];
       const matched = deployNames.filter(name => name.toLowerCase().startsWith(depNamePart));
-      return matched.map(name => ({
-        value: `kubectl rollout ${action} deploy/${name}`,
-        label: `deploy/${name}`,
-        category: 'Deployment',
-        description: `Deployment ${name}`,
-      }));
+      return mapDeploymentsToSuggestions(matched, n => `kubectl rollout ${action} deploy/${n}`, n => `deploy/${n}`, 'Deployment', n => `Deployment ${n}`);
     }
   }
 
@@ -357,8 +303,8 @@ export const getAutocompleteSuggestions = (
   if (/^kubectl\s+describe(?:\s+.*)?$/.test(normalizedInput)) {
     if (/^kubectl\s+describe\s*$/.test(normalizedInput)) {
       return [
-        { value: 'kubectl describe deploy ', label: 'describe deploy', category: 'Subcommand', description: 'Describe deployment', disabled: !hasDeployments, disabledReason: !hasDeployments ? '(no Deployment on canvas)' : undefined },
-        { value: 'kubectl describe pod ', label: 'describe pod', category: 'Subcommand', description: 'Describe pod', disabled: !hasPods, disabledReason: !hasPods ? '(no Pod on canvas)' : undefined },
+        { value: 'kubectl describe deploy ', label: 'describe deploy', category: 'Subcommand', description: 'Describe deployment', disabled: !hasDeployments, disabledReason: !hasDeployments ? NO_DEPLOYMENT_REASON : undefined },
+        { value: 'kubectl describe pod ', label: 'describe pod', category: 'Subcommand', description: 'Describe pod', disabled: !hasPods, disabledReason: !hasPods ? NO_POD_REASON : undefined },
         { value: 'kubectl describe role ', label: 'describe role', category: 'Subcommand', description: 'Describe role' },
         { value: 'kubectl describe rolebinding ', label: 'describe rolebinding', category: 'Subcommand', description: 'Describe rolebinding' },
         { value: 'kubectl describe cm ', label: 'describe cm', category: 'Subcommand', description: 'Describe configmap' },
@@ -367,20 +313,15 @@ export const getAutocompleteSuggestions = (
     }
     if (normalizedInput.startsWith('kubectl describe deploy ')) {
       if (!hasDeployments) {
-        return [{ value: 'kubectl describe deploy ', label: 'deploy', category: 'Deployment', description: 'Describe deployment', disabled: true, disabledReason: '(no Deployment on canvas)' }];
+        return [createDisabledSuggestion('kubectl describe deploy ', 'deploy', 'Deployment', 'Describe deployment', NO_DEPLOYMENT_REASON)];
       }
       const rest = normalizedInput.slice('kubectl describe deploy '.length).trim();
       const matched = deployNames.filter(n => n.toLowerCase().startsWith(rest));
-      return matched.map(name => ({
-        value: `kubectl describe deploy ${name}`,
-        label: name,
-        category: 'Deployment',
-        description: `Describe deployment ${name}`,
-      }));
+      return mapDeploymentsToSuggestions(matched, n => `kubectl describe deploy ${n}`, n => n, 'Deployment', n => `Describe deployment ${n}`);
     }
     if (normalizedInput.startsWith('kubectl describe pod ')) {
       if (!hasPods) {
-        return [{ value: 'kubectl describe pod ', label: 'pod', category: 'Pod', description: 'Describe pod', disabled: true, disabledReason: '(no Pod on canvas)' }];
+        return [createDisabledSuggestion('kubectl describe pod ', 'pod', 'Pod', 'Describe pod', NO_POD_REASON)];
       }
       const rest = normalizedInput.slice('kubectl describe pod '.length).trim();
       const matched = podNames.filter(n => n.toLowerCase().startsWith(rest));
@@ -397,14 +338,14 @@ export const getAutocompleteSuggestions = (
   if (/^kubectl\s+delete(?:\s+.*)?$/.test(normalizedInput)) {
     if (/^kubectl\s+delete\s*$/.test(normalizedInput)) {
       return [
-        { value: 'kubectl delete pod ', label: 'delete pod', category: 'Subcommand', description: 'Delete pod', disabled: !hasPods, disabledReason: !hasPods ? '(no Pod on canvas)' : undefined },
-        { value: 'kubectl delete deployment ', label: 'delete deployment', category: 'Subcommand', description: 'Delete deployment', disabled: !hasDeployments, disabledReason: !hasDeployments ? '(no Deployment on canvas)' : undefined },
+        { value: 'kubectl delete pod ', label: 'delete pod', category: 'Subcommand', description: 'Delete pod', disabled: !hasPods, disabledReason: !hasPods ? NO_POD_REASON : undefined },
+        { value: 'kubectl delete deployment ', label: 'delete deployment', category: 'Subcommand', description: 'Delete deployment', disabled: !hasDeployments, disabledReason: !hasDeployments ? NO_DEPLOYMENT_REASON : undefined },
         { value: 'kubectl delete service ', label: 'delete service', category: 'Subcommand', description: 'Delete service' },
       ];
     }
     if (normalizedInput.startsWith('kubectl delete pod ')) {
       if (!hasPods) {
-        return [{ value: 'kubectl delete pod ', label: 'pod', category: 'Pod', description: 'Delete pod', disabled: true, disabledReason: '(no Pod on canvas)' }];
+        return [createDisabledSuggestion('kubectl delete pod ', 'pod', 'Pod', 'Delete pod', NO_POD_REASON)];
       }
       const rest = normalizedInput.slice('kubectl delete pod '.length).trim();
       const matched = podNames.filter(n => n.toLowerCase().startsWith(rest));
@@ -420,7 +361,7 @@ export const getAutocompleteSuggestions = (
   // 6. `kubectl logs ...` sequence
   if (/^kubectl\s+logs(?:\s+.*)?$/.test(normalizedInput)) {
     if (!hasPods) {
-      return [{ value: 'kubectl logs ', label: 'logs', category: 'Pod', description: 'Stream container logs', disabled: true, disabledReason: '(no Pod on canvas)' }];
+      return [createDisabledSuggestion('kubectl logs ', 'logs', 'Pod', 'Stream container logs', NO_POD_REASON)];
     }
     if (/^kubectl\s+logs\s*$/.test(normalizedInput) || normalizedInput.startsWith('kubectl logs ')) {
       const rest = normalizedInput.replace(/^kubectl\s+logs\s*/, '').trim();
@@ -444,10 +385,10 @@ export const getAutocompleteSuggestions = (
     if (tokens.length === 1) {
       candidates = KUBECTL_TOP_COMMANDS.map(c => {
         if (c.value === 'kubectl scale' || c.value === 'kubectl set image' || c.value === 'kubectl rollout') {
-          return { ...c, disabled: !hasDeployments, disabledReason: !hasDeployments ? '(no Deployment on canvas)' : undefined };
+          return { ...c, disabled: !hasDeployments, disabledReason: !hasDeployments ? NO_DEPLOYMENT_REASON : undefined };
         }
         if (c.value === 'kubectl logs') {
-          return { ...c, disabled: !hasPods, disabledReason: !hasPods ? '(no Pod on canvas)' : undefined };
+          return { ...c, disabled: !hasPods, disabledReason: !hasPods ? NO_POD_REASON : undefined };
         }
         return c;
       });
