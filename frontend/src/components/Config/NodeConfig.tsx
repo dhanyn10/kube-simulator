@@ -1,5 +1,5 @@
 import { useFlowStore } from '@/store';
-import { cn, sanitizeSlug, generateRandomHash, formatPodName } from '@/lib/utils';
+import { cn, sanitizeSlug } from '@/lib/utils';
 import { Type, Terminal, Shuffle } from 'lucide-react';
 import { ConfigInput, ConfigLabel } from '../UI/ConfigUI';
 import {
@@ -26,7 +26,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const { data, toggleVisibility, toggleYaml, performUpdate } = useNodeConfigHandler(selectedNode);
+  const { data, toggleVisibility, toggleYaml, performUpdate, randomizePodHash } = useNodeConfigHandler(selectedNode);
 
   const renderConfig = () => {
     const props = { selectedNode, performUpdate, toggleVisibility, toggleYaml };
@@ -87,22 +87,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
             <button
               type="button"
               title="Randomize Pod Hash"
-              onClick={() => {
-                const newHash = generateRandomHash(5);
-                let currentLabel = data.label || 'pod';
-                // If label already ends with hyphen + hash pattern, replace the last hash segment
-                const parts = currentLabel.split('-');
-                if (parts.length > 1 && parts[parts.length - 1].length >= 4) {
-                  parts[parts.length - 1] = newHash;
-                  currentLabel = parts.join('-');
-                } else {
-                  currentLabel = formatPodName(currentLabel, undefined, newHash);
-                }
-                updateNodeData(selectedNode.id, {
-                  label: currentLabel,
-                  podHash: newHash,
-                });
-              }}
+              onClick={randomizePodHash}
               className={cn(
                 "p-2 rounded border transition-colors flex items-center justify-center shrink-0",
                 colorMode === 'dark'
