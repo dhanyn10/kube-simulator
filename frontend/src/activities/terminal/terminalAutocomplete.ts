@@ -229,23 +229,11 @@ export const getAutocompleteSuggestions = (
     if (restTrimmed.startsWith('deployment/')) {
       const depNamePart = restTrimmed.slice('deployment/'.length);
 
-      // Check if user has space after deployment name e.g. `kubectl scale deployment/web-app `
       const spaceIdx = depNamePart.indexOf(' ');
       if (spaceIdx !== -1 || rest.endsWith(' ')) {
         const depName = spaceIdx !== -1 ? depNamePart.slice(0, spaceIdx) : depNamePart;
         const afterDep = spaceIdx !== -1 ? depNamePart.slice(spaceIdx + 1) : '';
         const afterDepTrimmed = afterDep.trim();
-
-        if (!afterDepTrimmed || '--replicas='.startsWith(afterDepTrimmed)) {
-          return [
-            {
-              value: `kubectl scale deployment/${depName} --replicas=`,
-              label: '--replicas=',
-              category: 'Subcommand',
-              description: 'Specify replica count',
-            },
-          ];
-        }
 
         if (afterDepTrimmed.startsWith('--replicas=')) {
           const numPart = afterDepTrimmed.slice('--replicas='.length);
@@ -258,6 +246,17 @@ export const getAutocompleteSuggestions = (
             category: 'Subcommand',
             description: `Set replica count to ${n}`,
           }));
+        }
+
+        if (!afterDepTrimmed || '--replicas='.startsWith(afterDepTrimmed)) {
+          return [
+            {
+              value: `kubectl scale deployment/${depName} --replicas=`,
+              label: '--replicas=',
+              category: 'Subcommand',
+              description: 'Specify replica count',
+            },
+          ];
         }
       } else {
         const matchedDeploys = deployNames.filter(name => name.toLowerCase().startsWith(depNamePart));
