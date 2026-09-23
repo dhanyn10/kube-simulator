@@ -15,6 +15,8 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   PVC: { x: 90, y: 60 },
   ConfigMap: { x: 80, y: 50 },
   Secret: { x: 80, y: 50 },
+  Role: { x: 80, y: 50 },
+  IAM: { x: 80, y: 50 },
 };
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {
@@ -160,19 +162,19 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
           useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. ${targetCardText}) to attach ${type.toLowerCase()}s!`, 'UI');
         } else if (type === 'Role') {
           useFlowStore.setState({
-            roleModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+            roleModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
           });
         } else if (type === 'ConfigMap') {
           useFlowStore.setState({
-            configMapModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+            configMapModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
           });
         } else if (type === 'Secret') {
           useFlowStore.setState({
-            secretModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+            secretModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
           });
         } else {
           useFlowStore.setState({
-            hpaModalTargetNode: { id: targetNode.id, label: targetNode.data?.label || targetNode.id }
+            hpaModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
           });
         }
         setHoveredDeploymentId(null);
@@ -200,7 +202,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
   const onDragLeave = useCallback(
     (event: React.DragEvent) => {
-      if (event.currentTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
+      if (event.currentTarget && !event.currentTarget.contains(event.relatedTarget as unknown as globalThis.Node)) {
         setHoveredDeploymentId(null);
         useFlowStore.setState((state) => ({
           nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),

@@ -63,6 +63,7 @@ export interface UiSlice {
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
   isSimulating: boolean;
+  simulationSpeed: 1 | 5 | 10;
   activeSimulationEdges: string[];
   simulationMetrics: Record<string, SimulationMetricPoint[]>;
   isMonitoringOpen: boolean;
@@ -113,6 +114,7 @@ export interface UiSlice {
   startSimulation: (internetNodeIds?: string[]) => void;
   pauseSimulation: () => void;
   stopSimulation: () => void;
+  setSimulationSpeed: (speed: 1 | 5 | 10) => void;
   setMonitoringOpen: (open: boolean) => void;
   setMonitoringDetached: (detached: boolean) => void;
   setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
@@ -134,7 +136,9 @@ const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } 
  */
 const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
 
-const fallbackToLegacySettings = (set: (state: Partial<FlowState>) => void) => {
+type FlowStateSetter = (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void;
+
+const fallbackToLegacySettings = (set: FlowStateSetter) => {
   if (!globalThis.go?.main?.App?.GetSetting) return;
   Promise.all([
     globalThis.go.main.App.GetSetting('isSidebarVisible'),
@@ -150,7 +154,7 @@ const fallbackToLegacySettings = (set: (state: Partial<FlowState>) => void) => {
 /**
  * Appends pod creation activity logs on ticks 1, 2, and 3
  */
-const handleTicksActivityLogs = (ticks: number, workloads: Node[], set: (state: Partial<FlowState>) => void) => {
+const handleTicksActivityLogs = (ticks: number, workloads: Node[], set: FlowStateSetter) => {
   if (ticks === 1) {
     const lines = workloads.map(w => {
       const name = w.data.label || w.id;
@@ -180,7 +184,7 @@ const updatePendingPods = (updatedNodes: Node[], get: () => FlowState): boolean 
   for (let i = 0; i < updatedNodes.length; i++) {
     const node = updatedNodes[i];
     if (node.type === 'Pod' && node.data.status === 'pending') {
-      const pendingTicks = (node.data.pendingTicks || 0) + 1;
+      const pendingTicks = (Number(node.data.pendingTicks) || 0) + 1;
       updatedNodes[i] = {
         ...node,
         data: {
@@ -286,7 +290,7 @@ const updateRollingDeployments = (updatedNodes: Node[], get: () => FlowState): b
 const runSimulationTick = (params: {
   state: FlowState,
   ticks: number,
-  set: (state: Partial<FlowState>) => void,
+  set: FlowStateSetter,
   get: () => FlowState
 }) => {
   const { state, ticks, set, get } = params;
@@ -438,7 +442,7 @@ const buildInitialTerminalLogs = (nodes: Node[]) => {
  */
 const startSimulationInternal = (
     internetNodeIds: string[] | undefined,
-    set: (state: Partial<FlowState>) => void,
+    set: FlowStateSetter,
     get: () => FlowState
   ) => {
       const { nodes, edges, colorMode, simulationMetrics } = get();
@@ -513,7 +517,7 @@ const startSimulationInternal = (
  */
 const handleStopSimulation = (
   nodes: Node[],
-  set: (state: Partial<FlowState>) => void,
+  set: FlowStateSetter,
   get: () => FlowState
 ) => {
   stopSimulationInternal(set, get, simulationIntervalObj);
@@ -853,7 +857,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   /**
    * Public action to stop the simulation.
    */
-  setSimulationSpeed: (speed: 1 | 5 | 10) => {
+  setSimulationSpeed: (speed) => {
     set({ simulationSpeed: speed });
   },
   stopSimulation: () => {
