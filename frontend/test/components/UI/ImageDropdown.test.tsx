@@ -38,7 +38,9 @@ describe('ImageDropdown', () => {
 
     expect(screen.getByPlaceholderText('Search or type custom image...')).toBeDefined();
     expect(screen.getAllByText('my-local-image:latest').length).toBeGreaterThan(0);
-    expect(screen.getByText('nginx:latest')).toBeDefined();
+
+    const nginxBtn = screen.getByText('nginx:latest').closest('button')!;
+    expect(nginxBtn.className).toContain('hover:bg-slate-50 text-slate-700');
   });
 
   it('renders empty message when customImages is empty and query has no matches and search is empty', async () => {
