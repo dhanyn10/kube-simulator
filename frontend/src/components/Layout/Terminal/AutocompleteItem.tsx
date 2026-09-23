@@ -75,6 +75,13 @@ export const AutocompleteItem = ({
 
   const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
 
+  let iconClass = "text-blue-500 shrink-0";
+  if (isDisabled) {
+    iconClass = "text-slate-600 shrink-0";
+  } else if (isSelected) {
+    iconClass = "text-blue-400 shrink-0";
+  }
+
   return (
     <div
       onMouseEnter={() => setIsHovered(true)}
@@ -98,7 +105,7 @@ export const AutocompleteItem = ({
             isDisabled && "cursor-not-allowed"
           )}
         >
-          <TerminalSquare size={12} className={isDisabled ? "text-slate-600 shrink-0" : isSelected ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
+          <TerminalSquare size={12} className={iconClass} />
           <span className="font-semibold truncate text-[11px] w-full">{item.label}</span>
         </button>
 

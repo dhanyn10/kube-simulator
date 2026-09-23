@@ -740,7 +740,10 @@ export const handleDescribeRoleCommand = (
         ctx.addActivityLog(`Namespace:    default`);
         ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
         ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
-        ctx.addActivityLog(`Subjects:     ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.map(u => `User/${u}`).join(', ') : 'ServiceAccount/default'}`);
+        const subjectsStr = roleObj.assignedUsers.length > 0
+          ? roleObj.assignedUsers.map(u => 'User/' + u).join(', ')
+          : 'ServiceAccount/default';
+        ctx.addActivityLog(`Subjects:     ${subjectsStr}`);
         ctx.addActivityLog(`---`);
       });
       return true;
