@@ -49,18 +49,14 @@ const TreeNodeItem = ({
   return (
     <div className="select-none">
       <div
-        role="button"
-        tabIndex={0}
         className={cn(
-          "flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group cursor-pointer my-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500",
+          "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group my-0.5 text-left",
           colorMode === 'dark'
             ? "hover:bg-slate-800/70 text-slate-200"
             : "hover:bg-slate-100 text-slate-800",
           isExecutable && (colorMode === 'dark' ? "hover:bg-blue-950/40" : "hover:bg-blue-50/80")
         )}
         style={{ paddingLeft: `${level * 18 + 10}px` }}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasChildren ? (
@@ -70,7 +66,7 @@ const TreeNodeItem = ({
                 e.stopPropagation();
                 toggleExpand(node.id);
               }}
-              className="p-0.5 rounded text-slate-400 hover:text-slate-200 focus:outline-none"
+              className="p-0.5 rounded text-slate-400 hover:text-slate-200 inline-flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500"
               aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             >
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -79,7 +75,12 @@ const TreeNodeItem = ({
             <span className="w-3.5 h-3.5 inline-block shrink-0" />
           )}
 
-          <div className="flex items-center gap-2 truncate">
+          <button
+            type="button"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            className="flex items-center gap-2 truncate text-left border-none bg-transparent p-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+          >
             <span className={cn(
               "font-mono font-semibold text-xs",
               hasChildren ? "text-amber-300 dark:text-amber-400 font-bold" : "text-emerald-400"
@@ -95,7 +96,7 @@ const TreeNodeItem = ({
                 — {node.description}
               </span>
             )}
-          </div>
+          </button>
         </div>
 
         {isExecutable && node.command && (
