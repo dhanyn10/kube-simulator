@@ -89,6 +89,54 @@ export const getPodNames = (nodes: Node[]): string[] => {
   return nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet').map(p => String(p.data?.label || p.id));
 };
 
+export const getRoleBindingNames = (nodes: Node[]): string[] => {
+  const names: string[] = [];
+  nodes.forEach((n) => {
+    if (Array.isArray(n.data?.roles)) {
+      n.data.roles.forEach((r: any) => {
+        if (r.name) names.push(r.name + '-binding');
+      });
+    }
+  });
+  return Array.from(new Set(names));
+};
+
+export const getRoleNames = (nodes: Node[]): string[] => {
+  const names: string[] = [];
+  nodes.forEach((n) => {
+    if (Array.isArray(n.data?.roles)) {
+      n.data.roles.forEach((r: any) => {
+        if (r.name) names.push(r.name);
+      });
+    }
+  });
+  return Array.from(new Set(names));
+};
+
+export const getConfigMapNames = (nodes: Node[]): string[] => {
+  const names: string[] = [];
+  nodes.forEach((n) => {
+    if (Array.isArray(n.data?.configMaps)) {
+      n.data.configMaps.forEach((cm: any) => {
+        if (cm.name) names.push(cm.name);
+      });
+    }
+  });
+  return Array.from(new Set(names));
+};
+
+export const getSecretNames = (nodes: Node[]): string[] => {
+  const names: string[] = [];
+  nodes.forEach((n) => {
+    if (Array.isArray(n.data?.secrets)) {
+      n.data.secrets.forEach((s: any) => {
+        if (s.name) names.push(s.name);
+      });
+    }
+  });
+  return Array.from(new Set(names));
+};
+
 const mapResourceItems = (
   names: string[],
   valuePattern: (n: string) => string,
@@ -249,32 +297,76 @@ const handleRolloutSequence = (input: string, deployNames: string[]): Suggestion
   return [];
 };
 
-const handleDescribeSequence = (input: string, deployNames: string[], podNames: string[]): SuggestionItem[] => {
+const handleDescribeSequence = (
+  input: string,
+  deployNames: string[],
+  podNames: string[],
+  nodes: Node[] = []
+): SuggestionItem[] => {
   const hasDeploys = deployNames.length > 0;
   const hasPods = podNames.length > 0;
 
   if (/^kubectl\s+describe\s*$/.test(input)) {
     return [
-      createItem('kubectl describe deploy ', 'describe deploy', 'Subcommand', 'Describe deployment', !hasDeploys, !hasDeploys ? NO_DEPLOYMENT_REASON : undefined),
-      createItem('kubectl describe pod ', 'describe pod', 'Subcommand', 'Describe pod', !hasPods, !hasPods ? NO_POD_REASON : undefined),
-      ...createSuggestionMap([
-        ['kubectl describe role ', 'describe role', 'Subcommand', 'Describe role'],
-        ['kubectl describe rolebinding ', 'describe rolebinding', 'Subcommand', 'Describe rolebinding'],
-        ['kubectl describe cm ', 'describe cm', 'Subcommand', 'Describe configmap'],
-        ['kubectl describe secret ', 'describe secret', 'Subcommand', 'Describe secret'],
-      ])
+      createItem('kubectl describe deploy', 'describe deploy', 'Subcommand', 'Describe deployments on canvas'),
+      createItem('kubectl describe pod', 'describe pod', 'Subcommand', 'Describe pods on canvas'),
+      createItem('kubectl describe role', 'describe role', 'Subcommand', 'Describe roles on canvas'),
+      createItem('kubectl describe rolebinding', 'describe rolebinding', 'Subcommand', 'Describe rolebindings on canvas'),
+      createItem('kubectl describe cm', 'describe cm', 'Subcommand', 'Describe configmaps on canvas'),
+      createItem('kubectl describe secret', 'describe secret', 'Subcommand', 'Describe secrets on canvas'),
     ];
   }
 
+  if (input.startsWith('kubectl describe rolebinding ')) {
+    const rbNames = getRoleBindingNames(nodes);
+    const rest = input.slice('kubectl describe rolebinding '.length).trim();
+    if (rbNames.length === 0) {
+      return [createItem('kubectl describe rolebinding', 'describe rolebinding', 'Command', 'Describe all rolebindings on canvas')];
+    }
+    const matched = rbNames.filter(n => n.toLowerCase().startsWith(rest));
+    return mapResourceItems(matched, n => `kubectl describe rolebinding ${n}`, n => n, 'Command', n => `Describe rolebinding ${n}`);
+  }
+
+  if (input.startsWith('kubectl describe role ')) {
+    const rNames = getRoleNames(nodes);
+    const rest = input.slice('kubectl describe role '.length).trim();
+    if (rNames.length === 0) {
+      return [createItem('kubectl describe role', 'describe role', 'Command', 'Describe all roles on canvas')];
+    }
+    const matched = rNames.filter(n => n.toLowerCase().startsWith(rest));
+    return mapResourceItems(matched, n => `kubectl describe role ${n}`, n => n, 'Command', n => `Describe role ${n}`);
+  }
+
+  if (input.startsWith('kubectl describe cm ') || input.startsWith('kubectl describe configmap ')) {
+    const cmNames = getConfigMapNames(nodes);
+    const prefix = input.startsWith('kubectl describe cm ') ? 'kubectl describe cm ' : 'kubectl describe configmap ';
+    const rest = input.slice(prefix.length).trim();
+    if (cmNames.length === 0) {
+      return [createItem('kubectl describe cm', 'describe cm', 'Command', 'Describe all configmaps on canvas')];
+    }
+    const matched = cmNames.filter(n => n.toLowerCase().startsWith(rest));
+    return mapResourceItems(matched, n => `${prefix}${n}`, n => n, 'Command', n => `Describe configmap ${n}`);
+  }
+
+  if (input.startsWith('kubectl describe secret ')) {
+    const secNames = getSecretNames(nodes);
+    const rest = input.slice('kubectl describe secret '.length).trim();
+    if (secNames.length === 0) {
+      return [createItem('kubectl describe secret', 'describe secret', 'Command', 'Describe all secrets on canvas')];
+    }
+    const matched = secNames.filter(n => n.toLowerCase().startsWith(rest));
+    return mapResourceItems(matched, n => `kubectl describe secret ${n}`, n => n, 'Command', n => `Describe secret ${n}`);
+  }
+
   if (input.startsWith('kubectl describe deploy ')) {
-    if (!hasDeploys) return [createItem('kubectl describe deploy ', 'deploy', 'Deployment', 'Describe deployment', true, NO_DEPLOYMENT_REASON)];
+    if (!hasDeploys) return [createItem('kubectl describe deploy', 'describe deploy', 'Deployment', 'Describe all deployments on canvas')];
     const rest = input.slice('kubectl describe deploy '.length).trim();
     const matched = deployNames.filter(n => n.toLowerCase().startsWith(rest));
     return mapResourceItems(matched, n => `kubectl describe deploy ${n}`, n => n, 'Deployment', n => `Describe deployment ${n}`);
   }
 
   if (input.startsWith('kubectl describe pod ')) {
-    if (!hasPods) return [createItem('kubectl describe pod ', 'pod', 'Pod', 'Describe pod', true, NO_POD_REASON)];
+    if (!hasPods) return [createItem('kubectl describe pod', 'describe pod', 'Pod', 'Describe all pods on canvas')];
     const rest = input.slice('kubectl describe pod '.length).trim();
     const matched = podNames.filter(n => n.toLowerCase().startsWith(rest));
     return mapResourceItems(matched, n => `kubectl describe pod ${n}`, n => n, 'Pod', n => `Describe pod ${n}`);
@@ -337,7 +429,7 @@ export const getAutocompleteSuggestions = (
   if (/^kubectl\s+scale(?:\s+.*)?$/.test(norm)) return handleScaleSequence(norm, deployNames);
   if (/^kubectl\s+set(?:\s+.*)?$/.test(norm)) return handleSetImageSequence(norm, deployNames);
   if (/^kubectl\s+rollout(?:\s+.*)?$/.test(norm)) return handleRolloutSequence(norm, deployNames);
-  if (/^kubectl\s+describe(?:\s+.*)?$/.test(norm)) return handleDescribeSequence(norm, deployNames, podNames);
+  if (/^kubectl\s+describe(?:\s+.*)?$/.test(norm)) return handleDescribeSequence(norm, deployNames, podNames, nodes);
   if (/^kubectl\s+delete(?:\s+.*)?$/.test(norm)) return handleDeleteSequence(norm, deployNames, podNames);
   if (/^kubectl\s+logs(?:\s+.*)?$/.test(norm)) return handleLogsSequence(norm, podNames);
 
