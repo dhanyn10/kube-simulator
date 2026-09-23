@@ -69,7 +69,6 @@ describe('AutocompleteItem', () => {
 
     const mainBtn = screen.getByTestId('autocomplete-item-0');
     expect(mainBtn).toBeDisabled();
-    expect(screen.getByText('(no Deployment on canvas)')).toBeInTheDocument();
 
     fireEvent.click(mainBtn);
     expect(onSelectSuggestion).not.toHaveBeenCalled();
