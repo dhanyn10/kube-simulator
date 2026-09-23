@@ -28,17 +28,10 @@ const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean =>
   return true;
 };
 
-/**
- * Returns group strings based on resource types for manifest activity logs
- */
 const getResourceGroup = (type: string) => {
-  if (type === 'Deployment' || type === 'ReplicaSet') {
-    return '.apps';
-  } else if (type === 'Ingress') {
-    return '.networking.k8s.io';
-  } else if (type === 'HPA') {
-    return '.autoscaling';
-  }
+  if (type === 'Deployment' || type === 'ReplicaSet') return '.apps';
+  if (type === 'Ingress') return '.networking.k8s.io';
+  if (type === 'HPA') return '.autoscaling';
   return '';
 };
 
@@ -682,6 +675,39 @@ export const handleGetRolesCommand = (
   return true;
 };
 
+const handleDescribeRoleDetails = (roleObj: any, targetKind: string, targetName: string, ctx: CommandContext) => {
+  if (targetKind.startsWith('rolebinding') || targetKind === 'rb' || targetName.endsWith('-binding')) {
+    const bindingName = roleObj.name + '-binding';
+    ctx.addActivityLog(`Name:         ${bindingName}`);
+    ctx.addActivityLog(`Namespace:    default`);
+    ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
+    ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
+    ctx.addActivityLog(`Subjects:`);
+    if (roleObj.assignedUsers.length === 0) {
+      ctx.addActivityLog(`  <none>`);
+    } else {
+      roleObj.assignedUsers.forEach((u: string) => {
+        ctx.addActivityLog(`  Kind: User, Name: ${u}`);
+      });
+    }
+    return;
+  }
+
+  ctx.addActivityLog(`Name:               ${roleObj.name}`);
+  ctx.addActivityLog(`Namespace:          default`);
+  ctx.addActivityLog(`Attached To:        ${roleObj.owner}`);
+  ctx.addActivityLog(`Assigned IAM Users: ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.join(', ') : '<none>'}`);
+  ctx.addActivityLog(`PolicyRule:`);
+  ctx.addActivityLog(`  Resources  Group  Verbs`);
+  ctx.addActivityLog(`  ---------  -----  -----`);
+  roleObj.rules.forEach((rule: any) => {
+    const res = (rule.resources || []).join(', ');
+    const grp = (rule.apiGroups || ['']).join(', ') || '""';
+    const vrb = (rule.verbs || []).join(', ');
+    ctx.addActivityLog(`  ${res.padEnd(10)} ${grp.padEnd(6)} [${vrb}]`);
+  });
+};
+
 export const handleDescribeRoleCommand = (
   cmd: string,
   ctx: CommandContext
@@ -745,38 +771,7 @@ export const handleDescribeRoleCommand = (
   });
 
   if (foundRole) {
-    const roleObj = foundRole as { name: string; owner: string; rules: any[]; assignedUsers: string[] };
-
-    if (targetKind.startsWith('rolebinding') || targetKind === 'rb' || targetName.endsWith('-binding')) {
-      const bindingName = roleObj.name + '-binding';
-      ctx.addActivityLog(`Name:         ${bindingName}`);
-      ctx.addActivityLog(`Namespace:    default`);
-      ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
-      ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
-      ctx.addActivityLog(`Subjects:`);
-      if (roleObj.assignedUsers.length === 0) {
-        ctx.addActivityLog(`  <none>`);
-      } else {
-        roleObj.assignedUsers.forEach((u) => {
-          ctx.addActivityLog(`  Kind: User, Name: ${u}`);
-        });
-      }
-      return true;
-    }
-
-    ctx.addActivityLog(`Name:               ${roleObj.name}`);
-    ctx.addActivityLog(`Namespace:          default`);
-    ctx.addActivityLog(`Attached To:        ${roleObj.owner}`);
-    ctx.addActivityLog(`Assigned IAM Users: ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.join(', ') : '<none>'}`);
-    ctx.addActivityLog(`PolicyRule:`);
-    ctx.addActivityLog(`  Resources  Group  Verbs`);
-    ctx.addActivityLog(`  ---------  -----  -----`);
-    roleObj.rules.forEach((rule: any) => {
-      const res = (rule.resources || []).join(', ');
-      const grp = (rule.apiGroups || ['']).join(', ') || '""';
-      const vrb = (rule.verbs || []).join(', ');
-      ctx.addActivityLog(`  ${res.padEnd(10)} ${grp.padEnd(6)} [${vrb}]`);
-    });
+    handleDescribeRoleDetails(foundRole, targetKind, targetName, ctx);
   } else {
     const kindLabel = targetKind.startsWith('rolebinding') || targetKind === 'rb' ? 'rolebinding' : 'role';
     ctx.addActivityLog(`Error from server (NotFound): ${kindLabel} "${targetName}" not found`);

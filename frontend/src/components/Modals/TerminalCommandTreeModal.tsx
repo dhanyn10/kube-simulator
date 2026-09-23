@@ -31,24 +31,36 @@ const TreeNodeItem = ({
   const isExpanded = expandedNodes.has(node.id);
   const isExecutable = Boolean(node.command);
 
+  const handleClick = () => {
+    if (hasChildren) {
+      toggleExpand(node.id);
+    } else if (node.command) {
+      onSelectCommand(node.command);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
     <div className="select-none">
       <div
+        role="button"
+        tabIndex={0}
         className={cn(
-          "flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group cursor-pointer my-0.5",
+          "flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group cursor-pointer my-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500",
           colorMode === 'dark'
             ? "hover:bg-slate-800/70 text-slate-200"
             : "hover:bg-slate-100 text-slate-800",
           isExecutable && (colorMode === 'dark' ? "hover:bg-blue-950/40" : "hover:bg-blue-50/80")
         )}
         style={{ paddingLeft: `${level * 18 + 10}px` }}
-        onClick={() => {
-          if (hasChildren) {
-            toggleExpand(node.id);
-          } else if (node.command) {
-            onSelectCommand(node.command);
-          }
-        }}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasChildren ? (
@@ -58,7 +70,8 @@ const TreeNodeItem = ({
                 e.stopPropagation();
                 toggleExpand(node.id);
               }}
-              className="p-0.5 rounded text-slate-400 hover:text-slate-200"
+              className="p-0.5 rounded text-slate-400 hover:text-slate-200 focus:outline-none"
+              aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             >
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
@@ -93,7 +106,7 @@ const TreeNodeItem = ({
               onSelectCommand(node.command!);
             }}
             className={cn(
-              "flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border transition-all shrink-0 ml-2",
+              "flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border transition-all shrink-0 ml-2 focus:outline-none focus:ring-1 focus:ring-blue-500",
               colorMode === 'dark'
                 ? "bg-blue-900/40 text-blue-300 border-blue-700/50 hover:bg-blue-800/60 hover:text-white"
                 : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
