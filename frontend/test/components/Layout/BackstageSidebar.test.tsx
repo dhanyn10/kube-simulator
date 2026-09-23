@@ -109,12 +109,34 @@ describe('BackstageSidebar', () => {
     expect(setActiveTab).toHaveBeenCalledWith('settings-view');
   });
 
-  it('renders expanded settings submenu and handles sub-item clicks', () => {
+  it('collapses settings accordion when activeTab is not home without changing activeTab', () => {
+    const setIsSettingsExpanded = vi.fn();
     const setActiveTab = vi.fn();
 
     render(
       <BackstageSidebar
         {...defaultProps}
+        activeTab="settings-view"
+        isSettingsExpanded={true}
+        setIsSettingsExpanded={setIsSettingsExpanded}
+        setActiveTab={setActiveTab}
+      />
+    );
+
+    const settingsBtn = screen.getByRole('button', { name: /Settings/i });
+    fireEvent.click(settingsBtn);
+
+    expect(setIsSettingsExpanded).toHaveBeenCalledWith(false);
+    expect(setActiveTab).not.toHaveBeenCalled();
+  });
+
+  it('renders expanded settings submenu and handles sub-item clicks in light mode', () => {
+    const setActiveTab = vi.fn();
+
+    render(
+      <BackstageSidebar
+        {...defaultProps}
+        colorMode="light"
         activeTab="settings-view"
         isSettingsExpanded={true}
         setActiveTab={setActiveTab}

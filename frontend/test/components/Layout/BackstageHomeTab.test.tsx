@@ -121,4 +121,35 @@ describe('BackstageHomeTab', () => {
     fireEvent.doubleClick(row);
     expect(handleRestoreFile).toHaveBeenCalledWith(dummyFiles[0]);
   });
+
+  it('renders in light mode and handles active context item styling in light mode', () => {
+    render(
+      <BackstageHomeTab
+        {...defaultProps}
+        colorMode="light"
+        currentProjectId={101}
+        activeContextItem={dummyFiles[0]}
+      />
+    );
+
+    expect(screen.getByText('Active Project 1')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Auto-Save')).toBeInTheDocument();
+
+    const row = screen.getByText('Active Project 1').closest('tr')!;
+    expect(row.className).toContain('bg-blue-100/80');
+  });
+
+  it('renders in light mode without active context item', () => {
+    render(
+      <BackstageHomeTab
+        {...defaultProps}
+        colorMode="light"
+        currentProjectId={undefined}
+        activeContextItem={null}
+      />
+    );
+
+    expect(screen.queryByText('Active')).not.toBeInTheDocument();
+  });
 });
