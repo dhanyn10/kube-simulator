@@ -122,7 +122,7 @@ export const createLogLineForResource = (node: Node, point?: any): string | null
 export const simulateAllResourceLogs = (
   nodes: Node[],
   metrics: Record<string, any[]>,
-  set: (state: Partial<FlowState>) => void
+  set: (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void
 ) => {
   const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
   if (loggableNodes.length === 0) return;

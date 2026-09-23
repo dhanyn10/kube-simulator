@@ -1,11 +1,8 @@
-import {
-  Connection,
-  Edge,
-  Node,
-  NodeChange,
-  EdgeChange,
-} from '@xyflow/react';
-import { K8sResourceType, K8sNodeData } from '@/types';
+import { FlowSlice } from '@/store/slices/createFlowSlice';
+import { DeploymentSlice } from '@/store/slices/createDeploymentSlice';
+import { UiSlice } from '@/store/slices/createUiSlice';
+import { LogSlice } from '@/store/slices/createLogSlice';
+import { NodeSlice } from '@/store/slices/createNodeSlice';
 
 export type LogLevel = 'error' | 'warn' | 'fatal' | 'info';
 export type LogScope = 'Simulation' | 'KubeConsole' | 'Store' | 'UI' | 'Backend' | 'System' | (string & {});
@@ -29,133 +26,19 @@ export interface SimulationMetricPoint {
   isOOM: boolean;
 }
 
-export interface FlowState {
-  nodes: Node[];
-  edges: Edge[];
-  activeDeploymentId: string | null;
-  hoveredDeploymentId: string | null;
-  detachingDeploymentId: string | null;
-  configuringNodeId: string | null;
-  configuringEdgeId: string | null;
-  draggingSidebarItem: K8sResourceType | null;
-  colorMode: 'dark' | 'light';
-  globalEdgeColor: string;
-  globalEdgeErrorColor: string;
-  isAutosaveEnabled: boolean;
-  isAutofocusEnabled: boolean;
-  isSidebarVisible: boolean;
-  isRightSidebarVisible: boolean;
-  clipboard: { nodes: Node[], edges: Edge[] } | null;
+export interface BaseFlowState {
+  clipboard: { nodes: any[]; edges: any[] } | null;
   draggedNodeId: string | null;
   lastActionId: string;
   lastActionName: string;
-  currentProject: { id: number, name: string } | null;
+  currentProject: { id: number; name: string } | null;
   lastSavedSnapshot: string | null;
-
-  // History state
-  historyLogs: any[];
-  currentHistoryIndex: number | null;
-  isHistoryLoading: boolean;
-  fetchHistoryLogs: () => Promise<void>;
-  isHistoryViewOpen: boolean;
-  setHistoryViewOpen: (open: boolean) => void;
-
-  // Simulation state
-  isSimulating: boolean;
-  simulationSpeed: 1 | 5 | 10;
-  activeSimulationEdges: string[];
-  simulationMetrics: Record<string, SimulationMetricPoint[]>;
-  isMonitoringOpen: boolean;
-  isMonitoringDetached: boolean;
-  systemResources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number } | null;
-
-  // Terminal state
-  isTerminalOpen: boolean;
-  terminalActiveTab: 'activity' | 'logs';
-  terminalSelectedResourceId: string | null;
-  terminalLogs: Record<string, string[]>;
-  activityLogs: string[];
-  setTerminalOpen: (open: boolean) => void;
-  setTerminalActiveTab: (tab: 'activity' | 'logs') => void;
-  setTerminalSelectedResourceId: (id: string | null) => void;
-  addTerminalLog: (resourceId: string, line: string) => void;
-  addActivityLog: (line: string) => void;
-  clearTerminalLogs: () => void;
-
-  // Terminal Command Tree state
-  isTerminalCommandTreeModalOpen: boolean;
-  setTerminalCommandTreeModalOpen: (open: boolean) => void;
-
-  // Log state
-  logs: LogEntry[];
-  isLogToastVisible: boolean;
-  isLogModalOpen: boolean;
-  addLog: (level: LogLevel, message: string, scope?: LogScope) => void;
-  deleteLog: (id: string) => void;
-  deleteLogs: (ids: string[]) => void;
-  clearLogs: () => void;
-  setLogToastVisible: (visible: boolean) => void;
-  setLogModalOpen: (open: boolean) => void;
-
-  visibleWidgets: string[];
-  customImages: string[];
-  canvasBgVariant: 'dots' | 'lines';
-  canvasBgColor: string;
-  canvasBgOpacity: number;
-
-  addCustomImage: (image: string) => void;
-  deleteCustomImage: (image: string) => void;
-  setCanvasBgVariant: (variant: 'dots' | 'lines') => void;
-  setCanvasBgColor: (color: string) => void;
-  setCanvasBgOpacity: (opacity: number) => void;
-  saveSettingsJson: () => void;
-  loadSettingsJson: () => void;
-
-  onNodesChange: (changes: NodeChange[]) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  onConnect: (connection: Connection) => void;
-  onReconnect: (oldEdge: Edge, newConnection: Connection) => void;
-  validateEdge: (edge: Edge) => Edge;
-  setNodes: (nodes: Node[]) => void;
-  setEdges: (edges: Edge[]) => void;
-
-  setActiveDeploymentId: (id: string | null) => void;
-  setHoveredDeploymentId: (id: string | null) => void;
-  setDetachingDeploymentId: (id: string | null) => void;
-  setConfiguringNodeId: (id: string | null) => void;
-  setConfiguringEdgeId: (id: string | null) => void;
-  toggleNodeSettings: (id: string) => void;
-  toggleEdgeSettings: (id: string) => void;
-
-  addNode: (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => void;
-  deleteNodes: (nodesToDelete: Node[]) => void;
-  updateNodeData: (nodeId: string, newData: Partial<K8sNodeData>) => void;
-  onNodeClick: (event: React.MouseEvent, node: Node) => void;
-  onPaneClick: () => void;
-  onNodeDragStart: (event: any, node: Node) => void;
-  onNodeDrag: (event: any, node: Node) => void;
-  onNodeDragStop: (event: any, node: Node) => void;
-  onNodeResize: (event: any, node: Node) => void; 
-  onNodeResizeStop: (event: any, node: Node) => void;
-  onQuickConnect: (nodeId: string, direction: 'top' | 'bottom' | 'left' | 'right') => void;
-  copyNodes: () => void;
-  pasteNodes: () => void;
-  setGlobalEdgeColors: (color: string, errorColor: string) => void;
-  setDraggingSidebarItem: (item: K8sResourceType | null) => void;
-  toggleColorMode: () => void;
-  toggleAutosave: () => void;
-  toggleAutofocus: () => void;
-  startSimulation: (internetNodeIds?: string[]) => void;
-  pauseSimulation: () => void;
-  stopSimulation: () => void;
-  setSimulationSpeed: (speed: 1 | 5 | 10) => void;
-  setMonitoringOpen: (open: boolean) => void;
-  setMonitoringDetached: (detached: boolean) => void;
-  setSidebarVisible: (visible: boolean) => void;
-  setRightSidebarVisible: (visible: boolean) => void;
-  groupNodes: (nodeIds: string[]) => void;
-  ungroupNodes: (nodeIds: string[]) => void;
-  autoLayout: (direction?: 'LR' | 'TB') => void;
-  setSystemResources: (resources: { cpuCores: number, totalMemoryGB: number, freeMemoryGB: number, cpuUsage: number }) => void;
-  toggleWidget: (widgetId: string) => void;
 }
+
+export interface FlowState
+  extends BaseFlowState,
+    FlowSlice,
+    DeploymentSlice,
+    UiSlice,
+    LogSlice,
+    NodeSlice {}
