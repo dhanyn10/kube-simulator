@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Terminal, Search, ChevronRight, ChevronDown, Folder, FolderOpen, Code, TerminalSquare, ArrowRight } from 'lucide-react';
+import { Terminal, Search, ChevronRight, ChevronDown, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { Modal } from './Modal';
@@ -64,18 +64,6 @@ const TreeNodeItem = ({
             </button>
           ) : (
             <span className="w-3.5 h-3.5 inline-block shrink-0" />
-          )}
-
-          {hasChildren ? (
-            isExpanded ? (
-              <FolderOpen size={16} className="text-amber-400 shrink-0" />
-            ) : (
-              <Folder size={16} className="text-amber-500/80 shrink-0" />
-            )
-          ) : isExecutable ? (
-            <TerminalSquare size={16} className="text-blue-400 shrink-0" />
-          ) : (
-            <Code size={16} className="text-slate-400 shrink-0" />
           )}
 
           <div className="flex items-center gap-2 truncate">
@@ -146,7 +134,7 @@ export const TerminalCommandTreeModal = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
-    () => new Set(['kubectl', 'kubectl-get', 'utilities'])
+    () => new Set(['kubectl', 'kubectl-get'])
   );
 
   const filteredTree = useMemo(() => {

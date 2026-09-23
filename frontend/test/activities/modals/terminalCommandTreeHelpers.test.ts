@@ -27,7 +27,8 @@ describe('terminalCommandTreeHelpers', () => {
     expect(allIds).toContain('kubectl');
     expect(allIds).toContain('kubectl-get');
     expect(allIds).toContain('kubectl-get-pods');
-    expect(allIds).toContain('utilities');
     expect(allIds).toContain('util-help');
+    expect(allIds).toContain('util-history');
+    expect(allIds).toContain('util-clear');
   });
 });

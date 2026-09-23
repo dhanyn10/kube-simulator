@@ -112,16 +112,9 @@ export const COMMAND_TREE_DATA: CommandTreeNode[] = [
       }
     ]
   },
-  {
-    id: 'utilities',
-    name: 'utilities',
-    description: 'Kube Console built-in utility commands',
-    children: [
-      { id: 'util-help', name: 'help', command: 'help', description: 'Show help and available commands' },
-      { id: 'util-history', name: 'history', command: 'history', description: 'View command execution history' },
-      { id: 'util-clear', name: 'clear', command: 'clear', description: 'Clear terminal output' },
-    ]
-  }
+  { id: 'util-help', name: 'help', command: 'help', description: 'Show help and available commands' },
+  { id: 'util-history', name: 'history', command: 'history', description: 'View command execution history' },
+  { id: 'util-clear', name: 'clear', command: 'clear', description: 'Clear terminal output' },
 ];
 
 export const filterCommandTree = (nodes: CommandTreeNode[], search: string): CommandTreeNode[] => {
