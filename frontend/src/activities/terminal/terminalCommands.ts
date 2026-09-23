@@ -28,17 +28,10 @@ const processAdminPasswordEntry = (cmd: string, ctx: CommandContext): boolean =>
   return true;
 };
 
-/**
- * Returns group strings based on resource types for manifest activity logs
- */
 const getResourceGroup = (type: string) => {
-  if (type === 'Deployment' || type === 'ReplicaSet') {
-    return '.apps';
-  } else if (type === 'Ingress') {
-    return '.networking.k8s.io';
-  } else if (type === 'HPA') {
-    return '.autoscaling';
-  }
+  if (type === 'Deployment' || type === 'ReplicaSet') return '.apps';
+  if (type === 'Ingress') return '.networking.k8s.io';
+  if (type === 'HPA') return '.autoscaling';
   return '';
 };
 
@@ -96,10 +89,27 @@ export const handleDescribeSecretCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+describe\s+(secrets?)\s+([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+describe\s+(secrets?)(?:\s+([a-z0-9-]+))?/i.exec(cmd.trim());
   if (!match) return false;
 
-  const targetName = match[2].toLowerCase();
+  const targetName = match[2] ? match[2].toLowerCase() : '';
+  const attached = extractAttachedResources<any>(ctx.nodes, 'secrets');
+
+  if (!targetName) {
+    if (attached.length === 0) {
+      ctx.addActivityLog('No secrets found on the canvas.');
+      return true;
+    }
+    attached.forEach(({ item: sec, ownerLabel }) => {
+      ctx.addActivityLog(`Name:         ${sec.name}`);
+      ctx.addActivityLog(`Namespace:    default`);
+      ctx.addActivityLog(`Type:         ${sec.type || 'Opaque'}`);
+      ctx.addActivityLog(`Attached To:  ${ownerLabel}`);
+      ctx.addActivityLog(`---`);
+    });
+    return true;
+  }
+
   let foundSecret: { name: string; type: string; owner: string; secretData: any[] } | null = null;
 
   ctx.nodes.forEach((n) => {
@@ -159,10 +169,26 @@ export const handleDescribeConfigMapCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+describe\s+(configmaps?|cm)\s+([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+describe\s+(configmaps?|cm)(?:\s+([a-z0-9-]+))?/i.exec(cmd.trim());
   if (!match) return false;
 
-  const targetName = match[2].toLowerCase();
+  const targetName = match[2] ? match[2].toLowerCase() : '';
+  const attached = extractAttachedResources<any>(ctx.nodes, 'configMaps');
+
+  if (!targetName) {
+    if (attached.length === 0) {
+      ctx.addActivityLog('No configmaps found on the canvas.');
+      return true;
+    }
+    attached.forEach(({ item: cm, ownerLabel }) => {
+      ctx.addActivityLog(`Name:         ${cm.name}`);
+      ctx.addActivityLog(`Namespace:    default`);
+      ctx.addActivityLog(`Attached To:  ${ownerLabel}`);
+      ctx.addActivityLog(`---`);
+    });
+    return true;
+  }
+
   let foundCM: { name: string; owner: string; configData: any[] } | null = null;
 
   ctx.nodes.forEach((n) => {
@@ -649,15 +675,87 @@ export const handleGetRolesCommand = (
   return true;
 };
 
+const handleDescribeRoleDetails = (roleObj: any, targetKind: string, targetName: string, ctx: CommandContext) => {
+  if (targetKind.startsWith('rolebinding') || targetKind === 'rb' || targetName.endsWith('-binding')) {
+    const bindingName = roleObj.name + '-binding';
+    ctx.addActivityLog(`Name:         ${bindingName}`);
+    ctx.addActivityLog(`Namespace:    default`);
+    ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
+    ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
+    ctx.addActivityLog(`Subjects:`);
+    if (roleObj.assignedUsers.length === 0) {
+      ctx.addActivityLog(`  <none>`);
+    } else {
+      roleObj.assignedUsers.forEach((u: string) => {
+        ctx.addActivityLog(`  Kind: User, Name: ${u}`);
+      });
+    }
+    return;
+  }
+
+  ctx.addActivityLog(`Name:               ${roleObj.name}`);
+  ctx.addActivityLog(`Namespace:          default`);
+  ctx.addActivityLog(`Attached To:        ${roleObj.owner}`);
+  ctx.addActivityLog(`Assigned IAM Users: ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.join(', ') : '<none>'}`);
+  ctx.addActivityLog(`PolicyRule:`);
+  ctx.addActivityLog(`  Resources  Group  Verbs`);
+  ctx.addActivityLog(`  ---------  -----  -----`);
+  roleObj.rules.forEach((rule: any) => {
+    const res = (rule.resources || []).join(', ');
+    const grp = (rule.apiGroups || ['']).join(', ') || '""';
+    const vrb = (rule.verbs || []).join(', ');
+    ctx.addActivityLog(`  ${res.padEnd(10)} ${grp.padEnd(6)} [${vrb}]`);
+  });
+};
+
 export const handleDescribeRoleCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+describe\s+(roles?|rolebindings?|rb)\s+([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+describe\s+(rolebindings?|roles?|rb)\b(?:\s+([a-z0-9-]+))?/i.exec(cmd.trim());
   if (!match) return false;
 
   const targetKind = match[1].toLowerCase();
-  const targetName = match[2].toLowerCase();
+  const targetName = match[2] ? match[2].toLowerCase() : '';
+
+  const attached = extractAttachedResources<any>(ctx.nodes, 'roles');
+  const allRoles = attached.map(({ item: r, ownerLabel }) => ({
+    name: r.name,
+    owner: ownerLabel,
+    rules: r.rules || [],
+    assignedUsers: r.assignedUsers || [],
+  }));
+
+  if (!targetName) {
+    if (allRoles.length === 0) {
+      const kindLabel = targetKind.startsWith('rolebinding') || targetKind === 'rb' ? 'rolebindings' : 'roles';
+      ctx.addActivityLog(`No ${kindLabel} found on the canvas.`);
+      return true;
+    }
+
+    if (targetKind.startsWith('rolebinding') || targetKind === 'rb') {
+      allRoles.forEach((roleObj) => {
+        const bindingName = roleObj.name + '-binding';
+        ctx.addActivityLog(`Name:         ${bindingName}`);
+        ctx.addActivityLog(`Namespace:    default`);
+        ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
+        ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
+        ctx.addActivityLog(`Subjects:     ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.map(u => `User/${u}`).join(', ') : 'ServiceAccount/default'}`);
+        ctx.addActivityLog(`---`);
+      });
+      return true;
+    }
+
+    allRoles.forEach((roleObj) => {
+      ctx.addActivityLog(`Name:               ${roleObj.name}`);
+      ctx.addActivityLog(`Namespace:          default`);
+      ctx.addActivityLog(`Attached To:        ${roleObj.owner}`);
+      ctx.addActivityLog(`Assigned IAM Users: ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.join(', ') : '<none>'}`);
+      ctx.addActivityLog(`---`);
+    });
+    return true;
+  }
+
   let foundRole: { name: string; owner: string; rules: any[]; assignedUsers: string[] } | null = null;
 
   ctx.nodes.forEach((n) => {
@@ -673,38 +771,7 @@ export const handleDescribeRoleCommand = (
   });
 
   if (foundRole) {
-    const roleObj = foundRole as { name: string; owner: string; rules: any[]; assignedUsers: string[] };
-
-    if (targetKind.startsWith('rolebinding') || targetKind === 'rb' || targetName.endsWith('-binding')) {
-      const bindingName = roleObj.name + '-binding';
-      ctx.addActivityLog(`Name:         ${bindingName}`);
-      ctx.addActivityLog(`Namespace:    default`);
-      ctx.addActivityLog(`RoleRef:      Role/${roleObj.name}`);
-      ctx.addActivityLog(`Attached To:  ${roleObj.owner}`);
-      ctx.addActivityLog(`Subjects:`);
-      if (roleObj.assignedUsers.length === 0) {
-        ctx.addActivityLog(`  <none>`);
-      } else {
-        roleObj.assignedUsers.forEach((u) => {
-          ctx.addActivityLog(`  Kind: User, Name: ${u}`);
-        });
-      }
-      return true;
-    }
-
-    ctx.addActivityLog(`Name:               ${roleObj.name}`);
-    ctx.addActivityLog(`Namespace:          default`);
-    ctx.addActivityLog(`Attached To:        ${roleObj.owner}`);
-    ctx.addActivityLog(`Assigned IAM Users: ${roleObj.assignedUsers.length > 0 ? roleObj.assignedUsers.join(', ') : '<none>'}`);
-    ctx.addActivityLog(`PolicyRule:`);
-    ctx.addActivityLog(`  Resources  Group  Verbs`);
-    ctx.addActivityLog(`  ---------  -----  -----`);
-    roleObj.rules.forEach((rule: any) => {
-      const res = (rule.resources || []).join(', ');
-      const grp = (rule.apiGroups || ['']).join(', ') || '""';
-      const vrb = (rule.verbs || []).join(', ');
-      ctx.addActivityLog(`  ${res.padEnd(10)} ${grp.padEnd(6)} [${vrb}]`);
-    });
+    handleDescribeRoleDetails(foundRole, targetKind, targetName, ctx);
   } else {
     const kindLabel = targetKind.startsWith('rolebinding') || targetKind === 'rb' ? 'rolebinding' : 'role';
     ctx.addActivityLog(`Error from server (NotFound): ${kindLabel} "${targetName}" not found`);
@@ -716,10 +783,30 @@ export const handleDescribeDeploymentCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+describe\s+(deploy(?:ment)?)\s+([a-z0-9-]+)/i.exec(cmd);
+  const match = /^kubectl\s+describe\s+(deploy(?:ment)?)(?:\s+([a-z0-9-]+))?/i.exec(cmd.trim());
   if (!match) return false;
 
-  const targetName = match[2].toLowerCase();
+  const targetName = match[2] ? match[2].toLowerCase() : '';
+  const deploys = ctx.nodes.filter(n => n.type === 'Deployment');
+
+  if (!targetName) {
+    if (deploys.length === 0) {
+      ctx.addActivityLog('No deployments found on the canvas.');
+      return true;
+    }
+    deploys.forEach(foundNode => {
+      const name = foundNode.data?.label || foundNode.id;
+      const replicas = foundNode.data?.replicas || 1;
+      const image = foundNode.data?.image || 'nginx:latest';
+      ctx.addActivityLog(`Name:                   ${name}`);
+      ctx.addActivityLog(`Namespace:              default`);
+      ctx.addActivityLog(`Replicas:               ${replicas} desired | ${replicas} updated | ${replicas} total`);
+      ctx.addActivityLog(`Image:                  ${image}`);
+      ctx.addActivityLog(`---`);
+    });
+    return true;
+  }
+
   const foundNode = findNodeByTargetName(ctx.nodes, targetName, 'Deployment');
 
   if (foundNode) {

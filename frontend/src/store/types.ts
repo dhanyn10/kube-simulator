@@ -82,6 +82,10 @@ export interface FlowState {
   addActivityLog: (line: string) => void;
   clearTerminalLogs: () => void;
 
+  // Terminal Command Tree state
+  isTerminalCommandTreeModalOpen: boolean;
+  setTerminalCommandTreeModalOpen: (open: boolean) => void;
+
   // Log state
   logs: LogEntry[];
   isLogToastVisible: boolean;

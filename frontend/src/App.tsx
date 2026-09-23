@@ -25,6 +25,7 @@ import {
   HPAModal,
   KubeIAMModal,
   SaveModal,
+  TerminalCommandTreeModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -376,6 +377,8 @@ export default function App() {
           />
 
           <KubeIAMModal />
+
+          <TerminalCommandTreeModal />
 
           <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
 

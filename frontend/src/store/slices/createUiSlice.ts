@@ -99,6 +99,10 @@ export interface UiSlice {
   addActivityLog: (line: string) => void;
   clearTerminalLogs: () => void;
 
+  // Terminal Command Tree modal state & actions
+  isTerminalCommandTreeModalOpen: boolean;
+  setTerminalCommandTreeModalOpen: (open: boolean) => void;
+
   toggleColorMode: () => void;
   setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
@@ -687,6 +691,10 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     }));
   },
   clearTerminalLogs: () => set({ terminalLogs: {}, activityLogs: [] }),
+
+  // Terminal Command Tree initial state & action
+  isTerminalCommandTreeModalOpen: false,
+  setTerminalCommandTreeModalOpen: (open) => set({ isTerminalCommandTreeModalOpen: open }),
 
   saveSettingsJson: () => {
     const state = get();

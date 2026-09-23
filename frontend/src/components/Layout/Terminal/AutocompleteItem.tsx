@@ -103,12 +103,6 @@ export const AutocompleteItem = ({
         </button>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
-          {isDisabled && item.disabledReason && (
-            <span className="text-[9px] italic text-rose-400/80 hidden sm:inline-block">
-              {item.disabledReason}
-            </span>
-          )}
-
           <span className={cn(
             "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
             categoryBadgeClass
