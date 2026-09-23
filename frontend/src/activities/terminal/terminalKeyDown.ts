@@ -26,16 +26,11 @@ interface HandleTabKeyOptions {
   setSelectedIndex: React.Dispatch<React.SetStateAction<number>>;
   setSelectedSubIndex: React.Dispatch<React.SetStateAction<number>>;
   setIsDropdownOpen: (open: boolean) => void;
-}
-
-interface HandleTabKeyWithCompletionOptions extends HandleTabKeyOptions {
   setCommandInput: (val: string) => void;
-  selectedSubIndex: number;
 }
 
-const handleTabKey = (opts: HandleTabKeyWithCompletionOptions) => {
+const handleTabKey = (opts: HandleTabKeyOptions) => {
   const {
-    e,
     suggestions,
     selectedIndex,
     selectedSubIndex,
@@ -46,9 +41,9 @@ const handleTabKey = (opts: HandleTabKeyWithCompletionOptions) => {
   if (suggestions.length === 0) return;
 
   const activeIndex = Math.max(0, selectedIndex);
-  const activeItem = suggestions[activeIndex] || suggestions[0];
+  const activeItem = suggestions[activeIndex] || suggestions.find(s => !s.disabled) || suggestions[0];
 
-  if (activeItem) {
+  if (activeItem && !activeItem.disabled) {
     if (activeItem.subItems && activeItem.subItems.length > 0) {
       const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
       setCommandInput(`kubectl logs ${podName}`);
@@ -76,7 +71,7 @@ const handleEnterDropdownKey = (
   setCommandInput: (val: string) => void,
   setIsDropdownOpen: (open: boolean) => void
 ) => {
-  if (activeItem) {
+  if (activeItem && !activeItem.disabled) {
     if (activeItem.subItems && activeItem.subItems.length > 0) {
       const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
       setCommandInput(`kubectl logs ${podName}`);

@@ -12,14 +12,20 @@ export interface AutocompleteItemProps {
   onSelectSuggestion: (item: SuggestionItem, podName?: string) => void;
 }
 
-const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean): string => {
+const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean, isDisabled: boolean): string => {
+  if (isDisabled) {
+    return isDark ? "opacity-50 text-slate-500 border-slate-800/60 cursor-not-allowed" : "opacity-50 text-slate-400 border-slate-100 cursor-not-allowed";
+  }
   if (isSelected) {
     return "bg-slate-800 text-white border-blue-600/80";
   }
   return isDark ? "hover:bg-slate-800/80 text-slate-300 border-slate-800/60" : "hover:bg-slate-50 text-slate-700 border-slate-100";
 };
 
-const getCategoryBadgeClass = (isSelected: boolean, isDark: boolean): string => {
+const getCategoryBadgeClass = (isSelected: boolean, isDark: boolean, isDisabled: boolean): string => {
+  if (isDisabled) {
+    return isDark ? "bg-slate-900 text-slate-600" : "bg-slate-100 text-slate-400";
+  }
   if (isSelected) {
     return "bg-blue-600 text-white";
   }
@@ -61,8 +67,9 @@ export const AutocompleteItem = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
-  const containerClass = getAutocompleteItemClass(isSelected, isDark);
-  const categoryBadgeClass = getCategoryBadgeClass(isSelected, isDark);
+  const isDisabled = Boolean(item.disabled);
+  const containerClass = getAutocompleteItemClass(isSelected, isDark, isDisabled);
+  const categoryBadgeClass = getCategoryBadgeClass(isSelected, isDark, isDisabled);
   const infoBtnClass = getInfoBtnClass(isSelected, isDark);
   const accordionClass = getAccordionClass(isSelected, isDark);
 
@@ -83,15 +90,25 @@ export const AutocompleteItem = ({
       <div className="flex items-center justify-between px-3 py-1.5 w-full">
         <button
           type="button"
+          disabled={isDisabled}
           data-testid={`autocomplete-item-${index}`}
-          onClick={() => onSelectSuggestion(item)}
-          className="flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none min-w-0"
+          onClick={() => !isDisabled && onSelectSuggestion(item)}
+          className={cn(
+            "flex-1 flex items-center gap-2 overflow-hidden text-left focus:outline-none min-w-0",
+            isDisabled && "cursor-not-allowed"
+          )}
         >
-          <TerminalSquare size={12} className={isSelected ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
+          <TerminalSquare size={12} className={isDisabled ? "text-slate-600 shrink-0" : isSelected ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
           <span className="font-semibold truncate text-[11px] w-full">{item.label}</span>
         </button>
 
         <div className="flex items-center gap-2 shrink-0 ml-2">
+          {isDisabled && item.disabledReason && (
+            <span className="text-[9px] italic text-rose-400/80 hidden sm:inline-block">
+              {item.disabledReason}
+            </span>
+          )}
+
           <span className={cn(
             "text-[8px] uppercase px-1 py-0.5 rounded font-bold tracking-wider",
             categoryBadgeClass
@@ -120,7 +137,7 @@ export const AutocompleteItem = ({
       </div>
 
       {/* Accordion list showing inline sub-item options (pod names) */}
-      {hasSubItems && (
+      {hasSubItems && !isDisabled && (
         <div
           data-testid={`autocomplete-subitems-accordion-${index}`}
           className={cn(
@@ -166,7 +183,7 @@ export const AutocompleteItem = ({
             <div className="w-full min-w-0">
               <p className="font-bold uppercase text-[9px] tracking-wider text-blue-400 mb-0.5">Full Command</p>
               <p className="select-text whitespace-normal break-all font-mono text-[11px] font-bold bg-black/20 p-1.5 rounded border border-blue-500/20">
-                {item.label}
+                {item.value}
               </p>
             </div>
           </div>

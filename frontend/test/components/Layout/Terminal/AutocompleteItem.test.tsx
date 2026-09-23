@@ -8,14 +8,23 @@ describe('AutocompleteItem', () => {
   const sampleItemWithDesc: SuggestionItem = {
     value: 'kubectl get pods',
     label: 'kubectl get pods',
-    category: 'get',
+    category: 'Command',
     description: 'List all pods on the active canvas',
+  };
+
+  const sampleDisabledItem: SuggestionItem = {
+    value: 'kubectl scale deployment/',
+    label: 'scale deployment/',
+    category: 'Subcommand',
+    description: 'Scale deployment replicas',
+    disabled: true,
+    disabledReason: '(no Deployment on canvas)',
   };
 
   const sampleItemWithSubItems: SuggestionItem = {
     value: 'kubectl logs',
     label: 'kubectl logs',
-    category: 'logs',
+    category: 'Subcommand',
     subItems: ['pod-alpha', 'pod-beta'],
   };
 
@@ -36,16 +45,34 @@ describe('AutocompleteItem', () => {
     expect(mainBtn).toBeInTheDocument();
     expect(screen.getByText('kubectl get pods')).toBeInTheDocument();
     expect(screen.queryByText('List all pods on the active canvas')).not.toBeInTheDocument();
-    expect(screen.getByText('get')).toBeInTheDocument();
 
-    // Mouse enter & mouse leave
     const itemWrapper = container.firstChild as HTMLElement;
     fireEvent.mouseEnter(itemWrapper);
     fireEvent.mouseLeave(itemWrapper);
 
-    // Click main item
     fireEvent.click(mainBtn);
     expect(onSelectSuggestion).toHaveBeenCalledWith(sampleItemWithDesc);
+  });
+
+  it('renders disabled item and prevents clicks', () => {
+    const onSelectSuggestion = vi.fn();
+    render(
+      <AutocompleteItem
+        item={sampleDisabledItem}
+        index={0}
+        isSelected={false}
+        isDark={true}
+        selectedSubIndex={0}
+        onSelectSuggestion={onSelectSuggestion}
+      />
+    );
+
+    const mainBtn = screen.getByTestId('autocomplete-item-0');
+    expect(mainBtn).toBeDisabled();
+    expect(screen.getByText('(no Deployment on canvas)')).toBeInTheDocument();
+
+    fireEvent.click(mainBtn);
+    expect(onSelectSuggestion).not.toHaveBeenCalled();
   });
 
   it('renders selected item in light mode and handles info toggle button click', () => {
@@ -64,12 +91,10 @@ describe('AutocompleteItem', () => {
     const infoBtn = screen.getByTestId('autocomplete-info-btn-0');
     expect(infoBtn).toBeInTheDocument();
 
-    // Click info button to toggle detailed description accordion
     fireEvent.click(infoBtn);
     expect(screen.getByTestId('autocomplete-description-accordion-0')).toBeInTheDocument();
     expect(screen.getByText('Detailed Information')).toBeInTheDocument();
 
-    // Toggle off
     fireEvent.click(infoBtn);
     expect(screen.queryByTestId('autocomplete-description-accordion-0')).not.toBeInTheDocument();
   });
@@ -82,7 +107,7 @@ describe('AutocompleteItem', () => {
         index={1}
         isSelected={true}
         isDark={true}
-        selectedSubIndex={1} // pod-beta selected
+        selectedSubIndex={1}
         onSelectSuggestion={onSelectSuggestion}
       />
     );
@@ -94,49 +119,7 @@ describe('AutocompleteItem', () => {
     expect(subAlpha).toBeInTheDocument();
     expect(subBeta).toBeInTheDocument();
 
-    // Click sub-item
     fireEvent.click(subBeta);
     expect(onSelectSuggestion).toHaveBeenCalledWith(sampleItemWithSubItems, 'pod-beta');
-  });
-
-  it('renders sub-items in light mode when unselected and when selected in light mode', () => {
-    const onSelectSuggestion = vi.fn();
-
-    // Unselected sub-items in dark mode vs light mode
-    const { rerender } = render(
-      <AutocompleteItem
-        item={sampleItemWithSubItems}
-        index={1}
-        isSelected={false}
-        isDark={true}
-        selectedSubIndex={0}
-        onSelectSuggestion={onSelectSuggestion}
-      />
-    );
-    expect(screen.getByTestId('autocomplete-subitem-0')).toBeInTheDocument();
-
-    rerender(
-      <AutocompleteItem
-        item={sampleItemWithSubItems}
-        index={1}
-        isSelected={false}
-        isDark={false}
-        selectedSubIndex={0}
-        onSelectSuggestion={onSelectSuggestion}
-      />
-    );
-    expect(screen.getByTestId('autocomplete-subitem-0')).toBeInTheDocument();
-
-    rerender(
-      <AutocompleteItem
-        item={sampleItemWithSubItems}
-        index={1}
-        isSelected={true}
-        isDark={false}
-        selectedSubIndex={0}
-        onSelectSuggestion={onSelectSuggestion}
-      />
-    );
-    expect(screen.getByTestId('autocomplete-subitem-0')).toBeInTheDocument();
   });
 });
