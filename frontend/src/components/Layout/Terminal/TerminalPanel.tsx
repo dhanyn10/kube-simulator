@@ -117,10 +117,10 @@ export const TerminalPanel = () => {
     }
     if (commandInput.trim().length > 0 && suggestions.length > 0) {
       setIsDropdownOpen(true);
-      setSelectedIndex(0);
-      setSelectedSubIndex(0);
     } else {
       setIsDropdownOpen(false);
+      setSelectedIndex(0);
+      setSelectedSubIndex(0);
     }
   }, [commandInput, suggestions]);
 
