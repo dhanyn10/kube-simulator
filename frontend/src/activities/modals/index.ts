@@ -11,3 +11,4 @@ export * from './useInternetProfileModal';
 export * from './internetProfileChartHelpers';
 export * from './useSecretModal';
 export * from './useHpaModal';
+export * from './terminalCommandTreeHelpers';

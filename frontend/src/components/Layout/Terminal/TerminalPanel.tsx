@@ -60,6 +60,17 @@ export const TerminalPanel = () => {
     setTerminalActiveTab
   );
 
+  useEffect(() => {
+    const handleInsertCommand = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setCommandInput(customEvent.detail);
+      }
+    };
+    window.addEventListener('terminal-insert-command', handleInsertCommand);
+    return () => window.removeEventListener('terminal-insert-command', handleInsertCommand);
+  }, [setCommandInput]);
+
   const PAGE_SIZE = 25;
 
   const {
