@@ -6,115 +6,74 @@ export interface CommandTreeNode {
   children?: CommandTreeNode[];
 }
 
+const createNode = (
+  id: string,
+  name: string,
+  description?: string,
+  command?: string,
+  children?: CommandTreeNode[]
+): CommandTreeNode => ({
+  id,
+  name,
+  ...(description ? { description } : {}),
+  ...(command ? { command } : {}),
+  ...(children ? { children } : {}),
+});
+
 export const COMMAND_TREE_DATA: CommandTreeNode[] = [
-  {
-    id: 'kubectl',
-    name: 'kubectl',
-    description: 'Kubernetes command-line tool',
-    children: [
-      {
-        id: 'kubectl-get',
-        name: 'get',
-        description: 'Display one or many resources',
-        children: [
-          { id: 'kubectl-get-pods', name: 'pods', command: 'kubectl get pods', description: 'List all pods on canvas' },
-          { id: 'kubectl-get-deployments', name: 'deployments', command: 'kubectl get deployments', description: 'List deployments on canvas' },
-          { id: 'kubectl-get-services', name: 'services', command: 'kubectl get services', description: 'List services on canvas' },
-          { id: 'kubectl-get-roles', name: 'roles', command: 'kubectl get roles', description: 'List roles on canvas' },
-          { id: 'kubectl-get-rolebindings', name: 'rolebindings', command: 'kubectl get rolebindings', description: 'List rolebindings on canvas' },
-          { id: 'kubectl-get-configmaps', name: 'configmaps', command: 'kubectl get configmaps', description: 'List configmaps on canvas' },
-          { id: 'kubectl-get-secrets', name: 'secrets', command: 'kubectl get secrets', description: 'List secrets on canvas' },
-          { id: 'kubectl-get-all', name: 'all', command: 'kubectl get all', description: 'List all resources on canvas' },
-        ]
-      },
-      {
-        id: 'kubectl-describe',
-        name: 'describe',
-        description: 'Show details of a specific resource',
-        children: [
-          { id: 'kubectl-describe-deploy', name: 'deploy', command: 'kubectl describe deploy ', description: 'Describe deployment specs' },
-          { id: 'kubectl-describe-pod', name: 'pod', command: 'kubectl describe pod ', description: 'Describe pod specs & events' },
-          { id: 'kubectl-describe-role', name: 'role', command: 'kubectl describe role ', description: 'Describe role specs & rules' },
-          { id: 'kubectl-describe-rolebinding', name: 'rolebinding', command: 'kubectl describe rolebinding ', description: 'Describe rolebinding specs & subjects' },
-          { id: 'kubectl-describe-cm', name: 'cm', command: 'kubectl describe cm ', description: 'Describe configmap data' },
-          { id: 'kubectl-describe-secret', name: 'secret', command: 'kubectl describe secret ', description: 'Describe secret data' },
-        ]
-      },
-      {
-        id: 'kubectl-logs',
-        name: 'logs',
-        description: 'Print logs for a container in a pod',
-        children: [
-          { id: 'kubectl-logs-pod', name: '<pod-name>', command: 'kubectl logs ', description: 'Stream container logs for a pod' },
-        ]
-      },
-      {
-        id: 'kubectl-config',
-        name: 'config',
-        description: 'Modify kubeconfig files and user contexts',
-        children: [
-          { id: 'kubectl-config-get-contexts', name: 'get-contexts', command: 'kubectl config get-contexts', description: 'List all available user contexts' },
-          { id: 'kubectl-config-current-context', name: 'current-context', command: 'kubectl config current-context', description: 'Display current user context' },
-          { id: 'kubectl-config-view', name: 'view', command: 'kubectl config view', description: 'Display merged kubeconfig settings' },
-          { id: 'kubectl-config-use-context', name: 'use-context', command: 'kubectl config use-context ', description: 'Set current-context in kubeconfig' },
-        ]
-      },
-      {
-        id: 'kubectl-scale',
-        name: 'scale',
-        description: 'Set a new size for a deployment',
-        children: [
-          { id: 'kubectl-scale-deployment', name: 'deployment/', command: 'kubectl scale deployment/ --replicas=3', description: 'Scale deployment replicas' },
-        ]
-      },
-      {
-        id: 'kubectl-set',
-        name: 'set',
-        description: 'Configure application resources',
-        children: [
-          {
-            id: 'kubectl-set-image',
-            name: 'image',
-            description: 'Update image of a deployment',
-            children: [
-              { id: 'kubectl-set-image-deployment', name: 'deployment/', command: 'kubectl set image deployment/ app-container=nginx:1.25', description: 'Set container image for deployment' }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'kubectl-rollout',
-        name: 'rollout',
-        description: 'Manage the rollout of a resource',
-        children: [
-          { id: 'kubectl-rollout-status', name: 'status', command: 'kubectl rollout status deploy/', description: 'Check rolling update progress' },
-          { id: 'kubectl-rollout-history', name: 'history', command: 'kubectl rollout history deploy/', description: 'View revision history' },
-          { id: 'kubectl-rollout-undo', name: 'undo', command: 'kubectl rollout undo deploy/', description: 'Rollback to previous revision' },
-        ]
-      },
-      {
-        id: 'kubectl-delete',
-        name: 'delete',
-        description: 'Delete resources by resource and name',
-        children: [
-          { id: 'kubectl-delete-pod', name: 'pod', command: 'kubectl delete pod ', description: 'Delete a pod' },
-          { id: 'kubectl-delete-deployment', name: 'deployment', command: 'kubectl delete deployment ', description: 'Delete a deployment' },
-          { id: 'kubectl-delete-service', name: 'service', command: 'kubectl delete service ', description: 'Delete a service' },
-        ]
-      },
-      {
-        id: 'kubectl-apply',
-        name: 'apply',
-        description: 'Apply configuration from a manifest file',
-        children: [
-          { id: 'kubectl-apply-f', name: '-f k8s-manifest.yaml', command: 'kubectl apply -f k8s-manifest.yaml', description: 'Apply all resources defined in manifest' },
-        ]
-      }
-    ]
-  },
-  { id: 'util-help', name: 'help', command: 'help', description: 'Show help and available commands' },
-  { id: 'util-history', name: 'history', command: 'history', description: 'View command execution history' },
-  { id: 'util-clear', name: 'clear', command: 'clear', description: 'Clear terminal output' },
+  createNode('kubectl', 'kubectl', 'Kubernetes command-line tool', undefined, [
+    createNode('kubectl-get', 'get', 'Display one or many resources', undefined, [
+      createNode('kubectl-get-pods', 'pods', 'List all pods on canvas', 'kubectl get pods'),
+      createNode('kubectl-get-deployments', 'deployments', 'List deployments on canvas', 'kubectl get deployments'),
+      createNode('kubectl-get-services', 'services', 'List services on canvas', 'kubectl get services'),
+      createNode('kubectl-get-roles', 'roles', 'List roles on canvas', 'kubectl get roles'),
+      createNode('kubectl-get-rolebindings', 'rolebindings', 'List rolebindings on canvas', 'kubectl get rolebindings'),
+      createNode('kubectl-get-configmaps', 'configmaps', 'List configmaps on canvas', 'kubectl get configmaps'),
+      createNode('kubectl-get-secrets', 'secrets', 'List secrets on canvas', 'kubectl get secrets'),
+      createNode('kubectl-get-all', 'all', 'List all resources on canvas', 'kubectl get all'),
+    ]),
+    createNode('kubectl-describe', 'describe', 'Show details of a specific resource', undefined, [
+      createNode('kubectl-describe-deploy', 'deploy', 'Describe deployment specs', 'kubectl describe deploy '),
+      createNode('kubectl-describe-pod', 'pod', 'Describe pod specs & events', 'kubectl describe pod '),
+      createNode('kubectl-describe-role', 'role', 'Describe role specs & rules', 'kubectl describe role '),
+      createNode('kubectl-describe-rolebinding', 'rolebinding', 'Describe rolebinding specs & subjects', 'kubectl describe rolebinding '),
+      createNode('kubectl-describe-cm', 'cm', 'Describe configmap data', 'kubectl describe cm '),
+      createNode('kubectl-describe-secret', 'secret', 'Describe secret data', 'kubectl describe secret '),
+    ]),
+    createNode('kubectl-logs', 'logs', 'Print logs for a container in a pod', undefined, [
+      createNode('kubectl-logs-pod', '<pod-name>', 'Stream container logs for a pod', 'kubectl logs '),
+    ]),
+    createNode('kubectl-config', 'config', 'Modify kubeconfig files and user contexts', undefined, [
+      createNode('kubectl-config-get-contexts', 'get-contexts', 'List all available user contexts', 'kubectl config get-contexts'),
+      createNode('kubectl-config-current-context', 'current-context', 'Display current user context', 'kubectl config current-context'),
+      createNode('kubectl-config-view', 'view', 'Display merged kubeconfig settings', 'kubectl config view'),
+      createNode('kubectl-config-use-context', 'use-context', 'Set current-context in kubeconfig', 'kubectl config use-context '),
+    ]),
+    createNode('kubectl-scale', 'scale', 'Set a new size for a deployment', undefined, [
+      createNode('kubectl-scale-deployment', 'deployment/', 'Scale deployment replicas', 'kubectl scale deployment/ --replicas=3'),
+    ]),
+    createNode('kubectl-set', 'set', 'Configure application resources', undefined, [
+      createNode('kubectl-set-image', 'image', 'Update image of a deployment', undefined, [
+        createNode('kubectl-set-image-deployment', 'deployment/', 'Set container image for deployment', 'kubectl set image deployment/ app-container=nginx:1.25'),
+      ]),
+    ]),
+    createNode('kubectl-rollout', 'rollout', 'Manage the rollout of a resource', undefined, [
+      createNode('kubectl-rollout-status', 'status', 'Check rolling update progress', 'kubectl rollout status deploy/'),
+      createNode('kubectl-rollout-history', 'history', 'View revision history', 'kubectl rollout history deploy/'),
+      createNode('kubectl-rollout-undo', 'undo', 'Rollback to previous revision', 'kubectl rollout undo deploy/'),
+    ]),
+    createNode('kubectl-delete', 'delete', 'Delete resources by resource and name', undefined, [
+      createNode('kubectl-delete-pod', 'pod', 'Delete a pod', 'kubectl delete pod '),
+      createNode('kubectl-delete-deployment', 'deployment', 'Delete a deployment', 'kubectl delete deployment '),
+      createNode('kubectl-delete-service', 'service', 'Delete a service', 'kubectl delete service '),
+    ]),
+    createNode('kubectl-apply', 'apply', 'Apply configuration from a manifest file', undefined, [
+      createNode('kubectl-apply-f', '-f k8s-manifest.yaml', 'Apply all resources defined in manifest', 'kubectl apply -f k8s-manifest.yaml'),
+    ]),
+  ]),
+  createNode('util-help', 'help', 'Show help and available commands', 'help'),
+  createNode('util-history', 'history', 'View command execution history', 'history'),
+  createNode('util-clear', 'clear', 'Clear terminal output', 'clear'),
 ];
 
 export const filterCommandTree = (nodes: CommandTreeNode[], search: string): CommandTreeNode[] => {
