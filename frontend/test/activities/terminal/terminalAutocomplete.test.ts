@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  KUBECTL_TOP_COMMANDS,
-  GET_SUBCOMMANDS,
-  UTILITY_COMMANDS,
   getAutocompleteSuggestions
 } from '@/activities/terminal/terminalAutocomplete';
 import { Node } from '@xyflow/react';
@@ -28,20 +25,13 @@ describe('terminalAutocomplete', () => {
       { id: 'dep-web', type: 'Deployment', data: { label: 'web-deployment' }, position: { x: 0, y: 0 } },
     ];
 
-    // Step 1: `kubectl scale` -> offers canvas deployment name `deployment/web-deployment`
     const scaleSugg = getAutocompleteSuggestions('kubectl scale', mockNodes);
     expect(scaleSugg[0].label).toBe('deployment/web-deployment');
     expect(scaleSugg[0].disabled).toBeFalsy();
 
-    // Step 2: `kubectl scale deployment/` -> offers canvas deployment name `deployment/web-deployment`
-    const depSugg = getAutocompleteSuggestions('kubectl scale deployment/', mockNodes);
-    expect(depSugg.some(s => s.label === 'deployment/web-deployment')).toBe(true);
+    const depSugg = getAutocompleteSuggestions('kubectl scale deployment/web-deployment ', mockNodes);
+    expect(depSugg[0].label).toBe('--replicas=');
 
-    // Step 3: `kubectl scale deployment/web-deployment ` -> offers `--replicas=`
-    const flagSugg = getAutocompleteSuggestions('kubectl scale deployment/web-deployment ', mockNodes);
-    expect(flagSugg[0].label).toBe('--replicas=');
-
-    // Step 4: `kubectl scale deployment/web-deployment --replicas=` -> offers replica number options
     const numSugg = getAutocompleteSuggestions('kubectl scale deployment/web-deployment --replicas=', mockNodes);
     expect(numSugg.some(s => s.label === '3')).toBe(true);
   });

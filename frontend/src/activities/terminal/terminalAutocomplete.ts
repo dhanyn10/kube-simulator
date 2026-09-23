@@ -201,7 +201,7 @@ export const getAutocompleteSuggestions = (
   // 1. `kubectl scale ...` sequence
   if (/^kubectl\s+scale(?:\s+.*)?$/.test(normalizedInput)) {
     const scaleMatch = normalizedInput.match(/^kubectl\s+scale(?:\s+(.*))?$/);
-    const rest = scaleMatch ? (scaleMatch[1] || '').trim() : '';
+    const rest = scaleMatch ? (scaleMatch[1] || '') : '';
 
     if (!hasDeployments) {
       return [
@@ -216,7 +216,7 @@ export const getAutocompleteSuggestions = (
       ];
     }
 
-    if (!rest) {
+    if (!rest || !rest.trim()) {
       return deployNames.map(name => ({
         value: `kubectl scale deployment/${name} `,
         label: `deployment/${name}`,
@@ -225,12 +225,16 @@ export const getAutocompleteSuggestions = (
       }));
     }
 
-    if (rest.startsWith('deployment/')) {
-      const depNamePart = rest.slice('deployment/'.length);
+    const restTrimmed = rest.trim();
+    if (restTrimmed.startsWith('deployment/')) {
+      const depNamePart = restTrimmed.slice('deployment/'.length);
 
-      if (depNamePart.includes(' ')) {
-        const [depName, afterDep] = depNamePart.split(/\s+/, 2);
-        const afterDepTrimmed = (afterDep || '').trim();
+      // Check if user has space after deployment name e.g. `kubectl scale deployment/web-app `
+      const spaceIdx = depNamePart.indexOf(' ');
+      if (spaceIdx !== -1 || rest.endsWith(' ')) {
+        const depName = spaceIdx !== -1 ? depNamePart.slice(0, spaceIdx) : depNamePart;
+        const afterDep = spaceIdx !== -1 ? depNamePart.slice(spaceIdx + 1) : '';
+        const afterDepTrimmed = afterDep.trim();
 
         if (!afterDepTrimmed || '--replicas='.startsWith(afterDepTrimmed)) {
           return [
