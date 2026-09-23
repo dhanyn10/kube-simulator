@@ -86,7 +86,7 @@ describe('AutocompleteDropdown component', () => {
     expect(onSelectMock).toHaveBeenCalledWith(mockSuggestions[2], 'pod-1');
   });
 
-  it('toggles detailed description accordion open and closed on info button click', () => {
+  it('toggles detailed description accordion open and closed on info button click and tests info button selected style', () => {
     render(
       <AutocompleteDropdown
         suggestions={mockSuggestions}
@@ -97,6 +97,9 @@ describe('AutocompleteDropdown component', () => {
 
     const infoBtns = screen.getAllByTitle('Toggle detailed description');
     expect(infoBtns.length).toBeGreaterThan(0);
+
+    // Selected item's info button should have selected class
+    expect(infoBtns[0].className).toContain('hover:bg-indigo-700');
 
     // Toggle open
     fireEvent.mouseDown(infoBtns[0]);

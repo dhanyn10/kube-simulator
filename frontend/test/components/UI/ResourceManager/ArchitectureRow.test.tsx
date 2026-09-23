@@ -137,4 +137,11 @@ describe('ArchitectureRow', () => {
     fireEvent.click(noBtn);
     expect(setConfirmOverwriteId).toHaveBeenCalledWith(null);
   });
+
+  it('handles project timestamp calculation when updatedAt and updated_at are missing', () => {
+    const projWithoutDates = { id: 1, name: 'Date Fallback', content: '{}' } as any;
+    render(<ArchitectureRow p={projWithoutDates} colorMode="dark" />);
+
+    expect(screen.getByText('Date Fallback')).toBeInTheDocument();
+  });
 });

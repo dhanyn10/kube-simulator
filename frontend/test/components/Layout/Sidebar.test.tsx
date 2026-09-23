@@ -225,4 +225,16 @@ describe('Sidebar', () => {
       'UI'
     );
   });
+
+  it('renders in light mode and handles terminal open state', () => {
+    act(() => {
+      useFlowStore.setState({ colorMode: 'light', isTerminalOpen: true });
+    });
+
+    render(<Sidebar onAddNode={vi.fn()} />);
+
+    expect(screen.getByText('Components')).toBeDefined();
+    const sidebarContainer = document.getElementById('sidebar-components')!;
+    expect(sidebarContainer.className).toContain('h-[calc(100vh-2.5rem-16rem)]');
+  });
 });
