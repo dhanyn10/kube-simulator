@@ -86,11 +86,11 @@ export const UTILITY_COMMANDS: SuggestionItem[] = createSuggestionMap([
 ]);
 
 export const getDeploymentNames = (nodes: Node[]): string[] => {
-  return nodes.filter(n => n.type === 'Deployment').map(d => String(d.data?.label || d.id));
+  return nodes.filter(n => n.type === 'Deployment').map(d => String(d.data?.label ?? d.id));
 };
 
 export const getPodNames = (nodes: Node[]): string[] => {
-  return nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet').map(p => String(p.data?.label || p.id));
+  return nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet').map(p => String(p.data?.label ?? p.id));
 };
 
 const extractCanvasFieldNames = (nodes: Node[], fieldKey: string, suffix = ''): string[] => {
@@ -439,7 +439,7 @@ export const getAutocompleteSuggestions = (
   isAdminAuthenticated = false,
   isAwaitingAdminPassword = false
 ): SuggestionItem[] => {
-  if (isAwaitingAdminPassword || !input || !input.trim()) return [];
+  if (isAwaitingAdminPassword || !input?.trim()) return [];
 
   if (isAdminAuthenticated) {
     const inputLower = input.trim().toLowerCase();
