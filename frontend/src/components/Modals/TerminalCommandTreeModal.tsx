@@ -48,36 +48,39 @@ const TreeNodeItem = ({
 
   return (
     <div className="select-none">
-      <button
-        type="button"
+      <div
         className={cn(
-          "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group cursor-pointer my-0.5 text-left focus:outline-none focus:ring-1 focus:ring-blue-500",
+          "w-full flex items-center justify-between py-1.5 px-2.5 rounded-lg transition-colors group my-0.5 text-left",
           colorMode === 'dark'
             ? "hover:bg-slate-800/70 text-slate-200"
             : "hover:bg-slate-100 text-slate-800",
           isExecutable && (colorMode === 'dark' ? "hover:bg-blue-950/40" : "hover:bg-blue-50/80")
         )}
         style={{ paddingLeft: `${level * 18 + 10}px` }}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {hasChildren ? (
-            <span
+            <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 toggleExpand(node.id);
               }}
-              className="p-0.5 rounded text-slate-400 hover:text-slate-200 inline-flex items-center justify-center cursor-pointer"
+              className="p-0.5 rounded text-slate-400 hover:text-slate-200 inline-flex items-center justify-center focus:outline-none focus:ring-1 focus:ring-blue-500"
               aria-label={isExpanded ? `Collapse ${node.name}` : `Expand ${node.name}`}
             >
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </span>
+            </button>
           ) : (
             <span className="w-3.5 h-3.5 inline-block shrink-0" />
           )}
 
-          <div className="flex items-center gap-2 truncate">
+          <button
+            type="button"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            className="flex items-center gap-2 truncate text-left border-none bg-transparent p-0 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+          >
             <span className={cn(
               "font-mono font-semibold text-xs",
               hasChildren ? "text-amber-300 dark:text-amber-400 font-bold" : "text-emerald-400"
@@ -93,17 +96,18 @@ const TreeNodeItem = ({
                 — {node.description}
               </span>
             )}
-          </div>
+          </button>
         </div>
 
         {isExecutable && node.command && (
-          <span
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onSelectCommand(node.command!);
             }}
             className={cn(
-              "flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border transition-all shrink-0 ml-2 cursor-pointer",
+              "flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border transition-all shrink-0 ml-2 focus:outline-none focus:ring-1 focus:ring-blue-500",
               colorMode === 'dark'
                 ? "bg-blue-900/40 text-blue-300 border-blue-700/50 hover:bg-blue-800/60 hover:text-white"
                 : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
@@ -112,9 +116,9 @@ const TreeNodeItem = ({
           >
             <span>Run</span>
             <ArrowRight size={10} />
-          </span>
+          </button>
         )}
-      </button>
+      </div>
 
       {hasChildren && isExpanded && node.children && (
         <div className="border-l border-slate-700/40 dark:border-slate-800 ml-4">
