@@ -110,9 +110,9 @@ describe('IAMUserDetailView', () => {
     expect(screen.getByText('Active Session')).toBeInTheDocument();
     expect(screen.getByText('Active Context')).toBeInTheDocument();
 
-    // Click role row or binding link
-    const bindingLink = screen.getByText('PodReaderRole-rb-node');
-    fireEvent.click(bindingLink);
+    // Click role row
+    const roleRow = screen.getByText('PodReaderRole-rb-node').closest('tr')!;
+    fireEvent.click(roleRow);
     expect(onNavigateToRole).toHaveBeenCalledWith('node-pod-1', 'Web Pod');
   });
 

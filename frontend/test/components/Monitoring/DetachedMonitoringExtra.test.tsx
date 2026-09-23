@@ -5,12 +5,15 @@ import React from 'react';
 import { DetachedMonitoring } from '@/components/Monitoring/DetachedMonitoring';
 
 describe('DetachedMonitoring extra branch coverage', () => {
-  it('covers isThrottled badge, replicas fallback, and runtime JSON parse error handling', () => {
+  it('covers isThrottled badge, replicas fallback, light mode card styling, and runtime JSON parse error handling', () => {
     let metricsCallback: ((json: string) => void) | undefined;
+    let themeCallback: ((mode: string) => void) | undefined;
     (globalThis as any).runtime = {
       EventsOn: vi.fn((event, cb) => {
         if (event === 'metrics-update') {
           metricsCallback = cb;
+        } else if (event === 'theme-sync') {
+          themeCallback = cb;
         }
       }),
       EventsEmit: vi.fn(),
@@ -48,5 +51,15 @@ describe('DetachedMonitoring extra branch coverage', () => {
 
     expect(screen.getByText('Throttled')).toBeInTheDocument();
     expect(screen.getByText('1 Replicas')).toBeInTheDocument();
+
+    // Switch theme to light mode to cover light mode branch on deployment cards
+    if (themeCallback) {
+      act(() => {
+        themeCallback!('light');
+      });
+    }
+
+    const card = screen.getByText('Test Dep').closest('.rounded-2xl')!;
+    expect(card.className).toContain('bg-white');
   });
 });
