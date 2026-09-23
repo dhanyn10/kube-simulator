@@ -36,20 +36,20 @@ export const CONFIG_SUBCOMMANDS: SuggestionItem[] = [
 ];
 
 export const GET_SUBCOMMANDS: SuggestionItem[] = [
-  { value: 'kubectl get pods', label: 'kubectl get pods', category: 'Command', description: 'List all pods on canvas' },
-  { value: 'kubectl get deployments', label: 'kubectl get deployments', category: 'Command', description: 'List deployments on canvas' },
-  { value: 'kubectl get services', label: 'kubectl get services', category: 'Command', description: 'List services on canvas' },
-  { value: 'kubectl get roles', label: 'kubectl get roles', category: 'Command', description: 'List roles on canvas' },
-  { value: 'kubectl get rolebindings', label: 'kubectl get rolebindings', category: 'Command', description: 'List rolebindings on canvas' },
-  { value: 'kubectl get configmaps', label: 'kubectl get configmaps', category: 'Command', description: 'List configmaps on canvas' },
-  { value: 'kubectl get secrets', label: 'kubectl get secrets', category: 'Command', description: 'List secrets on canvas' },
-  { value: 'kubectl get all', label: 'kubectl get all', category: 'Command', description: 'List all resources on canvas' },
+  { value: 'kubectl get pods', label: 'get pods', category: 'Command', description: 'List all pods on canvas' },
+  { value: 'kubectl get deployments', label: 'get deployments', category: 'Command', description: 'List deployments on canvas' },
+  { value: 'kubectl get services', label: 'get services', category: 'Command', description: 'List services on canvas' },
+  { value: 'kubectl get roles', label: 'get roles', category: 'Command', description: 'List roles on canvas' },
+  { value: 'kubectl get rolebindings', label: 'get rolebindings', category: 'Command', description: 'List rolebindings on canvas' },
+  { value: 'kubectl get configmaps', label: 'get configmaps', category: 'Command', description: 'List configmaps on canvas' },
+  { value: 'kubectl get secrets', label: 'get secrets', category: 'Command', description: 'List secrets on canvas' },
+  { value: 'kubectl get all', label: 'get all', category: 'Command', description: 'List all resources on canvas' },
 ];
 
 export const ROLLOUT_SUBCOMMANDS: SuggestionItem[] = [
-  { value: 'kubectl rollout status deploy/', label: 'kubectl rollout status deploy/<name>', category: 'Command', description: 'Check rolling update progress' },
-  { value: 'kubectl rollout history deploy/', label: 'kubectl rollout history deploy/<name>', category: 'Command', description: 'View revision history' },
-  { value: 'kubectl rollout undo deploy/', label: 'kubectl rollout undo deploy/<name>', category: 'Command', description: 'Rollback to previous revision' },
+  { value: 'kubectl rollout status deploy/', label: 'rollout status deploy/<name>', category: 'Command', description: 'Check rolling update progress' },
+  { value: 'kubectl rollout history deploy/', label: 'rollout history deploy/<name>', category: 'Command', description: 'View revision history' },
+  { value: 'kubectl rollout undo deploy/', label: 'rollout undo deploy/<name>', category: 'Command', description: 'Rollback to previous revision' },
 ];
 
 export const UTILITY_COMMANDS: SuggestionItem[] = [
@@ -80,12 +80,12 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
   deployments.forEach(d => {
     const name = d.data.label || d.id;
     suggestions.push(
-      { value: `kubectl scale deployment/${name} --replicas=3`, label: `kubectl scale deployment/${name} --replicas=3`, category: 'Deployment', description: `Scale deployment ${name}` },
-      { value: `kubectl set image deployment/${name} app-container=nginx:1.25`, label: `kubectl set image deployment/${name} app-container=nginx:1.25`, category: 'Deployment', description: `Update image for ${name}` },
-      { value: `kubectl rollout status deploy/${name}`, label: `kubectl rollout status deploy/${name}`, category: 'Deployment', description: `Rollout status for ${name}` },
-      { value: `kubectl rollout history deploy/${name}`, label: `kubectl rollout history deploy/${name}`, category: 'Deployment', description: `Rollout history for ${name}` },
-      { value: `kubectl rollout undo deploy/${name}`, label: `kubectl rollout undo deploy/${name}`, category: 'Deployment', description: `Rollback deployment ${name}` },
-      { value: `kubectl describe deploy ${name}`, label: `kubectl describe deploy ${name}`, category: 'Deployment', description: `Describe deployment ${name}` }
+      { value: `kubectl scale deployment/${name} --replicas=3`, label: `scale deployment/${name} --replicas=3`, category: 'Deployment', description: `Scale deployment ${name}` },
+      { value: `kubectl set image deployment/${name} app-container=nginx:1.25`, label: `set image deployment/${name} app-container=nginx:1.25`, category: 'Deployment', description: `Update image for ${name}` },
+      { value: `kubectl rollout status deploy/${name}`, label: `rollout status deploy/${name}`, category: 'Deployment', description: `Rollout status for ${name}` },
+      { value: `kubectl rollout history deploy/${name}`, label: `rollout history deploy/${name}`, category: 'Deployment', description: `Rollout history for ${name}` },
+      { value: `kubectl rollout undo deploy/${name}`, label: `rollout undo deploy/${name}`, category: 'Deployment', description: `Rollback deployment ${name}` },
+      { value: `kubectl describe deploy ${name}`, label: `describe deploy ${name}`, category: 'Deployment', description: `Describe deployment ${name}` }
     );
   });
 
@@ -93,8 +93,8 @@ export const getResourceSuggestions = (nodes: Node[]): SuggestionItem[] => {
   pods.forEach(p => {
     const name = p.data.label || p.id;
     suggestions.push(
-      { value: `kubectl delete pod ${name}`, label: `kubectl delete pod ${name}`, category: 'Pod', description: `Delete pod ${name}` },
-      { value: `kubectl describe pod ${name}`, label: `kubectl describe pod ${name}`, category: 'Pod', description: `Describe pod ${name}` }
+      { value: `kubectl delete pod ${name}`, label: `delete pod ${name}`, category: 'Pod', description: `Delete pod ${name}` },
+      { value: `kubectl describe pod ${name}`, label: `describe pod ${name}`, category: 'Pod', description: `Describe pod ${name}` }
     );
   });
 
@@ -116,7 +116,7 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
     const podNames = getPodNames(nodes);
     list.push({
       value: 'kubectl logs ',
-      label: 'kubectl logs <pod-name>',
+      label: 'logs <pod-name>',
       category: 'Subcommand',
       description: 'Stream container logs',
       subItems: podNames,
@@ -124,22 +124,22 @@ export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []):
   }
   if (sub === 'describe' || 'describe'.startsWith(sub)) {
     list.push(
-      { value: 'kubectl describe deploy ', label: 'kubectl describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
-      { value: 'kubectl describe pod ', label: 'kubectl describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' },
-      { value: 'kubectl describe role ', label: 'kubectl describe role <name>', category: 'Subcommand', description: 'Describe role specs & rules' },
-      { value: 'kubectl describe rolebinding ', label: 'kubectl describe rolebinding <name>', category: 'Subcommand', description: 'Describe rolebinding specs & subjects' },
-      { value: 'kubectl describe cm ', label: 'kubectl describe cm <name>', category: 'Subcommand', description: 'Describe configmap data' },
-      { value: 'kubectl describe secret ', label: 'kubectl describe secret <name>', category: 'Subcommand', description: 'Describe secret data' }
+      { value: 'kubectl describe deploy ', label: 'describe deploy <name>', category: 'Subcommand', description: 'Describe deployment specs' },
+      { value: 'kubectl describe pod ', label: 'describe pod <name>', category: 'Subcommand', description: 'Describe pod specs & events' },
+      { value: 'kubectl describe role ', label: 'describe role <name>', category: 'Subcommand', description: 'Describe role specs & rules' },
+      { value: 'kubectl describe rolebinding ', label: 'describe rolebinding <name>', category: 'Subcommand', description: 'Describe rolebinding specs & subjects' },
+      { value: 'kubectl describe cm ', label: 'describe cm <name>', category: 'Subcommand', description: 'Describe configmap data' },
+      { value: 'kubectl describe secret ', label: 'describe secret <name>', category: 'Subcommand', description: 'Describe secret data' }
     );
   }
   if (sub === 'scale' || 'scale'.startsWith(sub)) {
-    list.push({ value: 'kubectl scale deployment/', label: 'kubectl scale deployment/<name> --replicas=<num>', category: 'Subcommand', description: 'Scale deployment replicas' });
+    list.push({ value: 'kubectl scale deployment/', label: 'scale deployment/<name> --replicas=<num>', category: 'Subcommand', description: 'Scale deployment replicas' });
   }
   if (sub === 'set' || 'set'.startsWith(sub)) {
-    list.push({ value: 'kubectl set image deployment/', label: 'kubectl set image deployment/<name> container=<image>', category: 'Subcommand', description: 'Set container image' });
+    list.push({ value: 'kubectl set image deployment/', label: 'set image deployment/<name> container=<image>', category: 'Subcommand', description: 'Set container image' });
   }
   if (sub === 'delete' || 'delete'.startsWith(sub)) {
-    list.push({ value: 'kubectl delete pod ', label: 'kubectl delete pod <name>', category: 'Subcommand', description: 'Delete pod' });
+    list.push({ value: 'kubectl delete pod ', label: 'delete pod <name>', category: 'Subcommand', description: 'Delete pod' });
   }
   return list;
 };
@@ -173,7 +173,7 @@ export const getAutocompleteSuggestions = (
       return [
         {
           value: 'kubectl scale deployment/',
-          label: 'deployment/',
+          label: 'scale deployment/',
           category: 'Subcommand',
           description: 'Scale a deployment resource',
         },
@@ -219,7 +219,7 @@ export const getAutocompleteSuggestions = (
 
         return matchedDeploys.map(name => ({
           value: `kubectl scale deployment/${name} `,
-          label: name,
+          label: `deployment/${name}`,
           category: 'Deployment',
           description: `Deployment ${name}`,
         }));
@@ -230,7 +230,7 @@ export const getAutocompleteSuggestions = (
   // 2. `kubectl set image ...` sequence
   if (/^kubectl\s+set(?:\s+.*)?$/.test(normalizedInput)) {
     if (/^kubectl\s+set(?:\s+i|\s+im|\s+ima|\s+imag|\s+image)?\s*$/.test(normalizedInput)) {
-      return [{ value: 'kubectl set image deployment/', label: 'image deployment/', category: 'Subcommand', description: 'Update deployment container image' }];
+      return [{ value: 'kubectl set image deployment/', label: 'set image deployment/', category: 'Subcommand', description: 'Update deployment container image' }];
     }
     if (normalizedInput.startsWith('kubectl set image deployment/')) {
       const rest = normalizedInput.slice('kubectl set image deployment/'.length);
@@ -240,7 +240,7 @@ export const getAutocompleteSuggestions = (
         const matched = candidates.filter(name => name.toLowerCase().startsWith(rest));
         return matched.map(name => ({
           value: `kubectl set image deployment/${name} `,
-          label: name,
+          label: `deployment/${name}`,
           category: 'Deployment',
           description: `Deployment ${name}`,
         }));
@@ -260,9 +260,9 @@ export const getAutocompleteSuggestions = (
   if (/^kubectl\s+rollout(?:\s+.*)?$/.test(normalizedInput)) {
     if (/^kubectl\s+rollout\s*$/.test(normalizedInput)) {
       return [
-        { value: 'kubectl rollout status deploy/', label: 'status deploy/', category: 'Subcommand', description: 'Show rollout status' },
-        { value: 'kubectl rollout history deploy/', label: 'history deploy/', category: 'Subcommand', description: 'Show rollout history' },
-        { value: 'kubectl rollout undo deploy/', label: 'undo deploy/', category: 'Subcommand', description: 'Undo previous rollout' },
+        { value: 'kubectl rollout status deploy/', label: 'rollout status deploy/', category: 'Subcommand', description: 'Show rollout status' },
+        { value: 'kubectl rollout history deploy/', label: 'rollout history deploy/', category: 'Subcommand', description: 'Show rollout history' },
+        { value: 'kubectl rollout undo deploy/', label: 'rollout undo deploy/', category: 'Subcommand', description: 'Undo previous rollout' },
       ];
     }
     const rolloutMatch = normalizedInput.match(/^kubectl\s+rollout\s+(status|history|undo)\s+deploy\/(.*)$/);
@@ -274,7 +274,7 @@ export const getAutocompleteSuggestions = (
       const matched = candidates.filter(name => name.toLowerCase().startsWith(depNamePart));
       return matched.map(name => ({
         value: `kubectl rollout ${action} deploy/${name}`,
-        label: name,
+        label: `deploy/${name}`,
         category: 'Deployment',
         description: `Deployment ${name}`,
       }));
@@ -285,12 +285,12 @@ export const getAutocompleteSuggestions = (
   if (/^kubectl\s+describe(?:\s+.*)?$/.test(normalizedInput)) {
     if (/^kubectl\s+describe\s*$/.test(normalizedInput)) {
       return [
-        { value: 'kubectl describe deploy ', label: 'deploy', category: 'Subcommand', description: 'Describe deployment' },
-        { value: 'kubectl describe pod ', label: 'pod', category: 'Subcommand', description: 'Describe pod' },
-        { value: 'kubectl describe role ', label: 'role', category: 'Subcommand', description: 'Describe role' },
-        { value: 'kubectl describe rolebinding ', label: 'rolebinding', category: 'Subcommand', description: 'Describe rolebinding' },
-        { value: 'kubectl describe cm ', label: 'cm', category: 'Subcommand', description: 'Describe configmap' },
-        { value: 'kubectl describe secret ', label: 'secret', category: 'Subcommand', description: 'Describe secret' },
+        { value: 'kubectl describe deploy ', label: 'describe deploy', category: 'Subcommand', description: 'Describe deployment' },
+        { value: 'kubectl describe pod ', label: 'describe pod', category: 'Subcommand', description: 'Describe pod' },
+        { value: 'kubectl describe role ', label: 'describe role', category: 'Subcommand', description: 'Describe role' },
+        { value: 'kubectl describe rolebinding ', label: 'describe rolebinding', category: 'Subcommand', description: 'Describe rolebinding' },
+        { value: 'kubectl describe cm ', label: 'describe cm', category: 'Subcommand', description: 'Describe configmap' },
+        { value: 'kubectl describe secret ', label: 'describe secret', category: 'Subcommand', description: 'Describe secret' },
       ];
     }
     if (normalizedInput.startsWith('kubectl describe deploy ')) {
@@ -321,9 +321,9 @@ export const getAutocompleteSuggestions = (
   if (/^kubectl\s+delete(?:\s+.*)?$/.test(normalizedInput)) {
     if (/^kubectl\s+delete\s*$/.test(normalizedInput)) {
       return [
-        { value: 'kubectl delete pod ', label: 'pod', category: 'Subcommand', description: 'Delete pod' },
-        { value: 'kubectl delete deployment ', label: 'deployment', category: 'Subcommand', description: 'Delete deployment' },
-        { value: 'kubectl delete service ', label: 'service', category: 'Subcommand', description: 'Delete service' },
+        { value: 'kubectl delete pod ', label: 'delete pod', category: 'Subcommand', description: 'Delete pod' },
+        { value: 'kubectl delete deployment ', label: 'delete deployment', category: 'Subcommand', description: 'Delete deployment' },
+        { value: 'kubectl delete service ', label: 'delete service', category: 'Subcommand', description: 'Delete service' },
       ];
     }
     if (normalizedInput.startsWith('kubectl delete pod ')) {
