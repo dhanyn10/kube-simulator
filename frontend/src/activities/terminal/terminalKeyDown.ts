@@ -28,42 +28,34 @@ interface HandleTabKeyOptions {
   setIsDropdownOpen: (open: boolean) => void;
 }
 
-const handleTabKey = (opts: HandleTabKeyOptions) => {
+interface HandleTabKeyWithCompletionOptions extends HandleTabKeyOptions {
+  setCommandInput: (val: string) => void;
+  selectedSubIndex: number;
+}
+
+const handleTabKey = (opts: HandleTabKeyWithCompletionOptions) => {
   const {
     e,
-    isDropdownOpen,
     suggestions,
     selectedIndex,
-    setSelectedIndex,
-    setSelectedSubIndex,
+    selectedSubIndex,
+    setCommandInput,
     setIsDropdownOpen,
   } = opts;
 
   if (suggestions.length === 0) return;
 
-  if (!isDropdownOpen) {
-    setIsDropdownOpen(true);
-    setSelectedIndex(0);
-    setSelectedSubIndex(0);
-    return;
-  }
-
   const activeIndex = Math.max(0, selectedIndex);
-  const activeItem = suggestions[activeIndex];
-  const subCount = activeItem?.subItems?.length || 0;
+  const activeItem = suggestions[activeIndex] || suggestions[0];
 
-  if (e.shiftKey) {
-    if (subCount > 0) {
-      setSelectedSubIndex(prev => (prev <= 0 ? subCount - 1 : prev - 1));
+  if (activeItem) {
+    if (activeItem.subItems && activeItem.subItems.length > 0) {
+      const podName = activeItem.subItems[selectedSubIndex] || activeItem.subItems[0];
+      setCommandInput(`kubectl logs ${podName}`);
     } else {
-      setSelectedIndex(prev => (prev <= 0 ? suggestions.length - 1 : prev - 1));
-      setSelectedSubIndex(0);
+      setCommandInput(activeItem.value);
     }
-  } else if (subCount > 0) {
-    setSelectedSubIndex(prev => (prev >= subCount - 1 ? 0 : prev + 1));
-  } else {
-    setSelectedIndex(prev => (prev >= suggestions.length - 1 ? 0 : prev + 1));
-    setSelectedSubIndex(0);
+    setIsDropdownOpen(false);
   }
 };
 
@@ -197,6 +189,7 @@ export const handleTerminalKeyDown = (opts: HandleTerminalKeyDownOptions) => {
       selectedSubIndex,
       setSelectedIndex,
       setSelectedSubIndex,
+      setCommandInput,
       setIsDropdownOpen,
     });
     return;
