@@ -160,6 +160,24 @@ export const TerminalPanel = () => {
     setIsDropdownOpen(open);
   }, []);
 
+  const footerRef = useRef<HTMLDivElement>(null);
+
+  // Click outside listener to dismiss autocomplete dropdown when clicking outside terminal input area
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (footerRef.current && !footerRef.current.contains(e.target as Node)) {
+        setDropdownOpenCustom(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isDropdownOpen, setDropdownOpenCustom]);
+
   /** Handles keydown keyboard events for navigation, autocomplete cycling, and history traversal. */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     handleTerminalKeyDown({
@@ -241,12 +259,15 @@ export const TerminalPanel = () => {
 
       {/* Fixed bottom footer for pagination and input form */}
       {((terminalActiveTab === 'logs' && filteredLogs.length > 0) || terminalActiveTab === 'activity') && (
-        <div className={cn(
-          "terminal-footer",
-          colorMode === 'dark'
-            ? "border-slate-800 bg-slate-950/95 text-slate-400"
-            : "border-slate-200 bg-white/95 text-slate-500"
-        )}>
+        <div
+          ref={footerRef}
+          className={cn(
+            "terminal-footer",
+            colorMode === 'dark'
+              ? "border-slate-800 bg-slate-950/95 text-slate-400"
+              : "border-slate-200 bg-white/95 text-slate-500"
+          )}
+        >
           {terminalActiveTab === 'logs' && filteredLogs.length > 0 && (
             <TerminalPaginationBar
               filteredLogsLength={filteredLogs.length}
