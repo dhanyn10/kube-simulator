@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/glebarez/sqlite v1.11.0
-	github.com/wailsapp/wails/v2 v2.14.0
+	github.com/wailsapp/wails/v2 v2.15.0
 	gorm.io/gorm v1.31.1
 )
 
@@ -61,4 +61,4 @@ require (
 	modernc.org/sqlite v1.50.0 // indirect
 )
 
-// replace github.com/wailsapp/wails/v2 v2.12.0 => /home/jules/go/pkg/mod
+// replace github.com/wailsapp/wails/v2 v2.15.0 => /home/jules/go/pkg/mod
