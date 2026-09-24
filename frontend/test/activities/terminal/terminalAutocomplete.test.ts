@@ -1,11 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import {
   getAutocompleteSuggestions,
-  trimSuggestionLabel
+  trimSuggestionLabel,
+  COMMAND_SPEC_TREE
 } from '@/activities/terminal/terminalAutocomplete';
 import { Node } from '@xyflow/react';
 
 describe('terminalAutocomplete', () => {
+  it('exports COMMAND_SPEC_TREE declarative command structure', () => {
+    expect(COMMAND_SPEC_TREE).toBeDefined();
+    const kubectlNode = COMMAND_SPEC_TREE.find(n => n.name === 'kubectl');
+    expect(kubectlNode).toBeDefined();
+    expect(kubectlNode?.children?.some(c => c.name === 'get')).toBe(true);
+    expect(kubectlNode?.children?.some(c => c.name === 'config')).toBe(true);
+  });
+
+  it('returns full command hints when typing initial keyword prefix "k" or "ku"', () => {
+    const kSugg = getAutocompleteSuggestions('k', []);
+    expect(kSugg.some(s => s.label === 'kubectl get')).toBe(true);
+    expect(kSugg.some(s => s.label === 'kubectl config')).toBe(true);
+
+    const kuSugg = getAutocompleteSuggestions('ku', []);
+    expect(kuSugg.some(s => s.label === 'kubectl get')).toBe(true);
+    expect(kuSugg.some(s => s.label === 'kubectl config')).toBe(true);
+  });
+
   it('returns general top subcommands when typing "kubectl"', () => {
     const suggestions = getAutocompleteSuggestions('kubectl', []);
     expect(suggestions).toHaveLength(8);
