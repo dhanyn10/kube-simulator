@@ -8,12 +8,12 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
-import { useBaseNodeHandler } from '@/activities/nodes';
+import { useBaseNodeHandler, getProgressSegmentStyles, getMegaCircleDashArray } from '@/activities/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
  */
-const NodeStatusIndicator = ({ type, statusDotColor }: { type: string, statusDotColor: string }) => {
+const NodeStatusIndicator = ({ type, statusDotColor }: { type: string; statusDotColor: string }) => {
   if (type === 'Internet' || type === 'PVC') return null;
   return <div className={cn("w-1.5 h-1.5 rounded-full", statusDotColor)}></div>;
 };
@@ -21,10 +21,12 @@ const NodeStatusIndicator = ({ type, statusDotColor }: { type: string, statusDot
 /**
  * Sub-component for rendering replica progress bars.
  */
-const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progressEmptyBgClass, isAutocompleteHovered }: { id: string, replicas: number, showDashedProgress: boolean, colorMode: string, progressEmptyBgClass: string, isAutocompleteHovered?: boolean }) => {
+const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progressEmptyBgClass, isAutocompleteHovered }: { id: string; replicas: number; showDashedProgress: boolean; colorMode: string; progressEmptyBgClass: string; isAutocompleteHovered?: boolean }) => {
   if (!showDashedProgress) return null;
 
   const isMega = replicas === 100;
+  const { circleBgClass, circleStrokeClass, textClass, barClass } = getProgressSegmentStyles(colorMode, isAutocompleteHovered);
+  const strokeDashArray = getMegaCircleDashArray(16, 10, 0.7);
 
   return (
     <div className={cn("flex gap-0.5 w-full items-center pb-1", isMega ? "h-auto" : "h-1")}>
@@ -38,27 +40,17 @@ const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progress
                   <svg className="w-full h-full transform -rotate-90">
                     <circle
                       cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" fill="transparent"
-                      strokeDasharray={`${(2 * Math.PI * 16) / 10 * 0.7} ${(2 * Math.PI * 16) / 10 * 0.3}`}
-                      className={colorMode === 'dark' ? "text-slate-700/50" : "text-slate-200"}
+                      strokeDasharray={strokeDashArray}
+                      className={circleBgClass}
                     />
                     <circle
                       cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" fill="transparent"
-                      strokeDasharray={`${(2 * Math.PI * 16) / 10 * 0.7} ${(2 * Math.PI * 16) / 10 * 0.3}`}
+                      strokeDasharray={strokeDashArray}
                       strokeDashoffset={0} strokeLinecap="round"
-                      className={cn(
-                        "transition-all duration-500",
-                        isAutocompleteHovered
-                          ? "text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
-                          : "text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                      )}
+                      className={circleStrokeClass}
                     />
                   </svg>
-                  <span className={cn(
-                    "absolute text-[8px] font-black",
-                    isAutocompleteHovered
-                      ? "text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]"
-                      : "text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]"
-                  )}>10</span>
+                  <span className={textClass}>10</span>
                 </div>
               </div>
             );
@@ -70,11 +62,7 @@ const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progress
             key={`${id}-progress-${i}`}
             className={cn(
               "flex-1 h-1 rounded-sm transition-all",
-              i < (replicas || 0)
-                ? (isAutocompleteHovered
-                    ? "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]"
-                    : "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]")
-                : progressEmptyBgClass
+              i < (replicas || 0) ? barClass : progressEmptyBgClass
             )}
           />
         ))
