@@ -160,9 +160,7 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
     const podHash = existingPod?.data?.podHash || generateRandomHash(5);
-    const podName = targetPodReplicas.length > 1 || totalReplicas > 1
-      ? formatPodName(baseLabel, deployHash.substring(0, 5), podHash)
-      : (existingPod?.data?.label || formatPodName(baseLabel, deployHash.substring(0, 5), podHash));
+    const podName = formatPodName(baseLabel, deployHash.substring(0, 5), podHash);
 
     return existingPod 
       ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, podHash)
