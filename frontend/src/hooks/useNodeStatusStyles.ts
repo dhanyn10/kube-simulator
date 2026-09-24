@@ -39,6 +39,42 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
   };
 };
 
+export const COLOR_HEX_MAP: Record<string, string> = {
+  red: '#ef4444',
+  pink: '#ec4899',
+  purple: '#a855f7',
+  'deep-purple': '#673ab7',
+  indigo: '#6366f1',
+  blue: '#3b82f6',
+  'light-blue': '#03a9f4',
+  cyan: '#06b6d4',
+  teal: '#14b8a6',
+  green: '#10b981',
+  emerald: '#10b981',
+  'light-green': '#8bc34a',
+  lime: '#cddc39',
+  yellow: '#eab308',
+  amber: '#f59e0b',
+  orange: '#f97316',
+  'deep-orange': '#ff5722',
+  brown: '#795548',
+  grey: '#9e9e9e',
+  slate: '#64748b',
+};
+
+export const getNodeBorderColorHex = (
+  isPending: boolean,
+  isReady: boolean,
+  isCrashing: boolean,
+  color?: string
+): string => {
+  if (isCrashing) return '#dc2626';
+  if (isPending) return '#ef4444';
+  if (isReady) return '#10b981';
+  if (color && COLOR_HEX_MAP[color]) return COLOR_HEX_MAP[color];
+  return '#10b981';
+};
+
 export interface NodeContainerStylesOptions {
   selected?: boolean;
   isReady: boolean;
@@ -50,6 +86,8 @@ export interface NodeContainerStylesOptions {
   nodeType?: string;
   isInsideNamespace?: boolean;
   isHovered?: boolean;
+  isAutocompleteHovered?: boolean;
+  borderColorHex?: string;
 }
 
 const getSelectionClasses = (selected: boolean | undefined, color: string, isDark: boolean): string => {
@@ -87,13 +125,20 @@ export const useNodeContainerStyles = (options: NodeContainerStylesOptions) => {
     color,
     colorMode,
     isRoleDragging,
-    isHovered
+    isHovered,
+    isAutocompleteHovered
   } = options;
 
   const isDark = colorMode === 'dark';
-  const containerBaseClasses = isDark ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
-  const selectionClasses = getSelectionClasses(selected, color, isDark);
-  const readyClasses = getReadyClasses(isReady, isDark);
+  let containerBaseClasses = isDark ? "bg-slate-800 border-slate-600 shadow-xl" : "bg-white border-slate-200 shadow-md";
+  let selectionClasses = getSelectionClasses(selected, color, isDark);
+  let readyClasses = getReadyClasses(isReady, isDark);
+
+  if (isAutocompleteHovered) {
+    containerBaseClasses = isDark ? "bg-slate-800 border-transparent" : "bg-white border-transparent";
+    selectionClasses = "";
+    readyClasses = "";
+  }
 
   const statusClasses = [
     isPending && "border-red-500/50 ring-4 ring-red-500/10 animate-pulse-slow shadow-[0_0_20px_rgba(239,68,68,0.2)]",

@@ -90,7 +90,7 @@ export const getDeploymentNames = (nodes: Node[]): string[] => {
 };
 
 export const getPodNames = (nodes: Node[]): string[] => {
-  return nodes.filter(n => n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet').map(p => String(p.data?.label ?? p.id));
+  return nodes.filter(n => n.type === 'Pod').map(p => String(p.data?.label ?? p.id));
 };
 
 const extractCanvasFieldNames = (nodes: Node[], fieldKey: string, suffix = ''): string[] => {

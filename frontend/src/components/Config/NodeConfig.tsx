@@ -26,7 +26,16 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const { data, toggleVisibility, toggleYaml, performUpdate, randomizePodHash } = useNodeConfigHandler(selectedNode);
+  const {
+    data,
+    podHash,
+    podBaseName,
+    updatePodBaseName,
+    toggleVisibility,
+    toggleYaml,
+    performUpdate,
+    randomizePodHash
+  } = useNodeConfigHandler(selectedNode);
 
   const renderConfig = () => {
     const props = { selectedNode, performUpdate, toggleVisibility, toggleYaml };
@@ -69,37 +78,69 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   return (
     <div className="space-y-4">
       {/* Basic Node Configuration */}
-      <div className="space-y-1.5">
-        <ConfigLabel>
-          <Type size={10} /> Name
-        </ConfigLabel>
-        <div className="flex items-center gap-1.5">
-          <ConfigInput
-            value={data.label || ''}
-            onChange={(e: any) => updateNodeData(selectedNode.id, {
-              label: sanitizeSlug(e.target.value)
-            })}
-            placeholder="node-name"
-            colorMode={colorMode}
-            className="font-mono flex-1 min-w-0"
-          />
-          {selectedNode.type === 'Pod' && (
-            <button
-              type="button"
-              title="Randomize Pod Hash"
-              onClick={randomizePodHash}
-              className={cn(
-                "p-2 rounded border transition-colors flex items-center justify-center shrink-0",
-                colorMode === 'dark'
-                  ? "bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300"
-                  : "bg-slate-100 border-slate-200 text-cyan-600 hover:bg-slate-200 hover:text-cyan-700"
-              )}
-            >
-              <Shuffle size={13} />
-            </button>
-          )}
+      {selectedNode.type === 'Pod' ? (
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <ConfigLabel>
+              <Type size={10} /> Name (Base)
+            </ConfigLabel>
+            <ConfigInput
+              value={podBaseName}
+              onChange={(e: any) => updatePodBaseName(e.target.value)}
+              placeholder="pod-name"
+              colorMode={colorMode}
+              className="font-mono w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <ConfigLabel>
+              <Shuffle size={10} /> Suffix (Read-Only)
+            </ConfigLabel>
+            <div className="flex items-center gap-1.5">
+              <ConfigInput
+                value={podHash}
+                readOnly
+                placeholder="suffix"
+                colorMode={colorMode}
+                className="font-mono flex-1 min-w-0 opacity-80 cursor-not-allowed"
+                data-testid="pod-suffix-input"
+              />
+              <button
+                type="button"
+                title="Randomize Pod Hash"
+                data-testid="randomize-pod-hash-btn"
+                onClick={randomizePodHash}
+                className={cn(
+                  "p-2 rounded border transition-colors flex items-center justify-center shrink-0",
+                  colorMode === 'dark'
+                    ? "bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300"
+                    : "bg-slate-100 border-slate-200 text-cyan-600 hover:bg-slate-200 hover:text-cyan-700"
+                )}
+              >
+                <Shuffle size={13} />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-1.5">
+          <ConfigLabel>
+            <Type size={10} /> Name
+          </ConfigLabel>
+          <div className="flex items-center gap-1.5">
+            <ConfigInput
+              value={data.label || ''}
+              onChange={(e: any) => updateNodeData(selectedNode.id, {
+                label: sanitizeSlug(e.target.value)
+              })}
+              placeholder="node-name"
+              colorMode={colorMode}
+              className="font-mono flex-1 min-w-0"
+            />
+          </div>
+        </div>
+      )}
 
       {renderConfig()}
 

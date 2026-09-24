@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TerminalSquare, Info, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SuggestionItem } from '@/activities/terminal';
+import { useFlowStore } from '@/store';
 
 export interface AutocompleteItemProps {
   item: SuggestionItem;
@@ -66,6 +67,7 @@ export const AutocompleteItem = ({
 }: AutocompleteItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
+  const setHoveredAutocompletePodName = useFlowStore((state) => state.setHoveredAutocompletePodName);
 
   const isDisabled = Boolean(item.disabled);
   const containerClass = getAutocompleteItemClass(isSelected, isDark, isDisabled);
@@ -74,6 +76,17 @@ export const AutocompleteItem = ({
   const accordionClass = getAccordionClass(isSelected, isDark);
 
   const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
+  const targetPodName = item.category === 'Pod' ? item.label : null;
+
+  useEffect(() => {
+    if (isSelected) {
+      if (hasSubItems && selectedSubIndex >= 0 && selectedSubIndex < (item.subItems?.length || 0)) {
+        setHoveredAutocompletePodName(item.subItems![selectedSubIndex]);
+      } else if (targetPodName) {
+        setHoveredAutocompletePodName(targetPodName);
+      }
+    }
+  }, [isSelected, selectedSubIndex, targetPodName, hasSubItems, item.subItems, setHoveredAutocompletePodName]);
 
   let iconClass = "text-blue-500 shrink-0";
   if (isDisabled) {
@@ -84,10 +97,14 @@ export const AutocompleteItem = ({
 
   return (
     <div
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        if (targetPodName) setHoveredAutocompletePodName(targetPodName);
+      }}
       onMouseLeave={() => {
         setIsHovered(false);
         setIsInfoOpen(false);
+        setHoveredAutocompletePodName(null);
       }}
       className={cn(
         "group flex flex-col transition-colors border-b last:border-b-0",
@@ -153,6 +170,8 @@ export const AutocompleteItem = ({
                 type="button"
                 key={`subitem-${subName}-${subIdx}`}
                 data-testid={`autocomplete-subitem-${subIdx}`}
+                onMouseEnter={() => setHoveredAutocompletePodName(subName)}
+                onMouseLeave={() => setHoveredAutocompletePodName(targetPodName)}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectSuggestion(item, subName);

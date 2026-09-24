@@ -4,7 +4,7 @@
 
 import { useFlowStore } from '@/store';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/slices/node-handlers/configUtils';
-import { generateRandomHash, formatPodName } from '@/lib/utils';
+import { generateRandomHash, sanitizeSlug } from '@/lib/utils';
 
 export const syncPeersAndParent = (
   selectedNode: any,
@@ -88,24 +88,36 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     syncParentPodUpdates(selectedNode, updates);
   };
 
+  const podHash = data.podHash || (data.label?.includes('-') ? data.label.split('-').pop() : '') || generateRandomHash(5);
+  let podBaseName = data.label || 'pod';
+  if (podHash && podBaseName.endsWith(`-${podHash}`)) {
+    podBaseName = podBaseName.slice(0, -(podHash.length + 1));
+  }
+
+  const updatePodBaseName = (newBase: string) => {
+    const cleanBase = sanitizeSlug(newBase);
+    const newLabel = cleanBase ? `${cleanBase}-${podHash}` : podHash;
+    updateNodeData(selectedNode.id, {
+      label: newLabel,
+      podHash,
+    });
+  };
+
   const randomizePodHash = () => {
     const newHash = generateRandomHash(5);
-    let currentLabel = data.label || 'pod';
-    const parts = currentLabel.split('-');
-    if (parts.length > 1 && parts[parts.length - 1].length >= 4) {
-      parts[parts.length - 1] = newHash;
-      currentLabel = parts.join('-');
-    } else {
-      currentLabel = formatPodName(currentLabel, undefined, newHash);
-    }
+    const cleanBase = sanitizeSlug(podBaseName) || 'pod';
+    const newLabel = `${cleanBase}-${newHash}`;
     updateNodeData(selectedNode.id, {
-      label: currentLabel,
+      label: newLabel,
       podHash: newHash,
     });
   };
 
   return {
     data,
+    podHash,
+    podBaseName,
+    updatePodBaseName,
     toggleVisibility,
     toggleYaml,
     performUpdate,

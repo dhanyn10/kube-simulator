@@ -190,6 +190,38 @@ describe('BaseNode', () => {
     expect(screen.queryByTitle('Configure Node')).toBeNull();
   });
 
+  it('renders moving dashed border SVG and blue progress bars when hovered from autocomplete dropdown', () => {
+    useFlowStore.setState({
+      hoveredAutocompletePodName: 'hovered-pod-x8k2p'
+    });
+
+    const { container: c1 } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          data={{ label: 'hovered-pod-x8k2p', replicas: 1, type: 'Pod' }}
+        />
+      </ReactFlowProvider>
+    );
+
+    // Verify moving dashed border SVG is rendered
+    const svgOverlay = c1.querySelector('svg.traffic-line');
+    expect(svgOverlay).not.toBeNull();
+
+    // Verify >3 replicas progress bars turn blue when autocomplete hovered
+    const { container: c2 } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          data={{ label: 'hovered-pod-x8k2p', replicas: 5, parentReplicas: 5, type: 'Pod' }}
+        />
+      </ReactFlowProvider>
+    );
+
+    const blueSegment = c2.querySelector('.bg-blue-500');
+    expect(blueSegment).not.toBeNull();
+  });
+
   it('renders secrets, hpas, light mode, and nested namespace parent container styles', () => {
     useFlowStore.setState({
       colorMode: 'light',
