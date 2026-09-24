@@ -1,5 +1,6 @@
 import { Node } from '@xyflow/react';
 import { safeRandom } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import { CommandContext } from './terminalCommands';
 import { CommandHistoryEntry, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
 
@@ -291,19 +292,33 @@ export const handleDescribeCommand = (
   nodes: Node[],
   isSimulating: boolean
 ): boolean => {
-  const describeMatch = /^kubectl\s+describe\s+(pod|deploy(?:ment)?)\s+([-a-z0-9]+)/i.exec(cmd);
+  const describeMatch = /^kubectl\s+describe\s+(pod|po|deploy(?:ment)?)\s+([-a-z0-9]+)/i.exec(cmd);
   if (!describeMatch) return false;
 
-  const type = describeMatch[1].toLowerCase();
+  const typeRaw = describeMatch[1].toLowerCase();
   const targetName = describeMatch[2].toLowerCase();
 
-  const nodeTypes = type === 'pod' ? ['Pod'] : ['Deployment'];
+  const isPod = typeRaw === 'pod' || typeRaw === 'po';
+  const nodeTypes = isPod ? ['Pod'] : ['Deployment'];
   const foundNode = findNodeByTargetName(nodes, targetName, nodeTypes);
 
   if (foundNode) {
     printNodeDescription(foundNode, isSimulating, addActivityLog);
+
+    if (isPod) {
+      const setHoveredAutocompletePodName = useFlowStore.getState().setHoveredAutocompletePodName;
+      const targetLabel = (foundNode.data?.label as string) || foundNode.id;
+      setHoveredAutocompletePodName(targetLabel);
+
+      setTimeout(() => {
+        const currentHovered = useFlowStore.getState().hoveredAutocompletePodName;
+        if (currentHovered === targetLabel) {
+          setHoveredAutocompletePodName(null);
+        }
+      }, 3000);
+    }
   } else {
-    addActivityLog(`Error from server (NotFound): ${type} "${targetName}" not found`);
+    addActivityLog(`Error from server (NotFound): ${typeRaw} "${targetName}" not found`);
   }
   return true;
 };
