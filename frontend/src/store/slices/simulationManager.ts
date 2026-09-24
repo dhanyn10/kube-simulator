@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { Node, Edge } from '@xyflow/react';
-import { FlowState, SimulationMetricPoint } from '@/store/types';
+import type { FlowState, SimulationMetricPoint } from '@/store/types';
 import { K8sNodeData } from '@/types';
 import { validateResourceLimits } from '@/lib/utils';
 

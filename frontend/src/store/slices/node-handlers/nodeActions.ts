@@ -1,7 +1,7 @@
 import { type MouseEvent } from 'react';
 import { Node, Edge } from '@xyflow/react';
 import { K8sResourceType, K8sNodeData } from '@/types';
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 import {
   getNodeData,
   sortNodes,

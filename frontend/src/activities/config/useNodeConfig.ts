@@ -4,6 +4,7 @@
 
 import { useFlowStore } from '@/store';
 import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/slices/node-handlers/configUtils';
+import { generateRandomHash, formatPodName } from '@/lib/utils';
 
 export const syncPeersAndParent = (
   selectedNode: any,
@@ -87,10 +88,27 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     syncParentPodUpdates(selectedNode, updates);
   };
 
+  const randomizePodHash = () => {
+    const newHash = generateRandomHash(5);
+    let currentLabel = data.label || 'pod';
+    const parts = currentLabel.split('-');
+    if (parts.length > 1 && parts[parts.length - 1].length >= 4) {
+      parts[parts.length - 1] = newHash;
+      currentLabel = parts.join('-');
+    } else {
+      currentLabel = formatPodName(currentLabel, undefined, newHash);
+    }
+    updateNodeData(selectedNode.id, {
+      label: currentLabel,
+      podHash: newHash,
+    });
+  };
+
   return {
     data,
     toggleVisibility,
     toggleYaml,
     performUpdate,
+    randomizePodHash,
   };
 };

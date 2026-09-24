@@ -10,7 +10,7 @@ import {
   applyEdgeChanges,
   addEdge,
 } from '@xyflow/react';
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 import { K8sNodeData } from '@/types';
 import { getConnectionError } from '@/constants/connections';
 import { getAbsPos } from '../helpers';

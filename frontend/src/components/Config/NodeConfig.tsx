@@ -1,6 +1,6 @@
 import { useFlowStore } from '@/store';
 import { cn, sanitizeSlug } from '@/lib/utils';
-import { Type, Terminal } from 'lucide-react';
+import { Type, Terminal, Shuffle } from 'lucide-react';
 import { ConfigInput, ConfigLabel } from '../UI/ConfigUI';
 import {
   WorkloadConfig,
@@ -26,7 +26,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const { data, toggleVisibility, toggleYaml, performUpdate } = useNodeConfigHandler(selectedNode);
+  const { data, toggleVisibility, toggleYaml, performUpdate, randomizePodHash } = useNodeConfigHandler(selectedNode);
 
   const renderConfig = () => {
     const props = { selectedNode, performUpdate, toggleVisibility, toggleYaml };
@@ -73,15 +73,32 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         <ConfigLabel>
           <Type size={10} /> Name
         </ConfigLabel>
-        <ConfigInput
-          value={data.label || ''}
-          onChange={(e: any) => updateNodeData(selectedNode.id, {
-            label: sanitizeSlug(e.target.value)
-          })}
-          placeholder="node-name"
-          colorMode={colorMode}
-          className="font-mono"
-        />
+        <div className="flex items-center gap-1.5">
+          <ConfigInput
+            value={data.label || ''}
+            onChange={(e: any) => updateNodeData(selectedNode.id, {
+              label: sanitizeSlug(e.target.value)
+            })}
+            placeholder="node-name"
+            colorMode={colorMode}
+            className="font-mono flex-1 min-w-0"
+          />
+          {selectedNode.type === 'Pod' && (
+            <button
+              type="button"
+              title="Randomize Pod Hash"
+              onClick={randomizePodHash}
+              className={cn(
+                "p-2 rounded border transition-colors flex items-center justify-center shrink-0",
+                colorMode === 'dark'
+                  ? "bg-slate-800 border-slate-700 text-cyan-400 hover:bg-slate-700 hover:text-cyan-300"
+                  : "bg-slate-100 border-slate-200 text-cyan-600 hover:bg-slate-200 hover:text-cyan-700"
+              )}
+            >
+              <Shuffle size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {renderConfig()}

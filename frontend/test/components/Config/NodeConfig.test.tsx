@@ -69,6 +69,20 @@ describe('NodeConfig', () => {
     expect(mockUpdateNodeData).toHaveBeenCalledWith('n1', { label: 'new-pod-name' });
   });
 
+  it('renders Randomize Pod Hash button for Pod nodes and updates hash on click', () => {
+    const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-68b6d779c5-x8k2p' } };
+    render(<NodeConfig selectedNode={podNode} />);
+
+    const randomBtn = screen.getByTitle('Randomize Pod Hash');
+    expect(randomBtn).toBeDefined();
+
+    fireEvent.click(randomBtn);
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('p1', expect.objectContaining({
+      label: expect.stringMatching(/^nginx-68b6d779c5-[a-z0-9]{5}$/),
+      podHash: expect.stringMatching(/^[a-z0-9]{5}$/),
+    }));
+  });
+
   it('toggles visibility and syncs with peer pods and parent', async () => {
     const node1 = { id: 'n1', type: 'Pod', parentId: 'p1', data: { label: 'pod-a', displaySettings: { resources: true } } };
     const node2 = { id: 'n2', type: 'Pod', parentId: 'p1', data: { label: 'pod-a', displaySettings: { resources: true } } };

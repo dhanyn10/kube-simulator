@@ -4,7 +4,7 @@ import {
   getAbsPos
 } from '@/store/helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
-import { FlowState } from '@/store/types';
+import type { FlowState } from '@/store/types';
 
 /**
  * Gets the minimum allowed size for a node during resize.
