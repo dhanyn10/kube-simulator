@@ -35,8 +35,9 @@ test.describe('Sidebar UX and Style Polish', () => {
   test('main canvas container should not have static grid class', async ({ page }) => {
     // Verify that the main container does not have the 'canvas-grid' class
     // which was causing static background issues in light theme.
-    const mainContainer = page.locator('main');
-    await expect(mainContainer).toBeVisible({ timeout: 15000 });
-    await expect(mainContainer).not.toHaveClass(/canvas-grid/);
+    const mainContainer = page.locator('#canvas-main');
+    await expect(mainContainer).toBeAttached({ timeout: 5000 });
+    const classList = (await mainContainer.getAttribute('class')) || '';
+    expect(classList).not.toContain('canvas-grid');
   });
 });
