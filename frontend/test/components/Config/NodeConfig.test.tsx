@@ -62,18 +62,24 @@ describe('NodeConfig', () => {
   it('updates node name and handles missing data.label', async () => {
     const node = { id: 'n1', type: 'Pod', data: {} };
     render(<NodeConfig selectedNode={node} />);
-    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
-    expect(input.value).toBe('');
+    const input = screen.getByPlaceholderText('pod-name') as HTMLInputElement;
+    expect(input.value).toBe('pod');
 
     fireEvent.change(input, { target: { value: 'New Pod Name' } });
-    expect(mockUpdateNodeData).toHaveBeenCalledWith('n1', { label: 'new-pod-name' });
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('n1', expect.objectContaining({
+      label: expect.stringMatching(/^new-pod-name-[a-z0-9]{5}$/),
+    }));
   });
 
-  it('renders Randomize Pod Hash button for Pod nodes and updates hash on click', () => {
-    const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-68b6d779c5-x8k2p' } };
+  it('renders Randomize Pod Hash button for Pod nodes and renders read-only suffix input', () => {
+    const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-68b6d779c5-x8k2p', podHash: 'x8k2p' } };
     render(<NodeConfig selectedNode={podNode} />);
 
-    const randomBtn = screen.getByTitle('Randomize Pod Hash');
+    const suffixInput = screen.getByTestId('pod-suffix-input') as HTMLInputElement;
+    expect(suffixInput.readOnly).toBe(true);
+    expect(suffixInput.value).toBe('x8k2p');
+
+    const randomBtn = screen.getByTestId('randomize-pod-hash-btn');
     expect(randomBtn).toBeDefined();
 
     fireEvent.click(randomBtn);

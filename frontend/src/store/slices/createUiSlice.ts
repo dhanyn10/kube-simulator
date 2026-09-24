@@ -93,9 +93,11 @@ export interface UiSlice {
   terminalSelectedResourceId: string | null;
   terminalLogs: Record<string, string[]>;
   activityLogs: string[];
+  hoveredAutocompletePodName: string | null;
   setTerminalOpen: (open: boolean) => void;
   setTerminalActiveTab: (tab: 'activity' | 'logs') => void;
   setTerminalSelectedResourceId: (id: string | null) => void;
+  setHoveredAutocompletePodName: (name: string | null) => void;
   addTerminalLog: (resourceId: string, line: string) => void;
   addActivityLog: (line: string) => void;
   clearTerminalLogs: () => void;
@@ -674,9 +676,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   terminalSelectedResourceId: null,
   terminalLogs: {},
   activityLogs: [],
+  hoveredAutocompletePodName: null,
   setTerminalOpen: (open) => set({ isTerminalOpen: open }),
   setTerminalActiveTab: (tab) => set({ terminalActiveTab: tab }),
   setTerminalSelectedResourceId: (id) => set({ terminalSelectedResourceId: id }),
+  setHoveredAutocompletePodName: (name) => set({ hoveredAutocompletePodName: name }),
   addTerminalLog: (resourceId, line) => set((state) => {
     const logs = state.terminalLogs[resourceId] || [];
     return {

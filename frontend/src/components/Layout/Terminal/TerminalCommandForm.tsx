@@ -35,6 +35,7 @@ export const TerminalCommandForm = ({
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   const isAwaitingAdminPassword = useFlowStore((state) => state.isAwaitingAdminPassword);
+  const setHoveredAutocompletePodName = useFlowStore((state) => state.setHoveredAutocompletePodName);
 
   return (
     <div className="flex items-center justify-between gap-4 w-full relative">
@@ -42,6 +43,7 @@ export const TerminalCommandForm = ({
       {!isAwaitingAdminPassword && isDropdownOpen && suggestions.length > 0 && (
         <div
           data-testid="terminal-autocomplete-popup"
+          onMouseLeave={() => setHoveredAutocompletePodName(null)}
           className={cn(
             "terminal-autocomplete-popup custom-scrollbar",
             isDark

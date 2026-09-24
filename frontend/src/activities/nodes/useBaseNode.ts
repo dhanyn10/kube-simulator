@@ -5,7 +5,7 @@
 import { useFlowStore } from '@/store';
 import { useNodeStyles } from '@/hooks/useNodeStyles';
 import { useNodeRename } from '@/hooks/useNodeEditor';
-import { useNodeStatus, useNodeContainerStyles } from '@/hooks/useNodeStatusStyles';
+import { useNodeStatus, useNodeContainerStyles, getNodeBorderColorHex } from '@/hooks/useNodeStatusStyles';
 import { K8sNodeData } from '@/types';
 
 export const useBaseNodeHandler = ({
@@ -24,6 +24,12 @@ export const useBaseNodeHandler = ({
   const colorMode = useFlowStore((state) => state.colorMode);
   const draggingSidebarItem = useFlowStore((state) => state.draggingSidebarItem);
   const nodes = useFlowStore((state) => state.nodes);
+  const hoveredAutocompletePodName = useFlowStore((state) => state.hoveredAutocompletePodName);
+
+  const isAutocompleteHovered = Boolean(
+    hoveredAutocompletePodName &&
+    (data.label === hoveredAutocompletePodName || id === hoveredAutocompletePodName)
+  );
 
   const { transitionClasses } = useNodeStyles(id);
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
@@ -39,6 +45,8 @@ export const useBaseNodeHandler = ({
   const { isPending, isReady, isCrashing, statusIconColor, statusTextColor, statusDotColor } =
     useNodeStatus(data, statusOverride, color, colorMode);
 
+  const borderColorHex = getNodeBorderColorHex(isPending, isReady, isCrashing, color);
+
   const { containerClasses, progressEmptyBgClass } =
     useNodeContainerStyles({
       selected,
@@ -50,7 +58,9 @@ export const useBaseNodeHandler = ({
       isRoleDragging,
       nodeType: data.type,
       isInsideNamespace,
-      isHovered: data.isHovered
+      isHovered: data.isHovered,
+      isAutocompleteHovered,
+      borderColorHex
     });
 
   const replicas = data.replicas || 1;
@@ -76,5 +86,7 @@ export const useBaseNodeHandler = ({
     progressEmptyBgClass,
     replicas,
     showDashedProgress,
+    isAutocompleteHovered,
+    borderColorHex,
   };
 };

@@ -52,7 +52,7 @@ export const YamlToggle = ({ isEnabled, onToggle, disabled }: { isEnabled: boole
 /**
  * Standardized input field for configuration values.
  */
-export const ConfigInput = ({ value, onChange, placeholder, colorMode, className = "", type = "text", min, max }: any) => (
+export const ConfigInput = ({ value, onChange, placeholder, colorMode, className = "", type = "text", min, max, readOnly, ...rest }: any) => (
   <input
     type={type}
     value={value}
@@ -60,6 +60,8 @@ export const ConfigInput = ({ value, onChange, placeholder, colorMode, className
     placeholder={placeholder}
     min={min}
     max={max}
+    readOnly={readOnly}
+    {...rest}
     className={cn(
       "w-full text-[10px] p-2 rounded border outline-none",
       colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800",

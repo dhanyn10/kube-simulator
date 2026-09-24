@@ -21,7 +21,7 @@ const NodeStatusIndicator = ({ type, statusDotColor }: { type: string, statusDot
 /**
  * Sub-component for rendering replica progress bars.
  */
-const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progressEmptyBgClass }: { id: string, replicas: number, showDashedProgress: boolean, colorMode: string, progressEmptyBgClass: string }) => {
+const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progressEmptyBgClass, isAutocompleteHovered }: { id: string, replicas: number, showDashedProgress: boolean, colorMode: string, progressEmptyBgClass: string, isAutocompleteHovered?: boolean }) => {
   if (!showDashedProgress) return null;
 
   const isMega = replicas === 100;
@@ -45,10 +45,20 @@ const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progress
                       cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" fill="transparent"
                       strokeDasharray={`${(2 * Math.PI * 16) / 10 * 0.7} ${(2 * Math.PI * 16) / 10 * 0.3}`}
                       strokeDashoffset={0} strokeLinecap="round"
-                      className="text-emerald-500 transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                      className={cn(
+                        "transition-all duration-500",
+                        isAutocompleteHovered
+                          ? "text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                          : "text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                      )}
                     />
                   </svg>
-                  <span className="absolute text-[8px] font-black text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]">10</span>
+                  <span className={cn(
+                    "absolute text-[8px] font-black",
+                    isAutocompleteHovered
+                      ? "text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]"
+                      : "text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]"
+                  )}>10</span>
                 </div>
               </div>
             );
@@ -60,7 +70,11 @@ const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progress
             key={`${id}-progress-${i}`}
             className={cn(
               "flex-1 h-1 rounded-sm transition-all",
-              i < (replicas || 0) ? "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]" : progressEmptyBgClass
+              i < (replicas || 0)
+                ? (isAutocompleteHovered
+                    ? "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]"
+                    : "bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]")
+                : progressEmptyBgClass
             )}
           />
         ))
@@ -101,11 +115,28 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     progressEmptyBgClass,
     replicas,
     showDashedProgress,
+    isAutocompleteHovered,
+    borderColorHex,
   } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
   return (
     <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200 relative")}>
       <ForbiddenOverlay nodeType={data.type || title} data={data} />
+      {isAutocompleteHovered && (
+        <svg className="traffic-line absolute inset-0 w-full h-full pointer-events-none z-30 overflow-visible">
+          <rect
+            x="0" y="0"
+            width="100%"
+            height="100%"
+            rx="8"
+            fill="none"
+            stroke={borderColorHex}
+            strokeWidth="2.5"
+            strokeDasharray="6 4"
+            className="traffic-line"
+          />
+        </svg>
+      )}
       {replicas > 1 && (
         <div className={cn("absolute -right-1.5 -top-1.5 w-full h-full border-2 rounded-lg -z-10", colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300")} />
       )}
@@ -146,7 +177,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             label={data.label} className="w-full min-w-0 max-w-full"
           />
 
-          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} />
+          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} />
           <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>

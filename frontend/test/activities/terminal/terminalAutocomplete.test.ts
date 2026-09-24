@@ -36,14 +36,19 @@ describe('terminalAutocomplete', () => {
     expect(numSugg.some(s => s.label === '3')).toBe(true);
   });
 
-  it('returns dynamic resource suggestions for deployments and pods', () => {
+  it('returns dynamic resource suggestions for deployments and pods, excluding Deployment labels from pod suggestions', () => {
     const mockNodes: Node[] = [
-      { id: 'pod-101', type: 'Pod', data: { label: 'my-custom-pod' }, position: { x: 0, y: 0 } },
+      { id: 'pod-101', type: 'Pod', data: { label: 'my-custom-pod-x8k2p' }, position: { x: 0, y: 0 } },
       { id: 'dep-202', type: 'Deployment', data: { label: 'my-backend-app' }, position: { x: 0, y: 0 } }
     ];
 
     const logsSugg = getAutocompleteSuggestions('kubectl logs ', mockNodes);
-    expect(logsSugg.some(s => s.label === 'my-custom-pod')).toBe(true);
+    expect(logsSugg.some(s => s.label === 'my-custom-pod-x8k2p')).toBe(true);
+    expect(logsSugg.some(s => s.label === 'my-backend-app')).toBe(false);
+
+    const descSugg = getAutocompleteSuggestions('kubectl describe pod ', mockNodes);
+    expect(descSugg.some(s => s.label === 'my-custom-pod-x8k2p')).toBe(true);
+    expect(descSugg.some(s => s.label === 'my-backend-app')).toBe(false);
   });
 
   it('filters utility commands and handles empty input', () => {
