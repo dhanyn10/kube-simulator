@@ -51,32 +51,32 @@ export const ADMIN_SUGGESTIONS: SuggestionItem[] = createSuggestionMap([
 ]);
 
 export const KUBECTL_TOP_COMMANDS: SuggestionItem[] = createSuggestionMap([
-  ['kubectl get', 'kubectl get', 'Subcommand', 'Display one or many resources'],
-  ['kubectl config', 'kubectl config', 'Subcommand', 'Modify kubeconfig files and user contexts'],
-  ['kubectl logs', 'kubectl logs', 'Subcommand', 'Print the logs for a container in a pod'],
-  ['kubectl describe', 'kubectl describe', 'Subcommand', 'Show details of a specific resource'],
-  ['kubectl scale', 'kubectl scale', 'Subcommand', 'Set a new size for a Deployment'],
-  ['kubectl set image', 'kubectl set image', 'Subcommand', 'Update image of a Deployment'],
-  ['kubectl rollout', 'kubectl rollout', 'Subcommand', 'Manage the rollout of a resource'],
-  ['kubectl delete', 'kubectl delete', 'Subcommand', 'Delete resources by resource and name'],
+  ['kubectl get', 'get', 'Subcommand', 'Display one or many resources'],
+  ['kubectl config', 'config', 'Subcommand', 'Modify kubeconfig files and user contexts'],
+  ['kubectl logs', 'logs', 'Subcommand', 'Print the logs for a container in a pod'],
+  ['kubectl describe', 'describe', 'Subcommand', 'Show details of a specific resource'],
+  ['kubectl scale', 'scale', 'Subcommand', 'Set a new size for a Deployment'],
+  ['kubectl set image', 'set image', 'Subcommand', 'Update image of a Deployment'],
+  ['kubectl rollout', 'rollout', 'Subcommand', 'Manage the rollout of a resource'],
+  ['kubectl delete', 'delete', 'Subcommand', 'Delete resources by resource and name'],
 ]);
 
 export const CONFIG_SUBCOMMANDS: SuggestionItem[] = createSuggestionMap([
-  ['kubectl config get-contexts', 'kubectl config get-contexts', 'Command', 'List all available user contexts'],
-  ['kubectl config current-context', 'kubectl config current-context', 'Command', 'Display the current user context'],
-  ['kubectl config view', 'kubectl config view', 'Command', 'Display merged kubeconfig settings'],
-  ['kubectl config use-context ', 'kubectl config use-context <user>', 'Command', 'Set the current-context in kubeconfig'],
+  ['kubectl config get-contexts', 'get-contexts', 'Command', 'List all available user contexts'],
+  ['kubectl config current-context', 'current-context', 'Command', 'Display the current user context'],
+  ['kubectl config view', 'view', 'Command', 'Display merged kubeconfig settings'],
+  ['kubectl config use-context ', 'use-context <user>', 'Command', 'Set the current-context in kubeconfig'],
 ]);
 
 export const GET_SUBCOMMANDS: SuggestionItem[] = createSuggestionMap([
-  ['kubectl get pods', 'get pods', 'Command', 'List all pods on canvas'],
-  ['kubectl get deployments', 'get deployments', 'Command', 'List deployments on canvas'],
-  ['kubectl get services', 'get services', 'Command', 'List services on canvas'],
-  ['kubectl get roles', 'get roles', 'Command', 'List roles on canvas'],
-  ['kubectl get rolebindings', 'get rolebindings', 'Command', 'List rolebindings on canvas'],
-  ['kubectl get configmaps', 'get configmaps', 'Command', 'List configmaps on canvas'],
-  ['kubectl get secrets', 'get secrets', 'Command', 'List secrets on canvas'],
-  ['kubectl get all', 'get all', 'Command', 'List all resources on canvas'],
+  ['kubectl get pods', 'pods', 'Command', 'List all pods on canvas'],
+  ['kubectl get deployments', 'deployments', 'Command', 'List deployments on canvas'],
+  ['kubectl get services', 'services', 'Command', 'List services on canvas'],
+  ['kubectl get roles', 'roles', 'Command', 'List roles on canvas'],
+  ['kubectl get rolebindings', 'rolebindings', 'Command', 'List rolebindings on canvas'],
+  ['kubectl get configmaps', 'configmaps', 'Command', 'List configmaps on canvas'],
+  ['kubectl get secrets', 'secrets', 'Command', 'List secrets on canvas'],
+  ['kubectl get all', 'all', 'Command', 'List all resources on canvas'],
 ]);
 
 export const UTILITY_COMMANDS: SuggestionItem[] = createSuggestionMap([
@@ -124,14 +124,14 @@ const mapResourceItems = (
 const getRolloutCandidates = (sub: string, deployNames: string[]): SuggestionItem[] => {
   if (!('rollout'.startsWith(sub))) return [];
   if (deployNames.length === 0) {
-    return [createItem('kubectl rollout status deploy/', 'rollout status deploy/', 'Command', 'Check rolling update progress', true, NO_DEPLOYMENT_REASON)];
+    return [createItem('kubectl rollout status deploy/', 'status deploy/', 'Command', 'Check rolling update progress', true, NO_DEPLOYMENT_REASON)];
   }
   const items: SuggestionItem[] = [];
   deployNames.forEach(n => {
     items.push(
-      createItem(`kubectl rollout status deploy/${n}`, `rollout status deploy/${n}`, 'Command', 'Check rolling update progress'),
-      createItem(`kubectl rollout history deploy/${n}`, `rollout history deploy/${n}`, 'Command', 'View revision history'),
-      createItem(`kubectl rollout undo deploy/${n}`, `rollout undo deploy/${n}`, 'Command', 'Rollback to previous revision')
+      createItem(`kubectl rollout status deploy/${n}`, `status deploy/${n}`, 'Command', 'Check rolling update progress'),
+      createItem(`kubectl rollout history deploy/${n}`, `history deploy/${n}`, 'Command', 'View revision history'),
+      createItem(`kubectl rollout undo deploy/${n}`, `undo deploy/${n}`, 'Command', 'Rollback to previous revision')
     );
   });
   return items;
@@ -155,24 +155,24 @@ const getDescribeCandidates = (sub: string, deployNames: string[], podNames: str
   const hasSecrets = getSecretNames(nodes).length > 0;
 
   return [
-    createItem('kubectl describe deploy ', 'describe deploy', 'Subcommand', 'Describe deployment specs', !hasDeploys, !hasDeploys ? NO_DEPLOYMENT_REASON : undefined),
-    createItem('kubectl describe pod ', 'describe pod', 'Subcommand', 'Describe pod specs & events', !hasPods, !hasPods ? NO_POD_REASON : undefined),
-    createItem('kubectl describe role ', 'describe role', 'Subcommand', 'Describe role specs & rules', !hasRoles, !hasRoles ? NO_ROLE_REASON : undefined),
-    createItem('kubectl describe rolebinding ', 'describe rolebinding', 'Subcommand', 'Describe rolebinding specs & subjects', !hasRbs, !hasRbs ? NO_ROLEBINDING_REASON : undefined),
-    createItem('kubectl describe cm ', 'describe cm', 'Subcommand', 'Describe configmap data', !hasCms, !hasCms ? NO_CONFIGMAP_REASON : undefined),
-    createItem('kubectl describe secret ', 'describe secret', 'Subcommand', 'Describe secret data', !hasSecrets, !hasSecrets ? NO_SECRET_REASON : undefined)
+    createItem('kubectl describe deploy ', 'deploy', 'Subcommand', 'Describe deployment specs', !hasDeploys, !hasDeploys ? NO_DEPLOYMENT_REASON : undefined),
+    createItem('kubectl describe pod ', 'pod', 'Subcommand', 'Describe pod specs & events', !hasPods, !hasPods ? NO_POD_REASON : undefined),
+    createItem('kubectl describe role ', 'role', 'Subcommand', 'Describe role specs & rules', !hasRoles, !hasRoles ? NO_ROLE_REASON : undefined),
+    createItem('kubectl describe rolebinding ', 'rolebinding', 'Subcommand', 'Describe rolebinding specs & subjects', !hasRbs, !hasRbs ? NO_ROLEBINDING_REASON : undefined),
+    createItem('kubectl describe cm ', 'cm', 'Subcommand', 'Describe configmap data', !hasCms, !hasCms ? NO_CONFIGMAP_REASON : undefined),
+    createItem('kubectl describe secret ', 'secret', 'Subcommand', 'Describe secret data', !hasSecrets, !hasSecrets ? NO_SECRET_REASON : undefined)
   ];
 };
 
 const getScaleCandidates = (sub: string, deployNames: string[]): SuggestionItem[] => {
   if (!('scale'.startsWith(sub))) return [];
   if (deployNames.length === 0) {
-    return [createItem('kubectl scale deployment/', 'scale deployment/', 'Subcommand', 'Scale deployment replicas', true, NO_DEPLOYMENT_REASON)];
+    return [createItem('kubectl scale deployment/', 'deployment/', 'Subcommand', 'Scale deployment replicas', true, NO_DEPLOYMENT_REASON)];
   }
   return mapResourceItems(
     deployNames,
     n => `kubectl scale deployment/${n} --replicas=3`,
-    n => `scale deployment/${n} --replicas=3`,
+    n => `deployment/${n} --replicas=3`,
     'Subcommand',
     n => `Scale deployment ${n}`
   );
@@ -181,12 +181,12 @@ const getScaleCandidates = (sub: string, deployNames: string[]): SuggestionItem[
 const getSetCandidates = (sub: string, deployNames: string[]): SuggestionItem[] => {
   if (!('set'.startsWith(sub))) return [];
   if (deployNames.length === 0) {
-    return [createItem('kubectl set image deployment/', 'set image deployment/', 'Subcommand', 'Set container image', true, NO_DEPLOYMENT_REASON)];
+    return [createItem('kubectl set image deployment/', 'image deployment/', 'Subcommand', 'Set container image', true, NO_DEPLOYMENT_REASON)];
   }
   return mapResourceItems(
     deployNames,
     n => `kubectl set image deployment/${n} app-container=nginx:1.25`,
-    n => `set image deployment/${n} app-container=nginx:1.25`,
+    n => `image deployment/${n} app-container=nginx:1.25`,
     'Subcommand',
     n => `Set image for ${n}`
   );
@@ -194,7 +194,7 @@ const getSetCandidates = (sub: string, deployNames: string[]): SuggestionItem[] 
 
 const getDeleteCandidates = (sub: string, hasPods: boolean): SuggestionItem[] => {
   if (!('delete'.startsWith(sub))) return [];
-  return [createItem('kubectl delete pod ', 'delete pod', 'Subcommand', 'Delete pod', !hasPods, !hasPods ? NO_POD_REASON : undefined)];
+  return [createItem('kubectl delete pod ', 'pod', 'Subcommand', 'Delete pod', !hasPods, !hasPods ? NO_POD_REASON : undefined)];
 };
 
 export const getKubectlSubcommandCandidates = (sub: string, nodes: Node[] = []): SuggestionItem[] => {
@@ -249,7 +249,7 @@ const parseScaleWithDeployment = (restTrim: string, rest: string, deployNames: s
 
 const handleScaleSequence = (input: string, deployNames: string[]): SuggestionItem[] => {
   if (deployNames.length === 0) {
-    return [createItem('kubectl scale deployment/', 'scale deployment/', 'Subcommand', 'Scale a deployment resource', true, NO_DEPLOYMENT_REASON)];
+    return [createItem('kubectl scale deployment/', 'deployment/', 'Subcommand', 'Scale a deployment resource', true, NO_DEPLOYMENT_REASON)];
   }
 
   const rest = input.startsWith('kubectl scale') ? input.slice('kubectl scale'.length) : '';
@@ -264,7 +264,7 @@ const handleScaleSequence = (input: string, deployNames: string[]): SuggestionIt
 
 const handleSetImageSequence = (input: string, deployNames: string[]): SuggestionItem[] => {
   if (deployNames.length === 0) {
-    return [createItem('kubectl set image deployment/', 'set image deployment/', 'Subcommand', 'Update deployment container image', true, NO_DEPLOYMENT_REASON)];
+    return [createItem('kubectl set image deployment/', 'image deployment/', 'Subcommand', 'Update deployment container image', true, NO_DEPLOYMENT_REASON)];
   }
   if (input === 'kubectl set' || input.startsWith('kubectl set ')) {
     let rest = input.slice('kubectl set'.length).trimStart();
@@ -287,15 +287,15 @@ const handleSetImageSequence = (input: string, deployNames: string[]): Suggestio
 
 const handleRolloutSequence = (input: string, deployNames: string[]): SuggestionItem[] => {
   if (deployNames.length === 0) {
-    return [createItem('kubectl rollout status deploy/', 'rollout status deploy/', 'Subcommand', 'Show rollout status', true, NO_DEPLOYMENT_REASON)];
+    return [createItem('kubectl rollout status deploy/', 'status deploy/', 'Subcommand', 'Show rollout status', true, NO_DEPLOYMENT_REASON)];
   }
   if (input === 'kubectl rollout' || input === 'kubectl rollout ') {
     const items: SuggestionItem[] = [];
     deployNames.forEach(n => {
       items.push(
-        createItem(`kubectl rollout status deploy/${n}`, `rollout status deploy/${n}`, 'Subcommand', 'Show rollout status'),
-        createItem(`kubectl rollout history deploy/${n}`, `rollout history deploy/${n}`, 'Subcommand', 'Show rollout history'),
-        createItem(`kubectl rollout undo deploy/${n}`, `rollout undo deploy/${n}`, 'Subcommand', 'Undo previous rollout')
+        createItem(`kubectl rollout status deploy/${n}`, `status deploy/${n}`, 'Subcommand', 'Show rollout status'),
+        createItem(`kubectl rollout history deploy/${n}`, `history deploy/${n}`, 'Subcommand', 'Show rollout history'),
+        createItem(`kubectl rollout undo deploy/${n}`, `undo deploy/${n}`, 'Subcommand', 'Undo previous rollout')
       );
     });
     return items;
@@ -357,12 +357,12 @@ const handleDescribeSequence = (
 
   if (input === 'kubectl describe' || input === 'kubectl describe ') {
     return [
-      createItem('kubectl describe deploy ', 'describe deploy', 'Subcommand', 'Describe deployment specs', deployNames.length === 0, deployNames.length === 0 ? NO_DEPLOYMENT_REASON : undefined),
-      createItem('kubectl describe pod ', 'describe pod', 'Subcommand', 'Describe pod specs & events', podNames.length === 0, podNames.length === 0 ? NO_POD_REASON : undefined),
-      createItem('kubectl describe role ', 'describe role', 'Subcommand', 'Describe role specs & rules', rNames.length === 0, rNames.length === 0 ? NO_ROLE_REASON : undefined),
-      createItem('kubectl describe rolebinding ', 'describe rolebinding', 'Subcommand', 'Describe rolebinding specs & subjects', rbNames.length === 0, rbNames.length === 0 ? NO_ROLEBINDING_REASON : undefined),
-      createItem('kubectl describe cm ', 'describe cm', 'Subcommand', 'Describe configmap data', cmNames.length === 0, cmNames.length === 0 ? NO_CONFIGMAP_REASON : undefined),
-      createItem('kubectl describe secret ', 'describe secret', 'Subcommand', 'Describe secret data', secNames.length === 0, secNames.length === 0 ? NO_SECRET_REASON : undefined)
+      createItem('kubectl describe deploy ', 'deploy', 'Subcommand', 'Describe deployment specs', deployNames.length === 0, deployNames.length === 0 ? NO_DEPLOYMENT_REASON : undefined),
+      createItem('kubectl describe pod ', 'pod', 'Subcommand', 'Describe pod specs & events', podNames.length === 0, podNames.length === 0 ? NO_POD_REASON : undefined),
+      createItem('kubectl describe role ', 'role', 'Subcommand', 'Describe role specs & rules', rNames.length === 0, rNames.length === 0 ? NO_ROLE_REASON : undefined),
+      createItem('kubectl describe rolebinding ', 'rolebinding', 'Subcommand', 'Describe rolebinding specs & subjects', rbNames.length === 0, rbNames.length === 0 ? NO_ROLEBINDING_REASON : undefined),
+      createItem('kubectl describe cm ', 'cm', 'Subcommand', 'Describe configmap data', cmNames.length === 0, cmNames.length === 0 ? NO_CONFIGMAP_REASON : undefined),
+      createItem('kubectl describe secret ', 'secret', 'Subcommand', 'Describe secret data', secNames.length === 0, secNames.length === 0 ? NO_SECRET_REASON : undefined)
     ];
   }
 
@@ -381,9 +381,9 @@ const handleDeleteSequence = (input: string, deployNames: string[], podNames: st
 
   if (input === 'kubectl delete' || input === 'kubectl delete ') {
     return [
-      createItem('kubectl delete pod ', 'delete pod', 'Subcommand', 'Delete pod', !hasPods, !hasPods ? NO_POD_REASON : undefined),
-      createItem('kubectl delete deployment ', 'delete deployment', 'Subcommand', 'Delete deployment', !hasDeploys, !hasDeploys ? NO_DEPLOYMENT_REASON : undefined),
-      createItem('kubectl delete service ', 'delete service', 'Subcommand', 'Delete service'),
+      createItem('kubectl delete pod ', 'pod', 'Subcommand', 'Delete pod', !hasPods, !hasPods ? NO_POD_REASON : undefined),
+      createItem('kubectl delete deployment ', 'deployment', 'Subcommand', 'Delete deployment', !hasDeploys, !hasDeploys ? NO_DEPLOYMENT_REASON : undefined),
+      createItem('kubectl delete service ', 'service', 'Subcommand', 'Delete service'),
     ];
   }
 
@@ -433,6 +433,65 @@ const getTopLevelKubectlCommands = (deployNames: string[], podNames: string[]): 
   });
 };
 
+export const trimSuggestionLabel = (item: SuggestionItem, input: string): SuggestionItem => {
+  if (!input || !input.trim()) return item;
+
+  const trimmedInput = input.trim().toLowerCase();
+  const trimmedWords = trimmedInput.split(/\s+/);
+
+  let newLabel = item.label;
+
+  if (newLabel.toLowerCase().startsWith(trimmedInput + ' ')) {
+    const rest = newLabel.slice(trimmedInput.length + 1).trim();
+    if (rest) return { ...item, label: rest };
+  } else if (newLabel.toLowerCase() === trimmedInput) {
+    return item;
+  }
+
+  if (item.value.toLowerCase().startsWith(trimmedInput + ' ')) {
+    const valRest = item.value.slice(trimmedInput.length + 1).trim();
+    if (valRest) {
+      let labelWords = newLabel.split(/\s+/);
+      let matchCount = 0;
+      while (matchCount < labelWords.length && matchCount < trimmedWords.length) {
+        const wordInTrimmed = trimmedWords[trimmedWords.length - labelWords.length + matchCount] || trimmedWords[matchCount];
+        if (labelWords[matchCount].toLowerCase() === wordInTrimmed) {
+          matchCount++;
+        } else {
+          break;
+        }
+      }
+      if (matchCount > 0) {
+        const labelRest = labelWords.slice(matchCount).join(' ').trim();
+        if (labelRest) {
+          return { ...item, label: labelRest };
+        }
+      }
+      return { ...item, label: valRest };
+    }
+  }
+
+  let labelWords = newLabel.split(/\s+/);
+  let matchedCount = 0;
+  for (let i = 0; i < labelWords.length; i++) {
+    const labelWordLower = labelWords[i].toLowerCase();
+    if (trimmedWords.includes(labelWordLower)) {
+      matchedCount = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  if (matchedCount > 0 && matchedCount < labelWords.length) {
+    const rest = labelWords.slice(matchedCount).join(' ').trim();
+    if (rest) {
+      return { ...item, label: rest };
+    }
+  }
+
+  return { ...item, label: newLabel };
+};
+
 export const getAutocompleteSuggestions = (
   input: string,
   nodes: Node[],
@@ -446,7 +505,7 @@ export const getAutocompleteSuggestions = (
     return ADMIN_SUGGESTIONS.filter(item =>
       item.value.toLowerCase().includes(inputLower) ||
       item.label.toLowerCase().includes(inputLower)
-    );
+    ).map(item => trimSuggestionLabel(item, input));
   }
 
   const norm = input.toLowerCase();
@@ -454,7 +513,9 @@ export const getAutocompleteSuggestions = (
   const podNames = getPodNames(nodes);
 
   const seqResult = matchSequenceCandidates(norm, deployNames, podNames, nodes);
-  if (seqResult) return seqResult;
+  if (seqResult) {
+    return seqResult.map(item => trimSuggestionLabel(item, input));
+  }
 
   const trimmedLower = input.trim().toLowerCase();
   const tokens = trimmedLower.split(/\s+/);
@@ -479,7 +540,7 @@ export const getAutocompleteSuggestions = (
   matched.forEach(item => {
     if (!seen.has(item.value)) {
       seen.add(item.value);
-      uniqueSuggestions.push(item);
+      uniqueSuggestions.push(trimSuggestionLabel(item, input));
     }
   });
 
