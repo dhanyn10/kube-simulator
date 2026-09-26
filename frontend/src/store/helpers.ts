@@ -84,7 +84,9 @@ const updatePodNode = (
   totalReplicas: number,
   deploymentId: string,
   podName: string,
-  podHash: string
+  baseName: string,
+  podHash: string,
+  replicaSuffix: string
 ): Node => {
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
   const width = existingPod.data?.isManuallyResized
@@ -105,8 +107,10 @@ const updatePodNode = (
     data: { 
       ...existingPod.data, 
       ...commonData, 
-      label: podName,
+      baseName,
       podHash,
+      replicaSuffix,
+      label: podName,
       replicas, 
       parentReplicas: totalReplicas 
     }
@@ -120,7 +124,9 @@ const createPodNode = (
   totalReplicas: number,
   deploymentId: string,
   podName: string,
-  podHash: string
+  baseName: string,
+  podHash: string,
+  replicaSuffix: string
 ): Node => {
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
   const minSize = getPodMinimumSize({ ...commonData, replicas });
@@ -139,32 +145,50 @@ const createPodNode = (
       replicas,
       parentReplicas: totalReplicas,
       ...commonData,
-      label: podName,
+      baseName,
       podHash,
+      replicaSuffix,
+      label: podName,
       onDelete: () => {},
       onRename: () => {},
     }
   };
 };
 
-// Helper function to sync pods within a deployment based on replica count
-export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], dataTemplate?: Node): Node[] => {
+// Helper function to sync pods within a deployment based on replica count and Agile Randomization
+export const syncPodsInDeployment = (
+  deployment: Node,
+  currentPods: Node[],
+  dataTemplate?: Node,
+  forceRandomize = false
+): Node[] => {
   const data = deployment.data as unknown as K8sNodeData;
   const totalReplicas = data.replicas || 0;
   const targetPodReplicas = getReplicaThresholds(totalReplicas);
   const commonData = getCommonPodData(deployment, currentPods, dataTemplate);
 
-  const baseLabel = (data.label as string) || commonData.label || 'pod';
-  const deployHash = (data.deployHash as string) || generateRandomHash(8);
+  const baseName = (data.label as string) || commonData.label || 'pod';
 
+  // Langkah 1: Buat 1 nilai podHash baru untuk seluruh kelompok (misal: "cxxx" -> "k98z")
+  const groupPodHash = forceRandomize
+    ? generateRandomHash(5)
+    : ((data.podHash as string) || (currentPods[0]?.data?.podHash as string) || generateRandomHash(5));
+
+  data.podHash = groupPodHash;
+
+  // Langkah 2: Lakukan looping (iterasi) ke SEMUA REPLIKA POD yang ada dalam array/list
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
-    const podHash = existingPod?.data?.podHash || generateRandomHash(5);
-    const podName = formatPodName(baseLabel, deployHash.substring(0, 5), podHash);
+    const replicaSuffix = (forceRandomize || !existingPod?.data?.replicaSuffix)
+      ? generateRandomHash(5)
+      : (existingPod.data.replicaSuffix as string);
+
+    // Set nama Pod menjadi baseName-podHash-replicaSuffix
+    const podName = formatPodName(baseName, groupPodHash, replicaSuffix);
 
     return existingPod 
-      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, podHash)
-      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, podHash);
+      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, baseName, groupPodHash, replicaSuffix)
+      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, baseName, groupPodHash, replicaSuffix);
   });
 };
 

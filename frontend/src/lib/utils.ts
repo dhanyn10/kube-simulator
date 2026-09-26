@@ -141,18 +141,18 @@ export const generateRandomHash = (length = 5): string => {
 };
 
 /**
- * Generates a standard Kubernetes pod name formatted with base prefix, optional deployment/replicaset hash, and random pod suffix.
+ * Generates a standard Kubernetes pod name formatted strictly as `baseName-podHash-replicaSuffix`.
  *
- * @param baseName - Base resource name (e.g. `'nginx'`).
- * @param rsHash - Optional ReplicaSet hash (e.g. `'68b6d779c5'`).
- * @param suffix - Optional Pod random suffix (e.g. `'x8k2p'`).
- * @returns Formatted pod name (e.g. `'nginx-68b6d779c5-x8k2p'`).
+ * @param baseName - Static base application/deployment name (e.g. `'myapp'`).
+ * @param podHash - Deployment group hash (e.g. `'k98z'`).
+ * @param replicaSuffix - Unique per-pod replica suffix (e.g. `'m1aa'`).
+ * @returns Formatted full pod name (e.g. `'myapp-k98z-m1aa'`).
  */
-export const formatPodName = (baseName: string, rsHash?: string, suffix?: string): string => {
+export const formatPodName = (baseName: string, podHash?: string, replicaSuffix?: string): string => {
   const cleanBase = sanitizeSlug(baseName || 'pod');
   const parts = [cleanBase];
-  if (rsHash) parts.push(rsHash);
-  if (suffix) parts.push(suffix);
+  if (podHash) parts.push(podHash);
+  if (replicaSuffix) parts.push(replicaSuffix);
   return parts.join('-');
 };
 

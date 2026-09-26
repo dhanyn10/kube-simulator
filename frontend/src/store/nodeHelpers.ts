@@ -89,7 +89,8 @@ export const syncDeployment = (
   currentNodes: Node[], 
   replicasChange: number, 
   get: () => FlowState,
-  podToInclude?: Node
+  podToInclude?: Node,
+  forceRandomize = false
 ) => {
   const data = getNodeData(deployment);
   const updatedDeployment = {
@@ -102,7 +103,7 @@ export const syncDeployment = (
       pods = [podToInclude, ...pods.filter(p => p.id !== podToInclude.id)];
   }
 
-  const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
+  const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0], forceRandomize);
 
   if (syncedPods.length > 0) {
     const podTemplate = syncedPods[0].data as any;

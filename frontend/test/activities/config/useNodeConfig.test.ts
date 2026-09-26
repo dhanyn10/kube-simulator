@@ -321,5 +321,75 @@ describe('useNodeConfig', () => {
         port: 8080,
       });
     });
+
+    it('randomizePodHash re-randomizes deployment group pods via setNodes', () => {
+      const mockSetNodes = vi.fn();
+      const parentDeployment = {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { label: 'myapp', replicas: 2 },
+      };
+      const pod1 = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { baseName: 'myapp', podHash: 'old01', replicaSuffix: 'suf01', label: 'myapp-old01-suf01' },
+      };
+      const pod2 = {
+        id: 'p2',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { baseName: 'myapp', podHash: 'old01', replicaSuffix: 'suf02', label: 'myapp-old01-suf02' },
+      };
+
+      useFlowStore.setState({
+        nodes: [parentDeployment, pod1, pod2] as any,
+        setNodes: mockSetNodes,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(pod1));
+      act(() => {
+        result.current.randomizePodHash();
+      });
+
+      expect(mockSetNodes).toHaveBeenCalled();
+      const updatedNodes = mockSetNodes.mock.calls[0][0];
+      const updatedPod1 = updatedNodes.find((n: any) => n.id === 'p1');
+      const updatedPod2 = updatedNodes.find((n: any) => n.id === 'p2');
+
+      expect(updatedPod1.data.podHash).not.toBe('old01');
+      expect(updatedPod1.data.podHash).toBe(updatedPod2.data.podHash);
+      expect(updatedPod1.data.replicaSuffix).not.toBe('suf01');
+      expect(updatedPod2.data.replicaSuffix).not.toBe('suf02');
+      expect(updatedPod1.data.label).toBe(`myapp-${updatedPod1.data.podHash}-${updatedPod1.data.replicaSuffix}`);
+      expect(updatedPod2.data.label).toBe(`myapp-${updatedPod2.data.podHash}-${updatedPod2.data.replicaSuffix}`);
+    });
+
+    it('updatePodBaseName updates deployment label when pod has parent deployment', () => {
+      const parentDeployment = {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: { label: 'myapp', replicas: 1 },
+      };
+      const pod1 = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { baseName: 'myapp', podHash: 'old01', replicaSuffix: 'suf01', label: 'myapp-old01-suf01' },
+      };
+
+      useFlowStore.setState({
+        nodes: [parentDeployment, pod1] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(pod1));
+      act(() => {
+        result.current.updatePodBaseName('newapp');
+      });
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', { label: 'newapp' });
+    });
   });
 });
