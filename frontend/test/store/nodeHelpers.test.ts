@@ -47,6 +47,34 @@ describe('nodeHelpers', () => {
       handlers.onRename('New Name');
       expect(updateNodeDataSpy).toHaveBeenCalledWith('node-1', { label: 'new-name' });
     });
+
+    it('updates pod baseName and parent deployment when onRename is called on a pod inside deployment', () => {
+      const parentDeployment = { id: 'd1', type: 'Deployment', data: { label: 'olddep', replicas: 1 } };
+      const pod = { id: 'p1', type: 'Pod', parentId: 'd1', data: { baseName: 'olddep', podHash: 'abc12', replicaSuffix: 'xyz34', label: 'olddep-abc12-xyz34' } };
+
+      useFlowStore.setState({ nodes: [parentDeployment as any, pod as any] });
+      const updateNodeDataSpy = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+
+      const handlers = attachHandlers('p1', () => useFlowStore.getState());
+      handlers.onRename('newapp');
+
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('d1', { label: 'newapp' });
+    });
+
+    it('updates standalone pod baseName and label formatted as baseName-podHash-replicaSuffix', () => {
+      const standalonePod = { id: 'p2', type: 'Pod', data: { baseName: 'mybase', podHash: 'a1b2c', replicaSuffix: 'x1y2z', label: 'mybase-a1b2c-x1y2z' } };
+
+      useFlowStore.setState({ nodes: [standalonePod as any] });
+      const updateNodeDataSpy = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+
+      const handlers = attachHandlers('p2', () => useFlowStore.getState());
+      handlers.onRename('renamedbase');
+
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('p2', {
+        baseName: 'renamedbase',
+        label: 'renamedbase-a1b2c-x1y2z',
+      });
+    });
   });
 
   describe('hydrateNodes', () => {

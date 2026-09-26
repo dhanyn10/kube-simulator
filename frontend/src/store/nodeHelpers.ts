@@ -17,8 +17,27 @@ export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
     if (nodeToDelete) get().deleteNodes([nodeToDelete]);
   },
   onRename: (newName: string) => {
-    const cleanName = sanitizeSlug(newName);
-    get().updateNodeData(nodeId, { label: cleanName });
+    const cleanBase = sanitizeSlug(newName) || 'pod';
+    const node = get().nodes.find((n: Node) => n.id === nodeId);
+    if (node && node.type === 'Pod') {
+      const podHash = node.data?.podHash;
+      const replicaSuffix = node.data?.replicaSuffix;
+      const currentParent = node.parentId ? get().nodes.find(n => n.id === node.parentId) : null;
+
+      if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'ReplicaSet')) {
+        get().updateNodeData(currentParent.id, { label: cleanBase });
+      } else {
+        const hashPart = podHash ? `-${podHash}` : '';
+        const suffixPart = replicaSuffix ? `-${replicaSuffix}` : '';
+        const newLabel = `${cleanBase}${hashPart}${suffixPart}`;
+        get().updateNodeData(nodeId, {
+          baseName: cleanBase,
+          label: newLabel,
+        });
+      }
+    } else {
+      get().updateNodeData(nodeId, { label: cleanBase });
+    }
   },
 });
 

@@ -32,8 +32,21 @@ export const useBaseNodeHandler = ({
   );
 
   const { transitionClasses } = useNodeStyles(id);
+
+  const podHash = data.podHash;
+  let podBaseName = data.baseName || data.label || 'pod';
+  if (data.type === 'Pod') {
+    if (data.baseName) {
+      podBaseName = data.baseName;
+    } else if (podHash && podBaseName.endsWith(`-${podHash}`)) {
+      podBaseName = podBaseName.slice(0, -(podHash.length + 1));
+    } else if (data.label?.includes('-')) {
+      podBaseName = data.label.split('-')[0];
+    }
+  }
+
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(data.label, data.onRename);
+    useNodeRename(podBaseName, data.onRename);
 
   const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA';
   const currentNode = nodes.find((n) => n.id === id);
