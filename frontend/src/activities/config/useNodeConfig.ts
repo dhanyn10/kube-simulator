@@ -54,55 +54,42 @@ export const syncParentPodUpdates = (selectedNode: any, updates: any) => {
   }
 };
 
-export const parsePodLabelAndHash = (label: string, storedPodHash?: string) => {
-  const fullLabel = label || 'pod';
+export const parsePodLabelAndHash = (selectedNode: any) => {
+  const data = selectedNode?.data || {};
+  const fullLabel = data.label || 'pod';
+  const storedPodHash = data.podHash;
 
-  if (storedPodHash && storedPodHash.includes('-') && fullLabel.endsWith(`-${storedPodHash}`)) {
-    const podBaseName = fullLabel.slice(0, -(storedPodHash.length + 1)) || 'pod';
-    return { podBaseName, podHash: storedPodHash };
-  }
-
-  if (storedPodHash && !storedPodHash.includes('-') && fullLabel.endsWith(`-${storedPodHash}`)) {
-    const remaining = fullLabel.slice(0, -(storedPodHash.length + 1));
-    const parts = remaining.split('-');
-    if (parts.length > 1) {
-      const candidateHashPrefix = parts[parts.length - 1];
-      if (
-        candidateHashPrefix.length >= 4 &&
-        candidateHashPrefix.length <= 10 &&
-        /^[a-z0-9]+$/i.test(candidateHashPrefix)
-      ) {
-        const podHash = `${candidateHashPrefix}-${storedPodHash}`;
-        const podBaseName = parts.slice(0, -1).join('-') || 'pod';
-        return { podBaseName, podHash };
-      }
-    }
-    const podBaseName = remaining || 'pod';
-    return { podBaseName, podHash: storedPodHash };
-  }
-
-  const parts = fullLabel.split('-');
-  if (parts.length >= 3) {
-    const last1 = parts[parts.length - 1];
-    const last2 = parts[parts.length - 2];
-    if (
-      last1.length >= 4 &&
-      last1.length <= 10 &&
-      last2.length >= 4 &&
-      last2.length <= 10 &&
-      /^[a-z0-9]+$/i.test(last1) &&
-      /^[a-z0-9]+$/i.test(last2)
-    ) {
-      const podHash = `${last2}-${last1}`;
-      const podBaseName = parts.slice(0, -2).join('-') || 'pod';
+  if (selectedNode?.parentId) {
+    const state = useFlowStore.getState();
+    const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+    if (parent?.data?.label && fullLabel.startsWith(`${parent.data.label}-`)) {
+      const podBaseName = parent.data.label;
+      const podHash = fullLabel.slice(podBaseName.length + 1) || storedPodHash || generateRandomHash(5);
       return { podBaseName, podHash };
     }
   }
 
-  if (parts.length >= 2) {
-    const podHash = parts[parts.length - 1];
-    const podBaseName = parts.slice(0, -1).join('-') || 'pod';
-    return { podBaseName, podHash };
+  const parts = fullLabel.split('-');
+  if (parts.length > 1) {
+    const hashSegments: string[] = [];
+    while (parts.length > 1) {
+      const last = parts[parts.length - 1];
+      if (last.length >= 4 && last.length <= 10 && /^[a-z0-9]+$/i.test(last)) {
+        hashSegments.unshift(parts.pop()!);
+      } else {
+        break;
+      }
+    }
+    if (hashSegments.length > 0) {
+      const podHash = hashSegments.join('-');
+      const podBaseName = parts.join('-') || 'pod';
+      return { podBaseName, podHash };
+    }
+  }
+
+  if (storedPodHash && fullLabel.endsWith(`-${storedPodHash}`)) {
+    const podBaseName = fullLabel.slice(0, -(storedPodHash.length + 1)) || 'pod';
+    return { podBaseName, podHash: storedPodHash };
   }
 
   const podHash = storedPodHash || generateRandomHash(5);
@@ -143,7 +130,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     syncParentPodUpdates(selectedNode, updates);
   };
 
-  const { podBaseName, podHash } = parsePodLabelAndHash(data.label, data.podHash);
+  const { podBaseName, podHash } = parsePodLabelAndHash(selectedNode);
 
   const updatePodBaseName = (newBase: string) => {
     const cleanBase = sanitizeSlug(newBase);
@@ -155,18 +142,15 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   };
 
   const randomizePodHash = () => {
-    let newHash = generateRandomHash(5);
-    if (podHash.includes('-')) {
-      const parts = podHash.split('-');
-      parts[parts.length - 1] = newHash;
-      newHash = parts.join('-');
-    }
+    const currentHash = podHash || generateRandomHash(5);
+    const newHashSegments = currentHash.split('-').map(() => generateRandomHash(5));
+    const newPodHash = newHashSegments.join('-');
 
     const cleanBase = sanitizeSlug(podBaseName) || 'pod';
-    const newLabel = `${cleanBase}-${newHash}`;
+    const newLabel = `${cleanBase}-${newPodHash}`;
     updateNodeData(selectedNode.id, {
       label: newLabel,
-      podHash: newHash,
+      podHash: newPodHash,
     });
   };
 

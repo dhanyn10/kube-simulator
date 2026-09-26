@@ -20,24 +20,32 @@ describe('useNodeConfig', () => {
   });
 
   describe('parsePodLabelAndHash', () => {
-    it('correctly parses multi-hyphen pod names like myapp-wow-cxxx-dxxx', () => {
-      const res1 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx');
-      expect(res1.podBaseName).toBe('myapp-wow');
-      expect(res1.podHash).toBe('cxxx-dxxx');
+    it('correctly parses pod label using parent deployment name as base', () => {
+      const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'postgres-db' } };
+      const podNode = {
+        id: 'pod-1',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podHash: 'kn10z' },
+      };
 
-      const res2 = parsePodLabelAndHash('postgres-db-4xdo9-gy37g', 'gy37g');
-      expect(res2.podBaseName).toBe('postgres-db');
-      expect(res2.podHash).toBe('4xdo9-gy37g');
+      useFlowStore.setState({ nodes: [parentNode, podNode] as any });
+
+      const res = parsePodLabelAndHash(podNode);
+      expect(res.podBaseName).toBe('postgres-db');
+      expect(res.podHash).toBe('4xdo9-gy37g-kn10z');
     });
 
-    it('correctly parses pod label when storedPodHash matches multi-part or single part suffix', () => {
-      const res1 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx', 'cxxx-dxxx');
-      expect(res1.podBaseName).toBe('myapp-wow');
-      expect(res1.podHash).toBe('cxxx-dxxx');
+    it('correctly parses multi-segment suffix for standalone pod without parent deployment', () => {
+      const podNode = {
+        id: 'pod-1',
+        type: 'Pod',
+        data: { label: 'myapp-wow-cxxx-dxxx' },
+      };
 
-      const res2 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx', 'dxxx');
-      expect(res2.podBaseName).toBe('myapp-wow');
-      expect(res2.podHash).toBe('cxxx-dxxx');
+      const res = parsePodLabelAndHash(podNode);
+      expect(res.podBaseName).toBe('myapp-wow');
+      expect(res.podHash).toBe('cxxx-dxxx');
     });
   });
 
@@ -203,30 +211,32 @@ describe('useNodeConfig', () => {
   });
 
   describe('useNodeConfigHandler', () => {
-    it('handles randomizePodHash correctly for pod node with multi-part hash', () => {
+    it('randomizes all suffix segments when randomizePodHash is invoked on multi-part hash pod', () => {
+      const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'postgres-db' } };
       const podNode = {
         id: 'pod-1',
         type: 'Pod',
-        data: { label: 'postgres-db-4xdo9-gy37g', podHash: 'gy37g' },
+        parentId: 'dep-1',
+        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podHash: 'kn10z' },
       };
 
       useFlowStore.setState({
-        nodes: [podNode] as any,
+        nodes: [parentNode, podNode] as any,
         updateNodeData: mockUpdateNodeData,
       });
 
       const { result } = renderHook(() => useNodeConfigHandler(podNode));
 
       expect(result.current.podBaseName).toBe('postgres-db');
-      expect(result.current.podHash).toBe('4xdo9-gy37g');
+      expect(result.current.podHash).toBe('4xdo9-gy37g-kn10z');
 
       act(() => {
         result.current.randomizePodHash();
       });
 
       expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', {
-        label: expect.stringMatching(/^postgres-db-4xdo9-[a-z0-9]{5}$/),
-        podHash: expect.stringMatching(/^4xdo9-[a-z0-9]{5}$/),
+        label: expect.stringMatching(/^postgres-db-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/),
+        podHash: expect.stringMatching(/^[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/),
       });
     });
 
