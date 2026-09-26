@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import {
   syncPeersAndParent,
   syncParentPodUpdates,
+  parsePodLabelAndHash,
   useNodeConfigHandler,
 } from '@/activities/config/useNodeConfig';
 import { useFlowStore } from '@/store';
@@ -15,6 +16,28 @@ describe('useNodeConfig', () => {
     useFlowStore.setState({
       nodes: [],
       updateNodeData: mockUpdateNodeData,
+    });
+  });
+
+  describe('parsePodLabelAndHash', () => {
+    it('correctly parses multi-hyphen pod names like myapp-wow-cxxx-dxxx', () => {
+      const res1 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx');
+      expect(res1.podBaseName).toBe('myapp-wow');
+      expect(res1.podHash).toBe('cxxx-dxxx');
+
+      const res2 = parsePodLabelAndHash('myapp-wow-cxxx-gxxx');
+      expect(res2.podBaseName).toBe('myapp-wow');
+      expect(res2.podHash).toBe('cxxx-gxxx');
+    });
+
+    it('correctly parses single suffix or double suffix with stored podHash', () => {
+      const res1 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx', 'cxxx-dxxx');
+      expect(res1.podBaseName).toBe('myapp-wow');
+      expect(res1.podHash).toBe('cxxx-dxxx');
+
+      const res2 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx', 'dxxx');
+      expect(res2.podBaseName).toBe('myapp-wow');
+      expect(res2.podHash).toBe('cxxx-dxxx');
     });
   });
 
@@ -183,6 +206,33 @@ describe('useNodeConfig', () => {
   });
 
   describe('useNodeConfigHandler', () => {
+    it('handles randomizePodHash correctly for pod with multi-hyphen label myapp-wow-cxxx-dxxx', () => {
+      const podNode = {
+        id: 'pod-1',
+        type: 'Pod',
+        data: { label: 'myapp-wow-cxxx-dxxx', podHash: 'dxxx' },
+      };
+
+      useFlowStore.setState({
+        nodes: [podNode] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(podNode));
+
+      expect(result.current.podBaseName).toBe('myapp-wow');
+      expect(result.current.podHash).toBe('cxxx-dxxx');
+
+      act(() => {
+        result.current.randomizePodHash();
+      });
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', {
+        label: expect.stringMatching(/^myapp-wow-cxxx-[a-z0-9]{5}$/),
+        podHash: expect.stringMatching(/^cxxx-[a-z0-9]{5}$/),
+      });
+    });
+
     it('toggleVisibility toggles visibility field and defaults displaySettings when missing', () => {
       const selectedNode = {
         id: 'pod-1',

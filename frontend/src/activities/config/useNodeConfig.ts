@@ -54,6 +54,61 @@ export const syncParentPodUpdates = (selectedNode: any, updates: any) => {
   }
 };
 
+export const parsePodLabelAndHash = (label: string, storedPodHash?: string) => {
+  const fullLabel = label || 'pod';
+
+  if (storedPodHash && storedPodHash.includes('-') && fullLabel.endsWith(`-${storedPodHash}`)) {
+    const podBaseName = fullLabel.slice(0, -(storedPodHash.length + 1)) || 'pod';
+    return { podBaseName, podHash: storedPodHash };
+  }
+
+  if (storedPodHash && !storedPodHash.includes('-') && fullLabel.endsWith(`-${storedPodHash}`)) {
+    const remaining = fullLabel.slice(0, -(storedPodHash.length + 1));
+    const parts = remaining.split('-');
+    if (parts.length > 1) {
+      const candidateSecondHash = parts[parts.length - 1];
+      if (
+        candidateSecondHash.length >= 4 &&
+        candidateSecondHash.length <= 5 &&
+        /^[a-z0-9]+$/i.test(candidateSecondHash)
+      ) {
+        const podHash = `${candidateSecondHash}-${storedPodHash}`;
+        const podBaseName = parts.slice(0, -1).join('-') || 'pod';
+        return { podBaseName, podHash };
+      }
+    }
+    const podBaseName = remaining || 'pod';
+    return { podBaseName, podHash: storedPodHash };
+  }
+
+  const parts = fullLabel.split('-');
+  if (parts.length >= 4) {
+    const last1 = parts[parts.length - 1];
+    const last2 = parts[parts.length - 2];
+    if (
+      last1.length >= 4 &&
+      last1.length <= 5 &&
+      last2.length >= 4 &&
+      last2.length <= 5 &&
+      /^[a-z0-9]+$/i.test(last1) &&
+      /^[a-z0-9]+$/i.test(last2)
+    ) {
+      const podHash = `${last2}-${last1}`;
+      const podBaseName = parts.slice(0, -2).join('-') || 'pod';
+      return { podBaseName, podHash };
+    }
+  }
+
+  if (parts.length >= 2) {
+    const podHash = parts[parts.length - 1];
+    const podBaseName = parts.slice(0, -1).join('-') || 'pod';
+    return { podBaseName, podHash };
+  }
+
+  const podHash = storedPodHash || generateRandomHash(5);
+  return { podBaseName: fullLabel, podHash };
+};
+
 export const useNodeConfigHandler = (selectedNode: any) => {
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const data = selectedNode.data;
@@ -88,11 +143,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     syncParentPodUpdates(selectedNode, updates);
   };
 
-  const podHash = data.podHash || (data.label?.includes('-') ? data.label.split('-').pop() : '') || generateRandomHash(5);
-  let podBaseName = data.label || 'pod';
-  if (podHash && podBaseName.endsWith(`-${podHash}`)) {
-    podBaseName = podBaseName.slice(0, -(podHash.length + 1));
-  }
+  const { podBaseName, podHash } = parsePodLabelAndHash(data.label, data.podHash);
 
   const updatePodBaseName = (newBase: string) => {
     const cleanBase = sanitizeSlug(newBase);
@@ -104,7 +155,13 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   };
 
   const randomizePodHash = () => {
-    const newHash = generateRandomHash(5);
+    let newHash = generateRandomHash(5);
+    if (podHash.includes('-')) {
+      const parts = podHash.split('-');
+      parts[parts.length - 1] = newHash;
+      newHash = parts.join('-');
+    }
+
     const cleanBase = sanitizeSlug(podBaseName) || 'pod';
     const newLabel = `${cleanBase}-${newHash}`;
     updateNodeData(selectedNode.id, {
