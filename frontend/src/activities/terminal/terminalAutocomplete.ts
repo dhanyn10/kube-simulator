@@ -649,102 +649,113 @@ const getTopLevelKubectlCommands = (deployNames: string[], podNames: string[]): 
   });
 };
 
-export const trimSuggestionLabel = (item: SuggestionItem, input: string): SuggestionItem => {
-  if (!input || !input.trim()) return item;
+const trimByDirectPrefix = (item: SuggestionItem, rawInput: string): string | null => {
+  if (!rawInput.includes(' ') && !rawInput.includes('=')) return null;
+  if (!item.value.toLowerCase().startsWith(rawInput.toLowerCase())) return null;
 
-  const rawInput = input;
-  const trimmedInput = input.trim().toLowerCase();
-  const trimmedWords = trimmedInput.split(/\s+/);
+  const valRest = item.value.slice(rawInput.length).trim();
+  if (!valRest) return null;
 
-  let newLabel = item.label;
+  if (item.label.toLowerCase().startsWith(rawInput.toLowerCase())) {
+    const labelRest = item.label.slice(rawInput.length).trim();
+    if (labelRest) return labelRest;
+  }
+  return valRest;
+};
 
-  // Direct prefix match when input ends in space or '='
-  if (rawInput.includes(' ') || rawInput.includes('=')) {
-    if (item.value.toLowerCase().startsWith(rawInput.toLowerCase())) {
-      const valRest = item.value.slice(rawInput.length).trim();
-      if (valRest) {
-        if (newLabel.toLowerCase().startsWith(rawInput.toLowerCase())) {
-          const labelRest = newLabel.slice(rawInput.length).trim();
-          if (labelRest) return { ...item, label: labelRest };
-        }
-        return { ...item, label: valRest };
-      }
-    }
+const countWordMatches = (
+  labelWords: string[],
+  targetWords: string[],
+  strictIndex = false
+): number => {
+  let count = 0;
+  while (count < labelWords.length && count < targetWords.length) {
+    const wordLower = labelWords[count]?.toLowerCase();
+    const isMatch = strictIndex
+      ? wordLower === targetWords[count]
+      : targetWords.includes(wordLower ?? '');
+    if (!isMatch) break;
+    count++;
+  }
+  return count;
+};
+
+const trimByFullWords = (item: SuggestionItem, trimmedInput: string): string | null => {
+  const prefixSpace = `${trimmedInput} `;
+  if (item.label.toLowerCase().startsWith(prefixSpace)) {
+    const rest = item.label.slice(trimmedInput.length + 1).trim();
+    if (rest) return rest;
   }
 
-  // 1. If trimmedInput + ' ' matches start of label or value, user completed all words in trimmedInput
-  if (newLabel.toLowerCase().startsWith(trimmedInput + ' ')) {
-    const rest = newLabel.slice(trimmedInput.length + 1).trim();
-    if (rest) return { ...item, label: rest };
-  }
-
-  if (item.value.toLowerCase().startsWith(trimmedInput + ' ')) {
+  if (item.value.toLowerCase().startsWith(prefixSpace)) {
     const valRest = item.value.slice(trimmedInput.length + 1).trim();
-    if (valRest) {
-      let labelWords = newLabel.split(/\s+/);
-      let matchCount = 0;
-      while (matchCount < labelWords.length && matchCount < trimmedWords.length) {
-        const labelWordLower = labelWords[matchCount].toLowerCase();
-        if (trimmedWords.includes(labelWordLower)) {
-          matchCount++;
-        } else {
-          break;
-        }
-      }
-      if (matchCount > 0 && matchCount < labelWords.length) {
-        const labelRest = labelWords.slice(matchCount).join(' ').trim();
-        if (labelRest) return { ...item, label: labelRest };
-      }
-      return { ...item, label: valRest };
+    if (!valRest) return null;
+
+    const labelWords = item.label.split(/\s+/);
+    const matchCount = countWordMatches(labelWords, trimmedInput.split(/\s+/));
+    if (matchCount > 0 && matchCount < labelWords.length) {
+      const labelRest = labelWords.slice(matchCount).join(' ').trim();
+      if (labelRest) return labelRest;
     }
+    return valRest;
   }
 
-  // 2. If user is in middle of typing a word (e.g. "kubectl get p"), check completed prefix before last space
-  let completedPrefix = '';
-  if (rawInput.endsWith(' ')) {
-    completedPrefix = rawInput;
-  } else {
-    const lastSpaceIdx = rawInput.lastIndexOf(' ');
-    if (lastSpaceIdx !== -1) {
-      completedPrefix = rawInput.slice(0, lastSpaceIdx + 1);
-    }
+  return null;
+};
+
+const getCompletedPrefix = (rawInput: string): string => {
+  if (rawInput.endsWith(' ')) return rawInput;
+  const lastSpaceIdx = rawInput.lastIndexOf(' ');
+  return lastSpaceIdx !== -1 ? rawInput.slice(0, lastSpaceIdx + 1) : '';
+};
+
+const trimByPartialWord = (item: SuggestionItem, completedPrefix: string): string | null => {
+  const completedPrefixLower = completedPrefix.toLowerCase();
+  const completedTrimmedLower = completedPrefix.trim().toLowerCase();
+
+  if (item.label.toLowerCase().startsWith(completedPrefixLower)) {
+    const rest = item.label.slice(completedPrefix.length).trim();
+    if (rest) return rest;
+  } else if (item.label.toLowerCase().startsWith(`${completedTrimmedLower} `)) {
+    const rest = item.label.slice(completedTrimmedLower.length + 1).trim();
+    if (rest) return rest;
   }
 
+  if (item.value.toLowerCase().startsWith(completedPrefixLower)) {
+    const valRest = item.value.slice(completedPrefix.length).trim();
+    if (!valRest) return null;
+
+    const labelWords = item.label.split(/\s+/);
+    const compWords = completedTrimmedLower.split(/\s+/);
+    const matchCount = countWordMatches(labelWords, compWords, true);
+
+    if (matchCount > 0 && matchCount < labelWords.length) {
+      const labelRest = labelWords.slice(matchCount).join(' ').trim();
+      if (labelRest) return labelRest;
+    }
+    return valRest;
+  }
+
+  return null;
+};
+
+export const trimSuggestionLabel = (item: SuggestionItem, input: string): SuggestionItem => {
+  const trimmed = input?.trim();
+  if (!trimmed) return item;
+
+  const directMatch = trimByDirectPrefix(item, input);
+  if (directMatch) return { ...item, label: directMatch };
+
+  const fullWordMatch = trimByFullWords(item, trimmed.toLowerCase());
+  if (fullWordMatch) return { ...item, label: fullWordMatch };
+
+  const completedPrefix = getCompletedPrefix(input);
   if (completedPrefix) {
-    const completedPrefixLower = completedPrefix.toLowerCase();
-    const completedTrimmedLower = completedPrefix.trim().toLowerCase();
-
-    if (newLabel.toLowerCase().startsWith(completedPrefixLower)) {
-      const rest = newLabel.slice(completedPrefix.length).trim();
-      if (rest) return { ...item, label: rest };
-    } else if (newLabel.toLowerCase().startsWith(completedTrimmedLower + ' ')) {
-      const rest = newLabel.slice(completedTrimmedLower.length + 1).trim();
-      if (rest) return { ...item, label: rest };
-    }
-
-    if (item.value.toLowerCase().startsWith(completedPrefixLower)) {
-      const valRest = item.value.slice(completedPrefix.length).trim();
-      if (valRest) {
-        let labelWords = newLabel.split(/\s+/);
-        let matchCount = 0;
-        const compWords = completedTrimmedLower.split(/\s+/);
-        while (matchCount < labelWords.length && matchCount < compWords.length) {
-          if (labelWords[matchCount].toLowerCase() === compWords[matchCount]) {
-            matchCount++;
-          } else {
-            break;
-          }
-        }
-        if (matchCount > 0 && matchCount < labelWords.length) {
-          const labelRest = labelWords.slice(matchCount).join(' ').trim();
-          if (labelRest) return { ...item, label: labelRest };
-        }
-        return { ...item, label: valRest };
-      }
-    }
+    const partialMatch = trimByPartialWord(item, completedPrefix);
+    if (partialMatch) return { ...item, label: partialMatch };
   }
 
-  return { ...item, label: newLabel };
+  return item;
 };
 
 export const getAutocompleteSuggestions = (
