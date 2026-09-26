@@ -66,13 +66,13 @@ export const parsePodLabelAndHash = (label: string, storedPodHash?: string) => {
     const remaining = fullLabel.slice(0, -(storedPodHash.length + 1));
     const parts = remaining.split('-');
     if (parts.length > 1) {
-      const candidateSecondHash = parts[parts.length - 1];
+      const candidateHashPrefix = parts[parts.length - 1];
       if (
-        candidateSecondHash.length >= 4 &&
-        candidateSecondHash.length <= 5 &&
-        /^[a-z0-9]+$/i.test(candidateSecondHash)
+        candidateHashPrefix.length >= 4 &&
+        candidateHashPrefix.length <= 10 &&
+        /^[a-z0-9]+$/i.test(candidateHashPrefix)
       ) {
-        const podHash = `${candidateSecondHash}-${storedPodHash}`;
+        const podHash = `${candidateHashPrefix}-${storedPodHash}`;
         const podBaseName = parts.slice(0, -1).join('-') || 'pod';
         return { podBaseName, podHash };
       }
@@ -82,14 +82,14 @@ export const parsePodLabelAndHash = (label: string, storedPodHash?: string) => {
   }
 
   const parts = fullLabel.split('-');
-  if (parts.length >= 4) {
+  if (parts.length >= 3) {
     const last1 = parts[parts.length - 1];
     const last2 = parts[parts.length - 2];
     if (
       last1.length >= 4 &&
-      last1.length <= 5 &&
+      last1.length <= 10 &&
       last2.length >= 4 &&
-      last2.length <= 5 &&
+      last2.length <= 10 &&
       /^[a-z0-9]+$/i.test(last1) &&
       /^[a-z0-9]+$/i.test(last2)
     ) {

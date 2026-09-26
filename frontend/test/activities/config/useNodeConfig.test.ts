@@ -25,12 +25,12 @@ describe('useNodeConfig', () => {
       expect(res1.podBaseName).toBe('myapp-wow');
       expect(res1.podHash).toBe('cxxx-dxxx');
 
-      const res2 = parsePodLabelAndHash('myapp-wow-cxxx-gxxx');
-      expect(res2.podBaseName).toBe('myapp-wow');
-      expect(res2.podHash).toBe('cxxx-gxxx');
+      const res2 = parsePodLabelAndHash('postgres-db-4xdo9-gy37g', 'gy37g');
+      expect(res2.podBaseName).toBe('postgres-db');
+      expect(res2.podHash).toBe('4xdo9-gy37g');
     });
 
-    it('correctly parses single suffix or double suffix with stored podHash', () => {
+    it('correctly parses pod label when storedPodHash matches multi-part or single part suffix', () => {
       const res1 = parsePodLabelAndHash('myapp-wow-cxxx-dxxx', 'cxxx-dxxx');
       expect(res1.podBaseName).toBe('myapp-wow');
       expect(res1.podHash).toBe('cxxx-dxxx');
@@ -79,17 +79,14 @@ describe('useNodeConfig', () => {
         currentPod.data
       );
 
-      // Peer pod updated
       expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-2', {
         extraField: true,
         displaySettings: { ports: false },
       });
-      // Parent deployment updated
       expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', {
         extraField: true,
         displaySettings: { ports: false },
       });
-      // Non-peer node and current pod not updated by syncPeersAndParent
       expect(mockUpdateNodeData).not.toHaveBeenCalledWith('svc-1', expect.anything());
       expect(mockUpdateNodeData).not.toHaveBeenCalledWith('pod-1', expect.anything());
     });
@@ -206,11 +203,11 @@ describe('useNodeConfig', () => {
   });
 
   describe('useNodeConfigHandler', () => {
-    it('handles randomizePodHash correctly for pod with multi-hyphen label myapp-wow-cxxx-dxxx', () => {
+    it('handles randomizePodHash correctly for pod node with multi-part hash', () => {
       const podNode = {
         id: 'pod-1',
         type: 'Pod',
-        data: { label: 'myapp-wow-cxxx-dxxx', podHash: 'dxxx' },
+        data: { label: 'postgres-db-4xdo9-gy37g', podHash: 'gy37g' },
       };
 
       useFlowStore.setState({
@@ -220,16 +217,16 @@ describe('useNodeConfig', () => {
 
       const { result } = renderHook(() => useNodeConfigHandler(podNode));
 
-      expect(result.current.podBaseName).toBe('myapp-wow');
-      expect(result.current.podHash).toBe('cxxx-dxxx');
+      expect(result.current.podBaseName).toBe('postgres-db');
+      expect(result.current.podHash).toBe('4xdo9-gy37g');
 
       act(() => {
         result.current.randomizePodHash();
       });
 
       expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', {
-        label: expect.stringMatching(/^myapp-wow-cxxx-[a-z0-9]{5}$/),
-        podHash: expect.stringMatching(/^cxxx-[a-z0-9]{5}$/),
+        label: expect.stringMatching(/^postgres-db-4xdo9-[a-z0-9]{5}$/),
+        podHash: expect.stringMatching(/^4xdo9-[a-z0-9]{5}$/),
       });
     });
 
@@ -329,7 +326,6 @@ describe('useNodeConfig', () => {
     });
 
     it('performUpdate applies workload updates for Pod and Deployment and standard updates for Service', () => {
-      // 1. Pod performUpdate
       const podNode = {
         id: 'pod-1',
         type: 'Pod',
@@ -349,7 +345,6 @@ describe('useNodeConfig', () => {
         cpuLimit: '250m',
       }));
 
-      // 2. Service performUpdate (non-workload)
       mockUpdateNodeData.mockClear();
       const serviceNode = {
         id: 'svc-1',
