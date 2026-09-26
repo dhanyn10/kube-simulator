@@ -28,6 +28,59 @@ func NewHistoryManager() *HistoryManager {
 	}
 }
 
+func isCorruptFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() || info.Size() == 0 {
+		return false
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return true
+	}
+	defer f.Close()
+
+	sz := info.Size()
+	readLen := int64(64)
+	if sz < readLen {
+		readLen = sz
+	}
+
+	buf := make([]byte, readLen)
+	_, err = f.ReadAt(buf, sz-readLen)
+	if err != nil {
+		return true
+	}
+
+	for _, b := range buf {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func isCorruptBadgerDir(dbPath string) bool {
+	entries, err := os.ReadDir(dbPath)
+	if err != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		ext := filepath.Ext(entry.Name())
+		if ext == ".sst" || entry.Name() == "MANIFEST" || entry.Name() == "KEYREGISTRY" {
+			filePath := filepath.Join(dbPath, entry.Name())
+			if isCorruptFile(filePath) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func openBadger(opts badger.Options) (db *badger.DB, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -48,6 +101,12 @@ func (h *HistoryManager) Init() error {
 		return fmt.Errorf("%s is a file, not a directory", dbPath)
 	}
 	os.MkdirAll(dbPath, os.ModePerm)
+
+	if isCorruptBadgerDir(dbPath) {
+		logger.Warn("Corrupted history_db detected (zero-filled SST file), resetting history database...")
+		os.RemoveAll(dbPath)
+		os.MkdirAll(dbPath, os.ModePerm)
+	}
 
 	opts := badger.DefaultOptions(dbPath).WithLogger(nil)
 	db, err := openBadger(opts)
