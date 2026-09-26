@@ -58,6 +58,15 @@ export const parsePodLabelAndHash = (selectedNode: any) => {
   const data = selectedNode?.data || {};
   const fullLabel = data.label || 'pod';
   const storedPodHash = data.podHash;
+  const storedPodBaseName = data.podBaseName;
+
+  if (storedPodBaseName) {
+    let podHash = storedPodHash;
+    if (!podHash && fullLabel.startsWith(`${storedPodBaseName}-`)) {
+      podHash = fullLabel.slice(storedPodBaseName.length + 1);
+    }
+    return { podBaseName: storedPodBaseName, podHash: podHash || generateRandomHash(5) };
+  }
 
   if (selectedNode?.parentId) {
     const state = useFlowStore.getState();
@@ -69,27 +78,16 @@ export const parsePodLabelAndHash = (selectedNode: any) => {
     }
   }
 
-  const parts = fullLabel.split('-');
-  if (parts.length > 1) {
-    const hashSegments: string[] = [];
-    while (parts.length > 1) {
-      const last = parts[parts.length - 1];
-      if (last.length >= 4 && last.length <= 10 && /^[a-z0-9]+$/i.test(last)) {
-        hashSegments.unshift(parts.pop()!);
-      } else {
-        break;
-      }
-    }
-    if (hashSegments.length > 0) {
-      const podHash = hashSegments.join('-');
-      const podBaseName = parts.join('-') || 'pod';
-      return { podBaseName, podHash };
-    }
-  }
-
   if (storedPodHash && fullLabel.endsWith(`-${storedPodHash}`)) {
     const podBaseName = fullLabel.slice(0, -(storedPodHash.length + 1)) || 'pod';
     return { podBaseName, podHash: storedPodHash };
+  }
+
+  const parts = fullLabel.split('-');
+  if (parts.length > 1) {
+    const podHash = parts.pop()!;
+    const podBaseName = parts.join('-') || 'pod';
+    return { podBaseName, podHash };
   }
 
   const podHash = storedPodHash || generateRandomHash(5);
@@ -137,6 +135,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     const newLabel = cleanBase ? `${cleanBase}-${podHash}` : podHash;
     updateNodeData(selectedNode.id, {
       label: newLabel,
+      podBaseName: cleanBase,
       podHash,
     });
   };
@@ -150,6 +149,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     const newLabel = `${cleanBase}-${newPodHash}`;
     updateNodeData(selectedNode.id, {
       label: newLabel,
+      podBaseName: cleanBase,
       podHash: newPodHash,
     });
   };

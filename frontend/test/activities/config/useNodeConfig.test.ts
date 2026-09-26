@@ -20,6 +20,18 @@ describe('useNodeConfig', () => {
   });
 
   describe('parsePodLabelAndHash', () => {
+    it('correctly parses pod label using stored podBaseName', () => {
+      const podNode = {
+        id: 'pod-1',
+        type: 'Pod',
+        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podBaseName: 'postgres-db', podHash: '4xdo9-gy37g-kn10z' },
+      };
+
+      const res = parsePodLabelAndHash(podNode);
+      expect(res.podBaseName).toBe('postgres-db');
+      expect(res.podHash).toBe('4xdo9-gy37g-kn10z');
+    });
+
     it('correctly parses pod label using parent deployment name as base', () => {
       const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'postgres-db' } };
       const podNode = {
@@ -34,18 +46,6 @@ describe('useNodeConfig', () => {
       const res = parsePodLabelAndHash(podNode);
       expect(res.podBaseName).toBe('postgres-db');
       expect(res.podHash).toBe('4xdo9-gy37g-kn10z');
-    });
-
-    it('correctly parses multi-segment suffix for standalone pod without parent deployment', () => {
-      const podNode = {
-        id: 'pod-1',
-        type: 'Pod',
-        data: { label: 'myapp-wow-cxxx-dxxx' },
-      };
-
-      const res = parsePodLabelAndHash(podNode);
-      expect(res.podBaseName).toBe('myapp-wow');
-      expect(res.podHash).toBe('cxxx-dxxx');
     });
   });
 
@@ -211,33 +211,41 @@ describe('useNodeConfig', () => {
   });
 
   describe('useNodeConfigHandler', () => {
-    it('randomizes all suffix segments when randomizePodHash is invoked on multi-part hash pod', () => {
+    it('maintains consistent string length across multiple randomize clicks without growing/appending', () => {
       const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'postgres-db' } };
-      const podNode = {
+      let podNode = {
         id: 'pod-1',
         type: 'Pod',
         parentId: 'dep-1',
-        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podHash: 'kn10z' },
+        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podBaseName: 'postgres-db', podHash: '4xdo9-gy37g-kn10z' },
       };
 
       useFlowStore.setState({
         nodes: [parentNode, podNode] as any,
-        updateNodeData: mockUpdateNodeData,
+        updateNodeData: (id: string, updates: any) => {
+          podNode = { ...podNode, data: { ...podNode.data, ...updates } };
+        },
       });
 
-      const { result } = renderHook(() => useNodeConfigHandler(podNode));
+      const { result, rerender } = renderHook(() => useNodeConfigHandler(podNode));
 
-      expect(result.current.podBaseName).toBe('postgres-db');
-      expect(result.current.podHash).toBe('4xdo9-gy37g-kn10z');
+      const initialLength = podNode.data.label.length;
 
+      // First click
       act(() => {
         result.current.randomizePodHash();
       });
+      rerender();
+      expect(podNode.data.label.length).toBe(initialLength);
+      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/);
 
-      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', {
-        label: expect.stringMatching(/^postgres-db-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/),
-        podHash: expect.stringMatching(/^[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/),
+      // Second click
+      act(() => {
+        result.current.randomizePodHash();
       });
+      rerender();
+      expect(podNode.data.label.length).toBe(initialLength);
+      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/);
     });
 
     it('toggleVisibility toggles visibility field and defaults displaySettings when missing', () => {
