@@ -23,7 +23,7 @@ describe('useNodeRename', () => {
       result.current.onKeyDown({ key: 'Enter' } as any);
     });
 
-    expect(onRename).toHaveBeenCalledWith('new name');
+    expect(onRename).toHaveBeenCalledWith('new-name');
     expect(result.current.isEditing).toBe(false);
   });
 

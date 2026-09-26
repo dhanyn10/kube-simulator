@@ -1,6 +1,6 @@
 
 import { Settings, Trash2 } from 'lucide-react';
-import { cn, sanitizeSlug } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 
 export const NodeActionButtons = ({ 
@@ -67,11 +67,17 @@ export const NodeRenameInput = ({
       <input
         ref={inputRef}
         value={editValue}
-        onChange={(e) => setEditValue(sanitizeSlug(e.target.value))}
+        onChange={(e) => setEditValue(e.target.value)}
         onBlur={handleRename}
-        onKeyDown={onKeyDown}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          onKeyDown(e);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         className={cn(
-          "text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none w-full",
+          "nodrag nopan nowheel text-xs font-mono font-bold px-1 py-0.5 rounded border outline-none w-full relative z-50",
           colorMode === 'dark' ? "bg-slate-900 text-slate-100 border-blue-500" : "bg-slate-50 text-slate-900 border-blue-400",
           inputClassName,
           className

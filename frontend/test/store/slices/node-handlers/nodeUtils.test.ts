@@ -31,7 +31,7 @@ describe('nodeUtils', () => {
     expect(deleteNodesMock).not.toHaveBeenCalled();
 
     handlers.onRename("My New Node");
-    expect(updateNodeDataMock).toHaveBeenCalledWith("node-1", { label: "my-new-node" });
+    expect(updateNodeDataMock).toHaveBeenCalledWith("node-1", { baseName: "my-new-node", label: "my-new-node" });
   });
 
   it('getInitialData returns correct defaults for various types', () => {

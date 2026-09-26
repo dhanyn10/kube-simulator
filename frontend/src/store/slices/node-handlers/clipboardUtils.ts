@@ -12,8 +12,8 @@ export const findLogicalPodMatch = (pastedPod: Node, nodes: Node[]) => {
   const parent = nodes.find(n => n.id === parentId);
   if (!parent || parent.type === 'Namespace') return null;
 
-  const label = pastedPod.data?.label;
-  return nodes.find(n => n.type === 'Pod' && n.data?.label === label && n.parentId === parentId);
+  const baseName = pastedPod.data?.baseName || pastedPod.data?.label;
+  return nodes.find(n => n.type === 'Pod' && n.parentId === parentId && (n.data?.baseName ? n.data.baseName === baseName : true));
 };
 
 /**

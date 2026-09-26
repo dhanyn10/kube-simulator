@@ -11,11 +11,17 @@ import { useFlowStore } from '@/store';
 export const getReplicaValue = (selectedNode: any, nodes: any[]): number => {
   const { data, type, parentId } = selectedNode;
   if (type === 'Pod' && parentId) {
+    const parent = nodes.find((n) => n.id === parentId);
+    if (parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet')) {
+      return Number(parent.data?.replicas) || 1;
+    }
+    const getPodBase = (pod: any) => pod.data?.baseName || pod.data?.label?.replace(/(-[a-z0-9]{5}){1,2}$/, '') || pod.data?.label;
+    const targetBase = getPodBase(selectedNode);
     const podReplicaGroup = nodes.filter(
-      (n) => n.type === 'Pod' && n.parentId === parentId && n.data.label === data.label
+      (n) => n.type === 'Pod' && n.parentId === parentId && getPodBase(n) === targetBase
     );
     if (podReplicaGroup.length > 0) {
-      return podReplicaGroup.reduce((acc: number, pod: any) => acc + (Number(pod.data.replicas) || 1), 0);
+      return podReplicaGroup.reduce((acc: number, pod: any) => acc + (Number(pod.data?.replicas) || 1), 0);
     }
   }
   return data.replicas || (type === 'Pod' ? 1 : 0);

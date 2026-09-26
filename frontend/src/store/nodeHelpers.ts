@@ -8,19 +8,9 @@ import {
   resolveGlobalCollisions
 } from '@/store/helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
-import { syncWorkloadMetadata, getInitialData } from '@/store/slices/node-handlers/nodeUtils';
-import { sanitizeSlug } from '@/lib/utils';
+import { syncWorkloadMetadata, getInitialData, createNodeHandlers } from '@/store/slices/node-handlers/nodeUtils';
 
-export const attachHandlers = (nodeId: string, get: () => FlowState) => ({
-  onDelete: () => {
-    const nodeToDelete = get().nodes.find((n: Node) => n.id === nodeId);
-    if (nodeToDelete) get().deleteNodes([nodeToDelete]);
-  },
-  onRename: (newName: string) => {
-    const cleanName = sanitizeSlug(newName);
-    get().updateNodeData(nodeId, { label: cleanName });
-  },
-});
+export const attachHandlers = createNodeHandlers;
 
 export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
   // Pre-pass Migration Converter: Convert legacy standalone Secret cards into attached secret items on target nodes
@@ -89,7 +79,8 @@ export const syncDeployment = (
   currentNodes: Node[], 
   replicasChange: number, 
   get: () => FlowState,
-  podToInclude?: Node
+  podToInclude?: Node,
+  forceRandomize = false
 ) => {
   const data = getNodeData(deployment);
   const updatedDeployment = {
@@ -102,7 +93,7 @@ export const syncDeployment = (
       pods = [podToInclude, ...pods.filter(p => p.id !== podToInclude.id)];
   }
 
-  const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0]);
+  const syncedPods = syncPodsInDeployment(updatedDeployment, pods, pods[0], forceRandomize);
 
   if (syncedPods.length > 0) {
     const podTemplate = syncedPods[0].data as any;

@@ -62,6 +62,56 @@ describe('store helpers', () => {
     expect(updatedPods[0].id).toBe(pods[0].id);
   });
 
+  it('syncPodsInDeployment adheres strictly to data model: baseName, podHash, replicaSuffix and label formula', () => {
+    const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 2, label: 'myapp' } } as any;
+    const pods = syncPodsInDeployment(deployment, []);
+    expect(pods).toHaveLength(2);
+
+    const pod1 = pods[0].data;
+    const pod2 = pods[1].data;
+
+    expect(pod1.baseName).toBe('myapp');
+    expect(pod2.baseName).toBe('myapp');
+
+    // Shared podHash for the group
+    expect(pod1.podHash).toBeDefined();
+    expect(pod1.podHash).toHaveLength(5);
+    expect(pod2.podHash).toBe(pod1.podHash);
+
+    // Unique replicaSuffix per pod
+    expect(pod1.replicaSuffix).toBeDefined();
+    expect(pod1.replicaSuffix).toHaveLength(5);
+    expect(pod2.replicaSuffix).toBeDefined();
+    expect(pod2.replicaSuffix).toHaveLength(5);
+    expect(pod1.replicaSuffix).not.toBe(pod2.replicaSuffix);
+
+    // Label formula: baseName-podHash-replicaSuffix
+    expect(pod1.label).toBe(`${pod1.baseName}-${pod1.podHash}-${pod1.replicaSuffix}`);
+    expect(pod2.label).toBe(`${pod2.baseName}-${pod2.podHash}-${pod2.replicaSuffix}`);
+  });
+
+  it('syncPodsInDeployment with forceRandomize = true re-randomizes group podHash and replicaSuffixes', () => {
+    const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 2, label: 'myapp' } } as any;
+    const initialPods = syncPodsInDeployment(deployment, []);
+    const oldPodHash = initialPods[0].data.podHash;
+    const oldSuffix1 = initialPods[0].data.replicaSuffix;
+    const oldSuffix2 = initialPods[1].data.replicaSuffix;
+
+    const randomizedPods = syncPodsInDeployment(deployment, initialPods, undefined, true);
+
+    const newPod1 = randomizedPods[0].data;
+    const newPod2 = randomizedPods[1].data;
+
+    expect(newPod1.podHash).not.toBe(oldPodHash);
+    expect(newPod1.podHash).toBe(newPod2.podHash);
+
+    expect(newPod1.replicaSuffix).not.toBe(oldSuffix1);
+    expect(newPod2.replicaSuffix).not.toBe(oldSuffix2);
+
+    expect(newPod1.label).toBe(`${newPod1.baseName}-${newPod1.podHash}-${newPod1.replicaSuffix}`);
+    expect(newPod2.label).toBe(`${newPod2.baseName}-${newPod2.podHash}-${newPod2.replicaSuffix}`);
+  });
+
   it('syncPodsInDeployment should handle dataTemplate for displaySettings', () => {
     const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
     const dataTemplate = { data: { displaySettings: { some: 'setting' }, image: 'templ-img' } } as any;

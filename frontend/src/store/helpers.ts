@@ -76,16 +76,23 @@ const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: 
   };
 };
 
+interface PodNodeParams {
+  replicas: number;
+  totalReplicas: number;
+  deploymentId: string;
+  podName: string;
+  baseName: string;
+  podHash: string;
+  replicaSuffix: string;
+}
+
 // Helper to update an existing pod node
 const updatePodNode = (
   existingPod: Node,
   commonData: any,
-  replicas: number,
-  totalReplicas: number,
-  deploymentId: string,
-  podName: string,
-  podHash: string
+  params: PodNodeParams
 ): Node => {
+  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix } = params;
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
   const width = existingPod.data?.isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
@@ -105,8 +112,10 @@ const updatePodNode = (
     data: { 
       ...existingPod.data, 
       ...commonData, 
-      label: podName,
+      baseName,
       podHash,
+      replicaSuffix,
+      label: podName,
       replicas, 
       parentReplicas: totalReplicas 
     }
@@ -116,12 +125,9 @@ const updatePodNode = (
 // Helper to create a new pod node
 const createPodNode = (
   commonData: any,
-  replicas: number,
-  totalReplicas: number,
-  deploymentId: string,
-  podName: string,
-  podHash: string
+  params: PodNodeParams
 ): Node => {
+  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix } = params;
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
   const minSize = getPodMinimumSize({ ...commonData, replicas });
   return {
@@ -139,32 +145,59 @@ const createPodNode = (
       replicas,
       parentReplicas: totalReplicas,
       ...commonData,
-      label: podName,
+      baseName,
       podHash,
+      replicaSuffix,
+      label: podName,
       onDelete: () => {},
       onRename: () => {},
     }
   };
 };
 
-// Helper function to sync pods within a deployment based on replica count
-export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], dataTemplate?: Node): Node[] => {
+// Helper function to sync pods within a deployment based on replica count and Agile Randomization
+export const syncPodsInDeployment = (
+  deployment: Node,
+  currentPods: Node[],
+  dataTemplate?: Node,
+  forceRandomize = false
+): Node[] => {
   const data = deployment.data as unknown as K8sNodeData;
   const totalReplicas = data.replicas || 0;
   const targetPodReplicas = getReplicaThresholds(totalReplicas);
   const commonData = getCommonPodData(deployment, currentPods, dataTemplate);
 
-  const baseLabel = (data.label as string) || commonData.label || 'pod';
-  const deployHash = (data.deployHash as string) || generateRandomHash(8);
+  const baseName = (data.label as string) || commonData.label || 'pod';
 
+  // Langkah 1: Buat 1 nilai podHash baru untuk seluruh kelompok (misal: "cxxx" -> "k98z")
+  const groupPodHash = forceRandomize
+    ? generateRandomHash(5)
+    : ((data.podHash as string) || (currentPods[0]?.data?.podHash as string) || generateRandomHash(5));
+
+  data.podHash = groupPodHash;
+
+  // Langkah 2: Lakukan looping (iterasi) ke SEMUA REPLIKA POD yang ada dalam array/list
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
-    const podHash = existingPod?.data?.podHash || generateRandomHash(5);
-    const podName = formatPodName(baseLabel, deployHash.substring(0, 5), podHash);
+    const replicaSuffix = (forceRandomize || !existingPod?.data?.replicaSuffix)
+      ? generateRandomHash(5)
+      : (existingPod.data.replicaSuffix as string);
+
+    // Set nama Pod menjadi baseName-podHash-replicaSuffix
+    const podName = formatPodName(baseName, groupPodHash, replicaSuffix);
+    const params: PodNodeParams = {
+      replicas,
+      totalReplicas,
+      deploymentId: deployment.id,
+      podName,
+      baseName,
+      podHash: groupPodHash,
+      replicaSuffix,
+    };
 
     return existingPod 
-      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, podHash)
-      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, podHash);
+      ? updatePodNode(existingPod, commonData, params)
+      : createPodNode(commonData, params);
   });
 };
 

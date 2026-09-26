@@ -9,8 +9,27 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
     if (node) get().deleteNodes([node]);
   },
   onRename: (newName: string) => {
-    const cleanName = sanitizeSlug(newName);
-    get().updateNodeData(id, { label: cleanName });
+    const cleanBase = sanitizeSlug(newName) || 'pod';
+    const node = get().nodes.find((n: Node) => n.id === id);
+    if (node?.type === 'Pod') {
+      const podHash = node.data?.podHash;
+      const replicaSuffix = node.data?.replicaSuffix;
+      const currentParent = node.parentId ? get().nodes.find(n => n.id === node.parentId) : null;
+
+      if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'ReplicaSet')) {
+        get().updateNodeData(currentParent.id, { label: cleanBase });
+      } else {
+        const hashPart = podHash ? `-${podHash}` : '';
+        const suffixPart = replicaSuffix ? `-${replicaSuffix}` : '';
+        const newLabel = `${cleanBase}${hashPart}${suffixPart}`;
+        get().updateNodeData(id, {
+          baseName: cleanBase,
+          label: newLabel,
+        });
+      }
+    } else {
+      get().updateNodeData(id, { label: cleanBase });
+    }
   }
 });
 

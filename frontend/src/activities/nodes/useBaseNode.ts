@@ -32,8 +32,20 @@ export const useBaseNodeHandler = ({
   );
 
   const { transitionClasses } = useNodeStyles(id);
+
+  let podBaseName = data.baseName || data.label || 'pod';
+  if (data.type === 'Pod') {
+    if (data.baseName) {
+      podBaseName = data.baseName;
+    } else if (data.podHash && data.replicaSuffix && data.label?.endsWith(`-${data.podHash}-${data.replicaSuffix}`)) {
+      podBaseName = data.label.slice(0, -(data.podHash.length + data.replicaSuffix.length + 2));
+    } else if (data.podHash && data.label?.endsWith(`-${data.podHash}`)) {
+      podBaseName = data.label.slice(0, -(data.podHash.length + 1));
+    }
+  }
+
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
-    useNodeRename(data.label, data.onRename);
+    useNodeRename(podBaseName, data.onRename);
 
   const isRoleDragging = draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA';
   const currentNode = nodes.find((n) => n.id === id);
