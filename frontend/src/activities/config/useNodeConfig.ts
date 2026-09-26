@@ -60,22 +60,25 @@ export const parsePodLabelAndHash = (selectedNode: any) => {
   const storedPodHash = data.podHash;
   const storedPodBaseName = data.podBaseName;
 
+  if (selectedNode?.parentId) {
+    const state = useFlowStore.getState();
+    const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+    if (parent) {
+      const parentLabel = parent.data?.label || 'pod';
+      if (fullLabel.startsWith(`${parentLabel}-`)) {
+        const remaining = fullLabel.slice(parentLabel.length + 1);
+        return { podBaseName: parentLabel, podHash: remaining || storedPodHash || generateRandomHash(5) };
+      }
+      return { podBaseName: parentLabel, podHash: storedPodHash || generateRandomHash(5) };
+    }
+  }
+
   if (storedPodBaseName) {
     let podHash = storedPodHash;
     if (!podHash && fullLabel.startsWith(`${storedPodBaseName}-`)) {
       podHash = fullLabel.slice(storedPodBaseName.length + 1);
     }
     return { podBaseName: storedPodBaseName, podHash: podHash || generateRandomHash(5) };
-  }
-
-  if (selectedNode?.parentId) {
-    const state = useFlowStore.getState();
-    const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
-    if (parent?.data?.label && fullLabel.startsWith(`${parent.data.label}-`)) {
-      const podBaseName = parent.data.label;
-      const podHash = fullLabel.slice(podBaseName.length + 1) || storedPodHash || generateRandomHash(5);
-      return { podBaseName, podHash };
-    }
   }
 
   if (storedPodHash && fullLabel.endsWith(`-${storedPodHash}`)) {
@@ -141,6 +144,35 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   };
 
   const randomizePodHash = () => {
+    const state = useFlowStore.getState();
+
+    if (selectedNode.parentId) {
+      const parent = state.nodes.find((n: any) => n.id === selectedNode.parentId);
+      if (parent) {
+        const cleanBase = sanitizeSlug(parent.data?.label) || 'pod';
+        const newTemplateHash = generateRandomHash(5);
+
+        updateNodeData(parent.id, {
+          deployHash: newTemplateHash,
+        });
+
+        const childPods = state.nodes.filter((n: any) => n.parentId === parent.id && n.type === 'Pod');
+        childPods.forEach((pod: any) => {
+          const newPodSuffix = generateRandomHash(5);
+          const fullPodHash = `${newTemplateHash}-${newPodSuffix}`;
+          const newPodLabel = `${cleanBase}-${fullPodHash}`;
+
+          updateNodeData(pod.id, {
+            label: newPodLabel,
+            podBaseName: cleanBase,
+            podHash: fullPodHash,
+          });
+        });
+
+        return;
+      }
+    }
+
     const cleanBase = sanitizeSlug(podBaseName) || 'pod';
     const newPodHash = generateRandomHash(5);
     const newLabel = `${cleanBase}-${newPodHash}`;

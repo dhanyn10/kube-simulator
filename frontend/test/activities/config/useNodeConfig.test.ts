@@ -211,41 +211,63 @@ describe('useNodeConfig', () => {
   });
 
   describe('useNodeConfigHandler', () => {
-    it('maintains consistent single-hash suffix across multiple randomize clicks without extra segments', () => {
-      const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'postgres-db' } };
-      let podNode = {
+    it('regenerates shared pod template hash and unique random suffixes across all deployment replica pods on randomize click', () => {
+      const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'myapp-wow' } };
+      const pod1 = {
         id: 'pod-1',
         type: 'Pod',
         parentId: 'dep-1',
-        data: { label: 'postgres-db-4xdo9', podBaseName: 'postgres-db', podHash: '4xdo9' },
+        data: { label: 'myapp-wow-cxxx-dxxx', podBaseName: 'myapp-wow', podHash: 'cxxx-dxxx' },
+      };
+      const pod2 = {
+        id: 'pod-2',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { label: 'myapp-wow-cxxx-gxxx', podBaseName: 'myapp-wow', podHash: 'cxxx-gxxx' },
       };
 
       useFlowStore.setState({
-        nodes: [parentNode, podNode] as any,
-        updateNodeData: (id: string, updates: any) => {
-          podNode = { ...podNode, data: { ...podNode.data, ...updates } };
-        },
+        nodes: [parentNode, pod1, pod2] as any,
+        updateNodeData: mockUpdateNodeData,
       });
 
-      const { result, rerender } = renderHook(() => useNodeConfigHandler(podNode));
+      const { result } = renderHook(() => useNodeConfigHandler(pod1));
 
-      const expectedLength = 'postgres-db-12345'.length;
-
-      // First click
       act(() => {
         result.current.randomizePodHash();
       });
-      rerender();
-      expect(podNode.data.label.length).toBe(expectedLength);
-      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}$/);
 
-      // Second click
-      act(() => {
-        result.current.randomizePodHash();
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', {
+        deployHash: expect.stringMatching(/^[a-z0-9]{5}$/),
       });
-      rerender();
-      expect(podNode.data.label.length).toBe(expectedLength);
-      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}$/);
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', {
+        label: expect.stringMatching(/^myapp-wow-[a-z0-9]{5}-[a-z0-9]{5}$/),
+        podBaseName: 'myapp-wow',
+        podHash: expect.stringMatching(/^[a-z0-9]{5}-[a-z0-9]{5}$/),
+      });
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-2', {
+        label: expect.stringMatching(/^myapp-wow-[a-z0-9]{5}-[a-z0-9]{5}$/),
+        podBaseName: 'myapp-wow',
+        podHash: expect.stringMatching(/^[a-z0-9]{5}-[a-z0-9]{5}$/),
+      });
+
+      // Extract template hashes from call arguments
+      const pod1CallData = mockUpdateNodeData.mock.calls.find((call) => call[0] === 'pod-1')[1];
+      const pod2CallData = mockUpdateNodeData.mock.calls.find((call) => call[0] === 'pod-2')[1];
+
+      const pod1TemplateHash = pod1CallData.podHash.split('-')[0];
+      const pod2TemplateHash = pod2CallData.podHash.split('-')[0];
+
+      const pod1Suffix = pod1CallData.podHash.split('-')[1];
+      const pod2Suffix = pod2CallData.podHash.split('-')[1];
+
+      // Template hash must be identical across all pods
+      expect(pod1TemplateHash).toBe(pod2TemplateHash);
+
+      // Random suffixes for individual pods should be unique
+      expect(pod1Suffix).not.toBe(pod2Suffix);
     });
 
     it('toggleVisibility toggles visibility field and defaults displaySettings when missing', () => {
