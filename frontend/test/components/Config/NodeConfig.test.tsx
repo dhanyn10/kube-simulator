@@ -77,7 +77,7 @@ describe('NodeConfig', () => {
 
     const suffixInput = screen.getByTestId('pod-suffix-input') as HTMLInputElement;
     expect(suffixInput.readOnly).toBe(true);
-    expect(suffixInput.value).toBe('x8k2p');
+    expect(suffixInput.value).toBe('68b6d779c5-x8k2p');
 
     const randomBtn = screen.getByTestId('randomize-pod-hash-btn');
     expect(randomBtn).toBeDefined();

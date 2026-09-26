@@ -156,6 +156,65 @@ export const formatPodName = (baseName: string, rsHash?: string, suffix?: string
   return parts.join('-');
 };
 
+export interface ParsedPodName {
+  baseName: string;
+  rsHash?: string;
+  podHash: string;
+  fullSuffix: string;
+}
+
+/**
+ * Robustly parses a pod label into base name, optional ReplicaSet hash, and pod hash.
+ * Handles both deployment pods (<base>-<rsHash>-<podHash>) and standalone pods (<base>-<podHash>).
+ *
+ * @param label - Full pod label string (e.g., 'myapp-wow-cxxx-dxxx')
+ * @param explicitBaseName - Optional explicit base name from parent Deployment (e.g., 'myapp-wow')
+ * @param explicitPodHash - Optional explicit pod hash stored in node data
+ */
+export const parsePodName = (
+  label: string,
+  explicitBaseName?: string,
+  explicitPodHash?: string
+): ParsedPodName => {
+  const cleanLabel = (label || '').trim();
+  if (!cleanLabel) {
+    const hash = explicitPodHash || generateRandomHash(5);
+    return { baseName: 'pod', podHash: hash, fullSuffix: hash };
+  }
+
+  // 1. If explicit base name from parent deployment is available
+  if (explicitBaseName) {
+    const cleanBase = sanitizeSlug(explicitBaseName);
+    if (cleanBase && cleanLabel.startsWith(`${cleanBase}-`)) {
+      const fullSuffix = cleanLabel.slice(cleanBase.length + 1);
+      const parts = fullSuffix.split('-');
+      if (parts.length >= 2) {
+        const podHash = parts[parts.length - 1];
+        const rsHash = parts.slice(0, parts.length - 1).join('-');
+        return { baseName: cleanBase, rsHash, podHash, fullSuffix };
+      }
+      return { baseName: cleanBase, podHash: fullSuffix, fullSuffix };
+    }
+  }
+
+  // 2. Dynamic pattern parsing using hyphen splitting
+  const parts = cleanLabel.split('-');
+  if (parts.length >= 3) {
+    const podHash = parts[parts.length - 1];
+    const rsHash = parts[parts.length - 2];
+    const baseName = parts.slice(0, parts.length - 2).join('-');
+    const fullSuffix = `${rsHash}-${podHash}`;
+    return { baseName, rsHash, podHash, fullSuffix };
+  } else if (parts.length === 2) {
+    const baseName = parts[0];
+    const podHash = parts[1];
+    return { baseName, podHash, fullSuffix: podHash };
+  }
+
+  const hash = explicitPodHash || generateRandomHash(5);
+  return { baseName: cleanLabel, podHash: hash, fullSuffix: hash };
+};
+
 /**
  * Parses a Kubernetes CPU limit or request specification into millicores (`m`).
  * Handles millicore strings (`'500m'`), core strings (`'1.5'`, `'2'`), and numeric inputs.

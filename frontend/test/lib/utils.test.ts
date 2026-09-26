@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName } from '@/lib/utils';
+import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, parsePodName } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -45,6 +45,32 @@ describe('utils', () => {
       expect(formatPodName('nginx', '68b6d779c5', 'x8k2p')).toBe('nginx-68b6d779c5-x8k2p');
       expect(formatPodName('web-app', undefined, 'abc12')).toBe('web-app-abc12');
       expect(formatPodName('api')).toBe('api');
+    });
+  });
+
+  describe('parsePodName', () => {
+    it('correctly parses multi-hyphenated deployment pods like myapp-wow-cxxx-dxxx', () => {
+      const parsed = parsePodName('myapp-wow-cxxx-dxxx');
+      expect(parsed.baseName).toBe('myapp-wow');
+      expect(parsed.rsHash).toBe('cxxx');
+      expect(parsed.podHash).toBe('dxxx');
+      expect(parsed.fullSuffix).toBe('cxxx-dxxx');
+    });
+
+    it('uses explicitBaseName when provided', () => {
+      const parsed = parsePodName('myapp-wow-cxxx-dxxx', 'myapp-wow');
+      expect(parsed.baseName).toBe('myapp-wow');
+      expect(parsed.rsHash).toBe('cxxx');
+      expect(parsed.podHash).toBe('dxxx');
+      expect(parsed.fullSuffix).toBe('cxxx-dxxx');
+    });
+
+    it('correctly parses standalone pods like myapp-abc12', () => {
+      const parsed = parsePodName('myapp-abc12');
+      expect(parsed.baseName).toBe('myapp');
+      expect(parsed.rsHash).toBeUndefined();
+      expect(parsed.podHash).toBe('abc12');
+      expect(parsed.fullSuffix).toBe('abc12');
     });
   });
 
