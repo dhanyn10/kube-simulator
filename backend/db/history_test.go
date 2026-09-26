@@ -83,6 +83,36 @@ func TestHistoryManager_Init_BadgerError(t *testing.T) {
 	}
 }
 
+func TestHistoryManager_Init_CorruptRepair(t *testing.T) {
+	originalHome := os.Getenv("HOME")
+	originalUserProfile := os.Getenv("USERPROFILE")
+	tmpDir, _ := os.MkdirTemp("", "kube-builder-history-corrupt-*")
+	defer os.RemoveAll(tmpDir)
+
+	os.Setenv("HOME", tmpDir)
+	os.Setenv("USERPROFILE", tmpDir)
+	defer func() {
+		os.Setenv("HOME", originalHome)
+		os.Setenv("USERPROFILE", originalUserProfile)
+	}()
+
+	dbPath := filepath.Join(tmpDir, ".kube-simulator", "history_db")
+	os.MkdirAll(dbPath, 0755)
+	// Write a zeroed corrupt .sst file to simulate Badger crash recovery
+	os.WriteFile(filepath.Join(dbPath, "000001.sst"), make([]byte, 1024), 0644)
+
+	hm := NewHistoryManager()
+	err := hm.Init()
+	if err != nil {
+		t.Fatalf("Init should recover from corrupted DB files, got error: %v", err)
+	}
+	defer hm.Close()
+
+	if hm.GetDB() == nil {
+		t.Errorf("Expected DB to be initialized after corrupt recovery")
+	}
+}
+
 func setupHistoryTest(t *testing.T) (*HistoryManager, func()) {
 	tmpDir, err := os.MkdirTemp("", "badger-test-*")
 	if err != nil {
