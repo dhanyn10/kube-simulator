@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFlowStore } from '@/store';
+import { sanitizeSlug } from '@/lib/utils';
 
 export const useNodeRename = (initialLabel: string, onRename?: (newName: string) => void) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -21,8 +22,9 @@ export const useNodeRename = (initialLabel: string, onRename?: (newName: string)
 
   const handleRename = useCallback(() => {
     setIsEditing(false);
-    if (editValue.trim() && editValue !== initialLabel) {
-      onRename?.(editValue.trim());
+    const cleanValue = sanitizeSlug(editValue.trim());
+    if (cleanValue && cleanValue !== initialLabel) {
+      onRename?.(cleanValue);
     } else {
       setEditValue(initialLabel);
     }
