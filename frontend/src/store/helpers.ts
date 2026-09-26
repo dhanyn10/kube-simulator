@@ -76,18 +76,23 @@ const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: 
   };
 };
 
+interface PodNodeParams {
+  replicas: number;
+  totalReplicas: number;
+  deploymentId: string;
+  podName: string;
+  baseName: string;
+  podHash: string;
+  replicaSuffix: string;
+}
+
 // Helper to update an existing pod node
 const updatePodNode = (
   existingPod: Node,
   commonData: any,
-  replicas: number,
-  totalReplicas: number,
-  deploymentId: string,
-  podName: string,
-  baseName: string,
-  podHash: string,
-  replicaSuffix: string
+  params: PodNodeParams
 ): Node => {
+  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix } = params;
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
   const width = existingPod.data?.isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
@@ -120,14 +125,9 @@ const updatePodNode = (
 // Helper to create a new pod node
 const createPodNode = (
   commonData: any,
-  replicas: number,
-  totalReplicas: number,
-  deploymentId: string,
-  podName: string,
-  baseName: string,
-  podHash: string,
-  replicaSuffix: string
+  params: PodNodeParams
 ): Node => {
+  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix } = params;
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
   const minSize = getPodMinimumSize({ ...commonData, replicas });
   return {
@@ -185,10 +185,19 @@ export const syncPodsInDeployment = (
 
     // Set nama Pod menjadi baseName-podHash-replicaSuffix
     const podName = formatPodName(baseName, groupPodHash, replicaSuffix);
+    const params: PodNodeParams = {
+      replicas,
+      totalReplicas,
+      deploymentId: deployment.id,
+      podName,
+      baseName,
+      podHash: groupPodHash,
+      replicaSuffix,
+    };
 
     return existingPod 
-      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, baseName, groupPodHash, replicaSuffix)
-      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, baseName, groupPodHash, replicaSuffix);
+      ? updatePodNode(existingPod, commonData, params)
+      : createPodNode(commonData, params);
   });
 };
 

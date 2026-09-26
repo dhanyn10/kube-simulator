@@ -11,7 +11,7 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onRename: (newName: string) => {
     const cleanBase = sanitizeSlug(newName) || 'pod';
     const node = get().nodes.find((n: Node) => n.id === id);
-    if (node && node.type === 'Pod') {
+    if (node?.type === 'Pod') {
       const podHash = node.data?.podHash;
       const replicaSuffix = node.data?.replicaSuffix;
       const currentParent = node.parentId ? get().nodes.find(n => n.id === node.parentId) : null;
