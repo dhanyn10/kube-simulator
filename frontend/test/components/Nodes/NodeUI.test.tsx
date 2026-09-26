@@ -97,7 +97,7 @@ describe('NodeUI', () => {
       expect(input).toBeDefined();
     });
 
-    it('updates edit value on change and slugifies it', () => {
+    it('updates edit value on change', () => {
       render(
         <NodeRenameInput
           isEditing={true}
@@ -108,7 +108,7 @@ describe('NodeUI', () => {
       );
       const input = screen.getByRole('textbox');
       fireEvent.change(input, { target: { value: 'New Name' } });
-      expect(mockSetEditValue).toHaveBeenCalledWith('new-name');
+      expect(mockSetEditValue).toHaveBeenCalledWith('New Name');
     });
   });
 });

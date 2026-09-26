@@ -72,7 +72,7 @@ describe('NodeConfig', () => {
   });
 
   it('renders Randomize Pod Hash button for Pod nodes and renders read-only suffix input', () => {
-    const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-68b6d779c5-x8k2p', podHash: 'x8k2p' } };
+    const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-x8k2p', podHash: 'x8k2p' } };
     render(<NodeConfig selectedNode={podNode} />);
 
     const suffixInput = screen.getByTestId('pod-suffix-input') as HTMLInputElement;

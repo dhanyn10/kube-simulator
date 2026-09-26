@@ -91,9 +91,13 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   };
 
   const podHash = data.podHash || (data.label?.includes('-') ? data.label.split('-').pop() : '') || generateRandomHash(5);
-  let podBaseName = data.baseName || (data.label?.includes('-') ? data.label.split('-')[0] : data.label) || 'pod';
-  if (!data.baseName && podHash && podBaseName.endsWith(`-${podHash}`)) {
-    podBaseName = podBaseName.slice(0, -(podHash.length + 1));
+  let podBaseName = data.baseName || data.label || 'pod';
+  if (!data.baseName) {
+    if (data.podHash && data.replicaSuffix && data.label?.endsWith(`-${data.podHash}-${data.replicaSuffix}`)) {
+      podBaseName = data.label.slice(0, -(data.podHash.length + data.replicaSuffix.length + 2));
+    } else if (data.podHash && data.label?.endsWith(`-${data.podHash}`)) {
+      podBaseName = data.label.slice(0, -(data.podHash.length + 1));
+    }
   }
 
   const updatePodBaseName = (newBase: string) => {

@@ -33,15 +33,14 @@ export const useBaseNodeHandler = ({
 
   const { transitionClasses } = useNodeStyles(id);
 
-  const podHash = data.podHash;
   let podBaseName = data.baseName || data.label || 'pod';
   if (data.type === 'Pod') {
     if (data.baseName) {
       podBaseName = data.baseName;
-    } else if (podHash && podBaseName.endsWith(`-${podHash}`)) {
-      podBaseName = podBaseName.slice(0, -(podHash.length + 1));
-    } else if (data.label?.includes('-')) {
-      podBaseName = data.label.split('-')[0];
+    } else if (data.podHash && data.replicaSuffix && data.label?.endsWith(`-${data.podHash}-${data.replicaSuffix}`)) {
+      podBaseName = data.label.slice(0, -(data.podHash.length + data.replicaSuffix.length + 2));
+    } else if (data.podHash && data.label?.endsWith(`-${data.podHash}`)) {
+      podBaseName = data.label.slice(0, -(data.podHash.length + 1));
     }
   }
 
