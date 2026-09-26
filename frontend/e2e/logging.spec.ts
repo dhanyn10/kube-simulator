@@ -5,7 +5,7 @@ test.describe('Error Reporting Feature', () => {
     // Set a large viewport
     await page.setViewportSize({ width: 1280, height: 1000 });
 
-    await page.goto('http://127.0.0.1:3000/');
+    await page.goto('/');
     await page.waitForSelector('[data-testid="app-title"]', { timeout: 10000 });
 
     // Clear logs
