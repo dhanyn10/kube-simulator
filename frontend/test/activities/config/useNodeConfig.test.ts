@@ -321,5 +321,37 @@ describe('useNodeConfig', () => {
         port: 8080,
       });
     });
+
+    it('handles podBaseName and multi-hyphenated labels like myapp-axxx-bxxx correctly', () => {
+      const podNode = {
+        id: 'pod-multi',
+        type: 'Pod',
+        data: {
+          label: 'myapp-axxx-bxxx',
+          podHash: 'bxxx',
+          podBaseName: 'myapp-axxx',
+        },
+      };
+
+      useFlowStore.setState({
+        nodes: [podNode] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(podNode));
+
+      expect(result.current.podBaseName).toBe('myapp-axxx');
+      expect(result.current.podHash).toBe('bxxx');
+
+      act(() => {
+        result.current.updatePodBaseName('myapp-axxx-updated');
+      });
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-multi', {
+        label: 'myapp-axxx-updated-bxxx',
+        podBaseName: 'myapp-axxx-updated',
+        podHash: 'bxxx',
+      });
+    });
   });
 });

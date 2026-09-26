@@ -84,7 +84,8 @@ const updatePodNode = (
   totalReplicas: number,
   deploymentId: string,
   podName: string,
-  podHash: string
+  podHash: string,
+  podBaseName: string
 ): Node => {
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
   const width = existingPod.data?.isManuallyResized
@@ -106,6 +107,7 @@ const updatePodNode = (
       ...existingPod.data, 
       ...commonData, 
       label: podName,
+      podBaseName,
       podHash,
       replicas, 
       parentReplicas: totalReplicas 
@@ -120,7 +122,8 @@ const createPodNode = (
   totalReplicas: number,
   deploymentId: string,
   podName: string,
-  podHash: string
+  podHash: string,
+  podBaseName: string
 ): Node => {
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
   const minSize = getPodMinimumSize({ ...commonData, replicas });
@@ -140,6 +143,7 @@ const createPodNode = (
       parentReplicas: totalReplicas,
       ...commonData,
       label: podName,
+      podBaseName,
       podHash,
       onDelete: () => {},
       onRename: () => {},
@@ -163,8 +167,8 @@ export const syncPodsInDeployment = (deployment: Node, currentPods: Node[], data
     const podName = formatPodName(baseLabel, deployHash.substring(0, 5), podHash);
 
     return existingPod 
-      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, podHash)
-      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, podHash);
+      ? updatePodNode(existingPod, commonData, replicas, totalReplicas, deployment.id, podName, podHash, baseLabel)
+      : createPodNode(commonData, replicas, totalReplicas, deployment.id, podName, podHash, baseLabel);
   });
 };
 

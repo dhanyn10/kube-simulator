@@ -88,10 +88,14 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     syncParentPodUpdates(selectedNode, updates);
   };
 
-  const podHash = data.podHash || (data.label?.includes('-') ? data.label.split('-').pop() : '') || generateRandomHash(5);
-  let podBaseName = data.label || 'pod';
-  if (podHash && podBaseName.endsWith(`-${podHash}`)) {
-    podBaseName = podBaseName.slice(0, -(podHash.length + 1));
+  const podHash = data.podHash || generateRandomHash(5);
+  let podBaseName = data.podBaseName;
+  if (podBaseName === undefined) {
+    if (data.label && podHash && data.label.endsWith(`-${podHash}`)) {
+      podBaseName = data.label.slice(0, -(podHash.length + 1));
+    } else {
+      podBaseName = data.label || 'pod';
+    }
   }
 
   const updatePodBaseName = (newBase: string) => {
@@ -99,6 +103,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     const newLabel = cleanBase ? `${cleanBase}-${podHash}` : podHash;
     updateNodeData(selectedNode.id, {
       label: newLabel,
+      podBaseName: cleanBase,
       podHash,
     });
   };
@@ -109,6 +114,7 @@ export const useNodeConfigHandler = (selectedNode: any) => {
     const newLabel = `${cleanBase}-${newHash}`;
     updateNodeData(selectedNode.id, {
       label: newLabel,
+      podBaseName: cleanBase,
       podHash: newHash,
     });
   };
