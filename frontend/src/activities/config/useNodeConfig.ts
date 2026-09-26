@@ -141,11 +141,8 @@ export const useNodeConfigHandler = (selectedNode: any) => {
   };
 
   const randomizePodHash = () => {
-    const currentHash = podHash || generateRandomHash(5);
-    const newHashSegments = currentHash.split('-').map(() => generateRandomHash(5));
-    const newPodHash = newHashSegments.join('-');
-
     const cleanBase = sanitizeSlug(podBaseName) || 'pod';
+    const newPodHash = generateRandomHash(5);
     const newLabel = `${cleanBase}-${newPodHash}`;
     updateNodeData(selectedNode.id, {
       label: newLabel,

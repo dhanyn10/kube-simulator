@@ -24,12 +24,12 @@ describe('useNodeConfig', () => {
       const podNode = {
         id: 'pod-1',
         type: 'Pod',
-        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podBaseName: 'postgres-db', podHash: '4xdo9-gy37g-kn10z' },
+        data: { label: 'postgres-db-4xdo9', podBaseName: 'postgres-db', podHash: '4xdo9' },
       };
 
       const res = parsePodLabelAndHash(podNode);
       expect(res.podBaseName).toBe('postgres-db');
-      expect(res.podHash).toBe('4xdo9-gy37g-kn10z');
+      expect(res.podHash).toBe('4xdo9');
     });
 
     it('correctly parses pod label using parent deployment name as base', () => {
@@ -38,14 +38,14 @@ describe('useNodeConfig', () => {
         id: 'pod-1',
         type: 'Pod',
         parentId: 'dep-1',
-        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podHash: 'kn10z' },
+        data: { label: 'postgres-db-4xdo9-gy37g', podHash: 'gy37g' },
       };
 
       useFlowStore.setState({ nodes: [parentNode, podNode] as any });
 
       const res = parsePodLabelAndHash(podNode);
       expect(res.podBaseName).toBe('postgres-db');
-      expect(res.podHash).toBe('4xdo9-gy37g-kn10z');
+      expect(res.podHash).toBe('4xdo9-gy37g');
     });
   });
 
@@ -211,13 +211,13 @@ describe('useNodeConfig', () => {
   });
 
   describe('useNodeConfigHandler', () => {
-    it('maintains consistent string length across multiple randomize clicks without growing/appending', () => {
+    it('maintains consistent single-hash suffix across multiple randomize clicks without extra segments', () => {
       const parentNode = { id: 'dep-1', type: 'Deployment', data: { label: 'postgres-db' } };
       let podNode = {
         id: 'pod-1',
         type: 'Pod',
         parentId: 'dep-1',
-        data: { label: 'postgres-db-4xdo9-gy37g-kn10z', podBaseName: 'postgres-db', podHash: '4xdo9-gy37g-kn10z' },
+        data: { label: 'postgres-db-4xdo9', podBaseName: 'postgres-db', podHash: '4xdo9' },
       };
 
       useFlowStore.setState({
@@ -229,23 +229,23 @@ describe('useNodeConfig', () => {
 
       const { result, rerender } = renderHook(() => useNodeConfigHandler(podNode));
 
-      const initialLength = podNode.data.label.length;
+      const expectedLength = 'postgres-db-12345'.length;
 
       // First click
       act(() => {
         result.current.randomizePodHash();
       });
       rerender();
-      expect(podNode.data.label.length).toBe(initialLength);
-      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/);
+      expect(podNode.data.label.length).toBe(expectedLength);
+      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}$/);
 
       // Second click
       act(() => {
         result.current.randomizePodHash();
       });
       rerender();
-      expect(podNode.data.label.length).toBe(initialLength);
-      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{5}$/);
+      expect(podNode.data.label.length).toBe(expectedLength);
+      expect(podNode.data.label).toMatch(/^postgres-db-[a-z0-9]{5}$/);
     });
 
     it('toggleVisibility toggles visibility field and defaults displaySettings when missing', () => {
