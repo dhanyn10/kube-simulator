@@ -11,6 +11,7 @@ export interface AutocompleteItemProps {
   isDark: boolean;
   selectedSubIndex: number;
   onSelectSuggestion: (item: SuggestionItem, podName?: string) => void;
+  onHoverIndex?: (index: number) => void;
 }
 
 const getAutocompleteItemClass = (isSelected: boolean, isDark: boolean, isDisabled: boolean): string => {
@@ -64,6 +65,7 @@ export const AutocompleteItem = ({
   isDark,
   selectedSubIndex,
   onSelectSuggestion,
+  onHoverIndex,
 }: AutocompleteItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -97,9 +99,11 @@ export const AutocompleteItem = ({
 
   return (
     <div
+      data-item-index={index}
       onMouseEnter={() => {
         setIsHovered(true);
         if (targetPodName) setHoveredAutocompletePodName(targetPodName);
+        onHoverIndex?.(index);
       }}
       onMouseLeave={() => {
         setIsHovered(false);

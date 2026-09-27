@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Settings, Plus, Trash2, HelpCircle, TerminalSquare } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
 import { K8sConfigMapItem } from '@/types';
 import { cn } from '@/lib/utils';
 import { useConfigMapModal, PREDEFINED_KEYS } from '@/activities/modals';
+import { centerDropdownItem } from '@/lib/autocompleteUtils';
 
 interface ConfigMapModalProps {
   readonly isOpen: boolean;
@@ -21,6 +22,8 @@ interface AutocompleteOptionItemProps {
   readonly secondaryText?: string;
   readonly badgeText?: string;
   readonly isDark: boolean;
+  readonly index: number;
+  readonly onHover?: () => void;
   readonly onSelect: () => void;
 }
 
@@ -30,11 +33,15 @@ const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
   secondaryText,
   badgeText,
   isDark,
+  index,
+  onHover,
   onSelect,
 }) => (
   <button
     type="button"
     data-testid={testId}
+    data-item-index={index}
+    onMouseEnter={onHover}
     onMouseDown={(e) => {
       e.preventDefault();
       onSelect();
@@ -95,6 +102,20 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     initialConfigMap,
     onSave,
   });
+
+  const portalContainerRef = useRef<HTMLDivElement>(null);
+  const [portalSelectedIndex, setPortalSelectedIndex] = useState<number>(0);
+
+  useEffect(() => {
+    setPortalSelectedIndex(0);
+  }, [activeDropdown?.rowId, activeDropdown?.field]);
+
+  useEffect(() => {
+    if (portalContainerRef.current) {
+      const total = activeDropdown?.field === 'key' ? filteredKeys.length : filteredValues.length;
+      centerDropdownItem(portalContainerRef.current, portalSelectedIndex, total);
+    }
+  }, [portalSelectedIndex, activeDropdown?.field, filteredKeys.length, filteredValues.length]);
 
   if (!isOpen) return null;
 
@@ -273,6 +294,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       {/* Viewport Fixed Autocomplete Portal (Renders above all scroll containers without clipping) */}
       {activeDropdown && dropdownPos && activeRow && createPortal(
         <div
+          ref={portalContainerRef}
           id="configmap-autocomplete-portal"
           style={{
             position: 'fixed',
@@ -288,13 +310,15 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               : "bg-white border-slate-200 text-slate-800 divide-slate-100"
           )}
         >
-          {activeDropdown.field === 'key' && filteredKeys.map((item) => (
+          {activeDropdown.field === 'key' && filteredKeys.map((item, index) => (
             <AutocompleteOptionItem
               key={`portal-key-${item.key}`}
               testId={`key-option-${item.key}`}
               primaryText={item.key}
               badgeText="KEY"
               isDark={isDark}
+              index={index}
+              onHover={() => setPortalSelectedIndex(index)}
               onSelect={() => {
                 handleRowChange(activeRow.id, 'key', item.key);
                 setActiveDropdown(null);
@@ -302,13 +326,15 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
             />
           ))}
 
-          {activeDropdown.field === 'value' && filteredValues.map((opt) => (
+          {activeDropdown.field === 'value' && filteredValues.map((opt, index) => (
             <AutocompleteOptionItem
               key={`portal-val-${opt.value}`}
               testId={`val-option-${opt.value}`}
               primaryText={opt.value}
               secondaryText={opt.description}
               isDark={isDark}
+              index={index}
+              onHover={() => setPortalSelectedIndex(index)}
               onSelect={() => {
                 handleRowChange(activeRow.id, 'value', opt.value);
                 setActiveDropdown(null);

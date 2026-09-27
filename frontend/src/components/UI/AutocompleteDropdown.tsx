@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TerminalSquare, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { centerDropdownItem } from '@/lib/autocompleteUtils';
 
 export interface AutocompleteSuggestion {
   label: string;
@@ -80,6 +81,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
 
   return (
     <div
+      data-item-index={idx}
       onMouseEnter={() => onHoverIndex?.(idx)}
       className={cn(
         "group flex flex-col transition-colors border-b last:border-b-0 border-slate-800/40",
@@ -199,11 +201,17 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
 }) => {
   const isDark = colorMode === 'dark';
   const [activeInfoIndex, setActiveInfoIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    centerDropdownItem(containerRef.current, selectedIndex, suggestions.length);
+  }, [selectedIndex, suggestions.length]);
 
   if (suggestions.length === 0) return null;
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "absolute left-0 right-0 z-50 max-h-48 overflow-y-auto rounded-lg border shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs custom-scrollbar",
         openUpward ? "bottom-full mb-1" : "top-full mt-1",
