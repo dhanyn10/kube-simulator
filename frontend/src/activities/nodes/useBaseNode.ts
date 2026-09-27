@@ -1,5 +1,6 @@
 /**
- * Hook for BaseNode status, container styles, and properties computation.
+ * Hook for BaseNode status, container styles, properties computation,
+ * stacked pod label masking (`basename-podHash-*****`), and replica segment hover indexing.
  */
 
 import { useFlowStore } from '@/store';
@@ -8,6 +9,13 @@ import { useNodeRename } from '@/hooks/useNodeEditor';
 import { useNodeStatus, useNodeContainerStyles, getNodeBorderColorHex } from '@/hooks/useNodeStatusStyles';
 import { K8sNodeData } from '@/types';
 
+/**
+ * Custom hook encapsulating business logic, status styles, display label formatting,
+ * and autocomplete hover targeting for BaseNode canvas cards.
+ *
+ * @param params - Object containing node ID, data, selection state, color theme, and optional status override.
+ * @returns Evaluated node styles, edit state, replica count, display label, and hovered pod index.
+ */
 export const useBaseNodeHandler = ({
   id,
   data,

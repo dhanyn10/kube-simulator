@@ -19,7 +19,11 @@ const NodeStatusIndicator = ({ type, statusDotColor }: { type: string; statusDot
 };
 
 /**
- * Sub-component for rendering replica progress bars.
+ * Sub-component for rendering replica progress indicator bars and mega-pod circular gauges.
+ * Highlights the specific segment corresponding to `hoveredPodIndex` in blue when targeted
+ * via terminal autocomplete or CLI command execution.
+ *
+ * @param props - Component parameters including node ID, replicas count, color mode, and hover state.
  */
 const ReplicaProgress = ({
   id,

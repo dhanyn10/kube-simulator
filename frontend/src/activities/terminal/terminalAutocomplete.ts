@@ -100,6 +100,14 @@ export const getDeploymentNames = (nodes: Node[]): string[] => {
   return nodes.filter(n => n.type === 'Deployment').map(d => String(d.data?.label ?? d.id));
 };
 
+/**
+ * Extracts and compiles all active pod names from canvas nodes.
+ * Expands stacked pod replica suffixes (`replicaSuffixes`) so every individual pod
+ * instance is listed as a selectable option in autocomplete dropdowns.
+ *
+ * @param nodes - Array of active canvas nodes.
+ * @returns Array of formatted full pod name strings.
+ */
 export const getPodNames = (nodes: Node[]): string[] => {
   const podNames: string[] = [];
   nodes.filter(n => n.type === 'Pod').forEach(p => {

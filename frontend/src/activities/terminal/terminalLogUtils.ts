@@ -15,10 +15,11 @@ export interface CommandHistoryEntry {
 }
 
 /**
- * Finds a canvas node matching either by ID or label case-insensitively.
+ * Finds a canvas node matching either by ID, label, or pod group hash case-insensitively.
+ * Supports finding stacked pod cards when targeted by specific replica pod names containing `podHash`.
  *
  * @param nodes - Array of React Flow canvas nodes.
- * @param targetName - Target node ID or label to locate.
+ * @param targetName - Target node ID, label, or full pod name to locate.
  * @param filterType - Optional resource type string or array of allowed node types.
  * @returns Matching Node instance or undefined if not found.
  */

@@ -158,7 +158,16 @@ const createPodNode = (
   };
 };
 
-// Helper function to sync pods within a deployment based on replica count and Agile Randomization
+/**
+ * Synchronizes child pod nodes within a Deployment controller based on replica count thresholds
+ * and agile randomization rules. Generates group pod hashes and per-replica unique suffixes.
+ *
+ * @param deployment - Parent Deployment canvas node.
+ * @param currentPods - Array of existing child Pod canvas nodes belonging to this deployment.
+ * @param dataTemplate - Optional template Pod node to copy configuration settings from.
+ * @param forceRandomize - Flag indicating whether group and replica hash suffixes should be re-randomized.
+ * @returns Array of synchronized child Pod canvas nodes.
+ */
 export const syncPodsInDeployment = (
   deployment: Node,
   currentPods: Node[],
@@ -172,14 +181,14 @@ export const syncPodsInDeployment = (
 
   const baseName = (data.label as string) || commonData.label || 'pod';
 
-  // Langkah 1: Buat 1 nilai podHash baru untuk seluruh kelompok (misal: "cxxx" -> "k98z")
+  // Step 1: Generate or preserve a single 5-character group podHash for the deployment (e.g. "k98z")
   const groupPodHash = forceRandomize
     ? generateRandomHash(5)
     : ((data.podHash as string) || (currentPods[0]?.data?.podHash as string) || generateRandomHash(5));
 
   data.podHash = groupPodHash;
 
-  // Langkah 2: Lakukan looping (iterasi) ke SEMUA REPLIKA POD yang ada dalam array/list
+  // Step 2: Iterate over target pod replica groups and assign unique per-pod replica suffixes
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
 
