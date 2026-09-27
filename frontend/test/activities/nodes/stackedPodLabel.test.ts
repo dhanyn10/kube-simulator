@@ -86,6 +86,35 @@ describe('Stacked Pod Label and Highlight Tests', () => {
     ]);
   });
 
+  it('calculates hoveredPodIndex correctly when a specific replica suffix is hovered', () => {
+    useFlowStore.setState({
+      hoveredAutocompletePodName: 'myapp-k98z-m1aa3',
+    });
+
+    const data = {
+      label: 'myapp-k98z-m1aa1',
+      type: 'Pod',
+      baseName: 'myapp',
+      podHash: 'k98z',
+      replicaSuffix: 'm1aa1',
+      replicaSuffixes: ['m1aa1', 'm1aa2', 'm1aa3', 'm1aa4', 'm1aa5'],
+      replicas: 5,
+      parentReplicas: 5,
+      parentId: 'deploy-1',
+    };
+
+    const { result } = renderHook(() =>
+      useBaseNodeHandler({
+        id: 'pod-1',
+        data: data as any,
+        color: 'blue',
+      })
+    );
+
+    expect(result.current.isAutocompleteHovered).toBe(true);
+    expect(result.current.hoveredPodIndex).toBe(2);
+  });
+
   it('returns blue segment styles when isAutocompleteHovered is true', () => {
     const styles = getProgressSegmentStyles('dark', true);
     expect(styles.barClass).toContain('bg-blue-500');

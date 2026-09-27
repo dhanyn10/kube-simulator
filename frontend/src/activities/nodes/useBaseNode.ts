@@ -37,12 +37,26 @@ export const useBaseNodeHandler = ({
     }
   }
 
-  const isAutocompleteHovered = Boolean(
-    hoveredAutocompletePodName &&
-    (data.label === hoveredAutocompletePodName ||
-     id === hoveredAutocompletePodName ||
-     (data.type === 'Pod' && data.podHash && hoveredAutocompletePodName.includes(`-${data.podHash}`)))
-  );
+  let hoveredPodIndex: number | null = null;
+  let isAutocompleteHovered = false;
+
+  if (hoveredAutocompletePodName) {
+    if (data.label === hoveredAutocompletePodName || id === hoveredAutocompletePodName) {
+      isAutocompleteHovered = true;
+      hoveredPodIndex = 0;
+    } else if (data.type === 'Pod' && data.podHash && hoveredAutocompletePodName.includes(`-${data.podHash}`)) {
+      isAutocompleteHovered = true;
+      if (data.replicaSuffixes && Array.isArray(data.replicaSuffixes)) {
+        const idx = data.replicaSuffixes.findIndex((suf: string) =>
+          hoveredAutocompletePodName.endsWith(`-${suf}`) ||
+          hoveredAutocompletePodName.includes(`-${data.podHash}-${suf}`)
+        );
+        if (idx !== -1) {
+          hoveredPodIndex = idx;
+        }
+      }
+    }
+  }
 
   const { transitionClasses } = useNodeStyles(id);
 
@@ -112,6 +126,7 @@ export const useBaseNodeHandler = ({
     replicas,
     showDashedProgress,
     isAutocompleteHovered,
+    hoveredPodIndex,
     borderColorHex,
     displayLabel,
   };
