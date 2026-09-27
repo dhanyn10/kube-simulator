@@ -53,15 +53,22 @@ export const useBaseNodeHandler = ({
       isAutocompleteHovered = true;
       hoveredPodIndex = 0;
     } else if (data.type === 'Pod' && data.podHash && hoveredAutocompletePodName.includes(`-${data.podHash}`)) {
-      isAutocompleteHovered = true;
-      if (data.replicaSuffixes && Array.isArray(data.replicaSuffixes)) {
+      if (data.replicaSuffixes && Array.isArray(data.replicaSuffixes) && data.replicaSuffixes.length > 0) {
         const idx = data.replicaSuffixes.findIndex((suf: string) =>
           hoveredAutocompletePodName.endsWith(`-${suf}`) ||
           hoveredAutocompletePodName.includes(`-${data.podHash}-${suf}`)
         );
         if (idx !== -1) {
+          isAutocompleteHovered = true;
           hoveredPodIndex = idx;
         }
+      } else if (
+        data.replicaSuffix &&
+        (hoveredAutocompletePodName.endsWith(`-${data.replicaSuffix}`) ||
+         hoveredAutocompletePodName.includes(`-${data.podHash}-${data.replicaSuffix}`))
+      ) {
+        isAutocompleteHovered = true;
+        hoveredPodIndex = 0;
       }
     }
   }

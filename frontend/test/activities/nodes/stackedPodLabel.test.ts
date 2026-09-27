@@ -115,6 +115,58 @@ describe('Stacked Pod Label and Highlight Tests', () => {
     expect(result.current.hoveredPodIndex).toBe(2);
   });
 
+  it('only sets isAutocompleteHovered = true on the card containing the hovered pod suffix', () => {
+    useFlowStore.setState({
+      hoveredAutocompletePodName: 'myapp-k98z-suf2',
+    });
+
+    const card0Data = {
+      label: 'myapp-k98z-suf0',
+      type: 'Pod',
+      baseName: 'myapp',
+      podHash: 'k98z',
+      replicaSuffix: 'suf0',
+      replicaSuffixes: ['suf0', 'suf1', 'suf2', 'suf3', 'suf4', 'suf5', 'suf6', 'suf7', 'suf8', 'suf9'],
+      replicas: 10,
+      parentReplicas: 15,
+      parentId: 'deploy-1',
+    };
+
+    const card1Data = {
+      label: 'myapp-k98z-suf10',
+      type: 'Pod',
+      baseName: 'myapp',
+      podHash: 'k98z',
+      replicaSuffix: 'suf10',
+      replicaSuffixes: ['suf10', 'suf11', 'suf12', 'suf13', 'suf14'],
+      replicas: 5,
+      parentReplicas: 15,
+      parentId: 'deploy-1',
+    };
+
+    const { result: res0 } = renderHook(() =>
+      useBaseNodeHandler({
+        id: 'pod-card-0',
+        data: card0Data as any,
+        color: 'blue',
+      })
+    );
+
+    const { result: res1 } = renderHook(() =>
+      useBaseNodeHandler({
+        id: 'pod-card-1',
+        data: card1Data as any,
+        color: 'blue',
+      })
+    );
+
+    expect(res0.current.isAutocompleteHovered).toBe(true);
+    expect(res0.current.hoveredPodIndex).toBe(2);
+
+    expect(res1.current.isAutocompleteHovered).toBe(false);
+    expect(res1.current.hoveredPodIndex).toBe(null);
+  });
+
   it('returns blue segment styles when isAutocompleteHovered is true', () => {
     const styles = getProgressSegmentStyles('dark', true);
     expect(styles.barClass).toContain('bg-blue-500');
