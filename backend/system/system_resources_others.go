@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// parseValueFromOutput parses a numeric memory value from system CLI output bytes.
 func parseValueFromOutput(out []byte) uint64 {
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
@@ -25,6 +26,7 @@ func parseValueFromOutput(out []byte) uint64 {
 	return 0
 }
 
+// GetSystemResources returns system CPU cores, CPU usage, and memory statistics for non-Windows platforms.
 func GetSystemResources() map[string]interface{} {
 	cores := runtime.NumCPU()
 	

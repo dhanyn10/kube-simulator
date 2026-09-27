@@ -1,5 +1,6 @@
 package k8s
 
+// ObjectMeta represents standard Kubernetes metadata for resources.
 type ObjectMeta struct {
 	Name        string            `yaml:"name" json:"name"`
 	Namespace   string            `yaml:"namespace,omitempty" json:"namespace,omitempty"`

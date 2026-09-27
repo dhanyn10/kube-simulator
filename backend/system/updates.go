@@ -19,6 +19,7 @@ var (
 	apiBaseURL = "https://api.github.com"
 )
 
+// GitHubRelease represents a release object returned by the GitHub REST API.
 type GitHubRelease struct {
 	TagName    string `json:"tag_name"`
 	HTMLURL    string `json:"html_url"`
@@ -26,6 +27,7 @@ type GitHubRelease struct {
 	Draft      bool   `json:"draft"`
 }
 
+// UpdateInfo contains update check results comparing current version against GitHub releases.
 type UpdateInfo struct {
 	CurrentVersion  string `json:"currentVersion"`
 	LatestVersion   string `json:"latestVersion"`
@@ -34,6 +36,7 @@ type UpdateInfo struct {
 	IsPrerelease    bool   `json:"isPrerelease"`
 }
 
+// fetchReleases queries GitHub API for repository release history.
 func fetchReleases() ([]GitHubRelease, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("%s/repos/%s/%s/releases", apiBaseURL, RepoOwner, RepoName)
@@ -55,6 +58,7 @@ func fetchReleases() ([]GitHubRelease, error) {
 	return releases, nil
 }
 
+// findLatestRelease locates the first non-draft release in the provided release list.
 func findLatestRelease(releases []GitHubRelease) (GitHubRelease, bool) {
 	for _, r := range releases {
 		if !r.Draft {
@@ -64,6 +68,7 @@ func findLatestRelease(releases []GitHubRelease) (GitHubRelease, bool) {
 	return GitHubRelease{}, false
 }
 
+// CheckForUpdates fetches repository releases from GitHub and determines if a newer version is available.
 func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
 	releases, err := fetchReleases()
 	if err != nil {
@@ -88,6 +93,7 @@ func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
 	}, nil
 }
 
+// compareNumericVersions compares two slice arrays of numeric version segment strings.
 func compareNumericVersions(lVer, cVer []string) (int, bool) {
 	for i := 0; i < len(lVer) || i < len(cVer); i++ {
 		lv, cv := 0, 0
@@ -108,6 +114,7 @@ func compareNumericVersions(lVer, cVer []string) (int, bool) {
 	return 0, false
 }
 
+// isNewer evaluates semver-like version strings to determine whether latest is newer than current.
 func isNewer(latest, current string) bool {
 	if current == "" {
 		return latest != ""

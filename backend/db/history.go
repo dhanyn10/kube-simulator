@@ -9,18 +9,21 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
+// HistoryLog represents a single recorded history action entry for display in history panels.
 type HistoryLog struct {
 	Index      int    `json:"index"`
 	ActionName string `json:"actionName"`
 	Timestamp  int64  `json:"timestamp"`
 }
 
+// HistoryManager manages the persistent undo/redo history stack using an embedded Badger DB instance.
 type HistoryManager struct {
 	db           *badger.DB
 	currentIndex int
 	maxIndex     int
 }
 
+// NewHistoryManager creates and initializes a new HistoryManager instance with default indices.
 func NewHistoryManager() *HistoryManager {
 	return &HistoryManager{
 		currentIndex: -1,
@@ -28,6 +31,7 @@ func NewHistoryManager() *HistoryManager {
 	}
 }
 
+// isCorruptFile inspects a database file to check if it consists entirely of trailing zero bytes resulting from an unclean shutdown.
 func isCorruptFile(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() || info.Size() == 0 {
@@ -60,6 +64,7 @@ func isCorruptFile(path string) bool {
 	return true
 }
 
+// isCorruptBadgerDir checks if any critical SST, MANIFEST, or KEYREGISTRY file within the Badger DB directory is corrupt.
 func isCorruptBadgerDir(dbPath string) bool {
 	entries, err := os.ReadDir(dbPath)
 	if err != nil {
@@ -81,6 +86,7 @@ func isCorruptBadgerDir(dbPath string) bool {
 	return false
 }
 
+// openBadger attempts to open a Badger DB instance while safely recovering from potential initialization panics.
 func openBadger(opts badger.Options) (db *badger.DB, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -90,6 +96,7 @@ func openBadger(opts badger.Options) (db *badger.DB, err error) {
 	return badger.Open(opts)
 }
 
+// Init initializes the history database directory in ~/.kube-simulator/history_db and opens the Badger database instance.
 func (h *HistoryManager) Init() error {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -124,12 +131,14 @@ func (h *HistoryManager) Init() error {
 	return nil
 }
 
+// Close gracefully closes the underlying Badger database instance if open.
 func (h *HistoryManager) Close() {
 	if h.db != nil {
 		h.db.Close()
 	}
 }
 
+// Push records a new state snapshot into the history database and updates the current and maximum history indices.
 func (h *HistoryManager) Push(state string) {
 	if h.db == nil {
 		return
@@ -148,6 +157,7 @@ func (h *HistoryManager) Push(state string) {
 	}
 }
 
+// Undo moves one step back in the history stack and returns the previous state string.
 func (h *HistoryManager) Undo() string {
 	if h.db == nil || h.currentIndex <= 0 {
 		return ""
@@ -157,6 +167,7 @@ func (h *HistoryManager) Undo() string {
 	return h.JumpTo(h.currentIndex)
 }
 
+// Redo moves one step forward in the history stack and returns the next state string.
 func (h *HistoryManager) Redo() string {
 	if h.db == nil || h.currentIndex >= h.maxIndex {
 		return ""
@@ -166,6 +177,7 @@ func (h *HistoryManager) Redo() string {
 	return h.JumpTo(h.currentIndex)
 }
 
+// JumpTo retrieves and returns the canvas state string recorded at the specified history index.
 func (h *HistoryManager) JumpTo(index int) string {
 	if h.db == nil || index < 0 || index > h.maxIndex {
 		return ""
@@ -193,14 +205,17 @@ func (h *HistoryManager) JumpTo(index int) string {
 	return state
 }
 
+// GetCurrentIndex returns the current active position index in the history stack.
 func (h *HistoryManager) GetCurrentIndex() int {
 	return h.currentIndex
 }
 
+// GetMaxIndex returns the maximum recorded index in the history stack.
 func (h *HistoryManager) GetMaxIndex() int {
 	return h.maxIndex
 }
 
+// GetDB returns a reference to the internal Badger database instance.
 func (h *HistoryManager) GetDB() *badger.DB {
 	return h.db
 }

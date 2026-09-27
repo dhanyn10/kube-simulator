@@ -38,10 +38,12 @@ var (
 	prevUserTime   uint64
 )
 
+// fileTimeToUint64 converts a Win32 fileTime struct into a 64-bit unsigned integer timestamp.
 func fileTimeToUint64(ft fileTime) uint64 {
 	return uint64(ft.dwHighDateTime)<<32 | uint64(ft.dwLowDateTime)
 }
 
+// getWinMemoryStats queries GlobalMemoryStatusEx to return total RAM (in GB) and available RAM (in GB).
 func getWinMemoryStats() (totalGB uint64, freeGB float64) {
 	var msx memoryStatusEx
 	msx.cbSize = uint32(unsafe.Sizeof(msx))
@@ -55,6 +57,7 @@ func getWinMemoryStats() (totalGB uint64, freeGB float64) {
 	return 16, 8.0
 }
 
+// getWinCpuUsage calculates current system CPU utilization percentage on Windows using GetSystemTimes.
 func getWinCpuUsage() int {
 	var idleTime, kernelTime, userTime fileTime
 	ret, _, _ := procGetSystemTimes.Call(
