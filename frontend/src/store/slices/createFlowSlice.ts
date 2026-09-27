@@ -321,12 +321,16 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       }
     }
 
-    if (sourceNode?.type === 'HPA' && (targetNode?.type === 'Deployment' || targetNode?.type === 'Pod' || targetNode?.type === 'ReplicaSet')) {
-      const hasLimit = hasResourceLimitAttachedOrConnected(targetNode, nodes, get().edges);
+    const isHpaConnection = (sourceNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(targetNode?.type || '')) ||
+                            (targetNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(sourceNode?.type || ''));
+
+    if (isHpaConnection) {
+      const workloadNode = sourceNode?.type === 'HPA' ? targetNode : sourceNode;
+      const hasLimit = hasResourceLimitAttachedOrConnected(workloadNode, nodes, get().edges);
       if (!hasLimit) {
         addLog(
           'error',
-          `[HPA Prerequisite] Cannot connect HPA to ${targetNode.data?.label || targetNode.id}. Resource Limit is required on target workload before attaching HPA.`,
+          `[HPA Prerequisite] Cannot connect HPA to ${workloadNode?.data?.label || workloadNode?.id}. Resource Limit is required on target workload before attaching HPA.`,
           'UI'
         );
         return;
