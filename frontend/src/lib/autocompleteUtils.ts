@@ -20,7 +20,7 @@ export const centerDropdownItem = (
   if (!activeItem) return;
 
   const maxScroll = container.scrollHeight - container.clientHeight;
-  let targetTop = 0;
+  let targetTop: number;
 
   if (selectedIndex === 0) {
     targetTop = 0;
