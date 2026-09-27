@@ -1,61 +1,53 @@
 import React from 'react';
-import { K8sNodeData } from '@/types';
-import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';
+import { Layers } from 'lucide-react';
+import { K8sNodeData, K8sResourceLimitItem } from '@/types';
 import { ResourceLimitModal } from '../Modals/ResourceLimitModal';
 import { ResourceLimitListModal } from '../Modals/ResourceLimitListModal';
-import { useResourceLimitSettings } from '@/activities/config';
+import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';
 
 interface ResourceLimitSettingsSectionProps {
-  readonly data: K8sNodeData;
-  readonly nodeId: string;
+  data: K8sNodeData;
+  nodeId: string;
 }
 
 export const ResourceLimitSettingsSection: React.FC<ResourceLimitSettingsSectionProps> = ({ data, nodeId }) => {
-  const {
-    resourceLimits,
-    isListModalOpen,
-    setIsListModalOpen,
-    isEditModalOpen,
-    setIsEditModalOpen,
-    selectedItem,
-    handleSave,
-    handleDelete,
-    handleOpenAddModal,
-    handleOpenEditModal,
-  } = useResourceLimitSettings(data, nodeId);
-
   return (
-    <>
-      <AttachedResourceSettingsSection
-        title="Resource Limits"
-        iconName="Layers"
-        resourceName="Resource Limit"
-        logResourceName="Resource Limit"
-        targetNodeId={nodeId}
-        targetNodeLabel={data.label || nodeId}
-        attachedItems={resourceLimits}
-        onManageClick={() => setIsListModalOpen(true)}
-        onAttachClick={handleOpenAddModal}
-      />
-
-      <ResourceLimitListModal
-        isOpen={isListModalOpen}
-        onClose={() => setIsListModalOpen(false)}
-        resourceLimits={resourceLimits}
-        targetNodeLabel={data.label || nodeId}
-        onOpenAddModal={handleOpenAddModal}
-        onOpenEditModal={handleOpenEditModal}
-        onDeleteItem={handleDelete}
-      />
-
-      <ResourceLimitModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        targetNodeId={nodeId}
-        targetNodeLabel={data.label || nodeId}
-        initialResourceLimit={selectedItem}
-        onSave={handleSave}
-      />
-    </>
+    <AttachedResourceSettingsSection<K8sResourceLimitItem>
+      data={data}
+      nodeId={nodeId}
+      resourceKey="resourceLimits"
+      resourceName="Resource Limit"
+      logResourceName="Resource Limit"
+      icon={Layers}
+      badgeBgColorClass="bg-purple-600"
+      darkBorderColorClass="border-purple-500/50"
+      darkTextColorClass="text-purple-400"
+      darkHoverBorderClass="hover:border-purple-400"
+      lightBgColorClass="bg-purple-50"
+      lightBorderColorClass="border-purple-200"
+      lightTextColorClass="text-purple-600"
+      lightHoverBorderClass="hover:border-purple-400"
+      renderListModal={({ isOpen, onClose, targetNodeLabel, items, onEditItem, onDeleteItem, onAddNewItem }) => (
+        <ResourceLimitListModal
+          isOpen={isOpen}
+          onClose={onClose}
+          targetNodeLabel={targetNodeLabel}
+          resourceLimits={items as K8sResourceLimitItem[]}
+          onOpenAddModal={onAddNewItem}
+          onOpenEditModal={onEditItem}
+          onDeleteItem={(id) => onDeleteItem(id, 'Resource Limit')}
+        />
+      )}
+      renderEditModal={({ isOpen, onClose, targetNodeId, targetNodeLabel, initialItem, onSave }) => (
+        <ResourceLimitModal
+          isOpen={isOpen}
+          onClose={onClose}
+          targetNodeId={targetNodeId}
+          targetNodeLabel={targetNodeLabel}
+          initialResourceLimit={initialItem}
+          onSave={onSave}
+        />
+      )}
+    />
   );
 };
