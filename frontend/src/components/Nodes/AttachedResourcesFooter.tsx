@@ -1,16 +1,17 @@
-import { Shield, Settings, Lock, Activity } from 'lucide-react';
+import { Shield, Settings, Lock, Activity, Layers } from 'lucide-react';
 import { K8sNodeData } from '@/types';
 
 /**
  * Reusable Card Footer component for rendering attached resources
- * (Roles, ConfigMaps, Secrets, HPAs) on canvas nodes.
+ * (Roles, ConfigMaps, Secrets, HPAs, ResourceLimits) on canvas nodes.
  */
 export const AttachedResourcesFooter = ({ data }: { readonly data: K8sNodeData }) => {
   const hasAttached = Boolean(
     (data.roles && data.roles.length > 0) ||
     (data.configMaps && data.configMaps.length > 0) ||
     (data.secrets && data.secrets.length > 0) ||
-    (data.hpas && data.hpas.length > 0)
+    (data.hpas && data.hpas.length > 0) ||
+    (data.resourceLimits && data.resourceLimits.length > 0)
   );
 
   if (!hasAttached) return null;
@@ -49,6 +50,18 @@ export const AttachedResourcesFooter = ({ data }: { readonly data: K8sNodeData }
           <Lock size={11} />
         </span>
       ))}
+      {data.resourceLimits?.map((res: any) => {
+        const details = ` (CPU: ${res.cpuRequest || '500m'} / ${res.cpuLimit || '1000m'} | Mem: ${res.memoryRequest || '256Mi'} / ${res.memoryLimit || '512Mi'})`;
+        return (
+          <span
+            key={res.id || res.name}
+            className="node-attached-badge-resource-limit"
+            title={`Resource Limit: ${res.name}${details}`}
+          >
+            <Layers size={11} />
+          </span>
+        );
+      })}
       {data.hpas?.map((hpa: any) => {
         const details = (hpa.minReplicas !== undefined && hpa.maxReplicas !== undefined && hpa.targetCPU !== undefined)
           ? ` (Min: ${hpa.minReplicas}, Max: ${hpa.maxReplicas}, CPU: ${hpa.targetCPU}%)`
