@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'ResourceLimit' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
 
 export interface KubeIAMPolicy {
   name: string;
@@ -80,6 +80,15 @@ export interface K8sHpaItem {
   targetMemory?: number;
 }
 
+export interface K8sResourceLimitItem {
+  id: string;
+  name: string;
+  cpuRequest?: string;
+  cpuLimit?: string;
+  memoryRequest?: string;
+  memoryLimit?: string;
+}
+
 export interface K8sNodeData {
   [key: string]: any;
   label: string;
@@ -134,13 +143,14 @@ export interface K8sNodeData {
   // ConfigMap & Secret specific fields
   configData?: Array<{ key: string; value: string }>;
 
-  // Role, ConfigMap, Secret & HPA specific attached fields
+  // Role, ConfigMap, Secret, HPA & ResourceLimit specific attached fields
   rules?: K8sRoleRule[];
   roles?: K8sRoleItem[];
   roleBindings?: K8sRoleBindingItem[];
   configMaps?: K8sConfigMapItem[];
   secrets?: K8sSecretItem[];
   hpas?: K8sHpaItem[];
+  resourceLimits?: K8sResourceLimitItem[];
 }
 
 export interface K8sManifest {

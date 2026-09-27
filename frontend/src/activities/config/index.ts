@@ -8,3 +8,4 @@ export * from './useRoleConfig';
 export * from './useEdgeConfig';
 export * from './useAttachedResourceSettings';
 export * from './internetConfigHelpers';
+export * from './useResourceLimitSettings';

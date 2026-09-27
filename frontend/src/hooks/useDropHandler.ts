@@ -3,6 +3,7 @@ import { Node } from '@xyflow/react';
 import { useFlowStore } from '@/store';
 import { POD_MIN_DIMENSIONS } from '@/lib/podSizing';
 import { K8sResourceType } from '@/types';
+import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
 
 const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Pod: { x: POD_MIN_DIMENSIONS.width / 2, y: POD_MIN_DIMENSIONS.height / 2 },
@@ -12,6 +13,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
   Internet: { x: 90, y: 60 },
   Ingress: { x: 100, y: 60 },
   HPA: { x: 90, y: 70 },
+  ResourceLimit: { x: 90, y: 70 },
   PVC: { x: 90, y: 60 },
   ConfigMap: { x: 80, y: 50 },
   Secret: { x: 80, y: 50 },
@@ -21,7 +23,7 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {
   if (childType === 'Pod') return nodeType === 'Deployment' || nodeType === 'Namespace';
-  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role', 'ConfigMap', 'Secret'].includes(childType)) return nodeType === 'Namespace';
+  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'ResourceLimit', 'Role', 'ConfigMap', 'Secret'].includes(childType)) return nodeType === 'Namespace';
   return false;
 };
 
@@ -117,7 +119,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       if (!draggingSidebarItem) return;
 
-      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'Secret' || draggingSidebarItem === 'HPA') {
+      if (draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'Secret' || draggingSidebarItem === 'HPA' || draggingSidebarItem === 'ResourceLimit') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const targetNode = findRoleTargetNode(itemCenter, nodes, draggingSidebarItem);
 
@@ -152,13 +154,13 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
-      // Handle Role, ConfigMap, Secret, or HPA drop onto existing canvas card
-      if (type === 'Role' || type === 'ConfigMap' || type === 'Secret' || type === 'HPA') {
+      // Handle Role, ConfigMap, Secret, HPA, or ResourceLimit drop onto existing canvas card
+      if (type === 'Role' || type === 'ConfigMap' || type === 'Secret' || type === 'HPA' || type === 'ResourceLimit') {
         const itemCenter = screenToFlowPosition({ x: event.clientX, y: event.clientY });
         const targetNode = findRoleTargetNode(itemCenter, nodes, type);
 
         if (!targetNode) {
-          const targetCardText = type === 'HPA' ? 'Deployment or ReplicaSet' : 'Deployment, Pod, Service';
+          const targetCardText = (type === 'HPA' || type === 'ResourceLimit') ? 'Deployment or ReplicaSet' : 'Deployment, Pod, Service';
           useFlowStore.getState().addLog('warn', `[Canvas Action] ${type} must be dropped onto an existing card (e.g. ${targetCardText}) to attach ${type.toLowerCase()}s!`, 'UI');
         } else if (type === 'Role') {
           useFlowStore.setState({
@@ -172,7 +174,27 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
           useFlowStore.setState({
             secretModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
           });
+        } else if (type === 'ResourceLimit') {
+          useFlowStore.setState({
+            resourceLimitModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
+          });
         } else {
+          // Check HPA prerequisite
+          const edges = useFlowStore.getState().edges;
+          const hasLimit = hasResourceLimitAttachedOrConnected(targetNode, nodes, edges);
+          if (!hasLimit) {
+            useFlowStore.getState().addLog(
+              'error',
+              `[HPA Prerequisite] Cannot attach HPA to ${targetNode.data?.label || targetNode.id}. Resource Limit is required on target workload before attaching HPA.`,
+              'UI'
+            );
+            setHoveredDeploymentId(null);
+            useFlowStore.setState((state) => ({
+              nodes: state.nodes.map((n) => ({ ...n, data: { ...n.data, isHovered: false } })),
+            }));
+            return;
+          }
+
           useFlowStore.setState({
             hpaModalTargetNode: { id: targetNode.id, label: String(targetNode.data?.label || targetNode.id) }
           });

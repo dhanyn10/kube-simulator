@@ -2,6 +2,7 @@ export * from './BaseNode';
 export * from './ConfigMap';
 export * from './Deployment';
 export * from './HPA';
+export * from './ResourceLimit';
 export * from './Ingress';
 export * from './Internet';
 export * from './Namespace';

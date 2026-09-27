@@ -19,6 +19,7 @@ import {
   emitLiveEdgeDeletedCommand,
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
+import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -320,13 +321,15 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       }
     }
 
-    if (sourceNode?.type === 'HPA' && targetNode?.type === 'Deployment') {
-      const data = targetNode.data as K8sNodeData;
-      if (!data.cpuRequest || !data.memoryRequest) {
-        updateNodeData(targetNode.id, {
-          cpuRequest: data.cpuRequest || '100m',
-          memoryRequest: data.memoryRequest || '128Mi',
-        });
+    if (sourceNode?.type === 'HPA' && (targetNode?.type === 'Deployment' || targetNode?.type === 'Pod' || targetNode?.type === 'ReplicaSet')) {
+      const hasLimit = hasResourceLimitAttachedOrConnected(targetNode, nodes, get().edges);
+      if (!hasLimit) {
+        addLog(
+          'error',
+          `[HPA Prerequisite] Cannot connect HPA to ${targetNode.data?.label || targetNode.id}. Resource Limit is required on target workload before attaching HPA.`,
+          'UI'
+        );
+        return;
       }
     }
 
