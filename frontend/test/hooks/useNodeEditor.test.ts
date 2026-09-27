@@ -61,6 +61,27 @@ describe('useNodeRename', () => {
     expect(onRename).not.toHaveBeenCalled();
     expect(result.current.editValue).toBe('initial');
   });
+
+  it('handles rename without onRename callback and ignores keydown for other keys', () => {
+    const { result } = renderHook(() => useNodeRename('initial'));
+
+    act(() => {
+      result.current.setIsEditing(true);
+      result.current.setEditValue('valid-name');
+    });
+
+    act(() => {
+      result.current.onKeyDown({ key: 'Tab' } as any);
+    });
+
+    expect(result.current.isEditing).toBe(true);
+
+    act(() => {
+      result.current.handleRename();
+    });
+
+    expect(result.current.isEditing).toBe(false);
+  });
 });
 
 describe('useNodeResize', () => {

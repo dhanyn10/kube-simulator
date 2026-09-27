@@ -259,5 +259,37 @@ describe('terminalHandlers', () => {
       expect(handleDescribeCommand('kubectl describe pod unknown-pod', addActivityLog, nodes, false)).toBe(true);
       expect(addActivityLog).toHaveBeenCalledWith('Error from server (NotFound): pod "unknown-pod" not found');
     });
+
+    it('handles pod describe timeout callback when hoveredAutocompletePodName matches target or changes before timeout', () => {
+      vi.useFakeTimers();
+      const addActivityLog = vi.fn();
+
+      const podNodeNoData: Node[] = [
+        {
+          id: 'pod-bare',
+          type: 'Pod',
+          position: { x: 0, y: 0 },
+        },
+      ];
+
+      expect(handleDescribeCommand('kubectl describe pod pod-bare', addActivityLog, podNodeNoData, false)).toBe(true);
+      expect(addActivityLog).toHaveBeenCalledWith('Name:         pod-bare');
+      expect(addActivityLog).toHaveBeenCalledWith('Status:       Pending');
+      expect(addActivityLog).toHaveBeenCalledWith('    Image:      nginx:latest');
+      expect(addActivityLog).toHaveBeenCalledWith('      cpu:      500m');
+      expect(addActivityLog).toHaveBeenCalledWith('      memory:   256Mi');
+
+      // Test timer expiration when hovered state matches
+      vi.advanceTimersByTime(3000);
+
+      // Test timer expiration when hovered state changed beforehand
+      handleDescribeCommand('kubectl describe pod pod-bare', addActivityLog, podNodeNoData, false);
+      // Simulate hover change to something else
+      const store = (globalThis as any).useFlowStore?.getState();
+      if (store) store.setHoveredAutocompletePodName('other-pod');
+      vi.advanceTimersByTime(3000);
+
+      vi.useRealTimers();
+    });
   });
 });

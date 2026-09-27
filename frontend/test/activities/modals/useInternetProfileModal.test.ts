@@ -373,4 +373,38 @@ describe('useInternetProfileModal', () => {
 
     expect(mockGetInternetProfiles).toHaveBeenCalled();
   });
+
+  it('handles missing window.go and optional chaining fallbacks when window.go is undefined', async () => {
+    delete (window as any).go;
+
+    const { result } = renderHook(() =>
+      useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+    );
+
+    await act(async () => {});
+
+    expect(result.current.profiles).toEqual([ECOMMERCE_PROFILE]);
+
+    act(() => {
+      result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      result.current.handleUpdateDetailName('Test Detail Without Go');
+    });
+
+    await act(async () => {
+      await result.current.handleSaveAndApplyDetailProfile();
+    });
+
+    act(() => {
+      result.current.handleStartCustomProfile();
+      result.current.setNewProfileName('Test Custom Without Go');
+    });
+
+    await act(async () => {
+      await result.current.handleSaveCustomProfile();
+    });
+
+    await act(async () => {
+      await result.current.handleDeleteProfile('Test Custom Without Go');
+    });
+  });
 });

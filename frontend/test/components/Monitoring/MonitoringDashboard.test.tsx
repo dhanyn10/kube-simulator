@@ -90,6 +90,19 @@ describe('MonitoringDashboard', () => {
     // Simulate BroadcastChannel message DETACHED_CLOSED
     broadcastChannelListener({ type: 'DETACHED_CLOSED' });
     expect(setMonitoringDetachedSpy).toHaveBeenCalledWith(false);
+
+    // Simulate BroadcastChannel message with unknown type (ignored)
+    broadcastChannelListener({ type: 'UNKNOWN_TYPE' });
+
+    // Simulate Wails runtime events callbacks
+    const handleOpenCb = mockEventsOn.mock.calls.find((c) => c[0] === 'detached-open')?.[1];
+    const handleCloseCb = mockEventsOn.mock.calls.find((c) => c[0] === 'detached-closed')?.[1];
+
+    if (handleOpenCb) handleOpenCb();
+    expect(setMonitoringDetachedSpy).toHaveBeenCalledWith(true);
+
+    if (handleCloseCb) handleCloseCb();
+    expect(setMonitoringDetachedSpy).toHaveBeenCalledWith(false);
   });
 
   it('handles dashboard header drag movement via mouse events', () => {
