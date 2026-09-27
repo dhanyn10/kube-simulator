@@ -100,8 +100,8 @@ const getSelectionClasses = (selected: boolean | undefined, color: string, isDar
 const getReadyClasses = (isReady: boolean, isDark: boolean): string => {
   if (!isReady) return "";
   return isDark
-    ? "border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-    : "border-emerald-500/30";
+    ? "border-emerald-500/50 ring-4 ring-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+    : "border-emerald-500/30 ring-4 ring-emerald-500/10";
 };
 
 export const COMPATIBLE_ATTACHMENT_TARGETS = ['Pod', 'Deployment', 'Service', 'Namespace', 'Ingress', 'HPA', 'PVC'];
