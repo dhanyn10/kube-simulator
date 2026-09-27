@@ -1,10 +1,17 @@
 import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '@/store';
 
+/** Module-scoped storage for original console methods prior to interception. */
 let storedOriginalLog: any = null;
 let storedOriginalWarn: any = null;
 let storedOriginalError: any = null;
 
+/**
+ * Safely resolves original console method references from window or globalThis context.
+ *
+ * @param key The global property name holding original console methods ('_originalConsoleLog', '_originalConsoleWarn', '_originalConsoleError').
+ * @returns The original console function if captured, or undefined.
+ */
 const getOriginalConsoleMethod = (key: '_originalConsoleLog' | '_originalConsoleWarn' | '_originalConsoleError') => {
   if (typeof window !== 'undefined' && (window as any)[key]) {
     return (window as any)[key];
@@ -15,6 +22,14 @@ const getOriginalConsoleMethod = (key: '_originalConsoleLog' | '_originalConsole
   return undefined;
 };
 
+/**
+ * Formats arbitrary console logging arguments into a unified string.
+ * Automatically serializes Error instances with name, message, and stack trace,
+ * and stringifies standard objects with error fallbacks for circular structures.
+ *
+ * @param args Array of log arguments passed to console methods.
+ * @returns Formatted log string joining processed arguments with spaces.
+ */
 export const formatLogMessage = (args: any[]): string => {
   const originalError = getOriginalConsoleMethod('_originalConsoleError') || storedOriginalError;
   return args
@@ -37,6 +52,11 @@ export const formatLogMessage = (args: any[]): string => {
     .join(' ');
 };
 
+/**
+ * Registers Wails event listener for backend runtime log events.
+ * Subscribes to 'backend-log' events emitted by Go backend and dispatches them
+ * to the Zustand flow store under the 'Backend' category.
+ */
 export const setupBackendLogListener = (): void => {
   EventsOn('backend-log', (data: { level: string; message: string }) => {
     const { level, message } = data;
@@ -46,6 +66,11 @@ export const setupBackendLogListener = (): void => {
   });
 };
 
+/**
+ * Overrides global console logging methods (console.error, console.warn, console.log).
+ * Intercepts calls to capture formatted log entries into the Zustand flow store
+ * while preserving native console logging via stored original console function references.
+ */
 export const setupConsoleOverrides = (): void => {
   storedOriginalLog = getOriginalConsoleMethod('_originalConsoleLog') || storedOriginalLog || console.log;
   storedOriginalWarn = getOriginalConsoleMethod('_originalConsoleWarn') || storedOriginalWarn || console.warn;
@@ -87,6 +112,10 @@ export const setupConsoleOverrides = (): void => {
   };
 };
 
+/**
+ * Main initialization entry point for logging activity.
+ * Sets up backend Wails log event listeners and applies frontend console overrides.
+ */
 export const initMainLogger = (): void => {
   setupBackendLogListener();
   setupConsoleOverrides();

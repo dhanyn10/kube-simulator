@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 
+/** Interface defining coordinates for context menu positioning. */
 export interface ContextMenuPosition {
   x: number;
   y: number;
 }
 
 /**
- * Custom hook managing global window context menu state outside canvas-main.
+ * Custom React hook handling global right-click context menu events outside the main canvas area.
+ * Attaches window event listeners for `contextmenu` and `click` to trigger or dismiss the default fallback context menu.
+ *
+ * @returns Object containing `defaultContextMenu` position state and `setDefaultContextMenu` state setter.
  */
 export const useGlobalContextMenu = () => {
   const [defaultContextMenu, setDefaultContextMenu] = useState<ContextMenuPosition | null>(null);

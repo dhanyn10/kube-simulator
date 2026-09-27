@@ -3,7 +3,11 @@ import { useFlowStore } from '@/store';
 import { isNodeAccessForbidden } from './rbacNodeHelpers';
 
 /**
- * Custom hook to obtain canvas nodes with updated draggable status based on RBAC permissions.
+ * Custom React hook managing canvas node permissions and interactive state.
+ * Selects raw nodes and RBAC state from Zustand store and returns transformed node objects
+ * with updated `draggable` flags determined by active identity permissions.
+ *
+ * @returns Array of transformed flow nodes with RBAC draggable enforcement applied.
  */
 export const useCanvasNodes = () => {
   const rawNodes = useFlowStore((state) => state.nodes);

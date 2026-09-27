@@ -1,7 +1,12 @@
 export type TabType = 'canvas' | 'settings' | 'history';
 
 /**
- * Returns CSS class names for right sidebar tab buttons based on active state and color mode.
+ * Computes theme-aware CSS class names for right sidebar tab bar navigation buttons.
+ *
+ * @param tab The target tab key ('canvas' | 'settings' | 'history').
+ * @param activeTab Currently active tab in right sidebar.
+ * @param colorMode Active theme mode ('dark' | 'light').
+ * @returns Tailwind CSS class string for button styling.
  */
 export const getRightSidebarTabClass = (tab: TabType, activeTab: TabType, colorMode: 'dark' | 'light'): string => {
   const isActive = activeTab === tab;
@@ -14,7 +19,11 @@ export const getRightSidebarTabClass = (tab: TabType, activeTab: TabType, colorM
 };
 
 /**
- * Returns CSS class names for the right sidebar canvas dropdown toggle button.
+ * Computes theme-aware CSS class names for the right sidebar canvas dropdown menu toggle button.
+ *
+ * @param activeTab Currently active tab in right sidebar.
+ * @param colorMode Active theme mode ('dark' | 'light').
+ * @returns Tailwind CSS class string for toggle button styling.
  */
 export const getRightSidebarDropdownToggleClass = (activeTab: TabType, colorMode: 'dark' | 'light'): string => {
   const isCanvas = activeTab === 'canvas';
