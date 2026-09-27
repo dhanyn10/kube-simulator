@@ -18,8 +18,11 @@ import { cn } from '@/lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
 import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
-
-type TabType = 'canvas' | 'settings' | 'history';
+import {
+  TabType,
+  getRightSidebarTabClass,
+  getRightSidebarDropdownToggleClass,
+} from '@/activities/layout';
 
 interface CanvasWidgetsPanelProps {
   nodes: any[];
@@ -177,26 +180,6 @@ export const SidebarTabBar = ({
   onExportYaml,
   colorMode
 }: SidebarTabBarProps) => {
-  const getTabClassName = (tab: TabType) => {
-    const isActive = activeTab === tab;
-    const isDark = colorMode === 'dark';
-
-    if (isActive) {
-      return isDark ? "bg-slate-800 text-white" : "bg-white shadow-sm text-slate-900";
-    }
-    return isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600";
-  };
-
-  const getDropdownToggleClassName = () => {
-    const isCanvas = activeTab === 'canvas';
-    const isDark = colorMode === 'dark';
-
-    if (isCanvas) {
-      return isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-slate-100 shadow-sm text-slate-900";
-    }
-    return isDark ? "text-slate-500 hover:text-slate-300 border-transparent" : "text-slate-400 hover:text-slate-600 border-transparent";
-  };
-
   return (
     <div className={cn(
       "right-sidebar-tab-bar flex items-center",
@@ -208,7 +191,7 @@ export const SidebarTabBar = ({
           onClick={() => setActiveTab('canvas')}
           className={cn(
             "flex-1 flex items-center justify-center gap-1 rounded-l-md text-[10px] font-bold uppercase tracking-wider transition-all px-1",
-            getTabClassName('canvas')
+            getRightSidebarTabClass('canvas', activeTab, colorMode)
           )}
         >
           <Layers size={13} />
@@ -223,7 +206,7 @@ export const SidebarTabBar = ({
           }}
           className={cn(
             "px-1 flex items-center justify-center border-l rounded-r-md transition-all",
-            getDropdownToggleClassName()
+            getRightSidebarDropdownToggleClass(activeTab, colorMode)
           )}
         >
           <ChevronDown size={11} className={cn("transition-transform", isCanvasDropdownOpen && "rotate-180")} />
@@ -280,7 +263,7 @@ export const SidebarTabBar = ({
         onClick={() => setActiveTab('settings')}
         className={cn(
           "flex-1 flex items-center justify-center gap-1 h-8 mx-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all px-1",
-          getTabClassName('settings')
+          getRightSidebarTabClass('settings', activeTab, colorMode)
         )}
       >
         <Layout size={13} />
@@ -292,7 +275,7 @@ export const SidebarTabBar = ({
         onClick={() => setActiveTab('history')}
         className={cn(
           "flex-1 flex items-center justify-center gap-1 h-8 mx-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all px-1",
-          getTabClassName('history')
+          getRightSidebarTabClass('history', activeTab, colorMode)
         )}
       >
         <History size={13} />
