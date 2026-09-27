@@ -28,6 +28,7 @@ const NodeStatusIndicator = ({ type, statusDotColor }: { type: string; statusDot
 const ReplicaProgress = ({
   id,
   replicas,
+  parentReplicas,
   showDashedProgress,
   colorMode,
   progressEmptyBgClass,
@@ -39,6 +40,7 @@ const ReplicaProgress = ({
 }: {
   id: string;
   replicas: number;
+  parentReplicas?: number;
   showDashedProgress: boolean;
   colorMode: string;
   progressEmptyBgClass: string;
@@ -50,7 +52,7 @@ const ReplicaProgress = ({
 }) => {
   if (!showDashedProgress) return null;
 
-  const isMega = replicas >= 100;
+  const isMega = replicas >= 100 || (parentReplicas || 0) >= 100;
 
   let activeBarClass = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
 
@@ -216,7 +218,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             label={displayLabel} className="w-full min-w-0 max-w-full"
           />
 
-          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />
+          <ReplicaProgress id={id} replicas={replicas} parentReplicas={data.parentReplicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />
           <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>

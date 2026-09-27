@@ -7,7 +7,7 @@ export const POD_MIN_DIMENSIONS = {
 
 export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) => {
   const horizontalPadding = 24;
-  const isMegaPod = (data.replicas || 0) >= 100;
+  const isMegaPod = (data.replicas || 0) >= 100 || (data.parentReplicas || 0) >= 100;
   const baseWidth = isMegaPod ? POD_MIN_DIMENSIONS.width * 2 : POD_MIN_DIMENSIONS.width;
   const headerContentWidth = 36 + ((data.replicas || 0) > 1 ? String(data.replicas).length * 5 + 18 : 0);
   const labelWidth = String(data.label || '').length * 7 + 16;
@@ -39,7 +39,8 @@ export const getPodMinimumSize = (data: Partial<K8sNodeData> = {}) => {
   if (showRuntime && data.runtime) visibleBadges.push(String(data.runtime));
   if (showWebserver && data.webserver) visibleBadges.push(String(data.webserver));
 
+  const isMegaPod = (data.replicas || 0) >= 100 || (data.parentReplicas || 0) >= 100;
   const width = calculatePodWidth(data, visibleBadges);
-  const height = calculatePodHeight(data, width, visibleBadges, (data.replicas || 0) >= 100);
+  const height = calculatePodHeight(data, width, visibleBadges, isMegaPod);
   return { width, height };
 };
