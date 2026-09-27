@@ -1,8 +1,8 @@
 /**
- * Center the active item in a scrollable autocomplete dropdown container.
+ * Center the active item in a scrollable autocomplete dropdown container using smooth scrolling transition.
  *
  * Requirements:
- * - When moving to another item, center it vertically in the dropdown viewport.
+ * - When moving to another item, center it vertically in the dropdown viewport with smooth transition.
  * - Except for items at the top end (index 0) or bottom end (last index) of the list.
  *
  * @param container - The scrollable dropdown container element
@@ -20,22 +20,24 @@ export const centerDropdownItem = (
   if (!activeItem) return;
 
   const maxScroll = container.scrollHeight - container.clientHeight;
+  let targetTop = 0;
 
   if (selectedIndex === 0) {
-    container.scrollTop = 0;
-    return;
+    targetTop = 0;
+  } else if (selectedIndex === totalItems - 1) {
+    targetTop = Math.max(0, maxScroll);
+  } else {
+    const itemRect = activeItem.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const itemTopRelativeToContainer = itemRect.top - containerRect.top + container.scrollTop;
+    const itemCenter = itemTopRelativeToContainer + itemRect.height / 2;
+    const calculatedTarget = itemCenter - container.clientHeight / 2;
+    targetTop = Math.max(0, Math.min(maxScroll, calculatedTarget));
   }
 
-  if (selectedIndex === totalItems - 1) {
-    container.scrollTop = Math.max(0, maxScroll);
-    return;
+  if (typeof container.scrollTo === 'function') {
+    container.scrollTo({ top: targetTop, behavior: 'smooth' });
+  } else {
+    container.scrollTop = targetTop;
   }
-
-  const itemRect = activeItem.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-  const itemTopRelativeToContainer = itemRect.top - containerRect.top + container.scrollTop;
-  const itemCenter = itemTopRelativeToContainer + itemRect.height / 2;
-  const targetScroll = itemCenter - container.clientHeight / 2;
-
-  container.scrollTop = Math.max(0, Math.min(maxScroll, targetScroll));
 };
