@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import { AutocompleteDropdown, AutocompleteSuggestion } from '@/components/UI/AutocompleteDropdown';
+import * as autocompleteUtils from '@/lib/autocompleteUtils';
 
 describe('AutocompleteDropdown component', () => {
   const mockSuggestions: AutocompleteSuggestion[] = [
@@ -155,5 +156,28 @@ describe('AutocompleteDropdown component', () => {
     fireEvent.mouseEnter(secondItemRow);
 
     expect(onHoverMock).toHaveBeenCalledWith(1);
+  });
+
+  it('invokes centerDropdownItem helper on mount and when selectedIndex updates', () => {
+    const centerSpy = vi.spyOn(autocompleteUtils, 'centerDropdownItem');
+    const { rerender } = render(
+      <AutocompleteDropdown
+        suggestions={mockSuggestions}
+        selectedIndex={0}
+        onSelect={vi.fn()}
+      />
+    );
+
+    expect(centerSpy).toHaveBeenCalledWith(expect.anything(), 0, 3);
+
+    rerender(
+      <AutocompleteDropdown
+        suggestions={mockSuggestions}
+        selectedIndex={1}
+        onSelect={vi.fn()}
+      />
+    );
+
+    expect(centerSpy).toHaveBeenCalledWith(expect.anything(), 1, 3);
   });
 });

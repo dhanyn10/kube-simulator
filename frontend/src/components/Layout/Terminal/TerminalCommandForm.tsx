@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { SuggestionItem } from '@/activities/terminal';
 import { AutocompleteItem } from './AutocompleteItem';
+import { centerDropdownItem } from '@/lib/autocompleteUtils';
 
 export interface TerminalCommandFormProps {
   onSubmit: (e: React.SyntheticEvent<HTMLFormElement>) => void;
@@ -17,6 +18,7 @@ export interface TerminalCommandFormProps {
   selectedIndex: number;
   selectedSubIndex: number;
   onSelectSuggestion: (item: SuggestionItem, podName?: string) => void;
+  onHoverIndex?: (index: number) => void;
 }
 
 export const TerminalCommandForm = ({
@@ -32,16 +34,25 @@ export const TerminalCommandForm = ({
   selectedIndex,
   selectedSubIndex,
   onSelectSuggestion,
+  onHoverIndex,
 }: TerminalCommandFormProps) => {
   const isDark = colorMode === 'dark';
   const isAwaitingAdminPassword = useFlowStore((state) => state.isAwaitingAdminPassword);
   const setHoveredAutocompletePodName = useFlowStore((state) => state.setHoveredAutocompletePodName);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isDropdownOpen && popupRef.current) {
+      centerDropdownItem(popupRef.current, selectedIndex, suggestions.length);
+    }
+  }, [isDropdownOpen, selectedIndex, suggestions.length]);
 
   return (
     <div className="flex items-center justify-between gap-4 w-full relative">
       {/* Autocomplete Popup Dropdown */}
       {!isAwaitingAdminPassword && isDropdownOpen && suggestions.length > 0 && (
         <div
+          ref={popupRef}
           data-testid="terminal-autocomplete-popup"
           onMouseLeave={() => setHoveredAutocompletePodName(null)}
           className={cn(
@@ -62,6 +73,7 @@ export const TerminalCommandForm = ({
                 isDark={isDark}
                 selectedSubIndex={selectedSubIndex}
                 onSelectSuggestion={onSelectSuggestion}
+                onHoverIndex={onHoverIndex}
               />
             );
           })}

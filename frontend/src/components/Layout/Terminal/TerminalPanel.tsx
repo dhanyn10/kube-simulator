@@ -306,6 +306,7 @@ export const TerminalPanel = () => {
               selectedIndex={selectedIndex}
               selectedSubIndex={selectedSubIndex}
               onSelectSuggestion={handleSelectSuggestion}
+              onHoverIndex={setSelectedIndex}
             />
           )}
         </div>
