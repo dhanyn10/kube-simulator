@@ -203,7 +203,7 @@ export const syncPodsInDeployment = (
     }
 
     const replicaSuffix = replicaSuffixes[0];
-    const podName = formatPodName(baseName, groupPodHash, replicaSuffix);
+    const podName = formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
     const params: PodNodeParams = {
       replicas,
       totalReplicas,

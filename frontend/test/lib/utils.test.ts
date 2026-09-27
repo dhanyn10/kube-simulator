@@ -42,9 +42,13 @@ describe('utils', () => {
 
   describe('formatPodName', () => {
     it('formats pod names with base, rsHash, and suffix correctly', () => {
-      expect(formatPodName('nginx', '68b6d779c5', 'x8k2p')).toBe('nginx-68b6d779c5-x8k2p');
-      expect(formatPodName('web-app', undefined, 'abc12')).toBe('web-app-abc12');
+      expect(formatPodName('nginx', '68b6d779c5', 'x8k2p', 2)).toBe('nginx-68b6d779c5-x8k2p');
+      expect(formatPodName('web-app', undefined, 'abc12', 5)).toBe('web-app-abc12');
       expect(formatPodName('api')).toBe('api');
+    });
+
+    it('omits pod hash and suffix when totalReplicas is 1', () => {
+      expect(formatPodName('nginx', '68b6d779c5', 'x8k2p', 1)).toBe('nginx');
     });
   });
 

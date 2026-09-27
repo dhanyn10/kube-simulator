@@ -16,7 +16,7 @@ import {
   createNodeHandlers,
   syncWorkloadMetadata
 } from './nodeUtils';
-import { safeRandom } from '@/lib/utils';
+import { formatPodName, safeRandom } from '@/lib/utils';
 import {
   emitLiveScaleCommand,
   emitLiveSetImageCommand,
@@ -49,7 +49,20 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
   if (parent.type === 'ReplicaSet' && (Number(updatedNode.data.replicas) || 0) === 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
-    return sortNodes([...others, { ...updatedNode, parentId: undefined, position: groupPos, extent: undefined }]);
+    const baseName = updatedNode.data.baseName || updatedNode.data.label || 'pod';
+    const cleanBase = formatPodName(baseName, updatedNode.data.podHash, updatedNode.data.replicaSuffix, 1);
+    const updatedPodWithCleanLabel = {
+      ...updatedNode,
+      parentId: undefined,
+      position: groupPos,
+      extent: undefined,
+      data: {
+        ...updatedNode.data,
+        label: cleanBase,
+        parentReplicas: 1,
+      }
+    };
+    return sortNodes([...others, updatedPodWithCleanLabel]);
   }
 
   const replicasChange = ((parent.type === 'Deployment' || parent.type === 'ReplicaSet') && newData.replicas !== undefined)
