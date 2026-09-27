@@ -164,7 +164,7 @@ describe('Stacked Pod Label and Highlight Tests', () => {
     expect(res0.current.hoveredPodIndex).toBe(2);
 
     expect(res1.current.isAutocompleteHovered).toBe(false);
-    expect(res1.current.hoveredPodIndex).toBe(null);
+    expect(res1.current.hoveredPodIndex).toBeNull();
   });
 
   it('returns blue segment styles when isAutocompleteHovered is true', () => {

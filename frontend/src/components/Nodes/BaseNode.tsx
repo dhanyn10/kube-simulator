@@ -8,7 +8,7 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
-import { useBaseNodeHandler, getProgressSegmentStyles, getMegaCircleDashArray } from '@/activities/nodes';
+import { useBaseNodeHandler, getMegaCircleDashArray } from '@/activities/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -106,11 +106,10 @@ const ReplicaProgress = ({
             }
           }
 
-          const segClass = !isFilled
-            ? progressEmptyBgClass
-            : isHighlighted
-            ? highlightedBarClass
-            : activeBarClass;
+          let segClass = progressEmptyBgClass;
+          if (isFilled) {
+            segClass = isHighlighted ? highlightedBarClass : activeBarClass;
+          }
 
           return (
             <div

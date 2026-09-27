@@ -10,6 +10,84 @@ import { useNodeStatus, useNodeContainerStyles, getNodeBorderColorHex } from '@/
 import { K8sNodeData } from '@/types';
 
 /**
+ * Extracts base application name for Pod resource cards.
+ *
+ * @param data - Kubernetes node data object.
+ * @returns Clean base name string for editing and display.
+ */
+export const extractPodBaseName = (data: K8sNodeData): string => {
+  if (data.type !== 'Pod') return data.baseName || data.label || 'pod';
+  if (data.baseName) return data.baseName;
+
+  const hash = data.podHash;
+  const suf = data.replicaSuffix;
+  const label = data.label;
+
+  if (hash && suf && label?.endsWith(`-${hash}-${suf}`)) {
+    return label.slice(0, -(hash.length + suf.length + 2));
+  }
+  if (hash && label?.endsWith(`-${hash}`)) {
+    return label.slice(0, -(hash.length + 1));
+  }
+  return data.label || 'pod';
+};
+
+/**
+ * Evaluates whether a canvas node is targeted by terminal autocomplete hover,
+ * and determines the exact pod replica index targeted for segment highlighting.
+ *
+ * @param id - Canvas node ID.
+ * @param data - Kubernetes node data object.
+ * @param hoveredName - Currently hovered autocomplete pod name string from store.
+ * @returns Object containing boolean hover flag and target pod index.
+ */
+export const evaluateAutocompleteHover = (
+  id: string,
+  data: K8sNodeData,
+  hoveredName: string | null
+): { isAutocompleteHovered: boolean; hoveredPodIndex: number | null } => {
+  if (!hoveredName) {
+    return { isAutocompleteHovered: false, hoveredPodIndex: null };
+  }
+
+  if (data.label === hoveredName || id === hoveredName) {
+    return { isAutocompleteHovered: true, hoveredPodIndex: 0 };
+  }
+
+  if (data.type === 'Pod' && data.podHash && hoveredName.includes(`-${data.podHash}`)) {
+    if (Array.isArray(data.replicaSuffixes) && data.replicaSuffixes.length > 0) {
+      const idx = data.replicaSuffixes.findIndex((suf: string) =>
+        hoveredName.endsWith(`-${suf}`) || hoveredName.includes(`-${data.podHash}-${suf}`)
+      );
+      if (idx !== -1) {
+        return { isAutocompleteHovered: true, hoveredPodIndex: idx };
+      }
+    } else if (
+      data.replicaSuffix &&
+      (hoveredName.endsWith(`-${data.replicaSuffix}`) ||
+       hoveredName.includes(`-${data.podHash}-${data.replicaSuffix}`))
+    ) {
+      return { isAutocompleteHovered: true, hoveredPodIndex: 0 };
+    }
+  }
+
+  return { isAutocompleteHovered: false, hoveredPodIndex: null };
+};
+
+/**
+ * Formats display label for canvas card rendering, masking stacked pod replicas as `basename-podHash-*****`.
+ *
+ * @param data - Kubernetes node data object.
+ * @param podBaseName - Extracted base pod name string.
+ * @param isStackedPod - Flag indicating if pod card represents stacked replicas (> 3).
+ * @returns Formatted label string for card header rendering.
+ */
+export const formatDisplayLabel = (data: K8sNodeData, podBaseName: string, isStackedPod: boolean): string => {
+  if (!isStackedPod) return data.label;
+  return data.podHash ? `${podBaseName}-${data.podHash}-*****` : `${podBaseName}-*****`;
+};
+
+/**
  * Custom hook encapsulating business logic, status styles, display label formatting,
  * and autocomplete hover targeting for BaseNode canvas cards.
  *
@@ -34,44 +112,8 @@ export const useBaseNodeHandler = ({
   const nodes = useFlowStore((state) => state.nodes);
   const hoveredAutocompletePodName = useFlowStore((state) => state.hoveredAutocompletePodName);
 
-  let podBaseName = data.baseName || data.label || 'pod';
-  if (data.type === 'Pod') {
-    if (data.baseName) {
-      podBaseName = data.baseName;
-    } else if (data.podHash && data.replicaSuffix && data.label?.endsWith(`-${data.podHash}-${data.replicaSuffix}`)) {
-      podBaseName = data.label.slice(0, -(data.podHash.length + data.replicaSuffix.length + 2));
-    } else if (data.podHash && data.label?.endsWith(`-${data.podHash}`)) {
-      podBaseName = data.label.slice(0, -(data.podHash.length + 1));
-    }
-  }
-
-  let hoveredPodIndex: number | null = null;
-  let isAutocompleteHovered = false;
-
-  if (hoveredAutocompletePodName) {
-    if (data.label === hoveredAutocompletePodName || id === hoveredAutocompletePodName) {
-      isAutocompleteHovered = true;
-      hoveredPodIndex = 0;
-    } else if (data.type === 'Pod' && data.podHash && hoveredAutocompletePodName.includes(`-${data.podHash}`)) {
-      if (data.replicaSuffixes && Array.isArray(data.replicaSuffixes) && data.replicaSuffixes.length > 0) {
-        const idx = data.replicaSuffixes.findIndex((suf: string) =>
-          hoveredAutocompletePodName.endsWith(`-${suf}`) ||
-          hoveredAutocompletePodName.includes(`-${data.podHash}-${suf}`)
-        );
-        if (idx !== -1) {
-          isAutocompleteHovered = true;
-          hoveredPodIndex = idx;
-        }
-      } else if (
-        data.replicaSuffix &&
-        (hoveredAutocompletePodName.endsWith(`-${data.replicaSuffix}`) ||
-         hoveredAutocompletePodName.includes(`-${data.podHash}-${data.replicaSuffix}`))
-      ) {
-        isAutocompleteHovered = true;
-        hoveredPodIndex = 0;
-      }
-    }
-  }
+  const podBaseName = extractPodBaseName(data);
+  const { isAutocompleteHovered, hoveredPodIndex } = evaluateAutocompleteHover(id, data, hoveredAutocompletePodName);
 
   const { transitionClasses } = useNodeStyles(id);
 
@@ -110,15 +152,7 @@ export const useBaseNodeHandler = ({
   const parentReplicas = data.parentReplicas || 0;
   const showDashedProgress = data.type === 'Pod' && (parentReplicas > 3 || (replicas > 1 && !data.parentId));
   const isStackedPod = data.type === 'Pod' && (parentReplicas > 3 || (replicas > 3 && !data.parentId));
-
-  let displayLabel = data.label;
-  if (isStackedPod) {
-    if (data.podHash) {
-      displayLabel = `${podBaseName}-${data.podHash}-*****`;
-    } else {
-      displayLabel = `${podBaseName}-*****`;
-    }
-  }
+  const displayLabel = formatDisplayLabel(data, podBaseName, isStackedPod);
 
   return {
     colorMode,
