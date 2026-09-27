@@ -84,6 +84,7 @@ interface PodNodeParams {
   baseName: string;
   podHash: string;
   replicaSuffix: string;
+  replicaSuffixes?: string[];
 }
 
 // Helper to update an existing pod node
@@ -92,7 +93,7 @@ const updatePodNode = (
   commonData: any,
   params: PodNodeParams
 ): Node => {
-  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix } = params;
+  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
   const width = existingPod.data?.isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
@@ -115,6 +116,7 @@ const updatePodNode = (
       baseName,
       podHash,
       replicaSuffix,
+      replicaSuffixes,
       label: podName,
       replicas, 
       parentReplicas: totalReplicas 
@@ -127,7 +129,7 @@ const createPodNode = (
   commonData: any,
   params: PodNodeParams
 ): Node => {
-  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix } = params;
+  const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
   const minSize = getPodMinimumSize({ ...commonData, replicas });
   return {
@@ -148,6 +150,7 @@ const createPodNode = (
       baseName,
       podHash,
       replicaSuffix,
+      replicaSuffixes,
       label: podName,
       onDelete: () => {},
       onRename: () => {},
@@ -179,11 +182,18 @@ export const syncPodsInDeployment = (
   // Langkah 2: Lakukan looping (iterasi) ke SEMUA REPLIKA POD yang ada dalam array/list
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
-    const replicaSuffix = (forceRandomize || !existingPod?.data?.replicaSuffix)
-      ? generateRandomHash(5)
-      : (existingPod.data.replicaSuffix as string);
 
-    // Set nama Pod menjadi baseName-podHash-replicaSuffix
+    const existingSuffixes = (existingPod?.data?.replicaSuffixes as string[]) || [];
+    const replicaSuffixes: string[] = [];
+    for (let i = 0; i < replicas; i++) {
+      if (!forceRandomize && existingSuffixes[i]) {
+        replicaSuffixes.push(existingSuffixes[i]);
+      } else {
+        replicaSuffixes.push(i === 0 && existingPod?.data?.replicaSuffix && !forceRandomize ? (existingPod.data.replicaSuffix as string) : generateRandomHash(5));
+      }
+    }
+
+    const replicaSuffix = replicaSuffixes[0];
     const podName = formatPodName(baseName, groupPodHash, replicaSuffix);
     const params: PodNodeParams = {
       replicas,
@@ -193,6 +203,7 @@ export const syncPodsInDeployment = (
       baseName,
       podHash: groupPodHash,
       replicaSuffix,
+      replicaSuffixes,
     };
 
     return existingPod 

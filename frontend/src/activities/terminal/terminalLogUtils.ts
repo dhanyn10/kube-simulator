@@ -36,7 +36,10 @@ export const findNodeByTargetName = (
   return nodes.find((n) => {
     if (types && !types.includes(n.type)) return false;
     const label = n.data?.label ? String(n.data.label).toLowerCase() : '';
-    return n.id.toLowerCase() === normalized || label === normalized;
+    const podHash = n.data?.podHash ? String(n.data.podHash).toLowerCase() : '';
+    if (n.id.toLowerCase() === normalized || label === normalized) return true;
+    if (n.type === 'Pod' && podHash && normalized.includes(`-${podHash}-`)) return true;
+    return false;
   });
 };
 

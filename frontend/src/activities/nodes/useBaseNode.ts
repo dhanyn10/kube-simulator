@@ -26,13 +26,6 @@ export const useBaseNodeHandler = ({
   const nodes = useFlowStore((state) => state.nodes);
   const hoveredAutocompletePodName = useFlowStore((state) => state.hoveredAutocompletePodName);
 
-  const isAutocompleteHovered = Boolean(
-    hoveredAutocompletePodName &&
-    (data.label === hoveredAutocompletePodName || id === hoveredAutocompletePodName)
-  );
-
-  const { transitionClasses } = useNodeStyles(id);
-
   let podBaseName = data.baseName || data.label || 'pod';
   if (data.type === 'Pod') {
     if (data.baseName) {
@@ -43,6 +36,15 @@ export const useBaseNodeHandler = ({
       podBaseName = data.label.slice(0, -(data.podHash.length + 1));
     }
   }
+
+  const isAutocompleteHovered = Boolean(
+    hoveredAutocompletePodName &&
+    (data.label === hoveredAutocompletePodName ||
+     id === hoveredAutocompletePodName ||
+     (data.type === 'Pod' && data.podHash && hoveredAutocompletePodName.includes(`-${data.podHash}`)))
+  );
+
+  const { transitionClasses } = useNodeStyles(id);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(podBaseName, data.onRename);
@@ -76,7 +78,18 @@ export const useBaseNodeHandler = ({
     });
 
   const replicas = data.replicas || 1;
-  const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || (replicas > 1 && !data.parentId));
+  const parentReplicas = data.parentReplicas || 0;
+  const showDashedProgress = data.type === 'Pod' && (parentReplicas > 3 || (replicas > 1 && !data.parentId));
+  const isStackedPod = data.type === 'Pod' && (parentReplicas > 3 || (replicas > 3 && !data.parentId));
+
+  let displayLabel = data.label;
+  if (isStackedPod) {
+    if (data.podHash) {
+      displayLabel = `${podBaseName}-${data.podHash}-*****`;
+    } else {
+      displayLabel = `${podBaseName}-*****`;
+    }
+  }
 
   return {
     colorMode,
@@ -100,5 +113,6 @@ export const useBaseNodeHandler = ({
     showDashedProgress,
     isAutocompleteHovered,
     borderColorHex,
+    displayLabel,
   };
 };

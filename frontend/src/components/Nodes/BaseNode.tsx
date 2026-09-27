@@ -105,6 +105,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     showDashedProgress,
     isAutocompleteHovered,
     borderColorHex,
+    displayLabel,
   } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
   return (
@@ -162,7 +163,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           <NodeRenameInput
             isEditing={isEditing} setIsEditing={setIsEditing} editValue={editValue} setEditValue={setEditValue}
             inputRef={inputRef} handleRename={handleRename} onKeyDown={onKeyDown} colorMode={colorMode}
-            label={data.label} className="w-full min-w-0 max-w-full"
+            label={displayLabel} className="w-full min-w-0 max-w-full"
           />
 
           <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} />
