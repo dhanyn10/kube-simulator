@@ -16,27 +16,44 @@ export interface ProgressSegmentStyle {
  */
 export const getProgressSegmentStyles = (
   colorMode: string,
-  isAutocompleteHovered?: boolean
+  isAutocompleteHovered?: boolean,
+  statusFlags?: { isPending?: boolean; isCrashing?: boolean; isReady?: boolean }
 ): ProgressSegmentStyle => {
   const circleBgClass = colorMode === 'dark' ? 'text-slate-700/50' : 'text-slate-200';
+  const isPending = statusFlags?.isPending;
+  const isCrashing = statusFlags?.isCrashing;
+
+  let activeColorStroke = 'text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+  let activeColorText = 'text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]';
+  let activeColorBar = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
+
+  if (isCrashing) {
+    activeColorStroke = 'text-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)]';
+    activeColorText = 'text-red-600 drop-shadow-[0_0_3px_rgba(220,38,38,0.5)]';
+    activeColorBar = 'bg-red-600 shadow-[0_0_4px_rgba(220,38,38,0.6)]';
+  } else if (isPending) {
+    activeColorStroke = 'text-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]';
+    activeColorText = 'text-red-500 drop-shadow-[0_0_3px_rgba(239,68,68,0.4)]';
+    activeColorBar = 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]';
+  }
 
   const circleStrokeClass = cn(
     'transition-all duration-500',
     isAutocompleteHovered
       ? 'text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'
-      : 'text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+      : activeColorStroke
   );
 
   const textClass = cn(
     'absolute text-[8px] font-black',
     isAutocompleteHovered
       ? 'text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]'
-      : 'text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]'
+      : activeColorText
   );
 
   const barClass = isAutocompleteHovered
     ? 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]'
-    : 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
+    : activeColorBar;
 
   return {
     circleBgClass,

@@ -174,9 +174,19 @@ describe('Stacked Pod Label and Highlight Tests', () => {
     expect(styles.textClass).toContain('text-blue-500');
   });
 
-  it('returns green segment styles when isAutocompleteHovered is false', () => {
-    const styles = getProgressSegmentStyles('dark', false);
+  it('returns green segment styles when isAutocompleteHovered is false and status is ready', () => {
+    const styles = getProgressSegmentStyles('dark', false, { isReady: true });
     expect(styles.barClass).toContain('bg-emerald-500');
     expect(styles.circleStrokeClass).toContain('text-emerald-500');
+  });
+
+  it('returns red segment styles when isPending or isCrashing is true', () => {
+    const pendingStyles = getProgressSegmentStyles('dark', false, { isPending: true });
+    expect(pendingStyles.barClass).toContain('bg-red-500');
+    expect(pendingStyles.circleStrokeClass).toContain('text-red-500');
+
+    const crashingStyles = getProgressSegmentStyles('dark', false, { isCrashing: true });
+    expect(crashingStyles.barClass).toContain('bg-red-600');
+    expect(crashingStyles.circleStrokeClass).toContain('text-red-600');
   });
 });

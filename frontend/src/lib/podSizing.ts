@@ -12,7 +12,8 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
   const headerContentWidth = 36 + ((data.replicas || 0) > 1 ? String(data.replicas).length * 5 + 18 : 0);
   const labelWidth = String(data.label || '').length * 7 + 16;
   const badgeWidth = badges.length > 0 ? badges.reduce((t, b) => t + b.length * 5 + 14, 0) + (badges.length - 1) * 4 : 0;
-  const readableImageWidth = String(data.image || '').length > 0 ? Math.min(320, Math.max(148, String(data.image || '').length * 5.5 + 16)) : 0;
+  const showImage = Boolean(data.displaySettings?.image !== false && data.image);
+  const readableImageWidth = showImage ? Math.min(320, Math.max(148, String(data.image || '').length * 5.5 + 16)) : 0;
   return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding));
 };
 
@@ -22,7 +23,8 @@ export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, ba
   if (showDashedProgress) height += isMegaPod ? 120 : 14;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) height += 38;
   if (badges.length > 0) height += 20;
-  if (data.image && data.displaySettings?.image !== false) {
+  const showImage = Boolean(data.displaySettings?.image !== false && data.image);
+  if (showImage) {
     const charsPerLine = Math.max(10, Math.floor((width - 24) / 5.5));
     height += Math.ceil(String(data.image).length / charsPerLine) * 12 + 8;
   }
@@ -31,8 +33,13 @@ export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, ba
 };
 
 export const getPodMinimumSize = (data: Partial<K8sNodeData> = {}) => {
-  const badges = [data.runtime, data.webserver].filter(v => v && v !== 'none').map(String);
-  const width = calculatePodWidth(data, badges);
-  const height = calculatePodHeight(data, width, badges, data.replicas === 100);
+  const showRuntime = Boolean(data.displaySettings?.runtime !== false && data.runtime && data.runtime !== 'none');
+  const showWebserver = Boolean(data.displaySettings?.webserver !== false && data.webserver && data.webserver !== 'none');
+  const visibleBadges: string[] = [];
+  if (showRuntime && data.runtime) visibleBadges.push(String(data.runtime));
+  if (showWebserver && data.webserver) visibleBadges.push(String(data.webserver));
+
+  const width = calculatePodWidth(data, visibleBadges);
+  const height = calculatePodHeight(data, width, visibleBadges, data.replicas === 100);
   return { width, height };
 };

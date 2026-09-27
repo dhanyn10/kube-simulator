@@ -33,6 +33,9 @@ const ReplicaProgress = ({
   progressEmptyBgClass,
   isAutocompleteHovered,
   hoveredPodIndex,
+  isPending,
+  isCrashing,
+  isReady,
 }: {
   id: string;
   replicas: number;
@@ -41,19 +44,31 @@ const ReplicaProgress = ({
   progressEmptyBgClass: string;
   isAutocompleteHovered?: boolean;
   hoveredPodIndex?: number | null;
+  isPending?: boolean;
+  isCrashing?: boolean;
+  isReady?: boolean;
 }) => {
   if (!showDashedProgress) return null;
 
   const isMega = replicas === 100;
   const strokeDashArray = getMegaCircleDashArray(16, 10, 0.7);
 
-  const activeBarClass = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
+  let activeBarClass = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
+  let activeCircleStrokeClass = 'text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+  let activeCircleTextClass = 'absolute text-[8px] font-black text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]';
+
+  if (isCrashing) {
+    activeBarClass = 'bg-red-600 shadow-[0_0_4px_rgba(220,38,38,0.6)]';
+    activeCircleStrokeClass = 'text-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)]';
+    activeCircleTextClass = 'absolute text-[8px] font-black text-red-600 drop-shadow-[0_0_3px_rgba(220,38,38,0.5)]';
+  } else if (isPending) {
+    activeBarClass = 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]';
+    activeCircleStrokeClass = 'text-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]';
+    activeCircleTextClass = 'absolute text-[8px] font-black text-red-500 drop-shadow-[0_0_3px_rgba(239,68,68,0.4)]';
+  }
+
   const highlightedBarClass = 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]';
-
-  const activeCircleStrokeClass = 'text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
   const highlightedCircleStrokeClass = 'text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]';
-
-  const activeCircleTextClass = 'absolute text-[8px] font-black text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]';
   const highlightedCircleTextClass = 'absolute text-[8px] font-black text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]';
 
   const circleBgClass = colorMode === 'dark' ? 'text-slate-700/50' : 'text-slate-200';
@@ -219,7 +234,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             label={displayLabel} className="w-full min-w-0 max-w-full"
           />
 
-          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} />
+          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />
           <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>

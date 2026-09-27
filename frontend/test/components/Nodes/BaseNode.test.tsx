@@ -222,6 +222,44 @@ describe('BaseNode', () => {
     expect(blueSegment).not.toBeNull();
   });
 
+  it('renders red replica progress bars when pod is pending or crashing, and emerald green when ready', () => {
+    // Pending status -> red-500
+    const { container: cPending } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          statusOverride="pending"
+          data={{ label: 'stacked-pod-1', replicas: 5, parentReplicas: 5, status: 'pending', type: 'Pod' }}
+        />
+      </ReactFlowProvider>
+    );
+    expect(cPending.querySelector('.bg-red-500')).not.toBeNull();
+
+    // Crashing status -> red-600
+    const { container: cCrashing } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          statusOverride="crashing"
+          data={{ label: 'stacked-pod-2', replicas: 5, parentReplicas: 5, status: 'crashing', type: 'Pod' }}
+        />
+      </ReactFlowProvider>
+    );
+    expect(cCrashing.querySelector('.bg-red-600')).not.toBeNull();
+
+    // Ready status -> emerald-500
+    const { container: cReady } = render(
+      <ReactFlowProvider>
+        <BaseNode
+          {...defaultProps}
+          statusOverride="ready"
+          data={{ label: 'stacked-pod-3', replicas: 5, parentReplicas: 5, status: 'ready', type: 'Pod' }}
+        />
+      </ReactFlowProvider>
+    );
+    expect(cReady.querySelector('.bg-emerald-500')).not.toBeNull();
+  });
+
   it('renders secrets, hpas, light mode, and nested namespace parent container styles', () => {
     useFlowStore.setState({
       colorMode: 'light',
