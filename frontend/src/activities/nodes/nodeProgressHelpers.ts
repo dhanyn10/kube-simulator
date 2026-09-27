@@ -64,6 +64,54 @@ export const getProgressSegmentStyles = (
 };
 
 /**
+ * Resolves active bar CSS classes based on pod status (crashing, pending, or ready/healthy).
+ */
+export const getActiveBarClass = (isCrashing?: boolean, isPending?: boolean): string => {
+  if (isCrashing) {
+    return 'bg-red-600 shadow-[0_0_4px_rgba(220,38,38,0.6)]';
+  }
+  if (isPending) {
+    return 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]';
+  }
+  return 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
+};
+
+/**
+ * Resolves the segment CSS class for a specific index in replica progress indicators.
+ */
+export const getSegmentClass = ({
+  index,
+  replicas,
+  progressEmptyBgClass,
+  isAutocompleteHovered,
+  hoveredPodIndex,
+  activeBarClass,
+  highlightedBarClass = 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]',
+}: {
+  index: number;
+  replicas: number;
+  progressEmptyBgClass: string;
+  isAutocompleteHovered?: boolean;
+  hoveredPodIndex?: number | null;
+  activeBarClass: string;
+  highlightedBarClass?: string;
+}): string => {
+  const isFilled = index < (replicas || 0);
+  if (!isFilled) return progressEmptyBgClass;
+
+  let isHighlighted = false;
+  if (isAutocompleteHovered) {
+    if (hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0) {
+      isHighlighted = index === hoveredPodIndex;
+    } else {
+      isHighlighted = true;
+    }
+  }
+
+  return isHighlighted ? highlightedBarClass : activeBarClass;
+};
+
+/**
  * Generates SVG strokeDasharray values for mega progress circular indicator.
  */
 export const getMegaCircleDashArray = (radius = 16, segments = 10, fillRatio = 0.7) => {

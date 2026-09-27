@@ -8,7 +8,7 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
-import { useBaseNodeHandler } from '@/activities/nodes';
+import { useBaseNodeHandler, getActiveBarClass, getSegmentClass } from '@/activities/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -54,69 +54,47 @@ const ReplicaProgress = ({
 
   const isMega = replicas >= 100 || (parentReplicas || 0) >= 100;
 
-  let activeBarClass = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
-
-  if (isCrashing) {
-    activeBarClass = 'bg-red-600 shadow-[0_0_4px_rgba(220,38,38,0.6)]';
-  } else if (isPending) {
-    activeBarClass = 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]';
-  }
-
-  const highlightedBarClass = 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]';
+  const activeBarClass = getActiveBarClass(isCrashing, isPending);
 
   return (
     <div className={cn("flex gap-0.5 w-full items-center pb-1", isMega ? "h-auto" : "h-1")}>
       {isMega ? (
         <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-1 w-full py-2 px-1">
-          {Array.from({ length: 100 }).map((_, i) => {
-            const isFilled = i < (replicas || 0);
-            let isHighlighted = false;
-            if (isFilled && isAutocompleteHovered) {
-              if (hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0) {
-                isHighlighted = i === hoveredPodIndex;
-              } else {
-                isHighlighted = true;
-              }
-            }
-
-            let segClass = progressEmptyBgClass;
-            if (isFilled) {
-              segClass = isHighlighted ? highlightedBarClass : activeBarClass;
-            }
-
-            return (
-              <div
-                key={`${id}-contrib-${i}`}
-                className={cn("aspect-square rounded-[1px] transition-all", segClass)}
-                title={`Pod ${i + 1}`}
-              />
-            );
-          })}
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div
+              key={`${id}-contrib-${i}`}
+              className={cn(
+                "aspect-square rounded-[1px] transition-all",
+                getSegmentClass({
+                  index: i,
+                  replicas,
+                  progressEmptyBgClass,
+                  isAutocompleteHovered,
+                  hoveredPodIndex,
+                  activeBarClass,
+                })
+              )}
+              title={`Pod ${i + 1}`}
+            />
+          ))}
         </div>
       ) : (
-        Array.from({ length: 10 }).map((_, i) => {
-          const isFilled = i < (replicas || 0);
-          let isHighlighted = false;
-          if (isFilled && isAutocompleteHovered) {
-            if (hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0) {
-              isHighlighted = i === hoveredPodIndex;
-            } else {
-              isHighlighted = true;
-            }
-          }
-
-          let segClass = progressEmptyBgClass;
-          if (isFilled) {
-            segClass = isHighlighted ? highlightedBarClass : activeBarClass;
-          }
-
-          return (
-            <div
-              key={`${id}-progress-${i}`}
-              className={cn("flex-1 h-1 rounded-sm transition-all", segClass)}
-            />
-          );
-        })
+        Array.from({ length: 10 }).map((_, i) => (
+          <div
+            key={`${id}-progress-${i}`}
+            className={cn(
+              "flex-1 h-1 rounded-sm transition-all",
+              getSegmentClass({
+                index: i,
+                replicas,
+                progressEmptyBgClass,
+                isAutocompleteHovered,
+                hoveredPodIndex,
+                activeBarClass,
+              })
+            )}
+          />
+        ))
       )}
     </div>
   );
