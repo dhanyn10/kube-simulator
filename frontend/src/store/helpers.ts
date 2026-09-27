@@ -299,7 +299,7 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   };
 
   return pods.map((pod, idx) => {
-    const isMegaPod = pod.data?.replicas === 100;
+    const isMegaPod = (pod.data?.replicas || 0) >= 100;
     const mySpacing = getPodSpacing(isMegaPod);
     const { podW, podH, minHeight } = getPodDimensions(pod);
 

@@ -101,8 +101,8 @@ describe('BaseNode', () => {
     expect((containerOut.firstChild as HTMLElement).className).toContain('role-drag-outside-ns');
   });
 
-  it('renders BaseNode with crashing status override and mega replicas (100)', () => {
-    render(
+  it('renders BaseNode with crashing status override and mega replicas (100) using 100 GitHub contribution boxes', () => {
+    const { container } = render(
       <ReactFlowProvider>
         <BaseNode
           id="mega-pod"
@@ -126,6 +126,12 @@ describe('BaseNode', () => {
 
     expect(screen.getByText('Crashing')).toBeInTheDocument();
     expect(screen.getByText('x100')).toBeInTheDocument();
+
+    // Verify 100 GitHub contribution boxes are rendered (aspect-square elements with Pod title)
+    const contribBoxes = container.querySelectorAll('[title^="Pod "]');
+    expect(contribBoxes).toHaveLength(100);
+    expect(contribBoxes[0]).toHaveAttribute('title', 'Pod 1');
+    expect(contribBoxes[99]).toHaveAttribute('title', 'Pod 100');
   });
 
   it('renders roles and configMaps attached section at bottom for items without ID', () => {
