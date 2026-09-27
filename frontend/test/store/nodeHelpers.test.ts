@@ -61,8 +61,8 @@ describe('nodeHelpers', () => {
       expect(updateNodeDataSpy).toHaveBeenCalledWith('d1', { label: 'newapp' });
     });
 
-    it('updates standalone pod baseName and label formatted as baseName-podHash-replicaSuffix', () => {
-      const standalonePod = { id: 'p2', type: 'Pod', data: { baseName: 'mybase', podHash: 'a1b2c', replicaSuffix: 'x1y2z', label: 'mybase-a1b2c-x1y2z' } };
+    it('updates standalone pod baseName and label formatted as baseName-podHash-replicaSuffix for >1 replicas', () => {
+      const standalonePod = { id: 'p2', type: 'Pod', data: { replicas: 2, baseName: 'mybase', podHash: 'a1b2c', replicaSuffix: 'x1y2z', label: 'mybase-a1b2c-x1y2z' } };
 
       useFlowStore.setState({ nodes: [standalonePod as any] });
       const updateNodeDataSpy = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
@@ -73,6 +73,21 @@ describe('nodeHelpers', () => {
       expect(updateNodeDataSpy).toHaveBeenCalledWith('p2', {
         baseName: 'renamedbase',
         label: 'renamedbase-a1b2c-x1y2z',
+      });
+    });
+
+    it('updates standalone pod label to clean baseName when replica count is 1', () => {
+      const singlePod = { id: 'p3', type: 'Pod', data: { replicas: 1, baseName: 'mybase', podHash: 'a1b2c', replicaSuffix: 'x1y2z', label: 'mybase' } };
+
+      useFlowStore.setState({ nodes: [singlePod as any] });
+      const updateNodeDataSpy = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+
+      const handlers = attachHandlers('p3', () => useFlowStore.getState());
+      handlers.onRename('renamedbase');
+
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('p3', {
+        baseName: 'renamedbase',
+        label: 'renamedbase',
       });
     });
   });

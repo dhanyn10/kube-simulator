@@ -8,7 +8,7 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
-import { useBaseNodeHandler, getMegaCircleDashArray } from '@/activities/nodes';
+import { useBaseNodeHandler, getActiveBarClass, getSegmentClass } from '@/activities/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -28,6 +28,7 @@ const NodeStatusIndicator = ({ type, statusDotColor }: { type: string; statusDot
 const ReplicaProgress = ({
   id,
   replicas,
+  parentReplicas,
   showDashedProgress,
   colorMode,
   progressEmptyBgClass,
@@ -39,6 +40,7 @@ const ReplicaProgress = ({
 }: {
   id: string;
   replicas: number;
+  parentReplicas?: number;
   showDashedProgress: boolean;
   colorMode: string;
   progressEmptyBgClass: string;
@@ -50,89 +52,49 @@ const ReplicaProgress = ({
 }) => {
   if (!showDashedProgress) return null;
 
-  const isMega = replicas === 100;
-  const strokeDashArray = getMegaCircleDashArray(16, 10, 0.7);
+  const isMega = replicas >= 100 || (parentReplicas || 0) >= 100;
 
-  let activeBarClass = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
-  let activeCircleStrokeClass = 'text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
-  let activeCircleTextClass = 'absolute text-[8px] font-black text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]';
-
-  if (isCrashing) {
-    activeBarClass = 'bg-red-600 shadow-[0_0_4px_rgba(220,38,38,0.6)]';
-    activeCircleStrokeClass = 'text-red-600 shadow-[0_0_8px_rgba(220,38,38,0.6)]';
-    activeCircleTextClass = 'absolute text-[8px] font-black text-red-600 drop-shadow-[0_0_3px_rgba(220,38,38,0.5)]';
-  } else if (isPending) {
-    activeBarClass = 'bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]';
-    activeCircleStrokeClass = 'text-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]';
-    activeCircleTextClass = 'absolute text-[8px] font-black text-red-500 drop-shadow-[0_0_3px_rgba(239,68,68,0.4)]';
-  }
-
-  const highlightedBarClass = 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]';
-  const highlightedCircleStrokeClass = 'text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]';
-  const highlightedCircleTextClass = 'absolute text-[8px] font-black text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]';
-
-  const circleBgClass = colorMode === 'dark' ? 'text-slate-700/50' : 'text-slate-200';
-
-  const megaHighlightedGaugeIndex =
-    hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0
-      ? Math.floor(hoveredPodIndex / 10)
-      : -1;
+  const activeBarClass = getActiveBarClass(isCrashing, isPending);
 
   return (
     <div className={cn("flex gap-0.5 w-full items-center pb-1", isMega ? "h-auto" : "h-1")}>
       {isMega ? (
-        <div className="grid grid-cols-5 gap-x-2 gap-y-4 w-full py-4 px-1">
-          {Array.from({ length: 10 }).map((_, i) => {
-            const segmentId = `${id}-mega-progress-${i}`;
-            const isGaugeHighlighted = Boolean(
-              isAutocompleteHovered && (i === megaHighlightedGaugeIndex || megaHighlightedGaugeIndex === -1)
-            );
-            return (
-              <div key={segmentId} className="flex flex-col items-center gap-1">
-                <div className="relative flex items-center justify-center w-10 h-10">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle
-                      cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" fill="transparent"
-                      strokeDasharray={strokeDashArray}
-                      className={circleBgClass}
-                    />
-                    <circle
-                      cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" fill="transparent"
-                      strokeDasharray={strokeDashArray}
-                      strokeDashoffset={0} strokeLinecap="round"
-                      className={isGaugeHighlighted ? highlightedCircleStrokeClass : activeCircleStrokeClass}
-                    />
-                  </svg>
-                  <span className={isGaugeHighlighted ? highlightedCircleTextClass : activeCircleTextClass}>10</span>
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-[repeat(20,minmax(0,1fr))] gap-1 w-full py-2 px-1">
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div
+              key={`${id}-contrib-${i}`}
+              className={cn(
+                "aspect-square rounded-[1px] transition-all",
+                getSegmentClass({
+                  index: i,
+                  replicas,
+                  progressEmptyBgClass,
+                  isAutocompleteHovered,
+                  hoveredPodIndex,
+                  activeBarClass,
+                })
+              )}
+              title={`Pod ${i + 1}`}
+            />
+          ))}
         </div>
       ) : (
-        Array.from({ length: 10 }).map((_, i) => {
-          const isFilled = i < (replicas || 0);
-          let isHighlighted = false;
-          if (isFilled && isAutocompleteHovered) {
-            if (hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0) {
-              isHighlighted = i === hoveredPodIndex;
-            } else {
-              isHighlighted = true;
-            }
-          }
-
-          let segClass = progressEmptyBgClass;
-          if (isFilled) {
-            segClass = isHighlighted ? highlightedBarClass : activeBarClass;
-          }
-
-          return (
-            <div
-              key={`${id}-progress-${i}`}
-              className={cn("flex-1 h-1 rounded-sm transition-all", segClass)}
-            />
-          );
-        })
+        Array.from({ length: 10 }).map((_, i) => (
+          <div
+            key={`${id}-progress-${i}`}
+            className={cn(
+              "flex-1 h-1 rounded-sm transition-all",
+              getSegmentClass({
+                index: i,
+                replicas,
+                progressEmptyBgClass,
+                isAutocompleteHovered,
+                hoveredPodIndex,
+                activeBarClass,
+              })
+            )}
+          />
+        ))
       )}
     </div>
   );
@@ -234,7 +196,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             label={displayLabel} className="w-full min-w-0 max-w-full"
           />
 
-          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />
+          <ReplicaProgress id={id} replicas={replicas} parentReplicas={data.parentReplicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} isPending={isPending} isCrashing={isCrashing} isReady={isReady} />
           <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>

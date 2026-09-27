@@ -148,8 +148,11 @@ export const generateRandomHash = (length = 5): string => {
  * @param replicaSuffix - Unique per-pod replica suffix (e.g. `'m1aa'`).
  * @returns Formatted full pod name (e.g. `'myapp-k98z-m1aa'`).
  */
-export const formatPodName = (baseName: string, podHash?: string, replicaSuffix?: string): string => {
+export const formatPodName = (baseName: string, podHash?: string, replicaSuffix?: string, totalReplicas?: number): string => {
   const cleanBase = sanitizeSlug(baseName || 'pod');
+  if (totalReplicas !== undefined && totalReplicas <= 1) {
+    return cleanBase;
+  }
   const parts = [cleanBase];
   if (podHash) parts.push(podHash);
   if (replicaSuffix) parts.push(replicaSuffix);

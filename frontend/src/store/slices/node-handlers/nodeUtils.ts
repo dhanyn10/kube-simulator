@@ -1,7 +1,7 @@
 import { Node } from '@xyflow/react';
 import { K8sResourceType, K8sNodeData } from '@/types';
 import type { FlowState } from '@/store/types';
-import { sanitizeSlug } from '@/lib/utils';
+import { formatPodName, sanitizeSlug } from '@/lib/utils';
 
 export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onDelete: () => {
@@ -19,9 +19,8 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
       if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'ReplicaSet')) {
         get().updateNodeData(currentParent.id, { label: cleanBase });
       } else {
-        const hashPart = podHash ? `-${podHash}` : '';
-        const suffixPart = replicaSuffix ? `-${replicaSuffix}` : '';
-        const newLabel = `${cleanBase}${hashPart}${suffixPart}`;
+        const replicas = node.data?.replicas || 1;
+        const newLabel = formatPodName(cleanBase, podHash, replicaSuffix, replicas);
         get().updateNodeData(id, {
           baseName: cleanBase,
           label: newLabel,
