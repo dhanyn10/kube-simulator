@@ -26,6 +26,20 @@ describe('dragUtils', () => {
     expect(res.intersects).toBe(true);
   });
 
+  it('calculateOverlap tests explicit node width/height and container width/height properties', () => {
+    const nodeWithExplicit = { id: 'p1', width: 200, height: 100 } as any;
+    const containerWithExplicit = { id: 'd1', type: 'Deployment', width: 400, height: 200, position: { x: 0, y: 0 } } as any;
+
+    const res1 = calculateOverlap(nodeWithExplicit, { x: 0, y: 0 }, containerWithExplicit, [containerWithExplicit]);
+    expect(res1.intersects).toBe(true);
+    expect(res1.overlapPercentage).toBe(100);
+
+    // Non-deployment container with no width or height or measured fallback
+    const bareContainer = { id: 'c1', type: 'Namespace', position: { x: 0, y: 0 } } as any;
+    const res2 = calculateOverlap(nodeWithExplicit, { x: 0, y: 0 }, bareContainer, [bareContainer]);
+    expect(res2.intersects).toBe(true);
+  });
+
   it('handleGenericContainerMove updates parent and position', () => {
     const node = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 } } as any;
     const targetParent = { id: 'ns1', type: 'Namespace', position: { x: 100, y: 100 }, data: {} } as any;
