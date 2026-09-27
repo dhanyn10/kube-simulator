@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 )
 
+// openInExplorer opens the specified file or folder in Windows File Explorer.
+// It executes the native Windows `explorer.exe` process without hiding its GUI window.
 func openInExplorer(filePath string) error {
 	// explorer.exe is a GUI application; do NOT set HideWindow: true as it causes Windows to launch File Explorer in hidden mode.
 	cmd := exec.Command("explorer.exe", filepath.Clean(filePath))

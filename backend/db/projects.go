@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// Project represents a saved infrastructure project entry in the SQLite database.
 type Project struct {
 	ID        int64  `gorm:"primaryKey" json:"id"`
 	Name      string `gorm:"not null" json:"name"`
@@ -22,19 +23,23 @@ type Project struct {
 
 const appDirName = ".kube-simulator"
 
+// Setting represents a key-value application setting entry stored in the SQLite database.
 type Setting struct {
 	Key   string `gorm:"primaryKey" json:"key"`
 	Value string `gorm:"not null" json:"value"`
 }
 
+// ProjectManager manages local SQLite storage for infrastructure projects and settings using GORM.
 type ProjectManager struct {
 	db *gorm.DB
 }
 
+// NewProjectManager creates a new ProjectManager instance.
 func NewProjectManager() *ProjectManager {
 	return &ProjectManager{}
 }
 
+// Init initializes the local SQLite database at ~/.kube-simulator/app_data.db and performs auto-migrations.
 func (p *ProjectManager) Init() error {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -59,6 +64,7 @@ func (p *ProjectManager) Init() error {
 	return p.db.AutoMigrate(&Project{}, &Setting{})
 }
 
+// Close safely closes the underlying GORM SQLite connection if open.
 func (p *ProjectManager) Close() {
 	if p.db != nil {
 		sqlDB, _ := p.db.DB()
@@ -68,6 +74,7 @@ func (p *ProjectManager) Close() {
 	}
 }
 
+// writePhysicalProjectFile exports a project snapshot file (.infra) to ~/.kube-simulator/projects/.
 func writePhysicalProjectFile(id int64, content string) {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -79,6 +86,7 @@ func writePhysicalProjectFile(id int64, content string) {
 	_ = os.WriteFile(filePath, []byte(content), 0644)
 }
 
+// writePhysicalAutosaveFile writes or deletes an autosave snapshot file (.infra) in ~/.kube-simulator/autosaves/.
 func writePhysicalAutosaveFile(key, content string) {
 	if !strings.HasPrefix(key, "autosave-") {
 		return
@@ -97,6 +105,7 @@ func writePhysicalAutosaveFile(key, content string) {
 	}
 }
 
+// SaveProject inserts a new Project record into SQLite and writes the corresponding physical project file.
 func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 	if p.db == nil {
 		return 0, gorm.ErrInvalidDB
@@ -112,6 +121,7 @@ func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 	return project.ID, result.Error
 }
 
+// UpdateProject updates the content and timestamp of an existing project record and writes the updated physical file.
 func (p *ProjectManager) UpdateProject(id int64, content string) error {
 	if p.db == nil {
 		return gorm.ErrInvalidDB
@@ -126,6 +136,7 @@ func (p *ProjectManager) UpdateProject(id int64, content string) error {
 	return err
 }
 
+// GetProjects retrieves all stored projects ordered by updated_at descending.
 func (p *ProjectManager) GetProjects() ([]Project, error) {
 	if p.db == nil {
 		return nil, gorm.ErrInvalidDB
@@ -135,6 +146,7 @@ func (p *ProjectManager) GetProjects() ([]Project, error) {
 	return projects, result.Error
 }
 
+// LoadProject retrieves a single project by its primary key ID.
 func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
 	if p.db == nil {
 		return nil, gorm.ErrInvalidDB
@@ -147,6 +159,7 @@ func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
 	return &project, nil
 }
 
+// DeleteProject removes a project record from SQLite and deletes its corresponding physical file.
 func (p *ProjectManager) DeleteProject(id int64) error {
 	if p.db == nil {
 		return gorm.ErrInvalidDB
@@ -162,6 +175,7 @@ func (p *ProjectManager) DeleteProject(id int64) error {
 	return err
 }
 
+// SaveSetting stores or updates a key-value setting in SQLite and triggers physical autosave syncing when applicable.
 func (p *ProjectManager) SaveSetting(key, value string) error {
 	if p.db == nil {
 		return gorm.ErrInvalidDB
@@ -174,6 +188,7 @@ func (p *ProjectManager) SaveSetting(key, value string) error {
 	return err
 }
 
+// GetSetting retrieves the setting value corresponding to the specified key from SQLite.
 func (p *ProjectManager) GetSetting(key string) (string, error) {
 	if p.db == nil {
 		return "", gorm.ErrInvalidDB

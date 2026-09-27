@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// GenContext holds canvas context, node mappings, and relationship edges for YAML manifest generation.
 type GenContext struct {
 	nodes         []k8s.FrontendNode
 	edges         []k8s.FrontendEdge
@@ -16,6 +17,7 @@ type GenContext struct {
 	nsMap         map[string]string // nodeId -> namespaceName
 }
 
+// Generate converts frontend nodes and edges JSON strings into a unified JSON array string of Kubernetes resource objects.
 func Generate(nodesJson, edgesJson string) string {
 	var nodes []k8s.FrontendNode
 	var edges []k8s.FrontendEdge
@@ -60,6 +62,7 @@ func Generate(nodesJson, edgesJson string) string {
 	return string(jsonData)
 }
 
+// generateNodeObject delegates generation of a single canvas node to its corresponding ResourceGenerator.
 func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 	data := node.Data
 	if data.Label == "" || node.Type == "" {
@@ -90,6 +93,7 @@ func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 	return generator.Generate(data, name, namespace, ctx)
 }
 
+// sanitizeName formats node labels into valid DNS-1123 compliant Kubernetes resource names.
 func sanitizeName(label string) string {
 	res := strings.ReplaceAll(strings.ToLower(label), " ", "-")
 	// Kubernetes DNS-1123: only alphanumeric and '-'
@@ -109,6 +113,7 @@ func sanitizeName(label string) string {
 }
 
 
+// getNamespace determines the target Kubernetes namespace for a given node based on parent canvas hierarchy.
 func getNamespace(node k8s.FrontendNode, ctx *GenContext) string {
 	if node.ParentID == "" {
 		return ""
@@ -127,6 +132,7 @@ func getNamespace(node k8s.FrontendNode, ctx *GenContext) string {
 
 // Logic for each resource type goes here...
 // (I will implement them in the next tool call to keep it manageable)
+// generateNamespace constructs a Kubernetes Namespace object structure.
 func generateNamespace(data k8s.K8sNodeData, name string) interface{} {
 	return k8s.Namespace{
 		ApiVersion: "v1",

@@ -1,5 +1,6 @@
 package k8s
 
+// K8sResourceType defines string constants for supported Kubernetes canvas resource node types.
 type K8sResourceType string
 
 const (
@@ -15,11 +16,13 @@ const (
 	TypeSecret     K8sResourceType = "Secret"
 )
 
+// ConfigDataItem represents a single key-value data pair stored inside a ConfigMap or Secret.
 type ConfigDataItem struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
+// K8sNodeData encapsulates configuration attributes for a canvas node.
 type K8sNodeData struct {
 	ID              string                 `json:"id"`
 	Label           string                 `json:"label"`
@@ -51,6 +54,7 @@ type K8sNodeData struct {
 	ConfigData      []ConfigDataItem       `json:"configData,omitempty"`
 }
 
+// FrontendNode represents a node object received from the frontend canvas payload.
 type FrontendNode struct {
 	ID       string      `json:"id"`
 	Type     string      `json:"type"`
@@ -58,6 +62,7 @@ type FrontendNode struct {
 	ParentID string      `json:"parentId,omitempty"`
 }
 
+// FrontendEdge represents a connection edge object received from the frontend canvas payload.
 type FrontendEdge struct {
 	ID     string `json:"id"`
 	Source string `json:"source"`

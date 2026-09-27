@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// getEnvFromConnections extracts environment variable references from attached ConfigMap and Secret source nodes.
 func getEnvFromConnections(targetIDs []string, ctx *GenContext) []k8s.EnvVar {
 	var env []k8s.EnvVar
 
@@ -18,6 +19,7 @@ func getEnvFromConnections(targetIDs []string, ctx *GenContext) []k8s.EnvVar {
 	return env
 }
 
+// getEnvFromNode constructs environment variable objects for data items stored inside a ConfigMap or Secret node.
 func getEnvFromNode(node *k8s.FrontendNode) []k8s.EnvVar {
 	if node == nil || (node.Type != "ConfigMap" && node.Type != "Secret") {
 		return nil
@@ -55,6 +57,7 @@ func getEnvFromNode(node *k8s.FrontendNode) []k8s.EnvVar {
 	return env
 }
 
+// getVolumeConfig constructs Volume and VolumeMount definitions for workloads attached to PVC nodes.
 func getVolumeConfig(sourceIDs []string, ctx *GenContext) ([]k8s.Volume, []k8s.VolumeMount) {
 	var volumes []k8s.Volume
 	var volumeMounts []k8s.VolumeMount
@@ -91,6 +94,7 @@ func getVolumeConfig(sourceIDs []string, ctx *GenContext) ([]k8s.Volume, []k8s.V
 	return volumes, volumeMounts
 }
 
+// createResourceMap converts CPU and memory string inputs into a key-value resource specification map.
 func createResourceMap(cpu, memory string) map[string]string {
 	if cpu == "" && memory == "" {
 		return nil
@@ -105,6 +109,7 @@ func createResourceMap(cpu, memory string) map[string]string {
 	return res
 }
 
+// getResourceConfig builds resource requirements (requests and limits) from workload node settings.
 func getResourceConfig(data k8s.K8sNodeData) *k8s.ResourceRequirements {
 	if val, ok := data.YamlSettings["resources"]; ok && !val {
 		return nil

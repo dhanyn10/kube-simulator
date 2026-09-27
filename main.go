@@ -20,6 +20,9 @@ var assets embed.FS
 
 var appCtx context.Context
 
+// main is the primary entry point for the Wails application.
+// It initializes the application state, parses command-line file parameters,
+// configures system menus, and executes the Wails application runtime loop.
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()

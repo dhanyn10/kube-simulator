@@ -6,6 +6,7 @@ import (
 
 const appsApiVersion = "apps/v1"
 
+// createPodSpec constructs a PodSpec populated with containers, environment variables, volumes, and resources.
 func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	targetIDs := []string{data.ID}
 	volumes, volumeMounts := getVolumeConfig(targetIDs, ctx)
@@ -43,6 +44,7 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	}
 }
 
+// generatePodOrDeployment generates a Deployment object if replicas > 1 or a standalone Pod if replicas <= 1.
 func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	podSpec := createPodSpec(data, ctx)
 	replicas := 1
@@ -91,6 +93,7 @@ func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *
 	}
 }
 
+// extractConfigData extracts key-value string maps from node ConfigData.
 func extractConfigData(data k8s.K8sNodeData) map[string]string {
 	configData := make(map[string]string)
 	if val, ok := data.YamlSettings["data"]; !ok || val {
@@ -103,6 +106,7 @@ func extractConfigData(data k8s.K8sNodeData) map[string]string {
 	return configData
 }
 
+// generateConfigMap constructs a Kubernetes ConfigMap resource object.
 func generateConfigMap(data k8s.K8sNodeData, name, namespace string) interface{} {
 	configData := extractConfigData(data)
 	cm := k8s.ConfigMap{
@@ -116,6 +120,7 @@ func generateConfigMap(data k8s.K8sNodeData, name, namespace string) interface{}
 	return cm
 }
 
+// generateSecret constructs a Kubernetes Secret resource object.
 func generateSecret(data k8s.K8sNodeData, name, namespace string) interface{} {
 	secretData := extractConfigData(data)
 	s := k8s.Secret{
@@ -130,6 +135,7 @@ func generateSecret(data k8s.K8sNodeData, name, namespace string) interface{} {
 	return s
 }
 
+// generatePVC constructs a Kubernetes PersistentVolumeClaim resource object.
 func generatePVC(data k8s.K8sNodeData, name, namespace string) interface{} {
 	accessMode := "ReadWriteOnce"
 	if data.AccessMode != "" {
@@ -172,6 +178,7 @@ func generatePVC(data k8s.K8sNodeData, name, namespace string) interface{} {
 	return pvc
 }
 
+// getPodDataAndIDs retrieves child pod data and IDs when generating workload pod templates.
 func getPodDataAndIDs(data k8s.K8sNodeData, ctx *GenContext) (k8s.K8sNodeData, []string) {
 	targetIDs := []string{data.ID}
 	for _, n := range ctx.nodes {
@@ -182,6 +189,7 @@ func getPodDataAndIDs(data k8s.K8sNodeData, ctx *GenContext) (k8s.K8sNodeData, [
 	return data, targetIDs
 }
 
+// buildPodTemplateSpec constructs a PodTemplate specification for controller resources.
 func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8s.PodTemplate {
 	podData, targetIDs := getPodDataAndIDs(data, ctx)
 
@@ -223,6 +231,7 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8
 	}
 }
 
+// generateDeployment constructs a Kubernetes Deployment resource object.
 func generateDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
@@ -253,6 +262,7 @@ func generateDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenCo
 	}
 }
 
+// generateReplicaSet constructs a Kubernetes ReplicaSet resource object.
 func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
@@ -276,6 +286,7 @@ func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, ctx *GenCo
 	}
 }
 
+// findTargetWorkload identifies the target Deployment or Pod node connected to a Service.
 func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
 	for _, e := range ctx.sourceEdgeMap[serviceID] {
 		target := ctx.nodeMap[e.Target]
@@ -286,6 +297,7 @@ func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
 	return nil
 }
 
+// generateService constructs a Kubernetes Service resource object.
 func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	targetWorkload := findTargetWorkload(data.ID, ctx)
 
@@ -331,6 +343,7 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 	return svc
 }
 
+// findTargetService identifies the target Service node connected to an Ingress.
 func findTargetService(ingressID string, ctx *GenContext) *k8s.FrontendNode {
 	for _, e := range ctx.sourceEdgeMap[ingressID] {
 		target := ctx.nodeMap[e.Target]
@@ -341,6 +354,7 @@ func findTargetService(ingressID string, ctx *GenContext) *k8s.FrontendNode {
 	return nil
 }
 
+// generateIngress constructs a Kubernetes Ingress resource object.
 func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	targetService := findTargetService(data.ID, ctx)
 
@@ -403,6 +417,7 @@ func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 	}
 }
 
+// findTargetDeployment identifies the target Deployment node connected to an HPA.
 func findTargetDeployment(hpaID string, ctx *GenContext) *k8s.FrontendNode {
 	for _, e := range ctx.sourceEdgeMap[hpaID] {
 		target := ctx.nodeMap[e.Target]
@@ -413,6 +428,7 @@ func findTargetDeployment(hpaID string, ctx *GenContext) *k8s.FrontendNode {
 	return nil
 }
 
+// buildHPAMetrics builds CPU and memory metric specifications for an HPA resource.
 func buildHPAMetrics(data k8s.K8sNodeData) []k8s.HPAMetric {
 	var metrics []k8s.HPAMetric
 
@@ -448,6 +464,7 @@ func buildHPAMetrics(data k8s.K8sNodeData) []k8s.HPAMetric {
 	return metrics
 }
 
+// generateHPA constructs a Kubernetes HorizontalPodAutoscaler resource object.
 func generateHPA(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	targetDeployment := findTargetDeployment(data.ID, ctx)
 	deploymentName := "tbd-deployment"
