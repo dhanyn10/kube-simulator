@@ -8,7 +8,10 @@ import {
   ITEM_STYLES,
   SIDEBAR_SECTIONS,
   toggleSidebarAccordionSection,
-  filterSidebarItems
+  filterSidebarItems,
+  executeSidebarAddNode,
+  handleSidebarDragStart,
+  handleSidebarDragEnd,
 } from '@/activities/layout';
 
 interface SidebarProps {
@@ -148,39 +151,21 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const addLog = useFlowStore((state) => state.addLog);
 
   const handleAddNode = (type: K8sResourceType) => {
-    if (type === 'IAM') {
-      setKubeIamModalOpen(true);
-      return;
-    }
-
-    if (type === 'Role') {
-      const targetNode = nodes.find((n) => n.selected || n.id === configuringNodeId);
-      if (targetNode) {
-        setRoleModalTargetNode({ id: targetNode.id, label: targetNode.data?.label || targetNode.id });
-      } else {
-        addLog(
-          'warn',
-          "[Sidebar Action] 'Role' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.",
-          'UI'
-        );
-      }
-      return;
-    }
-
-    onAddNode(type);
+    executeSidebarAddNode(type, onAddNode, {
+      nodes,
+      configuringNodeId,
+      setKubeIamModalOpen,
+      setRoleModalTargetNode,
+      addLog,
+    });
   };
 
   const onDragStart = (event: React.DragEvent, nodeType: K8sResourceType) => {
-    event.dataTransfer.setData('application/reactflow', nodeType);
-    event.dataTransfer.effectAllowed = 'move';
-    setDraggingSidebarItem(nodeType);
+    handleSidebarDragStart(event, nodeType, setDraggingSidebarItem);
   };
 
   const onDragEnd = () => {
-    setDraggingSidebarItem(null);
-    useFlowStore.setState((state) => ({
-      nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
-    }));
+    handleSidebarDragEnd(setDraggingSidebarItem);
   };
 
   return (

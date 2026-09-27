@@ -4,3 +4,5 @@
 
 export * from './useContextMenu';
 export * from './useSidebarContextMenu';
+export * from './mainLogger';
+export * from './useGlobalContextMenu';

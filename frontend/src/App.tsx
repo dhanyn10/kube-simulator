@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -51,7 +51,9 @@ import { useFileSystem } from './hooks/useFileSystem';
 import { useThemeSync } from './hooks/useThemeSync';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useAppInit, useAttachmentHandlers } from './hooks/useAppHelpers';
-import { isNodeAccessForbidden } from './activities/nodes/rbacNodeHelpers';
+import { useCanvasNodes } from './activities/nodes';
+import { getFinalCanvasBgColor } from './activities/layout';
+import { useGlobalContextMenu } from './activities/ui';
 
 const nodeTypes = {
   Pod: PodNode,
@@ -80,7 +82,7 @@ const defaultEdgeOptions = {
 
 export default function App() {
   useThemeSync();
-  const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
   useEffect(() => {
@@ -88,22 +90,11 @@ export default function App() {
   }, [isDetachedMode]);
 
   // @ts-ignore
-  if (globalThis !== undefined) globalThis.useFlowStore = useFlowStore;
+  if (window !== undefined) window.useFlowStore = useFlowStore;
 
-  const rawNodes = useFlowStore((state) => state.nodes);
+  const nodes = useCanvasNodes();
   const edges = useFlowStore((state) => state.edges);
-  const activeIdentity = useFlowStore((state) => state.activeIdentity);
-  const iamUsers = useFlowStore((state) => state.iamUsers);
 
-  const nodes = React.useMemo(() => {
-    return rawNodes.map((node) => {
-      const isForbidden = isNodeAccessForbidden(activeIdentity, iamUsers || [], node.type, node.data, rawNodes);
-      return {
-        ...node,
-        draggable: !isForbidden,
-      };
-    });
-  }, [rawNodes, activeIdentity, iamUsers]);
   const onNodesChange = useFlowStore((state) => state.onNodesChange);
   const onEdgesChange = useFlowStore((state) => state.onEdgesChange);
   const onConnect = useFlowStore((state) => state.onConnect);
@@ -135,32 +126,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
-  const defaultBgColor = colorMode === 'dark' ? '#334155' : '#94A3B8';
-  const finalCanvasBgColor = canvasBgColor === 'default' ? defaultBgColor : canvasBgColor;
-
-  const [defaultContextMenu, setDefaultContextMenu] = useState<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    const handleGlobalContextMenu = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest?.('#canvas-main')) {
-        return;
-      }
-      e.preventDefault();
-      setDefaultContextMenu({ x: e.clientX, y: e.clientY });
-    };
-
-    const handleClose = () => setDefaultContextMenu(null);
-
-    window.addEventListener('contextmenu', handleGlobalContextMenu);
-    window.addEventListener('contextmenu', handleClose, true);
-    window.addEventListener('click', handleClose);
-    return () => {
-      window.removeEventListener('contextmenu', handleGlobalContextMenu);
-      window.removeEventListener('contextmenu', handleClose, true);
-      window.removeEventListener('click', handleClose);
-    };
-  }, []);
+  const finalCanvasBgColor = getFinalCanvasBgColor(canvasBgColor, colorMode);
+  const { defaultContextMenu, setDefaultContextMenu } = useGlobalContextMenu();
 
   useAppInit(isDetachedMode, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen);
 
