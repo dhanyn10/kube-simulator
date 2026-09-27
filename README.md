@@ -45,7 +45,7 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
 - [Go](https://go.dev/) 1.25+
 - [Node.js](https://nodejs.org/) 22+
 - [pnpm](https://pnpm.io/)
-- [Wails CLI v2.15.0+](https://wails.io/docs/gettingstarted/installation)
+- [Wails CLI v2.16.0+](https://wails.io/docs/gettingstarted/installation)
 
 ### Setup
 1. Clone the repository:
@@ -56,8 +56,8 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
 
 2. Install or update Wails CLI and dependencies:
    ```bash
-   # Install/update Wails CLI v2.15.0 globally
-   go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+   # Install/update Wails CLI v2.16.0 globally
+   go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
    # Root directory
    go mod download
