@@ -173,6 +173,35 @@ describe('clipboardHandlers', () => {
     useFlowStore.getState().pasteNodes();
     expect(updateSpy).toHaveBeenCalledWith('dep-no-rep', { replicas: 1 });
 
+    // 6. Selected pod points to non-existent targetId or targetNode is missing
+    updateSpy.mockClear();
+    const orphanPod: Node = { id: 'orphan-pod', type: 'Pod', parentId: 'missing-dep', selected: true, position: { x: 0, y: 0 }, data: { label: 'my-app' } };
+    const fakeController: Node = { id: 'missing-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+    // If targetNode is removed from nodes list before lookup
+    useFlowStore.setState({
+      nodes: [orphanPod] as any, // missing-dep is missing
+      clipboard: { nodes: [clipboardPod], edges: [] },
+      updateNodeData: updateSpy,
+    });
+    // orphanPod.parentId is 'missing-dep', parent is undefined -> targetId = orphanPod.id ('orphan-pod'), targetNode found.
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).toHaveBeenCalledWith('orphan-pod', { replicas: 2 });
+  });
+
+  it('pasteNodes handles pasting Pod without data object', () => {
+    const podWithoutData: Node = { id: 'pod-no-data', type: 'Pod', position: { x: 0, y: 0 } } as any;
+
+    useFlowStore.setState({
+      nodes: [],
+      edges: [],
+      clipboard: { nodes: [podWithoutData], edges: [] },
+    });
+
+    useFlowStore.getState().pasteNodes();
+
+    const state = useFlowStore.getState();
+    expect(state.nodes).toHaveLength(1);
+    expect(state.nodes[0].type).toBe('Pod');
   });
 
   it('pasteNodes handles edge cases with unmapped edges, empty clipboard, and missing positions/data', () => {

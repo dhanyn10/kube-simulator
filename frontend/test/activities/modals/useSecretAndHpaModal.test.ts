@@ -32,6 +32,45 @@ describe('useSecretModal and useHpaModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('handles initialSecret with empty secretData and fallbacks for empty secretName and secretType onSave', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+
+    const emptyInitialSecret = {
+      id: 'existing-sec-1',
+      name: '',
+      type: '',
+      secretData: []
+    };
+
+    const { result } = renderHook(() =>
+      useSecretModal(true, 'node-1', emptyInitialSecret as any, onSave, onClose)
+    );
+
+    expect(result.current.secretName).toBe('app-secret');
+    expect(result.current.secretType).toBe('Opaque');
+    expect(result.current.dataItems).toHaveLength(1);
+    expect(result.current.dataItems[0].key).toBe('DB_PASSWORD');
+
+    act(() => {
+      result.current.setSecretName('   ');
+      result.current.setSecretType('');
+    });
+
+    act(() => {
+      result.current.handleSave();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'existing-sec-1',
+        name: 'unnamed-secret',
+        type: 'Opaque'
+      })
+    );
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('manages HPA modal state and invokes onSave with valid numeric bounds', () => {
     const onSave = vi.fn();
     const onClose = vi.fn();
