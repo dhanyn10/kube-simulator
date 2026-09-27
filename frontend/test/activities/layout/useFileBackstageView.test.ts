@@ -231,6 +231,29 @@ describe('useFileBackstageView', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('handles quick save when SaveProject returns undefined (save fails) or currentProject id is -1', async () => {
+    // Branch: currentProject.id === -1 (should bypass UpdateProject and try SaveProject)
+    useFlowStore.setState({ currentProject: { id: -1, name: 'Unsaved' }, isAutosaveEnabled: false });
+    const mockSaveProject = vi.fn().mockResolvedValue(undefined);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          SaveProject: mockSaveProject,
+        },
+      },
+    };
+
+    const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
+
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(mockSaveProject).toHaveBeenCalled();
+    // Since SaveProject returned undefined, onClose should not be called from SaveProject block
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('calls handleRestore, handleDeleteFile, and handleOpenFolder wrapper functions', async () => {
     const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
 
