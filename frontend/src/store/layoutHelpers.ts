@@ -1,4 +1,4 @@
-export const getPodSpacing = (isMegaPod: boolean) => isMegaPod ? 56 : 20;
+export const getPodSpacing = (_isMegaPod?: boolean) => 20;
 
 export const getReplicaThresholds = (totalReplicas: number) => {
   const targetPodReplicas: number[] = [];
