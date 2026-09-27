@@ -8,7 +8,7 @@ import { QuickConnectArrows } from './QuickConnectArrows';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
-import { useBaseNodeHandler, getProgressSegmentStyles, getMegaCircleDashArray } from '@/activities/nodes';
+import { useBaseNodeHandler, getMegaCircleDashArray } from '@/activities/nodes';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -19,14 +19,49 @@ const NodeStatusIndicator = ({ type, statusDotColor }: { type: string; statusDot
 };
 
 /**
- * Sub-component for rendering replica progress bars.
+ * Sub-component for rendering replica progress indicator bars and mega-pod circular gauges.
+ * Highlights the specific segment corresponding to `hoveredPodIndex` in blue when targeted
+ * via terminal autocomplete or CLI command execution.
+ *
+ * @param props - Component parameters including node ID, replicas count, color mode, and hover state.
  */
-const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progressEmptyBgClass, isAutocompleteHovered }: { id: string; replicas: number; showDashedProgress: boolean; colorMode: string; progressEmptyBgClass: string; isAutocompleteHovered?: boolean }) => {
+const ReplicaProgress = ({
+  id,
+  replicas,
+  showDashedProgress,
+  colorMode,
+  progressEmptyBgClass,
+  isAutocompleteHovered,
+  hoveredPodIndex,
+}: {
+  id: string;
+  replicas: number;
+  showDashedProgress: boolean;
+  colorMode: string;
+  progressEmptyBgClass: string;
+  isAutocompleteHovered?: boolean;
+  hoveredPodIndex?: number | null;
+}) => {
   if (!showDashedProgress) return null;
 
   const isMega = replicas === 100;
-  const { circleBgClass, circleStrokeClass, textClass, barClass } = getProgressSegmentStyles(colorMode, isAutocompleteHovered);
   const strokeDashArray = getMegaCircleDashArray(16, 10, 0.7);
+
+  const activeBarClass = 'bg-emerald-500 shadow-[0_0_2px_rgba(16,185,129,0.5)]';
+  const highlightedBarClass = 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]';
+
+  const activeCircleStrokeClass = 'text-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+  const highlightedCircleStrokeClass = 'text-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]';
+
+  const activeCircleTextClass = 'absolute text-[8px] font-black text-emerald-500 drop-shadow-[0_0_3px_rgba(16,185,129,0.4)]';
+  const highlightedCircleTextClass = 'absolute text-[8px] font-black text-blue-500 drop-shadow-[0_0_3px_rgba(59,130,246,0.4)]';
+
+  const circleBgClass = colorMode === 'dark' ? 'text-slate-700/50' : 'text-slate-200';
+
+  const megaHighlightedGaugeIndex =
+    hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0
+      ? Math.floor(hoveredPodIndex / 10)
+      : -1;
 
   return (
     <div className={cn("flex gap-0.5 w-full items-center pb-1", isMega ? "h-auto" : "h-1")}>
@@ -34,6 +69,9 @@ const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progress
         <div className="grid grid-cols-5 gap-x-2 gap-y-4 w-full py-4 px-1">
           {Array.from({ length: 10 }).map((_, i) => {
             const segmentId = `${id}-mega-progress-${i}`;
+            const isGaugeHighlighted = Boolean(
+              isAutocompleteHovered && (i === megaHighlightedGaugeIndex || megaHighlightedGaugeIndex === -1)
+            );
             return (
               <div key={segmentId} className="flex flex-col items-center gap-1">
                 <div className="relative flex items-center justify-center w-10 h-10">
@@ -47,25 +85,39 @@ const ReplicaProgress = ({ id, replicas, showDashedProgress, colorMode, progress
                       cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" fill="transparent"
                       strokeDasharray={strokeDashArray}
                       strokeDashoffset={0} strokeLinecap="round"
-                      className={circleStrokeClass}
+                      className={isGaugeHighlighted ? highlightedCircleStrokeClass : activeCircleStrokeClass}
                     />
                   </svg>
-                  <span className={textClass}>10</span>
+                  <span className={isGaugeHighlighted ? highlightedCircleTextClass : activeCircleTextClass}>10</span>
                 </div>
               </div>
             );
           })}
         </div>
       ) : (
-        Array.from({ length: 10 }).map((_, i) => (
-          <div
-            key={`${id}-progress-${i}`}
-            className={cn(
-              "flex-1 h-1 rounded-sm transition-all",
-              i < (replicas || 0) ? barClass : progressEmptyBgClass
-            )}
-          />
-        ))
+        Array.from({ length: 10 }).map((_, i) => {
+          const isFilled = i < (replicas || 0);
+          let isHighlighted = false;
+          if (isFilled && isAutocompleteHovered) {
+            if (hoveredPodIndex !== null && hoveredPodIndex !== undefined && hoveredPodIndex >= 0) {
+              isHighlighted = i === hoveredPodIndex;
+            } else {
+              isHighlighted = true;
+            }
+          }
+
+          let segClass = progressEmptyBgClass;
+          if (isFilled) {
+            segClass = isHighlighted ? highlightedBarClass : activeBarClass;
+          }
+
+          return (
+            <div
+              key={`${id}-progress-${i}`}
+              className={cn("flex-1 h-1 rounded-sm transition-all", segClass)}
+            />
+          );
+        })
       )}
     </div>
   );
@@ -104,7 +156,9 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     replicas,
     showDashedProgress,
     isAutocompleteHovered,
+    hoveredPodIndex,
     borderColorHex,
+    displayLabel,
   } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
   return (
@@ -162,10 +216,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           <NodeRenameInput
             isEditing={isEditing} setIsEditing={setIsEditing} editValue={editValue} setEditValue={setEditValue}
             inputRef={inputRef} handleRename={handleRename} onKeyDown={onKeyDown} colorMode={colorMode}
-            label={data.label} className="w-full min-w-0 max-w-full"
+            label={displayLabel} className="w-full min-w-0 max-w-full"
           />
 
-          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} />
+          <ReplicaProgress id={id} replicas={replicas} showDashedProgress={showDashedProgress} colorMode={colorMode} progressEmptyBgClass={progressEmptyBgClass} isAutocompleteHovered={isAutocompleteHovered} hoveredPodIndex={hoveredPodIndex} />
           <NodePodBadges data={data} />
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>

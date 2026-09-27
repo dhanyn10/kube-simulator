@@ -1,4 +1,5 @@
 import { Node } from '@xyflow/react';
+import { formatPodName } from '@/lib/utils';
 
 export interface SuggestionItem {
   value: string;
@@ -99,8 +100,29 @@ export const getDeploymentNames = (nodes: Node[]): string[] => {
   return nodes.filter(n => n.type === 'Deployment').map(d => String(d.data?.label ?? d.id));
 };
 
+/**
+ * Extracts and compiles all active pod names from canvas nodes.
+ * Expands stacked pod replica suffixes (`replicaSuffixes`) so every individual pod
+ * instance is listed as a selectable option in autocomplete dropdowns.
+ *
+ * @param nodes - Array of active canvas nodes.
+ * @returns Array of formatted full pod name strings.
+ */
 export const getPodNames = (nodes: Node[]): string[] => {
-  return nodes.filter(n => n.type === 'Pod').map(p => String(p.data?.label ?? p.id));
+  const podNames: string[] = [];
+  nodes.filter(n => n.type === 'Pod').forEach(p => {
+    const data = p.data as any;
+    if (data?.replicaSuffixes && Array.isArray(data.replicaSuffixes) && data.replicaSuffixes.length > 1) {
+      const baseName = data.baseName || 'pod';
+      const podHash = data.podHash || '';
+      data.replicaSuffixes.forEach((suf: string) => {
+        podNames.push(formatPodName(baseName, podHash, suf));
+      });
+    } else {
+      podNames.push(String(data?.label ?? p.id));
+    }
+  });
+  return podNames;
 };
 
 const extractCanvasFieldNames = (nodes: Node[], fieldKey: string, suffix = ''): string[] => {
