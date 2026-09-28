@@ -23,6 +23,7 @@ import {
   ConfigMapModal,
   SecretModal,
   HPAModal,
+  ResourceLimitModal,
   KubeIAMModal,
   SaveModal,
   TerminalCommandTreeModal,
@@ -37,6 +38,7 @@ import {
   NamespaceNode,
   IngressNode,
   HPANode,
+  ResourceLimitNode,
   PVCNode,
   ReplicaSetNode,
   RoleNode,
@@ -63,6 +65,7 @@ const nodeTypes = {
   Namespace: NamespaceNode,
   Ingress: IngressNode,
   HPA: HPANode,
+  ResourceLimit: ResourceLimitNode,
   PVC: PVCNode,
   ConfigMap: ConfigMapNode,
   Secret: SecretNode,
@@ -158,10 +161,13 @@ export default function App() {
     setSecretModalTargetNode,
     hpaModalTargetNode,
     setHpaModalTargetNode,
+    resourceLimitModalTargetNode,
+    setResourceLimitModalTargetNode,
     handleRoleSave,
     handleConfigMapSave,
     handleSecretSave,
     handleHpaSave,
+    handleResourceLimitSave,
   } = useAttachmentHandlers();
 
   useKeyboardShortcuts({
@@ -341,6 +347,14 @@ export default function App() {
             targetNodeId={hpaModalTargetNode?.id || null}
             targetNodeLabel={hpaModalTargetNode?.label}
             onSave={handleHpaSave}
+          />
+
+          <ResourceLimitModal
+            isOpen={resourceLimitModalTargetNode !== null}
+            onClose={() => setResourceLimitModalTargetNode(null)}
+            targetNodeId={resourceLimitModalTargetNode?.id || null}
+            targetNodeLabel={resourceLimitModalTargetNode?.label}
+            onSave={handleResourceLimitSave}
           />
 
           <KubeIAMModal />

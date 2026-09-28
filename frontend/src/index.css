@@ -393,6 +393,10 @@
     @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
   }
 
+  .node-attached-badge-resource-limit {
+    @apply p-1 rounded-full bg-purple-600 text-white hover:bg-purple-500 transition-colors cursor-pointer shadow-sm;
+  }
+
   .node-attached-badge-hpa {
     @apply p-1 rounded-full bg-fuchsia-600 text-white hover:bg-fuchsia-500 transition-colors cursor-pointer shadow-sm;
   }

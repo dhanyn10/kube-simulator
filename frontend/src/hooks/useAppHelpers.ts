@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { GetSystemResources } from '@wailsjs/go/main/App.js';
 import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '@/store';
-import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem } from '@/types';
+import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
 import { logger } from '@/lib/logger';
 import {
   emitLiveRoleCommand,
@@ -76,6 +76,8 @@ export function useAttachmentHandlers() {
   const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
   const hpaModalTargetNode = useFlowStore((state) => state.hpaModalTargetNode);
   const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
+  const resourceLimitModalTargetNode = useFlowStore((state) => state.resourceLimitModalTargetNode);
+  const setResourceLimitModalTargetNode = useFlowStore((state) => state.setResourceLimitModalTargetNode);
 
   const handleRoleSave = (roleItem: K8sRoleItem) => {
     if (!roleModalTargetNode) return;
@@ -207,6 +209,40 @@ export function useAttachmentHandlers() {
     );
   };
 
+  const handleResourceLimitSave = (resItem: K8sResourceLimitItem) => {
+    if (!resourceLimitModalTargetNode) return;
+    const target = nodes.find((n) => n.id === resourceLimitModalTargetNode.id);
+    if (!target) return;
+
+    const existingLimits = target.data.resourceLimits || [];
+    const existingIndex = existingLimits.findIndex((r: K8sResourceLimitItem) => r.id === resItem.id);
+    let updatedLimits: K8sResourceLimitItem[];
+
+    if (existingIndex >= 0) {
+      updatedLimits = [...existingLimits];
+      updatedLimits[existingIndex] = resItem;
+    } else {
+      updatedLimits = [...existingLimits, resItem];
+    }
+
+    updateNodeData(target.id, {
+      resourceLimits: updatedLimits,
+      cpuRequest: resItem.cpuRequest,
+      cpuLimit: resItem.cpuLimit,
+      memoryRequest: resItem.memoryRequest,
+      memoryLimit: resItem.memoryLimit,
+    });
+    useFlowStore.getState().addLog('info', `[Resource Limit Attached] Attached Resource Limit "${resItem.name}" to card ${resourceLimitModalTargetNode.label}`, 'UI');
+    setResourceLimitModalTargetNode(null);
+
+    useFlowStore.setState({
+      configuringNodeId: target.id,
+      configuringEdgeId: null,
+      isRightSidebarVisible: true,
+      isHistoryViewOpen: false,
+    });
+  };
+
   return {
     roleModalTargetNode,
     setRoleModalTargetNode,
@@ -216,9 +252,12 @@ export function useAttachmentHandlers() {
     setSecretModalTargetNode,
     hpaModalTargetNode,
     setHpaModalTargetNode,
+    resourceLimitModalTargetNode,
+    setResourceLimitModalTargetNode,
     handleRoleSave,
     handleConfigMapSave,
     handleSecretSave,
     handleHpaSave,
+    handleResourceLimitSave,
   };
 }

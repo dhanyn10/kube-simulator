@@ -8,6 +8,7 @@ export const NODE_TYPES: Record<K8sResourceType, { color: string; icon: string }
   Internet: { color: 'blue', icon: 'Globe' },
   Ingress: { color: 'rose', icon: 'Globe' },
   HPA: { color: 'fuchsia', icon: 'Activity' },
+  ResourceLimit: { color: 'purple', icon: 'Layers' },
   PVC: { color: 'orange', icon: 'Database' },
   ConfigMap: { color: 'amber', icon: 'FileText' },
   Secret: { color: 'red', icon: 'Lock' },

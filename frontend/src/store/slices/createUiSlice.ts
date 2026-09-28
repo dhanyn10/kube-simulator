@@ -38,6 +38,8 @@ export interface UiSlice {
   setSecretModalTargetNode: (target: { id: string; label: string } | null) => void;
   hpaModalTargetNode: { id: string; label: string } | null;
   setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
+  resourceLimitModalTargetNode: { id: string; label: string } | null;
+  setResourceLimitModalTargetNode: (target: { id: string; label: string } | null) => void;
 
   // Active K8s Identity state & actions
   activeIdentity: string;
@@ -550,6 +552,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSecretModalTargetNode: (target) => set({ secretModalTargetNode: target }),
   hpaModalTargetNode: null,
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
+  resourceLimitModalTargetNode: null,
+  setResourceLimitModalTargetNode: (target) => set({ resourceLimitModalTargetNode: target }),
 
   // Active K8s Identity initial state & actions
   activeIdentity: 'system:admin',

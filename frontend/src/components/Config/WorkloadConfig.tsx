@@ -1,7 +1,6 @@
 import { useFlowStore } from '@/store';
 import { Box, Code, Layers, Server } from 'lucide-react';
 import { ConfigSection, NumberStepper } from '../UI/ConfigUI';
-import { WorkloadAdvancedConfig } from '../Workload/WorkloadAdvancedConfig';
 import { ImageDropdown } from '../UI/ImageDropdown';
 import { SelectorGroup } from '../UI/SelectorGroup';
 import { RUNTIMES, WEBSERVERS } from '@/constants/config';
@@ -112,14 +111,6 @@ export const WorkloadConfig = ({
             framework={data.framework}
             colorMode={colorMode}
             performUpdate={performUpdate}
-          />
-
-          {/* Advanced Settings for Pods (Resources) */}
-          <WorkloadAdvancedConfig
-            selectedNode={selectedNode}
-            performUpdate={performUpdate}
-            toggleVisibility={toggleVisibility}
-            toggleYaml={toggleYaml}
           />
         </>
       )}

@@ -136,6 +136,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     { type: 'Internet', icon: Globe, label: 'Internet', desc: 'External Component' },
     { type: 'Ingress', icon: Globe, label: 'Ingress', desc: 'External Access' },
     { type: 'HPA', icon: Activity, label: 'HPA', desc: 'Auto-scaling' },
+    { type: 'ResourceLimit', icon: Layers, label: 'Resource Limit', desc: 'Limits & Requests' },
     { type: 'PVC', icon: Database, label: 'PVC', desc: 'Storage Claim' },
     { type: 'Role', icon: ShieldCheck, label: 'Role', desc: 'RBAC Access Role' },
     { type: 'ConfigMap', icon: Settings, label: 'ConfigMap', desc: 'General Config' },

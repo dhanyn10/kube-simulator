@@ -12,6 +12,8 @@ export * from './SecretModal';
 export * from './SecretListModal';
 export * from './HPAModal';
 export * from './HPAListModal';
+export * from './ResourceLimitModal';
+export * from './ResourceLimitListModal';
 export * from './KubeIAMModal';
 export * from './SaveModal';
 export * from './InternetProfileModal';

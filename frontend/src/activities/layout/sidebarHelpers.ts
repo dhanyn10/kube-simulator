@@ -9,6 +9,7 @@ export const ITEM_STYLES: Record<string, { border: string; text: string }> = {
   Service: { border: 'border-l-amber-500 hover:border-amber-500', text: 'text-amber-400' },
   Ingress: { border: 'border-l-rose-500 hover:border-rose-500', text: 'text-rose-400' },
   HPA: { border: 'border-l-fuchsia-500 hover:border-fuchsia-500', text: 'text-fuchsia-400' },
+  ResourceLimit: { border: 'border-l-purple-500 hover:border-purple-500', text: 'text-purple-400' },
   Internet: { border: 'border-l-blue-500 hover:border-blue-500', text: 'text-blue-400' },
   PVC: { border: 'border-l-orange-500 hover:border-orange-500', text: 'text-orange-400' },
   Namespace: { border: 'border-l-emerald-500 hover:border-emerald-500', text: 'text-emerald-400' },
@@ -32,7 +33,7 @@ export const SIDEBAR_SECTIONS: SidebarSectionDef[] = [
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
   { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
   { id: 'configuration', title: 'Configuration', filter: (type: string) => type === 'ConfigMap' || type === 'Secret' },
-  { id: 'scaling', title: 'Scaling', filter: (type: string) => type === 'HPA' },
+  { id: 'scaling', title: 'Scaling', filter: (type: string) => type === 'HPA' || type === 'ResourceLimit' },
   { id: 'others', title: 'Others', filter: (type: string) => type === 'Internet' || type === 'PVC' }
 ];
 
