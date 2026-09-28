@@ -522,7 +522,7 @@ describe('useDropHandler', () => {
         position: { x: 0, y: 0 },
         width: 300,
         height: 200,
-        data: {}
+        data: { resourceLimits: ['rl1'] }
       };
       const podChild = {
         id: 'pod1',

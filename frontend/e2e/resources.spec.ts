@@ -6,7 +6,7 @@ test.describe('Workload Resource Validation', () => {
     await expect(page.getByTestId('app-title')).toBeVisible({ timeout: 15000 });
   });
 
-  test('shows red button and warning icon when limit < request', async ({ page }) => {
+  test('disables request options higher than current limit', async ({ page }) => {
     // Add a Pod node
     await page.getByRole('button', { name: 'Pod', exact: false }).first().click();
 
@@ -22,31 +22,19 @@ test.describe('Workload Resource Validation', () => {
     // Open Advanced Options to reveal Resource Settings
     await page.getByText('Advanced Options').click();
 
-    // Set Request to 500m
-    await page.getByRole('button', { name: '500m' }).first().click();
+    // Set CPU Limit to 250m (CPU Limit is first group)
+    await page.getByRole('button', { name: '250m' }).first().click();
 
-    // Set Limit to 250m (which is < 500m)
-    await page.getByRole('button', { name: '250m' }).last().click();
+    // CPU Request options higher than 250m (500m, 1 Core, 2 Cores in CPU Request group) should be disabled
+    const req500m = page.getByRole('button', { name: '500m' }).nth(1);
+    const req1Core = page.getByRole('button', { name: '1 Core' }).nth(1);
+    await expect(req500m).toBeDisabled();
+    await expect(req1Core).toBeDisabled();
 
-    // Check for red button (bg-red-600)
-    const redButton = page.locator('button.bg-red-600');
-    await expect(redButton).toBeVisible();
-    await expect(redButton).toContainText('500m');
+    // Upgrade CPU Limit to 1 Core
+    await page.getByRole('button', { name: '1 Core' }).first().click();
 
-    // Check for warning icon
-    const warningIcon = page.locator('.workload-resource-warning');
-    await expect(warningIcon).toBeVisible();
-
-    // Check for tooltip on hover
-    await warningIcon.hover();
-    await expect(page.getByText('Limit must be greater than or equal to Request')).toBeVisible();
-
-    // Fix the error: Set Limit to 1 Core
-    await page.getByRole('button', { name: '1 Core' }).last().click();
-
-    // Red button should be gone, replaced by emerald button
-    await expect(page.locator('button.bg-red-600')).not.toBeVisible();
-    await expect(page.locator('button.bg-emerald-600')).toBeVisible();
-    await expect(warningIcon).not.toBeVisible();
+    // Now CPU Request option 500m should be enabled
+    await expect(req500m).toBeEnabled();
   });
 });

@@ -10,6 +10,7 @@ interface SelectorGroupProps {
   className?: string;
   layout?: 'wrap' | 'grid' | 'column';
   validateOption?: (value: string) => boolean;
+  disabledOption?: (value: string) => boolean;
 }
 
 const getSelectorButtonClasses = (
@@ -45,7 +46,8 @@ export const SelectorGroup = ({
   activeShadowClass = "",
   className = "",
   layout = 'wrap',
-  validateOption
+  validateOption,
+  disabledOption
 }: SelectorGroupProps) => {
   const containerClasses = cn(
     layout === 'wrap' && "flex flex-wrap gap-1",
@@ -60,6 +62,7 @@ export const SelectorGroup = ({
         const val = opt.value ?? opt.id;
         const isActive = currentValue === val;
         const isInvalid = validateOption?.(val);
+        const isDisabled = disabledOption?.(val) || opt.disabled;
         const stateClasses = getSelectorButtonClasses(
           isActive,
           isInvalid,
@@ -72,10 +75,12 @@ export const SelectorGroup = ({
           <button
             type="button"
             key={val}
-            onClick={() => onSelect(val)}
+            disabled={isDisabled}
+            onClick={() => !isDisabled && onSelect(val)}
             className={cn(
               "transition-all border",
               layout === 'column' ? "flex flex-col items-start p-2 rounded text-left" : "text-[8px] px-2 py-0.5 rounded",
+              isDisabled && "opacity-30 cursor-not-allowed pointer-events-none",
               stateClasses
             )}
           >
