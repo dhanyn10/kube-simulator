@@ -141,9 +141,9 @@ describe('AutocompleteDropdown component', () => {
     expect(dropdown.className).toContain('bg-white');
   });
 
-  it('triggers onHoverIndex when mouse enters an item', () => {
+  it('triggers onHoverIndex when mouse enters an item and handles mouse enter when onHoverIndex is omitted', () => {
     const onHoverMock = vi.fn();
-    render(
+    const { rerender } = render(
       <AutocompleteDropdown
         suggestions={mockSuggestions}
         selectedIndex={0}
@@ -156,6 +156,16 @@ describe('AutocompleteDropdown component', () => {
     fireEvent.mouseEnter(secondItemRow);
 
     expect(onHoverMock).toHaveBeenCalledWith(1);
+
+    // Test mouse enter when onHoverIndex prop is omitted / undefined
+    rerender(
+      <AutocompleteDropdown
+        suggestions={mockSuggestions}
+        selectedIndex={0}
+        onSelect={vi.fn()}
+      />
+    );
+    expect(() => fireEvent.mouseEnter(secondItemRow)).not.toThrow();
   });
 
   it('invokes centerDropdownItem helper on mount and when selectedIndex updates', () => {
