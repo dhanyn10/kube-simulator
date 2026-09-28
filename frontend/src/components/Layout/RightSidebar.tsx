@@ -1,4 +1,3 @@
-import { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Activity,
@@ -13,15 +12,15 @@ import {
   History
 } from 'lucide-react';
 import { HistoryPanel } from '../Monitoring/HistoryPanel';
-import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { NodeConfig, EdgeConfig } from '../Config';
 import { ResourceBudget } from '../Monitoring';
-import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
+import { SidebarContextMenu } from '../UI/SidebarContextMenu';
 import {
   TabType,
   getRightSidebarTabClass,
   getRightSidebarDropdownToggleClass,
+  useRightSidebar,
 } from '@/activities/layout';
 
 interface CanvasWidgetsPanelProps {
@@ -287,71 +286,27 @@ export const SidebarTabBar = ({
 };
 
 export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => {
-  const colorMode = useFlowStore((state) => state.colorMode);
-  const toggleColorMode = useFlowStore((state) => state.toggleColorMode);
-  const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
-  const setRightSidebarVisible = useFlowStore((state) => state.setRightSidebarVisible);
-  const nodes = useFlowStore((state) => state.nodes);
-  const edges = useFlowStore((state) => state.edges);
-
-  const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
-  const configuringEdgeId = useFlowStore((state) => state.configuringEdgeId);
-
-  const visibleWidgets = useFlowStore((state) => state.visibleWidgets);
-  const toggleWidget = useFlowStore((state) => state.toggleWidget);
-
-  const selectedNode = nodes.find(n => n.id === configuringNodeId);
-  const selectedEdge = edges.find(e => e.id === configuringEdgeId);
-  const isElementSelected = !!selectedNode || !!selectedEdge;
-
-  const [activeTab, setActiveTab] = useState<TabType>('canvas');
-  const [isCanvasDropdownOpen, setIsCanvasDropdownOpen] = useState(false);
-  const canvasDropdownRef = useRef<HTMLDivElement>(null);
-
-  const isHistoryViewOpen = useFlowStore((state) => state.isHistoryViewOpen);
-
-  const { contextMenu, handleContextMenu, closeContextMenu } = useSidebarContextMenu();
-
-  // Sync activeTab with isHistoryViewOpen store state
-  useEffect(() => {
-    if (isHistoryViewOpen) {
-      setActiveTab('history');
-    }
-  }, [isHistoryViewOpen]);
-
-  // Synchronize activeTab changes back to store for isHistoryViewOpen
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
-    if (tab === 'history') {
-      useFlowStore.setState({ isHistoryViewOpen: true });
-    } else if (isHistoryViewOpen) {
-      useFlowStore.setState({ isHistoryViewOpen: false });
-    }
-  };
-
-  // Switch to settings tab when a new element is selected or gear is clicked
-  useEffect(() => {
-    if (isElementSelected) {
-      handleTabChange('settings');
-    }
-  }, [isElementSelected, configuringNodeId, configuringEdgeId]);
-
-  // Handle click outside for canvas dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target;
-      if (canvasDropdownRef.current && target instanceof Node && !canvasDropdownRef.current.contains(target)) {
-        setIsCanvasDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const canvasWidgets = [
-    { id: 'hardware-budget', label: 'Hardware Budget', icon: Activity },
-    { id: 'object-stats', label: 'Object Statistics', icon: Info },
-  ];
+  const {
+    colorMode,
+    toggleColorMode,
+    isTerminalOpen,
+    nodes,
+    selectedNode,
+    selectedEdge,
+    isElementSelected,
+    activeTab,
+    handleTabChange,
+    isCanvasDropdownOpen,
+    setIsCanvasDropdownOpen,
+    canvasDropdownRef,
+    visibleWidgets,
+    toggleWidget,
+    canvasWidgets,
+    contextMenu,
+    handleContextMenu,
+    closeContextMenu,
+    handleCloseSidebar,
+  } = useRightSidebar();
 
   return (
     <div
@@ -369,12 +324,7 @@ export const RightSidebar = ({ onExportYaml }: { onExportYaml: () => void }) => 
           y={contextMenu.y}
           colorMode={colorMode}
           toggleColorMode={toggleColorMode}
-          onCloseSidebar={() => {
-            if (isHistoryViewOpen) {
-              useFlowStore.setState({ isHistoryViewOpen: false });
-            }
-            setRightSidebarVisible(false);
-          }}
+          onCloseSidebar={handleCloseSidebar}
           onCloseContextMenu={closeContextMenu}
           testId="right-sidebar-context-menu"
           changeThemeTestId="context-menu-change-theme"

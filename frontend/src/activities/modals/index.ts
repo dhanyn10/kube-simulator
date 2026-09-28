@@ -13,3 +13,6 @@ export * from './useSecretModal';
 export * from './useHpaModal';
 export * from './useResourceLimitModal';
 export * from './terminalCommandTreeHelpers';
+export * from './aboutDialogHelpers';
+export * from './useAboutDialog';
+export * from './useSettingsModal';

@@ -3,3 +3,4 @@ export * from './useWindowControls';
 export * from './sidebarHelpers';
 export * from './canvasBgHelpers';
 export * from './rightSidebarHelpers';
+export * from './useRightSidebar';

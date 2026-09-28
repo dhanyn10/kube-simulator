@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import React from 'react';
 import { Search, Globe, Box, ChevronDown, Plus, Check } from 'lucide-react';
-import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
-import { DEFAULT_REGISTRY_IMAGES } from '@/constants/config';
+import {
+  getOptionClasses,
+  useImageDropdown,
+  ImageOption,
+} from '@/activities/ui';
 
 interface ImageDropdownProps {
   value: string;
@@ -10,19 +13,11 @@ interface ImageDropdownProps {
   colorMode: 'dark' | 'light';
 }
 
-const getOptionClasses = (imgName: string, value: string, colorMode: 'dark' | 'light') => {
-  const isSelected = value === imgName;
-  if (isSelected) {
-    return colorMode === 'dark' ? "bg-slate-900 text-blue-400" : "bg-blue-50/50 text-blue-600";
-  }
-  return colorMode === 'dark' ? "hover:bg-slate-900 text-slate-300" : "hover:bg-slate-50 text-slate-700";
-};
-
 interface OptionsListProps {
   search: string;
   value: string;
   colorMode: 'dark' | 'light';
-  filteredOptions: { dockerHub: { name: string }[]; local: { name: string }[] };
+  filteredOptions: { dockerHub: ImageOption[]; local: ImageOption[] };
   handleSelectOption: (imgName: string) => void;
   handleUseCustomImage: () => void;
 }
@@ -118,58 +113,17 @@ const OptionsList = ({
 };
 
 export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const customImages = useFlowStore((state) => state.customImages);
-  const addCustomImage = useFlowStore((state) => state.addCustomImage);
-
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      const target = e.target;
-      if (dropdownRef.current && target instanceof Node && !dropdownRef.current.contains(target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-    }
-  }, [isOpen]);
-
-  const filteredOptions = useMemo(() => {
-    const query = search.toLowerCase();
-    const dockerHub = DEFAULT_REGISTRY_IMAGES.filter(img =>
-      img.name.toLowerCase().includes(query)
-    ).map(img => ({ name: img.name, source: 'docker' as const }));
-
-    const local = customImages.filter(img =>
-      img.toLowerCase().includes(query)
-    ).map(img => ({ name: img, source: 'local' as const }));
-
-    return { dockerHub, local };
-  }, [search, customImages]);
-
-  const handleSelectOption = (imgName: string) => {
-    onChange(imgName);
-    setIsOpen(false);
-    setSearch('');
-  };
-
-  const handleUseCustomImage = () => {
-    if (!search.trim()) return;
-    const img = search.trim();
-    addCustomImage(img);
-    handleSelectOption(img);
-  };
+  const {
+    isOpen,
+    setIsOpen,
+    search,
+    setSearch,
+    dropdownRef,
+    inputRef,
+    filteredOptions,
+    handleSelectOption,
+    handleUseCustomImage,
+  } = useImageDropdown({ value, onChange });
 
   return (
     <div ref={dropdownRef} className="relative w-full">
