@@ -1,5 +1,3 @@
-import { logger } from '@/lib/logger';
-
 export interface SystemInfo {
   os: string;
   arch: string;
