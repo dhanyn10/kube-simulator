@@ -85,7 +85,7 @@ describe('useBaseNode activity helpers and hook', () => {
       expect(noMatch).toEqual({ isAutocompleteHovered: false, hoveredPodIndex: null });
     });
 
-    it('evaluates pod with single replicaSuffix property', () => {
+    it('evaluates pod with single replicaSuffix property including includes and mismatch branches', () => {
       const singleSuffixData: K8sNodeData = {
         type: 'Pod',
         podHash: 'hash1',
@@ -93,8 +93,17 @@ describe('useBaseNode activity helpers and hook', () => {
         label: 'pod-single',
       };
 
-      const matchSingle = evaluateAutocompleteHover('node-1', singleSuffixData, 'app-hash1-suf1');
-      expect(matchSingle).toEqual({ isAutocompleteHovered: true, hoveredPodIndex: 0 });
+      // Ends with -suf1
+      const matchSingleEnds = evaluateAutocompleteHover('node-1', singleSuffixData, 'app-hash1-suf1');
+      expect(matchSingleEnds).toEqual({ isAutocompleteHovered: true, hoveredPodIndex: 0 });
+
+      // Does not end with -suf1 but includes -hash1-suf1
+      const matchSingleIncludes = evaluateAutocompleteHover('node-1', singleSuffixData, 'app-hash1-suf1-extra');
+      expect(matchSingleIncludes).toEqual({ isAutocompleteHovered: true, hoveredPodIndex: 0 });
+
+      // Includes -hash1 but does not match replicaSuffix
+      const noMatchHashOnly = evaluateAutocompleteHover('node-1', singleSuffixData, 'app-hash1-other');
+      expect(noMatchHashOnly).toEqual({ isAutocompleteHovered: false, hoveredPodIndex: null });
 
       const noMatch = evaluateAutocompleteHover('node-1', singleSuffixData, 'other-hovered');
       expect(noMatch).toEqual({ isAutocompleteHovered: false, hoveredPodIndex: null });
@@ -137,17 +146,29 @@ describe('useBaseNode activity helpers and hook', () => {
       expect(result.current.displayLabel).toContain('*****');
     });
 
-    it('handles nested nodes when grandparent is a Namespace or when parent is not in a namespace', () => {
+    it('handles direct namespace parent, grandparent namespace, standalone pod replicas, and non-namespace parent', () => {
       useFlowStore.setState({
         nodes: [
           { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} },
           { id: 'dep1', type: 'Deployment', parentId: 'ns1', position: { x: 0, y: 0 }, data: {} },
           { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { label: 'pod1', type: 'Pod' } },
+          { id: 'podDirectNs', type: 'Pod', parentId: 'ns1', position: { x: 0, y: 0 }, data: { label: 'podDirectNs', type: 'Pod' } },
           { id: 'otherParent', type: 'Deployment', position: { x: 0, y: 0 }, data: {} },
           { id: 'pod2', type: 'Pod', parentId: 'otherParent', position: { x: 0, y: 0 }, data: { label: 'pod2', type: 'Pod' } },
         ],
       });
 
+      // Pod directly inside Namespace
+      const { result: resDirectNs } = renderHook(() =>
+        useBaseNodeHandler({
+          id: 'podDirectNs',
+          data: { label: 'podDirectNs', type: 'Pod' } as K8sNodeData,
+          color: 'blue',
+        })
+      );
+      expect(resDirectNs.current.displayLabel).toBe('podDirectNs');
+
+      // Pod inside Deployment inside Namespace
       const { result: res1 } = renderHook(() =>
         useBaseNodeHandler({
           id: 'pod1',
@@ -157,14 +178,27 @@ describe('useBaseNode activity helpers and hook', () => {
       );
       expect(res1.current.displayLabel).toBe('pod1');
 
+      // Pod inside Deployment outside Namespace
       const { result: res2 } = renderHook(() =>
         useBaseNodeHandler({
           id: 'pod2',
-          data: { label: 'pod2', type: 'Pod' } as K8sNodeData,
+          data: { label: 'pod2', type: 'Pod', parentId: 'otherParent', replicas: 5 } as K8sNodeData,
           color: 'blue',
         })
       );
       expect(res2.current.displayLabel).toBe('pod2');
+      expect(res2.current.showDashedProgress).toBe(false);
+
+      // Standalone Pod with replicas = 2
+      const { result: resStandaloneDashed } = renderHook(() =>
+        useBaseNodeHandler({
+          id: 'podStandalone',
+          data: { label: 'podStandalone', type: 'Pod', replicas: 2 } as K8sNodeData,
+          color: 'blue',
+        })
+      );
+      expect(resStandaloneDashed.current.showDashedProgress).toBe(true);
+      expect(resStandaloneDashed.current.displayLabel).toBe('podStandalone');
     });
   });
 });

@@ -87,12 +87,13 @@ describe('AutocompleteDropdown component', () => {
     expect(onSelectMock).toHaveBeenCalledWith(mockSuggestions[2], 'pod-1');
   });
 
-  it('toggles detailed description accordion open and closed on info button click and tests info button selected style', () => {
-    render(
+  it('toggles detailed description accordion open and closed on info button click and tests info button selected style in dark and light modes', () => {
+    const { rerender } = render(
       <AutocompleteDropdown
         suggestions={mockSuggestions}
         selectedIndex={0}
         onSelect={vi.fn()}
+        colorMode="dark"
       />
     );
 
@@ -102,12 +103,66 @@ describe('AutocompleteDropdown component', () => {
     // Selected item's info button should have selected class
     expect(infoBtns[0].className).toContain('hover:bg-indigo-700');
 
-    // Toggle open
+    // Toggle open in dark mode
     fireEvent.mouseDown(infoBtns[0]);
+    expect(screen.getByText('Detailed Information')).toBeInTheDocument();
+
+    // Rerender in light mode while open to cover light mode branch
+    rerender(
+      <AutocompleteDropdown
+        suggestions={mockSuggestions}
+        selectedIndex={0}
+        onSelect={vi.fn()}
+        colorMode="light"
+      />
+    );
     expect(screen.getByText('Detailed Information')).toBeInTheDocument();
 
     // Toggle closed
     fireEvent.mouseDown(infoBtns[0]);
+    expect(screen.queryByText('Detailed Information')).not.toBeInTheDocument();
+  });
+
+  it('does not render detailed information accordion if isMeaningful is false even if activeInfoIndex matches', () => {
+    const meaningfulSuggestions: AutocompleteSuggestion[] = [
+      {
+        label: 'pods',
+        value: 'pods',
+        description: 'Kubernetes Pods resource',
+      },
+    ];
+
+    const unmeaningfulSuggestions: AutocompleteSuggestion[] = [
+      {
+        label: 'pods',
+        value: 'pods',
+        description: 'pods', // checkMeaningfulDescription returns false
+      },
+    ];
+
+    const { rerender } = render(
+      <AutocompleteDropdown
+        suggestions={meaningfulSuggestions}
+        selectedIndex={0}
+        onSelect={vi.fn()}
+      />
+    );
+
+    // Click info button to set activeInfoIndex = 0 (isInfoOpen = true)
+    const infoBtn = screen.getByTitle('Toggle detailed description');
+    fireEvent.mouseDown(infoBtn);
+    expect(screen.getByText('Detailed Information')).toBeInTheDocument();
+
+    // Rerender with unmeaningful suggestion while activeInfoIndex is still 0
+    rerender(
+      <AutocompleteDropdown
+        suggestions={unmeaningfulSuggestions}
+        selectedIndex={0}
+        onSelect={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTitle('Toggle detailed description')).toBeNull();
     expect(screen.queryByText('Detailed Information')).not.toBeInTheDocument();
   });
 

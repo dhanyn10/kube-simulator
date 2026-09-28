@@ -105,4 +105,31 @@ describe('DetachedMonitoring', () => {
 
     delete (globalThis as any).runtime;
   });
+
+  it('renders deployment cards with empty metrics points and default 1 replicas in light mode', async () => {
+    render(<DetachedMonitoring />);
+    const channelInstance = latestChannelInstance;
+
+    await act(async () => {
+      channelInstance.onmessage({
+        data: {
+          type: 'THEME_SYNC',
+          colorMode: 'light',
+        },
+      } as MessageEvent);
+    });
+
+    await act(async () => {
+      channelInstance.onmessage({
+        data: {
+          type: 'METRICS_UPDATE',
+          deployments: [{ id: 'dep-no-metrics', label: 'empty-dep' }],
+          metrics: {},
+        },
+      } as MessageEvent);
+    });
+
+    expect(screen.getByText('empty-dep')).toBeDefined();
+    expect(screen.getByText('1 Replicas')).toBeDefined();
+  });
 });
