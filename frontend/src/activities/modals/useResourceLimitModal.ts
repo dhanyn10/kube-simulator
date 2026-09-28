@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { K8sResourceLimitItem } from '@/types';
 import { useFlowStore } from '@/store';
-import { parseCPU, parseMemory } from '@/lib/utils';
+import { parseCPU, parseMemory, generateRandomHash } from '@/lib/utils';
 
 /**
  * Custom hook managing form state and saving logic for Resource Limit modal.
@@ -30,7 +30,7 @@ export const useResourceLimitModal = (
         setMemoryRequest(initialResourceLimit.memoryRequest || '256Mi');
         setMemoryLimit(initialResourceLimit.memoryLimit || '512Mi');
       } else {
-        const id = Math.random().toString(36).substring(2, 7);
+        const id = generateRandomHash(5);
         setName(`res-limit-${id}`);
         setCpuRequest('500m');
         setCpuLimit('1000m');

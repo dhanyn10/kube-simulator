@@ -70,8 +70,6 @@ export const WorkloadAdvancedConfig = ({
           <ResourceSettingsList
             data={data}
             colorMode={colorMode}
-            isCpuError={isCpuError}
-            isMemError={isMemError}
             performUpdate={performUpdate}
           />
         </div>

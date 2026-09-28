@@ -7,8 +7,6 @@ import { getResourceSettingItems } from '@/activities/workload';
 interface ResourceSettingsProps {
   data: any;
   colorMode: string;
-  isCpuError?: boolean;
-  isMemError?: boolean;
   performUpdate: (updates: any) => void;
 }
 
