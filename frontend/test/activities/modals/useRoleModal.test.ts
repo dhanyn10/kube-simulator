@@ -51,10 +51,16 @@ describe('useRoleModal helpers', () => {
       expect(deriveResourcesFromTargetNode(undefined, [])).toEqual(['pods', 'deployments']);
     });
 
-    it('handles Pod with parent Deployment', () => {
+    it('handles Pod with parent Deployment and custom unmapped node types', () => {
       const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 1 } };
       const podNode: Node = { id: 'pod1', parentId: 'dep1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
       expect(deriveResourcesFromTargetNode(podNode, [depNode, podNode])).toEqual(['deployments', 'pods']);
+
+      const nsNode: Node = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveResourcesFromTargetNode(nsNode, [])).toEqual(['namespaces']);
+
+      const customNode: Node = { id: 'c1', type: 'CustomWidget', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveResourcesFromTargetNode(customNode, [])).toEqual(['customwidgets']);
     });
   });
 
@@ -85,11 +91,16 @@ describe('useRoleModal helpers', () => {
       expect(checkPolicyResourceMatch(new Set(), new Set())).toBe(true);
     });
 
-    it('checks availability of IAM users for roles', () => {
+    it('checks availability of IAM users for roles including PowerUserAccess and wildcard resources', () => {
       expect(isUserAvailableForRole(adminUser, undefined, [])).toBe(true);
       expect(isUserAvailableForRole(devUser, undefined, [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }])).toBe(true);
 
-      const noPolicyUser: KubeIAMUser = { id: 'u3', username: 'none', accessType: 'Managed Access', policies: [] };
+      const powerUser: KubeIAMUser = { id: 'u3', username: 'power', accessType: 'Managed Access', policies: [{ id: 'p2', name: 'PowerUserAccess', description: '' }] };
+      expect(isUserAvailableForRole(powerUser, undefined, [])).toBe(true);
+
+      expect(isUserAvailableForRole(devUser, undefined, [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }])).toBe(true);
+
+      const noPolicyUser: KubeIAMUser = { id: 'u4', username: 'none', accessType: 'Managed Access', policies: [] };
       expect(isUserAvailableForRole(noPolicyUser, undefined, [])).toBe(false);
     });
   });

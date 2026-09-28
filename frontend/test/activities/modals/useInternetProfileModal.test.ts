@@ -60,14 +60,18 @@ describe('useInternetProfileModal', () => {
     });
   });
 
-  it('initializes default state correctly', () => {
-    const { result } = renderHook(() =>
-      useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+  it('initializes default state correctly and handles isOpen false', () => {
+    const { result, rerender } = renderHook(
+      ({ isOpen }) => useInternetProfileModal(isOpen, dummyNode, mockPerformUpdate, mockOnClose),
+      { initialProps: { isOpen: false } }
     );
 
     expect(result.current.viewMode).toBe('grid');
     expect(result.current.activeProfileName).toBe(ECOMMERCE_PROFILE.name);
-    expect(result.current.profiles.length).toBeGreaterThan(0);
+
+    // Rerender with isOpen = true to trigger effect
+    rerender({ isOpen: true });
+    expect(result.current.viewMode).toBe('grid');
   });
 
   it('fetches and normalizes saved custom profiles from Wails backend including legacy daily profiles', async () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, renderHook, act } from '@testing-library/react';
 import { MonitoringDashboard } from '@/components/Monitoring/MonitoringDashboard';
+import { useMonitoringDashboardHandler } from '@/activities/monitoring/useMonitoringDashboard';
 import { useFlowStore } from '@/store';
 
 let broadcastChannelListener: any = null;
@@ -41,12 +42,14 @@ describe('MonitoringDashboard', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders correctly when open and handles standalone pod / replica set workloads in light mode', () => {
+  it('renders correctly when open and handles standalone pod, pod with parentId, replica set, and service workloads in light mode', () => {
     useFlowStore.setState({
       colorMode: 'light',
       nodes: [
         { id: 'pod1', type: 'Pod', data: { label: 'standalone-pod' } },
+        { id: 'pod2', type: 'Pod', parentId: 'dep1', data: { label: 'child-pod' } },
         { id: 'rs1', type: 'ReplicaSet', data: { label: 'my-rs', replicas: 3 } },
+        { id: 'svc1', type: 'Service', data: { label: 'my-svc' } },
       ] as any,
     });
 
@@ -54,6 +57,8 @@ describe('MonitoringDashboard', () => {
     expect(screen.getByText('System Monitoring')).toBeDefined();
     expect(screen.getByText('standalone-pod')).toBeDefined();
     expect(screen.getByText('my-rs')).toBeDefined();
+    expect(screen.queryByText('child-pod')).toBeNull();
+    expect(screen.queryByText('my-svc')).toBeNull();
   });
 
   it('renders workload metrics and throttling / OOM warnings', () => {
@@ -106,10 +111,13 @@ describe('MonitoringDashboard', () => {
     expect(setMonitoringDetachedSpy).toHaveBeenCalledWith(false);
   });
 
-  it('handles dashboard header drag movement via mouse events', () => {
+  it('handles dashboard header drag movement via mouse events and mousemove when not dragging', () => {
     render(<MonitoringDashboard />);
 
     const dragBtn = screen.getByLabelText('Drag to move dashboard');
+
+    // mousemove when not dragging should early return
+    fireEvent.mouseMove(document, { clientX: 200, clientY: 200 });
 
     fireEvent.mouseDown(dragBtn, { clientX: 100, clientY: 100 });
     fireEvent.mouseMove(document, { clientX: 150, clientY: 120 });
@@ -139,5 +147,29 @@ describe('MonitoringDashboard', () => {
 
     // BroadcastChannel message with unhandled type
     expect(() => broadcastChannelListener({ type: 'UNHANDLED_EVENT' })).not.toThrow();
+  });
+
+  it('covers mousemove handler and mouseup handler in useMonitoringDashboardHandler hook', () => {
+    const { result } = renderHook(() => useMonitoringDashboardHandler());
+
+    // Call handleMouseDown to set isDragging to true and attach listener
+    act(() => {
+      result.current.handleMouseDown({ clientX: 100, clientY: 100 } as any);
+    });
+
+    // Create a mousemove event
+    const moveEvent = new MouseEvent('mousemove', { clientX: 150, clientY: 150 });
+
+    // Trigger mousemove event on document
+    act(() => {
+      document.dispatchEvent(moveEvent);
+    });
+
+    expect(result.current.position).toEqual({ x: 450, y: 150 });
+
+    // Trigger mouseup event on document
+    act(() => {
+      document.dispatchEvent(new MouseEvent('mouseup'));
+    });
   });
 });

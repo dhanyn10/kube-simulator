@@ -7,11 +7,12 @@ import {
 } from '@/activities/config/internetConfigHelpers';
 
 describe('internetConfigHelpers', () => {
-  it('formats compact numbers properly', () => {
+  it('formats compact numbers properly including decimals', () => {
     expect(formatNumberCompact(500)).toBe('500');
     expect(formatNumberCompact(1000)).toBe('1k');
     expect(formatNumberCompact(2500)).toBe('2.5k');
     expect(formatNumberCompact(1000000)).toBe('1M');
+    expect(formatNumberCompact(1500000)).toBe('1.5M');
   });
 
   it('calculates max traffic range limits dynamically', () => {
@@ -45,5 +46,9 @@ describe('internetConfigHelpers', () => {
     // Healthy target -> false
     const healthyNodes = [{ id: 'pod-1', type: 'Pod', data: { status: 'ready' } }];
     expect(isInternetConnectionRed(nodeId, unreadyEdges, healthyNodes)).toBe(false);
+
+    // Target is a non-workload node (Service) -> false
+    const serviceNodes = [{ id: 'pod-1', type: 'Service', data: { status: 'ready' } }];
+    expect(isInternetConnectionRed(nodeId, unreadyEdges, serviceNodes)).toBe(false);
   });
 });

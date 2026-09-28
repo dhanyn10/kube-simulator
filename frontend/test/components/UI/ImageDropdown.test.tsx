@@ -43,24 +43,24 @@ describe('ImageDropdown', () => {
     expect(nginxBtn.className).toContain('hover:bg-slate-50 text-slate-700');
   });
 
-  it('renders empty message when customImages is empty and query has no matches and search is empty', async () => {
-    useFlowStore.setState({ customImages: [] });
-    const onChange = vi.fn();
+  it('renders empty message when no image options are registered and search is empty', async () => {
+    const helpers = await import('@/activities/ui/imageDropdownHelpers');
+    const spy = vi.spyOn(helpers, 'filterImageOptions').mockReturnValue({ dockerHub: [], local: [] });
 
+    const onChange = vi.fn();
     render(<TargetImageDropdown value="" onChange={onChange} colorMode="light" />);
 
     const button = screen.getByRole('button');
     fireEvent.click(button);
 
-    const input = screen.getByPlaceholderText('Search or type custom image...');
-    fireEvent.change(input, { target: { value: '   ' } });
+    expect(screen.getByText('No image options registered')).toBeDefined();
 
-    expect(screen.getByPlaceholderText('Search or type custom image...')).toBeDefined();
+    spy.mockRestore();
   });
 
-  it('filters options and allows adding a custom image', async () => {
+  it('filters options and allows adding a custom image in dark and light modes', async () => {
     const onChange = vi.fn();
-    render(<TargetImageDropdown value="" onChange={onChange} colorMode="dark" />);
+    const { rerender } = render(<TargetImageDropdown value="" onChange={onChange} colorMode="dark" />);
 
     const button = screen.getByRole('button');
     fireEvent.click(button);
@@ -71,7 +71,10 @@ describe('ImageDropdown', () => {
     const useCustomBtn = screen.getByText(/Use custom image:/i);
     expect(useCustomBtn).toBeDefined();
 
-    fireEvent.click(useCustomBtn);
+    // Rerender in light mode to cover light mode branch of custom image button
+    rerender(<TargetImageDropdown value="" onChange={onChange} colorMode="light" />);
+
+    fireEvent.click(screen.getByText(/Use custom image:/i));
     expect(onChange).toHaveBeenCalledWith('custom-user-image:v1');
     expect(useFlowStore.getState().customImages).toContain('custom-user-image:v1');
   });
@@ -85,8 +88,13 @@ describe('ImageDropdown', () => {
 
     const localOpt = screen.getByText('my-local-image:latest');
     fireEvent.click(localOpt);
-
     expect(onChange).toHaveBeenCalledWith('my-local-image:latest');
+
+    // Reopen dropdown and click a Docker Hub registry option
+    fireEvent.click(button);
+    const redisOpt = screen.getByText('redis:alpine');
+    fireEvent.click(redisOpt);
+    expect(onChange).toHaveBeenCalledWith('redis:alpine');
   });
 
   it('closes dropdown when clicking outside and stays open when clicking inside', async () => {

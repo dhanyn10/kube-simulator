@@ -117,13 +117,22 @@ describe('HPAModal', () => {
     expect(defaultProps.onSave).toHaveBeenCalledWith(initialHpa);
   });
 
-  it('renders in light mode correctly', () => {
+  it('renders in light mode correctly with initialHpa and targetMemory', () => {
     useFlowStore.setState({ colorMode: 'light' });
-    render(<HPAModal {...defaultProps} />);
-    expect(screen.getByRole('heading', { name: 'Attach HPA Autoscaling' })).toBeInTheDocument();
+    const initialHpa: K8sHpaItem = {
+      id: 'hpa-light',
+      name: 'light-hpa',
+      minReplicas: 2,
+      maxReplicas: 10,
+      targetCPU: 80,
+      targetMemory: 70,
+    };
+    render(<HPAModal {...defaultProps} initialHpa={initialHpa} />);
+    expect(screen.getByRole('heading', { name: 'Edit HPA Autoscaling' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('70')).toBeInTheDocument();
   });
 
-  it('handles clearing memory target and fallback initial values, and cancel button click', () => {
+  it('handles clearing memory target, CPU input fallback, initial values, and cancel button click', () => {
     const props = {
       ...defaultProps,
       targetNodeLabel: undefined,
@@ -133,6 +142,9 @@ describe('HPAModal', () => {
     render(<HPAModal {...props} />);
 
     expect(screen.getByText('Configure HorizontalPodAutoscaler')).toBeInTheDocument();
+
+    const cpuInput = screen.getByLabelText('Target CPU Utilization (%)');
+    fireEvent.change(cpuInput, { target: { value: '' } });
 
     const memInput = screen.getByLabelText(/Target Memory Utilization/);
     fireEvent.change(memInput, { target: { value: '50' } });

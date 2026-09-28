@@ -30,6 +30,14 @@ describe('useRightSidebar', () => {
 
     expect(result.current.activeTab).toBe('history');
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+
+    // Switch tab back from history to canvas
+    act(() => {
+      result.current.handleTabChange('canvas');
+    });
+
+    expect(result.current.activeTab).toBe('canvas');
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
   });
 
   it('switches tab to settings when an element is selected', () => {
@@ -56,5 +64,30 @@ describe('useRightSidebar', () => {
 
     expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
+  });
+
+  it('handles canvas dropdown state and outside click listener', () => {
+    const { result } = renderHook(() => useRightSidebar());
+
+    const dropdownElem = document.createElement('div');
+    result.current.canvasDropdownRef.current = dropdownElem;
+
+    act(() => {
+      result.current.setIsCanvasDropdownOpen(true);
+    });
+
+    expect(result.current.isCanvasDropdownOpen).toBe(true);
+
+    // Click outside dropdown container
+    const outsideElem = document.createElement('div');
+    document.body.appendChild(outsideElem);
+
+    act(() => {
+      const event = new MouseEvent('mousedown', { bubbles: true });
+      outsideElem.dispatchEvent(event);
+    });
+
+    expect(result.current.isCanvasDropdownOpen).toBe(false);
+    document.body.removeChild(outsideElem);
   });
 });

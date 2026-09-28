@@ -128,7 +128,7 @@ describe('useAutocompletePortal hook', () => {
     document.body.removeChild(outsideElem);
   });
 
-  it('updates position on scroll and resize events when dropdown is active', () => {
+  it('updates position on scroll and resize events when dropdown is active and handles null activeInputRef', () => {
     const { result } = renderHook(() => useAutocompletePortal('test-portal'));
 
     const mockInput = document.createElement('input');
@@ -161,5 +161,11 @@ describe('useAutocompletePortal hook', () => {
       window.dispatchEvent(new Event('resize'));
     });
     expect(result.current.dropdownPos?.top).toBe(184 + window.scrollY);
+
+    // Set activeInputRef to null and trigger scroll event
+    result.current.activeInputRef.current = null;
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
   });
 });

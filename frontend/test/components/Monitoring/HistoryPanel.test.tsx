@@ -56,17 +56,27 @@ describe('HistoryPanel', () => {
     expect(screen.getByText('Recorded Snapshot')).toBeInTheDocument();
   });
 
-  it('renders non-current step log item styling in light mode', () => {
+  it('renders non-current step log item styling in light mode and dark mode', () => {
     mockCurrentHistoryIndex = 2; // index 1 is not current step
-    render(<HistoryPanel colorMode="light" />);
+    const { rerender } = render(<HistoryPanel colorMode="light" />);
     const logButton = screen.getByText('Create Node').closest('button');
     expect(logButton?.className).toContain('hover:bg-violet-50/50 text-slate-700');
+
+    // Test non-current step in dark mode
+    rerender(<HistoryPanel colorMode="dark" />);
+    const darkLogButton = screen.getByText('Create Node').closest('button');
+    expect(darkLogButton?.className).toContain('hover:bg-slate-800/50 text-slate-300');
   });
 
-  it('renders fallback index === 0 as current step when currentHistoryIndex is null', () => {
+  it('renders fallback index === 0 as current step when currentHistoryIndex is null, and handles non-matching currentHistoryIndex', () => {
     mockCurrentHistoryIndex = null;
-    render(<HistoryPanel colorMode="dark" />);
+    const { rerender } = render(<HistoryPanel colorMode="dark" />);
     expect(screen.getByText('Current')).toBeInTheDocument();
+
+    // Test non-matching currentHistoryIndex where no log is current
+    mockCurrentHistoryIndex = 999;
+    rerender(<HistoryPanel colorMode="dark" />);
+    expect(screen.queryByText('Current')).not.toBeInTheDocument();
   });
 
   it('renders empty activity recorded state', () => {
@@ -75,10 +85,16 @@ describe('HistoryPanel', () => {
     expect(screen.getByText('No activity recorded')).toBeInTheDocument();
   });
 
-  it('renders skeleton loading state when isLoading is true and historyLogs is empty', () => {
+  it('renders skeleton loading state when isLoading is true and historyLogs is empty, and handles background loading with existing logs', () => {
     mockLogs = [];
     mockIsLoading = true;
-    const { container } = render(<HistoryPanel colorMode="dark" />);
+    const { container, rerender } = render(<HistoryPanel colorMode="dark" />);
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(1);
+
+    // Background refetching while logs exist
+    mockLogs = [{ actionName: 'Refetch Log', index: 1, timestamp: Date.now() }];
+    mockIsLoading = true;
+    rerender(<HistoryPanel colorMode="dark" />);
+    expect(screen.getByText('Refetch Log')).toBeInTheDocument();
   });
 });
