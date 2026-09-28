@@ -68,6 +68,36 @@ describe('aboutDialogHelpers', () => {
     });
   });
 
+  it('handles empty or partial GetSystemInfo response without version', async () => {
+    const mockGetSystemInfo = vi.fn().mockResolvedValue({});
+    (globalThis.window as any).go = {
+      main: {
+        App: {
+          GetSystemInfo: mockGetSystemInfo,
+        },
+      },
+    };
+
+    let setSys: SystemInfo | null = null;
+    let setVer = '';
+    let setUpd: UpdateInfo | null = null;
+
+    await fetchAboutData(
+      '1.0.0',
+      (info) => { setSys = info; },
+      (v) => { setVer = v; },
+      (u) => { setUpd = u; }
+    );
+
+    expect(setSys).toEqual({
+      os: '',
+      arch: '',
+      goVersion: '',
+      version: '',
+    });
+    expect(setVer).toBe('');
+  });
+
   it('handles simulated update info', async () => {
     delete (globalThis.window as any).go;
 

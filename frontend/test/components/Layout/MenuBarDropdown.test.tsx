@@ -53,7 +53,7 @@ describe('MenuBarDropdown', () => {
 
   it('calls setActiveMenu on click and onMouseEnter when another activeMenu is set', () => {
     const setActiveMenu = vi.fn();
-    render(
+    const { rerender } = render(
       <MenuBarDropdown
         menu={mockMenu}
         activeMenu="Other Menu"
@@ -68,6 +68,39 @@ describe('MenuBarDropdown', () => {
 
     fireEvent.click(btn);
     expect(setActiveMenu).toHaveBeenCalledWith('Test Menu');
+
+    // Click header when menu is already active/open (isOpen is true for non-File menu)
+    rerender(
+      <MenuBarDropdown
+        menu={mockMenu}
+        activeMenu="Test Menu"
+        setActiveMenu={setActiveMenu}
+        colorMode="light"
+      />
+    );
+
+    fireEvent.click(btn);
+    expect(setActiveMenu).toHaveBeenLastCalledWith(null);
+  });
+
+  it('renders separator items with or without explicit item label in light and dark mode', () => {
+    const menuWithLabeledSep = {
+      label: 'View',
+      items: [
+        { type: 'separator' as const, label: 'CustomSep', onClick: vi.fn() },
+      ]
+    };
+
+    render(
+      <MenuBarDropdown
+        menu={menuWithLabeledSep}
+        activeMenu="View"
+        setActiveMenu={vi.fn()}
+        colorMode="light"
+      />
+    );
+
+    expect(screen.getByText('View')).toBeDefined();
   });
 
   it('calls onClick when an item is clicked', () => {

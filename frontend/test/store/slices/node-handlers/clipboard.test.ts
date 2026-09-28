@@ -173,6 +173,19 @@ describe('clipboardHandlers', () => {
     useFlowStore.getState().pasteNodes();
     expect(updateSpy).toHaveBeenCalledWith('dep-no-rep', { replicas: 1 });
 
+    // 5b. Standalone Pod with no replicas property -> fallback 1
+    updateSpy.mockClear();
+    const standalonePodNoReplicas: Node = { id: 'pod-no-rep', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: { label: 'no-rep-pod' } };
+    const clipPodNoRep: Node = { id: 'clip-no-rep', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'no-rep-pod' } };
+
+    useFlowStore.setState({
+      nodes: [standalonePodNoReplicas] as any,
+      clipboard: { nodes: [clipPodNoRep], edges: [] },
+      updateNodeData: updateSpy,
+    });
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).toHaveBeenCalledWith('pod-no-rep', { replicas: 2 });
+
     // 6. Selected pod points to non-existent targetId or targetNode is missing
     updateSpy.mockClear();
     const orphanPod: Node = { id: 'orphan-pod', type: 'Pod', parentId: 'missing-dep', selected: true, position: { x: 0, y: 0 }, data: { label: 'my-app' } };

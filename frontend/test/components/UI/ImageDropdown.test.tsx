@@ -76,11 +76,11 @@ describe('ImageDropdown', () => {
     expect(useFlowStore.getState().customImages).toContain('custom-user-image:v1');
   });
 
-  it('selects option when clicked', async () => {
+  it('selects option when clicked and renders check icon for selected Docker Hub image', async () => {
     const onChange = vi.fn();
-    render(<TargetImageDropdown value="" onChange={onChange} colorMode="dark" />);
+    render(<TargetImageDropdown value="nginx:latest" onChange={onChange} colorMode="dark" />);
 
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: /nginx:latest/i });
     fireEvent.click(button);
 
     const localOpt = screen.getByText('my-local-image:latest');

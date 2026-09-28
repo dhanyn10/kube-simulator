@@ -83,6 +83,7 @@ describe('MonitoringDashboard', () => {
     expect(mockEventsOn).toHaveBeenCalledWith('detached-closed', expect.any(Function));
 
     // Simulate BroadcastChannel message DETACHED_OPEN
+    fireEvent(window, new Event('dummy'));
     broadcastChannelListener({ type: 'DETACHED_OPEN' });
     expect(setMonitoringDetachedSpy).toHaveBeenCalledWith(true);
     expect(setMonitoringOpenSpy).toHaveBeenCalledWith(false);
@@ -129,5 +130,14 @@ describe('MonitoringDashboard', () => {
 
     fireEvent.click(screen.getByText('Detach'));
     expect(openSpy).toHaveBeenCalled();
+  });
+
+  it('handles BroadcastChannel message with non-matching type and handles hook when runtime is undefined', () => {
+    (globalThis as any).runtime = undefined;
+
+    render(<MonitoringDashboard />);
+
+    // BroadcastChannel message with unhandled type
+    expect(() => broadcastChannelListener({ type: 'UNHANDLED_EVENT' })).not.toThrow();
   });
 });

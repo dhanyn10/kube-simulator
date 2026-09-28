@@ -57,6 +57,22 @@ describe('terminalLogUtils', () => {
       const cmdLine = '$ kubectl get pods';
       expect(getLogLineColorClass(cmdLine, 'dark')).toContain('text-cyan-400');
       expect(getLogLineColorClass(cmdLine, 'light')).toContain('text-cyan-600');
+
+      const cmdLine2 = '> kubectl describe pod';
+      expect(getLogLineColorClass(cmdLine2, 'dark')).toContain('text-cyan-400');
+    });
+
+    it('returns purple for resource lines and slate for divider lines', () => {
+      const podLine = 'POD: web-pod-1';
+      expect(getLogLineColorClass(podLine, 'dark')).toContain('text-purple-400');
+
+      const dividerLine = '========================================';
+      expect(getLogLineColorClass(dividerLine, 'dark')).toContain('text-slate-500 font-bold');
+    });
+
+    it('identifies event header line with TYPE REASON AGE', () => {
+      const eventHeader = 'TYPE      REASON              AGE   FROM';
+      expect(getLogLineColorClass(eventHeader, 'dark')).toContain('text-white font-bold');
     });
   });
 

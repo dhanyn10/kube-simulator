@@ -46,7 +46,7 @@ describe('DetachedMonitoring', () => {
     expect(screen.getByText('3 Replicas')).toBeDefined();
   });
 
-  it('updates theme when receiving message', async () => {
+  it('updates theme when receiving message and handles unknown BroadcastChannel message type', async () => {
     render(<DetachedMonitoring />);
     const channelInstance = latestChannelInstance;
 
@@ -55,6 +55,11 @@ describe('DetachedMonitoring', () => {
     });
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
+
+    // Test unhandled BroadcastChannel message type
+    await act(async () => {
+        channelInstance.onmessage({ data: { type: 'UNKNOWN_TYPE' } } as MessageEvent);
+    });
   });
 
   it('handles Wails runtime events and renders throttled and OOM risk badges', async () => {

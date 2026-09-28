@@ -374,6 +374,64 @@ describe('useInternetProfileModal', () => {
     expect(mockGetInternetProfiles).toHaveBeenCalled();
   });
 
+  it('handles deleting active profile when detailProfile name differs, updating detail point for custom- prefixed profile, and legacy profile without daily property', async () => {
+    const customToDelete: InternetProfileItem = {
+      name: 'Custom 2',
+      hourly: {}
+    };
+    const emptyLegacyProfile = {
+      name: 'Legacy No Daily'
+    };
+    mockGetInternetProfiles.mockResolvedValue([customToDelete, emptyLegacyProfile]);
+
+    const activeCustomNode = {
+      ...dummyNode,
+      data: {
+        ...dummyNode.data,
+        activeProfileName: 'Custom 2'
+      }
+    };
+
+    const { result } = renderHook(() =>
+      useInternetProfileModal(true, activeCustomNode, mockPerformUpdate, mockOnClose)
+    );
+
+    await act(async () => {});
+
+    // Verify normalization for empty legacy profile fallback to 1000
+    const legacyNoDaily = result.current.profiles.find((p) => p.name === 'Legacy No Daily');
+    expect(legacyNoDaily?.hourly['00:00']).toBe(1000);
+
+    // Open detail for ECOMMERCE_PROFILE so detailProfile.name !== 'Custom 2'
+    act(() => {
+      result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+    });
+    expect(result.current.detailProfile.name).toBe(ECOMMERCE_PROFILE.name);
+
+    // Update detail point for custom- named profile without changing name
+    act(() => {
+      result.current.handleUpdateDetailName('custom-12345678901234');
+    });
+    act(() => {
+      result.current.handleUpdateDetailPoint('02:00', 1800);
+    });
+    expect(result.current.detailProfile.name).toBe('custom-12345678901234');
+
+    // Delete 'Custom 2' while activeProfileName === 'Custom 2' but detailProfile.name === 'custom-12345678901234'
+    await act(async () => {
+      await result.current.handleDeleteProfile('Custom 2');
+    });
+
+    expect(mockDeleteInternetProfile).toHaveBeenCalledWith('Custom 2');
+    expect(mockPerformUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeProfileName: ECOMMERCE_PROFILE.name
+      })
+    );
+    // viewMode should remain 'details' because detailProfile.name was not 'Custom 2'
+    expect(result.current.viewMode).toBe('details');
+  });
+
   it('handles missing window.go and optional chaining fallbacks when window.go is undefined', async () => {
     delete (window as any).go;
 

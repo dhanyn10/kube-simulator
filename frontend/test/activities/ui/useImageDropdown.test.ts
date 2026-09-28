@@ -32,10 +32,18 @@ describe('useImageDropdown', () => {
     expect(result.current.search).toBe('');
   });
 
-  it('registers custom images and triggers selection', () => {
+  it('registers custom images and triggers selection, returning early when search is empty', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useImageDropdown({ value: '', onChange }));
 
+    // Test calling handleUseCustomImage when search is empty or whitespace
+    act(() => {
+      result.current.setSearch('   ');
+      result.current.handleUseCustomImage();
+    });
+    expect(onChange).not.toHaveBeenCalled();
+
+    // Test calling handleUseCustomImage with valid search string
     act(() => {
       result.current.setSearch('custom-repo/image:v1');
     });

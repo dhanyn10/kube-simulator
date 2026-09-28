@@ -101,4 +101,20 @@ describe('LogPagination', () => {
     expect(screen.getByTestId('log-pagination-page-6')).toBeInTheDocument();
     expect(screen.getByTestId('log-pagination-page-10')).toBeInTheDocument();
   });
+
+  it('calculates page numbers correctly when currentPage equals totalPages and totalPages > 5 (triggering end > totalPages clamping)', () => {
+    const onPageChange = vi.fn();
+    render(
+      <LogPagination
+        {...defaultProps}
+        currentPage={10}
+        totalPages={10}
+        totalItems={200}
+        onPageChange={onPageChange}
+      />
+    );
+
+    expect(screen.getByTestId('log-pagination-page-6')).toBeInTheDocument();
+    expect(screen.getByTestId('log-pagination-page-10')).toBeInTheDocument();
+  });
 });

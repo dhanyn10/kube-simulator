@@ -137,4 +137,16 @@ describe('AboutDialog', () => {
 
     expect(await screen.findByText('Checking for updates...')).toBeDefined();
   });
+
+  it('renders failed to check for updates message when updateInfo is null in light mode', async () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    (window as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '' });
+    (window as any).go.main.App.CheckForUpdates.mockResolvedValue(null);
+
+    await act(async () => {
+      render(<AboutDialog isOpen={true} onClose={() => {}} />);
+    });
+
+    expect(await screen.findByText('Failed to check for updates')).toBeDefined();
+  });
 });
