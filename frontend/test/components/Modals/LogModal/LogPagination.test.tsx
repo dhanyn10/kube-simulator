@@ -102,6 +102,22 @@ describe('LogPagination', () => {
     expect(screen.getByTestId('log-pagination-page-10')).toBeInTheDocument();
   });
 
+  it('calculates page numbers correctly when currentPage is near start and totalPages > 5 (end > totalPages is false)', () => {
+    const onPageChange = vi.fn();
+    render(
+      <LogPagination
+        {...defaultProps}
+        currentPage={3}
+        totalPages={10}
+        totalItems={200}
+        onPageChange={onPageChange}
+      />
+    );
+
+    expect(screen.getByTestId('log-pagination-page-1')).toBeInTheDocument();
+    expect(screen.getByTestId('log-pagination-page-5')).toBeInTheDocument();
+  });
+
   it('calculates page numbers correctly when currentPage equals totalPages and totalPages > 5 (triggering end > totalPages clamping)', () => {
     const onPageChange = vi.fn();
     render(

@@ -8,6 +8,7 @@ import {
   generateLogFilename,
   findNodeByTargetName,
   extractAttachedResources,
+  exportLogFile,
 } from '@/activities/terminal/terminalLogUtils';
 import { Node } from '@xyflow/react';
 
@@ -83,14 +84,23 @@ describe('terminalLogUtils', () => {
       expect(el.props.children).toBe('test log line');
     });
 
-    it('highlights search query matches', () => {
-      const el = formatLogLineContent('test log line', 'dark', 'log') as React.ReactElement;
+    it('highlights search query matches and handles special regex characters', () => {
+      const el = formatLogLineContent('test [log] line', 'dark', '[log]') as React.ReactElement;
       expect(el.type).toBe('span');
       expect(el.props.children).toHaveLength(3);
     });
   });
 
-  describe('utility functions', () => {
+  describe('utility functions and exportLogFile', () => {
+    it('handles exportLogFile with empty or null logs array', () => {
+      const spy = vi.spyOn(document.body, 'appendChild');
+
+      exportLogFile([], 'test.log');
+      exportLogFile(null as any, 'test.log');
+
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+    });
     it('computes pod display status correctly', () => {
       expect(getPodDisplayStatus('ready', true)).toEqual({ ready: '1/1', displayStatus: 'Running' });
       expect(getPodDisplayStatus('pending', false)).toEqual({ ready: '0/1', displayStatus: 'Pending' });

@@ -88,9 +88,22 @@ describe('dragUtils', () => {
     // Test with oldParentId undefined
     const result3 = handlePodMoveToDeployment('d2', targetDep, pod, [pod, targetDep], undefined, get, pod);
     expect(result3).toBeDefined();
+
+    // Test with pod lacking replicas in data (triggers fallback to 1)
+    const podNoRep = { id: 'p2', type: 'Pod', parentId: 'd1', data: {} } as any;
+    const result4 = handlePodMoveToDeployment('d2', targetDep, podNoRep, [podNoRep, oldDep, targetDep], 'd1', get, podNoRep);
+    expect(result4).toBeDefined();
   });
 
-  it('syncOldParentDeployment handles ReplicaSet parent and missing old parent ID', () => {
+  it('syncOldParentDeployment handles ReplicaSet parent, missing old parent ID, and pod with no replicas in data', () => {
+    const podNoRep = { id: 'p1_norep', type: 'Pod', parentId: 'd1', data: {} } as any;
+    const oldDep = { id: 'd1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 2 } } as any;
+    const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;
+    const getDummy = () => ({}) as any;
+
+    const resNoRep = handleGenericContainerMove('ns1', podNoRep, [podNoRep, oldDep, nsNode], 'd1', { x: 0, y: 0 }, getDummy);
+    expect(resNoRep).toBeDefined();
+
     const pod = { id: 'p1', type: 'Pod', parentId: 'rs1', data: { replicas: 1 } } as any;
     const oldRS = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: { replicas: 3 } } as any;
     const ns = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;
