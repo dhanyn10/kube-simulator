@@ -32,6 +32,33 @@ describe('nodeUtils', () => {
 
     handlers.onRename("My New Node");
     expect(updateNodeDataMock).toHaveBeenCalledWith("node-1", { baseName: "my-new-node", label: "my-new-node" });
+
+    // Test onRename on Pod with Deployment parent
+    updateNodeDataMock.mockClear();
+    const storeWithParent = () =>
+      ({
+        nodes: [
+          { id: "dep-1", type: "Deployment", data: { label: "old-dep" } },
+          { id: "pod-1", type: "Pod", parentId: "dep-1", data: {} },
+        ],
+        updateNodeData: updateNodeDataMock,
+      } as any);
+
+    const podParentHandlers = createNodeHandlers("pod-1", storeWithParent);
+    podParentHandlers.onRename("renamed-app");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("dep-1", { label: "renamed-app" });
+
+    // Test onRename on Service node
+    updateNodeDataMock.mockClear();
+    const serviceStore = () =>
+      ({
+        nodes: [{ id: "svc-1", type: "Service", data: {} }],
+        updateNodeData: updateNodeDataMock,
+      } as any);
+
+    const svcHandlers = createNodeHandlers("svc-1", serviceStore);
+    svcHandlers.onRename("my-svc");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("svc-1", { label: "my-svc" });
   });
 
   it('getInitialData returns correct defaults for various types', () => {

@@ -14,12 +14,12 @@ describe('useWorkloadConfig', () => {
   });
 
   describe('getReplicaValue', () => {
-    it('calculates replicas for Pod with parentId when pod group exists and handles missing replica values', () => {
+    it('calculates replicas for Pod with parentId when pod group exists and handles baseName, label regex, and missing replica values', () => {
       const selectedNode = {
         id: 'p1',
         type: 'Pod',
         parentId: 'dep1',
-        data: { label: 'worker', replicas: 2 },
+        data: { baseName: 'worker', label: 'worker-abc12-xyz89', replicas: 2 },
       };
 
       const nodes = [
@@ -28,13 +28,19 @@ describe('useWorkloadConfig', () => {
           id: 'p2',
           type: 'Pod',
           parentId: 'dep1',
-          data: { label: 'worker', replicas: 'invalid' },
+          data: { label: 'worker', replicas: 'invalid' }, // label without hash suffix
         },
         {
           id: 'p3',
           type: 'Pod',
           parentId: 'dep1',
           data: { label: 'other-label', replicas: 5 },
+        },
+        {
+          id: 'p4',
+          type: 'Pod',
+          parentId: 'dep1',
+          data: {}, // no label or baseName
         },
       ];
 

@@ -16,7 +16,7 @@ describe('internetProfileChartHelpers', () => {
     }
   };
 
-  it('calculates profile chart data bounds and paths correctly', () => {
+  it('calculates profile chart data bounds and paths correctly including points fallback', () => {
     const result = calculateProfileChartData(dummyProfile, 200, 100, 10, 10, 10, 10);
     expect(result.values).toHaveLength(24);
     expect(result.points).toHaveLength(24);
@@ -24,6 +24,22 @@ describe('internetProfileChartHelpers', () => {
     expect(result.areaD).toContain('Z');
     expect(result.maxVal).toBeGreaterThanOrEqual(1500);
     expect(result.minVal).toBe(0);
+
+    // Test with array where at(-1) returns undefined to cover points[0] fallback on lastPoint
+    const origAt = Array.prototype.at;
+    let atCallCount = 0;
+    Array.prototype.at = function(index: number) {
+      if (index === -1) {
+        atCallCount++;
+        return undefined as any;
+      }
+      return origAt.call(this, index);
+    };
+
+    const resFallback = calculateProfileChartData(dummyProfile, 200, 100, 10, 10, 10, 10);
+    expect(resFallback.areaD).toBeDefined();
+
+    Array.prototype.at = origAt;
   });
 
   it('calculates hour index from relative mouse X position', () => {
