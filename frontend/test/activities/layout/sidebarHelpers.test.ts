@@ -108,7 +108,7 @@ describe('sidebarHelpers', () => {
     expect(onAddNode).toHaveBeenCalledWith('Pod');
   });
 
-  it('handles drag start and drag end handlers', () => {
+  it('handles drag start and drag end handlers including resetting hovered nodes', () => {
     const setDraggingSidebarItem = vi.fn();
     const mockEvent = {
       dataTransfer: {
@@ -117,6 +117,13 @@ describe('sidebarHelpers', () => {
       },
     } as unknown as React.DragEvent;
 
+    useFlowStore.setState({
+      nodes: [
+        { id: 'node-1', data: { isHovered: true, label: 'Hovered Pod' } },
+        { id: 'node-2', data: { isHovered: false, label: 'Normal Pod' } },
+      ] as any,
+    });
+
     handleSidebarDragStart(mockEvent, 'Deployment' as any, setDraggingSidebarItem);
     expect(mockEvent.dataTransfer.setData).toHaveBeenCalledWith('application/reactflow', 'Deployment');
     expect(mockEvent.dataTransfer.effectAllowed).toBe('move');
@@ -124,5 +131,9 @@ describe('sidebarHelpers', () => {
 
     handleSidebarDragEnd(setDraggingSidebarItem);
     expect(setDraggingSidebarItem).toHaveBeenCalledWith(null);
+
+    const updatedNodes = useFlowStore.getState().nodes;
+    expect(updatedNodes[0].data.isHovered).toBe(false);
+    expect(updatedNodes[1].data.isHovered).toBe(false);
   });
 });

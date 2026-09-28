@@ -136,5 +136,35 @@ describe('useBaseNode activity helpers and hook', () => {
       expect(result.current.showDashedProgress).toBe(true);
       expect(result.current.displayLabel).toContain('*****');
     });
+
+    it('handles nested nodes when grandparent is a Namespace or when parent is not in a namespace', () => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} },
+          { id: 'dep1', type: 'Deployment', parentId: 'ns1', position: { x: 0, y: 0 }, data: {} },
+          { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { label: 'pod1', type: 'Pod' } },
+          { id: 'otherParent', type: 'Deployment', position: { x: 0, y: 0 }, data: {} },
+          { id: 'pod2', type: 'Pod', parentId: 'otherParent', position: { x: 0, y: 0 }, data: { label: 'pod2', type: 'Pod' } },
+        ],
+      });
+
+      const { result: res1 } = renderHook(() =>
+        useBaseNodeHandler({
+          id: 'pod1',
+          data: { label: 'pod1', type: 'Pod' } as K8sNodeData,
+          color: 'blue',
+        })
+      );
+      expect(res1.current.displayLabel).toBe('pod1');
+
+      const { result: res2 } = renderHook(() =>
+        useBaseNodeHandler({
+          id: 'pod2',
+          data: { label: 'pod2', type: 'Pod' } as K8sNodeData,
+          color: 'blue',
+        })
+      );
+      expect(res2.current.displayLabel).toBe('pod2');
+    });
   });
 });

@@ -42,6 +42,18 @@ describe('useAutocompletePortal hook', () => {
       left: 50 + window.scrollX,
       width: 200,
     });
+
+    // Call with value provided but onValueChange omitted
+    act(() => {
+      result.current.handleInputFocusOrChange(
+        mockInput,
+        'row-1',
+        'key',
+        undefined,
+        'val-no-callback'
+      );
+    });
+    expect(result.current.activeDropdown).toEqual({ rowId: 'row-1', field: 'key' });
   });
 
   it('deduplicates position update when dimensions match', () => {
