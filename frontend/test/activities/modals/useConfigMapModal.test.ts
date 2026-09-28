@@ -108,6 +108,30 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows).toEqual([]);
   });
 
+  it('handles handleInputFocusOrChange callback', () => {
+    const { result } = renderHook(() => useConfigMapModal(defaultProps));
+
+    act(() => {
+      result.current.handleAddRow();
+    });
+
+    const rowId = result.current.rows[0].id;
+    const mockInput = document.createElement('input');
+    vi.spyOn(mockInput, 'getBoundingClientRect').mockReturnValue({
+      top: 100, bottom: 120, left: 50, right: 150, width: 100, height: 20, x: 50, y: 100, toJSON: () => {},
+    });
+
+    act(() => {
+      result.current.handleInputFocusOrChange(mockInput, rowId, 'key', 'DB_HOST');
+    });
+
+    expect(result.current.rows[0].key).toBe('DB_HOST');
+    expect(result.current.activeDropdown).toEqual({ rowId, field: 'key' });
+    expect(result.current.activeRow?.key).toBe('DB_HOST');
+    expect(result.current.filteredKeys).toBeDefined();
+    expect(result.current.filteredValues).toBeDefined();
+  });
+
   it('handles row modifications and saving', () => {
     const { result } = renderHook(() => useConfigMapModal(defaultProps));
 

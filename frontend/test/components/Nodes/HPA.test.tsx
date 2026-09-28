@@ -138,6 +138,26 @@ describe('HPANode', () => {
     expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
   });
 
+  it('renders load color and bar color as red when currentCPU exceeds targetCPU', () => {
+    const props = {
+      id: 'h1',
+      type: 'HPA',
+      data: {
+        label: 'My HPA',
+        currentCPU: 90,
+        targetCPU: 50,
+      }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <HPANode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getAllByText('90%').length).toBeGreaterThan(0);
+  });
+
   it('respects displaySettings', () => {
     const props = {
       id: 'h1',

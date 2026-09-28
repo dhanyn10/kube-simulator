@@ -11,10 +11,14 @@ describe('terminalCommandTreeHelpers', () => {
     expect(result).toHaveLength(COMMAND_TREE_DATA.length);
   });
 
-  it('filters command tree by search keyword', () => {
+  it('filters command tree by search keyword, command match, and description match', () => {
     const result = filterCommandTree(COMMAND_TREE_DATA, 'get-contexts');
     expect(result.length).toBeGreaterThan(0);
     expect(result[0].id).toBe('kubectl');
+
+    // Filter matching command string directly
+    const cmdResult = filterCommandTree(COMMAND_TREE_DATA, 'kubectl get pods');
+    expect(cmdResult.length).toBeGreaterThan(0);
   });
 
   it('filters command tree by description keyword', () => {

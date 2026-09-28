@@ -98,6 +98,22 @@ describe('LogToolbar', () => {
     expect(setIsSelectMenuOpen).toHaveBeenCalledWith(false);
   });
 
+  it('toggles dropdown menu on chevron button click', () => {
+    const setIsSelectMenuOpen = vi.fn();
+    const props = {
+      ...defaultProps,
+      isSelectMenuOpen: false,
+      setIsSelectMenuOpen,
+    };
+
+    render(<LogToolbar {...props} />);
+
+    const dropdownBtn = screen.getByTestId('log-select-dropdown');
+    fireEvent.click(dropdownBtn);
+
+    expect(setIsSelectMenuOpen).toHaveBeenCalledWith(true);
+  });
+
   it('renders selection mode controls, master checkbox icon variations, and triggers bulk delete', () => {
     const onBulkDelete = vi.fn();
     const filteredLogs = [
