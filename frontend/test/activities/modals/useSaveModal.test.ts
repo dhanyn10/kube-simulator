@@ -169,6 +169,31 @@ describe('useSaveModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('handles quick save for new project name when SaveProject returns undefined (save failed)', async () => {
+    useFlowStore.setState({ currentProject: null });
+    const mockSaveProject = vi.fn().mockResolvedValue(undefined);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          SaveProject: mockSaveProject,
+        },
+      },
+    };
+
+    const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
+
+    act(() => {
+      result.current.setNewProjectName('Failed Save Project');
+    });
+
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(mockSaveProject).toHaveBeenCalledWith('Failed Save Project', expect.any(String));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('calls handleRestoreFile, handleDeleteFile, and handleOpenFolder wrapper functions', async () => {
     const { result } = renderHook(() => useSaveModal({ isOpen: true, onClose }));
 
