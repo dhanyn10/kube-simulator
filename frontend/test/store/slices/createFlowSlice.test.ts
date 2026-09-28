@@ -169,7 +169,7 @@ describe('createFlowSlice', () => {
 
   it('onConnect validates edges and handles HPA auto-config', () => {
     const hpa = { id: 'h1', type: 'HPA', data: {} };
-    const dep = { id: 'd1', type: 'Deployment', data: { label: 'dep' } };
+    const dep = { id: 'd1', type: 'Deployment', data: { label: 'dep', cpuRequest: '100m', memoryRequest: '128Mi' } };
     useFlowStore.setState({ nodes: [hpa, dep] as any, edges: [] });
 
     const { onConnect } = useFlowStore.getState();
