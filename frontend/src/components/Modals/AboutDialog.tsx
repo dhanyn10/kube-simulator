@@ -1,28 +1,12 @@
-import { logger } from '@/lib/logger';
-import React, { Fragment, useState, useEffect } from 'react';
+import React, { Fragment } from 'react';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { X as CloseIcon, ExternalLink } from 'lucide-react';
-import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
+import { useAboutDialog, UpdateInfo } from '@/activities/modals';
 
 interface AboutDialogProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface SystemInfo {
-  os: string;
-  arch: string;
-  goVersion: string;
-  version: string;
-}
-
-interface UpdateInfo {
-  currentVersion: string;
-  latestVersion: string;
-  updateAvailable: boolean;
-  releaseUrl: string;
-  isPrerelease: boolean;
 }
 
 const UpdateStatus: React.FC<{
@@ -85,89 +69,18 @@ const UpdateStatus: React.FC<{
   );
 };
 
-const fetchAboutData = async (
-  appVersion: string,
-  setSystemInfo: (info: SystemInfo) => void,
-  setAppVersion: (v: string) => void,
-  setUpdateInfo: (u: UpdateInfo) => void,
-  simulatedUpdateInfo?: { latestVersion: string; releaseUrl: string } | null
-) => {
-  const app = globalThis.window?.go?.main?.App;
-  let sys: SystemInfo = { os: '', arch: '', goVersion: '', version: '' };
-
-  if (app?.GetSystemInfo) {
-    const info = await app.GetSystemInfo();
-    sys = {
-      os: (info as any).os ?? '',
-      arch: (info as any).arch ?? '',
-      goVersion: (info as any).goVersion ?? '',
-      version: (info as any).version ?? '',
-    };
-    setSystemInfo(sys);
-    if (sys.version) {
-      setAppVersion(sys.version);
-    }
-  }
-
-  const effectiveVersion = sys.version || appVersion;
-
-  if (simulatedUpdateInfo) {
-    setUpdateInfo({
-      currentVersion: effectiveVersion,
-      latestVersion: simulatedUpdateInfo.latestVersion,
-      updateAvailable: true,
-      releaseUrl: simulatedUpdateInfo.releaseUrl,
-      isPrerelease: false,
-    });
-    return;
-  }
-
-  if (app?.CheckForUpdates) {
-    const update = await app.CheckForUpdates(effectiveVersion);
-    setUpdateInfo(update);
-  }
-};
-
 const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
-  const colorMode = useFlowStore((state: any) => state.colorMode);
-  const simulatedUpdateInfo = useFlowStore((state: any) => state.simulatedUpdateInfo);
-  const simulatedCurrentVersion = useFlowStore((state: any) => state.simulatedCurrentVersion);
-  const [appVersion, setAppVersion] = useState('');
-  const [appName] = useState('Kube Simulator');
-  const [appCopyright] = useState('Copyright 2026');
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    setIsCheckingUpdate(true);
-    fetchAboutData(appVersion, setSystemInfo, (v) => setAppVersion(simulatedCurrentVersion || v), setUpdateInfo, simulatedUpdateInfo)
-      .catch((error) => logger.error("Failed to fetch info:", error))
-      .finally(() => setIsCheckingUpdate(false));
-  }, [isOpen, appVersion, simulatedUpdateInfo, simulatedCurrentVersion]);
-
-  const displayVersion = simulatedCurrentVersion || appVersion;
-
-  const handleCopy = async () => {
-    const textToCopy = `${appName} ${displayVersion}
-Build #KS-${displayVersion}, built on ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-Runtime version: ${systemInfo?.goVersion} ${systemInfo?.arch}
-VM: Go by Google
-Operating system: ${systemInfo?.os}
-Architecture: ${systemInfo?.arch}
-
-${appCopyright}`;
-    try {
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      logger.error("Failed to copy", err);
-    }
-  };
+  const {
+    colorMode,
+    appName,
+    appCopyright,
+    displayVersion,
+    systemInfo,
+    updateInfo,
+    isCheckingUpdate,
+    copied,
+    handleCopy,
+  } = useAboutDialog({ isOpen });
 
   return (
     <Transition appear show={isOpen} as={Fragment}>

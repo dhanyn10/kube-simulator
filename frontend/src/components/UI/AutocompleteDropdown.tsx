@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { TerminalSquare, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { centerDropdownItem } from '@/lib/autocompleteUtils';
+import {
+  AutocompleteSuggestion,
+  checkMeaningfulDescription,
+  getDropdownCategoryClass,
+  getItemRowBgClass,
+  getInfoBtnClass,
+  getSubItemClass,
+  useAutocompleteDropdown,
+} from '@/activities/ui';
 
-export interface AutocompleteSuggestion {
-  label: string;
-  value: string;
-  category?: string;
-  description?: string;
-  subItems?: string[];
-}
+export type { AutocompleteSuggestion };
 
 interface AutocompleteDropdownProps {
   suggestions: AutocompleteSuggestion[];
@@ -22,12 +24,6 @@ interface AutocompleteDropdownProps {
   showIcon?: boolean;
   className?: string;
 }
-
-const checkMeaningfulDescription = (item: AutocompleteSuggestion): boolean => {
-  if (!item.description || item.description.trim() === '') return false;
-  const desc = item.description.toLowerCase().trim();
-  return desc !== item.label.toLowerCase().trim() && desc !== item.value.toLowerCase().trim();
-};
 
 interface DropdownItemProps {
   item: AutocompleteSuggestion;
@@ -57,27 +53,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
   const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
   const isInfoOpen = activeInfoIndex === idx;
   const isMeaningful = checkMeaningfulDescription(item);
-
-  let categoryClass = isDark ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500";
-  if (item.category === 'add to canvas') {
-    categoryClass = isDark ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" : "bg-amber-100 text-amber-800 border border-amber-300";
-  } else if (isSelected) {
-    categoryClass = "bg-indigo-600 text-white";
-  }
-
-  const getRowBgClass = () => {
-    if (isSelected) {
-      return isDark ? "bg-indigo-600/30 text-indigo-100 font-bold" : "bg-indigo-50 text-indigo-900 font-bold";
-    }
-    return isDark ? "hover:bg-slate-800/60 text-slate-300" : "hover:bg-slate-50 text-slate-700";
-  };
-
-  const getInfoBtnClass = () => {
-    if (isSelected) {
-      return "hover:bg-indigo-700 text-white";
-    }
-    return isDark ? "hover:bg-slate-700 text-slate-300" : "hover:bg-slate-200 text-slate-600";
-  };
+  const categoryClass = getDropdownCategoryClass(item, isSelected, isDark);
 
   return (
     <div
@@ -85,7 +61,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
       onMouseEnter={() => onHoverIndex?.(idx)}
       className={cn(
         "group flex flex-col transition-colors border-b last:border-b-0 border-slate-800/40",
-        getRowBgClass()
+        getItemRowBgClass(isSelected, isDark)
       )}
     >
       <div className="flex items-center justify-between px-3 py-1.5 w-full">
@@ -127,7 +103,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
               }}
               className={cn(
                 "p-0.5 rounded transition-all focus:outline-none opacity-0 group-hover:opacity-100",
-                getInfoBtnClass()
+                getInfoBtnClass(isSelected, isDark)
               )}
             >
               <Info size={12} />
@@ -143,12 +119,6 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
         )}>
           {item.subItems!.map((subName, subIdx) => {
             const isSubSelected = isSelected && selectedSubIndex === subIdx;
-            const getSubItemClass = () => {
-              if (isSubSelected) {
-                return "bg-indigo-600 text-white border-indigo-400 font-bold scale-105";
-              }
-              return isDark ? "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800" : "bg-white text-slate-700 border-slate-200 hover:bg-indigo-50";
-            };
 
             return (
               <button
@@ -160,7 +130,7 @@ const DropdownItemRow: React.FC<DropdownItemProps> = ({
                 }}
                 className={cn(
                   "px-2 py-0.5 rounded font-mono text-[10px] transition-all inline-block border focus:outline-none cursor-pointer",
-                  getSubItemClass()
+                  getSubItemClass(isSubSelected, isDark)
                 )}
               >
                 {subName}
@@ -200,12 +170,10 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   className,
 }) => {
   const isDark = colorMode === 'dark';
-  const [activeInfoIndex, setActiveInfoIndex] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    centerDropdownItem(containerRef.current, selectedIndex, suggestions.length);
-  }, [selectedIndex, suggestions.length]);
+  const { activeInfoIndex, setActiveInfoIndex, containerRef } = useAutocompleteDropdown({
+    selectedIndex,
+    suggestionsLength: suggestions.length,
+  });
 
   if (suggestions.length === 0) return null;
 
