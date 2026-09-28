@@ -56,12 +56,18 @@ describe('Sidebar', () => {
     expect(screen.queryByText('Pod')).toBeNull();
   });
 
-  it('shows "No elements found" when search yields no results', () => {
-    render(<Sidebar onAddNode={vi.fn()} />);
+  it('shows "No elements found" when search yields no results in dark and light modes', () => {
+    const { rerender } = render(<Sidebar onAddNode={vi.fn()} />);
 
     const searchInput = screen.getByPlaceholderText('Search...');
     fireEvent.change(searchInput, { target: { value: 'nonexistent-component' } });
 
+    expect(screen.getByText('No elements found')).toBeDefined();
+
+    act(() => {
+      useFlowStore.setState({ colorMode: 'light' });
+    });
+    rerender(<Sidebar onAddNode={vi.fn()} />);
     expect(screen.getByText('No elements found')).toBeDefined();
   });
 

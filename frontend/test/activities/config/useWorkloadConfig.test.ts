@@ -60,6 +60,39 @@ describe('useWorkloadConfig', () => {
       expect(getReplicaValue(selectedNode, [])).toBe(4);
     });
 
+    it('returns parent.data.replicas or fallback when parent is a Deployment/ReplicaSet controller', () => {
+      const parentDepNoReplicas = {
+        id: 'dep1',
+        type: 'Deployment',
+        data: {}, // no replicas set
+      };
+      const childPodInDep = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'dep1',
+        data: { replicas: 3 },
+      };
+
+      // parent.data.replicas is undefined, Number(undefined) || 1 => 1
+      expect(getReplicaValue(childPodInDep, [parentDepNoReplicas, childPodInDep])).toBe(1);
+    });
+
+    it('returns data.replicas or fallback when Pod parentId points to a non-controller parent node (e.g. Namespace)', () => {
+      const nsParent = {
+        id: 'ns1',
+        type: 'Namespace',
+        data: {},
+      };
+      const childPodInNs = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'ns1',
+        data: { label: 'worker', replicas: 5 },
+      };
+
+      expect(getReplicaValue(childPodInNs, [nsParent, childPodInNs])).toBe(5);
+    });
+
     it('returns default fallback of 1 for standalone Pod with no replicas property', () => {
       const selectedNode = {
         id: 'p1',

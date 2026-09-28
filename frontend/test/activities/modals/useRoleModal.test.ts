@@ -40,7 +40,8 @@ describe('useRoleModal helpers', () => {
 
       const depChild: Node = { id: 'dep1', parentId: 'ns1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 1 } };
       const svcChild: Node = { id: 'svc1', parentId: 'ns1', type: 'Service', position: { x: 0, y: 0 }, data: {} };
-      expect(deriveNamespaceResources(nsNode, [depChild, svcChild])).toEqual(
+      const unknownChild: Node = { id: 'u1', parentId: 'ns1', type: 'UnknownType', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveNamespaceResources(nsNode, [depChild, svcChild, unknownChild])).toEqual(
         expect.arrayContaining(['deployments', 'pods', 'services'])
       );
     });
@@ -55,6 +56,9 @@ describe('useRoleModal helpers', () => {
       const depNode: Node = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 1 } };
       const podNode: Node = { id: 'pod1', parentId: 'dep1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
       expect(deriveResourcesFromTargetNode(podNode, [depNode, podNode])).toEqual(['deployments', 'pods']);
+
+      const standalonePod: Node = { id: 'pod-standalone', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveResourcesFromTargetNode(standalonePod, [standalonePod])).toEqual(['pods']);
 
       const nsNode: Node = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
       expect(deriveResourcesFromTargetNode(nsNode, [])).toEqual(['namespaces']);
@@ -144,7 +148,7 @@ describe('useRoleModal hook', () => {
     const initialRole: K8sRoleItem = {
       id: 'r1',
       name: 'existing-role',
-      rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] }],
+      rules: [], // empty rules array
       assignedUsers: ['dev-bob'],
       createdAt: 1000,
     };
@@ -182,6 +186,11 @@ describe('useRoleModal hook', () => {
     });
     expect(result.current.rules[0].resources).toEqual(['services']);
 
+    // Update rule tags on non-matching index
+    act(() => {
+      result.current.handleUpdateRuleTags(99, 'verbs', ['get']);
+    });
+
     act(() => {
       result.current.handleRemoveRule(1);
     });
@@ -199,7 +208,7 @@ describe('useRoleModal hook', () => {
     expect(result.current.assignedUsers).toContain('admin');
   });
 
-  it('handles user search query filtering and saving role', () => {
+  it('handles user search query filtering by username, accessType, or policy, and handles saving role with empty rules', () => {
     const { result } = renderHook(() =>
       useRoleModal({
         isOpen: true,
@@ -210,10 +219,29 @@ describe('useRoleModal hook', () => {
       })
     );
 
+    // Search by username
     act(() => {
       result.current.setUserSearchQuery('bob');
     });
     expect(result.current.filteredAvailableUsers).toHaveLength(1);
+
+    // Search by accessType
+    act(() => {
+      result.current.setUserSearchQuery('Full Access');
+    });
+    expect(result.current.filteredAvailableUsers).toHaveLength(1);
+
+    // Search by policy name
+    act(() => {
+      result.current.setUserSearchQuery('ContainerDeveloperPolicy');
+    });
+    expect(result.current.filteredAvailableUsers).toHaveLength(1);
+
+    // Remove all rules and save role
+    act(() => {
+      result.current.handleRemoveRule(0);
+    });
+    expect(result.current.rules).toHaveLength(0);
 
     act(() => {
       result.current.handleSave();
@@ -221,7 +249,7 @@ describe('useRoleModal hook', () => {
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        assignedUsers: expect.arrayContaining(['admin']),
+        rules: [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
       })
     );
     expect(onClose).toHaveBeenCalled();
