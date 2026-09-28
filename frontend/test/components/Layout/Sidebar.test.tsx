@@ -65,7 +65,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('No elements found')).toBeDefined();
   });
 
-  it('toggles sections', () => {
+  it('toggles sections including uninitialized section state', () => {
     render(<Sidebar onAddNode={vi.fn()} />);
 
     const networkingBtn = screen.getByText('Networking');
@@ -79,6 +79,11 @@ describe('Sidebar', () => {
     const sectionContainer = workloadsBtn.nextElementSibling;
     expect(sectionContainer?.className).toContain('invisible');
     expect(sectionContainer?.className).toContain('max-h-0');
+
+    // Toggle security section (uninitialized key in default expandedSections state)
+    const securityBtn = screen.getByText('Security & Access');
+    fireEvent.click(securityBtn);
+    expect(screen.getByText('Role')).toBeDefined();
   });
 
   it('calls onAddNode when a component is clicked and opens IAM modal on IAM click', () => {
@@ -122,9 +127,13 @@ describe('Sidebar', () => {
 
     expect(setKubeIamModalOpen).toHaveBeenCalledWith(true);
 
-    // Drag end clears draggingSidebarItem and hovered nodes
+    // Drag end clears draggingSidebarItem and hovered nodes (testing both hovered and non-hovered nodes)
     useFlowStore.setState({
-      nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { isHovered: true } } as any]
+      nodes: [
+        { id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { isHovered: true } } as any,
+        { id: 'n2', type: 'Pod', position: { x: 0, y: 0 }, data: { isHovered: false } } as any,
+        { id: 'n3', type: 'Pod', position: { x: 0, y: 0 } } as any,
+      ]
     });
 
     fireEvent.dragEnd(podBtn!);
@@ -226,15 +235,21 @@ describe('Sidebar', () => {
     );
   });
 
-  it('renders in light mode and handles terminal open state', () => {
+  it('renders in light mode and handles terminal open state and item style fallback when style is missing', async () => {
     act(() => {
       useFlowStore.setState({ colorMode: 'light', isTerminalOpen: true });
     });
+
+    const sidebarHelpers = await import('@/activities/layout/sidebarHelpers');
+    const origStyle = sidebarHelpers.ITEM_STYLES.Pod;
+    delete (sidebarHelpers.ITEM_STYLES as any).Pod;
 
     render(<Sidebar onAddNode={vi.fn()} />);
 
     expect(screen.getByText('Components')).toBeDefined();
     const sidebarContainer = document.getElementById('sidebar-components')!;
     expect(sidebarContainer.className).toContain('h-[calc(100vh-2.5rem-16rem)]');
+
+    sidebarHelpers.ITEM_STYLES.Pod = origStyle;
   });
 });

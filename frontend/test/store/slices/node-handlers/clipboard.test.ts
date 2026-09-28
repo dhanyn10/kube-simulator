@@ -244,6 +244,23 @@ describe('clipboardHandlers', () => {
     expect(state.edges[1].target).toBe('missing-target');
   });
 
+  it('tryIncrementPodReplicas returns false when targetNode is missing from nodes list', () => {
+    const updateSpy = vi.fn();
+    const clipPod: Node = { id: 'pod-target-missing', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'orphan' } };
+    const selPod: Node = { id: 'pod-target-missing', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: { label: 'orphan' } };
+
+    // Set nodes to empty array so targetNode is missing when searching nodes
+    useFlowStore.setState({
+      nodes: [],
+      clipboard: { nodes: [clipPod], edges: [] },
+      updateNodeData: updateSpy,
+    });
+
+    // Directly test pasteNodes where selectedPod is not found in nodes
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
   it('copyNodes handles non-Deployment nodes and uncopied edge targets', () => {
     const svcNode: Node = { id: 'svc1', type: 'Service', selected: true, position: { x: 0, y: 0 }, data: {} };
     const unselectedPod: Node = { id: 'pod1', type: 'Pod', selected: false, position: { x: 0, y: 0 }, data: {} };
