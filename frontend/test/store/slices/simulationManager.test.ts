@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateHpaTargets, stopSimulation, checkEmergencyStop, broadcastMetrics } from '@/store/slices/simulationManager';
+import { pauseSimulation, stopSimulation, checkEmergencyStop, broadcastMetrics, validateHpaTargets } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
@@ -70,11 +70,27 @@ describe('simulationManager', () => {
     });
   });
 
+  describe('pauseSimulation', () => {
+    it('pauses simulation and clears interval', () => {
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+      const intervalRef = { current: setTimeout(() => {}, 1000) as any };
+      const setFn = vi.fn();
+
+      pauseSimulation(setFn, intervalRef);
+      expect(clearIntervalSpy).toHaveBeenCalled();
+      expect(intervalRef.current).toBeNull();
+      expect(setFn).toHaveBeenCalledWith({ isSimulating: false });
+    });
+  });
+
   describe('stopSimulation', () => {
     it('resets simulation state when interval is active', () => {
       const set = vi.fn();
       const get = vi.fn().mockReturnValue({
-        nodes: [{ id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Bound' } }]
+        nodes: [
+          { id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Bound' } },
+          { id: 'net1', type: 'Internet', data: { currentHourIndex: 5, profileTicks: 10 } }
+        ]
       });
       const interval = { current: setInterval(() => {}, 1000) as any };
 
@@ -84,7 +100,8 @@ describe('simulationManager', () => {
       expect(set).toHaveBeenCalledWith(expect.objectContaining({
         isSimulating: false,
         nodes: expect.arrayContaining([
-          expect.objectContaining({ data: expect.objectContaining({ pvcStatus: 'Pending' }) })
+          expect.objectContaining({ data: expect.objectContaining({ pvcStatus: 'Pending' }) }),
+          expect.objectContaining({ data: expect.objectContaining({ currentHourIndex: 0, profileTicks: 0 }) })
         ])
       }));
     });
@@ -105,8 +122,30 @@ describe('simulationManager', () => {
       const result = checkEmergencyStop({
         ticks: 2,
         workloads: [],
-        metrics: {}
-      } as any);
+        nodes: [],
+        metrics: {},
+        set: vi.fn(),
+        simulationInterval: { current: null }
+      });
+      expect(result).toBe(false);
+    });
+
+    it('returns false when ready pods exist', () => {
+      const workloads: Node[] = [{ id: 'w1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'w1' } }];
+      const nodes: Node[] = [
+        { id: 'p1', type: 'Pod', parentId: 'w1', position: { x: 0, y: 0 }, data: { status: 'ready' } },
+      ];
+      const metrics = { w1: [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
+
+      const result = checkEmergencyStop({
+        ticks: 5,
+        workloads,
+        nodes,
+        metrics,
+        set: vi.fn(),
+        simulationInterval: { current: null }
+      });
+
       expect(result).toBe(false);
     });
 
@@ -119,7 +158,7 @@ describe('simulationManager', () => {
       const nodes = [
         { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
       ];
-      const metrics = { 'd1': [{ cpuValue: 100 }] };
+      const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
       const interval = { current: setInterval(() => {}, 1000) as any };
 
       const result = checkEmergencyStop({
@@ -129,7 +168,7 @@ describe('simulationManager', () => {
         metrics,
         set,
         simulationInterval: interval
-      } as any);
+      });
 
       expect(result).toBe(true);
       expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
@@ -143,7 +182,7 @@ describe('simulationManager', () => {
       const nodes = [
         { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
       ];
-      const metrics = { 'd1': [{ cpuValue: 100 }] };
+      const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
       const interval = { current: null };
 
       const result = checkEmergencyStop({
@@ -153,7 +192,7 @@ describe('simulationManager', () => {
         metrics,
         set,
         simulationInterval: interval
-      } as any);
+      });
 
       expect(result).toBe(true);
       expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));

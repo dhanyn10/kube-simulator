@@ -81,6 +81,33 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows[0].value).toBe('8080');
   });
 
+  it('skips initialization effect when isOpen is false', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        ...defaultProps,
+        isOpen: false,
+        initialConfigMap: { id: 'cm-1', name: 'my-cm', configData: [{ key: 'k1', value: 'v1' }] },
+      })
+    );
+
+    expect(result.current.isDark).toBe(false);
+    expect(result.current.rows).toEqual([]);
+  });
+
+  it('initializes name without configData when initialConfigMap has name only', () => {
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        ...defaultProps,
+        isOpen: true,
+        initialConfigMap: { id: 'cm-2', name: 'name-only-cm' },
+      })
+    );
+
+    expect(result.current.cmName).toBe('name-only-cm');
+    expect(result.current.rows).toEqual([]);
+  });
+
   it('handles row modifications and saving', () => {
     const { result } = renderHook(() => useConfigMapModal(defaultProps));
 
@@ -131,5 +158,30 @@ describe('useConfigMapModal hook', () => {
 
     expect(result.current.activeDropdown).toBeNull();
     expect(result.current.rows).toHaveLength(0);
+  });
+
+  it('handleSave builds ConfigMap item and calls onSave and onClose with initialConfigMap id', () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn();
+
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        ...defaultProps,
+        onClose,
+        onSave,
+        initialConfigMap: { id: 'cm-10', name: 'custom-cm-name' },
+      })
+    );
+
+    act(() => {
+      result.current.handleSave();
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      id: 'cm-10',
+      name: 'custom-cm-name',
+      configData: [],
+    });
+    expect(onClose).toHaveBeenCalled();
   });
 });
