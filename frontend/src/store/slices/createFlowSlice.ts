@@ -11,7 +11,6 @@ import {
   addEdge,
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
-import { K8sNodeData } from '@/types';
 import { getConnectionError } from '@/constants/connections';
 import { getAbsPos } from '../helpers';
 import {
@@ -24,6 +23,39 @@ import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resource
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
 
+const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
+  Pod: 'pods',
+  Service: 'services',
+  PVC: 'persistentvolumeclaims',
+  ConfigMap: 'configmaps',
+  Secret: 'secrets',
+  ReplicaSet: 'replicasets',
+};
+
+const getDerivedResourcesForNode = (cn: Node, nodes: Node[], derivedResourcesSet: Set<string>) => {
+  if (cn.type === 'Deployment') {
+    derivedResourcesSet.add('deployments');
+    const childPods = nodes.filter((p) => p.parentId === cn.id);
+    if (childPods.length > 0 || ((cn.data?.replicas as number) || 0) > 0) {
+      derivedResourcesSet.add('pods');
+    }
+    return;
+  }
+  const resourceName = cn.type ? NODE_TYPE_TO_RESOURCE[cn.type] : undefined;
+  if (resourceName) {
+    derivedResourcesSet.add(resourceName);
+  }
+};
+
+const getConnectedNodesForRole = (roleNodeId: string, nodes: Node[], edges: Edge[]): Node[] => {
+  const connectedNodeIds = new Set<string>();
+  edges.forEach((e) => {
+    if (e.source === roleNodeId) connectedNodeIds.add(e.target);
+    else if (e.target === roleNodeId) connectedNodeIds.add(e.source);
+  });
+  return nodes.filter((n) => connectedNodeIds.has(n.id));
+};
+
 export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node[] => {
   const roleNodes = nodes.filter((n) => n.type === 'Role');
   if (roleNodes.length === 0) return nodes;
@@ -32,37 +64,9 @@ export const syncRoleRulesFromConnections = (nodes: Node[], edges: Edge[]): Node
   const updatedNodes = nodes.map((node) => {
     if (node.type !== 'Role') return node;
 
-    const connectedEdges = edges.filter((e) => e.source === node.id || e.target === node.id);
-    const connectedNodeIds = new Set<string>();
-    connectedEdges.forEach((e) => {
-      if (e.source !== node.id) connectedNodeIds.add(e.source);
-      if (e.target !== node.id) connectedNodeIds.add(e.target);
-    });
-
-    const connectedNodes = nodes.filter((n) => connectedNodeIds.has(n.id));
+    const connectedNodes = getConnectedNodesForRole(node.id, nodes, edges);
     const derivedResourcesSet = new Set<string>();
-
-    connectedNodes.forEach((cn) => {
-      if (cn.type === 'Deployment') {
-        derivedResourcesSet.add('deployments');
-        const childPods = nodes.filter((p) => p.parentId === cn.id);
-        if (childPods.length > 0 || ((cn.data?.replicas as number) || 0) > 0) {
-          derivedResourcesSet.add('pods');
-        }
-      } else if (cn.type === 'Pod') {
-        derivedResourcesSet.add('pods');
-      } else if (cn.type === 'Service') {
-        derivedResourcesSet.add('services');
-      } else if (cn.type === 'PVC') {
-        derivedResourcesSet.add('persistentvolumeclaims');
-      } else if (cn.type === 'ConfigMap') {
-        derivedResourcesSet.add('configmaps');
-      } else if (cn.type === 'Secret') {
-        derivedResourcesSet.add('secrets');
-      } else if (cn.type === 'ReplicaSet') {
-        derivedResourcesSet.add('replicasets');
-      }
-    });
+    connectedNodes.forEach((cn) => getDerivedResourcesForNode(cn, nodes, derivedResourcesSet));
 
     const currentRules = (node.data.rules as any[]) || [{ apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] }];
     const firstRule = currentRules[0] || { apiGroups: [''], resources: [], verbs: ['get', 'list', 'watch'] };
@@ -208,6 +212,42 @@ const getQuickConnectHandles = (direction: QuickConnectDirection) => {
   return { sourceHandle: 'bottom-s', targetHandle: 'top-t' };
 };
 
+const rerouteRoleConnection = (
+  podNode: Node | undefined,
+  nodes: Node[]
+): Node | undefined => {
+  if (podNode?.type === 'Pod' && podNode.parentId) {
+    return nodes.find((n) => n.id === podNode.parentId && n.type === 'Deployment');
+  }
+  return undefined;
+};
+
+const checkHpaPrerequisite = (
+  sourceNode: Node | undefined,
+  targetNode: Node | undefined,
+  nodes: Node[],
+  edges: Edge[],
+  addLog: (level: string, message: string, component: string) => void
+): boolean => {
+  const isHpaConnection =
+    (sourceNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(targetNode?.type || '')) ||
+    (targetNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(sourceNode?.type || ''));
+
+  if (!isHpaConnection) return true;
+
+  const workloadNode = sourceNode?.type === 'HPA' ? targetNode : sourceNode;
+  const hasLimit = hasResourceLimitAttachedOrConnected(workloadNode, nodes, edges);
+  if (!hasLimit) {
+    addLog(
+      'error',
+      `[HPA Prerequisite] Cannot connect HPA to ${workloadNode?.data?.label || workloadNode?.id}. Resource Limit is required on target workload before attaching HPA.`,
+      'UI'
+    );
+    return false;
+  }
+  return true;
+};
+
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
   nodes: [],
   edges: [],
@@ -291,7 +331,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     };
   },
   onConnect: (connection: Connection) => {
-    const { nodes, updateNodeData, validateEdge, activeIdentity, iamUsers, addLog } = get();
+    const { nodes, validateEdge, activeIdentity, iamUsers, addLog } = get();
     let sourceId = connection.source!;
     let targetId = connection.target!;
 
@@ -306,35 +346,22 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       return;
     }
 
-    // If connecting Role <-> child Pod inside a Deployment, reroute connection to parent Deployment
-    if (sourceNode?.type === 'Role' && targetNode?.type === 'Pod' && targetNode.parentId) {
-      const parentDep = nodes.find((n) => n.id === targetNode!.parentId && n.type === 'Deployment');
+    if (sourceNode?.type === 'Role') {
+      const parentDep = rerouteRoleConnection(targetNode, nodes);
       if (parentDep) {
         targetId = parentDep.id;
         targetNode = parentDep;
       }
-    } else if (targetNode?.type === 'Role' && sourceNode?.type === 'Pod' && sourceNode.parentId) {
-      const parentDep = nodes.find((n) => n.id === sourceNode!.parentId && n.type === 'Deployment');
+    } else if (targetNode?.type === 'Role') {
+      const parentDep = rerouteRoleConnection(sourceNode, nodes);
       if (parentDep) {
         sourceId = parentDep.id;
         sourceNode = parentDep;
       }
     }
 
-    const isHpaConnection = (sourceNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(targetNode?.type || '')) ||
-                            (targetNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(sourceNode?.type || ''));
-
-    if (isHpaConnection) {
-      const workloadNode = sourceNode?.type === 'HPA' ? targetNode : sourceNode;
-      const hasLimit = hasResourceLimitAttachedOrConnected(workloadNode, nodes, get().edges);
-      if (!hasLimit) {
-        addLog(
-          'error',
-          `[HPA Prerequisite] Cannot connect HPA to ${workloadNode?.data?.label || workloadNode?.id}. Resource Limit is required on target workload before attaching HPA.`,
-          'UI'
-        );
-        return;
-      }
+    if (!checkHpaPrerequisite(sourceNode, targetNode, nodes, get().edges, addLog)) {
+      return;
     }
 
     const reroutedConnection = {

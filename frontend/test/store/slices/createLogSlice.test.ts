@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLogSlice } from '@/store/slices/createLogSlice';
-import { FlowState } from '@/store/types';
 
 describe('createLogSlice', () => {
   let storeState: any;
@@ -45,6 +44,38 @@ describe('createLogSlice', () => {
     const slice = createLogSlice(setStore as any, getStore as any, {} as any);
     expect(slice.logs).toEqual([]);
     expect(originalConsoleError).toHaveBeenCalledWith(expect.stringContaining('Failed to load logs from storage:'), expect.any(Error));
+  });
+
+  it('catches and logs storage errors when sessionStorage throws exception during read or write', () => {
+    const originalConsoleError = vi.fn();
+    (globalThis as any)._originalConsoleError = originalConsoleError;
+
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage access denied');
+    });
+
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice };
+
+    expect(originalConsoleError).toHaveBeenCalledWith(
+      'Failed to load logs from storage:',
+      expect.any(Error)
+    );
+
+    getItemSpy.mockRestore();
+
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Quota exceeded');
+    });
+
+    storeState.addLog('info', 'test msg');
+    expect(originalConsoleError).toHaveBeenCalledWith(
+      'Failed to save logs to storage:',
+      expect.any(Error)
+    );
+
+    setItemSpy.mockRestore();
+    delete (globalThis as any)._originalConsoleError;
   });
 
   it('addLog creates a new log entry, caps at 500, sets toast visibility for errors, and calls Wails WriteLog', () => {
