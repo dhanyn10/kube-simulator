@@ -38,6 +38,8 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
     setMemoryRequest,
     memoryLimit,
     setMemoryLimit,
+    isCpuRequestOptionDisabled,
+    isMemoryRequestOptionDisabled,
     handleSave,
   } = useResourceLimitModal(isOpen, targetNodeId, initialResourceLimit, onSave, onClose);
 
@@ -100,21 +102,12 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
           />
         </div>
 
-        {/* CPU Request & Limit */}
+        {/* CPU Allocation (Limit above Request) */}
         <div className="space-y-3 p-3 rounded-lg border border-slate-700/40 bg-slate-500/5">
           <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
             <Layers size={14} /> CPU Allocation
           </div>
           <div className="space-y-2">
-            <div>
-              <span className="block text-[10px] font-medium text-slate-400 mb-1">CPU Request</span>
-              <SelectorGroup
-                options={CPU_OPTIONS}
-                currentValue={cpuRequest}
-                onSelect={setCpuRequest}
-                colorMode={colorMode}
-              />
-            </div>
             <div>
               <span className="block text-[10px] font-medium text-slate-400 mb-1">CPU Limit</span>
               <SelectorGroup
@@ -124,24 +117,25 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
                 colorMode={colorMode}
               />
             </div>
+            <div>
+              <span className="block text-[10px] font-medium text-slate-400 mb-1">CPU Request</span>
+              <SelectorGroup
+                options={CPU_OPTIONS}
+                currentValue={cpuRequest}
+                onSelect={setCpuRequest}
+                colorMode={colorMode}
+                disabledOption={isCpuRequestOptionDisabled}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Memory Request & Limit */}
+        {/* Memory Allocation (Limit above Request) */}
         <div className="space-y-3 p-3 rounded-lg border border-slate-700/40 bg-slate-500/5">
           <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
             <Layers size={14} /> Memory Allocation
           </div>
           <div className="space-y-2">
-            <div>
-              <span className="block text-[10px] font-medium text-slate-400 mb-1">Memory Request</span>
-              <SelectorGroup
-                options={MEMORY_OPTIONS}
-                currentValue={memoryRequest}
-                onSelect={setMemoryRequest}
-                colorMode={colorMode}
-              />
-            </div>
             <div>
               <span className="block text-[10px] font-medium text-slate-400 mb-1">Memory Limit</span>
               <SelectorGroup
@@ -149,6 +143,16 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
                 currentValue={memoryLimit}
                 onSelect={setMemoryLimit}
                 colorMode={colorMode}
+              />
+            </div>
+            <div>
+              <span className="block text-[10px] font-medium text-slate-400 mb-1">Memory Request</span>
+              <SelectorGroup
+                options={MEMORY_OPTIONS}
+                currentValue={memoryRequest}
+                onSelect={setMemoryRequest}
+                colorMode={colorMode}
+                disabledOption={isMemoryRequestOptionDisabled}
               />
             </div>
           </div>

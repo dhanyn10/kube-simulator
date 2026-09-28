@@ -33,44 +33,26 @@ describe('ResourceSettingsList', () => {
       <ResourceSettingsList
         data={defaultData}
         colorMode="dark"
-        isCpuError={false}
-        isMemError={false}
         performUpdate={mockPerformUpdate}
       />
     );
 
-    // Find a CPU request option that isn't already selected, e.g. 250m
-    const option250m = screen.getAllByText('250m')[0];
-    fireEvent.click(option250m);
+    const option500m = screen.getAllByText('500m')[0];
+    fireEvent.click(option500m);
 
-    expect(mockPerformUpdate).toHaveBeenCalledWith({ cpuRequest: '250m' });
+    expect(mockPerformUpdate).toHaveBeenCalledWith({ cpuLimit: '500m' });
   });
 
-  it('shows error warning when isCpuError is true', () => {
+  it('disables CPU Request options higher than current CPU Limit', () => {
     render(
       <ResourceSettingsList
-        data={defaultData}
+        data={{ cpuLimit: '250m', cpuRequest: '100m' }}
         colorMode="dark"
-        isCpuError={true}
-        isMemError={false}
         performUpdate={mockPerformUpdate}
       />
     );
 
-    expect(screen.getByText('Limit must be greater than or equal to Request')).toBeDefined();
-  });
-
-  it('shows error warning when isMemError is true', () => {
-    render(
-      <ResourceSettingsList
-        data={defaultData}
-        colorMode="dark"
-        isCpuError={false}
-        isMemError={true}
-        performUpdate={mockPerformUpdate}
-      />
-    );
-
-    expect(screen.getByText('Limit must be greater than or equal to Request')).toBeDefined();
+    const request2CoresBtn = screen.getAllByText('2 Cores')[1].closest('button');
+    expect(request2CoresBtn).toHaveProperty('disabled', true);
   });
 });

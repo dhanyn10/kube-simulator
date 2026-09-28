@@ -2,16 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { getResourceSettingItems } from '@/activities/workload/resourceSettingsHelpers';
 
 describe('resourceSettingsHelpers', () => {
-  it('returns correctly styled items when errors are present', () => {
-    const items = getResourceSettingItems(true, false);
+  it('returns resource setting items in correct order', () => {
+    const items = getResourceSettingItems();
     expect(items).toHaveLength(5);
 
-    const cpuReq = items.find((i) => i.field === 'cpuRequest');
-    expect(cpuReq?.hasError).toBe(true);
-    expect(cpuReq?.activeColor).toContain('bg-red-600');
-
-    const memReq = items.find((i) => i.field === 'memoryRequest');
-    expect(memReq?.hasError).toBe(false);
-    expect(memReq?.activeColor).toContain('bg-emerald-600');
+    expect(items[0].field).toBe('cpuLimit');
+    expect(items[1].field).toBe('cpuRequest');
+    expect(items[3].field).toBe('memoryLimit');
+    expect(items[4].field).toBe('memoryRequest');
   });
 });

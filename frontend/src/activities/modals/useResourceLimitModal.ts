@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { K8sResourceLimitItem } from '@/types';
 import { useFlowStore } from '@/store';
+import { parseCPU, parseMemory } from '@/lib/utils';
 
 /**
  * Custom hook managing form state and saving logic for Resource Limit modal.
@@ -39,6 +40,28 @@ export const useResourceLimitModal = (
     }
   }, [isOpen, initialResourceLimit]);
 
+  const handleCpuLimitChange = (newLimit: string) => {
+    setCpuLimit(newLimit);
+    if (parseCPU(newLimit) < parseCPU(cpuRequest)) {
+      setCpuRequest(newLimit);
+    }
+  };
+
+  const handleMemoryLimitChange = (newLimit: string) => {
+    setMemoryLimit(newLimit);
+    if (parseMemory(newLimit) < parseMemory(memoryRequest)) {
+      setMemoryRequest(newLimit);
+    }
+  };
+
+  const isCpuRequestOptionDisabled = (val: string) => {
+    return parseCPU(val) > parseCPU(cpuLimit);
+  };
+
+  const isMemoryRequestOptionDisabled = (val: string) => {
+    return parseMemory(val) > parseMemory(memoryLimit);
+  };
+
   const handleSave = () => {
     if (!name.trim()) {
       addLog('error', 'Resource Limit name cannot be empty.', 'UI');
@@ -64,11 +87,13 @@ export const useResourceLimitModal = (
     cpuRequest,
     setCpuRequest,
     cpuLimit,
-    setCpuLimit,
+    setCpuLimit: handleCpuLimitChange,
     memoryRequest,
     setMemoryRequest,
     memoryLimit,
-    setMemoryLimit,
+    setMemoryLimit: handleMemoryLimitChange,
+    isCpuRequestOptionDisabled,
+    isMemoryRequestOptionDisabled,
     handleSave,
   };
 };

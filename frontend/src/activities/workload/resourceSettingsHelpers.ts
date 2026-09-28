@@ -11,16 +11,7 @@ export interface ResourceSettingItem {
   hasError?: boolean;
 }
 
-export const getResourceSettingItems = (isCpuError: boolean, isMemError: boolean): ResourceSettingItem[] => [
-  {
-    field: 'cpuRequest',
-    label: 'CPU Request',
-    options: CPU_OPTIONS,
-    iconColor: 'text-emerald-500',
-    activeColor: isCpuError ? 'bg-red-600 border-red-600' : 'bg-emerald-600 border-emerald-600',
-    shadow: isCpuError ? 'shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
-    hasError: isCpuError,
-  },
+export const getResourceSettingItems = (): ResourceSettingItem[] => [
   {
     field: 'cpuLimit',
     label: 'CPU Limit',
@@ -28,21 +19,28 @@ export const getResourceSettingItems = (isCpuError: boolean, isMemError: boolean
     iconColor: 'text-violet-500',
     activeColor: 'bg-violet-600 border-violet-600',
   },
-  { type: 'separator', field: 'separator-cpu-mem' },
   {
-    field: 'memoryRequest',
-    label: 'Memory Request',
-    options: MEMORY_OPTIONS,
+    field: 'cpuRequest',
+    label: 'CPU Request',
+    options: CPU_OPTIONS,
     iconColor: 'text-emerald-500',
-    activeColor: isMemError ? 'bg-red-600 border-red-600' : 'bg-emerald-600 border-emerald-600',
-    shadow: isMemError ? 'shadow-[0_0_8px_rgba(239,68,68,0.4)]' : 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
-    hasError: isMemError,
+    activeColor: 'bg-emerald-600 border-emerald-600',
+    shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
   },
+  { type: 'separator', field: 'separator-cpu-mem' },
   {
     field: 'memoryLimit',
     label: 'Memory Limit',
     options: MEMORY_OPTIONS,
     iconColor: 'text-violet-500',
     activeColor: 'bg-violet-600 border-violet-600',
+  },
+  {
+    field: 'memoryRequest',
+    label: 'Memory Request',
+    options: MEMORY_OPTIONS,
+    iconColor: 'text-emerald-500',
+    activeColor: 'bg-emerald-600 border-emerald-600',
+    shadow: 'shadow-[0_0_8px_rgba(16,185,129,0.4)]',
   },
 ];
