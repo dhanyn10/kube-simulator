@@ -24,8 +24,6 @@ export const WorkloadAdvancedConfig = ({
     data,
     isTargetedByHPA,
     hasRequests,
-    isCpuError,
-    isMemError,
     hasResources,
     yamlProps,
   } = useWorkloadAdvancedConfig(selectedNode);
