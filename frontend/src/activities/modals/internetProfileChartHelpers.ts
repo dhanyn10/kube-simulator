@@ -62,7 +62,11 @@ export function calculateMinutePoint(
   const minVal = 0;
 
   const val = getInterpolatedProfileTraffic(profile, safeMinute);
-  const x = padLeft + (safeMinute / 1439) * chartWidth;
+
+  // The 24 hourly anchor points span across 23 segments from M=0 (00:00) to M=1380 (23:00)
+  // Scaling ratio against 1380 minutes aligns the minute point 100% precisely onto the SVG curve line
+  const ratio = Math.min(1, safeMinute / 1380);
+  const x = padLeft + ratio * chartWidth;
   const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
   const timeStr = formatMinuteToHHMM(safeMinute);
 
