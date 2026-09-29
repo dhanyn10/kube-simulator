@@ -173,11 +173,11 @@
 @layer components {
   /* Terminal Panel Component Styles */
   .terminal-trigger-btn {
-    @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95;
+    @apply fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2 rounded-full shadow-2xl border text-xs font-bold uppercase tracking-wider transition-all scale-100 hover:scale-105 active:scale-95;
   }
 
   .terminal-panel-container {
-    @apply fixed bottom-0 left-0 right-0 h-64 border-t z-40 flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
+    @apply fixed bottom-0 left-0 right-0 h-64 border-t z-30 flex flex-col backdrop-blur-md shadow-2xl transition-all duration-300;
   }
 
   .terminal-toolbar {
@@ -209,7 +209,7 @@
   }
 
   .terminal-autocomplete-popup {
-    @apply absolute bottom-full left-4 mb-1 w-[420px] max-h-60 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-50 divide-y;
+    @apply absolute bottom-full left-4 mb-1 w-[420px] max-h-60 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] z-40 divide-y;
   }
 
   .terminal-autocomplete-item {
@@ -238,12 +238,12 @@
   }
 
   .right-sidebar-dropdown-menu {
-    @apply absolute top-full left-0 mt-1 w-56 rounded-lg shadow-xl border py-1 z-[100];
+    @apply absolute top-full left-0 mt-1 w-56 rounded-lg shadow-xl border py-1 z-[250];
   }
 
   /* MenuBar Component Styles */
   .menubar-container {
-    @apply h-10 border-b flex items-center px-3 justify-between z-50 select-none relative;
+    @apply h-10 border-b flex items-center px-3 justify-between z-10 select-none relative;
   }
 
   .menubar-dropdown-btn {
@@ -251,7 +251,7 @@
   }
 
   .menubar-dropdown-panel {
-    @apply absolute top-full left-0 mt-1 w-48 rounded-lg shadow-2xl border py-1.5 z-[100];
+    @apply absolute top-full left-0 mt-1 w-48 rounded-lg shadow-2xl border py-1.5 z-[250];
   }
 
   .menubar-dropdown-item {
@@ -285,7 +285,7 @@
 
   /* Modal & Overlay Component Styles */
   .modal-overlay {
-    @apply fixed inset-0 z-[3] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none;
+    @apply fixed inset-0 z-[200] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none;
   }
 
   .modal-container {
@@ -293,11 +293,11 @@
   }
 
   .modal-context-menu {
-    @apply fixed z-[4] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md;
+    @apply fixed z-[250] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md;
   }
 
   .yaml-modal-overlay {
-    @apply fixed inset-0 z-[3] flex items-center justify-center p-6 bg-transparent border-none w-full h-full outline-none focus:outline-none;
+    @apply fixed inset-0 z-[200] flex items-center justify-center p-6 bg-transparent border-none w-full h-full outline-none focus:outline-none;
   }
 
   .yaml-modal-container {
@@ -305,19 +305,19 @@
   }
 
   .save-modal-context-menu {
-    @apply fixed z-[4] min-w-[170px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md;
+    @apply fixed z-[250] min-w-[170px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md;
   }
 
   .backstage-view-container {
-    @apply fixed inset-0 z-[3] flex font-sans select-none;
+    @apply fixed inset-0 z-[200] flex font-sans select-none;
   }
 
   .backstage-context-menu-dark {
-    @apply fixed z-[4] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50;
+    @apply fixed z-[250] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50;
   }
 
   .backstage-context-menu-light {
-    @apply fixed z-[4] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50;
+    @apply fixed z-[250] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50;
   }
 
   /* Backstage & Modal Layout Component Styles */

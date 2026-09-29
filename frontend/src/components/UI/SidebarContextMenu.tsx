@@ -38,7 +38,7 @@ export function SidebarContextMenu({
       data-testid={testId}
       style={{ top: position.top, left: position.left }}
       className={cn(
-        "fixed z-[5] min-w-[150px] py-1 rounded-lg border shadow-2xl",
+        "fixed z-[300] min-w-[150px] py-1 rounded-lg border shadow-2xl",
         isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
       )}
     >

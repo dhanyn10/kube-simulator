@@ -49,7 +49,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
     <>
       <button
         type="button"
-        className="fixed inset-0 z-[5] cursor-default bg-transparent"
+        className="fixed inset-0 z-[300] cursor-default bg-transparent"
         aria-label="Close context menu"
         onClick={onClose}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
@@ -62,7 +62,7 @@ export const ContextMenu = ({ x, y, onClose, onInspect, onDelete }: ContextMenuP
         tabIndex={-1}
         aria-label="Canvas context menu"
         className={cn(
-          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl z-[5] outline-none",
+          "fixed min-w-[180px] py-1.5 rounded-xl border shadow-2xl z-[300] outline-none",
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}
         style={{ left: position.left, top: position.top }}
