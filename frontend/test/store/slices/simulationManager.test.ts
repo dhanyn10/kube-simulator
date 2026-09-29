@@ -79,7 +79,7 @@ describe('simulationManager', () => {
       pauseSimulation(setFn, intervalRef);
       expect(clearIntervalSpy).toHaveBeenCalled();
       expect(intervalRef.current).toBeNull();
-      expect(setFn).toHaveBeenCalledWith({ isSimulating: false });
+      expect(setFn).toHaveBeenCalledWith({ isSimulating: false, isPaused: true });
     });
   });
 

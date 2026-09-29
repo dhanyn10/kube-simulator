@@ -6,6 +6,7 @@ export { getSimulationButtonTitle, getSimulationButtonClass, getStopButtonClass 
 
 interface SimulationControlsProps {
   readonly isSimulating: boolean;
+  readonly isPaused?: boolean;
   readonly startSimulation: () => void;
   readonly stopSimulation: () => void;
   readonly pauseSimulation?: () => void;
@@ -19,6 +20,7 @@ interface SimulationControlsProps {
  */
 export const SimulationControls = ({
   isSimulating,
+  isPaused: isPausedProp,
   startSimulation,
   stopSimulation,
   pauseSimulation,
@@ -31,15 +33,21 @@ export const SimulationControls = ({
     buttonClass,
     stopButtonClass,
     handlePause,
+    handleStart,
+    isPaused,
     simulationSpeed,
     setSimulationSpeed,
     showSpeedControls,
   } = useSimulationControls({
     isSimulating,
+    isPaused: isPausedProp,
     hasInternet,
     hasHpaValidationError,
     pauseSimulation,
+    startSimulation,
   });
+
+  const isGroupActive = isSimulating || isPaused;
 
   return (
     <div
@@ -50,28 +58,50 @@ export const SimulationControls = ({
       )}
       style={{ '--wails-draggable': 'no-drag' }}
     >
-      {isSimulating ? (
-        <div data-testid="simulation-button-group" className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={handlePause}
-            disabled={!hasInternet}
-            title={hasHpaValidationError ? 'HPA requires Resource Limits on target workloads' : 'Pause Simulation'}
-            className={cn(
-              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
-              buttonClass
-            )}
-          >
-            <Pause size={10} fill="currentColor" />
-            Pause
-          </button>
+      {isGroupActive ? (
+        <div
+          data-testid="simulation-button-group"
+          className={cn(
+            "inline-flex rounded-md shadow-sm overflow-hidden divide-x",
+            colorMode === 'dark' ? "divide-slate-800" : "divide-slate-200"
+          )}
+        >
+          {isSimulating ? (
+            <button
+              type="button"
+              onClick={handlePause}
+              disabled={!hasInternet}
+              title={hasHpaValidationError ? 'HPA requires Resource Limits on target workloads' : 'Pause Simulation'}
+              className={cn(
+                "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-l-md rounded-r-none shadow-sm",
+                buttonClass
+              )}
+            >
+              <Pause size={10} fill="currentColor" />
+              Pause
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleStart()}
+              disabled={!hasInternet}
+              title="Resume Simulation"
+              className={cn(
+                "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-l-md rounded-r-none shadow-sm",
+                buttonClass
+              )}
+            >
+              <Play size={10} fill="currentColor" />
+              Resume
+            </button>
+          )}
           <button
             type="button"
             onClick={stopSimulation}
             disabled={!hasInternet}
             title="Stop Simulation"
             className={cn(
-              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-md shadow-sm",
+              "h-7 px-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-r-md rounded-l-none shadow-sm",
               stopButtonClass
             )}
           >
@@ -82,7 +112,7 @@ export const SimulationControls = ({
       ) : (
         <button
           type="button"
-          onClick={() => startSimulation()}
+          onClick={() => handleStart()}
           disabled={!hasInternet}
           title={title}
           className={cn(

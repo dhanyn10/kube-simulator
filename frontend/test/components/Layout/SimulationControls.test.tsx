@@ -60,6 +60,38 @@ describe('SimulationControls', () => {
     expect(stopSimulation).toHaveBeenCalled();
   });
 
+  it('renders resume and stop button group when paused', () => {
+    const startSimulation = vi.fn();
+    const stopSimulation = vi.fn();
+    render(
+      <SimulationControls
+        isSimulating={false}
+        isPaused={true}
+        startSimulation={startSimulation}
+        stopSimulation={stopSimulation}
+        hasInternet={true}
+        hasHpaValidationError={false}
+        colorMode="dark"
+      />
+    );
+
+    expect(screen.getByTestId('simulation-button-group')).toBeDefined();
+
+    const resumeButton = screen.getByRole('button', { name: /resume/i });
+    expect(resumeButton.textContent).toContain('Resume');
+    expect(resumeButton.title).toBe('Resume Simulation');
+
+    fireEvent.click(resumeButton);
+    expect(startSimulation).toHaveBeenCalled();
+
+    const stopButton = screen.getByRole('button', { name: /stop/i });
+    expect(stopButton.textContent).toContain('Stop');
+    expect(stopButton.title).toBe('Stop Simulation');
+
+    fireEvent.click(stopButton);
+    expect(stopSimulation).toHaveBeenCalled();
+  });
+
   it('shows red pulsing stop button when simulating with HPA validation error in light mode', () => {
     render(
       <SimulationControls

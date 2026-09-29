@@ -23,7 +23,7 @@ export const pauseSimulation = (set: (state: Partial<FlowState>) => void, simula
     clearInterval(simulationInterval.current);
     simulationInterval.current = null;
   }
-  set({ isSimulating: false });
+  set({ isSimulating: false, isPaused: true });
 };
 
 /**
@@ -46,7 +46,7 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
     }
     return n;
   });
-  set({ isSimulating: false, activeSimulationEdges: [], simulationMetrics: {}, nodes: resetNodes });
+  set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, nodes: resetNodes });
 };
 
 /**
@@ -98,7 +98,7 @@ export const checkEmergencyStop = (params: {
         clearInterval(simulationInterval.current);
         simulationInterval.current = null;
     }
-    set({ isSimulating: false, activeSimulationEdges: [], simulationMetrics: {}, isMonitoringOpen: false, isMonitoringDetached: false });
+    set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, isMonitoringOpen: false, isMonitoringDetached: false });
 
     if (metricsChannel) {
         metricsChannel.postMessage({ type: 'DETACHED_CLOSED' });
