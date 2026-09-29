@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateProfileChartData,
   calculateHourIndexFromX,
+  calculateMinuteIndexFromX,
   calculateYValueFromPointer,
   formatMinuteToHHMM,
   calculateMinutePoint
@@ -58,6 +59,22 @@ describe('internetProfileChartHelpers', () => {
 
     // Middle -> hour index around 12
     expect(calculateHourIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(12);
+  });
+
+  it('calculates minute index from relative mouse X position', () => {
+    const width = 200;
+    const padLeft = 10;
+    const padRight = 10;
+    const chartWidth = width - padLeft - padRight; // 180
+
+    // Left edge -> minute index 0
+    expect(calculateMinuteIndexFromX(5, 200, width, padLeft, padRight, chartWidth)).toBe(0);
+
+    // Right edge -> minute index 1439
+    expect(calculateMinuteIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(1439);
+
+    // Middle -> minute index around 720 (12:00)
+    expect(calculateMinuteIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(720);
   });
 
   it('calculates Y traffic value when dragging chart point', () => {

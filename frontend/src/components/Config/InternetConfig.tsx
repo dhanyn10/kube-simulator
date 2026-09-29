@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '../UI/ConfigUI';
 import { InternetProfileModal } from '../Modals/InternetProfileModal';
-import { HOURS_OF_DAY, calculateMinutePoint } from '@/activities/modals';
+import { HOURS_OF_DAY, calculateMinutePoint, calculateMinuteIndexFromX } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -42,15 +42,17 @@ const ReadOnlyProfileChart = ({
   profile,
   currentHourIndex,
   currentMinuteIndex,
-  isRed
+  isRed,
+  onSeekMinute
 }: {
   readonly profile: any;
   readonly currentHourIndex?: number;
   readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
+  readonly onSeekMinute?: (targetMinute: number) => void;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
-  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
 
   const width = 240;
   const height = 80;
@@ -84,21 +86,26 @@ const ReadOnlyProfileChart = ({
     ? currentMinuteIndex
     : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);
   const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
-  const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
+  const hoveredPt = hoveredMinuteIdx !== null ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop) : null;
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const rectWidth = rect.width || width;
     const mouseX = e.clientX - rect.left;
-    const relativeX = (mouseX / rectWidth) * width;
-    const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
-    const ratio = (clampedX - padLeft) / chartWidth;
-    const hourIdx = Math.min(23, Math.max(0, Math.round(ratio * (HOURS_OF_DAY.length - 1))));
-    setHoveredHourIdx(hourIdx);
+    const minIdx = calculateMinuteIndexFromX(mouseX, rectWidth, width, padLeft, padRight, chartWidth);
+    setHoveredMinuteIdx(minIdx);
   };
 
   const handleMouseLeave = () => {
-    setHoveredHourIdx(null);
+    setHoveredMinuteIdx(null);
+  };
+
+  const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rectWidth = rect.width || width;
+    const mouseX = e.clientX - rect.left;
+    const minIdx = calculateMinuteIndexFromX(mouseX, rectWidth, width, padLeft, padRight, chartWidth);
+    onSeekMinute?.(minIdx);
   };
 
   return (
@@ -121,6 +128,7 @@ const ReadOnlyProfileChart = ({
         className="w-full h-16 overflow-visible cursor-pointer"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
       >
         <defs>
           <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
@@ -131,8 +139,8 @@ const ReadOnlyProfileChart = ({
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Active Simulation Traffic Position Dot (Always locked at safeHourIdx) */}
-        <g key={`traffic-dot-sidebar-active-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
+        {/* Active Simulation Traffic Position Dot */}
+        <g key={`traffic-dot-sidebar-active-${minuteIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
           <circle
             cx={currentPt.x}
@@ -145,13 +153,13 @@ const ReadOnlyProfileChart = ({
 
         {/* Hover Position Dot & Guide Line */}
         {hoveredPt && (
-          <g key={`traffic-dot-sidebar-hover-${hoveredHourIdx}`} data-testid="hover-traffic-dot">
-            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke={getHoverDotStroke(hoveredHourIdx === safeHourIdx, isRed)} strokeDasharray="2 2" strokeWidth="1" />
+          <g key={`traffic-dot-sidebar-hover-${hoveredMinuteIdx}`} data-testid="hover-traffic-dot">
+            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke={getHoverDotStroke(hoveredMinuteIdx === minuteIdx, isRed)} strokeDasharray="2 2" strokeWidth="1" />
             <circle
               cx={hoveredPt.x}
               cy={hoveredPt.y}
               r="5"
-              className={getHoverDotClass(hoveredHourIdx === safeHourIdx, isRed)}
+              className={getHoverDotClass(hoveredMinuteIdx === minuteIdx, isRed)}
               strokeWidth="1.5"
             />
           </g>
@@ -229,6 +237,13 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
               currentHourIndex={currentHourIndex}
               currentMinuteIndex={data.currentMinuteIndex}
               isRed={isRed}
+              onSeekMinute={(targetMinute) => {
+                const hourIdx = Math.floor(targetMinute / 60);
+                performUpdate({
+                  currentMinuteIndex: targetMinute,
+                  currentHourIndex: hourIdx
+                });
+              }}
             />
           ) : (
             <>

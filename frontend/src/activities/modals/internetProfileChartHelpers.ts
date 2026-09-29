@@ -142,6 +142,31 @@ export function calculateHourIndexFromX(
 }
 
 /**
+ * Calculates minute index (0..1439) from a mouse/pointer event X coordinate over the chart width.
+ *
+ * @param mouseX Relative mouse X position inside the SVG element
+ * @param rectWidth Rendered SVG bounding box width
+ * @param width Chart internal coordinate width
+ * @param padLeft Left padding
+ * @param padRight Right padding
+ * @param chartWidth Calculated inner chart width
+ * @returns Clamped minute index (0 to 1439)
+ */
+export function calculateMinuteIndexFromX(
+  mouseX: number,
+  rectWidth: number,
+  width: number,
+  padLeft: number,
+  padRight: number,
+  chartWidth: number
+): number {
+  const relativeX = (mouseX / rectWidth) * width;
+  const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
+  const ratio = (clampedX - padLeft) / chartWidth;
+  return Math.min(1439, Math.max(0, Math.round(ratio * 1439)));
+}
+
+/**
  * Calculates new Y value when dragging a chart point on the interactive profile chart.
  *
  * @param clientY Relative mouse/pointer Y position inside the SVG element

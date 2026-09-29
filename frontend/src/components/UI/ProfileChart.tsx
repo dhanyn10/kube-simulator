@@ -7,6 +7,7 @@ import {
   InternetProfileItem,
   calculateProfileChartData,
   calculateHourIndexFromX,
+  calculateMinuteIndexFromX,
   calculateYValueFromPointer,
   calculateMinutePoint
 } from '@/activities/modals';
@@ -31,7 +32,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   currentMinuteIndex,
   isRed
 }) => {
-  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
 
   const width = 220;
   const height = 55;
@@ -40,7 +41,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const padTop = 10;
   const padBottom = 10;
 
-  const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
+  const { points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
     width,
     height,
@@ -52,7 +53,6 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   const minuteIdx = typeof currentMinuteIndex === 'number'
     ? currentMinuteIndex
     : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);
@@ -60,19 +60,19 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const currentVal = currentPt.val;
   const currentHour = currentPt.hour;
 
-  const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
-  const hoveredVal = hoveredHourIdx !== null ? (values[hoveredHourIdx] ?? 0) : 0;
-  const hoveredHour = hoveredHourIdx !== null ? (HOURS_OF_DAY[hoveredHourIdx] || '00:00') : '00:00';
+  const hoveredPt = hoveredMinuteIdx !== null ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop) : null;
+  const hoveredVal = hoveredPt ? hoveredPt.val : 0;
+  const hoveredTimeStr = hoveredPt ? hoveredPt.hour : '00:00';
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
-    const hourIdx = calculateHourIndexFromX(mouseX, rect.width, width, padLeft, padRight, chartWidth);
-    setHoveredHourIdx(hourIdx);
+    const minIdx = calculateMinuteIndexFromX(mouseX, rect.width, width, padLeft, padRight, chartWidth);
+    setHoveredMinuteIdx(minIdx);
   };
 
   const handleMouseLeave = () => {
-    setHoveredHourIdx(null);
+    setHoveredMinuteIdx(null);
   };
 
   return (
@@ -91,9 +91,9 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Traffic Position Dot for Applied Profile (Always locked at safeHourIdx) */}
+      {/* Traffic Position Dot for Applied Profile */}
       {isApplied && (
-        <g key={`mini-traffic-dot-active-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
+        <g key={`mini-traffic-dot-active-${minuteIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
           <circle
             cx={currentPt.x}
@@ -108,15 +108,15 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
 
       {/* Hover Position Indicator Dot */}
       {hoveredPt && (
-        <g key={`mini-traffic-dot-hover-${hoveredHourIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
+        <g key={`mini-traffic-dot-hover-${hoveredMinuteIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
           <circle
             cx={hoveredPt.x}
             cy={hoveredPt.y}
             r="4"
-            className={getMiniHoverDotClass(hoveredHourIdx === safeHourIdx, isRed)}
+            className={getMiniHoverDotClass(hoveredMinuteIdx === minuteIdx, isRed)}
             strokeWidth="1.5"
           />
-          <title>{`${hoveredHour} - ${hoveredVal.toLocaleString()} visits`}</title>
+          <title>{`${hoveredTimeStr} - ${hoveredVal.toLocaleString()} visits`}</title>
         </g>
       )}
     </svg>
