@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Globe, Plus, Trash2, Check, Sparkles, LayoutGrid, ArrowLeft, Eye, Shuffle } from 'lucide-react';
+import { Globe, Plus, Trash2, Check, Sparkles, LayoutGrid, ArrowLeft, Eye, Shuffle, Pause, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
 import {
@@ -56,6 +56,9 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
 
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
+  const isSimulating = useFlowStore((state) => state.isSimulating);
+  const pauseSimulation = useFlowStore((state) => state.pauseSimulation);
+  const stopSimulation = useFlowStore((state) => state.stopSimulation);
 
   const outgoingEdges = edges.filter((e) => String(e.source) === String(selectedNode?.id));
   const isRed = useMemo(() => {
@@ -223,20 +226,54 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               })}
 
               {/* Add Custom Profile Template Card */}
-              <button
-                type="button"
-                onClick={handleStartCustomProfile}
-                className={cn(
-                  "p-4 rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 select-none min-h-[160px] outline-none focus:ring-2 focus:ring-blue-500/50 w-full",
-                  colorMode === 'dark' ? "border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/40 text-slate-400 hover:text-slate-200" : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+              <div className="relative group min-h-[160px] w-full">
+                {isSimulating && (
+                  <div className="absolute inset-0 z-20 rounded-xl bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 border border-amber-500/30">
+                    <span className="text-[11px] font-bold text-amber-400">
+                      Pause or Stop simulation to add custom profile
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          pauseSimulation();
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 flex items-center gap-1.5 transition-all"
+                      >
+                        <Pause size={12} fill="currentColor" />
+                        <span>Pause</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          stopSimulation();
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/40 flex items-center gap-1.5 transition-all"
+                      >
+                        <Square size={12} fill="currentColor" />
+                        <span>Stop</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
-              >
-                <div className="p-2.5 rounded-full bg-blue-600/20 text-blue-400">
-                  <Plus size={20} />
-                </div>
-                <span className="text-xs font-bold">Add Custom Profile</span>
-                <span className="text-[10px] text-slate-500">Create new randomized weekly connection schedule</span>
-              </button>
+
+                <button
+                  type="button"
+                  onClick={handleStartCustomProfile}
+                  className={cn(
+                    "p-4 rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2 select-none min-h-[160px] h-full outline-none focus:ring-2 focus:ring-blue-500/50 w-full",
+                    colorMode === 'dark' ? "border-slate-800 bg-slate-950/40 hover:border-slate-700 hover:bg-slate-900/40 text-slate-400 hover:text-slate-200" : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  <div className="p-2.5 rounded-full bg-blue-600/20 text-blue-400">
+                    <Plus size={20} />
+                  </div>
+                  <span className="text-xs font-bold">Add Custom Profile</span>
+                  <span className="text-[10px] text-slate-500">Create new randomized weekly connection schedule</span>
+                </button>
+              </div>
             </div>
           </>
         )}
