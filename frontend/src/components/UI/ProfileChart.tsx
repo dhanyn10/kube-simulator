@@ -3,11 +3,12 @@ import { Activity, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
-  HOURS_OF_DAY,
   InternetProfileItem,
   calculateProfileChartData,
   calculateHourIndexFromX,
-  calculateYValueFromPointer
+  calculateMinuteIndexFromX,
+  calculateYValueFromPointer,
+  calculateMinutePoint
 } from '@/activities/modals';
 import {
   getMiniHoverDotClass,
@@ -19,6 +20,7 @@ export interface MiniCurvePreviewProps {
   readonly profile: InternetProfileItem;
   readonly isApplied?: boolean;
   readonly currentHourIndex?: number;
+  readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
 }
 
@@ -26,9 +28,10 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   profile,
   isApplied,
   currentHourIndex,
+  currentMinuteIndex,
   isRed
 }) => {
-  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
 
   const width = 220;
   const height = 55;
@@ -37,7 +40,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const padTop = 10;
   const padBottom = 10;
 
-  const { values, points, pathD, areaD, chartWidth } = calculateProfileChartData(
+  const { points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
     width,
     height,
@@ -49,24 +52,29 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const currentPt = points[safeHourIdx] || points[0];
-  const currentVal = values[safeHourIdx] ?? 0;
-  const currentHour = HOURS_OF_DAY[safeHourIdx] || '00:00';
+  let minuteIdx = 0;
+  if (typeof currentMinuteIndex === 'number') {
+    minuteIdx = currentMinuteIndex;
+  } else if (typeof currentHourIndex === 'number') {
+    minuteIdx = currentHourIndex * 60;
+  }
+  const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
+  const currentVal = currentPt.val;
+  const currentHour = currentPt.hour;
 
-  const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
-  const hoveredVal = hoveredHourIdx !== null ? (values[hoveredHourIdx] ?? 0) : 0;
-  const hoveredHour = hoveredHourIdx !== null ? (HOURS_OF_DAY[hoveredHourIdx] || '00:00') : '00:00';
+  const hoveredPt = hoveredMinuteIdx !== null ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop) : null;
+  const hoveredVal = hoveredPt ? hoveredPt.val : 0;
+  const hoveredTimeStr = hoveredPt ? hoveredPt.hour : '00:00';
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
-    const hourIdx = calculateHourIndexFromX(mouseX, rect.width, width, padLeft, padRight, chartWidth);
-    setHoveredHourIdx(hourIdx);
+    const minIdx = calculateMinuteIndexFromX(mouseX, rect.width, width, padLeft, padRight, chartWidth);
+    setHoveredMinuteIdx(minIdx);
   };
 
   const handleMouseLeave = () => {
-    setHoveredHourIdx(null);
+    setHoveredMinuteIdx(null);
   };
 
   return (
@@ -85,9 +93,9 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
       <path d={areaD} fill={`url(#${gradientId})`} />
       <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Traffic Position Dot for Applied Profile (Always locked at safeHourIdx) */}
+      {/* Traffic Position Dot for Applied Profile */}
       {isApplied && (
-        <g key={`mini-traffic-dot-active-${safeHourIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
+        <g key={`mini-traffic-dot-active-${minuteIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
           <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
           <circle
             cx={currentPt.x}
@@ -102,15 +110,15 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
 
       {/* Hover Position Indicator Dot */}
       {hoveredPt && (
-        <g key={`mini-traffic-dot-hover-${hoveredHourIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
+        <g key={`mini-traffic-dot-hover-${hoveredMinuteIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
           <circle
             cx={hoveredPt.x}
             cy={hoveredPt.y}
             r="4"
-            className={getMiniHoverDotClass(hoveredHourIdx === safeHourIdx, isRed)}
+            className={getMiniHoverDotClass(hoveredMinuteIdx === minuteIdx, isRed)}
             strokeWidth="1.5"
           />
-          <title>{`${hoveredHour} - ${hoveredVal.toLocaleString()} visits`}</title>
+          <title>{`${hoveredTimeStr} - ${hoveredVal.toLocaleString()} visits`}</title>
         </g>
       )}
     </svg>
@@ -122,6 +130,7 @@ export interface InteractiveTrafficChartProps {
   readonly colorMode: string;
   readonly isApplied?: boolean;
   readonly currentHourIndex?: number;
+  readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
   readonly onUpdateName: (newName: string) => void;
@@ -132,6 +141,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   colorMode,
   isApplied,
   currentHourIndex,
+  currentMinuteIndex,
   isRed,
   onUpdatePoint,
   onUpdateName
@@ -165,6 +175,13 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   });
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
+  let minuteIdx = 0;
+  if (typeof currentMinuteIndex === 'number') {
+    minuteIdx = currentMinuteIndex;
+  } else if (typeof currentHourIndex === 'number') {
+    minuteIdx = currentHourIndex * 60;
+  }
+  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
 
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -301,6 +318,30 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Minute-level Active Traffic Indicator Dot */}
+        {isSimulating && isApplied && (
+          <g key={`interactive-active-traffic-dot-${minuteIdx}`} data-testid="interactive-active-traffic-dot">
+            <line
+              x1={activeMinutePt.x}
+              y1={padTop}
+              x2={activeMinutePt.x}
+              y2={padTop + chartHeight}
+              stroke={isRed ? '#f43f5e' : '#10b981'}
+              strokeDasharray="2 2"
+              strokeWidth="2"
+            />
+            <circle cx={activeMinutePt.x} cy={activeMinutePt.y} r="8" className="fill-transparent" />
+            <circle
+              cx={activeMinutePt.x}
+              cy={activeMinutePt.y}
+              r="5"
+              className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900" : "fill-emerald-400 stroke-white dark:stroke-slate-900"}
+              strokeWidth="1.5"
+            />
+            <title>{`${activeMinutePt.hour} - ${activeMinutePt.val.toLocaleString()} visits`}</title>
+          </g>
+        )}
 
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
