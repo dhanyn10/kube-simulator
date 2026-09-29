@@ -134,6 +134,38 @@ export interface UiSlice {
 }
 
 const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } = { current: null };
+let simulationTicksCount = 0;
+
+/**
+ * Calculates tick interval duration based on simulation speed.
+ */
+export const getSimulationIntervalDuration = (speed: number): number => {
+  if (speed === 10) return 30;
+  if (speed === 5) return 60;
+  return 300;
+};
+
+/**
+ * Starts or restarts the active simulation timer loop matching the current simulation speed.
+ */
+const startSimulationTimer = (get: () => FlowState, set: FlowStateSetter) => {
+  if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);
+  const speed = get().simulationSpeed || 1;
+  const intervalMs = getSimulationIntervalDuration(speed);
+
+  simulationIntervalObj.current = setInterval(() => {
+    simulationTicksCount++;
+    const state = get();
+    if (!state.isSimulating) {
+      if (simulationIntervalObj.current) {
+        clearInterval(simulationIntervalObj.current);
+        simulationIntervalObj.current = null;
+      }
+      return;
+    }
+    runSimulationTick({ state, ticks: simulationTicksCount, set, get });
+  }, intervalMs);
+};
 
 /**
  * Retrieves the Wails runtime if available.
@@ -514,20 +546,10 @@ const startSimulationInternal = (
         dispatchLiveCommand('kubectl apply -f k8s-manifest.yaml');
       }
 
-      let ticks = 0;
-      if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);
-      simulationIntervalObj.current = setInterval(() => {
-        ticks++;
-        const state = get();
-        if (!state.isSimulating) {
-          if (simulationIntervalObj.current) {
-              clearInterval(simulationIntervalObj.current);
-              simulationIntervalObj.current = null;
-          }
-          return;
-        }
-        runSimulationTick({ state, ticks, set, get });
-      }, 1000);
+      if (!isPaused) {
+        simulationTicksCount = 0;
+      }
+      startSimulationTimer(get, set);
 };
 
 /**
@@ -882,6 +904,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
    */
   setSimulationSpeed: (speed) => {
     set({ simulationSpeed: speed });
+    if (get().isSimulating) {
+      startSimulationTimer(get, set);
+    }
   },
   stopSimulation: () => {
     const { nodes } = get();

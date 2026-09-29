@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '../UI/ConfigUI';
 import { InternetProfileModal } from '../Modals/InternetProfileModal';
-import { HOURS_OF_DAY } from '@/activities/modals';
+import { HOURS_OF_DAY, calculateMinutePoint } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -41,10 +41,12 @@ const getHoverDotClass = (isHoveredSameHour: boolean, isRed?: boolean): string =
 const ReadOnlyProfileChart = ({
   profile,
   currentHourIndex,
+  currentMinuteIndex,
   isRed
 }: {
   readonly profile: any;
   readonly currentHourIndex?: number;
+  readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
@@ -78,7 +80,10 @@ const ReadOnlyProfileChart = ({
   const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const currentPt = points[safeHourIdx] || points[0];
+  const minuteIdx = typeof currentMinuteIndex === 'number'
+    ? currentMinuteIndex
+    : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);
+  const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
   const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -219,7 +224,12 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
       >
         <div className="px-1 py-2 space-y-2">
           {activeProfile ? (
-            <ReadOnlyProfileChart profile={activeProfile} currentHourIndex={currentHourIndex} isRed={isRed} />
+            <ReadOnlyProfileChart
+              profile={activeProfile}
+              currentHourIndex={currentHourIndex}
+              currentMinuteIndex={data.currentMinuteIndex}
+              isRed={isRed}
+            />
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono">

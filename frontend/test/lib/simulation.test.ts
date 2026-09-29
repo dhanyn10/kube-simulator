@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   calculateReachability,
   updateInternetTraffic,
+  getInterpolatedProfileTraffic,
   SimulationContext,
   calculateResourceMetrics,
   checkPvcReadiness,
@@ -131,6 +132,43 @@ describe('simulation test suite', () => {
 
     const res = updateInternetTraffic(redNode, ctx);
     expect(res.traffic).toBe(0);
+  });
+
+  it('calculates linear interpolated profile traffic per minute', () => {
+    const profile = {
+      hourly: {
+        '00:00': 100,
+        '01:00': 200,
+        '23:00': 500
+      }
+    };
+
+    expect(getInterpolatedProfileTraffic(null, 0)).toBe(1000);
+    expect(getInterpolatedProfileTraffic(profile, 0)).toBe(100);
+    expect(getInterpolatedProfileTraffic(profile, 30)).toBe(150);
+    expect(getInterpolatedProfileTraffic(profile, 60)).toBe(200);
+  });
+
+  it('updates internet node traffic with minute-level profile resolution', () => {
+    const profileNode = createNode('i1', 'Internet', {
+      currentMinuteIndex: 0,
+      currentHourIndex: 0,
+      profileTicks: 0,
+      connectionProfile: {
+        hourly: {
+          '00:00': 100,
+          '01:00': 200
+        }
+      }
+    });
+
+    const ctx = getMockCtx({ ticks: 4, activeSimulationEdges: ['e1'] });
+    ctx.updatedNodes = [profileNode];
+    ctx.nodeIndexMap = new Map([['i1', 0]]);
+
+    const res = updateInternetTraffic(profileNode, ctx);
+    expect(res.traffic).toBe(102); // 00:01 traffic interpolated
+    expect(ctx.updatedNodes[0].data.currentMinuteIndex).toBe(1);
   });
 
   it.each([

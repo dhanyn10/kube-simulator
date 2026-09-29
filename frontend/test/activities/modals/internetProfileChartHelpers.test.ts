@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateProfileChartData,
   calculateHourIndexFromX,
-  calculateYValueFromPointer
+  calculateYValueFromPointer,
+  formatMinuteToHHMM,
+  calculateMinutePoint
 } from '@/activities/modals/internetProfileChartHelpers';
 
 describe('internetProfileChartHelpers', () => {
@@ -72,5 +74,44 @@ describe('internetProfileChartHelpers', () => {
     // Pointer at bottom -> near minVal (clamped at least 10)
     const bottomVal = calculateYValueFromPointer(90, 100, height, padTop, chartHeight, minVal, maxVal);
     expect(bottomVal).toBe(10);
+  });
+
+  it('formats minute index to HH:MM time string', () => {
+    expect(formatMinuteToHHMM(0)).toBe('00:00');
+    expect(formatMinuteToHHMM(525)).toBe('08:45');
+    expect(formatMinuteToHHMM(1439)).toBe('23:59');
+    expect(formatMinuteToHHMM(1440)).toBe('00:00');
+  });
+
+  it('calculates minute point position and linear interpolation accurately', () => {
+    const { points, minVal, maxVal, chartHeight } = calculateProfileChartData(
+      dummyProfile,
+      200,
+      100,
+      10,
+      10,
+      10,
+      10
+    );
+
+    // Empty points fallback
+    expect(calculateMinutePoint([], 0, 0, 1000, 80, 10)).toEqual({
+      x: 0,
+      y: 0,
+      val: 0,
+      hour: '00:00'
+    });
+
+    // Minute 0 (00:00)
+    const ptMin0 = calculateMinutePoint(points, 0, minVal, maxVal, chartHeight, 10);
+    expect(ptMin0.x).toBe(points[0].x);
+    expect(ptMin0.val).toBe(points[0].val);
+    expect(ptMin0.hour).toBe('00:00');
+
+    // Minute 30 (00:30) - exact midpoint between hour 0 (100) and hour 1 (200)
+    const ptMin30 = calculateMinutePoint(points, 30, minVal, maxVal, chartHeight, 10);
+    expect(ptMin30.x).toBeCloseTo((points[0].x + points[1].x) / 2);
+    expect(ptMin30.val).toBe(150);
+    expect(ptMin30.hour).toBe('00:30');
   });
 });

@@ -260,6 +260,26 @@ export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext):
 };
 
 /**
+ * Calculates linear interpolated traffic for a given minute index (0..1439).
+ */
+export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number): number => {
+  if (!profile) return 1000;
+  const safeMinute = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
+  const currentHour = Math.floor(safeMinute / 60) % 24;
+  const nextHour = (currentHour + 1) % 24;
+  const minuteInHour = safeMinute % 60;
+  const fraction = minuteInHour / 60;
+
+  const h1Key = `${String(currentHour).padStart(2, '0')}:00`;
+  const h2Key = `${String(nextHour).padStart(2, '0')}:00`;
+
+  const v1 = profile.hourly?.[h1Key] ?? profile.daily?.[h1Key] ?? 0;
+  const v2 = profile.hourly?.[h2Key] ?? profile.daily?.[h2Key] ?? 0;
+
+  return Math.round(v1 + fraction * (v2 - v1));
+};
+
+/**
  * Smoothly adjusts current internet traffic towards target traffic setting.
  */
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
@@ -274,28 +294,23 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const prevProfileTicks = iData.profileTicks ?? 0;
   const currentProfileTicks = isRed ? prevProfileTicks : (prevProfileTicks + 1);
 
-  // Scale hour indexing by simulation speed across 24-hour cycle
-  const currentHourIndex = Math.floor((currentProfileTicks * speed) / 3) % 24;
+  // Minute-level resolution across 1440 minutes in a 24-hour cycle
+  const prevMinuteIndex = iData.currentMinuteIndex ?? ((iData.currentHourIndex ?? 0) * 60);
+  const currentMinuteIndex = isRed ? prevMinuteIndex : ((prevMinuteIndex + 1) % 1440);
+  const currentHourIndex = Math.floor(currentMinuteIndex / 60);
 
   if (iData.connectionProfile) {
-    const profile = iData.connectionProfile;
-    const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-    const currentHour = hours[currentHourIndex];
-
-    const profileVal = profile.hourly?.[currentHour] ?? profile.daily?.[currentHour];
-    if (typeof profileVal === 'number') {
-      targetTraffic = profileVal;
-    }
+    targetTraffic = getInterpolatedProfileTraffic(iData.connectionProfile, currentMinuteIndex);
   }
 
   const currentTraffic = iData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
   // Hold traffic at 0 during container initialization startup delay (ticks 1..3) or when connection is red
-  if (ctx.ticks <= 3) {
+  if (ctx.ticks <= 3 || isRed) {
     nextTraffic = 0;
-  } else if (isRed) {
-    nextTraffic = 0;
+  } else if (iData.connectionProfile) {
+    nextTraffic = targetTraffic;
   } else {
     const step = 1000 * speed;
     if (currentTraffic < targetTraffic) {
@@ -306,8 +321,18 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   }
 
   let hasChanges = false;
-  if (nextTraffic !== currentTraffic || iData.currentHourIndex !== currentHourIndex || iData.profileTicks !== currentProfileTicks) {
-    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic, currentHourIndex, profileTicks: currentProfileTicks });
+  if (
+    nextTraffic !== currentTraffic ||
+    iData.currentHourIndex !== currentHourIndex ||
+    iData.currentMinuteIndex !== currentMinuteIndex ||
+    iData.profileTicks !== currentProfileTicks
+  ) {
+    hasChanges = updateNodeData(ctx, internet.id, {
+      currentTraffic: nextTraffic,
+      currentHourIndex,
+      currentMinuteIndex,
+      profileTicks: currentProfileTicks
+    });
   }
   return { traffic: nextTraffic, hasChanges };
 };
