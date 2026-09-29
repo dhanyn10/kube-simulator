@@ -141,7 +141,7 @@ let simulationTicksCount = 0;
  */
 export const getSimulationIntervalDuration = (speed: number): number => {
   const safeSpeed = Math.max(1, speed);
-  return Math.round(300 / safeSpeed);
+  return Math.max(10, Math.round(150 / safeSpeed));
 };
 
 /**
