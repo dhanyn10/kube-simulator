@@ -81,9 +81,12 @@ const ReadOnlyProfileChart = ({
 
   const lastPoint = points.at(-1) || points[0];
   const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
-  const minuteIdx = typeof currentMinuteIndex === 'number'
-    ? currentMinuteIndex
-    : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);
+  let minuteIdx = 0;
+  if (typeof currentMinuteIndex === 'number') {
+    minuteIdx = currentMinuteIndex;
+  } else if (typeof currentHourIndex === 'number') {
+    minuteIdx = currentHourIndex * 60;
+  }
   const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
   const hoveredPt = hoveredMinuteIdx !== null ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop) : null;
 

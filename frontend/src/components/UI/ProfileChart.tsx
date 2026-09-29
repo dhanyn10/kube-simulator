@@ -52,9 +52,12 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
 
-  const minuteIdx = typeof currentMinuteIndex === 'number'
-    ? currentMinuteIndex
-    : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);
+  let minuteIdx = 0;
+  if (typeof currentMinuteIndex === 'number') {
+    minuteIdx = currentMinuteIndex;
+  } else if (typeof currentHourIndex === 'number') {
+    minuteIdx = currentHourIndex * 60;
+  }
   const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
   const currentVal = currentPt.val;
   const currentHour = currentPt.hour;
@@ -172,9 +175,12 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   });
 
   const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const minuteIdx = typeof currentMinuteIndex === 'number'
-    ? currentMinuteIndex
-    : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);
+  let minuteIdx = 0;
+  if (typeof currentMinuteIndex === 'number') {
+    minuteIdx = currentMinuteIndex;
+  } else if (typeof currentHourIndex === 'number') {
+    minuteIdx = currentHourIndex * 60;
+  }
   const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
 
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
