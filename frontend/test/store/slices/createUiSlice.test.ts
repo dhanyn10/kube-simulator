@@ -304,6 +304,8 @@ describe('createUiSlice', () => {
     startSimulation();
 
     expect(useFlowStore.getState().isSimulating).toBe(true);
+    expect(useFlowStore.getState().configuringNodeId).toBe('i1');
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
 
     // Advance 1 second to trigger tick
     vi.advanceTimersByTime(1000);

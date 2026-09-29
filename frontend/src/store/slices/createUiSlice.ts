@@ -488,10 +488,18 @@ const startSimulationInternal = (
       // Clear logs and show terminal only when starting fresh (not resuming)
       const initialTerminalLogs = buildInitialTerminalLogs(nodes);
 
+      const internetNode = nodes.find(n => n.type === 'Internet');
+      const internetConfigState = internetNode ? {
+        configuringNodeId: internetNode.id,
+        configuringEdgeId: null,
+        isRightSidebarVisible: true,
+      } : {};
+
       set({
         isSimulating: true,
         isPaused: false,
         activeSimulationEdges: activeEdges,
+        ...internetConfigState,
         ...(isPaused ? {} : {
           simulationMetrics: {},
           isTerminalOpen: true,
