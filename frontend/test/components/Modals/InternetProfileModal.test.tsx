@@ -325,6 +325,38 @@ describe('InternetProfileModal', () => {
     });
   });
 
+  it('displays Pause and Stop overlay buttons on Add Custom Profile card during active simulation, invoking pauseSimulation and stopSimulation', async () => {
+    const pauseSimulationMock = vi.fn();
+    const stopSimulationMock = vi.fn();
+
+    useFlowStore.setState({
+      isSimulating: true,
+      pauseSimulation: pauseSimulationMock,
+      stopSimulation: stopSimulationMock
+    });
+
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    expect(screen.getByText('Pause or Stop simulation to add custom profile')).toBeDefined();
+
+    const pauseBtn = screen.getByRole('button', { name: /Pause/i });
+    fireEvent.click(pauseBtn);
+    expect(pauseSimulationMock).toHaveBeenCalled();
+
+    const stopBtn = screen.getByRole('button', { name: /Stop/i });
+    fireEvent.click(stopBtn);
+    expect(stopSimulationMock).toHaveBeenCalled();
+  });
+
   it('displays "None" in footer when no active profile is applied and triggers onClose when Close button is clicked', async () => {
     const nodeWithoutProfile = {
       id: 'node-internet-1',
