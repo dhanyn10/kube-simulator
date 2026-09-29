@@ -77,7 +77,7 @@ export const useSimulationControls = (props: UseSimulationControlsProps) => {
   } = props;
 
   const isPausedStore = useFlowStore((state) => state.isPaused);
-  const isPaused = isPausedProp !== undefined ? isPausedProp : isPausedStore;
+  const isPaused = isPausedProp ?? isPausedStore;
 
   const title = getSimulationButtonTitle(hasInternet, hasHpaValidationError, isSimulating, isPaused);
   const buttonClass = getSimulationButtonClass(hasInternet, isSimulating, hasHpaValidationError, isPaused);
@@ -89,8 +89,8 @@ export const useSimulationControls = (props: UseSimulationControlsProps) => {
   const storePauseSimulation = useFlowStore((state) => state.pauseSimulation);
   const storeStartSimulation = useFlowStore((state) => state.startSimulation);
 
-  const handlePause = pauseSimulationProp || storePauseSimulation;
-  const handleStart = startSimulationProp || storeStartSimulation;
+  const handlePause = pauseSimulationProp ?? storePauseSimulation;
+  const handleStart = startSimulationProp ?? storeStartSimulation;
 
   const hasActiveProfile = useMemo(() => {
     return nodes.some((n: { type: string; data?: { connectionProfile?: unknown } }) => (
