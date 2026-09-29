@@ -170,4 +170,64 @@ describe('useCustomEdge & edge helpers', () => {
     });
     expect(useFlowStore.getState().terminalActiveTab).toBe('activity');
   });
+
+  it('covers onAlertClick activity log dispatching for validationError and isTargetError with unready downstream node', () => {
+    const unreadyPod = { id: 'pod-unready', type: 'Pod', data: { label: 'unready-pod', status: 'pending' } };
+    const srcNode = { id: 'n1', type: 'Service', data: { label: 'SourceSvc' } };
+
+    useFlowStore.setState({
+      activeSimulationEdges: ['e1'],
+      nodes: [srcNode, unreadyPod] as any,
+      edges: [{ id: 'e1', source: 'n1', target: 'pod-unready' }] as any,
+      addActivityLog: vi.fn(),
+    });
+
+    // 1. With validationError
+    const { result: res1 } = renderHook(() =>
+      useCustomEdge({
+        id: 'e1',
+        source: 'n1',
+        target: 'pod-unready',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: { validationError: 'Invalid port mapping' },
+      })
+    );
+
+    const mockEvent = { stopPropagation: vi.fn() } as any;
+
+    act(() => {
+      res1.current.onAlertClick(mockEvent);
+    });
+    expect(useFlowStore.getState().addActivityLog).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid port mapping')
+    );
+
+    // 2. With isTargetError (no validationError)
+    const { result: res2 } = renderHook(() =>
+      useCustomEdge({
+        id: 'e1',
+        source: 'n1',
+        target: 'pod-unready',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    act(() => {
+      res2.current.onAlertClick(mockEvent);
+    });
+    expect(useFlowStore.getState().addActivityLog).toHaveBeenCalledWith(
+      expect.stringContaining('is not in ready state')
+    );
+  });
 });

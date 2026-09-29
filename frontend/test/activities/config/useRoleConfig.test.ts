@@ -50,6 +50,42 @@ describe('useRoleConfig', () => {
       });
     });
 
+    it('handleDisconnectResource handles Service/ConfigMap/Secret/PVC resource kinds when edge target is role-1 and source is otherNode', () => {
+      const rules: K8sRoleRule[] = [
+        { apiGroups: [''], resources: ['services', 'secrets'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      const svcNode: Node = { id: 'svc-1', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 100, y: 0 }, data: {} };
+      const edgeToRole: Edge = { id: 'e1', source: 'svc-1', target: 'role-1' };
+
+      useFlowStore.setState({
+        nodes: [svcNode, roleNode] as any,
+        edges: [edgeToRole] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rules));
+
+      act(() => {
+        result.current.handleDisconnectResource('services');
+      });
+
+      expect(setEdgesSpy).toHaveBeenCalledWith([]);
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
+        rules: [
+          {
+            apiGroups: [''],
+            resources: ['secrets'],
+            verbs: ['get'],
+          },
+        ],
+      });
+    });
+
     it('handleRemoveRule removes specified rule by index', () => {
       const rules: K8sRoleRule[] = [
         { apiGroups: ['apps'], resources: ['pods'], verbs: ['get'] },

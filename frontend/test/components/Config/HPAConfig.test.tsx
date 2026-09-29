@@ -43,6 +43,28 @@ describe('HPAConfig', () => {
     expect(screen.getByText('NOT CONNECTED')).toBeDefined();
   });
 
+  it('renders target deployment without label fallback to target.id', () => {
+    const depNodeNoLabel = {
+      id: 'dep-id-only',
+      type: 'Deployment',
+      data: {}
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, depNodeNoLabel],
+      edges: [{ id: 'e1', source: 'hpa1', target: 'dep-id-only' }]
+    });
+
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+  });
+
   it('renders LINKED status when connected to deployment with requests', () => {
     const depNode = {
       id: 'dep1',
