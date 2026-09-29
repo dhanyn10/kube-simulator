@@ -61,6 +61,14 @@ describe('ConfigUI uncovered conditions', () => {
 
     fireEvent.change(input, { target: { value: '25' } });
     expect(onChange).toHaveBeenCalledWith(25);
+
+    // NumberStepper decrement and increment buttons click
+    const buttons = screen.getAllByRole('button');
+    fireEvent.click(buttons[0]); // decrement
+    expect(onChange).toHaveBeenCalledWith(4);
+
+    fireEvent.click(buttons[1]); // increment
+    expect(onChange).toHaveBeenCalledWith(6);
   });
 
   it('covers RangeInput onChange handler', () => {

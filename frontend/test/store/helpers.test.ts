@@ -112,6 +112,14 @@ describe('store helpers', () => {
     expect(newPod2.label).toBe(`${newPod2.baseName}-${newPod2.podHash}-${newPod2.replicaSuffix}`);
   });
 
+  it('syncPodsInDeployment removes child pods when replicas <= 0', () => {
+    const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 0, label: 'app' } } as any;
+    const existingChild = { id: 'p1', parentId: 'd1', type: 'Pod', data: { baseName: 'app', podHash: 'h1', replicaSuffix: 's1' } } as any;
+
+    const pods = syncPodsInDeployment(deployment, [existingChild]);
+    expect(pods).toHaveLength(0);
+  });
+
   it('syncPodsInDeployment should handle dataTemplate for displaySettings', () => {
     const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
     const dataTemplate = { data: { displaySettings: { some: 'setting' }, image: 'templ-img' } } as any;

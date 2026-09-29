@@ -119,6 +119,7 @@ describe('createLogSlice', () => {
     expect(mockWriteLog).toHaveBeenCalledWith('app', 'info', 'System message');
   });
 
+
   it('deleteLog removes log by id and updates sessionStorage', () => {
     const slice = createLogSlice(setStore as any, getStore as any, {} as any);
     storeState = {

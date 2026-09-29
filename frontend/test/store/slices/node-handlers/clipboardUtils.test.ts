@@ -72,5 +72,13 @@ describe('clipboardUtils', () => {
       updateReplicaDelta(childPod, 1, [parentNs, childPod], updateNodeData);
       expect(updateNodeData).not.toHaveBeenCalled();
     });
+
+    it('handles target node without replicas property defaulting current replicas to 0', () => {
+      const targetNoReplicas: Node = { id: 'dep-no-rep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+      const updateNodeData = vi.fn();
+
+      updateReplicaDelta(targetNoReplicas, 1, [targetNoReplicas], updateNodeData);
+      expect(updateNodeData).toHaveBeenCalledWith('dep-no-rep', { replicas: 1 });
+    });
   });
 });

@@ -196,5 +196,19 @@ describe('terminalConfigCommands', () => {
     it('returns true for non-operational commands', () => {
       expect(evaluateRbacForCommand('kubectl config view', mockCtx)).toBe(true);
     });
+
+    it('handles storeState object parameter or function parameter in evaluateRbacForCommand', () => {
+      const mockCtxWithState = {
+        ...mockCtx,
+        getStoreState: () => ({
+          activeIdentity: 'budi',
+          iamUsers: storeState.iamUsers,
+          nodes: mockCtx.nodes,
+        }),
+      };
+
+      const result = evaluateRbacForCommand('kubectl get pods', mockCtxWithState as any);
+      expect(result).toBe(true);
+    });
   });
 });
