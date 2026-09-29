@@ -130,6 +130,9 @@ export interface K8sNodeData {
 
   // Internet specific fields
   traffic?: number;
+  currentMinuteIndex?: number;
+  currentHourIndex?: number;
+  profileTicks?: number;
   parentReplicas?: number;
   displaySettings?: Record<string, boolean>;
   yamlSettings?: Record<string, boolean>;

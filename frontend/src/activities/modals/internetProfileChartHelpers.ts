@@ -8,6 +8,68 @@ export interface InternetProfileItem {
 export const HOURS_OF_DAY = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
 /**
+ * Formats a minute index (0..1439) into HH:MM format (e.g. 14:35).
+ */
+export function formatMinuteToHHMM(minuteIndex: number): string {
+  const safeMinute = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
+  const hours = Math.floor(safeMinute / 60);
+  const mins = safeMinute % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+/**
+ * Linearly interpolates traffic value for a specific minute index (0..1439)
+ * based on hourly anchor data points in the connection profile.
+ */
+export function getInterpolatedProfileTraffic(profile: any, minuteIndex: number): number {
+  if (!profile) return 0;
+  const safeMinute = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
+  const h1Index = Math.floor(safeMinute / 60);
+  const h2Index = (h1Index + 1) % 24;
+  const minuteInHour = safeMinute % 60;
+  const t = minuteInHour / 60;
+
+  const h1Key = HOURS_OF_DAY[h1Index];
+  const h2Key = HOURS_OF_DAY[h2Index];
+
+  const v1 = profile.hourly?.[h1Key] ?? profile.daily?.[h1Key] ?? 0;
+  const v2 = profile.hourly?.[h2Key] ?? profile.daily?.[h2Key] ?? 0;
+
+  return Math.round(v1 + (v2 - v1) * t);
+}
+
+/**
+ * Calculates exact SVG (x, y) coordinates for an active minute index (0..1439)
+ * on a profile curve graph.
+ */
+export function calculateMinutePoint(
+  profile: InternetProfileItem,
+  minuteIndex: number,
+  width: number,
+  height: number,
+  padLeft: number,
+  padRight: number,
+  padTop: number,
+  padBottom: number
+) {
+  const chartWidth = width - padLeft - padRight;
+  const chartHeight = height - padTop - padBottom;
+
+  const safeMinute = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
+  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? profile.daily?.[hour] ?? 0);
+  const currentMax = Math.max(...values, 1000);
+  const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
+  const minVal = 0;
+
+  const val = getInterpolatedProfileTraffic(profile, safeMinute);
+  const x = padLeft + (safeMinute / 1439) * chartWidth;
+  const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
+  const timeStr = formatMinuteToHHMM(safeMinute);
+
+  return { x, y, val, timeStr, safeMinute };
+}
+
+/**
  * Calculates point coordinates and SVG path data for traffic profile charts.
  *
  * @param profile Internet profile item containing hourly values

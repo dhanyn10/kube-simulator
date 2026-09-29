@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateProfileChartData,
   calculateHourIndexFromX,
-  calculateYValueFromPointer
+  calculateYValueFromPointer,
+  formatMinuteToHHMM,
+  getInterpolatedProfileTraffic,
+  calculateMinutePoint
 } from '@/activities/modals/internetProfileChartHelpers';
 
 describe('internetProfileChartHelpers', () => {
@@ -72,5 +75,50 @@ describe('internetProfileChartHelpers', () => {
     // Pointer at bottom -> near minVal (clamped at least 10)
     const bottomVal = calculateYValueFromPointer(90, 100, height, padTop, chartHeight, minVal, maxVal);
     expect(bottomVal).toBe(10);
+  });
+
+  it('formats minute index to HH:MM string', () => {
+    expect(formatMinuteToHHMM(0)).toBe('00:00');
+    expect(formatMinuteToHHMM(90)).toBe('01:30');
+    expect(formatMinuteToHHMM(875)).toBe('14:35');
+    expect(formatMinuteToHHMM(1439)).toBe('23:59');
+  });
+
+  it('interpolates traffic value linearly between hourly anchor points', () => {
+    const profile = {
+      name: 'Linear Profile',
+      hourly: {
+        '00:00': 100,
+        '01:00': 200,
+      }
+    };
+
+    // Minute 0 (00:00) -> 100
+    expect(getInterpolatedProfileTraffic(profile, 0)).toBe(100);
+
+    // Minute 30 (00:30) -> halfway between 100 and 200 -> 150
+    expect(getInterpolatedProfileTraffic(profile, 30)).toBe(150);
+
+    // Minute 60 (01:00) -> 200
+    expect(getInterpolatedProfileTraffic(profile, 60)).toBe(200);
+  });
+
+  it('calculates exact SVG minute point positioning', () => {
+    const profile = {
+      name: 'Linear Profile',
+      hourly: {
+        '00:00': 100,
+        '01:00': 200,
+      }
+    };
+
+    const pt0 = calculateMinutePoint(profile, 0, 200, 100, 10, 10, 10, 10);
+    expect(pt0.x).toBe(10); // padLeft
+    expect(pt0.timeStr).toBe('00:00');
+    expect(pt0.val).toBe(100);
+
+    const ptMid = calculateMinutePoint(profile, 720, 200, 100, 10, 10, 10, 10);
+    expect(ptMid.timeStr).toBe('12:00');
+    expect(ptMid.x).toBeGreaterThan(10);
   });
 });

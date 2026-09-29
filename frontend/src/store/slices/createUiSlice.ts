@@ -134,6 +134,33 @@ export interface UiSlice {
 }
 
 const simulationIntervalObj: { current: ReturnType<typeof setInterval> | null } = { current: null };
+let simulationTicksCount = 0;
+
+/**
+ * Calculates tick interval duration in milliseconds based on simulation speed (Option A).
+ */
+export const getSimulationIntervalDuration = (speed: 1 | 5 | 10): number => {
+  const baseIntervalMs = 300;
+  return Math.max(10, Math.round(baseIntervalMs / speed));
+};
+
+const runSimulationLoop = (set: FlowStateSetter, get: () => FlowState) => {
+  if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);
+  const duration = getSimulationIntervalDuration(get().simulationSpeed || 1);
+
+  simulationIntervalObj.current = setInterval(() => {
+    simulationTicksCount++;
+    const state = get();
+    if (!state.isSimulating) {
+      if (simulationIntervalObj.current) {
+        clearInterval(simulationIntervalObj.current);
+        simulationIntervalObj.current = null;
+      }
+      return;
+    }
+    runSimulationTick({ state, ticks: simulationTicksCount, set, get });
+  }, duration);
+};
 
 /**
  * Retrieves the Wails runtime if available.
@@ -510,24 +537,12 @@ const startSimulationInternal = (
       });
 
       if (!isPaused) {
+        simulationTicksCount = 0;
         // Automatically dispatch kubectl apply command when starting simulation
         dispatchLiveCommand('kubectl apply -f k8s-manifest.yaml');
       }
 
-      let ticks = 0;
-      if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);
-      simulationIntervalObj.current = setInterval(() => {
-        ticks++;
-        const state = get();
-        if (!state.isSimulating) {
-          if (simulationIntervalObj.current) {
-              clearInterval(simulationIntervalObj.current);
-              simulationIntervalObj.current = null;
-          }
-          return;
-        }
-        runSimulationTick({ state, ticks, set, get });
-      }, 1000);
+      runSimulationLoop(set, get);
 };
 
 /**
@@ -538,6 +553,7 @@ const handleStopSimulation = (
   set: FlowStateSetter,
   get: () => FlowState
 ) => {
+  simulationTicksCount = 0;
   stopSimulationInternal(set, get, simulationIntervalObj);
   const deleteActivity: string[] = [
     `$ kubectl delete -f k8s-manifest.yaml`,
@@ -882,6 +898,10 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
    */
   setSimulationSpeed: (speed) => {
     set({ simulationSpeed: speed });
+    const { isSimulating, isPaused } = get();
+    if (isSimulating && !isPaused) {
+      runSimulationLoop(set, get);
+    }
   },
   stopSimulation: () => {
     const { nodes } = get();

@@ -52,6 +52,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
   const cardName = selectedNode?.data?.label || 'Internet';
 
   const currentHourIndex = selectedNode?.data?.currentHourIndex;
+  const currentMinuteIndex = selectedNode?.data?.currentMinuteIndex;
 
   const edges = useFlowStore((state) => state.edges);
   const nodes = useFlowStore((state) => state.nodes);
@@ -174,7 +175,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       </h4>
 
                       {/* Curve Preview */}
-                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} isRed={isRed} />
+                      <MiniCurvePreview profile={p} isApplied={isApplied} currentHourIndex={currentHourIndex} currentMinuteIndex={currentMinuteIndex} isRed={isRed} />
                     </div>
 
                     {/* Metrics Summary */}
@@ -268,6 +269,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               colorMode={colorMode}
               isApplied={detailProfile.name === activeProfileName}
               currentHourIndex={currentHourIndex}
+              currentMinuteIndex={currentMinuteIndex}
               isRed={isRed}
               onUpdatePoint={handleUpdateDetailPoint}
               onUpdateName={handleUpdateDetailName}
@@ -320,6 +322,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               colorMode={colorMode}
               isApplied={false}
               currentHourIndex={currentHourIndex}
+              currentMinuteIndex={currentMinuteIndex}
               isRed={isRed}
               onUpdatePoint={handleUpdateCustomPoint}
               onUpdateName={setNewProfileName}

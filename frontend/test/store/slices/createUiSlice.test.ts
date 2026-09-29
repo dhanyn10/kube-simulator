@@ -328,15 +328,15 @@ describe('createUiSlice', () => {
     const { startSimulation } = useFlowStore.getState();
     startSimulation();
 
-    // Advance 1 second to trigger tick 1
-    vi.advanceTimersByTime(1000);
+    // Advance 300ms to trigger tick 1
+    vi.advanceTimersByTime(300);
     let state = useFlowStore.getState();
     let pod = state.nodes.find(n => n.id === 'pod-1');
     expect(pod?.data.status).toBe('pending');
     expect(pod?.data.pendingTicks).toBe(1);
 
-    // Advance 1 more second to trigger tick 2 (should transition to ready/Running)
-    vi.advanceTimersByTime(1000);
+    // Advance 300ms more to trigger tick 2 (should transition to ready/Running)
+    vi.advanceTimersByTime(300);
     state = useFlowStore.getState();
     pod = state.nodes.find(n => n.id === 'pod-1');
     expect(pod?.data.status).toBe('ready');
@@ -371,27 +371,27 @@ describe('createUiSlice', () => {
     const { startSimulation } = useFlowStore.getState();
     startSimulation();
 
-    // Advance 1 second to trigger tick 1: rollout should select pod-1, update image, and make it pending
-    vi.advanceTimersByTime(1000);
+    // Advance 300ms to trigger tick 1: rollout should select pod-1, update image, and make it pending
+    vi.advanceTimersByTime(300);
     let state = useFlowStore.getState();
     let pod = state.nodes.find(n => n.id === 'pod-1');
     expect(pod?.data.status).toBe('pending');
     expect(pod?.data.image).toBe('nginx:alpine');
 
-    // Advance 1 more second to trigger tick 2: pod pendingTicks becomes 1 (still pending)
-    vi.advanceTimersByTime(1000);
+    // Advance 300ms more to trigger tick 2: pod pendingTicks becomes 1 (still pending)
+    vi.advanceTimersByTime(300);
     state = useFlowStore.getState();
     pod = state.nodes.find(n => n.id === 'pod-1');
     expect(pod?.data.status).toBe('pending');
 
-    // Advance 1 more second to trigger tick 3: pod pendingTicks becomes 2 (transitions to ready)
-    vi.advanceTimersByTime(1000);
+    // Advance 300ms more to trigger tick 3: pod pendingTicks becomes 2 (transitions to ready)
+    vi.advanceTimersByTime(300);
     state = useFlowStore.getState();
     pod = state.nodes.find(n => n.id === 'pod-1');
     expect(pod?.data.status).toBe('ready');
 
-    // Advance 1 more second to trigger tick 4: rollout finishes (since pod is ready, no more old pods)
-    vi.advanceTimersByTime(1000);
+    // Advance 300ms more to trigger tick 4: rollout finishes (since pod is ready, no more old pods)
+    vi.advanceTimersByTime(300);
     state = useFlowStore.getState();
     const dep = state.nodes.find(n => n.id === 'dep-1');
     expect(dep?.data.isRollingUpdate).toBe(false);
@@ -768,14 +768,14 @@ describe('createUiSlice', () => {
 
     // Tick 1: pod-pending is pending, so rollout waits (hasPendingPod is true).
     // Tick 1 also logs pending pods in activityLogs.
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(300);
 
     let state = useFlowStore.getState();
     expect(state.activityLogs.some((l) => l.includes('Pending'))).toBe(true);
 
     // Tick 2: pod-pending transitions to ready (pendingTicks = 2).
     // In the same tick, since no pods are pending anymore, rollout picks pod-ready-old and updates its image.
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(300);
 
     state = useFlowStore.getState();
     const pendingPodNow = state.nodes.find((n) => n.id === 'pod-pending');

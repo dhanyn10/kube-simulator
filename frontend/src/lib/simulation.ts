@@ -3,6 +3,7 @@ import { K8sNodeData, K8sConfigMapItem } from '@/types';
 import { SimulationMetricPoint, FlowState } from '@/store/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
 import { syncDeployment } from '@/store/nodeHelpers';
+import { getInterpolatedProfileTraffic } from '@/activities/modals/internetProfileChartHelpers';
 import { logger } from './logger';
 
 export interface SimulationContext {
@@ -274,18 +275,12 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   const prevProfileTicks = iData.profileTicks ?? 0;
   const currentProfileTicks = isRed ? prevProfileTicks : (prevProfileTicks + 1);
 
-  // Scale hour indexing by simulation speed across 24-hour cycle
-  const currentHourIndex = Math.floor((currentProfileTicks * speed) / 3) % 24;
+  // In Option A, 1 tick = 1 minute (1440 minutes per 24 hours):
+  const currentMinuteIndex = currentProfileTicks % 1440;
+  const currentHourIndex = Math.floor(currentMinuteIndex / 60);
 
   if (iData.connectionProfile) {
-    const profile = iData.connectionProfile;
-    const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-    const currentHour = hours[currentHourIndex];
-
-    const profileVal = profile.hourly?.[currentHour] ?? profile.daily?.[currentHour];
-    if (typeof profileVal === 'number') {
-      targetTraffic = profileVal;
-    }
+    targetTraffic = getInterpolatedProfileTraffic(iData.connectionProfile, currentMinuteIndex);
   }
 
   const currentTraffic = iData.currentTraffic ?? 0;
@@ -296,6 +291,8 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
     nextTraffic = 0;
   } else if (isRed) {
     nextTraffic = 0;
+  } else if (iData.connectionProfile) {
+    nextTraffic = targetTraffic;
   } else {
     const step = 1000 * speed;
     if (currentTraffic < targetTraffic) {
@@ -306,8 +303,18 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   }
 
   let hasChanges = false;
-  if (nextTraffic !== currentTraffic || iData.currentHourIndex !== currentHourIndex || iData.profileTicks !== currentProfileTicks) {
-    hasChanges = updateNodeData(ctx, internet.id, { currentTraffic: nextTraffic, currentHourIndex, profileTicks: currentProfileTicks });
+  if (
+    nextTraffic !== currentTraffic ||
+    iData.currentMinuteIndex !== currentMinuteIndex ||
+    iData.currentHourIndex !== currentHourIndex ||
+    iData.profileTicks !== currentProfileTicks
+  ) {
+    hasChanges = updateNodeData(ctx, internet.id, {
+      currentTraffic: nextTraffic,
+      currentMinuteIndex,
+      currentHourIndex,
+      profileTicks: currentProfileTicks,
+    });
   }
   return { traffic: nextTraffic, hasChanges };
 };

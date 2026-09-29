@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '../UI/ConfigUI';
 import { InternetProfileModal } from '../Modals/InternetProfileModal';
-import { HOURS_OF_DAY } from '@/activities/modals';
+import { HOURS_OF_DAY, calculateMinutePoint } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -41,10 +41,12 @@ const getHoverDotClass = (isHoveredSameHour: boolean, isRed?: boolean): string =
 const ReadOnlyProfileChart = ({
   profile,
   currentHourIndex,
+  currentMinuteIndex,
   isRed
 }: {
   readonly profile: any;
   readonly currentHourIndex?: number;
+  readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
@@ -77,8 +79,22 @@ const ReadOnlyProfileChart = ({
   const lastPoint = points.at(-1) || points[0];
   const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
-  const currentPt = points[safeHourIdx] || points[0];
+  const safeMinuteIndex = typeof currentMinuteIndex === 'number'
+    ? currentMinuteIndex
+    : ((typeof currentHourIndex === 'number' ? currentHourIndex : 0) * 60);
+
+  const minutePt = calculateMinutePoint(
+    profile,
+    safeMinuteIndex,
+    width,
+    height,
+    padLeft,
+    padRight,
+    padTop,
+    padBottom
+  );
+
+  const safeHourIdx = Math.floor((safeMinuteIndex % 1440) / 60);
   const hoveredPt = hoveredHourIdx !== null ? points[hoveredHourIdx] : null;
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -106,7 +122,7 @@ const ReadOnlyProfileChart = ({
         {isSimulating && (
           <span className="text-[10px] font-mono text-emerald-400 font-extrabold flex items-center gap-1 bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            {currentPt.hour}
+            {minutePt.timeStr}
           </span>
         )}
       </div>
@@ -126,12 +142,12 @@ const ReadOnlyProfileChart = ({
         <path d={areaD} fill="url(#sidebarChartGrad)" />
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Active Simulation Traffic Position Dot (Always locked at safeHourIdx) */}
-        <g key={`traffic-dot-sidebar-active-${safeHourIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
-          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+        {/* Active Simulation Traffic Position Dot (Smooth minute-level position) */}
+        <g key={`traffic-dot-sidebar-active-${safeMinuteIndex}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
+          <circle cx={minutePt.x} cy={minutePt.y} r="8" className="fill-transparent" />
           <circle
-            cx={currentPt.x}
-            cy={currentPt.y}
+            cx={minutePt.x}
+            cy={minutePt.y}
             r="4.5"
             className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125"}
             strokeWidth="1.5"
@@ -172,6 +188,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
   const currentTraffic = Math.max(1, data.traffic || 1);
   const activeProfile = data.connectionProfile;
   const currentHourIndex = data.currentHourIndex;
+  const currentMinuteIndex = data.currentMinuteIndex;
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const edges = useFlowStore((state) => state.edges);
@@ -219,7 +236,7 @@ export const InternetConfig = ({ selectedNode, performUpdate, toggleVisibility }
       >
         <div className="px-1 py-2 space-y-2">
           {activeProfile ? (
-            <ReadOnlyProfileChart profile={activeProfile} currentHourIndex={currentHourIndex} isRed={isRed} />
+            <ReadOnlyProfileChart profile={activeProfile} currentHourIndex={currentHourIndex} currentMinuteIndex={currentMinuteIndex} isRed={isRed} />
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono">

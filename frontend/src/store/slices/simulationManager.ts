@@ -42,7 +42,7 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
       return { ...n, data: { ...n.data, pvcStatus: 'Pending' } };
     }
     if (n.type === 'Internet') {
-      return { ...n, data: { ...n.data, currentHourIndex: 0, profileTicks: 0 } };
+      return { ...n, data: { ...n.data, currentHourIndex: 0, currentMinuteIndex: 0, profileTicks: 0 } };
     }
     return n;
   });
