@@ -31,9 +31,10 @@ const getHoverDotStroke = (isHoveredSameHour: boolean, isRed?: boolean): string 
  */
 const getHoverDotClass = (isHoveredSameHour: boolean, isRed?: boolean): string => {
   if (isHoveredSameHour) {
-    return isRed
-      ? 'fill-rose-500 stroke-white dark:stroke-slate-900'
-      : 'fill-emerald-400 stroke-white dark:stroke-slate-900';
+    if (isRed) {
+      return 'fill-rose-500 stroke-white dark:stroke-slate-900';
+    }
+    return 'fill-emerald-400 stroke-white dark:stroke-slate-900';
   }
   return 'fill-blue-300 stroke-white dark:stroke-slate-900';
 };
@@ -80,8 +81,6 @@ const ReadOnlyProfileChart = ({
 
   const lastPoint = points.at(-1) || points[0];
   const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
-
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   const minuteIdx = typeof currentMinuteIndex === 'number'
     ? currentMinuteIndex
     : (typeof currentHourIndex === 'number' ? currentHourIndex * 60 : 0);

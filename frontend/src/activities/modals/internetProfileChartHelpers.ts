@@ -38,18 +38,10 @@ export function calculateMinutePoint(
   const fraction = minuteInHour / 60;
 
   const pt1 = points[hour1] || points[0];
+  const pt2 = hour1 < points.length - 1 ? (points[hour1 + 1] || pt1) : pt1;
 
-  let x = pt1.x;
-  let val = pt1.val;
-
-  if (hour1 < points.length - 1) {
-    const pt2 = points[hour1 + 1] || pt1;
-    x = pt1.x + fraction * (pt2.x - pt1.x);
-    val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
-  } else {
-    x = pt1.x;
-    val = pt1.val;
-  }
+  const x = pt1.x + fraction * (pt2.x - pt1.x);
+  const val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
 
   const range = Math.max(1, maxVal - minVal);
   const y = padTop + chartHeight - ((val - minVal) / range) * chartHeight;

@@ -3,7 +3,6 @@ import { Activity, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
-  HOURS_OF_DAY,
   InternetProfileItem,
   calculateProfileChartData,
   calculateHourIndexFromX,
