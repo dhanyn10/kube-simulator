@@ -3,6 +3,7 @@ import {
   getProgressSegmentStyles,
   getMegaCircleDashArray,
   getSegmentClass,
+  getActiveBarClass,
 } from '@/activities/nodes/nodeProgressHelpers';
 
 describe('nodeProgressHelpers', () => {
@@ -14,7 +15,17 @@ describe('nodeProgressHelpers', () => {
     expect(lightStyles.circleBgClass).toBe('text-slate-200');
   });
 
-  it('returns expected segment class when isAutocompleteHovered is true and hoveredPodIndex is not matching index', () => {
+  it('returns expected segment class for unfilled indices, hoveredPodIndex null/negative/matching/non-matching, and custom highlightedBarClass', () => {
+    // 1. Unfilled index (index >= replicas)
+    const unfilled = getSegmentClass({
+      index: 3,
+      replicas: 3,
+      progressEmptyBgClass: 'bg-slate-700',
+      activeBarClass: 'bg-emerald-500',
+    });
+    expect(unfilled).toBe('bg-slate-700');
+
+    // 2. Non-matching index when hoveredPodIndex is specified
     const resNonMatching = getSegmentClass({
       index: 1,
       replicas: 3,
@@ -23,8 +34,36 @@ describe('nodeProgressHelpers', () => {
       hoveredPodIndex: 0, // index 1 !== hoveredPodIndex 0
       activeBarClass: 'bg-emerald-500',
     });
-
     expect(resNonMatching).toBe('bg-emerald-500');
+
+    // 3. Matching index when hoveredPodIndex matches index
+    const resMatching = getSegmentClass({
+      index: 1,
+      replicas: 3,
+      progressEmptyBgClass: 'bg-slate-700',
+      isAutocompleteHovered: true,
+      hoveredPodIndex: 1,
+      activeBarClass: 'bg-emerald-500',
+      highlightedBarClass: 'bg-blue-600',
+    });
+    expect(resMatching).toBe('bg-blue-600');
+
+    // 4. Hovered when hoveredPodIndex is null or negative
+    const resNullHover = getSegmentClass({
+      index: 0,
+      replicas: 3,
+      progressEmptyBgClass: 'bg-slate-700',
+      isAutocompleteHovered: true,
+      hoveredPodIndex: null,
+      activeBarClass: 'bg-emerald-500',
+    });
+    expect(resNullHover).toContain('bg-blue-500');
+  });
+
+  it('getActiveBarClass returns expected classes for crashing, pending, and ready states', () => {
+    expect(getActiveBarClass(true, false)).toContain('bg-red-600');
+    expect(getActiveBarClass(false, true)).toContain('bg-red-500');
+    expect(getActiveBarClass(false, false)).toContain('bg-emerald-500');
   });
 
   it('returns expected styles for ready, pending, crashing, and autocomplete hovered states', () => {
