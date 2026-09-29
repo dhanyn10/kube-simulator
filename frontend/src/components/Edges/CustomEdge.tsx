@@ -62,7 +62,7 @@ export default function CustomEdge(props: EdgeProps) {
               >
                 <AlertCircle size={16} />
               </button>
-              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-[1100]">
+              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-[4]">
                 {alertTooltip}
               </div>
             </div>
