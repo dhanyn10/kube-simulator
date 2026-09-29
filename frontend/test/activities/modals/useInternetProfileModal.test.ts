@@ -235,6 +235,33 @@ describe('useInternetProfileModal', () => {
     expect(mockSaveInternetProfile).toHaveBeenCalledWith('Valid Custom Detail', expect.any(String));
   });
 
+  it('updates detail point when profile name starts with custom- and isModifiedCustom is false without changing profile name', async () => {
+    const customProfile: InternetProfileItem = {
+      name: 'custom-12345678901234',
+      hourly: { '00:00': 1000 }
+    };
+    mockGetInternetProfiles.mockResolvedValue([customProfile]);
+
+    const { result } = renderHook(() =>
+      useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+    );
+
+    await act(async () => {});
+
+    act(() => {
+      result.current.handleOpenDetails('custom-12345678901234');
+    });
+
+    expect(result.current.detailProfile.name).toBe('custom-12345678901234');
+
+    act(() => {
+      result.current.handleUpdateDetailPoint('00:00', 2000);
+    });
+
+    expect(result.current.detailProfile.hourly['00:00']).toBe(2000);
+    expect(result.current.detailProfile.name).toBe('custom-12345678901234');
+  });
+
   it('handles backend error during handleSaveAndApplyDetailProfile gracefully', async () => {
     mockSaveInternetProfile.mockRejectedValue(new Error('Save failed'));
 

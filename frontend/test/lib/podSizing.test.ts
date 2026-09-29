@@ -54,6 +54,15 @@ describe('podSizing utils', () => {
       const h2 = calculatePodHeight(data2, 168, [], false);
       expect(h2).toBeGreaterThan(h1);
     });
+
+    it('increases height for dashed progress, badges, and image display', () => {
+      const dataWithDashed = { type: 'Pod' as any, parentReplicas: 5, image: 'nginx:latest' };
+      const height = calculatePodHeight(dataWithDashed, 168, ['runtime-go'], false);
+      expect(height).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
+
+      const heightMega = calculatePodHeight(dataWithDashed, 168, ['runtime-go'], true);
+      expect(heightMega).toBeGreaterThan(height);
+    });
   });
 
   describe('getPodMinimumSize', () => {

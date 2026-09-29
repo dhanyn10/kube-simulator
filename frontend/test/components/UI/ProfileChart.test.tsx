@@ -326,6 +326,7 @@ describe('ProfileChart Component', () => {
       expect(screen.getByText(/00:00 • 100,000/i)).toBeInTheDocument();
     });
 
+
     it('renders all X-axis labels including last element (23:00)', () => {
       render(<InteractiveTrafficChart {...defaultProps} />);
       expect(screen.getByText('23:00')).toBeInTheDocument();

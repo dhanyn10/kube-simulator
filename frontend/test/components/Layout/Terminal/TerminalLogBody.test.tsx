@@ -89,7 +89,7 @@ describe('TerminalLogBody', () => {
     expect(screen.getByText('Waiting for log stream...')).toBeInTheDocument();
   });
 
-  it('renders paginated logs lines with correct line indices', () => {
+  it('renders paginated logs lines with correct line indices in light mode', () => {
     render(
       <TerminalLogBody
         isSimulating={true}
@@ -98,9 +98,9 @@ describe('TerminalLogBody', () => {
         loggableResources={[]}
         paginatedLogs={['$ kubectl get pods', 'web-pod Running']}
         searchQuery=""
-        colorMode="dark"
+        colorMode="light"
         startSimulation={vi.fn()}
-        currentPage={1}
+        currentPage={2}
         pageSize={25}
       />
     );

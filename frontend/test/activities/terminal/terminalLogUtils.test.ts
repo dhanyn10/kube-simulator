@@ -42,6 +42,14 @@ describe('terminalLogUtils', () => {
       const successLine = 'Switched to context "dev-user".';
       expect(getLogLineColorClass(successLine, 'dark')).toContain('text-emerald-400');
       expect(getLogLineColorClass(successLine, 'light')).toContain('text-emerald-600');
+
+      const runningOnlyLine = 'Container status is Running';
+      expect(getLogLineColorClass(runningOnlyLine, 'dark')).toContain('text-emerald-400');
+    });
+
+    it('handles isHeaderLine dashed lines starting with --- or === returning false for header check', () => {
+      const dashedDivider = '----------------------------------------';
+      expect(getLogLineColorClass(dashedDivider, 'dark')).toBe('text-slate-500 font-bold');
     });
 
     it('returns rose/red for error messages and failed executions', () => {
@@ -117,11 +125,14 @@ describe('terminalLogUtils', () => {
       expect(fn).toContain('activity-history-my-project');
     });
 
-    it('finds node by target name', () => {
+    it('finds node by target name and filterType array or single filterType', () => {
       const nodes: Node[] = [
         { id: 'node-1', position: { x: 0, y: 0 }, data: { label: 'WebPod' }, type: 'pod' },
+        { id: 'node-2', position: { x: 0, y: 0 }, data: { label: 'WebSvc' }, type: 'service' },
       ];
-      expect(findNodeByTargetName(nodes, 'webpod')).toEqual(nodes[0]);
+      expect(findNodeByTargetName(nodes, 'webpod', ['deployment'])).toBeUndefined();
+      expect(findNodeByTargetName(nodes, 'webpod', ['pod', 'service'])).toEqual(nodes[0]);
+      expect(findNodeByTargetName(nodes, 'webpod', 'pod')).toEqual(nodes[0]);
       expect(findNodeByTargetName(nodes, 'unknown')).toBeUndefined();
     });
 

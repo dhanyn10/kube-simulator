@@ -211,6 +211,15 @@ describe('nodeHelpers', () => {
       expect(nextNodes).toBeDefined();
     });
 
+    it('calculates minimum bounding box for children with measured width/height fallbacks', () => {
+      const container = { id: 'c1', type: 'Deployment', position: { x: 0, y: 0 } } as any;
+      const measuredChild = { id: 'p1', type: 'Pod', parentId: 'c1', position: { x: 10, y: 10 }, measured: { width: 150, height: 90 } } as any;
+
+      const nextNodes = syncContainerSize('c1', [container, measuredChild]);
+      const updatedContainer = nextNodes.find(n => n.id === 'c1');
+      expect(updatedContainer.width).toBeGreaterThanOrEqual(160);
+    });
+
     it('recursively syncs parent container when nested containers exist', () => {
       const parentContainer = { id: 'parent-c', type: 'Namespace', position: { x: 0, y: 0 }, width: 100, height: 100 } as any;
       const childContainer = { id: 'child-c', parentId: 'parent-c', type: 'Namespace', position: { x: 0, y: 0 }, width: 100, height: 100 } as any;

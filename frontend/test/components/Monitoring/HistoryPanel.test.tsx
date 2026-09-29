@@ -79,6 +79,22 @@ describe('HistoryPanel', () => {
     expect(screen.queryByText('Current')).not.toBeInTheDocument();
   });
 
+  it('renders non-current log item when currentHistoryIndex is null for items at index > 0', () => {
+    mockLogs = [
+      { actionName: 'Action 1', index: 1, timestamp: Date.now() },
+      { actionName: 'Action 2', index: 2, timestamp: Date.now() },
+    ];
+    mockCurrentHistoryIndex = null;
+
+    render(<HistoryPanel colorMode="dark" />);
+
+    const log1 = screen.getByText('Action 1').closest('button');
+    const log2 = screen.getByText('Action 2').closest('button');
+
+    expect(log1?.className).toContain('bg-violet-950/40');
+    expect(log2?.className).not.toContain('bg-violet-950/40');
+  });
+
   it('renders empty activity recorded state', () => {
     mockLogs = [];
     render(<HistoryPanel colorMode="dark" />);

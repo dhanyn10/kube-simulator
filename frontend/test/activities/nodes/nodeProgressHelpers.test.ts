@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getProgressSegmentStyles,
   getMegaCircleDashArray,
+  getSegmentClass,
 } from '@/activities/nodes/nodeProgressHelpers';
 
 describe('nodeProgressHelpers', () => {
@@ -11,6 +12,19 @@ describe('nodeProgressHelpers', () => {
 
     const lightStyles = getProgressSegmentStyles('light');
     expect(lightStyles.circleBgClass).toBe('text-slate-200');
+  });
+
+  it('returns expected segment class when isAutocompleteHovered is true and hoveredPodIndex is not matching index', () => {
+    const resNonMatching = getSegmentClass({
+      index: 1,
+      replicas: 3,
+      progressEmptyBgClass: 'bg-slate-700',
+      isAutocompleteHovered: true,
+      hoveredPodIndex: 0, // index 1 !== hoveredPodIndex 0
+      activeBarClass: 'bg-emerald-500',
+    });
+
+    expect(resNonMatching).toBe('bg-emerald-500');
   });
 
   it('returns expected styles for ready, pending, crashing, and autocomplete hovered states', () => {

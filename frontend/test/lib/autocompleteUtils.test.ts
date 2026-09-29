@@ -71,8 +71,11 @@ describe('autocompleteUtils centerDropdownItem', () => {
     expect(container.scrollTop).toBe(75);
   });
 
-  it('handles null or invalid parameters safely', () => {
+  it('handles null or invalid parameters safely and handles missing target item element', () => {
     expect(() => centerDropdownItem(null, 0, 5)).not.toThrow();
     expect(() => centerDropdownItem(container, -1, 0)).not.toThrow();
+
+    // Target item element missing in container
+    expect(() => centerDropdownItem(container, 99, 100)).not.toThrow();
   });
 });

@@ -226,7 +226,7 @@ describe('clipboardHandlers', () => {
     // 2. Node in clipboard with no position or data, and pre-existing edges on canvas
     const plainNode: Node = { id: 'plain1', type: 'Service' } as any;
     const podNoData: Node = { id: 'pod-no-data', type: 'Pod' } as any;
-    const unmappedEdge = { id: 'e-unmapped', source: 'plain1', target: 'missing-target' };
+    const unmappedEdge = { id: 'e-unmapped', source: 'missing-source', target: 'missing-target' };
     const existingEdge = { id: 'e-existing', source: 'a', target: 'b', selected: true };
 
     useFlowStore.setState({
@@ -241,6 +241,7 @@ describe('clipboardHandlers', () => {
     expect(state.nodes).toHaveLength(2);
     expect(state.edges).toHaveLength(2);
     expect(state.edges[0].selected).toBe(false);
+    expect(state.edges[1].source).toBe('missing-source');
     expect(state.edges[1].target).toBe('missing-target');
   });
 

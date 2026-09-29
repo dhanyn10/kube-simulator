@@ -241,8 +241,27 @@ describe('SaveModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it('renders context menu without Load Profile button when target item is null', async () => {
+  it('renders context menu without Load Profile button when target item is null and handles open folder location on project item', async () => {
     render(<SaveModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Web Architecture')).toBeInTheDocument();
+    });
+
+    const projectRow = screen.getByText('Web Architecture').closest('tr')!;
+    act(() => {
+      fireEvent.contextMenu(projectRow);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Open Folder Location')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Open Folder Location'));
+    });
+
+    expect((globalThis as any).go.main.App.OpenFileFolder).toHaveBeenCalled();
 
     // Trigger context menu with null item on header
     const header = screen.getByText('Save Architecture & Recent Files');

@@ -90,4 +90,28 @@ describe('useRightSidebar', () => {
     expect(result.current.isCanvasDropdownOpen).toBe(false);
     document.body.removeChild(outsideElem);
   });
+
+  it('ignores outside click when event.target is inside canvasDropdownRef container', () => {
+    const { result } = renderHook(() => useRightSidebar());
+
+    const dropdownContainer = document.createElement('div');
+    const childButton = document.createElement('button');
+    dropdownContainer.appendChild(childButton);
+    document.body.appendChild(dropdownContainer);
+
+    (result.current.canvasDropdownRef as any).current = dropdownContainer;
+
+    act(() => {
+      result.current.setIsCanvasDropdownOpen(true);
+    });
+
+    // Click inside container
+    act(() => {
+      childButton.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+
+    expect(result.current.isCanvasDropdownOpen).toBe(true);
+
+    document.body.removeChild(dropdownContainer);
+  });
 });

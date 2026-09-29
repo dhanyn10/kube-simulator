@@ -114,6 +114,11 @@ describe('IAMUserDetailView', () => {
     const roleRow = screen.getByText('PodReaderRole-rb-node').closest('tr')!;
     fireEvent.click(roleRow);
     expect(onNavigateToRole).toHaveBeenCalledWith('node-pod-1', 'Web Pod');
+
+    // Click binding ID button inside cell
+    const bindingBtn = screen.getByRole('button', { name: /PodReaderRole-rb-node/i });
+    fireEvent.click(bindingBtn);
+    expect(onNavigateToRole).toHaveBeenCalledWith('node-pod-1', 'Web Pod');
   });
 
   it('switches to editing mode, finishes edit with Full Access, and updates active identity if user is active', () => {

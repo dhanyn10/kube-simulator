@@ -1,8 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useNodeStatus, useNodeContainerStyles, getRoleDragClasses } from '@/hooks/useNodeStatusStyles';
+import { useNodeStatus, useNodeContainerStyles, getRoleDragClasses, getNodeBorderColorHex } from '@/hooks/useNodeStatusStyles';
 
 describe('useNodeStatus', () => {
+  it('getNodeBorderColorHex resolves status or color hex fallback', () => {
+    expect(getNodeBorderColorHex(false, false, true)).toBe('#dc2626');
+    expect(getNodeBorderColorHex(true, false, false)).toBe('#ef4444');
+    expect(getNodeBorderColorHex(false, true, false)).toBe('#10b981');
+    expect(getNodeBorderColorHex(false, false, false, 'blue')).toBe('#3b82f6');
+    expect(getNodeBorderColorHex(false, false, false, 'unmapped-color')).toBe('#10b981');
+    expect(getNodeBorderColorHex(false, false, false)).toBe('#10b981');
+  });
+
   it('identifies ready status for pods', () => {
     const data = { type: 'Pod', status: 'ready' } as any;
     const { result } = renderHook(() => useNodeStatus(data, undefined, 'cyan', 'dark'));

@@ -87,6 +87,7 @@ describe('useSecretModal and useHpaModal', () => {
       result.current.setMinReplicas(2);
       result.current.setMaxReplicas(8);
       result.current.setTargetCPU(75);
+      result.current.setTargetMemory(60);
     });
 
     act(() => {
@@ -98,9 +99,53 @@ describe('useSecretModal and useHpaModal', () => {
         name: 'custom-hpa',
         minReplicas: 2,
         maxReplicas: 8,
-        targetCPU: 75
+        targetCPU: 75,
+        targetMemory: 60
       })
     );
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('handles initialHpa values and fallbacks for invalid bounds in handleSave', () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+
+    const initialHpa = {
+      id: 'existing-hpa-1',
+      name: '',
+      minReplicas: 2,
+      maxReplicas: 5,
+      targetCPU: 50,
+      targetMemory: 40
+    };
+
+    const { result } = renderHook(() =>
+      useHpaModal(true, 'node-1', initialHpa as any, onSave, onClose)
+    );
+
+    expect(result.current.hpaName).toBe('app-hpa');
+    expect(result.current.minReplicas).toBe(2);
+    expect(result.current.maxReplicas).toBe(5);
+
+    act(() => {
+      result.current.setHpaName('  ');
+      result.current.setMinReplicas(0); // Clamped to min 1
+      result.current.setMaxReplicas(0); // Clamped to minVal
+      result.current.setTargetCPU(150); // Clamped to 100
+      result.current.setTargetMemory(-10); // Undefined
+    });
+
+    act(() => {
+      result.current.handleSave();
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      id: 'existing-hpa-1',
+      name: 'unnamed-hpa',
+      minReplicas: 1,
+      maxReplicas: 10,
+      targetCPU: 100,
+    });
     expect(onClose).toHaveBeenCalled();
   });
 });
