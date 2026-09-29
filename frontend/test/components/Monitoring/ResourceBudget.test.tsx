@@ -69,7 +69,8 @@ describe('ResourceBudget', () => {
       },
       nodes: [
         { id: 'dep1', type: 'Deployment', data: { cpuRequest: '500m', replicas: 1 } },
-        { id: 'child1', parentId: 'dep1', type: 'Pod', data: { cpuRequest: '500m' } }
+        { id: 'child1', parentId: 'dep1', type: 'Pod', data: { cpuRequest: '500m' } },
+        { id: 'svc1', type: 'Service', data: {} }
       ]
     });
 
@@ -78,7 +79,26 @@ describe('ResourceBudget', () => {
     // Shows missing limits warning
     expect(screen.getByText(/Some nodes have no limits/)).toBeDefined();
 
-    // CPU Req should only count parent Deployment (500m), skipping child1
+    // CPU Req should only count parent Deployment (500m), skipping child1 and svc1
     expect(screen.getByText(/K8s Req: 500m/)).toBeDefined();
+  });
+
+  it('handles missing freeMemoryGB, missing CPU/RAM limits fallback to requests, and K8s limit overhead over 90%', () => {
+    useFlowStore.setState({
+      systemResources: {
+        cpuCores: 1,
+        totalMemoryGB: 1,
+        freeMemoryGB: undefined as any,
+        cpuUsage: 10
+      },
+      nodes: [
+        { id: 'dep1', type: 'Deployment', data: { cpuRequest: '950m', memoryRequest: '950Mi', cpuLimit: '950m', memoryLimit: '950Mi' } }
+      ]
+    });
+
+    render(<ResourceBudget />);
+
+    expect(screen.getByText('System Overload!')).toBeDefined();
+    expect(screen.getAllByText('0.0GB').length).toBeGreaterThan(0);
   });
 });
