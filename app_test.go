@@ -693,20 +693,23 @@ func TestApp_InternetProfiles(t *testing.T) {
 		t.Error("Expected SaveInternetProfile to fail with empty name")
 	}
 
-	// 3. Save valid profile
-	sampleProfile := `{"name":"Custom Peak","daily":{"Monday":100,"Tuesday":200,"Wednesday":150,"Thursday":300,"Friday":250,"Saturday":500,"Sunday":400},"timestamp":1700000000}`
+	// 3. Save valid profile with hourly and daily data
+	sampleProfile := `{"name":"Custom Peak","hourly":{"00:00":1200,"12:00":3500},"daily":{"Monday":100,"Tuesday":200,"Wednesday":150,"Thursday":300,"Friday":250,"Saturday":500,"Sunday":400},"timestamp":1700000000}`
 	ok := app.SaveInternetProfile("Custom Peak", sampleProfile)
 	if !ok {
 		t.Error("Expected SaveInternetProfile to succeed")
 	}
 
-	// 4. GetInternetProfiles should find the saved profile
+	// 4. GetInternetProfiles should find the saved profile with hourly data preserved
 	savedList := app.GetInternetProfiles()
 	if len(savedList) != 1 {
 		t.Fatalf("Expected 1 profile, got %d", len(savedList))
 	}
 	if savedList[0].Name != "Custom Peak" {
 		t.Errorf("Expected profile name 'Custom Peak', got '%s'", savedList[0].Name)
+	}
+	if savedList[0].Hourly["00:00"] != 1200 || savedList[0].Hourly["12:00"] != 3500 {
+		t.Errorf("Expected hourly values '00:00': 1200 and '12:00': 3500, got %+v", savedList[0].Hourly)
 	}
 	if savedList[0].Daily["Saturday"] != 500 {
 		t.Errorf("Expected Saturday daily value 500, got %d", savedList[0].Daily["Saturday"])
