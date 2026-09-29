@@ -65,6 +65,7 @@ export interface UiSlice {
   isSidebarVisible: boolean;
   isRightSidebarVisible: boolean;
   isSimulating: boolean;
+  isPaused: boolean;
   simulationSpeed: 1 | 5 | 10;
   activeSimulationEdges: string[];
   simulationMetrics: Record<string, SimulationMetricPoint[]>;
@@ -449,11 +450,11 @@ const startSimulationInternal = (
     set: FlowStateSetter,
     get: () => FlowState
   ) => {
-      const { nodes, edges, colorMode, simulationMetrics } = get();
+      const { nodes, edges, colorMode, simulationMetrics, isPaused } = get();
 
       if (!validateHpaTargets(nodes, edges)) {
           logger.error('[Simulation] ERROR: HPA requires resource limits on target workloads.');
-          set({ isSimulating: true, activeSimulationEdges: [], simulationMetrics: {} });
+          set({ isSimulating: true, isPaused: false, activeSimulationEdges: [], simulationMetrics: {} });
           setTimeout(() => {
             stopSimulationInternal(set, get, simulationIntervalObj);
           }, 3000);
@@ -484,21 +485,26 @@ const startSimulationInternal = (
       const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)));
       const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
 
-      // Clear logs and show terminal
+      // Clear logs and show terminal only when starting fresh (not resuming)
       const initialTerminalLogs = buildInitialTerminalLogs(nodes);
 
       set({
         isSimulating: true,
+        isPaused: false,
         activeSimulationEdges: activeEdges,
-        simulationMetrics: {},
-        isTerminalOpen: true,
-        terminalActiveTab: 'activity',
-        activityLogs: buildInitialActivity(nodes),
-        terminalLogs: initialTerminalLogs,
+        ...(isPaused ? {} : {
+          simulationMetrics: {},
+          isTerminalOpen: true,
+          terminalActiveTab: 'activity',
+          activityLogs: buildInitialActivity(nodes),
+          terminalLogs: initialTerminalLogs,
+        })
       });
 
-      // Automatically dispatch kubectl apply command when starting simulation
-      dispatchLiveCommand('kubectl apply -f k8s-manifest.yaml');
+      if (!isPaused) {
+        // Automatically dispatch kubectl apply command when starting simulation
+        dispatchLiveCommand('kubectl apply -f k8s-manifest.yaml');
+      }
 
       let ticks = 0;
       if (simulationIntervalObj.current) clearInterval(simulationIntervalObj.current);
@@ -630,6 +636,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   isSidebarVisible: true,
   isRightSidebarVisible: true,
   isSimulating: false,
+  isPaused: false,
   simulationSpeed: 1,
   activeSimulationEdges: [],
   simulationMetrics: {},

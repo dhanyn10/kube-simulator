@@ -7,11 +7,14 @@ import { useFlowStore } from '@/store';
 export const getSimulationButtonTitle = (
   hasInternet: boolean,
   hasHpaValidationError: boolean,
-  isSimulating: boolean
+  isSimulating: boolean,
+  isPaused: boolean = false
 ): string => {
   if (!hasInternet) return 'Add an Internet card to start simulation';
   if (hasHpaValidationError) return 'HPA requires Resource Limits on target workloads';
-  return isSimulating ? 'Pause Simulation' : 'Start Simulation';
+  if (isSimulating) return 'Pause Simulation';
+  if (isPaused) return 'Resume Simulation';
+  return 'Start Simulation';
 };
 
 /**
@@ -20,7 +23,8 @@ export const getSimulationButtonTitle = (
 export const getSimulationButtonClass = (
   hasInternet: boolean,
   isSimulating: boolean,
-  hasHpaValidationError: boolean
+  hasHpaValidationError: boolean,
+  isPaused: boolean = false
 ): string => {
   if (!hasInternet) return 'text-slate-400 cursor-not-allowed bg-transparent';
 
@@ -28,6 +32,12 @@ export const getSimulationButtonClass = (
     return hasHpaValidationError
       ? 'bg-amber-600 animate-pulse text-white hover:bg-amber-700'
       : 'bg-amber-500 text-white hover:bg-amber-600';
+  }
+
+  if (isPaused) {
+    return hasHpaValidationError
+      ? 'bg-emerald-600 animate-pulse text-white hover:bg-emerald-700'
+      : 'bg-emerald-500 text-white hover:bg-emerald-600';
   }
 
   return hasHpaValidationError
@@ -46,27 +56,41 @@ export const getStopButtonClass = (hasHpaValidationError: boolean): string => {
 
 export interface UseSimulationControlsProps {
   readonly isSimulating: boolean;
+  readonly isPaused?: boolean;
   readonly hasInternet: boolean;
   readonly hasHpaValidationError: boolean;
   readonly pauseSimulation?: () => void;
+  readonly startSimulation?: () => void;
 }
 
 /**
  * Custom activity hook managing state, speed calculations, and button action handlers for simulation controls.
  */
 export const useSimulationControls = (props: UseSimulationControlsProps) => {
-  const { isSimulating, hasInternet, hasHpaValidationError, pauseSimulation: pauseSimulationProp } = props;
+  const {
+    isSimulating,
+    isPaused: isPausedProp,
+    hasInternet,
+    hasHpaValidationError,
+    pauseSimulation: pauseSimulationProp,
+    startSimulation: startSimulationProp
+  } = props;
 
-  const title = getSimulationButtonTitle(hasInternet, hasHpaValidationError, isSimulating);
-  const buttonClass = getSimulationButtonClass(hasInternet, isSimulating, hasHpaValidationError);
+  const isPausedStore = useFlowStore((state) => state.isPaused);
+  const isPaused = isPausedProp !== undefined ? isPausedProp : isPausedStore;
+
+  const title = getSimulationButtonTitle(hasInternet, hasHpaValidationError, isSimulating, isPaused);
+  const buttonClass = getSimulationButtonClass(hasInternet, isSimulating, hasHpaValidationError, isPaused);
   const stopButtonClass = getStopButtonClass(hasHpaValidationError);
 
   const nodes = useFlowStore((state) => state.nodes);
   const simulationSpeed = useFlowStore((state) => state.simulationSpeed);
   const setSimulationSpeed = useFlowStore((state) => state.setSimulationSpeed);
   const storePauseSimulation = useFlowStore((state) => state.pauseSimulation);
+  const storeStartSimulation = useFlowStore((state) => state.startSimulation);
 
   const handlePause = pauseSimulationProp || storePauseSimulation;
+  const handleStart = startSimulationProp || storeStartSimulation;
 
   const hasActiveProfile = useMemo(() => {
     return nodes.some((n: { type: string; data?: { connectionProfile?: unknown } }) => (
@@ -74,13 +98,15 @@ export const useSimulationControls = (props: UseSimulationControlsProps) => {
     ));
   }, [nodes]);
 
-  const showSpeedControls = isSimulating && hasActiveProfile;
+  const showSpeedControls = (isSimulating || isPaused) && hasActiveProfile;
 
   return {
     title,
     buttonClass,
     stopButtonClass,
     handlePause,
+    handleStart,
+    isPaused,
     simulationSpeed,
     setSimulationSpeed,
     showSpeedControls,
