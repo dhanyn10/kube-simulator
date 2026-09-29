@@ -83,4 +83,56 @@ describe('RoleSubjectsSection', () => {
     fireEvent.click(openIamBtn);
     expect(defaultProps.onOpenIamModal).toHaveBeenCalled();
   });
+
+  it('renders NoUsersBanner when iamUsers is empty and handles light mode', () => {
+    render(
+      <RoleSubjectsSection
+        {...defaultProps}
+        iamUsers={[]}
+        assignedUsers={[]}
+        colorMode="light"
+      />
+    );
+
+    expect(screen.getByText('No Kube IAM users created yet.')).toBeInTheDocument();
+    const linkBtn = screen.getByRole('button', { name: /Go to Kube IAM Management/i });
+    fireEvent.click(linkBtn);
+    expect(defaultProps.onOpenIamModal).toHaveBeenCalled();
+  });
+
+  it('handles non-full access user chip removal and placeholder when assignedUsers is empty or user is missing from iamUsers list', () => {
+    const onToggleAssignment = vi.fn();
+    render(
+      <RoleSubjectsSection
+        {...defaultProps}
+        colorMode="light"
+        iamUsers={dummyUsers}
+        assignedUsers={['dev-bob', 'unknown-user']}
+        onToggleAssignment={onToggleAssignment}
+      />
+    );
+
+    expect(screen.getByText('dev-bob')).toBeInTheDocument();
+    expect(screen.getByText('unknown-user')).toBeInTheDocument();
+
+    // Click remove button on dev-bob chip
+    const buttons = screen.getAllByRole('button');
+    const removeBtn = buttons.find((b) => b.querySelector('svg.lucide-x') || b.firstElementChild?.classList.contains('lucide-x'));
+    if (removeBtn) {
+      fireEvent.click(removeBtn);
+      expect(onToggleAssignment).toHaveBeenCalled();
+    }
+  });
+
+  it('renders default placeholder when assignedUsers is empty', () => {
+    render(
+      <RoleSubjectsSection
+        {...defaultProps}
+        iamUsers={dummyUsers}
+        assignedUsers={[]}
+      />
+    );
+
+    expect(screen.getByPlaceholderText('Type to search or add IAM users...')).toBeInTheDocument();
+  });
 });

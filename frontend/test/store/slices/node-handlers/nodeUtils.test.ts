@@ -59,6 +59,24 @@ describe('nodeUtils', () => {
     const svcHandlers = createNodeHandlers("svc-1", serviceStore);
     svcHandlers.onRename("my-svc");
     expect(updateNodeDataMock).toHaveBeenCalledWith("svc-1", { label: "my-svc" });
+
+    // Test onRename on Pod with non-deployment parent (e.g., Namespace parent)
+    updateNodeDataMock.mockClear();
+    const nsParentStore = () =>
+      ({
+        nodes: [
+          { id: "ns-1", type: "Namespace", data: { label: "my-ns" } },
+          { id: "pod-2", type: "Pod", parentId: "ns-1", data: { podHash: "abc12", replicaSuffix: "xyz34", replicas: 2 } },
+        ],
+        updateNodeData: updateNodeDataMock,
+      } as any);
+
+    const nsPodHandlers = createNodeHandlers("pod-2", nsParentStore);
+    nsPodHandlers.onRename("worker-pod");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("pod-2", {
+      baseName: "worker-pod",
+      label: expect.stringContaining("worker-pod-abc12-xyz34"),
+    });
   });
 
   it('getInitialData returns correct defaults for various types', () => {
@@ -134,12 +152,15 @@ describe('nodeUtils', () => {
     expect(nonWorkload).toEqual({ runtime: 'nodejs' });
   });
 
-  it('sanitizeResourceLimits keeps values in range', () => {
+  it('sanitizeResourceLimits keeps values in range and handles undefined fields', () => {
     const data = { replicas: 2000, minReplicas: -5, maxReplicas: 5000 };
     const sanitized = sanitizeResourceLimits(data);
     expect(sanitized.replicas).toBe(1000);
     expect(sanitized.minReplicas).toBe(1);
     expect(sanitized.maxReplicas).toBe(1000);
+
+    const emptyData = sanitizeResourceLimits({});
+    expect(emptyData).toEqual({});
   });
 
   it('handles applyAutoImageLogic and syncWorkloadMetadata edge cases', () => {

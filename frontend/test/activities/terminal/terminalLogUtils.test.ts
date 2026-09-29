@@ -129,14 +129,17 @@ describe('terminalLogUtils', () => {
       const nodes: Node[] = [
         { id: 'node-1', position: { x: 0, y: 0 }, data: { label: 'WebPod' }, type: 'pod' },
         { id: 'node-2', position: { x: 0, y: 0 }, data: { label: 'WebSvc' }, type: 'service' },
+        { id: 'node-3', position: { x: 0, y: 0 }, data: { podHash: 'abc12' }, type: 'Pod' },
+        { id: 'node-4', position: { x: 0, y: 0 }, data: {}, type: 'Pod' },
       ];
       expect(findNodeByTargetName(nodes, 'webpod', ['deployment'])).toBeUndefined();
       expect(findNodeByTargetName(nodes, 'webpod', ['pod', 'service'])).toEqual(nodes[0]);
       expect(findNodeByTargetName(nodes, 'webpod', 'pod')).toEqual(nodes[0]);
       expect(findNodeByTargetName(nodes, 'unknown')).toBeUndefined();
+      expect(findNodeByTargetName(nodes, 'my-app-abc12-replica1')).toEqual(nodes[2]);
     });
 
-    it('extracts attached resources', () => {
+    it('extracts attached resources using node id fallback when label is missing', () => {
       const nodes: Node[] = [
         {
           id: 'node-1',
@@ -144,9 +147,56 @@ describe('terminalLogUtils', () => {
           data: { label: 'WebPod', secrets: [{ name: 'sec-1' }] },
           type: 'pod',
         },
+        {
+          id: 'node-2',
+          position: { x: 0, y: 0 },
+          data: { secrets: [{ name: 'sec-2' }] },
+          type: 'pod',
+        },
+        {
+          id: 'node-3',
+          position: { x: 0, y: 0 },
+          data: null as any,
+          type: 'pod',
+        },
       ];
       const extracted = extractAttachedResources(nodes, 'secrets');
-      expect(extracted).toEqual([{ item: { name: 'sec-1' }, ownerLabel: 'WebPod' }]);
+      expect(extracted).toEqual([
+        { item: { name: 'sec-1' }, ownerLabel: 'WebPod' },
+        { item: { name: 'sec-2' }, ownerLabel: 'node-2' },
+      ]);
+    });
+
+    it('handles default parameters and fallback conditions across utils', () => {
+      expect(formatCommandTimestamp()).toBeDefined();
+      expect(makeDivider()).toHaveLength(50);
+
+      expect(getPodDisplayStatus(undefined, true)).toEqual({ ready: '1/1', displayStatus: 'Running' });
+      expect(getPodDisplayStatus(undefined, false)).toEqual({ ready: '0/1', displayStatus: 'Pending' });
+
+      expect(generateLogFilename('!!!', 'logs', '!!!')).toContain('resource-logs_');
+      expect(generateLogFilename(null, 'logs', 'my-pod')).toContain('resource-logs-my-pod_');
+      expect(generateLogFilename(null, undefined)).toContain('resource-logs_');
+
+      expect(getLogLineColorClass('   ', 'dark')).toBe('text-slate-300');
+      expect(getLogLineColorClass('=== Header ===', 'dark')).toBe('text-slate-500 font-bold');
+      expect(getLogLineColorClass('warning: high memory', 'dark')).toContain('text-amber-400');
+      expect(getLogLineColorClass('Waiting for container', 'dark')).toContain('text-amber-400');
+      expect(getLogLineColorClass('Terminated with code 0', 'dark')).toContain('text-amber-400');
+      expect(getLogLineColorClass('ready -> pending', 'dark')).toContain('text-amber-400');
+      expect(getLogLineColorClass('0/1 ready', 'dark')).toContain('text-amber-400');
+      expect(getLogLineColorClass('Normal log message', 'dark')).toBe('text-slate-300');
+
+      const appendSpy = vi.spyOn(document.body, 'appendChild');
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+      const removeSpy = vi.spyOn(HTMLAnchorElement.prototype, 'remove').mockImplementation(() => {});
+      exportLogFile(['log line 1', 'log line 2'], 'output.log');
+      expect(appendSpy).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+      expect(removeSpy).toHaveBeenCalled();
+      appendSpy.mockRestore();
+      clickSpy.mockRestore();
+      removeSpy.mockRestore();
     });
   });
 });

@@ -42,4 +42,48 @@ describe('useContextMenuHandler', () => {
 
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('handles singleNode canViewLogs evaluation and invalid/empty clipboard objects', () => {
+    const onClose = vi.fn();
+    useFlowStore.setState({
+      nodes: [{ id: 's1', type: 'Service', selected: true, data: {} }] as any,
+      clipboard: { nodes: [{ id: 'clip1' }] } as any, // missing type
+    });
+
+    const { result, rerender } = renderHook(() => useContextMenuHandler({ onClose }));
+
+    expect(result.current.singleNode).toEqual({ id: 's1', type: 'Service', selected: true, data: {} });
+    expect(result.current.canViewLogs).toBe(false);
+    expect(result.current.canPaste).toBe(false);
+
+    // Update node to Deployment
+    useFlowStore.setState({
+      nodes: [{ id: 'd1', type: 'Deployment', selected: true, data: {} }] as any,
+      clipboard: null,
+    });
+    rerender();
+
+    expect(result.current.canViewLogs).toBe(true);
+    expect(result.current.canPaste).toBe(false);
+  });
+
+  it('handles keyboard navigation for ArrowDown, ArrowUp, and Tab keys', () => {
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useContextMenuHandler({ onClose }));
+
+    const mockEvent = (key: string) =>
+      ({
+        stopPropagation: vi.fn(),
+        preventDefault: vi.fn(),
+        key,
+      } as unknown as React.KeyboardEvent);
+
+    act(() => {
+      result.current.handleMenuKeyDown(mockEvent('ArrowDown'));
+      result.current.handleMenuKeyDown(mockEvent('ArrowUp'));
+      result.current.handleMenuKeyDown(mockEvent('Tab'));
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });
