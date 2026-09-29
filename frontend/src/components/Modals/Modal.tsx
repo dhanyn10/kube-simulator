@@ -80,7 +80,7 @@ export const Modal = ({
       />
       <div
         className={cn(
-          "modal-container",
+          "modal-container animate-in fade-in zoom-in duration-200",
           widthClass,
           maxHeightClass,
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
