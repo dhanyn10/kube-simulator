@@ -12,12 +12,16 @@ import {
 } from '@/components/UI/ConfigUI';
 
 describe('ConfigUI uncovered conditions', () => {
-  it('covers YamlToggle disabled state branch', () => {
+  it('covers YamlToggle disabled, enabled, and disabled=false/isEnabled=false states', () => {
     const onToggle = vi.fn();
     const { rerender } = render(<YamlToggle isEnabled={false} onToggle={onToggle} disabled={true} />);
     const btn = screen.getByRole('button');
     expect(btn).toBeDisabled();
     expect(btn.className).toContain('cursor-not-allowed');
+
+    rerender(<YamlToggle isEnabled={false} onToggle={onToggle} disabled={false} />);
+    expect(btn).not.toBeDisabled();
+    expect(btn.className).toContain('text-slate-500');
 
     rerender(<YamlToggle isEnabled={true} onToggle={onToggle} disabled={false} />);
     expect(btn).not.toBeDisabled();
@@ -51,9 +55,9 @@ describe('ConfigUI uncovered conditions', () => {
     expect(toggleBtn.className).toContain('text-slate-500');
   });
 
-  it('covers NumberStepper empty input and invalid number branches', () => {
+  it('covers NumberStepper empty input, dark mode, and bound clamping', () => {
     const onChange = vi.fn();
-    render(<NumberStepper value={5} onChange={onChange} colorMode="light" min={1} max={100} />);
+    const { rerender } = render(<NumberStepper value={5} onChange={onChange} colorMode="light" min={1} max={100} />);
     const input = screen.getByRole('spinbutton');
 
     fireEvent.change(input, { target: { value: '' } });
@@ -69,6 +73,9 @@ describe('ConfigUI uncovered conditions', () => {
 
     fireEvent.click(buttons[1]); // increment
     expect(onChange).toHaveBeenCalledWith(6);
+
+    rerender(<NumberStepper value={5} onChange={onChange} colorMode="dark" min={1} max={100} />);
+    expect(input.className).toContain('bg-slate-900/50');
   });
 
   it('covers RangeInput onChange handler', () => {

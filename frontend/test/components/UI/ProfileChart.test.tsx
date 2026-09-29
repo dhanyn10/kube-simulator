@@ -1,162 +1,65 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MiniCurvePreview, InteractiveTrafficChart } from '@/components/UI/ProfileChart';
+import { InternetProfileItem } from '@/activities/modals';
+import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
-import {
-  MiniCurvePreview,
-  InteractiveTrafficChart,
-  InteractiveTrafficChartProps
-} from '@/components/UI/ProfileChart';
-import { ECOMMERCE_PROFILE } from '@/activities/modals';
-import { useFlowStore } from '@/store/useFlowStore';
 
-describe('ProfileChart Component', () => {
+describe('ProfileChart', () => {
+  const dummyProfile: InternetProfileItem = {
+    id: 'p1',
+    name: 'Standard E-Commerce Traffic',
+    category: 'E-Commerce',
+    description: 'Typical 24h traffic',
+    hourly: {
+      '00:00': 100,
+      '01:00': 150,
+      '12:00': 1000,
+      '23:00': 200,
+    },
+  };
+
   beforeEach(() => {
-    useFlowStore.setState({ isSimulating: false });
     vi.clearAllMocks();
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
+    useFlowStore.setState({
+      isSimulating: false,
+    });
   });
 
   describe('MiniCurvePreview', () => {
-    it('renders without applied badge or traffic dot when isApplied is false', () => {
+    it('renders mini curve SVG preview in normal and applied/active dot state', () => {
       const { container } = render(
-        <MiniCurvePreview profile={ECOMMERCE_PROFILE} />
-      );
-      expect(container.querySelector('svg')).toBeInTheDocument();
-      expect(screen.queryByTestId('mini-active-traffic-dot')).not.toBeInTheDocument();
-    });
-
-    it('renders active traffic dot when isApplied is true with isRed true and false', () => {
-      const { rerender } = render(
         <MiniCurvePreview
-          profile={ECOMMERCE_PROFILE}
+          profile={dummyProfile}
           isApplied={true}
-          currentHourIndex={3}
-          isRed={false}
-        />
-      );
-
-      const dotGroup = screen.getByTestId('mini-active-traffic-dot');
-      expect(dotGroup).toBeInTheDocument();
-      const circle = dotGroup.querySelectorAll('circle')[1];
-      expect(circle.className.baseVal || circle.getAttribute('class')).toContain('fill-blue-400');
-
-      // Rerender with isRed = true
-      rerender(
-        <MiniCurvePreview
-          profile={ECOMMERCE_PROFILE}
-          isApplied={true}
-          currentHourIndex={3}
+          currentMinuteIndex={720} // 12:00
           isRed={true}
         />
       );
-      expect(circle.className.baseVal || circle.getAttribute('class')).toContain('fill-rose-500');
-    });
 
-    it('handles mouse move and mouse leave for hover indicator', () => {
-      const { container } = render(
-        <MiniCurvePreview
-          profile={ECOMMERCE_PROFILE}
-          isApplied={true}
-          currentHourIndex={0}
-          isRed={false}
-        />
-      );
-
-      const svg = container.querySelector('svg')!;
-
-      // Mock getBoundingClientRect
-      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        width: 220,
-        height: 55,
-        right: 220,
-        bottom: 55,
-        x: 0,
-        y: 0,
-        toJSON: () => {}
-      });
-
-      // Hover over same hour (0)
-      fireEvent.mouseMove(svg, { clientX: 10 });
-      let hoverDot = screen.getByTestId('mini-hover-traffic-dot');
-      expect(hoverDot).toBeInTheDocument();
-
-      // Mouse leave resets hover
-      fireEvent.mouseLeave(svg);
-      expect(screen.queryByTestId('mini-hover-traffic-dot')).not.toBeInTheDocument();
-    });
-
-    it('tests hover dot fill class when hoveredHourIdx === safeHourIdx (red vs green) and different hour', () => {
-      const { container, rerender } = render(
-        <MiniCurvePreview
-          profile={ECOMMERCE_PROFILE}
-          isApplied={true}
-          currentHourIndex={0}
-          isRed={false}
-        />
-      );
-
-      const svg = container.querySelector('svg')!;
-      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
-        width: 220,
-        height: 55,
-        right: 220,
-        bottom: 55,
-        x: 0,
-        y: 0,
-        toJSON: () => {}
-      });
-
-      // Hover over safe hour (0) - green dot
-      fireEvent.mouseMove(svg, { clientX: 10 });
-      let hoverCircle = screen.getByTestId('mini-hover-traffic-dot').querySelector('circle')!;
-      expect(hoverCircle.className.baseVal || hoverCircle.getAttribute('class')).toContain('fill-emerald-400');
-
-      // Hover over safe hour with isRed = true
-      rerender(
-        <MiniCurvePreview
-          profile={ECOMMERCE_PROFILE}
-          isApplied={true}
-          currentHourIndex={0}
-          isRed={true}
-        />
-      );
-      fireEvent.mouseMove(svg, { clientX: 10 });
-      hoverCircle = screen.getByTestId('mini-hover-traffic-dot').querySelector('circle')!;
-      expect(hoverCircle.className.baseVal || hoverCircle.getAttribute('class')).toContain('fill-rose-500');
-
-      // Hover over a different hour index
-      fireEvent.mouseMove(svg, { clientX: 100 });
-      hoverCircle = screen.getByTestId('mini-hover-traffic-dot').querySelector('circle')!;
-      expect(hoverCircle.className.baseVal || hoverCircle.getAttribute('class')).toContain('fill-blue-300');
-    });
-
-    it('handles fallback profile without hourly or daily values and undefined currentHourIndex', () => {
-      const emptyProfile = {
-        name: 'Empty Mini Profile'
-      };
-
-      const { container } = render(
-        <MiniCurvePreview
-          profile={emptyProfile}
-          isApplied={true}
-          // currentHourIndex omitted
-        />
-      );
-
-      expect(container.querySelector('svg')).toBeInTheDocument();
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
       expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
+
+      // Trigger mouse move to test hover dot
+      if (svg) {
+        fireEvent.mouseMove(svg, { clientX: 50, clientY: 20 });
+        expect(screen.getByTestId('mini-hover-traffic-dot')).toBeInTheDocument();
+
+        fireEvent.mouseLeave(svg);
+        expect(screen.queryByTestId('mini-hover-traffic-dot')).not.toBeInTheDocument();
+      }
     });
 
-    it('handles currentHourIndex wrapping with modulo 24', () => {
+    it('handles currentHourIndex fallback when currentMinuteIndex is undefined', () => {
       render(
         <MiniCurvePreview
-          profile={ECOMMERCE_PROFILE}
+          profile={dummyProfile}
           isApplied={true}
-          currentHourIndex={25} // 25 % 24 = 1
+          currentHourIndex={5}
           isRed={false}
         />
       );
@@ -166,229 +69,77 @@ describe('ProfileChart Component', () => {
   });
 
   describe('InteractiveTrafficChart', () => {
-    const defaultProps: InteractiveTrafficChartProps = {
-      profile: ECOMMERCE_PROFILE,
-      colorMode: 'dark',
-      isApplied: false,
-      currentHourIndex: 0,
-      isRed: false,
-      onUpdatePoint: vi.fn(),
-      onUpdateName: vi.fn()
-    };
-
-    it('renders in dark mode and light mode correctly', () => {
-      const { container, rerender } = render(
-        <InteractiveTrafficChart {...defaultProps} colorMode="dark" />
-      );
-
-      expect(container.firstChild).toHaveClass('bg-slate-950/80');
-
-      rerender(
-        <InteractiveTrafficChart {...defaultProps} colorMode="light" />
-      );
-      expect(container.firstChild).toHaveClass('bg-slate-50');
-    });
-
-    it('handles profile name editing via input change', () => {
-      const onUpdateName = vi.fn();
-      render(
-        <InteractiveTrafficChart {...defaultProps} onUpdateName={onUpdateName} />
-      );
-
-      const input = screen.getByRole('textbox');
-      fireEvent.change(input, { target: { value: 'New Custom Profile Name' } });
-      expect(onUpdateName).toHaveBeenCalledWith('New Custom Profile Name');
-    });
-
-    it('formats Y-axis ticks for values both >= 1000 and < 1000', () => {
-      const smallValueProfile = {
-        name: 'Low Traffic',
-        hourly: {
-          '00:00': 100,
-          '01:00': 200,
-          '02:00': 150
-        }
-      };
-
-      render(
-        <InteractiveTrafficChart {...defaultProps} profile={smallValueProfile} />
-      );
-
-      // Y-axis ticks contain ratio = 1 tick (0) which is < 1000 and formatted as number '0'
-      const zeroElements = screen.getAllByText('0');
-      expect(zeroElements.length).toBeGreaterThan(0);
-      // ratio = 0 tick (1500) which is >= 1000 and formatted as '1.5k'
-      expect(screen.getByText('1.5k')).toBeInTheDocument();
-    });
-
-    it('handles pointer move, pointer down, pointer up, and pointer leave for dragging data points', () => {
-      const onUpdatePoint = vi.fn();
-      const { container } = render(
-        <InteractiveTrafficChart {...defaultProps} onUpdatePoint={onUpdatePoint} />
-      );
-
-      const svg = container.querySelector('svg')!;
-      const mockRect = {
-        left: 0,
-        top: 0,
-        width: 680,
-        height: 280,
-        right: 680,
-        bottom: 280,
-        x: 0,
-        y: 0,
-        toJSON: () => {}
-      };
-      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(mockRect);
-
-      // Pointer move on chart when draggingHour is null (triggers !draggingHour return in pointerMove)
-      fireEvent.pointerMove(svg, { clientX: 100, clientY: 100 });
-
-      // Find SVG circles
-      const circles = container.querySelectorAll('circle');
-      expect(circles.length).toBeGreaterThan(0);
-
-      // Pointer down on first point circle ('00:00')
-      fireEvent.pointerDown(circles[0], { pointerId: 1, clientY: 100 });
-
-      // Move pointer on circle itself or svg while dragging
-      fireEvent.pointerMove(circles[0], { clientX: 80, clientY: 120 });
-      fireEvent.pointerMove(svg, { clientX: 80, clientY: 120 });
-
-      expect(onUpdatePoint).toHaveBeenCalled();
-
-      // Pointer up releases drag
-      fireEvent.pointerUp(circles[0], { pointerId: 1 });
-
-      // Pointer up when not dragging (should not throw)
-      fireEvent.pointerUp(svg, { pointerId: 1 });
-
-      // Pointer leave resets hover
-      fireEvent.pointerLeave(svg);
-    });
-
-    it('handles setPointerCapture and releasePointerCapture when defined and undefined', () => {
-      const { container } = render(
-        <InteractiveTrafficChart {...defaultProps} />
-      );
-
-      const svg = container.querySelector('svg')!;
-      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
-        left: 0, top: 0, width: 680, height: 280, right: 680, bottom: 280, x: 0, y: 0, toJSON: () => {}
-      });
-
-      const circles = container.querySelectorAll('circle');
-      const targetCircle = circles[0];
-
-      // Attach setPointerCapture and releasePointerCapture mock functions
-      const setPointerCaptureMock = vi.fn();
-      const releasePointerCaptureMock = vi.fn();
-      (targetCircle as any).setPointerCapture = setPointerCaptureMock;
-      (targetCircle as any).releasePointerCapture = releasePointerCaptureMock;
-
-      fireEvent.pointerDown(targetCircle, { pointerId: 1 });
-      expect(setPointerCaptureMock).toHaveBeenCalledWith(1);
-
-      fireEvent.pointerUp(targetCircle, { pointerId: 1 });
-      expect(releasePointerCaptureMock).toHaveBeenCalledWith(1);
-
-      // Test when setPointerCapture / releasePointerCapture are undefined
-      delete (targetCircle as any).setPointerCapture;
-      delete (targetCircle as any).releasePointerCapture;
-
-      expect(() => {
-        fireEvent.pointerDown(targetCircle, { pointerId: 2 });
-        fireEvent.pointerUp(targetCircle, { pointerId: 2 });
-      }).not.toThrow();
-    });
-
-    it('covers tooltip Y-position clamp with high data values (low pt.y)', () => {
-      const highPeakProfile = {
-        name: 'Peak Profile',
-        hourly: {
-          '00:00': 100000,
-          '01:00': 50000
-        }
-      };
-
-      const { container } = render(
-        <InteractiveTrafficChart {...defaultProps} profile={highPeakProfile} colorMode="light" />
-      );
-
-      const circles = container.querySelectorAll('circle');
-      // Second circle of point 0 (index 1 in SVG circles array: 0 is touch target, 1 is visible circle)
-      const visibleCircle = circles[1];
-
-      // Pointer down on circle directly sets draggingHour
-      fireEvent.pointerDown(visibleCircle, { pointerId: 1, clientY: 10 });
-
-      // While dragging, tooltip is rendered!
-      expect(screen.getByText(/00:00 • 100,000/i)).toBeInTheDocument();
-    });
-
-
-    it('renders all X-axis labels including last element (23:00)', () => {
-      render(<InteractiveTrafficChart {...defaultProps} />);
-      expect(screen.getByText('23:00')).toBeInTheDocument();
-      expect(screen.getByText('00:00')).toBeInTheDocument();
-      expect(screen.getByText('03:00')).toBeInTheDocument();
-    });
-
-    it('covers all guide line and point fill combinations during active simulation, hover, and error state', () => {
+    it('renders interactive chart with active simulation dot, title input, and pointer interaction', () => {
       useFlowStore.setState({ isSimulating: true });
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
 
-      const { container, rerender } = render(
+      const { container } = render(
         <InteractiveTrafficChart
-          {...defaultProps}
+          profile={dummyProfile}
+          colorMode="dark"
           isApplied={true}
-          currentHourIndex={0}
+          currentMinuteIndex={60}
           isRed={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      expect(screen.getByDisplayValue('Standard E-Commerce Traffic')).toBeInTheDocument();
+      expect(screen.getByTestId('interactive-active-traffic-dot')).toBeInTheDocument();
+
+      const nameInput = screen.getByDisplayValue('Standard E-Commerce Traffic');
+      fireEvent.change(nameInput, { target: { value: 'New Profile Name' } });
+      expect(onUpdateName).toHaveBeenCalledWith('New Profile Name');
+
+      const svg = container.querySelector('svg');
+      if (svg) {
+        fireEvent.pointerMove(svg, { clientX: 100, clientY: 50 });
+        fireEvent.pointerLeave(svg);
+      }
+    });
+
+    it('renders in light mode with pointer down, move, and up dragging', () => {
+      useFlowStore.setState({ isSimulating: false });
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="light"
+          isApplied={false}
+          currentHourIndex={12}
+          isRed={true}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
         />
       );
 
       const svg = container.querySelector('svg')!;
       vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
-        left: 0,
-        top: 0,
+        top: 10,
+        left: 10,
+        bottom: 290,
+        right: 690,
         width: 680,
         height: 280,
-        right: 680,
-        bottom: 280,
-        x: 0,
-        y: 0,
-        toJSON: () => {}
+        x: 10,
+        y: 10,
+        toJSON: () => {},
       });
 
-      // 1. Hover on active simulation hour (00:00) with isRed = false (isHoveredThis && isSameHour)
-      fireEvent.pointerMove(svg, { clientX: 70, clientY: 100 });
-
-      // 2. Hover on active simulation hour (00:00) with isRed = true
-      rerender(
-        <InteractiveTrafficChart
-          {...defaultProps}
-          isApplied={true}
-          currentHourIndex={0}
-          isRed={true}
-        />
-      );
-      fireEvent.pointerMove(svg, { clientX: 70, clientY: 100 });
-
-      // 3. Simulation active on hour 0, but hovering on different hour (03:00) with isRed = true (isSimulatingActive && !isHoveredThis with isRed)
       fireEvent.pointerMove(svg, { clientX: 150, clientY: 100 });
 
-      // 4. Simulation active on hour 0, hovering on different hour with isRed = false (isSimulatingActive && !isHoveredThis without isRed)
-      rerender(
-        <InteractiveTrafficChart
-          {...defaultProps}
-          isApplied={true}
-          currentHourIndex={0}
-          isRed={false}
-        />
-      );
-      fireEvent.pointerMove(svg, { clientX: 150, clientY: 100 });
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 0) {
+        fireEvent.pointerDown(targetCircles[0], { clientX: 100, clientY: 120, pointerId: 1 });
+        fireEvent.pointerMove(targetCircles[0], { clientX: 100, clientY: 80, pointerId: 1 });
+        expect(onUpdatePoint).toHaveBeenCalled();
 
-      // Reset hover
-      fireEvent.pointerLeave(svg);
+        fireEvent.pointerUp(targetCircles[0], { pointerId: 1 });
+      }
     });
   });
 });

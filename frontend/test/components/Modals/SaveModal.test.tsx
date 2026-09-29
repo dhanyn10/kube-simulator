@@ -231,6 +231,10 @@ describe('SaveModal', () => {
     });
 
     await waitFor(() => {
+      expect(screen.getByText('Change Theme')).toBeInTheDocument();
+      expect(screen.getByText('Load Profile')).toBeInTheDocument();
+      expect(screen.getByText('Open Folder Location')).toBeInTheDocument();
+      expect(screen.getByText('Delete Document')).toBeInTheDocument();
       expect(screen.getByText('Exit')).toBeInTheDocument();
     });
 

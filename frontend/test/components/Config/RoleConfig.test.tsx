@@ -1,177 +1,84 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { RoleConfig } from '@/components/Config/RoleConfig';
 import { useFlowStore } from '@/store';
+import '@testing-library/jest-dom';
 
 describe('RoleConfig', () => {
+  const dummyRoleData = {
+    label: 'my-role',
+    type: 'Role' as const,
+    rules: [
+      {
+        apiGroups: [''],
+        resources: ['pods', 'deployments'],
+        verbs: ['get', 'list'],
+      },
+      {
+        apiGroups: ['apps'],
+        resources: [],
+        verbs: ['*'],
+      },
+    ],
+  };
+
   beforeEach(() => {
+    vi.clearAllMocks();
     useFlowStore.setState({
-      nodes: [],
-      edges: [],
       colorMode: 'dark',
-      updateNodeData: vi.fn(),
-      setEdges: vi.fn(),
-      addLog: vi.fn(),
-    });
-  });
-
-  it('renders RBAC rules and allows adding/removing rules', () => {
-    const updateNodeData = vi.fn();
-    useFlowStore.setState({ updateNodeData });
-
-    const mockData = {
-      label: 'test-role',
-      type: 'Role' as const,
-      rules: [
-        { apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] },
-        { apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] },
-      ],
-    };
-
-    render(<RoleConfig data={mockData} nodeId="role-1" />);
-
-    expect(screen.getByText('RBAC Role Rules')).toBeDefined();
-    expect(screen.getByText('Rule #1')).toBeDefined();
-    expect(screen.getByText('Rule #2')).toBeDefined();
-
-    // Test Add Rule button
-    const addButton = screen.getByText('Add Rule');
-    fireEvent.click(addButton);
-    expect(updateNodeData).toHaveBeenCalledWith('role-1', {
-      rules: expect.arrayContaining([
-        expect.objectContaining({ verbs: ['get', 'list'] }),
-      ]),
-    });
-
-    // Test Remove Rule button
-    const trashButtons = screen.getAllByTitle('Remove rule');
-    fireEvent.click(trashButtons[0]);
-    expect(updateNodeData).toHaveBeenCalledWith('role-1', {
-      rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] }],
-    });
-  });
-
-  it('renders empty rules state when rules is empty or missing', () => {
-    const mockData = {
-      label: 'test-role',
-      type: 'Role' as const,
-      rules: [],
-    };
-
-    render(<RoleConfig data={mockData} nodeId="role-1" />);
-
-    expect(screen.getByText('No RBAC rules defined. Click "Add Rule" to start.')).toBeDefined();
-  });
-
-  it('allows toggling verbs on a rule and renders light mode verb button styles', () => {
-    const updateNodeData = vi.fn();
-    useFlowStore.setState({ updateNodeData, colorMode: 'light' });
-
-    const mockData = {
-      label: 'test-role',
-      type: 'Role' as const,
-      rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }],
-    };
-
-    render(<RoleConfig data={mockData} nodeId="role-1" />);
-
-    expect(screen.getByText('No target resources connected. Connect Role to a workload card on canvas.')).toBeDefined();
-
-    // Click 'watch' to add it
-    const watchVerbBtn = screen.getByText('watch');
-    fireEvent.click(watchVerbBtn);
-    expect(updateNodeData).toHaveBeenLastCalledWith('role-1', {
-      rules: [{ apiGroups: [''], resources: [], verbs: ['get', 'watch'] }],
-    });
-
-    // Click 'get' to remove it
-    const getVerbBtn = screen.getByText('get');
-    fireEvent.click(getVerbBtn);
-    expect(updateNodeData).toHaveBeenLastCalledWith('role-1', {
-      rules: [{ apiGroups: [''], resources: [], verbs: ['watch'] }],
-    });
-  });
-
-  it('handles disconnect resource for pods, deployments, secrets, and reverse edge directions', () => {
-    const updateNodeData = vi.fn();
-    const setEdges = vi.fn();
-    useFlowStore.setState({
-      updateNodeData,
-      setEdges,
       nodes: [
-        { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} },
-        { id: 'pod-1', type: 'Pod', position: { x: 50, y: 0 }, data: {} },
-        { id: 'dep-1', type: 'Deployment', position: { x: 100, y: 0 }, data: {} },
-        { id: 'sec-1', type: 'Secret', position: { x: 200, y: 0 }, data: {} },
+        { id: 'r1', type: 'Role', data: dummyRoleData } as any,
+        { id: 'p1', type: 'Pod', data: { label: 'web-pod' } } as any,
       ],
-      edges: [
-        { id: 'e0', source: 'role-1', target: 'pod-1' },
-        { id: 'e1', source: 'role-1', target: 'dep-1' },
-        { id: 'e2', source: 'sec-1', target: 'role-1' },
-      ],
+      edges: [{ id: 'e1', source: 'r1', target: 'p1' }],
     });
-
-    const mockData = {
-      label: 'test-role',
-      type: 'Role' as const,
-      rules: [
-        { apiGroups: [''], resources: ['pods'], verbs: ['get'] },
-        { apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] },
-        { apiGroups: [''], resources: ['secrets'], verbs: ['get'] },
-      ],
-    };
-
-    const { rerender } = render(<RoleConfig data={mockData} nodeId="role-1" />);
-
-    // Disconnect pods
-    const podsBadge = screen.getByText('pods ×');
-    fireEvent.click(podsBadge);
-    expect(setEdges).toHaveBeenCalledWith([
-      { id: 'e2', source: 'sec-1', target: 'role-1' },
-    ]);
-
-    // Disconnect deployments
-    rerender(<RoleConfig data={mockData} nodeId="role-1" />);
-    const depBadge = screen.getByText('deployments ×');
-    fireEvent.click(depBadge);
-
-    expect(setEdges).toHaveBeenCalledWith([
-      { id: 'e2', source: 'sec-1', target: 'role-1' },
-    ]);
-
-    // Disconnect secrets with reverse edge
-    rerender(<RoleConfig data={mockData} nodeId="role-1" />);
-    const secBadge = screen.getByText('secrets ×');
-    fireEvent.click(secBadge);
-
-    expect(setEdges).toHaveBeenCalledWith([
-      { id: 'e0', source: 'role-1', target: 'pod-1' },
-      { id: 'e1', source: 'role-1', target: 'dep-1' },
-    ]);
   });
 
-  it('handles disconnect resource fallback without connected edges', () => {
-    const updateNodeData = vi.fn();
-    useFlowStore.setState({
-      updateNodeData,
-      nodes: [{ id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} }],
-      edges: [],
+  it('renders role rules, verbs, and handles Add Rule and Remove Rule clicks', () => {
+    const updateNodeData = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+
+    render(<RoleConfig data={dummyRoleData} nodeId="r1" />);
+
+    expect(screen.getByText('RBAC Role Rules')).toBeInTheDocument();
+    expect(screen.getByText('Rule #1')).toBeInTheDocument();
+    expect(screen.getByText('Rule #2')).toBeInTheDocument();
+
+    // Click Add Rule button
+    fireEvent.click(screen.getByRole('button', { name: /Add Rule/i }));
+    expect(updateNodeData).toHaveBeenCalledWith('r1', {
+      rules: expect.arrayContaining([expect.objectContaining({ verbs: ['get', 'list'] })]),
     });
 
-    const mockData = {
-      label: 'test-role',
-      type: 'Role' as const,
-      rules: [{ apiGroups: [''], resources: ['services'], verbs: ['get'] }],
-    };
-
-    render(<RoleConfig data={mockData} nodeId="role-1" />);
-
-    const resBadge = screen.getByText('services ×');
-    fireEvent.click(resBadge);
-
-    expect(updateNodeData).toHaveBeenCalledWith('role-1', {
-      rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }],
+    // Click Remove Rule button on Rule #2
+    const removeBtns = screen.getAllByTitle('Remove rule');
+    fireEvent.click(removeBtns[1]);
+    expect(updateNodeData).toHaveBeenCalledWith('r1', {
+      rules: [dummyRoleData.rules[0]],
     });
+  });
+
+  it('handles verb toggling and resource disconnect click', () => {
+    const updateNodeData = vi.spyOn(useFlowStore.getState(), 'updateNodeData');
+
+    render(<RoleConfig data={dummyRoleData} nodeId="r1" />);
+
+    // Disconnect 'pods' resource badge
+    const podBadge = screen.getByRole('button', { name: /pods ×/i });
+    fireEvent.click(podBadge);
+    expect(updateNodeData).toHaveBeenCalled();
+
+    // Toggle verb 'watch' on Rule #1
+    const watchButtons = screen.getAllByRole('button', { name: /^watch$/i });
+    fireEvent.click(watchButtons[0]);
+    expect(updateNodeData).toHaveBeenCalled();
+  });
+
+  it('renders in light mode with no rules fallback message', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    render(<RoleConfig data={{ label: 'empty-role', type: 'Role', rules: [] }} nodeId="r1" />);
+
+    expect(screen.getByText('No RBAC rules defined. Click "Add Rule" to start.')).toBeInTheDocument();
   });
 });

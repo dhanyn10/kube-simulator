@@ -42,6 +42,34 @@ describe('useIAMUserEdit', () => {
     };
     const { result } = renderHook(() => useIAMUserEdit({ user: userNoPolicies, onFinish: vi.fn() }));
     expect(result.current.editPolicies).toEqual(['AdministratorAccess']);
+
+    const userEmptyPoliciesArray: KubeIAMUser = {
+      id: 'user-4',
+      username: 'alice',
+      policies: [],
+      createdAt: Date.now(),
+    };
+    const { result: resultEmpty } = renderHook(() =>
+      useIAMUserEdit({ user: userEmptyPoliciesArray, onFinish: vi.fn() })
+    );
+    expect(resultEmpty.current.editPolicies).toEqual([]);
+  });
+
+  it('clears username error when typing a new username', () => {
+    const { result } = renderHook(() => useIAMUserEdit({ user: dummyUser, onFinish: vi.fn() }));
+
+    act(() => {
+      result.current.handleUsernameChange('  ');
+    });
+    act(() => {
+      result.current.handleEditNextStep1();
+    });
+    expect(result.current.editUsernameError).toBe('Username is required');
+
+    act(() => {
+      result.current.handleUsernameChange('valid_user');
+    });
+    expect(result.current.editUsernameError).toBe('');
   });
 
   it.each([

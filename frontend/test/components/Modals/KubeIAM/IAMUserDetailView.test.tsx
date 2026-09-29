@@ -121,18 +121,50 @@ describe('IAMUserDetailView', () => {
     expect(onNavigateToRole).toHaveBeenCalledWith('node-pod-1', 'Web Pod');
   });
 
-  it('switches to editing mode, finishes edit with Full Access, and updates active identity if user is active', () => {
+  it('handles undefined user policies and attached roles without nodeType', () => {
+    const userWithoutPolicies: KubeIAMUser = {
+      ...dummyUser,
+      policies: undefined as any,
+    };
+    const rolesWithoutType = [
+      {
+        nodeId: 'node-pod-2',
+        nodeLabel: 'Worker Pod',
+        nodeType: undefined as any,
+        roleId: 'role-2',
+        roleName: 'WorkerRole',
+        createdAt: 1700000000000,
+      },
+    ];
+
+    render(
+      <IAMUserDetailView
+        {...defaultProps}
+        user={userWithoutPolicies}
+        attachedRoles={rolesWithoutType}
+      />
+    );
+
+    expect(screen.getByText('Attached IAM Policies (0)')).toBeInTheDocument();
+    expect(screen.getByText('Worker Pod')).toBeInTheDocument();
+    expect(screen.queryByText('(Pod)')).not.toBeInTheDocument();
+  });
+
+  it('switches to editing mode, cancels edit or finishes edit with Full Access and updates active identity', () => {
     useFlowStore.setState({ activeIdentity: 'developer1' });
     const updateIamUser = vi.spyOn(useFlowStore.getState(), 'updateIamUser');
     const setActiveIdentity = vi.spyOn(useFlowStore.getState(), 'setActiveIdentity');
 
-    render(<IAMUserDetailView {...defaultProps} />);
+    const { rerender } = render(<IAMUserDetailView {...defaultProps} />);
 
-    // Click Edit Profile button
-    const editBtn = screen.getByRole('button', { name: /Edit Profile/i });
-    fireEvent.click(editBtn);
-
+    // Click Edit Profile button and cancel
+    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
     expect(screen.getByText('Edit User Profile (developer1)')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: /Cancel Editing/i })[0]);
+    expect(screen.queryByText('Edit User Profile')).not.toBeInTheDocument();
+
+    // Edit profile again and complete edit
+    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
 
     // Step 1: Change username -> Next
     const usernameInput = screen.getByDisplayValue('developer1');

@@ -121,10 +121,10 @@ describe('nodeHelpers', () => {
       expect(deployment.data.secrets[1].name).toBe('new-secret');
     });
 
-    it('calculates dimensions for manually resized deployment and replicaset', () => {
+    it('calculates dimensions for manually resized deployment, replicaset, and deployments with attached resources', () => {
       const nodes = [
         { id: 'rs1', type: 'ReplicaSet', width: 300, height: 200, data: { label: 'rs-1', replicas: 1, isManuallyResized: true } },
-        { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 1, isManuallyResized: true } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 1, isManuallyResized: true, roles: [{ id: 'r1' }], configMaps: [{ id: 'cm1' }], secrets: [{ id: 's1' }], hpas: [{ id: 'h1' }] } },
       ];
       const get = () => useFlowStore.getState();
 
@@ -135,6 +135,7 @@ describe('nodeHelpers', () => {
 
       const dep = hydrated.find(n => n.id === 'd1');
       expect(dep.width).toBeGreaterThan(0);
+      expect(dep.height).toBeGreaterThan(0);
     });
 
     it('syncs deployments and replicasets during hydration', () => {

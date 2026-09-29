@@ -70,9 +70,19 @@ describe('utils', () => {
     });
   });
 
-  describe('randomId', () => {
-      it('generates prefixed id', () => {
+  describe('randomId and safeRandom fallback', () => {
+      it('generates prefixed id and handles safeRandom fallback when crypto is absent', () => {
           expect(randomId('test')).toContain('test-');
+          expect(randomId()).toBeDefined();
+
+          const origCrypto = globalThis.crypto;
+          try {
+            // @ts-ignore
+            delete globalThis.crypto;
+            expect(randomId('fallback')).toContain('fallback-');
+          } finally {
+            globalThis.crypto = origCrypto;
+          }
       });
   });
 
@@ -150,12 +160,21 @@ describe('utils', () => {
           expect(result).toContain('name: test');
       });
 
-      it('handles non-array response from backend', async () => {
+      it('handles empty string, non-array, and invalid JSON from backend', async () => {
+        (globalThis as any).go = {
+            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('') } }
+        };
+        expect(await generateYaml([], [])).toBe('');
+
         (globalThis as any).go = {
             main: { App: { GenerateYaml: vi.fn().mockResolvedValue('raw string') } }
         };
-        const result = await generateYaml([], []);
-        expect(result).toBe('raw string');
+        expect(await generateYaml([], [])).toBe('raw string');
+
+        (globalThis as any).go = {
+            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('{ invalid json') } }
+        };
+        expect(await generateYaml([], [])).toBe('{ invalid json');
       });
 
       it('returns empty string if backend missing', async () => {

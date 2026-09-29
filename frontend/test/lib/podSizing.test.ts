@@ -33,10 +33,19 @@ describe('podSizing utils', () => {
       expect(w2).toBeGreaterThan(w1);
     });
 
-    it('doubles base width for mega pods', () => {
-      const data = { label: 'mega', replicas: 100 };
-      const width = calculatePodWidth(data, []);
-      expect(width).toBeGreaterThanOrEqual(POD_MIN_DIMENSIONS.width * 2);
+    it('doubles base width for mega pods by parentReplicas and accounts for multiple replicas and visible image', () => {
+      const dataMega = { label: 'mega', parentReplicas: 100 };
+      const widthMega = calculatePodWidth(dataMega, []);
+      expect(widthMega).toBeGreaterThanOrEqual(POD_MIN_DIMENSIONS.width * 2);
+
+      const dataMulti = {
+        label: 'multi-pod',
+        replicas: 10,
+        image: 'docker.io/library/nginx:1.25.0-alpine-slim',
+        displaySettings: { image: true },
+      };
+      const widthMulti = calculatePodWidth(dataMulti, []);
+      expect(widthMulti).toBeGreaterThan(POD_MIN_DIMENSIONS.width);
     });
   });
 
@@ -66,12 +75,19 @@ describe('podSizing utils', () => {
   });
 
   describe('getPodMinimumSize', () => {
-    it('calculates both dimensions', () => {
-      const size = getPodMinimumSize({ label: 'test', runtime: 'go' });
-      expect(size).toHaveProperty('width');
-      expect(size).toHaveProperty('height');
-      expect(size.width).toBeGreaterThan(0);
-      expect(size.height).toBeGreaterThan(0);
+    it('calculates both dimensions with default empty parameter and webserver badge', () => {
+      const defaultSize = getPodMinimumSize();
+      expect(defaultSize.width).toBeGreaterThan(0);
+      expect(defaultSize.height).toBeGreaterThan(0);
+
+      const sizeWithWebserver = getPodMinimumSize({
+        label: 'web-app',
+        runtime: 'nodejs',
+        webserver: 'nginx',
+        displaySettings: { runtime: true, webserver: true },
+      });
+      expect(sizeWithWebserver.width).toBeGreaterThan(0);
+      expect(sizeWithWebserver.height).toBeGreaterThan(0);
     });
   });
 });
