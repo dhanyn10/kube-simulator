@@ -113,5 +113,10 @@ describe('internetProfileChartHelpers', () => {
     expect(ptMin30.x).toBeCloseTo((points[0].x + points[1].x) / 2);
     expect(ptMin30.val).toBe(150);
     expect(ptMin30.hour).toBe('00:30');
+
+    // Minute 1439 (23:59) - x stays at right edge (points[23].x)
+    const ptMin2359 = calculateMinutePoint(points, 1439, minVal, maxVal, chartHeight, 10);
+    expect(ptMin2359.x).toBe(points[23].x);
+    expect(ptMin2359.hour).toBe('23:59');
   });
 });

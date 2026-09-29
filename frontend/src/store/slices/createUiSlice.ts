@@ -140,9 +140,8 @@ let simulationTicksCount = 0;
  * Calculates tick interval duration based on simulation speed.
  */
 export const getSimulationIntervalDuration = (speed: number): number => {
-  if (speed === 10) return 30;
-  if (speed === 5) return 60;
-  return 300;
+  const safeSpeed = Math.max(1, speed);
+  return Math.round(300 / safeSpeed);
 };
 
 /**
