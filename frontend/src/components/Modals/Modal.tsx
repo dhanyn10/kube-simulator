@@ -68,10 +68,7 @@ export const Modal = ({
     <dialog
       open
       onContextMenu={handleContextMenu}
-      className={cn(
-        "fixed inset-0 z-[110] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none",
-        alignClass
-      )}
+      className={cn("modal-overlay", alignClass)}
     >
       {/* Backdrop button for accessibility to handle clicks outside */}
       <button
@@ -83,7 +80,7 @@ export const Modal = ({
       />
       <div
         className={cn(
-          "relative rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto",
+          "modal-container",
           widthClass,
           maxHeightClass,
           colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-800"
@@ -134,7 +131,7 @@ export const Modal = ({
           ref={contextMenuRef}
           style={{ top: position.top, left: position.left }}
           className={cn(
-            "fixed z-[200] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md",
+            "modal-context-menu",
             colorMode === 'dark'
               ? "bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50"
               : "bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50"

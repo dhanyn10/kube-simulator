@@ -34,10 +34,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
   }, [onClose]);
 
   return (
-    <dialog
-      open
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-transparent border-none w-full h-full outline-none focus:outline-none"
-    >
+    <dialog open className="yaml-modal-overlay">
       <button
         type="button"
         className="fixed inset-0 w-full h-full cursor-default outline-none bg-transparent"
@@ -46,7 +43,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
         tabIndex={-1}
       />
       <div
-        className={cn('relative w-full max-w-2xl h-full max-h-[80vh] rounded shadow-2xl overflow-hidden flex flex-col pointer-events-auto', colorMode === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-300')}
+        className={cn('yaml-modal-container', colorMode === 'dark' ? 'bg-slate-900 border border-slate-700' : 'bg-white border border-slate-300')}
         aria-modal="true"
         aria-labelledby="modal-title"
       >

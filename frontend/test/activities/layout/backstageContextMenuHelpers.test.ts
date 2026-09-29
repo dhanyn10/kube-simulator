@@ -16,8 +16,8 @@ import {
 
 describe('backstageContextMenuHelpers', () => {
   it('returns container class for dark and light modes', () => {
-    expect(getContextMenuContainerClass(true)).toContain('bg-slate-900/95');
-    expect(getContextMenuContainerClass(false)).toContain('bg-white/95');
+    expect(getContextMenuContainerClass(true)).toContain('backstage-context-menu-dark');
+    expect(getContextMenuContainerClass(false)).toContain('backstage-context-menu-light');
   });
 
   it('returns menu button class for dark and light modes', () => {

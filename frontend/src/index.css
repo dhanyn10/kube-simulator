@@ -283,6 +283,43 @@
     @apply flex items-center gap-3 p-2 rounded-lg border-l-[3px] border cursor-grab transition-all duration-200 hover:shadow-lg active:cursor-grabbing;
   }
 
+  /* Modal & Overlay Component Styles */
+  .modal-overlay {
+    @apply fixed inset-0 z-[9000] flex justify-center p-4 w-full h-full bg-transparent border-none overflow-hidden outline-none focus:outline-none;
+  }
+
+  .modal-container {
+    @apply relative rounded-2xl border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 pointer-events-auto;
+  }
+
+  .modal-context-menu {
+    @apply fixed z-[9100] min-w-[160px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md;
+  }
+
+  .yaml-modal-overlay {
+    @apply fixed inset-0 z-[9000] flex items-center justify-center p-6 bg-transparent border-none w-full h-full outline-none focus:outline-none;
+  }
+
+  .yaml-modal-container {
+    @apply relative w-full max-w-2xl h-full max-h-[80vh] rounded shadow-2xl overflow-hidden flex flex-col pointer-events-auto;
+  }
+
+  .save-modal-context-menu {
+    @apply fixed z-[9100] min-w-[170px] py-1 rounded-lg border shadow-xl text-xs backdrop-blur-md;
+  }
+
+  .backstage-view-container {
+    @apply fixed inset-0 z-[9000] flex font-sans animate-in fade-in zoom-in-95 duration-150 select-none;
+  }
+
+  .backstage-context-menu-dark {
+    @apply fixed z-[9100] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50;
+  }
+
+  .backstage-context-menu-light {
+    @apply fixed z-[9100] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50;
+  }
+
   /* Backstage & Modal Layout Component Styles */
   .backstage-sidebar-dark {
     @apply w-64 border-r flex flex-col shrink-0 shadow-lg select-none bg-slate-900 border-slate-800;
