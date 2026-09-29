@@ -539,7 +539,8 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 
 type InternetProfile struct {
 	Name      string         `json:"name"`
-	Daily     map[string]int `json:"daily"`
+	Hourly    map[string]int `json:"hourly,omitempty"`
+	Daily     map[string]int `json:"daily,omitempty"`
 	Timestamp int64          `json:"timestamp,omitempty"`
 }
 
