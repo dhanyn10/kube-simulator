@@ -386,17 +386,21 @@ export const handleOomCrashes = (dep: Node, isOOM: boolean, ctx: SimulationConte
  * Schedules automated recovery for crashing pods after a delay.
  */
 export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationContext) => {
+  const currentState = ctx.get();
+  const speed = currentState?.simulationSpeed || 1;
+  const delayMs = Math.round(3000 / Math.max(1, speed));
+
   setTimeout(() => {
-    const currentState = ctx.get();
-    const nodeToRecover = currentState.nodes.find(n => n.id === podId);
+    const latestState = ctx.get();
+    const nodeToRecover = latestState.nodes.find(n => n.id === podId);
     if (nodeToRecover?.data.status !== 'crashing') return;
 
     const pData = nodeToRecover.data as K8sNodeData;
     const isReadyConfigured = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
     const nextStatus = isReadyConfigured ? 'ready' : 'pending';
 
-    currentState.updateNodeData?.(podId, { status: nextStatus, simulatedFailureCM: undefined });
-  }, 3000);
+    latestState.updateNodeData?.(podId, { status: nextStatus, simulatedFailureCM: undefined });
+  }, delayMs);
 };
 
 const findConnectedHPA = (depId: string, ctx: SimulationContext): Node | undefined => {
