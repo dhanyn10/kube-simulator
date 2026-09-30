@@ -117,6 +117,55 @@ describe('ProfileChart', () => {
       expect(screen.queryByTestId('interactive-hover-traffic-dot')).not.toBeInTheDocument();
     });
 
+    it('triggers onSeekMinute when clicked if isApplied is true, and ignores click if isApplied is false', () => {
+      const onSeekMinute = vi.fn();
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      // Case 1: isApplied is false -> click does not trigger onSeekMinute
+      const { container, rerender } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onSeekMinute={onSeekMinute}
+        />
+      );
+
+      const svg = container.querySelector('svg.cursor-pointer')!;
+      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+        top: 10,
+        left: 10,
+        bottom: 290,
+        right: 690,
+        width: 680,
+        height: 280,
+        x: 10,
+        y: 10,
+        toJSON: () => {},
+      });
+
+      fireEvent.click(svg, { clientX: 200, clientY: 100 });
+      expect(onSeekMinute).not.toHaveBeenCalled();
+
+      // Case 2: isApplied is true -> click triggers onSeekMinute
+      rerender(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="dark"
+          isApplied={true}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onSeekMinute={onSeekMinute}
+        />
+      );
+
+      fireEvent.click(svg, { clientX: 200, clientY: 100 });
+      expect(onSeekMinute).toHaveBeenCalled();
+    });
+
     it('renders in light mode with pointer down, move, and up dragging', () => {
       useFlowStore.setState({ isSimulating: false });
       const onUpdatePoint = vi.fn();

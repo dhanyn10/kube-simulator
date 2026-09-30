@@ -91,6 +91,14 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     handleUpdateCustomPoint
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
+  const handleSeekMinute = (targetMinute: number) => {
+    const hourIdx = Math.floor(targetMinute / 60);
+    performUpdate({
+      currentMinuteIndex: targetMinute,
+      currentHourIndex: hourIdx
+    });
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -184,6 +192,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         currentHourIndex={currentHourIndex}
                         currentMinuteIndex={currentMinuteIndex}
                         isRed={isRed}
+                        onSeekMinute={handleSeekMinute}
                       />
                     </div>
 
@@ -320,6 +329,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               isRed={isRed}
               onUpdatePoint={handleUpdateDetailPoint}
               onUpdateName={handleUpdateDetailName}
+              onSeekMinute={handleSeekMinute}
             />
           </div>
         )}

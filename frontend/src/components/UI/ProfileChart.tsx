@@ -22,6 +22,7 @@ export interface MiniCurvePreviewProps {
   readonly currentHourIndex?: number;
   readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
+  readonly onSeekMinute?: (targetMinute: number) => void;
 }
 
 export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
@@ -29,7 +30,8 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   isApplied,
   currentHourIndex,
   currentMinuteIndex,
-  isRed
+  isRed,
+  onSeekMinute
 }) => {
   const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
 
@@ -77,12 +79,22 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
     setHoveredMinuteIdx(null);
   };
 
+  const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isApplied || !onSeekMinute) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rectWidth = rect.width || width;
+    const mouseX = e.clientX - rect.left;
+    const minIdx = calculateMinuteIndexFromX(mouseX, rectWidth, width, padLeft, padRight, chartWidth);
+    onSeekMinute(minIdx);
+  };
+
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       className="w-full h-12 overflow-visible my-1 cursor-pointer"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -134,6 +146,7 @@ export interface InteractiveTrafficChartProps {
   readonly isRed?: boolean;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
   readonly onUpdateName: (newName: string) => void;
+  readonly onSeekMinute?: (targetMinute: number) => void;
 }
 
 export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = ({
@@ -144,7 +157,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   currentMinuteIndex,
   isRed,
   onUpdatePoint,
-  onUpdateName
+  onUpdateName,
+  onSeekMinute
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -224,6 +238,15 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     setHoveredMinuteIdx(null);
   };
 
+  const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!isApplied || !onSeekMinute) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rectWidth = rect.width || width;
+    const mouseX = e.clientX - rect.left;
+    const minIdx = calculateMinuteIndexFromX(mouseX, rectWidth, width, padLeft, padRight, chartWidth);
+    onSeekMinute(minIdx);
+  };
+
   return (
     <div className={cn(
       "p-5 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
@@ -268,6 +291,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
         className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
       >
         <defs>
@@ -401,18 +425,17 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
-          const isHoveredThis = hoveredHourIdx === idx;
           const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
           const isSameHour = idx === safeHourIdx;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
 
-          const guideLineStroke = getGuideLineStroke(isHoveredThis, isSimulatingActive, isSameHour, isRed);
-          const pointFillClass = getPointFillClass(isHoveredThis, isSameHour, isSimulatingActive, isDraggingThis, isRed);
+          const guideLineStroke = getGuideLineStroke(false, isSimulatingActive, isSameHour, isRed);
+          const pointFillClass = getPointFillClass(false, isSameHour, isSimulatingActive, isDraggingThis, isRed);
 
           return (
             <g key={`pt-${pt.hour}`}>
-              {/* Vertical Guide Line when dragging, hovered, or active simulation tick */}
-              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
+              {/* Vertical Guide Line when dragging or active simulation tick */}
+              {(isDraggingThis || isSimulatingActive) && (
                 <line
                   x1={pt.x}
                   y1={padTop}
@@ -420,7 +443,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                   y2={padTop + chartHeight}
                   stroke={guideLineStroke}
                   strokeDasharray="2 2"
-                  strokeWidth={isSimulatingActive || isHoveredThis ? "2" : "1.5"}
+                  strokeWidth={isSimulatingActive ? "2" : "1.5"}
                 />
               )}
 
@@ -433,8 +456,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Visible Circle - only rendered when dragging, hovered, or actively simulating */}
-              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
+              {/* Visible Circle - rendered when dragging or actively simulating */}
+              {(isDraggingThis || isSimulatingActive) && (
                 <circle
                   cx={pt.x}
                   cy={pt.y}
@@ -445,8 +468,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 />
               )}
 
-              {/* Tooltip Card directly on chart when hovered or dragging */}
-              {(isDraggingThis || isHoveredThis) && (
+              {/* Tooltip Card directly on chart when dragging */}
+              {isDraggingThis && (
                 <g transform={`translate(${pt.x}, ${Math.max(padTop + 20, pt.y - 32)})`}>
                   <rect
                     x="-45"
