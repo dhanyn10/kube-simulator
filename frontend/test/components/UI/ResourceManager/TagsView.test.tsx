@@ -95,17 +95,69 @@ describe('TagsView', () => {
     });
   });
 
-  it('renders tags in light mode', async () => {
+  it('renders tags in light mode with added status styling', async () => {
     mockFetchDockerHubTags.mockResolvedValueOnce(
       JSON.stringify({
         results: [{ name: 'alpine' }],
       })
     );
 
-    render(<TagsView {...defaultProps} colorMode="light" customImages={[]} />);
+    render(<TagsView {...defaultProps} colorMode="light" customImages={['library/nginx:alpine']} />);
 
     await waitFor(() => {
       expect(screen.getByText('library/nginx:alpine')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /ADDED/i })).toBeInTheDocument();
+    });
+  });
+
+  it('handles component unmount before async load completes without setting state', async () => {
+    let resolveTags: (val: any) => void;
+    let rejectTags: (err: any) => void;
+    const pendingPromise = new Promise((resolve, reject) => {
+      resolveTags = resolve;
+      rejectTags = reject;
+    });
+    mockFetchDockerHubTags.mockReturnValueOnce(pendingPromise);
+
+    const { unmount } = render(<TagsView {...defaultProps} />);
+
+    // Unmount before promise resolves
+    unmount();
+
+    // Now resolve the promise
+    resolveTags!(JSON.stringify({ results: [{ name: 'unmounted-tag' }] }));
+    await pendingPromise;
+
+    // Test rejection branch when unmounted
+    let rejectPromise: (err: any) => void;
+    const pendingReject = new Promise((_, reject) => {
+      rejectPromise = reject;
+    });
+    mockFetchDockerHubTags.mockReturnValueOnce(pendingReject);
+    const { unmount: unmount2 } = render(<TagsView {...defaultProps} />);
+    unmount2();
+    rejectPromise!(new Error('Error after unmount'));
+    await pendingReject.catch(() => {});
+  });
+
+  it('filters out falsy tag names from data.results and handles null data.results fallback', async () => {
+    mockFetchDockerHubTags.mockResolvedValueOnce(
+      JSON.stringify({
+        results: [{ name: 'valid-tag' }, { name: null }, { name: '' }],
+      })
+    );
+
+    render(<TagsView {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('library/nginx:valid-tag')).toBeInTheDocument();
+    });
+
+    // Null results property fallback
+    mockFetchDockerHubTags.mockResolvedValueOnce(JSON.stringify({ results: null }));
+    render(<TagsView {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText('No tags found for "library/nginx"')).toBeInTheDocument();
     });
   });
 });

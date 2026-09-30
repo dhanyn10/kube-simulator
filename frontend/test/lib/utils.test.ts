@@ -45,10 +45,12 @@ describe('utils', () => {
       expect(formatPodName('nginx', '68b6d779c5', 'x8k2p', 2)).toBe('nginx-68b6d779c5-x8k2p');
       expect(formatPodName('web-app', undefined, 'abc12', 5)).toBe('web-app-abc12');
       expect(formatPodName('api')).toBe('api');
+      expect(formatPodName('', '68b6d779c5', 'x8k2p', 2)).toBe('pod-68b6d779c5-x8k2p');
     });
 
-    it('omits pod hash and suffix when totalReplicas is 1', () => {
+    it('omits pod hash and suffix when totalReplicas is 1 or 0', () => {
       expect(formatPodName('nginx', '68b6d779c5', 'x8k2p', 1)).toBe('nginx');
+      expect(formatPodName('nginx', '68b6d779c5', 'x8k2p', 0)).toBe('nginx');
     });
   });
 
@@ -89,6 +91,7 @@ describe('utils', () => {
   describe('parseCPU', () => {
     it('parses milliCPU', () => {
       expect(parseCPU('500m')).toBe(500);
+      expect(parseCPU('invalidm')).toBe(500);
     });
     it('parses Cores', () => {
       expect(parseCPU('1')).toBe(1000);
@@ -106,12 +109,15 @@ describe('utils', () => {
   describe('parseMemory', () => {
     it('parses Mi', () => {
       expect(parseMemory('512Mi')).toBe(512);
+      expect(parseMemory('invalidMi')).toBe(512);
     });
     it('parses Gi', () => {
       expect(parseMemory('1Gi')).toBe(1024);
+      expect(parseMemory('invalidGi')).toBe(512);
     });
     it('parses raw numbers as Mi', () => {
         expect(parseMemory('256')).toBe(256);
+        expect(parseMemory(1024)).toBe(1024);
     });
     it('handles defaults', () => {
       expect(parseMemory('')).toBe(512);
@@ -170,6 +176,11 @@ describe('utils', () => {
             main: { App: { GenerateYaml: vi.fn().mockResolvedValue('raw string') } }
         };
         expect(await generateYaml([], [])).toBe('raw string');
+
+        (globalThis as any).go = {
+            main: { App: { GenerateYaml: vi.fn().mockResolvedValue('{"kind": "Pod"}') } }
+        };
+        expect(await generateYaml([], [])).toBe('{"kind": "Pod"}');
 
         (globalThis as any).go = {
             main: { App: { GenerateYaml: vi.fn().mockResolvedValue('{ invalid json') } }

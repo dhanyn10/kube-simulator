@@ -27,6 +27,12 @@ describe('clipboardUtils', () => {
 
       const match = findLogicalPodMatch(pod, [dep, existingPod]);
       expect(match).toBe(existingPod);
+
+      // Test pod with explicit baseName property
+      const podWithBaseName: Node = { id: 'p3', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { baseName: 'web', label: 'web-hash-suffix' } };
+      const existingWithBaseName: Node = { id: 'p4', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { baseName: 'web' } };
+      const matchBaseName = findLogicalPodMatch(podWithBaseName, [dep, existingWithBaseName]);
+      expect(matchBaseName).toBe(existingWithBaseName);
     });
   });
 
