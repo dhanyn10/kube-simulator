@@ -205,7 +205,7 @@ const handleUseContextSubcommand = (
   if (targetUser) {
     ctx.setStoreState({ activeIdentity: targetUser });
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('active_identity', targetUser);
+      void globalThis.go.main.App.SaveSetting('active_identity', targetUser);
     }
     ctx.addActivityLog(`[API Server Auth] Certificate / Token Verified for User: "${targetUser}"`);
     ctx.addActivityLog(`Switched to context "${targetUser}".`);

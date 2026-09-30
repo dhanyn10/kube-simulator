@@ -101,7 +101,7 @@ export const useInternetProfileModal = (
 
   useEffect(() => {
     if (isOpen) {
-      fetchProfiles();
+      void fetchProfiles();
       setActiveProfileName(selectedNode?.data?.activeProfileName || '');
       setViewMode('grid');
       setIsModifiedCustom(false);
@@ -198,7 +198,7 @@ export const useInternetProfileModal = (
       // Fallback
     }
 
-    await fetchProfiles();
+    void fetchProfiles();
     handleApplyProfile(profileToSave.name, profileToSave);
     setViewMode('grid');
   };
@@ -221,7 +221,7 @@ export const useInternetProfileModal = (
       // Fallback
     }
 
-    await fetchProfiles();
+    void fetchProfiles();
     handleApplyProfile(newProfile.name, newProfile);
     setViewMode('grid');
     setNewProfileName('');
@@ -236,7 +236,7 @@ export const useInternetProfileModal = (
       // Fallback
     }
 
-    await fetchProfiles();
+    void fetchProfiles();
     if (activeProfileName === name) {
       handleApplyProfile(ECOMMERCE_PROFILE.name);
     }

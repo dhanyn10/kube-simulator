@@ -108,7 +108,7 @@ export const useLogModal = () => {
   };
 
   const handleExportLogs = () => {
-    exportLogsToFile(filteredLogs);
+    void exportLogsToFile(filteredLogs);
   };
 
   return {

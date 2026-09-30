@@ -101,9 +101,9 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
 
     if (isAutosaveOn && app?.SaveSetting) {
       const sessionKey = getCurrentSessionAutosaveKey();
-      app.SaveSetting(sessionKey, content);
-      app.SaveSetting('auto_saved_profile_latest', sessionKey);
-      app.SaveSetting('auto_saved_profile_content', content);
+      await app.SaveSetting(sessionKey, content);
+      await app.SaveSetting('auto_saved_profile_latest', sessionKey);
+      await app.SaveSetting('auto_saved_profile_content', content);
       await loadRecentFiles();
       onClose();
       return;
