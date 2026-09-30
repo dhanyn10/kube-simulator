@@ -84,7 +84,7 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ isOpen, onClose }) => {
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-[200]" onClose={onClose}>
+      <Dialog as="div" className="relative z-[500]" onClose={onClose}>
         <TransitionChild
           as={Fragment}
           enter="ease-out duration-300"
