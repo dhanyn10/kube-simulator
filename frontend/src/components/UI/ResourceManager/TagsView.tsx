@@ -64,7 +64,7 @@ export const TagsView = ({
       }
     };
 
-    loadTags();
+    void loadTags();
 
     return () => {
       active = false;

@@ -85,7 +85,7 @@ export const DockerRegistryTab = ({
     };
 
     const timer = setTimeout(() => {
-      fetchImages();
+      void fetchImages();
     }, 400);
 
     return () => {

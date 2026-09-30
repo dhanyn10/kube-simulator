@@ -23,7 +23,7 @@ export function useAppInit(
     loadSettingsJson();
 
     if (globalThis.go?.main?.App?.GetSetting !== undefined) {
-      Promise.all([
+      void Promise.all([
         globalThis.go.main.App.GetSetting('globalEdgeColor'),
         globalThis.go.main.App.GetSetting('globalEdgeErrorColor'),
       ]).then(([color, errorColor]: [string, string]) => {
@@ -38,7 +38,7 @@ export function useAppInit(
 
     const fetchResources = () => {
       if (globalThis.window?.go?.main?.App?.GetSystemResources !== undefined) {
-        GetSystemResources()
+        void GetSystemResources()
           .then((resources: any) => {
             if (resources) setSystemResources(resources);
           })

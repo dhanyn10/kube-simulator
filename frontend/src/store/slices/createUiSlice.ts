@@ -595,7 +595,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setActiveIdentity: (identity) => {
     set({ activeIdentity: identity });
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('active_identity', identity);
+      void globalThis.go.main.App.SaveSetting('active_identity', identity);
     }
   },
 
@@ -611,7 +611,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     };
     const updatedUsers = [...state.iamUsers, newUser];
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
+      void globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
     }
     return { iamUsers: updatedUsers };
   }),
@@ -756,19 +756,19 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       canvasBgOpacity: state.canvasBgOpacity,
     };
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('app_settings_json', JSON.stringify(settings));
+      void globalThis.go.main.App.SaveSetting('app_settings_json', JSON.stringify(settings));
     }
   },
   loadSettingsJson: () => {
     if (globalThis.go?.main?.App?.GetSetting) {
-      globalThis.go.main.App.GetSetting('app_settings_json').then((val: string) => {
+      void globalThis.go.main.App.GetSetting('app_settings_json').then((val: string) => {
         if (val) {
           applyParsedSettings(val, set);
         } else {
           fallbackToLegacySettings(set);
         }
       });
-      globalThis.go.main.App.GetSetting('auto_saved_profile_content').then((content: string) => {
+      void globalThis.go.main.App.GetSetting('auto_saved_profile_content').then((content: string) => {
         if (content) {
           try {
             const parsed = JSON.parse(content);
@@ -784,12 +784,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
           }
         }
       });
-      globalThis.go.main.App.GetSetting('active_identity').then((val: string) => {
+      void globalThis.go.main.App.GetSetting('active_identity').then((val: string) => {
         if (val) {
           set({ activeIdentity: val });
         }
       });
-      globalThis.go.main.App.GetSetting('kube_iam_users').then((val: string) => {
+      void globalThis.go.main.App.GetSetting('kube_iam_users').then((val: string) => {
         if (val) {
           try {
             const parsedUsers = JSON.parse(val);
@@ -830,8 +830,8 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setGlobalEdgeColors: (color, errorColor) => {
     set({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('globalEdgeColor', color);
-      globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
+      void globalThis.go.main.App.SaveSetting('globalEdgeColor', color);
+      void globalThis.go.main.App.SaveSetting('globalEdgeErrorColor', errorColor);
     }
   },
   setDraggingSidebarItem: (item) => {
@@ -845,7 +845,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   toggleAutosave: () => set((state: FlowState) => {
     const nextVal = !state.isAutosaveEnabled;
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('isAutosaveEnabled', String(nextVal));
+      void globalThis.go.main.App.SaveSetting('isAutosaveEnabled', String(nextVal));
     }
     return { isAutosaveEnabled: nextVal };
   }),
@@ -856,14 +856,14 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setSidebarVisible: (visible) => {
     set({ isSidebarVisible: visible });
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('isSidebarVisible', String(visible));
+      void globalThis.go.main.App.SaveSetting('isSidebarVisible', String(visible));
     }
     get().saveSettingsJson();
   },
   setRightSidebarVisible: (visible) => {
     set({ isRightSidebarVisible: visible });
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('isRightSidebarVisible', String(visible));
+      void globalThis.go.main.App.SaveSetting('isRightSidebarVisible', String(visible));
     }
     get().saveSettingsJson();
   },

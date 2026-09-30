@@ -25,7 +25,7 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
   const lastActionId = useFlowStore((state) => state.lastActionId);
 
   useEffect(() => {
-    fetchHistoryLogs();
+    void fetchHistoryLogs();
   }, [fetchHistoryLogs, lastActionId]);
 
   const renderContent = () => {
@@ -57,7 +57,7 @@ export function HistoryPanel({ colorMode }: Readonly<HistoryPanelProps>) {
         <button
           type="button"
           key={`${log.timestamp}-${log.index}`}
-          onClick={() => handleJumpToHistory(log.index)}
+          onClick={() => void handleJumpToHistory(log.index)}
           className={cn(
             'w-full text-left py-2.5 px-2 text-[10px] flex flex-col gap-1 transition-all border-l-2 hover:border-violet-500 rounded-sm my-0.5',
             getItemClassName(isCurrentStep, colorMode)

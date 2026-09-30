@@ -59,7 +59,7 @@ setTimeout(() => {
     timestamp: Date.now()
   });
   if (globalThis.go?.main?.App?.PushHistory) {
-    globalThis.go.main.App.PushHistory(snapshot);
+    void globalThis.go.main.App.PushHistory(snapshot);
     logger.info('[History] Initial state recorded to Go database');
   }
 }, 500);
@@ -81,14 +81,14 @@ const executeAutosave = (state: FlowState) => {
 
   const app = globalThis.go?.main?.App;
   if (app?.SaveSetting) {
-    app.SaveSetting(currentSessionAutosaveKey, content);
-    app.SaveSetting('auto_saved_profile_latest', currentSessionAutosaveKey);
-    app.SaveSetting('auto_saved_profile_content', content);
+    void app.SaveSetting(currentSessionAutosaveKey, content);
+    void app.SaveSetting('auto_saved_profile_latest', currentSessionAutosaveKey);
+    void app.SaveSetting('auto_saved_profile_content', content);
     logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
   }
 
   if (state.currentProject && state.currentProject.id !== -1 && app?.UpdateProject) {
-    app.UpdateProject(state.currentProject.id, content).then((success) => {
+    void app.UpdateProject(state.currentProject.id, content).then((success) => {
       if (success) {
         flowStore.setState({ lastSavedSnapshot: content });
       }
@@ -119,9 +119,9 @@ flowStore.subscribe((state, prevState) => {
     
     // Push to Go Backend "Database"
     if (globalThis.go?.main?.App?.PushHistory) {
-      Promise.resolve(globalThis.go.main.App.PushHistory(snapshot))
+      void Promise.resolve(globalThis.go.main.App.PushHistory(snapshot))
         .then(() => {
-          state.fetchHistoryLogs?.();
+          void state.fetchHistoryLogs?.();
         })
         .catch(() => {});
     }
@@ -144,7 +144,7 @@ export const applyHistoryState = (json: string) => {
       lastActionName: `Applied: ${data.actionName}`
     });
     isApplyingHistory = false;
-    flowStore.getState().fetchHistoryLogs();
+    void flowStore.getState().fetchHistoryLogs();
     logger.info(`[History] Applied state from log: ${data.actionName}`);
   } catch (e) {
     logger.error('[History] Failed to apply state:', e);

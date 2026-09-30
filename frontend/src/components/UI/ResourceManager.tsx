@@ -63,7 +63,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    loadProjects();
+    void loadProjects();
 
     const needsDefaultName = !isCanvasEmpty && (!currentProject || currentProject.id === -1);
     if (needsDefaultName) {
@@ -82,7 +82,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
     if (success) {
       useFlowStore.setState({ lastSavedSnapshot: content });
-      loadProjects();
+      await loadProjects();
       onClose();
     }
   };
@@ -95,7 +95,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
         useFlowStore.setState({ lastSavedSnapshot: content });
       }
       setConfirmOverwriteId(null);
-      loadProjects();
+      await loadProjects();
     }
   };
 
@@ -109,7 +109,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
         lastSavedSnapshot: content
       });
       setProjectName('');
-      loadProjects();
+      await loadProjects();
     }
   };
 
@@ -171,7 +171,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
     if (currentProject?.id === id) {
       useFlowStore.setState({ currentProject: null, lastSavedSnapshot: null });
     }
-    loadProjects();
+    await loadProjects();
   };
 
   const handleAddCustomImageSubmit = () => {
@@ -273,7 +273,7 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
             <ProjectsTab
               projectName={projectName}
               setProjectName={setProjectName}
-              handleSave={handleSave}
+              handleSave={() => void handleSave()}
               projects={projects}
               currentProject={currentProject}
               hasChanges={hasChanges}
@@ -281,13 +281,13 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
               currentContent={currentContent}
               confirmOverwriteId={confirmOverwriteId}
               setConfirmOverwriteId={setConfirmOverwriteId}
-              handleOverwrite={handleOverwrite}
-              handleUpdate={handleUpdate}
-              handleLoad={handleLoad}
-              handleDelete={handleDelete}
+              handleOverwrite={(id) => void handleOverwrite(id)}
+              handleUpdate={() => void handleUpdate()}
+              handleLoad={(id, name) => void handleLoad(id, name)}
+              handleDelete={(id) => void handleDelete(id)}
               colorMode={colorMode}
               latestAutosaveKey={latestAutosaveKey}
-              handleRestoreAutosave={handleRestoreAutosave}
+              handleRestoreAutosave={() => void handleRestoreAutosave()}
             />
           )}
 
