@@ -151,6 +151,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
   const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
+  const [hoverCursorX, setHoverCursorX] = useState<number | null>(null);
 
   const width = 680;
   const height = 280;
@@ -197,8 +198,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     if (svgRef.current) {
       const rect = svgRef.current.getBoundingClientRect();
       const clientX = e.clientX - rect.left;
+      const svgX = (clientX / rect.width) * width;
+      const clampedSvgX = Math.max(padLeft, Math.min(width - padRight, svgX));
       const hourIdx = calculateHourIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
       const minIdx = calculateMinuteIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
+      setHoverCursorX(clampedSvgX);
       setHoveredHourIdx(hourIdx);
       setHoveredMinuteIdx(minIdx);
     }
@@ -222,6 +226,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const handlePointerLeave = () => {
     setHoveredHourIdx(null);
     setHoveredMinuteIdx(null);
+    setHoverCursorX(null);
   };
 
   return (
@@ -327,8 +332,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Minute-level Active Traffic Indicator Dot */}
-        {isSimulating && isApplied && (
+        {/* Minute-level Active Traffic Indicator Dot (shown when not hovering) */}
+        {isSimulating && isApplied && !hoveredMinutePt && (
           <g key={`interactive-active-traffic-dot-${minuteIdx}`} data-testid="interactive-active-traffic-dot">
             <line
               x1={activeMinutePt.x}
@@ -351,27 +356,27 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </g>
         )}
 
-        {/* Minute-level Hover Indicator (Vertical line, Curve dot, Tooltip) */}
-        {!draggingHour && hoveredMinutePt && (
+        {/* Minute-level Hover Indicator (Only 1 dot rendered, aligned with cursor X position) */}
+        {!draggingHour && hoveredMinutePt && hoverCursorX !== null && (
           <g key={`interactive-hover-minute-${hoveredMinuteIdx}`} data-testid="interactive-hover-minute-indicator">
             <line
-              x1={hoveredMinutePt.x}
+              x1={hoverCursorX}
               y1={padTop}
-              x2={hoveredMinutePt.x}
+              x2={hoverCursorX}
               y2={padTop + chartHeight}
               stroke="#3b82f6"
               strokeDasharray="2 2"
               strokeWidth="1.5"
             />
-            <circle cx={hoveredMinutePt.x} cy={hoveredMinutePt.y} r="8" className="fill-transparent" />
+            <circle cx={hoverCursorX} cy={hoveredMinutePt.y} r="8" className="fill-transparent" />
             <circle
-              cx={hoveredMinutePt.x}
+              cx={hoverCursorX}
               cy={hoveredMinutePt.y}
               r="5"
               className="fill-blue-500 stroke-white dark:stroke-slate-900"
               strokeWidth="1.5"
             />
-            <g transform={`translate(${hoveredMinutePt.x}, ${Math.max(padTop + 20, hoveredMinutePt.y - 32)})`}>
+            <g transform={`translate(${hoverCursorX}, ${Math.max(padTop + 20, hoveredMinutePt.y - 32)})`}>
               <rect
                 x="-45"
                 y="-14"
@@ -434,8 +439,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Visible Circle - only rendered when dragging, hovered, or actively simulating */}
-              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
+              {/* Visible Circle - only rendered when actively dragging an hourly point */}
+              {isDraggingThis && (
                 <circle
                   cx={pt.x}
                   cy={pt.y}
