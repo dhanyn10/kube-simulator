@@ -101,7 +101,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
           />
           <button
             type="button"
-            onClick={handleQuickSaveCurrent}
+            onClick={() => { void handleQuickSaveCurrent(); }}
             disabled={isCanvasEmpty}
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-900/10 transition-all cursor-pointer"
           >
@@ -164,7 +164,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
                     <tr
                       key={String(file.id)}
                       onContextMenu={(e) => handleRowContextMenu(e, file)}
-                      onDoubleClick={() => handleRestoreFile(file)}
+                        onDoubleClick={() => { void handleRestoreFile(file); }}
                       className={cn(
                         "transition-colors cursor-pointer select-none",
                         rowClass,

@@ -99,7 +99,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
             />
             <button
               type="button"
-              onClick={handleQuickSaveCurrent}
+              onClick={() => { void handleQuickSaveCurrent(); }}
               disabled={isCanvasEmpty || !newProjectName.trim()}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/10 transition-all"
             >
@@ -157,7 +157,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                       <tr
                         key={String(file.id)}
                         onContextMenu={(e) => handleRowContextMenu(e, file)}
-                        onDoubleClick={() => handleRestoreFile(file)}
+                        onDoubleClick={() => { void handleRestoreFile(file); }}
                         className={cn(
                           "transition-colors group cursor-pointer select-none",
                           getSaveRowBgClass(Boolean(file.isAutosave), colorMode === 'dark'),
@@ -255,7 +255,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                   onClick={() => {
                     const targetItem = contextMenu.item;
                     setContextMenu(null);
-                    if (targetItem) handleRestoreFile(targetItem);
+                    if (targetItem) void handleRestoreFile(targetItem);
                   }}
                   className={cn(
                     "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-blue-400 hover:text-blue-300 cursor-pointer",
@@ -270,7 +270,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                   onClick={() => {
                     const targetItem = contextMenu.item;
                     setContextMenu(null);
-                    if (targetItem) handleOpenFolder(targetItem);
+                    if (targetItem) void handleOpenFolder(targetItem);
                   }}
                   className={cn(
                     "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-emerald-400 hover:text-emerald-300 cursor-pointer",
@@ -285,7 +285,7 @@ export const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onSaveAs 
                   onClick={() => {
                     const targetItem = contextMenu.item;
                     setContextMenu(null);
-                    if (targetItem) handleDeleteFile(targetItem);
+                    if (targetItem) void handleDeleteFile(targetItem);
                   }}
                   className={cn(
                     "w-full px-3 py-2 text-left flex items-center gap-2 font-medium transition-colors text-rose-400 hover:text-rose-300 cursor-pointer",
