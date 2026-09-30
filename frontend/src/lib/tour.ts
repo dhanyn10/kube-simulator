@@ -85,5 +85,5 @@ export const startTour = (colorMode: 'dark' | 'light') => {
     });
   });
 
-  tour.start();
+  void tour.start();
 };

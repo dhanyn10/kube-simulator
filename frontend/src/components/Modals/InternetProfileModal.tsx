@@ -162,7 +162,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteProfile(p.name);
+                              void handleDeleteProfile(p.name);
                             }}
                             className="p-1 rounded text-rose-400 hover:bg-rose-500/20 transition-colors"
                             title="Delete Template"
@@ -324,7 +324,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleSaveAndApplyDetailProfile}
+                  onClick={() => void handleSaveAndApplyDetailProfile()}
                   className={cn(
                     "px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border shadow-sm transition-all",
                     detailProfile.name === activeProfileName
@@ -377,7 +377,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
 
                 <button
                   type="button"
-                  onClick={handleSaveCustomProfile}
+                  onClick={() => void handleSaveCustomProfile()}
                   disabled={!newProfileName.trim()}
                   className="px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white shadow-sm disabled:opacity-50 transition-all"
                 >

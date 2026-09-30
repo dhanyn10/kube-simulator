@@ -29,43 +29,43 @@ export const initWailsMocks = () => {
     (globalThis as any).go = {
         main: {
             App: {
-                GetProjects: async () => JSON.parse(localStorage.getItem('mock_projects') || '[]'),
-                SaveProject: async (name: string, content: string) => {
+                GetProjects: () => Promise.resolve(JSON.parse(localStorage.getItem('mock_projects') || '[]')),
+                SaveProject: (name: string, content: string) => {
                     const projects = JSON.parse(localStorage.getItem('mock_projects') || '[]');
                     const id = Date.now();
                     projects.push({ id, name, content, updatedAt: Date.now() / 1000 });
                     localStorage.setItem('mock_projects', JSON.stringify(projects));
-                    return id;
+                    return Promise.resolve(id);
                 },
-                LoadProject: async (id: number) => {
+                LoadProject: (id: number) => {
                     const projects = JSON.parse(localStorage.getItem('mock_projects') || '[]');
-                    return projects.find((p: any) => p.id === id);
+                    return Promise.resolve(projects.find((p: any) => p.id === id));
                 },
-                DeleteProject: async (id: number) => {
+                DeleteProject: (id: number) => {
                     const projects = JSON.parse(localStorage.getItem('mock_projects') || '[]');
                     localStorage.setItem('mock_projects', JSON.stringify(projects.filter((p: any) => p.id !== id)));
-                    return true;
+                    return Promise.resolve(true);
                 },
-                UpdateProject: async (id: number, content: string) => {
+                UpdateProject: (id: number, content: string) => {
                     const projects = JSON.parse(localStorage.getItem('mock_projects') || '[]');
                     const idx = projects.findIndex((p: any) => p.id === id);
                     if (idx !== -1) {
                         projects[idx].content = content;
                         projects[idx].updatedAt = Date.now() / 1000;
                         localStorage.setItem('mock_projects', JSON.stringify(projects));
-                        return true;
+                        return Promise.resolve(true);
                     }
-                    return false;
+                    return Promise.resolve(false);
                 },
-                GetHistoryLogs: async () => {
+                GetHistoryLogs: () => {
                     const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
-                    return history;
+                    return Promise.resolve(history);
                 },
-                GetCurrentHistoryIndex: async () => {
+                GetCurrentHistoryIndex: () => {
                     const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
-                    return history.length > 0 ? history.length - 1 : 0;
+                    return Promise.resolve(history.length > 0 ? history.length - 1 : 0);
                 },
-                PushHistory: async (state: string) => {
+                PushHistory: (state: string) => {
                     const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
                     const data = JSON.parse(state);
                     const index = history.length;
@@ -75,37 +75,47 @@ export const initWailsMocks = () => {
                         timestamp: data.timestamp || Date.now()
                     });
                     localStorage.setItem('mock_history', JSON.stringify(history));
+                    return Promise.resolve();
                 },
-                JumpToHistory: async (index: number) => {
+                JumpToHistory: (index: number) => {
                     const history = JSON.parse(localStorage.getItem('mock_history') || '[]');
-                    return JSON.stringify(history[index]);
+                    return Promise.resolve(JSON.stringify(history[index]));
                 },
-                Undo: async () => null,
-                Redo: async () => null,
-                ExportProjectFile: async () => true,
-                ImportProjectFile: async () => "",
-                GetSystemResources: async () => ({
+                Undo: () => Promise.resolve(null),
+                Redo: () => Promise.resolve(null),
+                ExportProjectFile: () => Promise.resolve(true),
+                ImportProjectFile: () => Promise.resolve(""),
+                GetSystemResources: () => Promise.resolve({
                     cpuCores: 8,
                     cpuUsage: 25,
                     totalMemoryGB: 16,
                     freeMemoryGB: 12
                 }),
-                GetSystemInfo: async () => ({
+                GetSystemInfo: () => Promise.resolve({
                     os: 'windows',
                     arch: 'amd64',
                     goVersion: 'go1.25.0',
                     version: '0.4.0'
                 }),
-                MinimizeWindow: async () => (globalThis as any)._originalConsoleLog('Minimize Window'),
-                MaximizeWindow: async () => (globalThis as any)._originalConsoleLog('Maximize Window'),
-                CloseWindow: async () => (globalThis as any)._originalConsoleLog('Close Window'),
-                GetSetting: async () => "",
-                SaveSetting: async () => true,
-                OpenFileFolder: async () => true,
-                FileExists: async () => true,
-                GetAutosaveProfiles: async () => [],
-                GetInternetProfiles: async () => JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]'),
-                SaveInternetProfile: async (name: string, profileJson: string) => {
+                MinimizeWindow: () => {
+                    (globalThis as any)._originalConsoleLog('Minimize Window');
+                    return Promise.resolve();
+                },
+                MaximizeWindow: () => {
+                    (globalThis as any)._originalConsoleLog('Maximize Window');
+                    return Promise.resolve();
+                },
+                CloseWindow: () => {
+                    (globalThis as any)._originalConsoleLog('Close Window');
+                    return Promise.resolve();
+                },
+                GetSetting: () => Promise.resolve(""),
+                SaveSetting: () => Promise.resolve(true),
+                OpenFileFolder: () => Promise.resolve(true),
+                FileExists: () => Promise.resolve(true),
+                GetAutosaveProfiles: () => Promise.resolve([]),
+                GetInternetProfiles: () => Promise.resolve(JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]')),
+                SaveInternetProfile: (name: string, profileJson: string) => {
                     const profiles = JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]');
                     const parsed = JSON.parse(profileJson);
                     const idx = profiles.findIndex((p: any) => p.name === name);
@@ -115,12 +125,12 @@ export const initWailsMocks = () => {
                         profiles.push(parsed);
                     }
                     localStorage.setItem('mock_internet_profiles', JSON.stringify(profiles));
-                    return true;
+                    return Promise.resolve(true);
                 },
-                DeleteInternetProfile: async (name: string) => {
+                DeleteInternetProfile: (name: string) => {
                     const profiles = JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]');
                     localStorage.setItem('mock_internet_profiles', JSON.stringify(profiles.filter((p: any) => p.name !== name)));
-                    return true;
+                    return Promise.resolve(true);
                 }
             }
         }

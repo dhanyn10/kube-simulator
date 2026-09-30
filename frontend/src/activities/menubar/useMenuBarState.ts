@@ -84,7 +84,7 @@ export const useMenuBarState = ({
       }
     };
 
-    checkForUpdatesBg();
+    void checkForUpdatesBg();
     return () => { isMounted = false; };
   }, []);
 
@@ -134,17 +134,20 @@ export const useMenuBarState = ({
           {
             label: 'Save',
             icon: Save,
-            onClick: async () => {
-              if (currentProject?.id !== undefined && currentProject.id !== -1) {
-                const content = JSON.stringify({ nodes, edges });
-                const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
-                if (success) {
-                  useFlowStore.setState({ lastSavedSnapshot: content });
-                  alert("Resource architecture saved successfully!");
+            onClick: () => {
+              const performSave = async () => {
+                if (currentProject?.id !== undefined && currentProject.id !== -1) {
+                  const content = JSON.stringify({ nodes, edges });
+                  const success = await globalThis.go?.main?.App?.UpdateProject(currentProject.id, content);
+                  if (success) {
+                    useFlowStore.setState({ lastSavedSnapshot: content });
+                    alert("Resource architecture saved successfully!");
+                  }
+                } else {
+                  onOpenProjects(); // Open manager to save as new
                 }
-              } else {
-                onOpenProjects(); // Open manager to save as new
-              }
+              };
+              void performSave();
             }
           },
         ]

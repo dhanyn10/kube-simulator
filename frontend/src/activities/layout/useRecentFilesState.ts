@@ -19,7 +19,7 @@ export function useRecentFilesState(isOpen: boolean) {
 
   useEffect(() => {
     if (isOpen) {
-      loadRecentFiles();
+      void loadRecentFiles();
     }
   }, [isOpen, loadRecentFiles]);
 
