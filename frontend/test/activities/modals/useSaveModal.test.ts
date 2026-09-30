@@ -192,6 +192,16 @@ describe('useSaveModal', () => {
 
     expect(mockSaveProject).toHaveBeenCalledWith('Failed Save Project', expect.any(String));
     expect(onClose).not.toHaveBeenCalled();
+
+    // Also test whitespace newProjectName early return branch
+    mockSaveProject.mockClear();
+    act(() => {
+      result.current.setNewProjectName('   ');
+    });
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+    expect(mockSaveProject).not.toHaveBeenCalled();
   });
 
   it('calls handleRestoreFile, handleDeleteFile, and handleOpenFolder wrapper functions', async () => {
