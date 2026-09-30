@@ -41,7 +41,7 @@ export const HPANode = memo((props: NodeProps) => {
   return (
     <SimpleResourceNode {...props} title="HPA" icon={Activity} color="fuchsia">
       {showWarning && (
-        <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[100]">
+        <div className="absolute -top-10 left-0 right-0 animate-bounce flex justify-center z-[1]">
           <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1 whitespace-nowrap">
             <span className="text-xs">⚠️</span> Missing Resource Requests on Target
           </div>

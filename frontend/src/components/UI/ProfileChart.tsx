@@ -378,15 +378,17 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Visible Circle */}
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={isDraggingThis || isHoveredThis || isSimulatingActive ? 6 : 4}
-                className={cn("cursor-ns-resize transition-all hover:scale-125", pointFillClass)}
-                strokeWidth="1.5"
-                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              />
+              {/* Visible Circle - only rendered when dragging, hovered, or actively simulating */}
+              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
+                <circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={6}
+                  className={cn("cursor-ns-resize transition-all hover:scale-125", pointFillClass)}
+                  strokeWidth="1.5"
+                  onPointerDown={(e) => handlePointerDown(pt.hour, e)}
+                />
+              )}
 
               {/* Tooltip Card directly on chart when hovered or dragging */}
               {(isDraggingThis || isHoveredThis) && (

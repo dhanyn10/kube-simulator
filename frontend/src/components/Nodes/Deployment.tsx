@@ -116,7 +116,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       />
 
       {showHPAWarning && (
-        <div className="absolute -top-10 left-0 right-0 animate-pulse flex justify-center z-[100]">
+        <div className="absolute -top-10 left-0 right-0 animate-pulse flex justify-center z-[1]">
           <div className="bg-amber-500 text-white text-[8px] font-bold px-2 py-1 rounded shadow-lg flex items-center gap-1">
             <span className="text-xs">⚠️</span> HPA ACTIVE: REQUESTS REQUIRED
           </div>

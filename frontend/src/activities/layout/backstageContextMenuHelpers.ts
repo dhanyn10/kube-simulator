@@ -5,9 +5,9 @@ import { RecentFileItem } from './fileBackstageHelpers';
  */
 export function getContextMenuContainerClass(isDark: boolean): string {
   if (isDark) {
-    return "fixed z-[250] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-slate-900/95 border-slate-700/80 text-slate-200 shadow-black/50";
+    return "backstage-context-menu-dark";
   }
-  return "fixed z-[250] min-w-[180px] py-1.5 rounded-xl border shadow-2xl text-xs backdrop-blur-md bg-white/95 border-slate-200 text-slate-800 shadow-slate-300/50";
+  return "backstage-context-menu-light";
 }
 
 /**

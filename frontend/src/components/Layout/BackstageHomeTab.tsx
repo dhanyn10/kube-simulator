@@ -164,7 +164,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
                     <tr
                       key={String(file.id)}
                       onContextMenu={(e) => handleRowContextMenu(e, file)}
-                      onDoubleClick={() => handleRestoreFile(file)}
+                        onDoubleClick={() => handleRestoreFile(file)}
                       className={cn(
                         "transition-colors cursor-pointer select-none",
                         rowClass,

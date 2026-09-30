@@ -25,7 +25,7 @@ export const MonitoringDashboard = () => {
       ref={dashboardRef}
       style={{ left: position.x, top: position.y }}
       className={cn(
-        "fixed w-[400px] rounded-xl shadow-2xl border z-[1000] flex flex-col overflow-hidden backdrop-blur-md",
+        "fixed w-[400px] rounded-xl shadow-2xl border z-[500] flex flex-col overflow-hidden backdrop-blur-md",
         colorMode === 'dark' ? "bg-slate-900/90 border-slate-700" : "bg-white/90 border-slate-200"
       )}
     >
