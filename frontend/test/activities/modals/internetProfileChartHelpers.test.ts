@@ -4,6 +4,7 @@ import {
   calculateHourIndexFromX,
   calculateMinuteIndexFromX,
   calculateYValueFromPointer,
+  calculateProfileHoverData,
   formatMinuteToHHMM,
   calculateMinutePoint
 } from '@/activities/modals/internetProfileChartHelpers';
@@ -98,6 +99,31 @@ describe('internetProfileChartHelpers', () => {
     expect(formatMinuteToHHMM(525)).toBe('08:45');
     expect(formatMinuteToHHMM(1439)).toBe('23:59');
     expect(formatMinuteToHHMM(1440)).toBe('00:00');
+  });
+
+  it('calculates profile hover data accurately and returns null when out of bounds', () => {
+    const { points, chartWidth } = calculateProfileChartData(
+      dummyProfile,
+      200,
+      100,
+      10,
+      10,
+      10,
+      10
+    );
+
+    // Out of bounds cases
+    expect(calculateProfileHoverData(-5, 50, 200, 100, 10, chartWidth, points)).toBeNull();
+    expect(calculateProfileHoverData(205, 50, 200, 100, 10, chartWidth, points)).toBeNull();
+    expect(calculateProfileHoverData(50, -10, 200, 100, 10, chartWidth, points)).toBeNull();
+    expect(calculateProfileHoverData(50, 110, 200, 100, 10, chartWidth, points)).toBeNull();
+
+    // Valid inside bounds case (middle relativeX = 100 on rectWidth = 200)
+    const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
+    expect(hoverResult).not.toBeNull();
+    expect(hoverResult?.x).toBe(100);
+    expect(hoverResult?.hourStr).toBe('11:30');
+    expect(hoverResult?.minuteIndex).toBe(690);
   });
 
   it('calculates minute point position and linear interpolation accurately', () => {

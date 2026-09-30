@@ -197,21 +197,34 @@ describe('InternetConfig', () => {
       toJSON: () => {}
     });
 
-    // Hover at x matching hour 3 (same as safeHourIdx = 3) -> clientX = 37
+    const overlayRect = screen.getByTestId('readonly-chart-canvas-overlay');
+    vi.spyOn(overlayRect, 'getBoundingClientRect').mockReturnValue({
+      width: 224,
+      height: 64,
+      top: 8,
+      left: 8,
+      bottom: 72,
+      right: 232,
+      x: 8,
+      y: 8,
+      toJSON: () => {}
+    });
+
+    // Hover at x matching hour 3 -> clientX = 37
     await act(async () => {
-      fireEvent.mouseMove(chartSvg, { clientX: 37, clientY: 10 });
+      fireEvent.pointerMove(overlayRect, { clientX: 37, clientY: 10 });
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
     // Hover at different hour (e.g. hour 12) -> clientX = 124
     await act(async () => {
-      fireEvent.mouseMove(chartSvg, { clientX: 124, clientY: 10 });
+      fireEvent.pointerMove(overlayRect, { clientX: 124, clientY: 10 });
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
     // Mouse leave
     await act(async () => {
-      fireEvent.mouseLeave(chartSvg);
+      fireEvent.pointerLeave(overlayRect);
     });
     expect(screen.queryByTestId('hover-traffic-dot')).toBeNull();
   });
@@ -261,15 +274,28 @@ describe('InternetConfig', () => {
       toJSON: () => {}
     });
 
+    const overlayRect = screen.getByTestId('readonly-chart-canvas-overlay');
+    vi.spyOn(overlayRect, 'getBoundingClientRect').mockReturnValue({
+      width: 224,
+      height: 64,
+      top: 8,
+      left: 8,
+      bottom: 72,
+      right: 232,
+      x: 8,
+      y: 8,
+      toJSON: () => {}
+    });
+
     // Hover at safeHourIdx (0) with isRed = true (clientX: 8)
     await act(async () => {
-      fireEvent.mouseMove(chartSvg, { clientX: 8, clientY: 10 });
+      fireEvent.pointerMove(overlayRect, { clientX: 8, clientY: 10 });
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
     // Hover at non-safeHourIdx with isRed = true (clientX: 200)
     await act(async () => {
-      fireEvent.mouseMove(chartSvg, { clientX: 200, clientY: 10 });
+      fireEvent.pointerMove(overlayRect, { clientX: 200, clientY: 10 });
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
   });

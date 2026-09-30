@@ -5,11 +5,10 @@ import { useFlowStore } from '@/store/useFlowStore';
 import {
   InternetProfileItem,
   calculateProfileChartData,
-  calculateHourIndexFromX,
-  calculateMinuteIndexFromX,
   calculateYValueFromPointer,
   calculateMinutePoint,
-  formatMinuteToHHMM,
+  calculateProfileHoverData,
+  ProfileHoverData,
   PROFILE_HOURLY_INTERVALS,
   PROFILE_SPAN_MINUTES
 } from '@/activities/modals';
@@ -34,7 +33,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   currentMinuteIndex,
   isRed
 }) => {
-  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
+  const [hoverData, setHoverData] = useState<ProfileHoverData | null>(null);
 
   const width = 220;
   const height = 55;
@@ -65,66 +64,84 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const currentVal = currentPt.val;
   const currentHour = currentPt.hour;
 
-  const hoveredPt = hoveredMinuteIdx !== null ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop) : null;
-  const hoveredVal = hoveredPt ? hoveredPt.val : 0;
-  const hoveredTimeStr = hoveredPt ? hoveredPt.hour : '00:00';
-
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<SVGRectElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const minIdx = calculateMinuteIndexFromX(mouseX, rect.width, width, padLeft, padRight, chartWidth);
-    setHoveredMinuteIdx(minIdx);
+    const relativeX = e.clientX - rect.left;
+    const relativeY = e.clientY - rect.top;
+
+    const data = calculateProfileHoverData(
+      relativeX,
+      relativeY,
+      rect.width,
+      rect.height,
+      padLeft,
+      chartWidth,
+      points
+    );
+    setHoverData(data);
   };
 
-  const handleMouseLeave = () => {
-    setHoveredMinuteIdx(null);
+  const handlePointerLeave = () => {
+    setHoverData(null);
   };
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-12 overflow-visible my-1 cursor-pointer"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#${gradientId})`} />
-      <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+    <div className="relative w-full h-12 my-1">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full overflow-visible cursor-pointer select-none"
+      >
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <path d={areaD} fill={`url(#${gradientId})`} />
+        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-      {/* Traffic Position Dot for Applied Profile */}
-      {isApplied && (
-        <g key={`mini-traffic-dot-active-${minuteIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
-          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle
-            cx={currentPt.x}
-            cy={currentPt.y}
-            r="3.5"
-            className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125"}
-            strokeWidth="1.5"
-          />
-          <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
-        </g>
-      )}
+        {/* Traffic Position Dot for Applied Profile (shown when not hovering) */}
+        {isApplied && !hoverData && (
+          <g key={`mini-traffic-dot-active-${minuteIdx}`} data-testid="mini-active-traffic-dot" className="group/minidot cursor-pointer">
+            <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+            <circle
+              cx={currentPt.x}
+              cy={currentPt.y}
+              r="3.5"
+              className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/minidot:scale-125"}
+              strokeWidth="1.5"
+            />
+            <title>{`${currentHour} - ${currentVal.toLocaleString()} visits`}</title>
+          </g>
+        )}
 
-      {/* Hover Position Indicator Dot */}
-      {hoveredPt && (
-        <g key={`mini-traffic-dot-hover-${hoveredMinuteIdx}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer">
-          <circle
-            cx={hoveredPt.x}
-            cy={hoveredPt.y}
-            r="4"
-            className={getMiniHoverDotClass(hoveredMinuteIdx === minuteIdx, isRed)}
-            strokeWidth="1.5"
-          />
-          <title>{`${hoveredTimeStr} - ${hoveredVal.toLocaleString()} visits`}</title>
-        </g>
-      )}
-    </svg>
+        {/* Hover Position Indicator Dot (Only 1 dot rendered, 100% aligned with cursor X position) */}
+        {hoverData && (
+          <g key={`mini-traffic-dot-hover-${hoverData.minuteIndex}`} data-testid="mini-hover-traffic-dot" className="cursor-pointer pointer-events-none">
+            <circle
+              cx={hoverData.x}
+              cy={hoverData.y}
+              r="4"
+              className={getMiniHoverDotClass(hoverData.minuteIndex === minuteIdx, isRed)}
+              strokeWidth="1.5"
+            />
+            <title>{`${hoverData.hourStr} - ${hoverData.val.toLocaleString()} visits`}</title>
+          </g>
+        )}
+
+        {/* Strict Graph Canvas Hover Overlay Rect */}
+        <rect
+          data-testid="mini-chart-canvas-overlay"
+          x={padLeft}
+          y={padTop}
+          width={chartWidth}
+          height={chartHeight}
+          className="fill-transparent cursor-pointer pointer-events-auto"
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+        />
+      </svg>
+    </div>
   );
 };
 
@@ -191,40 +208,25 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     setDraggingHour(hour);
   };
 
-  const [hoverData, setHoverCursorData] = useState<{ x: number; y: number; val: number; hourStr: string } | null>(null);
+  const [hoverData, setHoverCursorData] = useState<ProfileHoverData | null>(null);
 
   const handleGraphPointerMove = (e: React.PointerEvent<SVGRectElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const relativeX = e.clientX - rect.left;
     const relativeY = e.clientY - rect.top;
 
-    if (relativeX < 0 || relativeX > rect.width || relativeY < 0 || relativeY > rect.height) {
-      if (!draggingHour) setHoverCursorData(null);
-      return;
+    const data = calculateProfileHoverData(
+      relativeX,
+      relativeY,
+      rect.width,
+      rect.height,
+      padLeft,
+      chartWidth,
+      points
+    );
+    if (!draggingHour) {
+      setHoverCursorData(data);
     }
-
-    const ratio = Math.max(0, Math.min(1, relativeX / rect.width));
-    const cursorSvgX = padLeft + ratio * chartWidth;
-
-    const exactIdx = ratio * PROFILE_HOURLY_INTERVALS;
-    const segIdx = Math.min(PROFILE_HOURLY_INTERVALS - 1, Math.floor(exactIdx));
-    const segFraction = exactIdx - segIdx;
-
-    const pt1 = points[segIdx] || points[0];
-    const pt2 = points[segIdx + 1] || pt1;
-
-    const hoverY = pt1.y + segFraction * (pt2.y - pt1.y);
-    const hoverVal = Math.round(pt1.val + segFraction * (pt2.val - pt1.val));
-
-    const totalMinutes = Math.round(ratio * PROFILE_SPAN_MINUTES);
-    const hourStr = formatMinuteToHHMM(totalMinutes);
-
-    setHoverCursorData({
-      x: cursorSvgX,
-      y: hoverY,
-      val: hoverVal,
-      hourStr
-    });
   };
 
   const handleGraphPointerLeave = () => {

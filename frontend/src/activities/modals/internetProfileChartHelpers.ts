@@ -191,3 +191,60 @@ export function calculateYValueFromPointer(
   const calculatedVal = Math.round(minVal + ratio * (maxVal - minVal));
   return Math.max(10, Math.min(maxVal, calculatedVal));
 }
+
+export interface ProfileHoverData {
+  x: number;
+  y: number;
+  val: number;
+  hourStr: string;
+  minuteIndex: number;
+}
+
+/**
+ * Calculates exact hover point data (100% aligned with cursor X position) for traffic profile charts.
+ * Returns null if the pointer is outside the valid graph bounds.
+ */
+export function calculateProfileHoverData(
+  relativeX: number,
+  relativeY: number,
+  rectWidth: number,
+  rectHeight: number,
+  padLeft: number,
+  chartWidth: number,
+  points: { x: number; y: number; val: number; hour: string }[]
+): ProfileHoverData | null {
+  if (
+    relativeX < 0 ||
+    relativeX > rectWidth ||
+    relativeY < 0 ||
+    relativeY > rectHeight ||
+    rectWidth <= 0 ||
+    rectHeight <= 0
+  ) {
+    return null;
+  }
+
+  const ratio = Math.max(0, Math.min(1, relativeX / rectWidth));
+  const cursorSvgX = padLeft + ratio * chartWidth;
+
+  const exactIdx = ratio * PROFILE_HOURLY_INTERVALS;
+  const segIdx = Math.min(PROFILE_HOURLY_INTERVALS - 1, Math.floor(exactIdx));
+  const segFraction = exactIdx - segIdx;
+
+  const pt1 = points[segIdx] || points[0];
+  const pt2 = points[segIdx + 1] || pt1;
+
+  const hoverY = pt1 ? pt1.y + segFraction * (pt2.y - pt1.y) : 0;
+  const hoverVal = pt1 ? Math.round(pt1.val + segFraction * (pt2.val - pt1.val)) : 0;
+
+  const totalMinutes = Math.min(PROFILE_SPAN_MINUTES, Math.max(0, Math.round(ratio * PROFILE_SPAN_MINUTES)));
+  const hourStr = formatMinuteToHHMM(totalMinutes);
+
+  return {
+    x: cursorSvgX,
+    y: hoverY,
+    val: hoverVal,
+    hourStr,
+    minuteIndex: totalMinutes
+  };
+}
