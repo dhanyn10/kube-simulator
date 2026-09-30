@@ -8,7 +8,10 @@ import {
   calculateHourIndexFromX,
   calculateMinuteIndexFromX,
   calculateYValueFromPointer,
-  calculateMinutePoint
+  calculateMinutePoint,
+  formatMinuteToHHMM,
+  PROFILE_HOURLY_INTERVALS,
+  PROFILE_SPAN_MINUTES
 } from '@/activities/modals';
 import {
   getMiniHoverDotClass,
@@ -149,9 +152,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
-  const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
-  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
-  const [hoverCursorX, setHoverCursorX] = useState<number | null>(null);
 
   const width = 680;
   const height = 280;
@@ -185,41 +185,55 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   }
   const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
 
-  const hoveredMinutePt = hoveredMinuteIdx !== null
-    ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop)
-    : null;
 
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     setDraggingHour(hour);
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (svgRef.current) {
-      const rect = svgRef.current.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      const clientY = e.clientY - rect.top;
-      const svgX = (clientX / rect.width) * width;
-      const svgY = (clientY / rect.height) * height;
+  const [hoverData, setHoverCursorData] = useState<{ x: number; y: number; val: number; hourStr: string } | null>(null);
 
-      const isInsideChartX = svgX >= padLeft && svgX <= width - padRight;
-      const isInsideChartY = svgY >= padTop && svgY <= padTop + chartHeight;
+  const handleGraphPointerMove = (e: React.PointerEvent<SVGRectElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const relativeY = e.clientY - rect.top;
 
-      if (!isInsideChartX || !isInsideChartY) {
-        if (!draggingHour) {
-          setHoveredHourIdx(null);
-          setHoveredMinuteIdx(null);
-          setHoverCursorX(null);
-        }
-      } else {
-        const hourIdx = calculateHourIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
-        const minIdx = calculateMinuteIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
-        setHoverCursorX(svgX);
-        setHoveredHourIdx(hourIdx);
-        setHoveredMinuteIdx(minIdx);
-      }
+    if (relativeX < 0 || relativeX > rect.width || relativeY < 0 || relativeY > rect.height) {
+      if (!draggingHour) setHoverCursorData(null);
+      return;
     }
 
+    const ratio = Math.max(0, Math.min(1, relativeX / rect.width));
+    const cursorSvgX = padLeft + ratio * chartWidth;
+
+    const exactIdx = ratio * PROFILE_HOURLY_INTERVALS;
+    const segIdx = Math.min(PROFILE_HOURLY_INTERVALS - 1, Math.floor(exactIdx));
+    const segFraction = exactIdx - segIdx;
+
+    const pt1 = points[segIdx] || points[0];
+    const pt2 = points[segIdx + 1] || pt1;
+
+    const hoverY = pt1.y + segFraction * (pt2.y - pt1.y);
+    const hoverVal = Math.round(pt1.val + segFraction * (pt2.val - pt1.val));
+
+    const totalMinutes = Math.round(ratio * PROFILE_SPAN_MINUTES);
+    const hourStr = formatMinuteToHHMM(totalMinutes);
+
+    setHoverCursorData({
+      x: cursorSvgX,
+      y: hoverY,
+      val: hoverVal,
+      hourStr
+    });
+  };
+
+  const handleGraphPointerLeave = () => {
+    if (!draggingHour) {
+      setHoverCursorData(null);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (!draggingHour || !svgRef.current) return;
 
     const rect = svgRef.current.getBoundingClientRect();
@@ -234,12 +248,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
       setDraggingHour(null);
     }
-  };
-
-  const handlePointerLeave = () => {
-    setHoveredHourIdx(null);
-    setHoveredMinuteIdx(null);
-    setHoverCursorX(null);
   };
 
   return (
@@ -285,7 +293,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         viewBox={`0 0 ${width} ${height}`}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
         className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
       >
         <defs>
@@ -345,8 +352,20 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         {/* Curve line */}
         <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
+        {/* Strict Graph Canvas Hover Overlay Rect (detects pointer strictly inside graph bounds) */}
+        <rect
+          data-testid="interactive-chart-canvas-overlay"
+          x={padLeft}
+          y={padTop}
+          width={chartWidth}
+          height={chartHeight}
+          className="fill-transparent cursor-crosshair pointer-events-auto"
+          onPointerMove={handleGraphPointerMove}
+          onPointerLeave={handleGraphPointerLeave}
+        />
+
         {/* Minute-level Active Traffic Indicator Dot (shown when not hovering) */}
-        {isSimulating && isApplied && !hoveredMinutePt && (
+        {isSimulating && isApplied && !hoverData && (
           <g key={`interactive-active-traffic-dot-${minuteIdx}`} data-testid="interactive-active-traffic-dot">
             <line
               x1={activeMinutePt.x}
@@ -369,27 +388,27 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </g>
         )}
 
-        {/* Minute-level Hover Indicator (Only 1 dot rendered, aligned with cursor X position) */}
-        {!draggingHour && hoveredMinutePt && (
-          <g key={`interactive-hover-minute-${hoveredMinuteIdx}`} data-testid="interactive-hover-minute-indicator">
+        {/* Minute-level Hover Indicator (Only 1 dot rendered, 100% aligned with cursor X position) */}
+        {!draggingHour && hoverData && (
+          <g key={`interactive-hover-minute-${hoverData.hourStr}`} data-testid="interactive-hover-minute-indicator" className="pointer-events-none">
             <line
-              x1={hoveredMinutePt.x}
+              x1={hoverData.x}
               y1={padTop}
-              x2={hoveredMinutePt.x}
+              x2={hoverData.x}
               y2={padTop + chartHeight}
               stroke="#3b82f6"
               strokeDasharray="2 2"
               strokeWidth="1.5"
             />
-            <circle cx={hoveredMinutePt.x} cy={hoveredMinutePt.y} r="8" className="fill-transparent" />
+            <circle cx={hoverData.x} cy={hoverData.y} r="8" className="fill-transparent" />
             <circle
-              cx={hoveredMinutePt.x}
-              cy={hoveredMinutePt.y}
+              cx={hoverData.x}
+              cy={hoverData.y}
               r="5"
               className="fill-blue-500 stroke-white dark:stroke-slate-900"
               strokeWidth="1.5"
             />
-            <g transform={`translate(${hoveredMinutePt.x}, ${Math.max(padTop + 20, hoveredMinutePt.y - 32)})`}>
+            <g transform={`translate(${hoverData.x}, ${Math.max(padTop + 20, hoverData.y - 32)})`}>
               <rect
                 x="-45"
                 y="-14"
@@ -411,7 +430,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                   colorMode === 'dark' ? "fill-blue-400" : "fill-blue-600"
                 )}
               >
-                {`${hoveredMinutePt.hour} • ${hoveredMinutePt.val.toLocaleString()}`}
+                {`${hoverData.hourStr} • ${hoverData.val.toLocaleString()}`}
               </text>
             </g>
           </g>
@@ -420,13 +439,12 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
-          const isHoveredThis = hoveredHourIdx === idx;
           const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
           const isSameHour = idx === safeHourIdx;
           const showLabel = idx % 3 === 0 || idx === points.length - 1;
 
-          const guideLineStroke = getGuideLineStroke(isHoveredThis, isSimulatingActive, isSameHour, isRed);
-          const pointFillClass = getPointFillClass(isHoveredThis, isSameHour, isSimulatingActive, isDraggingThis, isRed);
+          const guideLineStroke = getGuideLineStroke(false, isSimulatingActive, isSameHour, isRed);
+          const pointFillClass = getPointFillClass(false, isSameHour, isSimulatingActive, isDraggingThis, isRed);
 
           return (
             <g key={`pt-${pt.hour}`}>

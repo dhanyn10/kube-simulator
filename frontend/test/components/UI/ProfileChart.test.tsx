@@ -104,17 +104,15 @@ describe('ProfileChart', () => {
       fireEvent.change(nameInput, { target: { value: 'New Profile Name' } });
       expect(onUpdateName).toHaveBeenCalledWith('New Profile Name');
 
-      const chartSvg = container.querySelector('svg[viewBox="0 0 680 280"]');
-      if (chartSvg) {
-        act(() => {
-          fireEvent.pointerMove(chartSvg, { clientX: 150, clientY: 50, bubbles: true });
-        });
-        expect(screen.getByTestId('interactive-hover-minute-indicator')).toBeInTheDocument();
-        act(() => {
-          fireEvent.pointerLeave(chartSvg);
-        });
-        expect(screen.queryByTestId('interactive-hover-minute-indicator')).not.toBeInTheDocument();
-      }
+      const overlayRect = screen.getByTestId('interactive-chart-canvas-overlay');
+      act(() => {
+        fireEvent.pointerMove(overlayRect, { clientX: 150, clientY: 50, bubbles: true });
+      });
+      expect(screen.getByTestId('interactive-hover-minute-indicator')).toBeInTheDocument();
+      act(() => {
+        fireEvent.pointerLeave(overlayRect);
+      });
+      expect(screen.queryByTestId('interactive-hover-minute-indicator')).not.toBeInTheDocument();
     });
 
     it('renders in light mode with pointer down, move, and up dragging', () => {
