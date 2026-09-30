@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +34,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
     };
   }, [onClose]);
 
-  return (
+  return createPortal(
     <dialog open className="yaml-modal-overlay">
       <button
         type="button"
@@ -120,6 +121,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
           </button>
         </div>
       </div>
-    </dialog>
+    </dialog>,
+    document.body
   );
 }

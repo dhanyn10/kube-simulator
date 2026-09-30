@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
@@ -64,7 +65,7 @@ export const Modal = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <dialog
       open
       onContextMenu={handleContextMenu}
@@ -174,6 +175,7 @@ export const Modal = ({
           </button>
         </div>
       )}
-    </dialog>
+    </dialog>,
+    document.body
   );
 };
