@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '../UI/ConfigUI';
 import { InternetProfileModal } from '../Modals/InternetProfileModal';
-import { HOURS_OF_DAY, calculateMinutePoint, calculateMinuteIndexFromX } from '@/activities/modals';
+import { HOURS_OF_DAY, calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, ProfileHoverData } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -53,7 +53,7 @@ const ReadOnlyProfileChart = ({
   readonly onSeekMinute?: (targetMinute: number) => void;
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
-  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
+  const [hoverData, setHoverData] = useState<ProfileHoverData | null>(null);
 
   const width = 240;
   const height = 80;
@@ -88,21 +88,29 @@ const ReadOnlyProfileChart = ({
     minuteIdx = currentHourIndex * 60;
   }
   const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
-  const hoveredPt = hoveredMinuteIdx !== null ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop) : null;
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<SVGRectElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const rectWidth = rect.width || width;
-    const mouseX = e.clientX - rect.left;
-    const minIdx = calculateMinuteIndexFromX(mouseX, rectWidth, width, padLeft, padRight, chartWidth);
-    setHoveredMinuteIdx(minIdx);
+    const relativeX = e.clientX - rect.left;
+    const relativeY = e.clientY - rect.top;
+
+    const data = calculateProfileHoverData(
+      relativeX,
+      relativeY,
+      rect.width,
+      rect.height,
+      padLeft,
+      chartWidth,
+      points
+    );
+    setHoverData(data);
   };
 
-  const handleMouseLeave = () => {
-    setHoveredMinuteIdx(null);
+  const handlePointerLeave = () => {
+    setHoverData(null);
   };
 
-  const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleClick = (e: React.MouseEvent<SVGRectElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const rectWidth = rect.width || width;
     const mouseX = e.clientX - rect.left;
@@ -125,53 +133,67 @@ const ReadOnlyProfileChart = ({
         )}
       </div>
 
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-16 overflow-visible cursor-pointer"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-      >
-        <defs>
-          <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-        <path d={areaD} fill="url(#sidebarChartGrad)" />
-        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+      <div className="relative w-full h-16">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full h-full overflow-visible cursor-pointer select-none"
+        >
+          <defs>
+            <linearGradient id="sidebarChartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill="url(#sidebarChartGrad)" />
+          <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
 
-        {/* Active Simulation Traffic Position Dot */}
-        <g key={`traffic-dot-sidebar-active-${minuteIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
-          <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
-          <circle
-            cx={currentPt.x}
-            cy={currentPt.y}
-            r="4.5"
-            className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125"}
-            strokeWidth="1.5"
+          {/* Active Simulation Traffic Position Dot (shown when not hovering) */}
+          {!hoverData && (
+            <g key={`traffic-dot-sidebar-active-${minuteIdx}`} data-testid="active-traffic-dot" className="group/dot cursor-pointer">
+              <circle cx={currentPt.x} cy={currentPt.y} r="8" className="fill-transparent" />
+              <circle
+                cx={currentPt.x}
+                cy={currentPt.y}
+                r="4.5"
+                className={isRed ? "fill-rose-500 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125" : "fill-blue-400 stroke-white dark:stroke-slate-900 transition-transform group-hover/dot:scale-125"}
+                strokeWidth="1.5"
+              />
+            </g>
+          )}
+
+          {/* Hover Position Dot & Guide Line */}
+          {hoverData && (
+            <g key={`traffic-dot-sidebar-hover-${hoverData.minuteIndex}`} data-testid="hover-traffic-dot" className="pointer-events-none">
+              <line x1={hoverData.x} y1={padTop} x2={hoverData.x} y2={padTop + chartHeight} stroke={getHoverDotStroke(hoverData.minuteIndex === minuteIdx, isRed)} strokeDasharray="2 2" strokeWidth="1" />
+              <circle
+                cx={hoverData.x}
+                cy={hoverData.y}
+                r="5"
+                className={getHoverDotClass(hoverData.minuteIndex === minuteIdx, isRed)}
+                strokeWidth="1.5"
+              />
+            </g>
+          )}
+
+          {/* Strict Graph Canvas Hover Overlay Rect */}
+          <rect
+            data-testid="readonly-chart-canvas-overlay"
+            x={padLeft}
+            y={padTop}
+            width={chartWidth}
+            height={chartHeight}
+            className="fill-transparent cursor-pointer pointer-events-auto"
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            onClick={handleClick}
           />
-        </g>
-
-        {/* Hover Position Dot & Guide Line */}
-        {hoveredPt && (
-          <g key={`traffic-dot-sidebar-hover-${hoveredMinuteIdx}`} data-testid="hover-traffic-dot">
-            <line x1={hoveredPt.x} y1={padTop} x2={hoveredPt.x} y2={padTop + chartHeight} stroke={getHoverDotStroke(hoveredMinuteIdx === minuteIdx, isRed)} strokeDasharray="2 2" strokeWidth="1" />
-            <circle
-              cx={hoveredPt.x}
-              cy={hoveredPt.y}
-              r="5"
-              className={getHoverDotClass(hoveredMinuteIdx === minuteIdx, isRed)}
-              strokeWidth="1.5"
-            />
-          </g>
-        )}
-      </svg>
+        </svg>
+      </div>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
         <span>
-          {hoveredPt ? (
-            <>Traffic ({hoveredPt.hour}): <strong className="text-blue-400">{hoveredPt.val.toLocaleString()} visits</strong></>
+          {hoverData ? (
+            <>Traffic ({hoverData.hourStr}): <strong className="text-blue-400">{hoverData.val.toLocaleString()} visits</strong></>
           ) : (
             <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
           )}

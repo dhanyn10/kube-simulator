@@ -7,9 +7,9 @@ import {
   calculateProfileHoverData,
   formatMinuteToHHMM,
   calculateMinutePoint
-} from '@/activities/modals/internetProfileChartHelpers';
+} from '@/lib/kubechart';
 
-describe('internetProfileChartHelpers', () => {
+describe('kubechart library', () => {
   const dummyProfile = {
     name: 'Test Profile',
     hourly: {
@@ -29,12 +29,9 @@ describe('internetProfileChartHelpers', () => {
     expect(result.maxVal).toBeGreaterThanOrEqual(1500);
     expect(result.minVal).toBe(0);
 
-    // Test with array where at(-1) returns undefined to cover points[0] fallback on lastPoint
     const origAt = Array.prototype.at;
-    let atCallCount = 0;
     Array.prototype.at = function(index: number) {
       if (index === -1) {
-        atCallCount++;
         return undefined as any;
       }
       return origAt.call(this, index);
@@ -52,13 +49,8 @@ describe('internetProfileChartHelpers', () => {
     const padRight = 10;
     const chartWidth = width - padLeft - padRight; // 180
 
-    // Left edge -> hour index 0
     expect(calculateHourIndexFromX(5, 200, width, padLeft, padRight, chartWidth)).toBe(0);
-
-    // Right edge -> hour index 23
     expect(calculateHourIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(23);
-
-    // Middle -> hour index around 12
     expect(calculateHourIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(12);
   });
 
@@ -68,13 +60,8 @@ describe('internetProfileChartHelpers', () => {
     const padRight = 10;
     const chartWidth = width - padLeft - padRight; // 180
 
-    // Left edge -> minute index 0
     expect(calculateMinuteIndexFromX(5, 200, width, padLeft, padRight, chartWidth)).toBe(0);
-
-    // Right edge -> minute index 1380 (23:00)
     expect(calculateMinuteIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(1380);
-
-    // Middle -> minute index around 690 (11:30)
     expect(calculateMinuteIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(690);
   });
 
@@ -85,11 +72,9 @@ describe('internetProfileChartHelpers', () => {
     const minVal = 0;
     const maxVal = 1000;
 
-    // Pointer at top -> near maxVal
     const topVal = calculateYValueFromPointer(10, 100, height, padTop, chartHeight, minVal, maxVal);
     expect(topVal).toBe(maxVal);
 
-    // Pointer at bottom -> near minVal (clamped at least 10)
     const bottomVal = calculateYValueFromPointer(90, 100, height, padTop, chartHeight, minVal, maxVal);
     expect(bottomVal).toBe(10);
   });
@@ -112,13 +97,11 @@ describe('internetProfileChartHelpers', () => {
       10
     );
 
-    // Out of bounds cases
     expect(calculateProfileHoverData(-5, 50, 200, 100, 10, chartWidth, points)).toBeNull();
     expect(calculateProfileHoverData(205, 50, 200, 100, 10, chartWidth, points)).toBeNull();
     expect(calculateProfileHoverData(50, -10, 200, 100, 10, chartWidth, points)).toBeNull();
     expect(calculateProfileHoverData(50, 110, 200, 100, 10, chartWidth, points)).toBeNull();
 
-    // Valid inside bounds case (middle relativeX = 100 on rectWidth = 200)
     const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
     expect(hoverResult).not.toBeNull();
     expect(hoverResult?.x).toBe(100);
@@ -137,7 +120,6 @@ describe('internetProfileChartHelpers', () => {
       10
     );
 
-    // Empty points fallback
     expect(calculateMinutePoint([], 0, 0, 1000, 80, 10)).toEqual({
       x: 0,
       y: 0,
@@ -145,19 +127,16 @@ describe('internetProfileChartHelpers', () => {
       hour: '00:00'
     });
 
-    // Minute 0 (00:00)
     const ptMin0 = calculateMinutePoint(points, 0, minVal, maxVal, chartHeight, 10);
     expect(ptMin0.x).toBe(points[0].x);
     expect(ptMin0.val).toBe(points[0].val);
     expect(ptMin0.hour).toBe('00:00');
 
-    // Minute 30 (00:30) - exact midpoint between hour 0 (100) and hour 1 (200)
     const ptMin30 = calculateMinutePoint(points, 30, minVal, maxVal, chartHeight, 10);
     expect(ptMin30.x).toBeCloseTo((points[0].x + points[1].x) / 2);
     expect(ptMin30.val).toBe(150);
     expect(ptMin30.hour).toBe('00:30');
 
-    // Minute 1439 (23:59) - x stays at right edge (points[23].x)
     const ptMin2359 = calculateMinutePoint(points, 1439, minVal, maxVal, chartHeight, 10);
     expect(ptMin2359.x).toBe(points[23].x);
     expect(ptMin2359.hour).toBe('23:59');

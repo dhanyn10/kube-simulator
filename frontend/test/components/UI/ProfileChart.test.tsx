@@ -55,12 +55,17 @@ describe('ProfileChart', () => {
       expect(svg).toBeInTheDocument();
       expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
 
-      // Trigger mouse move to test hover dot
-      if (svg) {
-        fireEvent.mouseMove(svg, { clientX: 50, clientY: 20 });
+      // Trigger pointer move on overlay rect to test hover dot
+      const overlayRect = screen.getByTestId('mini-chart-canvas-overlay');
+      if (overlayRect) {
+        act(() => {
+          fireEvent.pointerMove(overlayRect, { clientX: 50, clientY: 20 });
+        });
         expect(screen.getByTestId('mini-hover-traffic-dot')).toBeInTheDocument();
 
-        fireEvent.mouseLeave(svg);
+        act(() => {
+          fireEvent.pointerLeave(overlayRect);
+        });
         expect(screen.queryByTestId('mini-hover-traffic-dot')).not.toBeInTheDocument();
       }
     });
