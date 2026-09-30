@@ -1,6 +1,6 @@
 import { Node } from '@xyflow/react';
-import { sortNodes, getNodeData } from '../../helpers';
-import { hydrateNodes } from '../../nodeHelpers';
+import { sortNodes, getNodeData } from '@/store/helpers';
+import { hydrateNodes } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
 import { randomId } from '@/lib/utils';
 

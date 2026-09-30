@@ -8,9 +8,7 @@ import {
   calculateYValueFromPointer,
   calculateMinutePoint,
   calculateProfileHoverData,
-  ProfileHoverData,
-  PROFILE_HOURLY_INTERVALS,
-  PROFILE_SPAN_MINUTES
+  ProfileHoverData
 } from '@/activities/modals';
 import {
   getMiniHoverDotClass,
@@ -208,7 +206,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     setDraggingHour(hour);
   };
 
-  const [hoverData, setHoverCursorData] = useState<ProfileHoverData | null>(null);
+  const [hoverData, setHoverData] = useState<ProfileHoverData | null>(null);
 
   const handleGraphPointerMove = (e: React.PointerEvent<SVGRectElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -225,13 +223,13 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       points
     );
     if (!draggingHour) {
-      setHoverCursorData(data);
+      setHoverData(data);
     }
   };
 
   const handleGraphPointerLeave = () => {
     if (!draggingHour) {
-      setHoverCursorData(null);
+      setHoverData(null);
     }
   };
 

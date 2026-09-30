@@ -47,7 +47,7 @@ export const useFitView = () => {
     const containerElement = document.querySelector('.react-flow__renderer');
     if (!containerElement) {
         // Fallback to standard fitView if we can't find the container
-        rfFitView({ padding, duration, maxZoom });
+        void rfFitView({ padding, duration, maxZoom });
         return;
     }
 
@@ -69,7 +69,7 @@ export const useFitView = () => {
     const x = containerWidth / 2 - centerX * scale;
     const y = containerHeight / 2 - centerY * scale;
 
-    setViewport({ x, y, zoom: scale }, { duration });
+    void setViewport({ x, y, zoom: scale }, { duration });
   }, [getNodes, setViewport, rfFitView]);
 
   return customFitView;

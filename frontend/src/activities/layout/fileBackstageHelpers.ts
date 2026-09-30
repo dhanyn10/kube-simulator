@@ -77,21 +77,23 @@ const fetchSavedProjects = async (app: any): Promise<RecentFileItem[]> => {
   const projects = await app.GetProjects();
   if (!Array.isArray(projects)) return [];
 
-  const items: RecentFileItem[] = [];
-  for (const p of projects) {
+  const projectChecks = projects.map(async (p) => {
     const fullPath = `~/.kube-simulator/projects/project_${p.id}.infra`;
     const exists = app.FileExists ? await app.FileExists(fullPath) : true;
     if (exists) {
-      items.push({
+      return {
         id: p.id,
         name: p.name,
         location: fullPath,
         fullPath,
         updatedAt: formatDateModified(p.updated_at || p.created_at || Date.now()),
-      });
+      } as RecentFileItem;
     }
-  }
-  return items;
+    return null;
+  });
+
+  const results = await Promise.all(projectChecks);
+  return results.filter((item): item is RecentFileItem => item !== null);
 };
 
 /**

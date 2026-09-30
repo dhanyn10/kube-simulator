@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Plus, Trash2, Key } from 'lucide-react';
-import { ConfigLabel, ConfigInput, VisibilityToggle, YamlToggle } from '../UI/ConfigUI';
+import { ConfigLabel, ConfigInput, VisibilityToggle, YamlToggle } from '@/components/UI/ConfigUI';
 
 interface KeyValueConfigProps {
   title: string;

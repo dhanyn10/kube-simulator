@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
 import { getConnectionError } from '@/constants/connections';
-import { getAbsPos } from '../helpers';
+import { getAbsPos } from '@/store/helpers';
 import {
   emitLiveEdgeCreatedCommand,
   emitLiveEdgeDeletedCommand,

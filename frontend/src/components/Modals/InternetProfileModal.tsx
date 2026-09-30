@@ -8,7 +8,7 @@ import {
   ECOMMERCE_PROFILE
 } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
-import { MiniCurvePreview, InteractiveTrafficChart } from '../UI/ProfileChart';
+import { MiniCurvePreview, InteractiveTrafficChart } from '@/components/UI/ProfileChart';
 
 interface InternetProfileModalProps {
   readonly isOpen: boolean;

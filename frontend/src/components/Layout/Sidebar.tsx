@@ -3,7 +3,7 @@ import { Box, Layers, Network, Anchor, Search, Globe, ChevronDown, ChevronRight,
 import { K8sResourceType } from '@/types';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
-import { SidebarContextMenu, useSidebarContextMenu } from '../UI/SidebarContextMenu';
+import { SidebarContextMenu, useSidebarContextMenu } from '@/components/UI/SidebarContextMenu';
 import {
   ITEM_STYLES,
   SIDEBAR_SECTIONS,

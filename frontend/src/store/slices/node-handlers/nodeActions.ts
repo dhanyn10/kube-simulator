@@ -7,8 +7,8 @@ import {
   sortNodes,
   getAbsPos,
   resolveGlobalCollisions
-} from '../../helpers';
-import { syncDeployment, syncContainerSize } from '../../nodeHelpers';
+} from '@/store/helpers';
+import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import {
   getInitialData,
   sanitizeResourceLimits,

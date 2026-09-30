@@ -11,11 +11,11 @@ import {
   MousePointer2,
   History
 } from 'lucide-react';
-import { HistoryPanel } from '../Monitoring/HistoryPanel';
+import { HistoryPanel } from '@/components/Monitoring/HistoryPanel';
 import { cn } from '@/lib/utils';
-import { NodeConfig, EdgeConfig } from '../Config';
-import { ResourceBudget } from '../Monitoring';
-import { SidebarContextMenu } from '../UI/SidebarContextMenu';
+import { NodeConfig, EdgeConfig } from '@/components/Config';
+import { ResourceBudget } from '@/components/Monitoring';
+import { SidebarContextMenu } from '@/components/UI/SidebarContextMenu';
 import {
   TabType,
   getRightSidebarTabClass,
