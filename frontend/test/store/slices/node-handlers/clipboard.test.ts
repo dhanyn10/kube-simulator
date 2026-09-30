@@ -248,18 +248,22 @@ describe('clipboardHandlers', () => {
   it('tryIncrementPodReplicas returns false when targetNode is missing from nodes list', () => {
     const updateSpy = vi.fn();
     const clipPod: Node = { id: 'pod-target-missing', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'orphan' } };
-    const selPod: Node = { id: 'pod-target-missing', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: { label: 'orphan' } };
+    const selPod: Node = { id: 'pod-target-missing', parentId: 'non-existent-dep', selected: true, position: { x: 0, y: 0 }, data: { label: 'orphan' } };
+    const depNode: Node = { id: 'some-other-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
 
-    // Set nodes to empty array so targetNode is missing when searching nodes
+    // Selected pod parentId is 'non-existent-dep'.
+    // parent is undefined -> targetId = 'non-existent-dep'.
+    // targetNode (nodes.find(n => n.id === 'non-existent-dep')) is undefined -> line 20: if (!targetNode) return false;
     useFlowStore.setState({
-      nodes: [],
+      nodes: [selPod, depNode] as any,
       clipboard: { nodes: [clipPod], edges: [] },
       updateNodeData: updateSpy,
     });
 
-    // Directly test pasteNodes where selectedPod is not found in nodes
     useFlowStore.getState().pasteNodes();
     expect(updateSpy).not.toHaveBeenCalled();
+    // Falls back to pasting new node
+    expect(useFlowStore.getState().nodes).toHaveLength(3);
   });
 
   it('copyNodes handles non-Deployment nodes and uncopied edge targets', () => {

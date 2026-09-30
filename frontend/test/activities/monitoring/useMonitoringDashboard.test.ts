@@ -70,4 +70,54 @@ describe('useMonitoringDashboardHandler', () => {
       expect.stringContaining('width=800,height=600')
     );
   });
+
+  it('handles BroadcastChannel messages and Wails runtime event listeners', () => {
+    let onMessageCallback: ((event: any) => void) | null = null;
+    class MockBroadcastChannel {
+      set onmessage(cb: any) {
+        onMessageCallback = cb;
+      }
+      close() {}
+    }
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
+
+    const runtimeEvents: Record<string, Function> = {};
+    (globalThis as any).runtime = {
+      EventsOn: (eventName: string, cb: Function) => {
+        runtimeEvents[eventName] = cb;
+      },
+    };
+
+    renderHook(() => useMonitoringDashboardHandler());
+
+    // Trigger BroadcastChannel DETACHED_OPEN
+    act(() => {
+      onMessageCallback?.({ data: { type: 'DETACHED_OPEN' } });
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+
+    // Trigger BroadcastChannel DETACHED_CLOSED
+    act(() => {
+      onMessageCallback?.({ data: { type: 'DETACHED_CLOSED' } });
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
+
+    // Trigger BroadcastChannel with unhandled message type
+    act(() => {
+      onMessageCallback?.({ data: { type: 'OTHER_EVENT' } });
+    });
+
+    // Trigger runtime event handlers
+    act(() => {
+      runtimeEvents['detached-open']?.();
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+
+    act(() => {
+      runtimeEvents['detached-closed']?.();
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
+
+    delete (globalThis as any).runtime;
+  });
 });

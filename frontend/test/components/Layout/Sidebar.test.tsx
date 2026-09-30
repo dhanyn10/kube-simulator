@@ -57,6 +57,9 @@ describe('Sidebar', () => {
   });
 
   it('shows "No elements found" when search yields no results in dark and light modes', () => {
+    act(() => {
+      useFlowStore.setState({ colorMode: 'dark' });
+    });
     const { rerender } = render(<Sidebar onAddNode={vi.fn()} />);
 
     const searchInput = screen.getByPlaceholderText('Search...');
