@@ -40,7 +40,7 @@ describe('InternetProfileModal', () => {
     mockGetInternetProfiles.mockResolvedValue([]);
     mockSaveInternetProfile.mockResolvedValue(true);
     mockDeleteInternetProfile.mockResolvedValue(true);
-    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [] });
+    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [], isSimulating: false });
   });
 
   it('renders modal when isOpen is true and handles label fallback when label is missing', async () => {
@@ -346,15 +346,14 @@ describe('InternetProfileModal', () => {
       );
     });
 
-    expect(screen.getByText('Pause or Stop simulation to view profile details')).toBeDefined();
     expect(screen.getByText('Pause or Stop simulation to add custom profile')).toBeDefined();
 
-    const pauseBtns = screen.getAllByRole('button', { name: /Pause/i });
+    const pauseBtns = screen.getAllByTitle('Pause simulation to view details');
     expect(pauseBtns.length).toBeGreaterThan(0);
     fireEvent.click(pauseBtns[0]);
     expect(pauseSimulationMock).toHaveBeenCalled();
 
-    const stopBtns = screen.getAllByRole('button', { name: /Stop/i });
+    const stopBtns = screen.getAllByTitle('Stop simulation to view details');
     expect(stopBtns.length).toBeGreaterThan(0);
     fireEvent.click(stopBtns[0]);
     expect(stopSimulationMock).toHaveBeenCalled();
