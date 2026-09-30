@@ -33,12 +33,12 @@ export function calculateMinutePoint(
   }
 
   const safeMin = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
-  const hour1 = Math.floor(safeMin / 60) % 24;
-  const minuteInHour = safeMin % 60;
-  const fraction = minuteInHour / 60;
+  const hour1 = Math.min(22, Math.floor(safeMin / 60));
+  const minuteInHour = safeMin - hour1 * 60;
+  const fraction = Math.min(1, minuteInHour / 60);
 
   const pt1 = points[hour1] || points[0];
-  const pt2 = hour1 < points.length - 1 ? (points[hour1 + 1] || pt1) : pt1;
+  const pt2 = points[hour1 + 1] || pt1;
 
   const x = pt1.x + fraction * (pt2.x - pt1.x);
   const val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
@@ -155,7 +155,7 @@ export function calculateMinuteIndexFromX(
   const relativeX = (mouseX / rectWidth) * width;
   const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
   const ratio = (clampedX - padLeft) / chartWidth;
-  return Math.min(1439, Math.max(0, Math.round(ratio * 1439)));
+  return Math.min(1380, Math.max(0, Math.round(ratio * 1380)));
 }
 
 /**

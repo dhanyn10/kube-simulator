@@ -198,13 +198,26 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     if (svgRef.current) {
       const rect = svgRef.current.getBoundingClientRect();
       const clientX = e.clientX - rect.left;
+      const clientY = e.clientY - rect.top;
       const svgX = (clientX / rect.width) * width;
-      const clampedSvgX = Math.max(padLeft, Math.min(width - padRight, svgX));
-      const hourIdx = calculateHourIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
-      const minIdx = calculateMinuteIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
-      setHoverCursorX(clampedSvgX);
-      setHoveredHourIdx(hourIdx);
-      setHoveredMinuteIdx(minIdx);
+      const svgY = (clientY / rect.height) * height;
+
+      const isInsideChartX = svgX >= padLeft && svgX <= width - padRight;
+      const isInsideChartY = svgY >= padTop && svgY <= padTop + chartHeight;
+
+      if (!isInsideChartX || !isInsideChartY) {
+        if (!draggingHour) {
+          setHoveredHourIdx(null);
+          setHoveredMinuteIdx(null);
+          setHoverCursorX(null);
+        }
+      } else {
+        const hourIdx = calculateHourIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
+        const minIdx = calculateMinuteIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
+        setHoverCursorX(svgX);
+        setHoveredHourIdx(hourIdx);
+        setHoveredMinuteIdx(minIdx);
+      }
     }
 
     if (!draggingHour || !svgRef.current) return;
@@ -357,26 +370,26 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         )}
 
         {/* Minute-level Hover Indicator (Only 1 dot rendered, aligned with cursor X position) */}
-        {!draggingHour && hoveredMinutePt && hoverCursorX !== null && (
+        {!draggingHour && hoveredMinutePt && (
           <g key={`interactive-hover-minute-${hoveredMinuteIdx}`} data-testid="interactive-hover-minute-indicator">
             <line
-              x1={hoverCursorX}
+              x1={hoveredMinutePt.x}
               y1={padTop}
-              x2={hoverCursorX}
+              x2={hoveredMinutePt.x}
               y2={padTop + chartHeight}
               stroke="#3b82f6"
               strokeDasharray="2 2"
               strokeWidth="1.5"
             />
-            <circle cx={hoverCursorX} cy={hoveredMinutePt.y} r="8" className="fill-transparent" />
+            <circle cx={hoveredMinutePt.x} cy={hoveredMinutePt.y} r="8" className="fill-transparent" />
             <circle
-              cx={hoverCursorX}
+              cx={hoveredMinutePt.x}
               cy={hoveredMinutePt.y}
               r="5"
               className="fill-blue-500 stroke-white dark:stroke-slate-900"
               strokeWidth="1.5"
             />
-            <g transform={`translate(${hoverCursorX}, ${Math.max(padTop + 20, hoveredMinutePt.y - 32)})`}>
+            <g transform={`translate(${hoveredMinutePt.x}, ${Math.max(padTop + 20, hoveredMinutePt.y - 32)})`}>
               <rect
                 x="-45"
                 y="-14"
