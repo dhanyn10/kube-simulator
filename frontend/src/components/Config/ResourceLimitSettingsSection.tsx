@@ -1,8 +1,8 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
 import { K8sNodeData, K8sResourceLimitItem } from '@/types';
-import { ResourceLimitModal } from '../Modals/ResourceLimitModal';
-import { ResourceLimitListModal } from '../Modals/ResourceLimitListModal';
+import { ResourceLimitModal } from '@/components/Modals/ResourceLimitModal';
+import { ResourceLimitListModal } from '@/components/Modals/ResourceLimitListModal';
 import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';
 
 interface ResourceLimitSettingsSectionProps {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
-import { ConfigSection } from '../UI/ConfigUI';
-import { InternetProfileModal } from '../Modals/InternetProfileModal';
+import { ConfigSection } from '@/components/UI/ConfigUI';
+import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
 import { HOURS_OF_DAY, calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, ProfileHoverData } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {

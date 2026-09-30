@@ -1,7 +1,7 @@
 import { useFlowStore } from '@/store';
 import { cn, sanitizeSlug } from '@/lib/utils';
 import { Type, Terminal, Shuffle } from 'lucide-react';
-import { ConfigInput, ConfigLabel } from '../UI/ConfigUI';
+import { ConfigInput, ConfigLabel } from '@/components/UI/ConfigUI';
 import {
   WorkloadConfig,
   ServiceConfig,

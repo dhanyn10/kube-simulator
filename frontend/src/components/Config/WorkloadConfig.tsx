@@ -1,12 +1,12 @@
 import { useFlowStore } from '@/store';
 import { Box, Code, Layers, Server } from 'lucide-react';
-import { ConfigSection, NumberStepper } from '../UI/ConfigUI';
-import { ImageDropdown } from '../UI/ImageDropdown';
-import { SelectorGroup } from '../UI/SelectorGroup';
+import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
+import { ImageDropdown } from '@/components/UI/ImageDropdown';
+import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { RUNTIMES, WEBSERVERS } from '@/constants/config';
 import { cn } from '@/lib/utils';
-import { FrameworkSelector } from '../Workload/FrameworkSelector';
-import { WorkloadAdvancedConfig } from '../Workload/WorkloadAdvancedConfig';
+import { FrameworkSelector } from '@/components/Workload/FrameworkSelector';
+import { WorkloadAdvancedConfig } from '@/components/Workload/WorkloadAdvancedConfig';
 import { useWorkloadConfigHandler } from '@/activities/config';
 
 interface WorkloadConfigProps {

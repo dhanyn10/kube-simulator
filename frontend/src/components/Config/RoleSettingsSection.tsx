@@ -1,8 +1,8 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { K8sNodeData, K8sRoleItem } from '@/types';
-import { RoleModal } from '../Modals/RoleModal';
-import { RoleListModal } from '../Modals/RoleListModal';
+import { RoleModal } from '@/components/Modals/RoleModal';
+import { RoleListModal } from '@/components/Modals/RoleListModal';
 import { AttachedResourceSettingsSection } from './AttachedResourceSettingsSection';
 
 interface RoleSettingsSectionProps {

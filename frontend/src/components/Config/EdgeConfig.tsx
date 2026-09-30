@@ -1,7 +1,7 @@
 import { useFlowStore } from '@/store';
 import { Layers, Palette, RefreshCcw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ColorPalette } from '../UI/ColorPalette';
+import { ColorPalette } from '@/components/UI/ColorPalette';
 import {
   formatColorName,
   useEdgeConfigHandler

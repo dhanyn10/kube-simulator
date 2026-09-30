@@ -1,7 +1,7 @@
 
 import { useFlowStore } from '@/store';
 import { Globe, Code } from 'lucide-react';
-import { ConfigInput, ConfigSection, AdvancedSection } from '../UI/ConfigUI';
+import { ConfigInput, ConfigSection, AdvancedSection } from '@/components/UI/ConfigUI';
 
 interface IngressConfigProps {
   selectedNode: any;
