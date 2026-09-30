@@ -199,7 +199,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         type="button"
                         onClick={() => handleApplyProfile(p.name)}
                         className={cn(
-                          "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
+                          "flex-1 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
                           getApplyButtonClass(isApplied, colorMode)
                         )}
                       >
@@ -207,19 +207,50 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         <span>Apply</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDetails(p.name)}
-                        className={cn(
-                          "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
-                          colorMode === 'dark'
-                            ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
-                            : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                      <div className="relative group flex-1">
+                        {isSimulating && (
+                          <div className="absolute inset-0 z-20 rounded-lg bg-slate-950/90 backdrop-blur-xs flex items-center justify-center gap-1.5 p-1 border border-amber-500/40 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                pauseSimulation();
+                              }}
+                              className="p-1 rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 flex items-center justify-center transition-all"
+                              title="Pause simulation to view details"
+                            >
+                              <Pause size={12} fill="currentColor" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                stopSimulation();
+                              }}
+                              className="p-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/40 flex items-center justify-center transition-all"
+                              title="Stop simulation to view details"
+                            >
+                              <Square size={12} fill="currentColor" />
+                            </button>
+                          </div>
                         )}
-                      >
-                        <Eye size={13} />
-                        <span>Details</span>
-                      </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDetails(p.name)}
+                          disabled={isSimulating}
+                          className={cn(
+                            "w-full px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
+                            isSimulating ? "opacity-50 cursor-not-allowed" : "",
+                            colorMode === 'dark'
+                              ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
+                              : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          )}
+                        >
+                          <Eye size={13} />
+                          <span>Details</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

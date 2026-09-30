@@ -5,13 +5,19 @@ export interface InternetProfileItem {
   timestamp?: number;
 }
 
-export const HOURS_OF_DAY = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+export const MINUTES_PER_HOUR = 60;
+export const HOURS_IN_DAY = 24;
+export const MINUTES_IN_DAY = HOURS_IN_DAY * MINUTES_PER_HOUR; // 1440
+export const PROFILE_HOURLY_INTERVALS = 23;
+export const PROFILE_SPAN_MINUTES = PROFILE_HOURLY_INTERVALS * MINUTES_PER_HOUR; // 1380 minutes (00:00 to 23:00)
+
+export const HOURS_OF_DAY = Array.from({ length: HOURS_IN_DAY }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
 /**
  * Formats minute index (0..1439) as HH:MM time string.
  */
 export function formatMinuteToHHMM(minuteIndex: number): string {
-  const safeMin = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
+  const safeMin = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
   const hh = String(Math.floor(safeMin / 60)).padStart(2, '0');
   const mm = String(safeMin % 60).padStart(2, '0');
   return `${hh}:${mm}`;
@@ -32,13 +38,13 @@ export function calculateMinutePoint(
     return { x: 0, y: 0, val: 0, hour: '00:00' };
   }
 
-  const safeMin = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
-  const hour1 = Math.floor(safeMin / 60) % 24;
-  const minuteInHour = safeMin % 60;
-  const fraction = minuteInHour / 60;
+  const safeMin = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
+  const hour1 = Math.min(22, Math.floor(safeMin / MINUTES_PER_HOUR));
+  const minuteInHour = safeMin - hour1 * MINUTES_PER_HOUR;
+  const fraction = Math.min(1, minuteInHour / MINUTES_PER_HOUR);
 
   const pt1 = points[hour1] || points[0];
-  const pt2 = hour1 < points.length - 1 ? (points[hour1 + 1] || pt1) : pt1;
+  const pt2 = points[hour1 + 1] || pt1;
 
   const x = pt1.x + fraction * (pt2.x - pt1.x);
   const val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
@@ -155,7 +161,7 @@ export function calculateMinuteIndexFromX(
   const relativeX = (mouseX / rectWidth) * width;
   const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
   const ratio = (clampedX - padLeft) / chartWidth;
-  return Math.min(1439, Math.max(0, Math.round(ratio * 1439)));
+  return Math.min(PROFILE_SPAN_MINUTES, Math.max(0, Math.round(ratio * PROFILE_SPAN_MINUTES)));
 }
 
 /**

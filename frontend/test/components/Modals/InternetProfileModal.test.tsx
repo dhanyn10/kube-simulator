@@ -40,7 +40,7 @@ describe('InternetProfileModal', () => {
     mockGetInternetProfiles.mockResolvedValue([]);
     mockSaveInternetProfile.mockResolvedValue(true);
     mockDeleteInternetProfile.mockResolvedValue(true);
-    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [] });
+    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [], isSimulating: false });
   });
 
   it('renders modal when isOpen is true and handles label fallback when label is missing', async () => {
@@ -325,7 +325,7 @@ describe('InternetProfileModal', () => {
     });
   });
 
-  it('displays Pause and Stop overlay buttons on Add Custom Profile card during active simulation, invoking pauseSimulation and stopSimulation', async () => {
+  it('displays Pause and Stop overlay buttons on profile cards and Add Custom Profile card during active simulation, invoking pauseSimulation and stopSimulation', async () => {
     const pauseSimulationMock = vi.fn();
     const stopSimulationMock = vi.fn();
 
@@ -348,12 +348,14 @@ describe('InternetProfileModal', () => {
 
     expect(screen.getByText('Pause or Stop simulation to add custom profile')).toBeDefined();
 
-    const pauseBtn = screen.getByRole('button', { name: /Pause/i });
-    fireEvent.click(pauseBtn);
+    const pauseBtns = screen.getAllByTitle('Pause simulation to view details');
+    expect(pauseBtns.length).toBeGreaterThan(0);
+    fireEvent.click(pauseBtns[0]);
     expect(pauseSimulationMock).toHaveBeenCalled();
 
-    const stopBtn = screen.getByRole('button', { name: /Stop/i });
-    fireEvent.click(stopBtn);
+    const stopBtns = screen.getAllByTitle('Stop simulation to view details');
+    expect(stopBtns.length).toBeGreaterThan(0);
+    fireEvent.click(stopBtns[0]);
     expect(stopSimulationMock).toHaveBeenCalled();
   });
 
