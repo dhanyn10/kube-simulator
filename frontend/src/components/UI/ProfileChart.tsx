@@ -359,7 +359,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           y={padTop}
           width={chartWidth}
           height={chartHeight}
-          className="fill-transparent cursor-crosshair pointer-events-auto"
+          className="fill-transparent cursor-pointer pointer-events-auto"
           onPointerMove={handleGraphPointerMove}
           onPointerLeave={handleGraphPointerLeave}
         />

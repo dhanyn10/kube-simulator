@@ -325,7 +325,7 @@ describe('InternetProfileModal', () => {
     });
   });
 
-  it('replaces Details button with Pause and Stop buttons on profile cards during active simulation, invoking pauseSimulation and stopSimulation', async () => {
+  it('displays Pause and Stop overlay buttons on profile cards and Add Custom Profile card during active simulation, invoking pauseSimulation and stopSimulation', async () => {
     const pauseSimulationMock = vi.fn();
     const stopSimulationMock = vi.fn();
 
@@ -346,12 +346,14 @@ describe('InternetProfileModal', () => {
       );
     });
 
-    const pauseBtns = screen.getAllByRole('button', { name: /Pause/i });
+    expect(screen.getByText('Pause or Stop simulation to add custom profile')).toBeDefined();
+
+    const pauseBtns = screen.getAllByTitle('Pause simulation to view details');
     expect(pauseBtns.length).toBeGreaterThan(0);
     fireEvent.click(pauseBtns[0]);
     expect(pauseSimulationMock).toHaveBeenCalled();
 
-    const stopBtns = screen.getAllByRole('button', { name: /Stop/i });
+    const stopBtns = screen.getAllByTitle('Stop simulation to view details');
     expect(stopBtns.length).toBeGreaterThan(0);
     fireEvent.click(stopBtns[0]);
     expect(stopSimulationMock).toHaveBeenCalled();

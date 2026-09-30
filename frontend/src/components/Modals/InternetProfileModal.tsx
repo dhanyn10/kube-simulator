@@ -207,33 +207,41 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                         <span>Apply</span>
                       </button>
 
-                      {isSimulating ? (
-                        <div className="flex-1 flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => pauseSimulation()}
-                            className="flex-1 px-2 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border border-amber-500/40 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 shadow-sm"
-                            title="Pause simulation"
-                          >
-                            <Pause size={12} fill="currentColor" />
-                            <span>Pause</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => stopSimulation()}
-                            className="flex-1 px-2 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border border-rose-500/40 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 shadow-sm"
-                            title="Stop simulation"
-                          >
-                            <Square size={12} fill="currentColor" />
-                            <span>Stop</span>
-                          </button>
-                        </div>
-                      ) : (
+                      <div className="relative group flex-1">
+                        {isSimulating && (
+                          <div className="absolute inset-0 z-20 rounded-lg bg-slate-950/90 backdrop-blur-xs flex items-center justify-center gap-1.5 p-1 border border-amber-500/40 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                pauseSimulation();
+                              }}
+                              className="p-1 rounded bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 flex items-center justify-center transition-all"
+                              title="Pause simulation to view details"
+                            >
+                              <Pause size={12} fill="currentColor" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                stopSimulation();
+                              }}
+                              className="p-1 rounded bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/40 flex items-center justify-center transition-all"
+                              title="Stop simulation to view details"
+                            >
+                              <Square size={12} fill="currentColor" />
+                            </button>
+                          </div>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleOpenDetails(p.name)}
+                          disabled={isSimulating}
                           className={cn(
-                            "flex-1 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
+                            "w-full px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
+                            isSimulating ? "opacity-50 cursor-not-allowed" : "",
                             colorMode === 'dark'
                               ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
                               : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
@@ -242,7 +250,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                           <Eye size={13} />
                           <span>Details</span>
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );
