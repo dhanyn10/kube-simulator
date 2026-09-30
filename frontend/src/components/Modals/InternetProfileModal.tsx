@@ -130,10 +130,42 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                   <div
                     key={p.name}
                     className={cn(
-                      "relative p-3.5 rounded-xl border transition-all flex flex-col justify-between select-none outline-none",
+                      "relative group p-3.5 rounded-xl border transition-all flex flex-col justify-between select-none outline-none",
                       getProfileCardBgClass(isApplied, colorMode)
                     )}
                   >
+                    {isSimulating && (
+                      <div className="absolute inset-0 z-20 rounded-xl bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-3 text-center gap-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 border border-amber-500/30">
+                        <span className="text-[11px] font-bold text-amber-400">
+                          Pause or Stop simulation to view profile details
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              pauseSimulation();
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 flex items-center gap-1.5 transition-all"
+                          >
+                            <Pause size={12} fill="currentColor" />
+                            <span>Pause</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              stopSimulation();
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/40 flex items-center gap-1.5 transition-all"
+                          >
+                            <Square size={12} fill="currentColor" />
+                            <span>Stop</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Top Right Checkmark Badge (Only icon, no text label) */}
                     {isApplied && (
                       <div

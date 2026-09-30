@@ -150,6 +150,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [hoveredHourIdx, setHoveredHourIdx] = useState<number | null>(null);
+  const [hoveredMinuteIdx, setHoveredMinuteIdx] = useState<number | null>(null);
 
   const width = 680;
   const height = 280;
@@ -183,6 +184,10 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   }
   const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
 
+  const hoveredMinutePt = hoveredMinuteIdx !== null
+    ? calculateMinutePoint(points, hoveredMinuteIdx, minVal, maxVal, chartHeight, padTop)
+    : null;
+
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     setDraggingHour(hour);
@@ -193,7 +198,9 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       const rect = svgRef.current.getBoundingClientRect();
       const clientX = e.clientX - rect.left;
       const hourIdx = calculateHourIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
+      const minIdx = calculateMinuteIndexFromX(clientX, rect.width, width, padLeft, padRight, chartWidth);
       setHoveredHourIdx(hourIdx);
+      setHoveredMinuteIdx(minIdx);
     }
 
     if (!draggingHour || !svgRef.current) return;
@@ -214,6 +221,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
   const handlePointerLeave = () => {
     setHoveredHourIdx(null);
+    setHoveredMinuteIdx(null);
   };
 
   return (
@@ -343,6 +351,54 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </g>
         )}
 
+        {/* Minute-level Hover Indicator (Vertical line, Curve dot, Tooltip) */}
+        {!draggingHour && hoveredMinutePt && (
+          <g key={`interactive-hover-minute-${hoveredMinuteIdx}`} data-testid="interactive-hover-minute-indicator">
+            <line
+              x1={hoveredMinutePt.x}
+              y1={padTop}
+              x2={hoveredMinutePt.x}
+              y2={padTop + chartHeight}
+              stroke="#3b82f6"
+              strokeDasharray="2 2"
+              strokeWidth="1.5"
+            />
+            <circle cx={hoveredMinutePt.x} cy={hoveredMinutePt.y} r="8" className="fill-transparent" />
+            <circle
+              cx={hoveredMinutePt.x}
+              cy={hoveredMinutePt.y}
+              r="5"
+              className="fill-blue-500 stroke-white dark:stroke-slate-900"
+              strokeWidth="1.5"
+            />
+            <g transform={`translate(${hoveredMinutePt.x}, ${Math.max(padTop + 20, hoveredMinutePt.y - 32)})`}>
+              <rect
+                x="-45"
+                y="-14"
+                width="90"
+                height="22"
+                rx="6"
+                className={cn(
+                  "shadow-lg backdrop-blur-md",
+                  colorMode === 'dark' ? "fill-slate-900/90 stroke-blue-500/50" : "fill-white/95 stroke-blue-400"
+                )}
+                strokeWidth="1"
+              />
+              <text
+                x="0"
+                y="1"
+                textAnchor="middle"
+                className={cn(
+                  "text-[10px] font-mono font-bold select-none",
+                  colorMode === 'dark' ? "fill-blue-400" : "fill-blue-600"
+                )}
+              >
+                {`${hoveredMinutePt.hour} • ${hoveredMinutePt.val.toLocaleString()}`}
+              </text>
+            </g>
+          </g>
+        )}
+
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
@@ -356,8 +412,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
           return (
             <g key={`pt-${pt.hour}`}>
-              {/* Vertical Guide Line when dragging, hovered, or active simulation tick */}
-              {(isDraggingThis || isHoveredThis || isSimulatingActive) && (
+              {/* Vertical Guide Line when dragging or active simulation tick */}
+              {(isDraggingThis || isSimulatingActive) && (
                 <line
                   x1={pt.x}
                   y1={padTop}
@@ -365,7 +421,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                   y2={padTop + chartHeight}
                   stroke={guideLineStroke}
                   strokeDasharray="2 2"
-                  strokeWidth={isSimulatingActive || isHoveredThis ? "2" : "1.5"}
+                  strokeWidth={isSimulatingActive ? "2" : "1.5"}
                 />
               )}
 
@@ -390,8 +446,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 />
               )}
 
-              {/* Tooltip Card directly on chart when hovered or dragging */}
-              {(isDraggingThis || isHoveredThis) && (
+              {/* Tooltip Card directly on chart when dragging an hourly point */}
+              {isDraggingThis && (
                 <g transform={`translate(${pt.x}, ${Math.max(padTop + 20, pt.y - 32)})`}>
                   <rect
                     x="-45"

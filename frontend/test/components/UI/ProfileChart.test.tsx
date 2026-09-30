@@ -24,6 +24,17 @@ describe('ProfileChart', () => {
     vi.clearAllMocks();
     Element.prototype.setPointerCapture = vi.fn();
     Element.prototype.releasePointerCapture = vi.fn();
+    SVGElement.prototype.getBoundingClientRect = vi.fn().mockReturnValue({
+      top: 10,
+      left: 10,
+      bottom: 290,
+      right: 690,
+      width: 680,
+      height: 280,
+      x: 10,
+      y: 10,
+      toJSON: () => {},
+    });
     useFlowStore.setState({
       isSimulating: false,
     });
@@ -93,10 +104,16 @@ describe('ProfileChart', () => {
       fireEvent.change(nameInput, { target: { value: 'New Profile Name' } });
       expect(onUpdateName).toHaveBeenCalledWith('New Profile Name');
 
-      const svg = container.querySelector('svg');
-      if (svg) {
-        fireEvent.pointerMove(svg, { clientX: 100, clientY: 50 });
-        fireEvent.pointerLeave(svg);
+      const chartSvg = container.querySelector('svg[viewBox="0 0 680 280"]');
+      if (chartSvg) {
+        act(() => {
+          fireEvent.pointerMove(chartSvg, { clientX: 150, clientY: 50, bubbles: true });
+        });
+        expect(screen.getByTestId('interactive-hover-minute-indicator')).toBeInTheDocument();
+        act(() => {
+          fireEvent.pointerLeave(chartSvg);
+        });
+        expect(screen.queryByTestId('interactive-hover-minute-indicator')).not.toBeInTheDocument();
       }
     });
 
@@ -117,20 +134,8 @@ describe('ProfileChart', () => {
         />
       );
 
-      const svg = container.querySelector('svg')!;
-      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
-        top: 10,
-        left: 10,
-        bottom: 290,
-        right: 690,
-        width: 680,
-        height: 280,
-        x: 10,
-        y: 10,
-        toJSON: () => {},
-      });
-
-      fireEvent.pointerMove(svg, { clientX: 150, clientY: 100 });
+      const chartSvg = container.querySelector('svg[viewBox="0 0 680 280"]')!;
+      fireEvent.pointerMove(chartSvg, { clientX: 150, clientY: 100 });
 
       const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
       if (targetCircles.length > 0) {
