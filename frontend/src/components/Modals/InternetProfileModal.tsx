@@ -210,11 +210,15 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                       <button
                         type="button"
                         onClick={() => handleOpenDetails(p.name)}
+                        disabled={isSimulating}
+                        title={isSimulating ? "Pause or Stop simulation to view profile details" : "View Profile Details"}
                         className={cn(
                           "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all border shadow-sm",
-                          colorMode === 'dark'
-                            ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
-                            : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                          isSimulating
+                            ? "opacity-50 cursor-not-allowed border-slate-700 bg-slate-800 text-slate-400"
+                            : colorMode === 'dark'
+                              ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
+                              : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
                         )}
                       >
                         <Eye size={13} />

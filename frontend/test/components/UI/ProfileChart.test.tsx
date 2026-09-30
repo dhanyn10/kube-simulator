@@ -69,7 +69,7 @@ describe('ProfileChart', () => {
   });
 
   describe('InteractiveTrafficChart', () => {
-    it('renders interactive chart with active simulation dot, title input, and pointer interaction', () => {
+    it('renders interactive chart with active simulation dot, title input, and pointer interaction', async () => {
       useFlowStore.setState({ isSimulating: true });
       const onUpdatePoint = vi.fn();
       const onUpdateName = vi.fn();
@@ -93,11 +93,28 @@ describe('ProfileChart', () => {
       fireEvent.change(nameInput, { target: { value: 'New Profile Name' } });
       expect(onUpdateName).toHaveBeenCalledWith('New Profile Name');
 
-      const svg = container.querySelector('svg');
-      if (svg) {
+      const svg = container.querySelector('svg.cursor-pointer')!;
+      vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+        top: 10,
+        left: 10,
+        bottom: 290,
+        right: 690,
+        width: 680,
+        height: 280,
+        x: 10,
+        y: 10,
+        toJSON: () => {},
+      });
+
+      await act(async () => {
         fireEvent.pointerMove(svg, { clientX: 100, clientY: 50 });
+      });
+      expect(screen.getByTestId('interactive-hover-traffic-dot')).toBeInTheDocument();
+
+      await act(async () => {
         fireEvent.pointerLeave(svg);
-      }
+      });
+      expect(screen.queryByTestId('interactive-hover-traffic-dot')).not.toBeInTheDocument();
     });
 
     it('renders in light mode with pointer down, move, and up dragging', () => {

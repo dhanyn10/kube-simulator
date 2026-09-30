@@ -40,7 +40,7 @@ describe('InternetProfileModal', () => {
     mockGetInternetProfiles.mockResolvedValue([]);
     mockSaveInternetProfile.mockResolvedValue(true);
     mockDeleteInternetProfile.mockResolvedValue(true);
-    useFlowStore.setState({ colorMode: 'dark', nodes: [], edges: [] });
+    useFlowStore.setState({ colorMode: 'dark', isSimulating: false, nodes: [], edges: [] });
   });
 
   it('renders modal when isOpen is true and handles label fallback when label is missing', async () => {
@@ -210,6 +210,10 @@ describe('InternetProfileModal', () => {
     // Verify mini active traffic dot on active applied card
     const miniDot = screen.getByTestId('mini-active-traffic-dot');
     expect(miniDot).toBeDefined();
+
+    // Verify Details button is disabled when simulation is running
+    const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
+    expect((detailsButtons[0] as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('handles custom profile cards with delete button, metrics summary formatting (<1000 and >=1000)', async () => {
