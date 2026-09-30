@@ -88,6 +88,50 @@ describe('useNodeContainerStyles', () => {
     expect(lightResult.current.containerClasses).toContain('shadow-lg');
   });
 
+  it('returns readyClasses for isReady in dark and light modes and handles autocompleteHovered mode', () => {
+    const { result: darkReady } = renderHook(() => useNodeContainerStyles({
+      selected: false,
+      isReady: true,
+      isPending: false,
+      isCrashing: false,
+      color: 'emerald',
+      colorMode: 'dark',
+    }));
+    expect(darkReady.current.containerClasses).toContain('border-emerald-500/50');
+
+    const { result: lightReady } = renderHook(() => useNodeContainerStyles({
+      selected: false,
+      isReady: true,
+      isPending: false,
+      isCrashing: false,
+      color: 'emerald',
+      colorMode: 'light',
+    }));
+    expect(lightReady.current.containerClasses).toContain('border-emerald-500/30');
+
+    const { result: autoHoverDark } = renderHook(() => useNodeContainerStyles({
+      selected: true,
+      isReady: true,
+      isPending: false,
+      isCrashing: false,
+      color: 'blue',
+      colorMode: 'dark',
+      isAutocompleteHovered: true,
+    }));
+    expect(autoHoverDark.current.containerClasses).toContain('border-transparent');
+
+    const { result: autoHoverLight } = renderHook(() => useNodeContainerStyles({
+      selected: true,
+      isReady: true,
+      isPending: false,
+      isCrashing: false,
+      color: 'blue',
+      colorMode: 'light',
+      isAutocompleteHovered: true,
+    }));
+    expect(autoHoverLight.current.containerClasses).toContain('border-transparent');
+  });
+
   it('returns crashing and pending classes', () => {
     const { result: crashResult } = renderHook(() => useNodeContainerStyles({
       selected: false,

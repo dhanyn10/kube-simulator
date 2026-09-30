@@ -64,6 +64,12 @@ describe('useRightSidebar', () => {
 
     expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
+
+    // Call handleCloseSidebar when isHistoryViewOpen is false
+    act(() => {
+      result.current.handleCloseSidebar();
+    });
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
   });
 
   it('handles canvas dropdown state and outside click listener', () => {

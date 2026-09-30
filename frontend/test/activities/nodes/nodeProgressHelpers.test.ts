@@ -48,7 +48,7 @@ describe('nodeProgressHelpers', () => {
     });
     expect(resMatching).toBe('bg-blue-600');
 
-    // 4. Hovered when hoveredPodIndex is null or negative
+    // 4. Hovered when hoveredPodIndex is null, undefined, or negative (-1)
     const resNullHover = getSegmentClass({
       index: 0,
       replicas: 3,
@@ -58,6 +58,35 @@ describe('nodeProgressHelpers', () => {
       activeBarClass: 'bg-emerald-500',
     });
     expect(resNullHover).toContain('bg-blue-500');
+
+    const resUndefinedHover = getSegmentClass({
+      index: 0,
+      replicas: 3,
+      progressEmptyBgClass: 'bg-slate-700',
+      isAutocompleteHovered: true,
+      hoveredPodIndex: undefined,
+      activeBarClass: 'bg-emerald-500',
+    });
+    expect(resUndefinedHover).toContain('bg-blue-500');
+
+    const resNegativeHover = getSegmentClass({
+      index: 0,
+      replicas: 3,
+      progressEmptyBgClass: 'bg-slate-700',
+      isAutocompleteHovered: true,
+      hoveredPodIndex: -1,
+      activeBarClass: 'bg-emerald-500',
+    });
+    expect(resNegativeHover).toContain('bg-blue-500');
+
+    // 5. Unfilled fallback when replicas is 0 or undefined
+    const resNoReplicas = getSegmentClass({
+      index: 0,
+      replicas: undefined as any,
+      progressEmptyBgClass: 'bg-slate-700',
+      activeBarClass: 'bg-emerald-500',
+    });
+    expect(resNoReplicas).toBe('bg-slate-700');
   });
 
   it('getActiveBarClass returns expected classes for crashing, pending, and ready states', () => {

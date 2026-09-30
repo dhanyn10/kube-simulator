@@ -59,12 +59,18 @@ describe('useMenuBarState', () => {
     expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(1, expect.any(String));
 
     // Test View menu items (History, Utilities, Autofocus, Terminal, Logs)
+    act(() => {
+      useFlowStore.setState({ isRightSidebarVisible: false, isTerminalOpen: false });
+    });
+    rerender();
+
     let viewMenu = result.current.menuItems.find((m) => m.label === 'View');
     let historyItem = viewMenu?.items.find((i) => i.label === 'History');
     act(() => {
       historyItem?.onClick?.();
     });
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
 
     rerender();
     viewMenu = result.current.menuItems.find((m) => m.label === 'View');
@@ -73,6 +79,50 @@ describe('useMenuBarState', () => {
       utilitiesItem?.onClick?.();
     });
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
+
+    // Click Utilities when isHistoryViewOpen is false (toggles right sidebar visibility)
+    act(() => {
+      utilitiesItem?.onClick?.();
+    });
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
+
+    let monitoringItem = viewMenu?.items.find((i) => i.label.includes('Monitoring'));
+    let componentsItem = viewMenu?.items.find((i) => i.label === 'Components');
+    let autofocusItem = viewMenu?.items.find((i) => i.label === 'Autofocus');
+    let logsItem = viewMenu?.items.find((i) => i.label === 'Logs');
+    let terminalItem = viewMenu?.items.find((i) => i.label === 'Terminal');
+
+    act(() => {
+      monitoringItem?.onClick?.();
+      componentsItem?.onClick?.();
+      autofocusItem?.onClick?.();
+      logsItem?.onClick?.();
+      terminalItem?.onClick?.();
+    });
+    expect(useFlowStore.getState().isLogModalOpen).toBe(true);
+    expect(useFlowStore.getState().isTerminalOpen).toBe(true);
+
+    // Test clicking monitoring menu item when isMonitoringDetached is true
+    act(() => {
+      useFlowStore.setState({ isMonitoringDetached: true });
+    });
+    rerender();
+    viewMenu = result.current.menuItems.find((m) => m.label === 'View');
+    monitoringItem = viewMenu?.items.find((i) => i.label.includes('Monitoring'));
+    act(() => {
+      monitoringItem?.onClick?.();
+    });
+
+    // Test Help menu items (Take a Tour, About)
+    let helpMenu = result.current.menuItems.find((m) => m.label === 'Help');
+    let tourItem = helpMenu?.items.find((i) => i.label === 'Take a Tour');
+    let aboutItem = helpMenu?.items.find((i) => i.label === 'About');
+
+    act(() => {
+      tourItem?.onClick?.();
+      aboutItem?.onClick?.();
+    });
+    expect(defaultProps.onOpenAbout).toHaveBeenCalled();
 
     // Test outside click to close active menu
     (result.current.menuRef as any).current = document.createElement('div');

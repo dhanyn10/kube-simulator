@@ -67,9 +67,21 @@ describe('useContextMenuHandler', () => {
     expect(result.current.canPaste).toBe(false);
   });
 
-  it('handles keyboard navigation for ArrowDown, ArrowUp, and Tab keys', () => {
+  it('handles keyboard navigation for ArrowDown, ArrowUp, and Tab keys with menuRef element', () => {
     const onClose = vi.fn();
     const { result } = renderHook(() => useContextMenuHandler({ onClose }));
+
+    const container = document.createElement('div');
+    const item1 = document.createElement('button');
+    item1.setAttribute('role', 'menuitem');
+    const item2 = document.createElement('button');
+    item2.setAttribute('role', 'menuitem');
+    container.appendChild(item1);
+    container.appendChild(item2);
+    document.body.appendChild(container);
+
+    (result.current.menuRef as any).current = container;
+    item1.focus();
 
     const mockEvent = (key: string) =>
       ({
@@ -80,10 +92,19 @@ describe('useContextMenuHandler', () => {
 
     act(() => {
       result.current.handleMenuKeyDown(mockEvent('ArrowDown'));
+    });
+    expect(document.activeElement).toBe(item2);
+
+    act(() => {
       result.current.handleMenuKeyDown(mockEvent('ArrowUp'));
+    });
+    expect(document.activeElement).toBe(item1);
+
+    act(() => {
       result.current.handleMenuKeyDown(mockEvent('Tab'));
     });
 
     expect(onClose).toHaveBeenCalledOnce();
+    document.body.removeChild(container);
   });
 });

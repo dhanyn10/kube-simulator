@@ -77,6 +77,20 @@ describe('nodeUtils', () => {
       baseName: "worker-pod",
       label: expect.stringContaining("worker-pod-abc12-xyz34"),
     });
+
+    // Test onRename when newName sanitizes to empty string (falls back to 'pod')
+    updateNodeDataMock.mockClear();
+    const emptyNameStore = () =>
+      ({
+        nodes: [{ id: "pod-empty", type: "Pod", data: {} }],
+        updateNodeData: updateNodeDataMock,
+      } as any);
+    const emptyPodHandlers = createNodeHandlers("pod-empty", emptyNameStore);
+    emptyPodHandlers.onRename("   !!!   ");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("pod-empty", {
+      baseName: "pod",
+      label: "pod",
+    });
   });
 
   it('getInitialData returns correct defaults for various types', () => {
@@ -173,6 +187,11 @@ describe('nodeUtils', () => {
     const customResult = applyAutoImageLogic(customImgTarget, { runtime: 'nodejs' });
     expect(customResult).toEqual({ runtime: 'nodejs' });
 
+    // Target data has no runtime property (falls back to targetData.runtime fallback operand in `data.runtime ?? targetData.runtime ?? 'none'`)
+    const targetWithRt = { label: 'pod', image: 'node:18-alpine', isAutoImage: true, runtime: 'go' } as any;
+    const fallbackRtResult = applyAutoImageLogic(targetWithRt, { webserver: 'nginx' });
+    expect(fallbackRtResult.image).toBe('golang:1.21-alpine');
+
     // Target has empty image string and isAutoImage: false (evaluates !targetData.image branch as true)
     const emptyImgTarget = { label: 'pod', image: '', isAutoImage: false } as any;
     const emptyResult = applyAutoImageLogic(emptyImgTarget, { runtime: 'go' });
@@ -199,5 +218,13 @@ describe('nodeUtils', () => {
     // syncWorkloadMetadata with runtime = 'none' and webserver = 'none'
     const pendingWorkload = syncWorkloadMetadata('Deployment', { runtime: 'none', webserver: 'none' } as any);
     expect(pendingWorkload.status).toBe('pending');
+
+    // syncWorkloadMetadata with runtime provided but webserver undefined
+    const rtOnlyWorkload = syncWorkloadMetadata('Deployment', { runtime: 'go' } as any);
+    expect(rtOnlyWorkload.status).toBe('ready');
+
+    // syncWorkloadMetadata with webserver provided but runtime undefined
+    const wsOnlyWorkload = syncWorkloadMetadata('Deployment', { webserver: 'nginx' } as any);
+    expect(wsOnlyWorkload.status).toBe('ready');
   });
 });

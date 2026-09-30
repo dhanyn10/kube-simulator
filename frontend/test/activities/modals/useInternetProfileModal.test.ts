@@ -196,6 +196,12 @@ describe('useInternetProfileModal', () => {
 
     expect(result.current.viewMode).toBe('details');
 
+    // Open details for non-existent profile name falls back to ECOMMERCE_PROFILE
+    act(() => {
+      result.current.handleOpenDetails('UnknownProfileName');
+    });
+    expect(result.current.detailProfile.name).toBe(ECOMMERCE_PROFILE.name);
+
     // Update detail name directly
     act(() => {
       result.current.handleUpdateDetailName('Updated Detail Name');
@@ -215,6 +221,16 @@ describe('useInternetProfileModal', () => {
       result.current.handleUpdateDetailPoint('01:00', 3000);
     });
     expect(result.current.detailProfile.hourly['01:00']).toBe(3000);
+
+    // Change detail name to non-custom prefix while isModifiedCustom is true, then update detail point
+    act(() => {
+      result.current.handleUpdateDetailName('Renamed Non Custom');
+    });
+    act(() => {
+      result.current.handleUpdateDetailPoint('02:00', 3500);
+    });
+    expect(result.current.detailProfile.name).toBe('Renamed Non Custom');
+    expect(result.current.detailProfile.hourly['02:00']).toBe(3500);
 
     // Save empty detail name (no-op)
     act(() => {

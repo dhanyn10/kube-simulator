@@ -113,9 +113,9 @@ describe('useSecretModal and useHpaModal', () => {
     const initialHpa = {
       id: 'existing-hpa-1',
       name: '',
-      minReplicas: 2,
-      maxReplicas: 5,
-      targetCPU: 50,
+      minReplicas: undefined,
+      maxReplicas: undefined,
+      targetCPU: undefined,
       targetMemory: 40
     };
 
@@ -124,14 +124,15 @@ describe('useSecretModal and useHpaModal', () => {
     );
 
     expect(result.current.hpaName).toBe('app-hpa');
-    expect(result.current.minReplicas).toBe(2);
-    expect(result.current.maxReplicas).toBe(5);
+    expect(result.current.minReplicas).toBe(1);
+    expect(result.current.maxReplicas).toBe(10);
+    expect(result.current.targetCPU).toBe(80);
 
     act(() => {
       result.current.setHpaName('  ');
       result.current.setMinReplicas(0); // Clamped to min 1
       result.current.setMaxReplicas(0); // Clamped to minVal
-      result.current.setTargetCPU(150); // Clamped to 100
+      result.current.setTargetCPU(0); // Clamped to min 1 (via Number(0) || 80 fallback)
       result.current.setTargetMemory(-10); // Undefined
     });
 
@@ -144,7 +145,7 @@ describe('useSecretModal and useHpaModal', () => {
       name: 'unnamed-hpa',
       minReplicas: 1,
       maxReplicas: 10,
-      targetCPU: 100,
+      targetCPU: 80,
     });
     expect(onClose).toHaveBeenCalled();
   });

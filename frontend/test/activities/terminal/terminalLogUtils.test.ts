@@ -22,6 +22,10 @@ describe('terminalLogUtils', () => {
       const headerLine2 = 'CURRENT  NAME                 CLUSTER          AUTHINFO             NAMESPACE';
       expect(getLogLineColorClass(headerLine2, 'dark')).toContain('text-white font-bold');
       expect(getLogLineColorClass(headerLine2, 'light')).toContain('text-slate-900 font-bold');
+
+      // Test a line containing 'NAME' but without any secondary header keywords (e.g., READY, STATUS, etc.)
+      const nameOnlyLine = 'My container NAME is web-app';
+      expect(getLogLineColorClass(nameOnlyLine, 'dark')).toBe('text-slate-300');
     });
 
     it('returns orange/amber for negative status transitions and warnings', () => {
@@ -38,6 +42,12 @@ describe('terminalLogUtils', () => {
       const positiveLine1 = 'Pod web-app status changed: Pending -> Running';
       expect(getLogLineColorClass(positiveLine1, 'dark')).toContain('text-emerald-400');
       expect(getLogLineColorClass(positiveLine1, 'light')).toContain('text-emerald-600');
+
+      const successTagLine = '[SUCCESS] Deployment updated';
+      expect(getLogLineColorClass(successTagLine, 'dark')).toContain('text-emerald-400');
+
+      const readyNonHeaderLine = 'Pod status is READY';
+      expect(getLogLineColorClass(readyNonHeaderLine, 'dark')).toContain('text-emerald-400');
 
       const successLine = 'Switched to context "dev-user".';
       expect(getLogLineColorClass(successLine, 'dark')).toContain('text-emerald-400');
