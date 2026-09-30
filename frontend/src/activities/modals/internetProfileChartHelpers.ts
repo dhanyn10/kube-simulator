@@ -155,7 +155,7 @@ export function calculateMinuteIndexFromX(
   const relativeX = (mouseX / rectWidth) * width;
   const clampedX = Math.max(padLeft, Math.min(width - padRight, relativeX));
   const ratio = (clampedX - padLeft) / chartWidth;
-  return Math.min(1439, Math.max(0, Math.round(ratio * 1439)));
+  return Math.min(1380, Math.max(0, Math.round(ratio * 1380)));
 }
 
 /**

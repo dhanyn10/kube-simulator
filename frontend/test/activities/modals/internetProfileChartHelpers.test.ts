@@ -70,11 +70,11 @@ describe('internetProfileChartHelpers', () => {
     // Left edge -> minute index 0
     expect(calculateMinuteIndexFromX(5, 200, width, padLeft, padRight, chartWidth)).toBe(0);
 
-    // Right edge -> minute index 1439
-    expect(calculateMinuteIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(1439);
+    // Right edge -> minute index 1380
+    expect(calculateMinuteIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(1380);
 
-    // Middle -> minute index around 720 (12:00)
-    expect(calculateMinuteIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(720);
+    // Middle -> minute index around 690 (11:30)
+    expect(calculateMinuteIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(690);
   });
 
   it('calculates Y traffic value when dragging chart point', () => {
