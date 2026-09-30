@@ -176,7 +176,7 @@ type FlowStateSetter = (partial: Partial<FlowState> | ((state: FlowState) => Par
 
 const fallbackToLegacySettings = (set: FlowStateSetter) => {
   if (!globalThis.go?.main?.App?.GetSetting) return;
-  Promise.all([
+  void Promise.all([
     globalThis.go.main.App.GetSetting('isSidebarVisible'),
     globalThis.go.main.App.GetSetting('isRightSidebarVisible')
   ]).then(([sidebar, rightSidebar]) => {
@@ -632,7 +632,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     });
 
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
+      void globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
     }
 
     // If username changed, update assignedUsers in canvas node roles
@@ -647,7 +647,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     const deletedUser = state.iamUsers.find((u) => u.id === id);
     const updatedUsers = state.iamUsers.filter((u) => u.id !== id);
     if (globalThis.go?.main?.App?.SaveSetting) {
-      globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
+      void globalThis.go.main.App.SaveSetting('kube_iam_users', JSON.stringify(updatedUsers));
     }
 
     const updatedNodes = deletedUser
