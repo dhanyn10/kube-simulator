@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Activity, Edit2, AlertTriangle, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Activity, Edit2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
@@ -175,25 +175,24 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [selectedIntervalMinutes, setSelectedIntervalMinutes] = useState<number>(60);
   const [pendingIntervalMinutes, setPendingIntervalMinutes] = useState<number | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [panOffsetMin, setPanOffsetMin] = useState<number>(0);
 
-  const visibleSpan = PROFILE_SPAN_MINUTES / zoomLevel;
-
-  const handleZoom = (newZoom: number, centerRatio: number = 0.5) => {
-    const clampedZoom = Math.max(1, Math.min(8, newZoom));
-    const newSpan = PROFILE_SPAN_MINUTES / clampedZoom;
-    const currentCenterMin = panOffsetMin + centerRatio * visibleSpan;
-    const newPanOffset = Math.max(0, Math.min(PROFILE_SPAN_MINUTES - newSpan, currentCenterMin - centerRatio * newSpan));
-
-    setZoomLevel(clampedZoom);
-    setPanOffsetMin(newPanOffset);
+  // Map interval resolution to container width multiplier for automatic horizontal expansion
+  const getIntervalWidthScale = (minutes: number): number => {
+    switch (minutes) {
+      case 1:
+        return 8.0; // 800% width for 1 minute precision
+      case 5:
+        return 4.0; // 400% width for 5 minute precision
+      case 10:
+        return 2.5; // 250% width for 10 minute precision
+      case 30:
+        return 1.5; // 150% width for 30 minute precision
+      default:
+        return 1.0; // 100% width for 1 hour precision
+    }
   };
 
-  const handleResetZoom = () => {
-    setZoomLevel(1);
-    setPanOffsetMin(0);
-  };
+  const widthScale = getIntervalWidthScale(selectedIntervalMinutes);
 
   const handleIntervalChange = (newInterval: number) => {
     if (newInterval > selectedIntervalMinutes && hasSubHourlyKeys(profile)) {
@@ -231,8 +230,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     padRight,
     padTop,
     padBottom,
-    panOffsetMin,
-    visibleSpan
+    selectedIntervalMinutes
   );
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -248,7 +246,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   } else if (typeof currentHourIndex === 'number') {
     minuteIdx = currentHourIndex * 60;
   }
-  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop, profile, panOffsetMin, visibleSpan);
+  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop, profile);
 
 
   const handlePointerDown = (timeStr: string, e: React.PointerEvent) => {
@@ -276,9 +274,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       minVal,
       maxVal,
       chartHeight,
-      padTop,
-      panOffsetMin,
-      visibleSpan
+      padTop
     );
     if (!draggingHour) {
       setHoverData(data);
@@ -307,18 +303,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     }
   };
 
-  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
-    if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const relativeX = e.clientX - rect.left;
-    const centerRatio = Math.max(0, Math.min(1, relativeX / rect.width));
-
-    if (e.deltaY < 0) {
-      handleZoom(zoomLevel * 1.25, centerRatio);
-    } else if (e.deltaY > 0) {
-      handleZoom(zoomLevel / 1.25, centerRatio);
-    }
-  };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (draggingHour) {
@@ -375,43 +359,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             </select>
           </div>
 
-          {/* Zoom Controls */}
-          <div className={cn(
-            "flex items-center gap-0.5 p-0.5 rounded-lg border text-xs font-mono font-bold",
-            colorMode === 'dark' ? "bg-slate-900/80 border-slate-700" : "bg-white border-slate-300"
-          )}>
-            <button
-              type="button"
-              onClick={() => handleZoom(zoomLevel / 1.5)}
-              disabled={zoomLevel <= 1}
-              className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut size={13} />
-            </button>
-            <span className="text-[10px] text-blue-400 font-bold px-1 min-w-[36px] text-center select-none">
-              {Math.round(zoomLevel * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={() => handleZoom(zoomLevel * 1.5)}
-              disabled={zoomLevel >= 8}
-              className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn size={13} />
-            </button>
-            {zoomLevel > 1 && (
-              <button
-                type="button"
-                onClick={handleResetZoom}
-                className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 cursor-pointer transition-colors"
-                title="Reset Zoom"
-              >
-                <RotateCcw size={12} />
-              </button>
-            )}
-          </div>
 
           <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
           <span className="text-slate-400">Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
@@ -453,74 +400,69 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         💡 Drag data points vertically up/down on the Y-axis to dynamically modify hourly traffic values.
       </p>
 
-      <div className="w-full overflow-hidden">
-        <svg
-          ref={svgRef}
-          viewBox={`0 0 ${width} ${height}`}
-          onWheel={handleWheel}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
-        >
-          <defs>
-            <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-            </linearGradient>
-            <clipPath id="chartPlotClip">
-              <rect x={padLeft} y={padTop} width={chartWidth} height={chartHeight} />
-            </clipPath>
-          </defs>
+      <div className={cn("w-full transition-all", widthScale > 1 ? "overflow-x-auto pb-2 scrollbar-thin" : "overflow-hidden")}>
+        <div style={{ width: `${widthScale * 100}%` }}>
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${width} ${height}`}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
+          >
+            <defs>
+              <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
 
-        {/* Y-axis horizontal grid lines */}
-        {yTicks.map((tick) => (
-          <g key={`y-tick-${tick.val}-${tick.y}`}>
+            {/* Y-axis horizontal grid lines */}
+            {yTicks.map((tick) => (
+              <g key={`y-tick-${tick.val}-${tick.y}`}>
+                <line
+                  x1={padLeft}
+                  y1={tick.y}
+                  x2={width - padRight}
+                  y2={tick.y}
+                  stroke={colorMode === 'dark' ? '#334155' : '#e2e8f0'}
+                  strokeDasharray="3 3"
+                  strokeWidth="1"
+                />
+                <text
+                  x={padLeft - 8}
+                  y={tick.y + 3}
+                  textAnchor="end"
+                  className={cn(
+                    "text-[10px] font-mono font-bold",
+                    colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
+                  )}
+                >
+                  {tick.val >= 1000 ? `${(tick.val / 1000).toFixed(1)}k` : tick.val}
+                </text>
+              </g>
+            ))}
+
+            {/* Axis main border lines */}
             <line
               x1={padLeft}
-              y1={tick.y}
-              x2={width - padRight}
-              y2={tick.y}
-              stroke={colorMode === 'dark' ? '#334155' : '#e2e8f0'}
-              strokeDasharray="3 3"
-              strokeWidth="1"
+              y1={padTop}
+              x2={padLeft}
+              y2={padTop + chartHeight}
+              stroke={colorMode === 'dark' ? '#475569' : '#cbd5e1'}
+              strokeWidth="2"
             />
-            <text
-              x={padLeft - 8}
-              y={tick.y + 3}
-              textAnchor="end"
-              className={cn(
-                "text-[10px] font-mono font-bold",
-                colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
-              )}
-            >
-              {tick.val >= 1000 ? `${(tick.val / 1000).toFixed(1)}k` : tick.val}
-            </text>
-          </g>
-        ))}
+            <line
+              x1={padLeft}
+              y1={padTop + chartHeight}
+              x2={width - padRight}
+              y2={padTop + chartHeight}
+              stroke={colorMode === 'dark' ? '#475569' : '#cbd5e1'}
+              strokeWidth="2"
+            />
 
-        {/* Axis main border lines */}
-        <line
-          x1={padLeft}
-          y1={padTop}
-          x2={padLeft}
-          y2={padTop + chartHeight}
-          stroke={colorMode === 'dark' ? '#475569' : '#cbd5e1'}
-          strokeWidth="2"
-        />
-        <line
-          x1={padLeft}
-          y1={padTop + chartHeight}
-          x2={width - padRight}
-          y2={padTop + chartHeight}
-          stroke={colorMode === 'dark' ? '#475569' : '#cbd5e1'}
-          strokeWidth="2"
-        />
-
-        {/* Clipped Area Fill & Curve Line */}
-        <g clipPath="url(#chartPlotClip)">
-          <path d={areaD} fill="url(#detailGradient)" />
-          <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        </g>
+            {/* Area Fill & Curve Line */}
+            <path d={areaD} fill="url(#detailGradient)" />
+            <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Strict Graph Canvas Hover Overlay Rect (detects pointer strictly inside graph bounds) */}
         <rect
@@ -636,6 +578,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </text>
         ))}
       </svg>
+        </div>
       </div>
     </div>
   );
