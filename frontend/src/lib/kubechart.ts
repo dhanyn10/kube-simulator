@@ -131,14 +131,17 @@ export function calculateMinutePoint(
   maxVal: number,
   chartHeight: number,
   padTop: number,
-  profile?: InternetProfileItem
+  profile?: InternetProfileItem,
+  panOffsetMin: number = 0,
+  visibleSpan: number = PROFILE_SPAN_MINUTES
 ) {
   if (!points || points.length === 0) {
     return { x: 0, y: 0, val: 0, hour: '00:00' };
   }
 
   const safeMin = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
-  const ratio = Math.min(1, Math.max(0, safeMin / PROFILE_SPAN_MINUTES));
+  const rawRatio = (safeMin - panOffsetMin) / visibleSpan;
+  const ratio = Math.min(1, Math.max(0, rawRatio));
 
   const padLeft = points[0].x;
   const lastPoint = points.at(-1) || points[0];
@@ -184,7 +187,9 @@ export function calculateProfileChartData(
   padLeft: number,
   padRight: number,
   padTop: number,
-  padBottom: number
+  padBottom: number,
+  panOffsetMin: number = 0,
+  visibleSpan: number = PROFILE_SPAN_MINUTES
 ) {
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
@@ -198,17 +203,44 @@ export function calculateProfileChartData(
   const minVal = 0;
 
   const points = HOURS_OF_DAY.map((hour, idx) => {
-    const val = profile.hourly?.[hour] ?? getInterpolatedProfileTraffic(profile, idx * 60);
-    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
+    const minIndex = idx * 60;
+    const val = profile.hourly?.[hour] ?? getInterpolatedProfileTraffic(profile, minIndex);
+    const ratio = (minIndex - panOffsetMin) / visibleSpan;
+    const x = padLeft + ratio * chartWidth;
     const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
     return { x, y, val, hour };
   });
 
-  // Sample smooth path at every 1 minute to render sub-hourly customized points accurately
-  const sampleStep = 1; // 1-minute resolution for SVG path
+  // Dynamic X Axis Ticks based on visibleSpan minutes
+  let tickStepMin = 180; // Default 3 hours
+  if (visibleSpan <= 120) {
+    tickStepMin = 10;
+  } else if (visibleSpan <= 360) {
+    tickStepMin = 30;
+  } else if (visibleSpan <= 720) {
+    tickStepMin = 60;
+  }
+
+  const dynamicTicks: { x: number; label: string }[] = [];
+  const startTick = Math.floor(panOffsetMin / tickStepMin) * tickStepMin;
+  const endTick = panOffsetMin + visibleSpan;
+
+  for (let min = startTick; min <= endTick + tickStepMin; min += tickStepMin) {
+    if (min >= 0 && min <= PROFILE_SPAN_MINUTES) {
+      const ratio = (min - panOffsetMin) / visibleSpan;
+      const x = padLeft + ratio * chartWidth;
+      if (x >= padLeft - 20 && x <= padLeft + chartWidth + 20) {
+        dynamicTicks.push({ x, label: formatMinuteToHHMM(min) });
+      }
+    }
+  }
+
+  // Sample smooth path across visible window
+  const sampleStep = Math.max(1, Math.floor(visibleSpan / 300));
   const pathPoints: { x: number; y: number }[] = [];
+
   for (let min = 0; min <= PROFILE_SPAN_MINUTES; min += sampleStep) {
-    const ratio = min / PROFILE_SPAN_MINUTES;
+    const ratio = (min - panOffsetMin) / visibleSpan;
     const x = padLeft + ratio * chartWidth;
     const val = getInterpolatedProfileTraffic(profile, min);
     const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
@@ -225,6 +257,7 @@ export function calculateProfileChartData(
   return {
     values: hourlyValues,
     points,
+    dynamicTicks,
     pathD,
     areaD,
     minVal,
@@ -329,7 +362,9 @@ export function calculateProfileHoverData(
   minVal?: number,
   maxVal?: number,
   chartHeight?: number,
-  padTop?: number
+  padTop?: number,
+  panOffsetMin: number = 0,
+  visibleSpan: number = PROFILE_SPAN_MINUTES
 ): ProfileHoverData | null {
   if (
     relativeX < 0 ||
@@ -343,12 +378,12 @@ export function calculateProfileHoverData(
   }
 
   const rawRatio = Math.max(0, Math.min(1, relativeX / rectWidth));
-  const rawMinutes = rawRatio * PROFILE_SPAN_MINUTES;
+  const rawMinutes = panOffsetMin + rawRatio * visibleSpan;
 
   // Snap raw minutes to nearest step based on intervalMinutes
   const step = Math.max(1, intervalMinutes);
   const snappedMinutes = Math.min(PROFILE_SPAN_MINUTES, Math.max(0, Math.round(rawMinutes / step) * step));
-  const snappedRatio = snappedMinutes / PROFILE_SPAN_MINUTES;
+  const snappedRatio = (snappedMinutes - panOffsetMin) / visibleSpan;
 
   const cursorSvgX = padLeft + snappedRatio * chartWidth;
 

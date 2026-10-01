@@ -10,6 +10,7 @@ import {
   calculateProfileHoverData,
   hasSubHourlyKeys,
   resampleProfileHourly,
+  PROFILE_SPAN_MINUTES,
   ProfileHoverData,
   PROFILE_INTERVAL_OPTIONS
 } from '@/activities/modals';
@@ -175,6 +176,24 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const [selectedIntervalMinutes, setSelectedIntervalMinutes] = useState<number>(60);
   const [pendingIntervalMinutes, setPendingIntervalMinutes] = useState<number | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [panOffsetMin, setPanOffsetMin] = useState<number>(0);
+
+  const visibleSpan = PROFILE_SPAN_MINUTES / zoomLevel;
+
+  const handleZoom = (newZoom: number, centerRatio: number = 0.5) => {
+    const clampedZoom = Math.max(1, Math.min(8, newZoom));
+    const newSpan = PROFILE_SPAN_MINUTES / clampedZoom;
+    const currentCenterMin = panOffsetMin + centerRatio * visibleSpan;
+    const newPanOffset = Math.max(0, Math.min(PROFILE_SPAN_MINUTES - newSpan, currentCenterMin - centerRatio * newSpan));
+
+    setZoomLevel(clampedZoom);
+    setPanOffsetMin(newPanOffset);
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+    setPanOffsetMin(0);
+  };
 
   const handleIntervalChange = (newInterval: number) => {
     if (newInterval > selectedIntervalMinutes && hasSubHourlyKeys(profile)) {
@@ -204,14 +223,16 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const padTop = 35;
   const padBottom = 45;
 
-  const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
+  const { values, points, dynamicTicks, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
     width,
     height,
     padLeft,
     padRight,
     padTop,
-    padBottom
+    padBottom,
+    panOffsetMin,
+    visibleSpan
   );
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -227,7 +248,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   } else if (typeof currentHourIndex === 'number') {
     minuteIdx = currentHourIndex * 60;
   }
-  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop, profile);
+  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop, profile, panOffsetMin, visibleSpan);
 
 
   const handlePointerDown = (timeStr: string, e: React.PointerEvent) => {
@@ -255,7 +276,9 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       minVal,
       maxVal,
       chartHeight,
-      padTop
+      padTop,
+      panOffsetMin,
+      visibleSpan
     );
     if (!draggingHour) {
       setHoverData(data);
@@ -277,11 +300,23 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
     onUpdatePoint(draggingHour, finalVal);
 
-    // Update hoverData Y position & value live during drag
     if (hoverData) {
       const range = Math.max(1, maxVal - minVal);
       const newY = padTop + chartHeight - ((finalVal - minVal) / range) * chartHeight;
       setHoverData((prev) => (prev ? { ...prev, y: newY, val: finalVal } : null));
+    }
+  };
+
+  const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const centerRatio = Math.max(0, Math.min(1, relativeX / rect.width));
+
+    if (e.deltaY < 0) {
+      handleZoom(zoomLevel * 1.25, centerRatio);
+    } else if (e.deltaY > 0) {
+      handleZoom(zoomLevel / 1.25, centerRatio);
     }
   };
 
@@ -347,7 +382,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           )}>
             <button
               type="button"
-              onClick={() => setZoomLevel((prev) => Math.max(1, +(prev - 0.5).toFixed(1)))}
+              onClick={() => handleZoom(zoomLevel / 1.5)}
               disabled={zoomLevel <= 1}
               className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
               title="Zoom Out"
@@ -359,8 +394,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             </span>
             <button
               type="button"
-              onClick={() => setZoomLevel((prev) => Math.min(4, +(prev + 0.5).toFixed(1)))}
-              disabled={zoomLevel >= 4}
+              onClick={() => handleZoom(zoomLevel * 1.5)}
+              disabled={zoomLevel >= 8}
               className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
               title="Zoom In"
             >
@@ -369,7 +404,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             {zoomLevel > 1 && (
               <button
                 type="button"
-                onClick={() => setZoomLevel(1)}
+                onClick={handleResetZoom}
                 className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 cursor-pointer transition-colors"
                 title="Reset Zoom"
               >
@@ -418,21 +453,24 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         💡 Drag data points vertically up/down on the Y-axis to dynamically modify hourly traffic values.
       </p>
 
-      <div className={cn("w-full transition-all", zoomLevel > 1 ? "overflow-x-auto pb-2" : "overflow-hidden")}>
-        <div style={{ width: `${zoomLevel * 100}%` }}>
-          <svg
-            ref={svgRef}
-            viewBox={`0 0 ${width} ${height}`}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
-          >
-        <defs>
-          <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
+      <div className="w-full overflow-hidden">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${width} ${height}`}
+          onWheel={handleWheel}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
+        >
+          <defs>
+            <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+            <clipPath id="chartPlotClip">
+              <rect x={padLeft} y={padTop} width={chartWidth} height={chartHeight} />
+            </clipPath>
+          </defs>
 
         {/* Y-axis horizontal grid lines */}
         {yTicks.map((tick) => (
@@ -478,11 +516,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           strokeWidth="2"
         />
 
-        {/* Area fill */}
-        <path d={areaD} fill="url(#detailGradient)" />
-
-        {/* Curve line */}
-        <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Clipped Area Fill & Curve Line */}
+        <g clipPath="url(#chartPlotClip)">
+          <path d={areaD} fill="url(#detailGradient)" />
+          <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
 
         {/* Strict Graph Canvas Hover Overlay Rect (detects pointer strictly inside graph bounds) */}
         <rect
@@ -582,100 +620,22 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </g>
         )}
 
-        {/* Interactive Data points & X-axis Hour labels */}
-        {points.map((pt, idx) => {
-          const isDraggingThis = draggingHour === pt.hour;
-          const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
-          const isSameHour = idx === safeHourIdx;
-          const showLabel = idx % 3 === 0 || idx === points.length - 1;
-
-          const guideLineStroke = getGuideLineStroke(false, isSimulatingActive, isSameHour, isRed);
-          const pointFillClass = getPointFillClass(false, isSameHour, isSimulatingActive, isDraggingThis, isRed);
-
-          return (
-            <g key={`pt-${pt.hour}`}>
-              {/* Vertical Guide Line when dragging or active simulation tick */}
-              {(isDraggingThis || isSimulatingActive) && (
-                <line
-                  x1={pt.x}
-                  y1={padTop}
-                  x2={pt.x}
-                  y2={padTop + chartHeight}
-                  stroke={guideLineStroke}
-                  strokeDasharray="2 2"
-                  strokeWidth={isSimulatingActive ? "2" : "1.5"}
-                />
-              )}
-
-              {/* Invisible touch target for drag ease */}
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r="12"
-                className="fill-transparent cursor-ns-resize"
-                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              />
-
-              {/* Visible Circle - only rendered when actively dragging an hourly point */}
-              {isDraggingThis && (
-                <circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={6}
-                  className={cn("cursor-ns-resize transition-all hover:scale-125", pointFillClass)}
-                  strokeWidth="1.5"
-                  onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-                />
-              )}
-
-              {/* Tooltip Card directly on chart when dragging an hourly point */}
-              {isDraggingThis && (
-                <g transform={`translate(${pt.x}, ${Math.max(padTop + 20, pt.y - 32)})`}>
-                  <rect
-                    x="-45"
-                    y="-14"
-                    width="90"
-                    height="22"
-                    rx="6"
-                    className={cn(
-                      "shadow-lg backdrop-blur-md",
-                      colorMode === 'dark' ? "fill-slate-900/90 stroke-blue-500/50" : "fill-white/95 stroke-blue-400"
-                    )}
-                    strokeWidth="1"
-                  />
-                  <text
-                    x="0"
-                    y="1"
-                    textAnchor="middle"
-                    className={cn(
-                      "text-[10px] font-mono font-bold select-none",
-                      colorMode === 'dark' ? "fill-blue-400" : "fill-blue-600"
-                    )}
-                  >
-                    {`${pt.hour} • ${pt.val.toLocaleString()}`}
-                  </text>
-                </g>
-              )}
-
-              {/* Hour Label */}
-              {showLabel && (
-                <text
-                  x={pt.x}
-                  y={padTop + chartHeight + 20}
-                  textAnchor="middle"
-                  className={cn(
-                    "text-[9px] font-bold font-mono tracking-wider select-none",
-                    colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
-                  )}
-                >
-                  {pt.hour}
-                </text>
-              )}
-            </g>
-          );
-        })}
+        {/* Dynamic X-axis Minute Labels based on zoom level */}
+        {dynamicTicks.map((tick) => (
+          <text
+            key={`tick-${tick.label}-${tick.x}`}
+            x={tick.x}
+            y={padTop + chartHeight + 20}
+            textAnchor="middle"
+            className={cn(
+              "text-[9px] font-bold font-mono tracking-wider select-none",
+              colorMode === 'dark' ? "fill-slate-400" : "fill-slate-600"
+            )}
+          >
+            {tick.label}
+          </text>
+        ))}
       </svg>
-        </div>
       </div>
     </div>
   );
