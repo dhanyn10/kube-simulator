@@ -85,7 +85,7 @@ export const useInternetProfileModal = (
     try {
       const savedProfiles = await window.go?.main?.App?.GetInternetProfiles?.();
       if (Array.isArray(savedProfiles) && savedProfiles.length > 0) {
-        const normalizedSaved = savedProfiles.map(normalizeProfile);
+        const normalizedSaved = savedProfiles.map((p) => normalizeProfile(p));
         const merged = [
           ECOMMERCE_PROFILE,
           ...normalizedSaved.filter((p) => p.name !== ECOMMERCE_PROFILE.name)
