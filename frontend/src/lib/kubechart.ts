@@ -21,6 +21,52 @@ export interface ChartPadding {
   padBottom?: number;
 }
 
+export interface TimeSeriesPoint {
+  time: string | number;
+  value: number;
+  label?: string;
+}
+
+export interface ChartOptions {
+  width: number;
+  height: number;
+  padding?: ChartPadding | number;
+  intervalMinutes?: number;
+  minVal?: number;
+  maxVal?: number;
+}
+
+export interface ChartPoint {
+  x: number;
+  y: number;
+  val: number;
+  hour: string;
+  minuteIdx: number;
+  rawTime?: string | number;
+}
+
+export interface YAxisTick {
+  val: number;
+  y: number;
+  label: string;
+}
+
+export interface ChartLayoutResult {
+  points: ChartPoint[];
+  values: number[];
+  pathD: string;
+  areaD: string;
+  minVal: number;
+  maxVal: number;
+  chartWidth: number;
+  chartHeight: number;
+  yTicks: YAxisTick[];
+  padLeft: number;
+  padRight: number;
+  padTop: number;
+  padBottom: number;
+}
+
 export const PROFILE_INTERVAL_OPTIONS = [
   { label: '1 Hour', minutes: 60 },
   { label: '30 Minutes', minutes: 30 },
@@ -34,6 +80,29 @@ export const PROFILE_HOURLY_INTERVALS = 23;
 export const PROFILE_SPAN_MINUTES = PROFILE_HOURLY_INTERVALS * MINUTES_PER_HOUR; // 1380 minutes (00:00 to 23:00)
 
 export const HOURS_OF_DAY = Array.from({ length: HOURS_IN_DAY }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+/**
+ * Resolves padding options from uniform number or ChartPadding object.
+ */
+export function resolvePadding(
+  padLeftOrPadding?: number | ChartPadding,
+  restArgs: number[] = []
+): { padLeft: number; padRight: number; padTop: number; padBottom: number } {
+  if (typeof padLeftOrPadding === 'object' && padLeftOrPadding !== null) {
+    return {
+      padLeft: padLeftOrPadding.padLeft ?? 0,
+      padRight: padLeftOrPadding.padRight ?? 0,
+      padTop: padLeftOrPadding.padTop ?? 0,
+      padBottom: padLeftOrPadding.padBottom ?? 0
+    };
+  }
+  return {
+    padLeft: typeof padLeftOrPadding === 'number' ? padLeftOrPadding : 0,
+    padRight: restArgs[0] ?? 0,
+    padTop: restArgs[1] ?? 0,
+    padBottom: restArgs[2] ?? 0
+  };
+}
 
 /**
  * Formats minute index (0..1439) as HH:MM time string.
@@ -89,26 +158,6 @@ export function calculateMinutePoint(
     y,
     val,
     hour: formatMinuteToHHMM(safeMin)
-  };
-}
-
-function resolvePadding(
-  padLeftOrPadding?: number | ChartPadding,
-  restArgs: number[] = []
-): { padLeft: number; padRight: number; padTop: number; padBottom: number } {
-  if (typeof padLeftOrPadding === 'object' && padLeftOrPadding !== null) {
-    return {
-      padLeft: padLeftOrPadding.padLeft ?? 0,
-      padRight: padLeftOrPadding.padRight ?? 0,
-      padTop: padLeftOrPadding.padTop ?? 0,
-      padBottom: padLeftOrPadding.padBottom ?? 0
-    };
-  }
-  return {
-    padLeft: typeof padLeftOrPadding === 'number' ? padLeftOrPadding : 0,
-    padRight: restArgs[0] ?? 0,
-    padTop: restArgs[1] ?? 0,
-    padBottom: restArgs[2] ?? 0
   };
 }
 
@@ -183,6 +232,153 @@ export function resampleProfileHourly(profile: InternetProfileItem): InternetPro
 }
 
 /**
+ * Converts an InternetProfileItem or raw hourly map into a generic TimeSeriesPoint array.
+ */
+export function convertProfileToTimeSeries(
+  profile: InternetProfileItem,
+  intervalMinutes: number = 60
+): TimeSeriesPoint[] {
+  const safeInterval = Math.max(1, Math.min(60, intervalMinutes));
+  const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / safeInterval);
+  const hourly = profile.hourly || profile.daily || {};
+
+  const existingMinuteKeys = Object.keys(hourly)
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { key: k, minute: (h || 0) * 60 + (m || 0), val: hourly[k] };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
+  return Array.from({ length: intervalMinutes === 60 ? 24 : totalSteps + 1 }, (_, i) => {
+    const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
+    const timeStr = formatMinuteToHHMM(minuteIdx);
+    const value = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);
+    return {
+      time: timeStr,
+      value,
+      label: timeStr
+    };
+  });
+}
+
+/**
+ * Calculates Y-axis tick values and Y positions for a given value range and chart dimensions.
+ */
+export function computeYAxisTicks(
+  minVal: number,
+  maxVal: number,
+  padTop: number,
+  chartHeight: number,
+  tickRatios: number[] = [0, 0.25, 0.5, 0.75, 1]
+): YAxisTick[] {
+  return tickRatios.map((ratio) => {
+    const val = Math.round(minVal + (maxVal - minVal) * (1 - ratio));
+    const y = padTop + chartHeight * ratio;
+    const label = val >= 1000 ? `${(val / 1000).toFixed(1)}k` : String(val);
+    return { val, y, label };
+  });
+}
+
+/**
+ * Universal Core Engine: Computes complete chart layout, SVG paths, and points from generic input or profile item.
+ */
+export function computeChartLayout(
+  input: TimeSeriesPoint[] | InternetProfileItem,
+  options: ChartOptions
+): ChartLayoutResult {
+  const { padLeft, padRight, padTop, padBottom } = resolvePadding(options.padding);
+  const chartWidth = options.width - padLeft - padRight;
+  const chartHeight = options.height - padTop - padBottom;
+  const intervalMinutes = options.intervalMinutes ?? 60;
+
+  let timeSeries: TimeSeriesPoint[];
+  let hourlyVals: number[] = [];
+  let is24HourProfile = false;
+
+  if (Array.isArray(input)) {
+    timeSeries = input;
+    is24HourProfile = timeSeries.length > 0 && timeSeries.every((pt) => typeof pt.time === 'string' && /^\d{2}:\d{2}$/.test(pt.time));
+  } else {
+    timeSeries = convertProfileToTimeSeries(input, intervalMinutes);
+    hourlyVals = HOURS_OF_DAY.map((h) => input.hourly?.[h] ?? input.daily?.[h] ?? 0);
+    is24HourProfile = true;
+  }
+
+  const values = timeSeries.map((p) => p.value);
+  const minVal = options.minVal ?? 0;
+
+  let maxVal = options.maxVal;
+  if (maxVal === undefined) {
+    const currentMax = Math.max(...values, ...hourlyVals, 1000);
+    maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
+  }
+
+  const totalPoints = Math.max(1, timeSeries.length - 1);
+
+  const points: ChartPoint[] = timeSeries.map((pt, idx) => {
+    let minuteIdx = 0;
+    let hourStr: string;
+
+    if (typeof pt.time === 'string' && pt.time.includes(':')) {
+      const [h, m] = pt.time.split(':').map(Number);
+      minuteIdx = (h || 0) * 60 + (m || 0);
+      hourStr = pt.time;
+    } else if (typeof pt.time === 'number') {
+      minuteIdx = pt.time;
+      hourStr = formatMinuteToHHMM(minuteIdx);
+    } else if (pt.label) {
+      hourStr = pt.label;
+      minuteIdx = idx;
+    } else {
+      minuteIdx = idx;
+      hourStr = String(idx);
+    }
+
+    const ratio = is24HourProfile
+      ? minuteIdx / PROFILE_SPAN_MINUTES
+      : idx / totalPoints;
+
+    const x = padLeft + ratio * chartWidth;
+    const range = Math.max(1, maxVal - minVal);
+    const y = padTop + chartHeight - ((pt.value - minVal) / range) * chartHeight;
+
+    return {
+      x,
+      y,
+      val: pt.value,
+      hour: hourStr,
+      minuteIdx,
+      rawTime: pt.time
+    };
+  });
+
+  const pathD = points.reduce((acc, pt, i) => {
+    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+  }, '');
+
+  const lastPoint = points.at(-1) || points[0];
+  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+
+  const yTicks = computeYAxisTicks(minVal, maxVal, padTop, chartHeight);
+
+  return {
+    points,
+    values,
+    pathD,
+    areaD,
+    minVal,
+    maxVal,
+    chartWidth,
+    chartHeight,
+    yTicks,
+    padLeft,
+    padRight,
+    padTop,
+    padBottom
+  };
+}
+
+/**
  * Generates reference time points across 00:00 to 23:00 for a given minute interval.
  */
 export function generateProfileIntervalPoints(
@@ -206,58 +402,20 @@ export function generateProfileIntervalPoints(
   padLeftOrPadding?: ChartPadding | number,
   ...restPads: number[]
 ) {
-  const { padLeft, padRight, padTop, padBottom } = resolvePadding(padLeftOrPadding, restPads);
-  const chartWidth = width - padLeft - padRight;
-  const chartHeight = height - padTop - padBottom;
-
-  const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / intervalMinutes);
-  const allValues: number[] = [];
-
-  const points = Array.from({ length: totalSteps + 1 }, (_, i) => {
-    const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * intervalMinutes);
-    const timeStr = formatMinuteToHHMM(minuteIdx);
-
-    let val = 0;
-    if (profile.hourly?.[timeStr] !== undefined) {
-      val = profile.hourly[timeStr];
-    } else {
-      // Interpolate from nearest profile hourly anchor points
-      const h1 = Math.min(22, Math.floor(minuteIdx / 60));
-      const mInH = minuteIdx - h1 * 60;
-      const frac = mInH / 60;
-      const k1 = formatMinuteToHHMM(h1 * 60);
-      const k2 = formatMinuteToHHMM((h1 + 1) * 60);
-      const v1 = profile.hourly?.[k1] ?? 0;
-      const v2 = profile.hourly?.[k2] ?? v1;
-      val = Math.round(v1 + frac * (v2 - v1));
-    }
-    allValues.push(val);
-    return { minuteIdx, timeStr, val };
-  });
-
-  const hourlyVals = HOURS_OF_DAY.map((h) => profile.hourly?.[h] ?? 0);
-  const currentMax = Math.max(...allValues, ...hourlyVals, 1000);
-  const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
-  const minVal = 0;
-
-  const mappedPoints = points.map((pt) => {
-    const x = padLeft + (pt.minuteIdx / PROFILE_SPAN_MINUTES) * chartWidth;
-    const y = padTop + chartHeight - ((pt.val - minVal) / Math.max(1, maxVal - minVal)) * chartHeight;
-    return {
-      x,
-      y,
-      val: pt.val,
-      hour: pt.timeStr,
-      minuteIdx: pt.minuteIdx
-    };
+  const pads = resolvePadding(padLeftOrPadding, restPads);
+  const layout = computeChartLayout(profile, {
+    width,
+    height,
+    padding: pads,
+    intervalMinutes
   });
 
   return {
-    intervalPoints: mappedPoints,
-    minVal,
-    maxVal,
-    chartWidth,
-    chartHeight
+    intervalPoints: layout.points,
+    minVal: layout.minVal,
+    maxVal: layout.maxVal,
+    chartWidth: layout.chartWidth,
+    chartHeight: layout.chartHeight
   };
 }
 
@@ -302,68 +460,27 @@ export function calculateProfileChartData(
   padLeftOrPadding?: ChartPadding | number,
   ...restArgs: number[]
 ) {
-  const { padLeft, padRight, padTop, padBottom } = resolvePadding(padLeftOrPadding, restArgs);
+  const pads = resolvePadding(padLeftOrPadding, restArgs);
   const intervalMinutes = typeof padLeftOrPadding === 'object' && padLeftOrPadding !== null
     ? (restArgs[0] ?? 60)
     : (restArgs[3] ?? 60);
 
-  const chartWidth = width - padLeft - padRight;
-  const chartHeight = height - padTop - padBottom;
-
-  const safeInterval = Math.max(1, Math.min(60, intervalMinutes));
-  const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / safeInterval);
-
-  // Collect sorted existing keys from profile.hourly for nearest-neighbor interpolation
-  const hourly = profile.hourly || {};
-  const existingMinuteKeys = Object.keys(hourly)
-    .map((k) => {
-      const [h, m] = k.split(':').map(Number);
-      return { key: k, minute: (h || 0) * 60 + (m || 0), val: hourly[k] };
-    })
-    .sort((a, b) => a.minute - b.minute);
-
-  const rawPoints = Array.from({ length: totalSteps + 1 }, (_, i) => {
-    const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
-    const timeStr = formatMinuteToHHMM(minuteIdx);
-    const val = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);
-    return { minuteIdx, hour: timeStr, val };
+  const layout = computeChartLayout(profile, {
+    width,
+    height,
+    padding: pads,
+    intervalMinutes
   });
-
-  const values = rawPoints.map((p) => p.val);
-  const hourlyVals = HOURS_OF_DAY.map((h) => profile.hourly?.[h] ?? 0);
-  const currentMax = Math.max(...values, ...hourlyVals, 1000);
-  const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
-  const minVal = 0;
-
-  const points = rawPoints.map((pt) => {
-    const x = padLeft + (pt.minuteIdx / PROFILE_SPAN_MINUTES) * chartWidth;
-    const range = Math.max(1, maxVal - minVal);
-    const y = padTop + chartHeight - ((pt.val - minVal) / range) * chartHeight;
-    return {
-      x,
-      y,
-      val: pt.val,
-      hour: pt.hour,
-      minuteIdx: pt.minuteIdx
-    };
-  });
-
-  const pathD = points.reduce((acc, pt, i) => {
-    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
-  }, '');
-
-  const lastPoint = points.at(-1) || points[0];
-  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
 
   return {
-    values,
-    points,
-    pathD,
-    areaD,
-    minVal,
-    maxVal,
-    chartWidth,
-    chartHeight
+    values: layout.values,
+    points: layout.points,
+    pathD: layout.pathD,
+    areaD: layout.areaD,
+    minVal: layout.minVal,
+    maxVal: layout.maxVal,
+    chartWidth: layout.chartWidth,
+    chartHeight: layout.chartHeight
   };
 }
 
@@ -383,14 +500,6 @@ export function calculateDynamicLabelStep(
 
 /**
  * Calculates hour index from a mouse/pointer event X coordinate over the chart width.
- *
- * @param mouseX Relative mouse X position inside the SVG element
- * @param rectWidth Rendered SVG bounding box width
- * @param width Chart internal coordinate width
- * @param padLeft Left padding
- * @param padRight Right padding
- * @param chartWidth Calculated inner chart width
- * @returns Clamped hour index (0 to 23)
  */
 export function calculateHourIndexFromX(
   mouseX: number,
@@ -408,14 +517,6 @@ export function calculateHourIndexFromX(
 
 /**
  * Calculates minute index (0..1439) from a mouse/pointer event X coordinate over the chart width.
- *
- * @param mouseX Relative mouse X position inside the SVG element
- * @param rectWidth Rendered SVG bounding box width
- * @param width Chart internal coordinate width
- * @param padLeft Left padding
- * @param padRight Right padding
- * @param chartWidth Calculated inner chart width
- * @returns Clamped minute index (0 to 1439)
  */
 export function calculateMinuteIndexFromX(
   mouseX: number,
@@ -433,15 +534,6 @@ export function calculateMinuteIndexFromX(
 
 /**
  * Calculates new Y value when dragging a chart point on the interactive profile chart.
- *
- * @param clientY Relative mouse/pointer Y position inside the SVG element
- * @param rectHeight Rendered SVG bounding box height
- * @param height Chart internal coordinate height
- * @param padTop Top padding
- * @param chartHeight Calculated inner chart height
- * @param minVal Minimum bound value
- * @param maxVal Maximum bound value
- * @returns Clamped integer traffic value
  */
 export function calculateYValueFromPointer(
   clientY: number,
@@ -488,7 +580,6 @@ export function calculateProfileHoverData(
   const ratio = Math.max(0, Math.min(1, relativeX / rectWidth));
   const cursorSvgX = padLeft + ratio * chartWidth;
 
-  // Find closest point in points array
   let closestIndex = 0;
   let minDiff = Infinity;
 
