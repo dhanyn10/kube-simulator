@@ -348,10 +348,15 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
-        style={{ width: zoomScale > 100 ? `${zoomScale}%` : '100%', minWidth: '100%' }}
+        style={{
+          width: zoomScale > 100 ? `${width}px` : '100%',
+          minWidth: '100%',
+          height: `${height}px`
+        }}
+        preserveAspectRatio="none"
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
+        className="overflow-visible select-none touch-none cursor-ns-resize"
       >
         <defs>
           <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
