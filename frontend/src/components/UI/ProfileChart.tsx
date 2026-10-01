@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Activity, Edit2 } from 'lucide-react';
+import { Activity, Edit2, ZoomIn, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
@@ -8,6 +8,8 @@ import {
   calculateYValueFromPointer,
   calculateMinutePoint,
   calculateProfileHoverData,
+  generateProfileIntervalPoints,
+  PROFILE_INTERVAL_OPTIONS,
   ProfileHoverData
 } from '@/activities/modals';
 import {
@@ -167,8 +169,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
+  const [intervalMinutes, setIntervalMinutes] = useState<number>(60);
+  const [zoomScale, setZoomScale] = useState<number>(100);
 
-  const width = 680;
+  const baseWidth = 680;
+  const width = Math.round((baseWidth * zoomScale) / 100);
   const height = 280;
   const padLeft = 65;
   const padRight = 35;
@@ -177,6 +182,17 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
   const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
+    width,
+    height,
+    padLeft,
+    padRight,
+    padTop,
+    padBottom
+  );
+
+  const { intervalPoints } = generateProfileIntervalPoints(
+    profile,
+    intervalMinutes,
     width,
     height,
     padLeft,
@@ -284,16 +300,58 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         </div>
       </div>
 
+      {/* Interactive Controls Bar: Interval Resolution Dropdown & Horizontal Zoom Slider */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-3 px-1 py-1.5 rounded-lg border bg-slate-900/40 border-slate-800 text-xs">
+        {/* Interval Dropdown */}
+        <div className="flex items-center gap-2">
+          <Clock size={14} className="text-blue-400" />
+          <span className="font-semibold text-slate-300">Interval:</span>
+          <select
+            value={intervalMinutes}
+            onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+            className={cn(
+              "px-2 py-1 rounded border text-xs font-bold outline-none cursor-pointer transition-all",
+              colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-blue-400" : "bg-white border-slate-300 text-blue-600"
+            )}
+          >
+            {PROFILE_INTERVAL_OPTIONS.map((opt) => (
+              <option key={opt.minutes} value={opt.minutes}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Horizontal Zoom Slider */}
+        <div className="flex items-center gap-2 flex-1 max-w-xs justify-end">
+          <ZoomIn size={14} className="text-blue-400 shrink-0" />
+          <span className="font-semibold text-slate-300 text-[11px] shrink-0">Horizontal Zoom:</span>
+          <input
+            type="range"
+            min={100}
+            max={800}
+            step={10}
+            value={zoomScale}
+            onChange={(e) => setZoomScale(Number(e.target.value))}
+            className="w-28 accent-blue-500 cursor-pointer h-1.5 rounded-lg bg-slate-700"
+          />
+          <span className="font-mono text-[10px] text-slate-400 w-10 text-right shrink-0">{zoomScale}%</span>
+        </div>
+      </div>
+
       <p className="text-[11px] font-medium text-slate-400 mb-2 px-1">
-        💡 Drag data points vertically up/down on the Y-axis to dynamically modify hourly traffic values.
+        💡 Drag data points vertically up/down on the Y-axis to dynamically modify traffic values.
       </p>
 
+      {/* Scrollable Container for Horizontal Zooming */}
+      <div className="w-full overflow-x-auto overflow-y-hidden pb-2 custom-scrollbar">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${width} ${height}`}
+        style={{ width: zoomScale > 100 ? `${zoomScale}%` : '100%', minWidth: '100%' }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
+        className="h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
       >
         <defs>
           <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
@@ -359,7 +417,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           y={padTop}
           width={chartWidth}
           height={chartHeight}
-          className="fill-transparent cursor-pointer pointer-events-auto"
+          className="fill-transparent cursor-ns-resize pointer-events-auto"
           onPointerMove={handleGraphPointerMove}
           onPointerLeave={handleGraphPointerLeave}
         />
@@ -435,6 +493,36 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             </g>
           </g>
         )}
+
+        {/* Reference points for selected interval (render vertical drag target points) */}
+        {intervalPoints.map((pt) => {
+          const isDraggingThis = draggingHour === pt.hour;
+          return (
+            <g key={`ref-pt-${pt.hour}`}>
+              {/* Invisible touch target for drag ease */}
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r="10"
+                className="fill-transparent cursor-ns-resize"
+                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
+              />
+
+              {/* Small point indicator */}
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r={isDraggingThis ? 6 : 3}
+                className={cn(
+                  "cursor-ns-resize transition-all hover:scale-150",
+                  isDraggingThis ? "fill-blue-400 stroke-white dark:stroke-slate-900" : "fill-blue-500/70 hover:fill-blue-400"
+                )}
+                strokeWidth="1.5"
+                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
+              />
+            </g>
+          );
+        })}
 
         {/* Interactive Data points & X-axis Hour labels */}
         {points.map((pt, idx) => {
@@ -529,6 +617,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           );
         })}
       </svg>
+      </div>
     </div>
   );
 };

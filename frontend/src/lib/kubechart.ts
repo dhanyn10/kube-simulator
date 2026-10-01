@@ -11,7 +11,16 @@ export interface ProfileHoverData {
   val: number;
   hourStr: string;
   minuteIndex: number;
+  refKey?: string;
 }
+
+export const PROFILE_INTERVAL_OPTIONS = [
+  { label: '1 Hour', minutes: 60 },
+  { label: '30 Minutes', minutes: 30 },
+  { label: '10 Minutes', minutes: 10 },
+  { label: '5 Minutes', minutes: 5 },
+  { label: '1 Minute', minutes: 1 },
+] as const;
 
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_IN_DAY = 24;
@@ -80,6 +89,73 @@ export function calculateMinutePoint(
  * @param padBottom Bottom padding
  * @returns Chart point objects, SVG paths, and min/max value bounds
  */
+/**
+ * Generates reference time points across 00:00 to 23:00 for a given minute interval.
+ */
+export function generateProfileIntervalPoints(
+  profile: InternetProfileItem,
+  intervalMinutes: number,
+  width: number,
+  height: number,
+  padLeft: number,
+  padRight: number,
+  padTop: number,
+  padBottom: number
+) {
+  const chartWidth = width - padLeft - padRight;
+  const chartHeight = height - padTop - padBottom;
+
+  const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / intervalMinutes);
+  const allValues: number[] = [];
+
+  const points = Array.from({ length: totalSteps + 1 }, (_, i) => {
+    const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * intervalMinutes);
+    const timeStr = formatMinuteToHHMM(minuteIdx);
+
+    let val = 0;
+    if (profile.hourly?.[timeStr] !== undefined) {
+      val = profile.hourly[timeStr];
+    } else {
+      // Interpolate from nearest profile hourly anchor points
+      const h1 = Math.min(22, Math.floor(minuteIdx / 60));
+      const mInH = minuteIdx - h1 * 60;
+      const frac = mInH / 60;
+      const k1 = formatMinuteToHHMM(h1 * 60);
+      const k2 = formatMinuteToHHMM((h1 + 1) * 60);
+      const v1 = profile.hourly?.[k1] ?? 0;
+      const v2 = profile.hourly?.[k2] ?? v1;
+      val = Math.round(v1 + frac * (v2 - v1));
+    }
+    allValues.push(val);
+    return { minuteIdx, timeStr, val };
+  });
+
+  const hourlyVals = HOURS_OF_DAY.map((h) => profile.hourly?.[h] ?? 0);
+  const currentMax = Math.max(...allValues, ...hourlyVals, 1000);
+  const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
+  const minVal = 0;
+
+  const mappedPoints = points.map((pt) => {
+    const x = padLeft + (pt.minuteIdx / PROFILE_SPAN_MINUTES) * chartWidth;
+    const y = padTop + chartHeight - ((pt.val - minVal) / Math.max(1, maxVal - minVal)) * chartHeight;
+    return {
+      x,
+      y,
+      val: pt.val,
+      hour: pt.timeStr,
+      minuteIdx: pt.minuteIdx
+    };
+  });
+
+  return {
+    intervalPoints: mappedPoints,
+    minVal,
+    maxVal,
+    chartWidth,
+    chartHeight
+  };
+}
+
 export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,
