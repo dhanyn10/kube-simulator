@@ -240,7 +240,7 @@ export function convertProfileToTimeSeries(
 ): TimeSeriesPoint[] {
   const safeInterval = Math.max(1, Math.min(60, intervalMinutes));
   const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / safeInterval);
-  const hourly = profile.hourly || {};
+  const hourly = profile.hourly || profile.daily || {};
 
   const existingMinuteKeys = Object.keys(hourly)
     .map((k) => {
@@ -317,7 +317,7 @@ export function computeChartLayout(
 
   const points: ChartPoint[] = timeSeries.map((pt, idx) => {
     let minuteIdx = 0;
-    let hourStr = '00:00';
+    let hourStr: string;
 
     if (typeof pt.time === 'string' && pt.time.includes(':')) {
       const [h, m] = pt.time.split(':').map(Number);
