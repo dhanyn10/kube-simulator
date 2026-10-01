@@ -125,6 +125,10 @@ export const useInternetProfileModal = (
     }));
   };
 
+  const handleResampleCustomHourly = (newHourly: Record<string, number>) => {
+    setCustomHourlyValues(newHourly);
+  };
+
   const activeProfile = profiles.find((p) => p.name === activeProfileName) || null;
 
   const handleApplyProfile = (profileName: string, profileObj?: InternetProfileItem) => {
@@ -171,6 +175,13 @@ export const useInternetProfileModal = (
         }
       };
     });
+  };
+
+  const handleResampleDetailHourly = (newHourly: Record<string, number>) => {
+    setDetailProfile((prev) => ({
+      ...prev,
+      hourly: newHourly
+    }));
   };
 
   const handleUpdateDetailName = (newName: string) => {
@@ -261,9 +272,11 @@ export const useInternetProfileModal = (
     handleStartCustomProfile,
     handleRandomizeCustomValues,
     handleUpdateCustomPoint,
+    handleResampleCustomHourly,
     handleApplyProfile,
     handleOpenDetails,
     handleUpdateDetailPoint,
+    handleResampleDetailHourly,
     handleUpdateDetailName,
     handleSaveAndApplyDetailProfile,
     handleSaveCustomProfile,

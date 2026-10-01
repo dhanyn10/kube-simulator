@@ -35,6 +35,32 @@ export const PROFILE_SPAN_MINUTES = PROFILE_HOURLY_INTERVALS * MINUTES_PER_HOUR;
 export const HOURS_OF_DAY = Array.from({ length: HOURS_IN_DAY }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
 /**
+ * Checks if a profile has sub-hourly custom keys (e.g. "00:30", "00:05").
+ */
+export function hasSubHourlyKeys(profile: InternetProfileItem): boolean {
+  if (!profile || !profile.hourly) return false;
+  const standardKeys = new Set(HOURS_OF_DAY);
+  return Object.keys(profile.hourly).some((key) => !standardKeys.has(key));
+}
+
+/**
+ * Resamples a profile's hourly map to standard points corresponding to targetIntervalMinutes.
+ * E.g., for 60m interval, retains only the 24 hourly keys calculated via getInterpolatedProfileTraffic.
+ */
+export function resampleProfileHourly(
+  profile: InternetProfileItem,
+  targetIntervalMinutes: number
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  const step = Math.max(1, targetIntervalMinutes);
+  for (let min = 0; min <= PROFILE_SPAN_MINUTES; min += step) {
+    const key = formatMinuteToHHMM(min);
+    result[key] = getInterpolatedProfileTraffic(profile, min);
+  }
+  return result;
+}
+
+/**
  * Calculates linear interpolated traffic for a given minute index (0..1439).
  * Supports both standard hourly profile keys ("00:00", "01:00", ...) and sub-hourly keys ("00:30", "00:10", etc.).
  */

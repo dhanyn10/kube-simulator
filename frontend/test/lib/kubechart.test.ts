@@ -6,7 +6,9 @@ import {
   calculateYValueFromPointer,
   calculateProfileHoverData,
   formatMinuteToHHMM,
-  calculateMinutePoint
+  calculateMinutePoint,
+  hasSubHourlyKeys,
+  resampleProfileHourly
 } from '@/lib/kubechart';
 
 describe('kubechart library', () => {
@@ -113,6 +115,27 @@ describe('kubechart library', () => {
     expect(hoverResult60?.x).toBeCloseTo(103.913, 2);
     expect(hoverResult60?.hourStr).toBe('12:00');
     expect(hoverResult60?.minuteIndex).toBe(720);
+  });
+
+  it('detects sub-hourly keys and resamples profile hourly map correctly', () => {
+    expect(hasSubHourlyKeys(dummyProfile)).toBe(false);
+
+    const subHourlyProfile = {
+      name: 'Custom Profile',
+      hourly: {
+        '00:00': 100,
+        '00:30': 300,
+        '01:00': 500
+      }
+    };
+
+    expect(hasSubHourlyKeys(subHourlyProfile)).toBe(true);
+
+    const resampled60 = resampleProfileHourly(subHourlyProfile, 60);
+    expect(Object.keys(resampled60)).toHaveLength(24);
+    expect(resampled60['00:00']).toBe(100);
+    expect(resampled60['01:00']).toBe(500);
+    expect(resampled60['00:30']).toBeUndefined();
   });
 
   it('calculates minute point position and linear interpolation accurately', () => {

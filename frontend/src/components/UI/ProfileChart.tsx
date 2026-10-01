@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Activity, Edit2 } from 'lucide-react';
+import { Activity, Edit2, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
@@ -8,6 +8,8 @@ import {
   calculateYValueFromPointer,
   calculateMinutePoint,
   calculateProfileHoverData,
+  hasSubHourlyKeys,
+  resampleProfileHourly,
   ProfileHoverData,
   PROFILE_INTERVAL_OPTIONS
 } from '@/activities/modals';
@@ -152,6 +154,7 @@ export interface InteractiveTrafficChartProps {
   readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
+  readonly onResamplePoints?: (newHourly: Record<string, number>) => void;
   readonly onUpdateName: (newName: string) => void;
 }
 
@@ -163,12 +166,35 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   currentMinuteIndex,
   isRed,
   onUpdatePoint,
+  onResamplePoints,
   onUpdateName
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [selectedIntervalMinutes, setSelectedIntervalMinutes] = useState<number>(60);
+  const [pendingIntervalMinutes, setPendingIntervalMinutes] = useState<number | null>(null);
+
+  const handleIntervalChange = (newInterval: number) => {
+    if (newInterval > selectedIntervalMinutes && hasSubHourlyKeys(profile)) {
+      setPendingIntervalMinutes(newInterval);
+    } else {
+      setSelectedIntervalMinutes(newInterval);
+    }
+  };
+
+  const handleConfirmResample = () => {
+    if (pendingIntervalMinutes !== null) {
+      const resampled = resampleProfileHourly(profile, pendingIntervalMinutes);
+      onResamplePoints?.(resampled);
+      setSelectedIntervalMinutes(pendingIntervalMinutes);
+      setPendingIntervalMinutes(null);
+    }
+  };
+
+  const handleCancelResample = () => {
+    setPendingIntervalMinutes(null);
+  };
 
   const width = 680;
   const height = 280;
@@ -298,8 +324,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-400 font-sans">Interval:</span>
             <select
-              value={selectedIntervalMinutes}
-              onChange={(e) => setSelectedIntervalMinutes(Number(e.target.value))}
+              value={pendingIntervalMinutes ?? selectedIntervalMinutes}
+              onChange={(e) => handleIntervalChange(Number(e.target.value))}
               className={cn(
                 "px-2.5 py-1 rounded-lg border text-xs font-bold text-blue-400 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-blue-500/50",
                 colorMode === 'dark' ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-300 hover:border-slate-400"
@@ -317,6 +343,37 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           <span className="text-slate-400">Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
         </div>
       </div>
+
+      {/* Resampling Confirmation In-Chart Overlay */}
+      {pendingIntervalMinutes !== null && (
+        <div className="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+          <div className="p-3 rounded-full bg-amber-500/20 text-amber-400 mb-3 border border-amber-500/30">
+            <AlertTriangle size={24} />
+          </div>
+          <h4 className="text-sm font-bold text-slate-100 mb-1">
+            Resampling Warning
+          </h4>
+          <p className="text-xs text-slate-300 max-w-md mb-4 leading-relaxed">
+            Switching to a higher interval ({PROFILE_INTERVAL_OPTIONS.find((o) => o.minutes === pendingIntervalMinutes)?.label}) will resample and flatten your custom sub-hourly data points back to standard anchor points.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleConfirmResample}
+              className="px-4 py-2 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all shadow-md cursor-pointer"
+            >
+              Resample & Flatten
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelResample}
+              className="px-4 py-2 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-[11px] font-medium text-slate-400 mb-2 px-1">
         💡 Drag data points vertically up/down on the Y-axis to dynamically modify hourly traffic values.

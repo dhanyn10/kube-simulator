@@ -79,6 +79,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     handleApplyProfile,
     handleOpenDetails,
     handleUpdateDetailPoint,
+    handleResampleDetailHourly,
     handleUpdateDetailName,
     handleSaveAndApplyDetailProfile,
     handleSaveCustomProfile,
@@ -88,7 +89,8 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     customHourlyValues,
     handleStartCustomProfile,
     handleRandomizeCustomValues,
-    handleUpdateCustomPoint
+    handleUpdateCustomPoint,
+    handleResampleCustomHourly
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
   return (
@@ -346,6 +348,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               currentMinuteIndex={currentMinuteIndex}
               isRed={isRed}
               onUpdatePoint={handleUpdateDetailPoint}
+              onResamplePoints={handleResampleDetailHourly}
               onUpdateName={handleUpdateDetailName}
             />
           </div>
@@ -398,6 +401,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               currentHourIndex={currentHourIndex}
               isRed={isRed}
               onUpdatePoint={handleUpdateCustomPoint}
+              onResamplePoints={handleResampleCustomHourly}
               onUpdateName={setNewProfileName}
             />
           </div>
