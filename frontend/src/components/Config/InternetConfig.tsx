@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
-import { HOURS_OF_DAY, calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, ProfileHoverData } from '@/activities/modals';
+import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, ProfileHoverData } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -62,25 +62,12 @@ const ReadOnlyProfileChart = ({
   const padTop = 8;
   const padBottom = 8;
 
-  const chartWidth = width - padLeft - padRight;
-  const chartHeight = height - padTop - padBottom;
-
-  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? profile.daily?.[hour] ?? 0);
-  const maxVal = Math.max(...values, 1000);
-  const minVal = 0;
-
-  const points = values.map((val, idx) => {
-    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
-    const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y, hour: HOURS_OF_DAY[idx], val };
+  const { points, values, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = computeChartLayout(profile, {
+    width,
+    height,
+    padding: { padLeft, padRight, padTop, padBottom }
   });
 
-  const pathD = points.reduce((acc, pt, i) => {
-    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
-  }, '');
-
-  const lastPoint = points.at(-1) || points[0];
-  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
   let minuteIdx = 0;
   if (typeof currentMinuteIndex === 'number') {
     minuteIdx = currentMinuteIndex;

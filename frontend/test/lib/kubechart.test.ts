@@ -9,7 +9,11 @@ import {
   calculateMinutePoint,
   calculateDynamicLabelStep,
   hasSubHourlyKeys,
-  resampleProfileHourly
+  resampleProfileHourly,
+  computeChartLayout,
+  convertProfileToTimeSeries,
+  computeYAxisTicks,
+  resolvePadding
 } from '@/lib/kubechart';
 
 describe('kubechart library', () => {
@@ -175,5 +179,53 @@ describe('kubechart library', () => {
     const ptMin2359 = calculateMinutePoint(points, 1439, minVal, maxVal, chartHeight, 10);
     expect(ptMin2359.x).toBe(points[23].x);
     expect(ptMin2359.hour).toBe('23:59');
+  });
+
+  it('computes generic time-series chart layout cleanly', () => {
+    const timeSeriesData = [
+      { time: '00:00', value: 50 },
+      { time: '12:00', value: 500 },
+      { time: '23:00', value: 200 }
+    ];
+
+    const layout = computeChartLayout(timeSeriesData, {
+      width: 300,
+      height: 150,
+      padding: { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 }
+    });
+
+    expect(layout.points).toHaveLength(3);
+    expect(layout.pathD).toContain('M');
+    expect(layout.areaD).toContain('Z');
+    expect(layout.yTicks).toHaveLength(5);
+  });
+
+  it('resolves padding correctly from object or numbers', () => {
+    expect(resolvePadding({ padLeft: 5, padRight: 10, padTop: 15, padBottom: 20 })).toEqual({
+      padLeft: 5,
+      padRight: 10,
+      padTop: 15,
+      padBottom: 20
+    });
+    expect(resolvePadding(5, [10, 15, 20])).toEqual({
+      padLeft: 5,
+      padRight: 10,
+      padTop: 15,
+      padBottom: 20
+    });
+  });
+
+  it('converts profile to generic time series points array', () => {
+    const series = convertProfileToTimeSeries(dummyProfile, 60);
+    expect(series).toHaveLength(24);
+    expect(series[0].time).toBe('00:00');
+    expect(series[0].value).toBe(100);
+  });
+
+  it('computes Y-axis ticks with formatted labels', () => {
+    const ticks = computeYAxisTicks(0, 2000, 10, 100);
+    expect(ticks).toHaveLength(5);
+    expect(ticks[0].label).toBe('2.0k');
+    expect(ticks[4].label).toBe('0');
   });
 });
