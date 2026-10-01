@@ -104,8 +104,6 @@ describe('ProfileChart', () => {
       expect(screen.getByText('1 Hour')).toBeInTheDocument();
       expect(screen.getByText('30 Minutes')).toBeInTheDocument();
       expect(screen.getByText('10 Minutes')).toBeInTheDocument();
-      expect(screen.getByText('5 Minutes')).toBeInTheDocument();
-      expect(screen.getByText('1 Minute')).toBeInTheDocument();
 
       fireEvent.change(intervalSelect, { target: { value: '30' } });
       expect((intervalSelect as HTMLSelectElement).value).toBe('30');

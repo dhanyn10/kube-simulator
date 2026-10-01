@@ -128,9 +128,9 @@ describe('internetProfileChartHelpers', () => {
   });
 
   it('generates profile interval points according to selected interval resolution', () => {
-    expect(PROFILE_INTERVAL_OPTIONS).toHaveLength(5);
+    expect(PROFILE_INTERVAL_OPTIONS).toHaveLength(3);
     expect(PROFILE_INTERVAL_OPTIONS[0].label).toBe('1 Hour');
-    expect(PROFILE_INTERVAL_OPTIONS[4].label).toBe('1 Minute');
+    expect(PROFILE_INTERVAL_OPTIONS[2].label).toBe('10 Minutes');
 
     const result60 = generateProfileIntervalPoints(dummyProfile, 60, 200, 100, 10, 10, 10, 10);
     expect(result60.intervalPoints).toHaveLength(24);

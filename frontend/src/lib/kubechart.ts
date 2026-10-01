@@ -18,8 +18,6 @@ export const PROFILE_INTERVAL_OPTIONS = [
   { label: '1 Hour', minutes: 60 },
   { label: '30 Minutes', minutes: 30 },
   { label: '10 Minutes', minutes: 10 },
-  { label: '5 Minutes', minutes: 5 },
-  { label: '1 Minute', minutes: 1 },
 ] as const;
 
 export const MINUTES_PER_HOUR = 60;
