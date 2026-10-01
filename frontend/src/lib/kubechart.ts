@@ -13,6 +13,19 @@ export interface ProfileHoverData {
   minuteIndex: number;
 }
 
+export interface ProfileIntervalOption {
+  label: string;
+  minutes: number;
+}
+
+export const PROFILE_INTERVAL_OPTIONS: ProfileIntervalOption[] = [
+  { label: '1 Jam', minutes: 60 },
+  { label: '30 Menit', minutes: 30 },
+  { label: '10 Menit', minutes: 10 },
+  { label: '5 Menit', minutes: 5 },
+  { label: '1 Menit', minutes: 1 },
+];
+
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_IN_DAY = 24;
 export const MINUTES_IN_DAY = HOURS_IN_DAY * MINUTES_PER_HOUR; // 1440
@@ -20,6 +33,57 @@ export const PROFILE_HOURLY_INTERVALS = 23;
 export const PROFILE_SPAN_MINUTES = PROFILE_HOURLY_INTERVALS * MINUTES_PER_HOUR; // 1380 minutes (00:00 to 23:00)
 
 export const HOURS_OF_DAY = Array.from({ length: HOURS_IN_DAY }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+/**
+ * Calculates linear interpolated traffic for a given minute index (0..1439).
+ * Supports both standard hourly profile keys ("00:00", "01:00", ...) and sub-hourly keys ("00:30", "00:10", etc.).
+ */
+export function getInterpolatedProfileTraffic(profile: InternetProfileItem | any, minuteIndex: number): number {
+  if (!profile) return 1000;
+  const safeMinute = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
+  const hourlyData = profile.hourly || profile.daily || {};
+
+  const sortedKeys = Object.keys(hourlyData)
+    .filter((k) => /^\d{2}:\d{2}$/.test(k))
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { key: k, minute: h * 60 + m, val: hourlyData[k] };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
+  if (sortedKeys.length === 0) return 1000;
+  if (sortedKeys.length === 1) return sortedKeys[0].val;
+
+  const exact = sortedKeys.find((k) => k.minute === safeMinute);
+  if (exact !== undefined) return exact.val;
+
+  let prev = sortedKeys[sortedKeys.length - 1];
+  let next = sortedKeys[0];
+
+  for (let i = 0; i < sortedKeys.length; i++) {
+    if (sortedKeys[i].minute <= safeMinute) {
+      prev = sortedKeys[i];
+    }
+    if (sortedKeys[i].minute >= safeMinute) {
+      next = sortedKeys[i];
+      break;
+    }
+  }
+
+  if (prev.minute === next.minute) return prev.val;
+
+  let span = next.minute - prev.minute;
+  let offset = safeMinute - prev.minute;
+  if (span < 0) {
+    span += MINUTES_IN_DAY;
+  }
+  if (offset < 0) {
+    offset += MINUTES_IN_DAY;
+  }
+
+  const fraction = offset / span;
+  return Math.round(prev.val + fraction * (next.val - prev.val));
+}
 
 /**
  * Formats minute index (0..1439) as HH:MM time string.
@@ -40,22 +104,29 @@ export function calculateMinutePoint(
   minVal: number,
   maxVal: number,
   chartHeight: number,
-  padTop: number
+  padTop: number,
+  profile?: InternetProfileItem
 ) {
   if (!points || points.length === 0) {
     return { x: 0, y: 0, val: 0, hour: '00:00' };
   }
 
   const safeMin = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
-  const hour1 = Math.min(22, Math.floor(safeMin / MINUTES_PER_HOUR));
-  const minuteInHour = safeMin - hour1 * MINUTES_PER_HOUR;
-  const fraction = Math.min(1, minuteInHour / MINUTES_PER_HOUR);
+  const ratio = Math.min(1, Math.max(0, safeMin / PROFILE_SPAN_MINUTES));
 
-  const pt1 = points[hour1] || points[0];
-  const pt2 = points[hour1 + 1] || pt1;
+  const padLeft = points[0].x;
+  const lastPoint = points.at(-1) || points[0];
+  const chartWidth = lastPoint.x - padLeft;
+  const x = padLeft + ratio * chartWidth;
 
-  const x = pt1.x + fraction * (pt2.x - pt1.x);
-  const val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
+  const val = profile ? getInterpolatedProfileTraffic(profile, safeMin) : (() => {
+    const hour1 = Math.min(22, Math.floor(safeMin / MINUTES_PER_HOUR));
+    const minuteInHour = safeMin - hour1 * MINUTES_PER_HOUR;
+    const fraction = Math.min(1, minuteInHour / MINUTES_PER_HOUR);
+    const pt1 = points[hour1] || points[0];
+    const pt2 = points[hour1 + 1] || pt1;
+    return Math.round(pt1.val + fraction * (pt2.val - pt1.val));
+  })();
 
   const range = Math.max(1, maxVal - minVal);
   const y = padTop + chartHeight - ((val - minVal) / range) * chartHeight;
@@ -92,26 +163,41 @@ export function calculateProfileChartData(
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
-  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
-  const currentMax = Math.max(...values, 1000);
+  const allKeys = Object.keys(profile.hourly || profile.daily || {});
+  const hourlyValues = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
+  const allValues = allKeys.length > 0 ? allKeys.map((k) => profile.hourly?.[k] ?? 0) : hourlyValues;
+
+  const currentMax = Math.max(...allValues, ...hourlyValues, 1000);
   const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
   const minVal = 0;
 
-  const points = values.map((val, idx) => {
+  const points = HOURS_OF_DAY.map((hour, idx) => {
+    const val = profile.hourly?.[hour] ?? getInterpolatedProfileTraffic(profile, idx * 60);
     const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
     const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y, val, hour: HOURS_OF_DAY[idx] };
+    return { x, y, val, hour };
   });
 
-  const pathD = points.reduce((acc, pt, i) => {
+  // Sample smooth path at every 1 minute to render sub-hourly customized points accurately
+  const sampleStep = 1; // 1-minute resolution for SVG path
+  const pathPoints: { x: number; y: number }[] = [];
+  for (let min = 0; min <= PROFILE_SPAN_MINUTES; min += sampleStep) {
+    const ratio = min / PROFILE_SPAN_MINUTES;
+    const x = padLeft + ratio * chartWidth;
+    const val = getInterpolatedProfileTraffic(profile, min);
+    const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
+    pathPoints.push({ x, y });
+  }
+
+  const pathD = pathPoints.reduce((acc, pt, i) => {
     return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
   }, '');
 
-  const lastPoint = points.at(-1) || points[0];
-  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${points[0].x} ${padTop + chartHeight} Z`;
+  const lastPoint = pathPoints.at(-1) || { x: padLeft + chartWidth, y: padTop + chartHeight };
+  const areaD = `${pathD} L ${lastPoint.x} ${padTop + chartHeight} L ${pathPoints[0].x} ${padTop + chartHeight} Z`;
 
   return {
-    values,
+    values: hourlyValues,
     points,
     pathD,
     areaD,
@@ -211,7 +297,13 @@ export function calculateProfileHoverData(
   rectHeight: number,
   padLeft: number,
   chartWidth: number,
-  points: { x: number; y: number; val: number; hour: string }[]
+  points: { x: number; y: number; val: number; hour: string }[],
+  intervalMinutes: number = 60,
+  profile?: InternetProfileItem,
+  minVal?: number,
+  maxVal?: number,
+  chartHeight?: number,
+  padTop?: number
 ): ProfileHoverData | null {
   if (
     relativeX < 0 ||
@@ -224,27 +316,42 @@ export function calculateProfileHoverData(
     return null;
   }
 
-  const ratio = Math.max(0, Math.min(1, relativeX / rectWidth));
-  const cursorSvgX = padLeft + ratio * chartWidth;
+  const rawRatio = Math.max(0, Math.min(1, relativeX / rectWidth));
+  const rawMinutes = rawRatio * PROFILE_SPAN_MINUTES;
 
-  const exactIdx = ratio * PROFILE_HOURLY_INTERVALS;
-  const segIdx = Math.min(PROFILE_HOURLY_INTERVALS - 1, Math.floor(exactIdx));
-  const segFraction = exactIdx - segIdx;
+  // Snap raw minutes to nearest step based on intervalMinutes
+  const step = Math.max(1, intervalMinutes);
+  const snappedMinutes = Math.min(PROFILE_SPAN_MINUTES, Math.max(0, Math.round(rawMinutes / step) * step));
+  const snappedRatio = snappedMinutes / PROFILE_SPAN_MINUTES;
 
-  const pt1 = points[segIdx] || points[0];
-  const pt2 = points[segIdx + 1] || pt1;
+  const cursorSvgX = padLeft + snappedRatio * chartWidth;
 
-  const hoverY = pt1 ? pt1.y + segFraction * (pt2.y - pt1.y) : 0;
-  const hoverVal = pt1 ? Math.round(pt1.val + segFraction * (pt2.val - pt1.val)) : 0;
+  let hoverY = 0;
+  let hoverVal = 0;
 
-  const totalMinutes = Math.min(PROFILE_SPAN_MINUTES, Math.max(0, Math.round(ratio * PROFILE_SPAN_MINUTES)));
-  const hourStr = formatMinuteToHHMM(totalMinutes);
+  if (profile && typeof minVal === 'number' && typeof maxVal === 'number' && typeof chartHeight === 'number' && typeof padTop === 'number') {
+    hoverVal = getInterpolatedProfileTraffic(profile, snappedMinutes);
+    const range = Math.max(1, maxVal - minVal);
+    hoverY = padTop + chartHeight - ((hoverVal - minVal) / range) * chartHeight;
+  } else {
+    const exactIdx = snappedRatio * PROFILE_HOURLY_INTERVALS;
+    const segIdx = Math.min(PROFILE_HOURLY_INTERVALS - 1, Math.floor(exactIdx));
+    const segFraction = exactIdx - segIdx;
+
+    const pt1 = points[segIdx] || points[0];
+    const pt2 = points[segIdx + 1] || pt1;
+
+    hoverY = pt1 ? pt1.y + segFraction * (pt2.y - pt1.y) : 0;
+    hoverVal = pt1 ? Math.round(pt1.val + segFraction * (pt2.val - pt1.val)) : 0;
+  }
+
+  const hourStr = formatMinuteToHHMM(snappedMinutes);
 
   return {
     x: cursorSvgX,
     y: hoverY,
     val: hoverVal,
     hourStr,
-    minuteIndex: totalMinutes
+    minuteIndex: snappedMinutes
   };
 }

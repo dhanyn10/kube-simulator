@@ -119,11 +119,17 @@ describe('internetProfileChartHelpers', () => {
     expect(calculateProfileHoverData(50, 110, 200, 100, 10, chartWidth, points)).toBeNull();
 
     // Valid inside bounds case (middle relativeX = 100 on rectWidth = 200)
-    const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
-    expect(hoverResult).not.toBeNull();
-    expect(hoverResult?.x).toBe(100);
-    expect(hoverResult?.hourStr).toBe('11:30');
-    expect(hoverResult?.minuteIndex).toBe(690);
+    const hoverResult30 = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points, 30);
+    expect(hoverResult30).not.toBeNull();
+    expect(hoverResult30?.x).toBe(100);
+    expect(hoverResult30?.hourStr).toBe('11:30');
+    expect(hoverResult30?.minuteIndex).toBe(690);
+
+    const hoverResult60 = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points, 60);
+    expect(hoverResult60).not.toBeNull();
+    expect(hoverResult60?.x).toBeCloseTo(103.913, 2);
+    expect(hoverResult60?.hourStr).toBe('12:00');
+    expect(hoverResult60?.minuteIndex).toBe(720);
   });
 
   it('calculates minute point position and linear interpolation accurately', () => {

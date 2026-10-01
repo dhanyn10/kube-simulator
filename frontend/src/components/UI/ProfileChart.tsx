@@ -8,7 +8,8 @@ import {
   calculateYValueFromPointer,
   calculateMinutePoint,
   calculateProfileHoverData,
-  ProfileHoverData
+  ProfileHoverData,
+  PROFILE_INTERVAL_OPTIONS
 } from '@/activities/modals';
 import {
   getMiniHoverDotClass,
@@ -58,7 +59,7 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   } else if (typeof currentHourIndex === 'number') {
     minuteIdx = currentHourIndex * 60;
   }
-  const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
+  const currentPt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop, profile);
   const currentVal = currentPt.val;
   const currentHour = currentPt.hour;
 
@@ -167,6 +168,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
+  const [selectedIntervalMinutes, setSelectedIntervalMinutes] = useState<number>(60);
 
   const width = 680;
   const height = 280;
@@ -198,12 +200,12 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   } else if (typeof currentHourIndex === 'number') {
     minuteIdx = currentHourIndex * 60;
   }
-  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop);
+  const activeMinutePt = calculateMinutePoint(points, minuteIdx, minVal, maxVal, chartHeight, padTop, profile);
 
 
-  const handlePointerDown = (hour: string, e: React.PointerEvent) => {
+  const handlePointerDown = (timeStr: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    setDraggingHour(hour);
+    setDraggingHour(timeStr);
   };
 
   const [hoverData, setHoverData] = useState<ProfileHoverData | null>(null);
@@ -220,7 +222,13 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       rect.height,
       padLeft,
       chartWidth,
-      points
+      points,
+      selectedIntervalMinutes,
+      profile,
+      minVal,
+      maxVal,
+      chartHeight,
+      padTop
     );
     if (!draggingHour) {
       setHoverData(data);
@@ -241,6 +249,13 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     const finalVal = calculateYValueFromPointer(clientY, rect.height, height, padTop, chartHeight, minVal, maxVal);
 
     onUpdatePoint(draggingHour, finalVal);
+
+    // Update hoverData Y position & value live during drag
+    if (hoverData) {
+      const range = Math.max(1, maxVal - minVal);
+      const newY = padTop + chartHeight - ((finalVal - minVal) / range) * chartHeight;
+      setHoverData((prev) => (prev ? { ...prev, y: newY, val: finalVal } : null));
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -255,7 +270,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       "p-5 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
       colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
     )}>
-      {/* Title Header with In-Place Editable Name */}
+      {/* Title Header with In-Place Editable Name & Interval Select */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 px-1">
         <div className="flex items-center gap-2 flex-1 min-w-[240px]">
           <Activity size={18} className="text-blue-500 shrink-0" />
@@ -263,7 +278,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400 shrink-0">
               Profile:
             </span>
-            <div className="relative flex-1 max-w-sm flex items-center">
+            <div className="relative flex-1 max-w-xs flex items-center">
               <input
                 type="text"
                 value={profile.name}
@@ -278,7 +293,26 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-mono font-semibold">
+        <div className="flex items-center gap-3 text-xs font-mono font-semibold">
+          {/* Interval Resolution Dropdown */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-400 font-sans">Interval:</span>
+            <select
+              value={selectedIntervalMinutes}
+              onChange={(e) => setSelectedIntervalMinutes(Number(e.target.value))}
+              className={cn(
+                "px-2.5 py-1 rounded-lg border text-xs font-bold text-blue-400 outline-none cursor-pointer transition-all focus:ring-2 focus:ring-blue-500/50",
+                colorMode === 'dark' ? "bg-slate-900 border-slate-700 hover:border-slate-600" : "bg-white border-slate-300 hover:border-slate-400"
+              )}
+            >
+              {PROFILE_INTERVAL_OPTIONS.map((opt) => (
+                <option key={opt.minutes} value={opt.minutes}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <span className="text-slate-400">Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></span>
           <span className="text-slate-400">Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong> users</span>
         </div>
@@ -388,9 +422,9 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </g>
         )}
 
-        {/* Minute-level Hover Indicator (Only 1 dot rendered, 100% aligned with cursor X position) */}
-        {!draggingHour && hoverData && (
-          <g key={`interactive-hover-minute-${hoverData.hourStr}`} data-testid="interactive-hover-minute-indicator" className="pointer-events-none">
+        {/* Minute-level Hover & Drag Reference Point (Snaps based on selectedIntervalMinutes, drag vertically) */}
+        {hoverData && (
+          <g key={`interactive-hover-minute-${hoverData.hourStr}`} data-testid="interactive-hover-minute-indicator">
             <line
               x1={hoverData.x}
               y1={padTop}
@@ -399,16 +433,30 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
               stroke="#3b82f6"
               strokeDasharray="2 2"
               strokeWidth="1.5"
+              className="pointer-events-none"
             />
-            <circle cx={hoverData.x} cy={hoverData.y} r="8" className="fill-transparent" />
+            {/* Invisible larger target for easy vertical drag */}
             <circle
               cx={hoverData.x}
               cy={hoverData.y}
-              r="5"
-              className="fill-blue-500 stroke-white dark:stroke-slate-900"
-              strokeWidth="1.5"
+              r="14"
+              className="fill-transparent cursor-ns-resize pointer-events-auto"
+              onPointerDown={(e) => handlePointerDown(hoverData.hourStr, e)}
             />
-            <g transform={`translate(${hoverData.x}, ${Math.max(padTop + 20, hoverData.y - 32)})`}>
+            <circle
+              cx={hoverData.x}
+              cy={hoverData.y}
+              r="6"
+              className={cn(
+                "cursor-ns-resize transition-all hover:scale-125 pointer-events-auto",
+                draggingHour === hoverData.hourStr
+                  ? "fill-blue-400 stroke-white dark:stroke-slate-900 shadow-lg"
+                  : "fill-blue-500 stroke-white dark:stroke-slate-900"
+              )}
+              strokeWidth="1.5"
+              onPointerDown={(e) => handlePointerDown(hoverData.hourStr, e)}
+            />
+            <g transform={`translate(${hoverData.x}, ${Math.max(padTop + 20, hoverData.y - 32)})`} className="pointer-events-none">
               <rect
                 x="-45"
                 y="-14"
