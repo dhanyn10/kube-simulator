@@ -46,6 +46,16 @@ export function formatMinuteToHHMM(minuteIndex: number): string {
 }
 
 /**
+ * Evaluates whether a profile's hourly map contains sub-hourly custom keys (e.g. '00:10', '00:30').
+ */
+export function hasSubHourlyKeys(hourly: Record<string, number> = {}): boolean {
+  return Object.keys(hourly).some((k) => {
+    const parts = k.split(':');
+    return parts.length === 2 && Number(parts[1]) !== 0;
+  });
+}
+
+/**
  * Calculates minute-level interpolated point coordinates on a profile chart path.
  */
 export function calculateMinutePoint(
@@ -145,6 +155,31 @@ function getInterpolatedValueForMinute(
 
   const frac = (minuteIdx - prev.minute) / (next.minute - prev.minute);
   return Math.round(prev.val + frac * (next.val - prev.val));
+}
+
+/**
+ * Resamples and flattens a profile's hourly map down to strictly 24 hourly anchor points ('00:00' through '23:00').
+ */
+export function resampleProfileHourly(profile: InternetProfileItem): InternetProfileItem {
+  const hourly = profile.hourly || {};
+  const existingMinuteKeys = Object.keys(hourly)
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { key: k, minute: (h || 0) * 60 + (m || 0), val: hourly[k] };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
+  const newHourly: Record<string, number> = {};
+  for (let i = 0; i < HOURS_IN_DAY; i++) {
+    const minuteIdx = i * 60;
+    const timeStr = formatMinuteToHHMM(minuteIdx);
+    newHourly[timeStr] = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);
+  }
+
+  return {
+    ...profile,
+    hourly: newHourly
+  };
 }
 
 /**

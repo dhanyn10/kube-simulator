@@ -7,7 +7,9 @@ import {
   calculateProfileHoverData,
   formatMinuteToHHMM,
   calculateMinutePoint,
-  calculateDynamicLabelStep
+  calculateDynamicLabelStep,
+  hasSubHourlyKeys,
+  resampleProfileHourly
 } from '@/lib/kubechart';
 
 describe('kubechart library', () => {
@@ -96,6 +98,28 @@ describe('kubechart library', () => {
     expect(formatMinuteToHHMM(525)).toBe('08:45');
     expect(formatMinuteToHHMM(1439)).toBe('23:59');
     expect(formatMinuteToHHMM(1440)).toBe('00:00');
+  });
+
+  it('evaluates hasSubHourlyKeys correctly', () => {
+    expect(hasSubHourlyKeys({})).toBe(false);
+    expect(hasSubHourlyKeys({ '00:00': 100, '01:00': 200 })).toBe(false);
+    expect(hasSubHourlyKeys({ '00:00': 100, '00:30': 150 })).toBe(true);
+  });
+
+  it('resamples profile hourly correctly', () => {
+    const subHourlyProfile = {
+      name: 'Sub Hourly',
+      hourly: {
+        '00:00': 100,
+        '00:30': 150,
+        '01:00': 200
+      }
+    };
+    const resampled = resampleProfileHourly(subHourlyProfile);
+    expect(Object.keys(resampled.hourly)).toHaveLength(24);
+    expect(resampled.hourly['00:00']).toBe(100);
+    expect(resampled.hourly['01:00']).toBe(200);
+    expect(resampled.hourly['00:30']).toBeUndefined();
   });
 
   it('calculates profile hover data accurately and returns null when out of bounds', () => {
