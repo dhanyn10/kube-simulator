@@ -8,7 +8,6 @@ import {
   calculateYValueFromPointer,
   calculateMinutePoint,
   calculateProfileHoverData,
-  generateProfileIntervalPoints,
   calculateDynamicLabelStep,
   PROFILE_INTERVAL_OPTIONS,
   ProfileHoverData
@@ -200,7 +199,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     return { val, y };
   });
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   let minuteIdx = 0;
   if (typeof currentMinuteIndex === 'number') {
     minuteIdx = currentMinuteIndex;

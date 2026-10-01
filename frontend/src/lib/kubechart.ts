@@ -14,6 +14,13 @@ export interface ProfileHoverData {
   refKey?: string;
 }
 
+export interface ChartPadding {
+  padLeft?: number;
+  padRight?: number;
+  padTop?: number;
+  padBottom?: number;
+}
+
 export const PROFILE_INTERVAL_OPTIONS = [
   { label: '1 Hour', minutes: 60 },
   { label: '30 Minutes', minutes: 30 },
@@ -75,21 +82,87 @@ export function calculateMinutePoint(
   };
 }
 
-/**
- * Calculates point coordinates and SVG path data for traffic profile charts.
- *
- * @param profile Internet profile item containing hourly values
- * @param width SVG width
- * @param height SVG height
- * @param padLeft Left padding
- * @param padRight Right padding
- * @param padTop Top padding
- * @param padBottom Bottom padding
- * @returns Chart point objects, SVG paths, and min/max value bounds
- */
+function resolvePadding(
+  padLeftOrPadding: number | ChartPadding = 0,
+  restArgs: number[]
+): { padLeft: number; padRight: number; padTop: number; padBottom: number } {
+  if (typeof padLeftOrPadding === 'object' && padLeftOrPadding !== null) {
+    return {
+      padLeft: padLeftOrPadding.padLeft ?? 0,
+      padRight: padLeftOrPadding.padRight ?? 0,
+      padTop: padLeftOrPadding.padTop ?? 0,
+      padBottom: padLeftOrPadding.padBottom ?? 0
+    };
+  }
+  return {
+    padLeft: padLeftOrPadding,
+    padRight: restArgs[0] ?? 0,
+    padTop: restArgs[1] ?? 0,
+    padBottom: restArgs[2] ?? 0
+  };
+}
+
+function getInterpolatedValueForMinute(
+  timeStr: string,
+  minuteIdx: number,
+  hourly: Record<string, number>,
+  existingMinuteKeys: Array<{ minute: number; val: number }>
+): number {
+  if (hourly[timeStr] !== undefined) {
+    return hourly[timeStr];
+  }
+  if (existingMinuteKeys.length === 0) {
+    return 0;
+  }
+
+  let prev = existingMinuteKeys[0];
+  let next = existingMinuteKeys.at(-1);
+
+  for (const item of existingMinuteKeys) {
+    if (item.minute <= minuteIdx && (prev === undefined || item.minute >= prev.minute)) {
+      prev = item;
+    }
+    if (item.minute >= minuteIdx && (next === undefined || item.minute <= next.minute)) {
+      next = item;
+    }
+  }
+
+  if (!prev && !next) {
+    return 0;
+  }
+  if (!prev) {
+    return next!.val;
+  }
+  if (!next) {
+    return prev.val;
+  }
+  if (prev.minute === next.minute || prev.minute >= minuteIdx) {
+    return prev.val;
+  }
+  if (next.minute <= minuteIdx) {
+    return next.val;
+  }
+
+  const frac = (minuteIdx - prev.minute) / (next.minute - prev.minute);
+  return Math.round(prev.val + frac * (next.val - prev.val));
+}
+
 /**
  * Generates reference time points across 00:00 to 23:00 for a given minute interval.
  */
+export function generateProfileIntervalPoints(
+  profile: InternetProfileItem,
+  intervalMinutes: number,
+  width: number,
+  height: number,
+  padding?: ChartPadding
+): {
+  intervalPoints: Array<{ x: number; y: number; val: number; hour: string; minuteIdx: number }>;
+  minVal: number;
+  maxVal: number;
+  chartWidth: number;
+  chartHeight: number;
+};
 export function generateProfileIntervalPoints(
   profile: InternetProfileItem,
   intervalMinutes: number,
@@ -99,7 +172,22 @@ export function generateProfileIntervalPoints(
   padRight: number,
   padTop: number,
   padBottom: number
+): {
+  intervalPoints: Array<{ x: number; y: number; val: number; hour: string; minuteIdx: number }>;
+  minVal: number;
+  maxVal: number;
+  chartWidth: number;
+  chartHeight: number;
+};
+export function generateProfileIntervalPoints(
+  profile: InternetProfileItem,
+  intervalMinutes: number,
+  width: number,
+  height: number,
+  padLeftOrPadding: number | ChartPadding = 0,
+  ...restPads: number[]
 ) {
+  const { padLeft, padRight, padTop, padBottom } = resolvePadding(padLeftOrPadding, restPads);
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
@@ -158,12 +246,49 @@ export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,
   height: number,
+  padding: ChartPadding,
+  intervalMinutes?: number
+): {
+  values: number[];
+  points: Array<{ x: number; y: number; val: number; hour: string; minuteIdx: number }>;
+  pathD: string;
+  areaD: string;
+  minVal: number;
+  maxVal: number;
+  chartWidth: number;
+  chartHeight: number;
+};
+export function calculateProfileChartData(
+  profile: InternetProfileItem,
+  width: number,
+  height: number,
   padLeft: number,
   padRight: number,
   padTop: number,
   padBottom: number,
-  intervalMinutes: number = 60
+  intervalMinutes?: number
+): {
+  values: number[];
+  points: Array<{ x: number; y: number; val: number; hour: string; minuteIdx: number }>;
+  pathD: string;
+  areaD: string;
+  minVal: number;
+  maxVal: number;
+  chartWidth: number;
+  chartHeight: number;
+};
+export function calculateProfileChartData(
+  profile: InternetProfileItem,
+  width: number,
+  height: number,
+  padLeftOrPadding: number | ChartPadding = 0,
+  ...restArgs: number[]
 ) {
+  const { padLeft, padRight, padTop, padBottom } = resolvePadding(padLeftOrPadding, restArgs);
+  const intervalMinutes = typeof padLeftOrPadding === 'object' && padLeftOrPadding !== null
+    ? (restArgs[0] ?? 60)
+    : (restArgs[3] ?? 60);
+
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
@@ -182,39 +307,7 @@ export function calculateProfileChartData(
   const rawPoints = Array.from({ length: totalSteps + 1 }, (_, i) => {
     const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
     const timeStr = formatMinuteToHHMM(minuteIdx);
-
-    let val = 0;
-    if (hourly[timeStr] !== undefined) {
-      val = hourly[timeStr];
-    } else if (existingMinuteKeys.length > 0) {
-      let prev = existingMinuteKeys[0];
-      let next = existingMinuteKeys[existingMinuteKeys.length - 1];
-
-      for (const item of existingMinuteKeys) {
-        if (item.minute <= minuteIdx && (prev === undefined || item.minute >= prev.minute)) {
-          prev = item;
-        }
-        if (item.minute >= minuteIdx && (next === undefined || item.minute <= next.minute)) {
-          next = item;
-        }
-      }
-
-      if (!prev && !next) {
-        val = 0;
-      } else if (!prev) {
-        val = next.val;
-      } else if (!next) {
-        val = prev.val;
-      } else if (prev.minute === next.minute || prev.minute >= minuteIdx) {
-        val = prev.val;
-      } else if (next.minute <= minuteIdx) {
-        val = next.val;
-      } else {
-        const frac = (minuteIdx - prev.minute) / (next.minute - prev.minute);
-        val = Math.round(prev.val + frac * (next.val - prev.val));
-      }
-    }
-
+    const val = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);
     return { minuteIdx, hour: timeStr, val };
   });
 
@@ -257,17 +350,6 @@ export function calculateProfileChartData(
 }
 
 /**
- * Calculates hour index from a mouse/pointer event X coordinate over the chart width.
- *
- * @param mouseX Relative mouse X position inside the SVG element
- * @param rectWidth Rendered SVG bounding box width
- * @param width Chart internal coordinate width
- * @param padLeft Left padding
- * @param padRight Right padding
- * @param chartWidth Calculated inner chart width
- * @returns Clamped hour index (0 to 23)
- */
-/**
  * Calculates dynamic label step stride so time labels on the X-axis adapt cleanly
  * based on chart pixel width and interval density without crowding or colliding.
  */
@@ -281,6 +363,17 @@ export function calculateDynamicLabelStep(
   return Math.max(1, Math.ceil(minSpacingPx / pixelsPerPoint));
 }
 
+/**
+ * Calculates hour index from a mouse/pointer event X coordinate over the chart width.
+ *
+ * @param mouseX Relative mouse X position inside the SVG element
+ * @param rectWidth Rendered SVG bounding box width
+ * @param width Chart internal coordinate width
+ * @param padLeft Left padding
+ * @param padRight Right padding
+ * @param chartWidth Calculated inner chart width
+ * @returns Clamped hour index (0 to 23)
+ */
 export function calculateHourIndexFromX(
   mouseX: number,
   rectWidth: number,
