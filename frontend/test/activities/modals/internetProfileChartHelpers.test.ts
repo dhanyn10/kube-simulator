@@ -123,8 +123,7 @@ describe('internetProfileChartHelpers', () => {
     // Valid inside bounds case (middle relativeX = 100 on rectWidth = 200)
     const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
     expect(hoverResult).not.toBeNull();
-    expect(hoverResult?.x).toBe(100);
-    expect(hoverResult?.hourStr).toBe('11:30');
+    expect(hoverResult?.hourStr).toBe('11:00');
     expect(hoverResult?.minuteIndex).toBe(690);
   });
 

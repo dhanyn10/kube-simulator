@@ -187,18 +187,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     padLeft,
     padRight,
     padTop,
-    padBottom
-  );
-
-  const { intervalPoints } = generateProfileIntervalPoints(
-    profile,
-    intervalMinutes,
-    width,
-    height,
-    padLeft,
-    padRight,
-    padTop,
-    padBottom
+    padBottom,
+    intervalMinutes
   );
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -499,42 +489,15 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           </g>
         )}
 
-        {/* Reference points for selected interval (render vertical drag target points) */}
-        {intervalPoints.map((pt) => {
-          const isDraggingThis = draggingHour === pt.hour;
-          return (
-            <g key={`ref-pt-${pt.hour}`}>
-              {/* Invisible touch target for drag ease */}
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r="10"
-                className="fill-transparent cursor-ns-resize"
-                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              />
-
-              {/* Small point indicator */}
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={isDraggingThis ? 6 : 3}
-                className={cn(
-                  "cursor-ns-resize transition-all hover:scale-150",
-                  isDraggingThis ? "fill-blue-400 stroke-white dark:stroke-slate-900" : "fill-blue-500/70 hover:fill-blue-400"
-                )}
-                strokeWidth="1.5"
-                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-              />
-            </g>
-          );
-        })}
-
-        {/* Interactive Data points & X-axis Hour labels */}
+        {/* Interactive Data points & X-axis Hour/Time labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
           const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
           const isSameHour = idx === safeHourIdx;
-          const showLabel = idx % 3 === 0 || idx === points.length - 1;
+
+          // Display label step according to interval density to prevent crowding
+          const labelStep = intervalMinutes <= 5 ? 12 : intervalMinutes <= 10 ? 6 : intervalMinutes <= 30 ? 2 : 3;
+          const showLabel = idx % labelStep === 0 || idx === points.length - 1;
 
           const guideLineStroke = getGuideLineStroke(false, isSimulatingActive, isSameHour, isRed);
           const pointFillClass = getPointFillClass(false, isSameHour, isSimulatingActive, isDraggingThis, isRed);
@@ -554,28 +517,29 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 />
               )}
 
-              {/* Invisible touch target for drag ease */}
+              {/* Touch target for drag ease across all interval points */}
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r="12"
+                r="10"
                 className="fill-transparent cursor-ns-resize"
                 onPointerDown={(e) => handlePointerDown(pt.hour, e)}
               />
 
-              {/* Visible Circle - only rendered when actively dragging an hourly point */}
-              {isDraggingThis && (
-                <circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={6}
-                  className={cn("cursor-ns-resize transition-all hover:scale-125", pointFillClass)}
-                  strokeWidth="1.5"
-                  onPointerDown={(e) => handlePointerDown(pt.hour, e)}
-                />
-              )}
+              {/* Point Indicator Dot */}
+              <circle
+                cx={pt.x}
+                cy={pt.y}
+                r={isDraggingThis ? 6 : 3}
+                className={cn(
+                  "cursor-ns-resize transition-all hover:scale-150",
+                  isDraggingThis ? pointFillClass : "fill-blue-500/70 hover:fill-blue-400"
+                )}
+                strokeWidth="1.5"
+                onPointerDown={(e) => handlePointerDown(pt.hour, e)}
+              />
 
-              {/* Tooltip Card directly on chart when dragging an hourly point */}
+              {/* Tooltip Card directly on chart when dragging point */}
               {isDraggingThis && (
                 <g transform={`translate(${pt.x}, ${Math.max(padTop + 20, pt.y - 32)})`}>
                   <rect
@@ -604,7 +568,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
                 </g>
               )}
 
-              {/* Hour Label */}
+              {/* Time Label */}
               {showLabel && (
                 <text
                   x={pt.x}

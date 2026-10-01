@@ -104,8 +104,7 @@ describe('kubechart library', () => {
 
     const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
     expect(hoverResult).not.toBeNull();
-    expect(hoverResult?.x).toBe(100);
-    expect(hoverResult?.hourStr).toBe('11:30');
+    expect(hoverResult?.hourStr).toBe('11:00');
     expect(hoverResult?.minuteIndex).toBe(690);
   });
 

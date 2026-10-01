@@ -163,20 +163,54 @@ export function calculateProfileChartData(
   padLeft: number,
   padRight: number,
   padTop: number,
-  padBottom: number
+  padBottom: number,
+  intervalMinutes: number = 60
 ) {
   const chartWidth = width - padLeft - padRight;
   const chartHeight = height - padTop - padBottom;
 
-  const values = HOURS_OF_DAY.map((hour) => profile.hourly?.[hour] ?? 0);
-  const currentMax = Math.max(...values, 1000);
+  const safeInterval = Math.max(1, Math.min(60, intervalMinutes));
+  const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / safeInterval);
+
+  const rawPoints = Array.from({ length: totalSteps + 1 }, (_, i) => {
+    const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
+    const timeStr = formatMinuteToHHMM(minuteIdx);
+
+    let val = 0;
+    if (profile.hourly?.[timeStr] !== undefined) {
+      val = profile.hourly[timeStr];
+    } else {
+      // Interpolate value from nearest hourly keys if exact minute key is omitted
+      const h1 = Math.min(22, Math.floor(minuteIdx / 60));
+      const mInH = minuteIdx - h1 * 60;
+      const frac = mInH / 60;
+      const k1 = formatMinuteToHHMM(h1 * 60);
+      const k2 = formatMinuteToHHMM((h1 + 1) * 60);
+      const v1 = profile.hourly?.[k1] ?? 0;
+      const v2 = profile.hourly?.[k2] ?? v1;
+      val = Math.round(v1 + frac * (v2 - v1));
+    }
+
+    return { minuteIdx, hour: timeStr, val };
+  });
+
+  const values = rawPoints.map((p) => p.val);
+  const hourlyVals = HOURS_OF_DAY.map((h) => profile.hourly?.[h] ?? 0);
+  const currentMax = Math.max(...values, ...hourlyVals, 1000);
   const maxVal = Math.ceil((currentMax * 1.15) / 500) * 500;
   const minVal = 0;
 
-  const points = values.map((val, idx) => {
-    const x = padLeft + (idx / (HOURS_OF_DAY.length - 1)) * chartWidth;
-    const y = padTop + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
-    return { x, y, val, hour: HOURS_OF_DAY[idx] };
+  const points = rawPoints.map((pt) => {
+    const x = padLeft + (pt.minuteIdx / PROFILE_SPAN_MINUTES) * chartWidth;
+    const range = Math.max(1, maxVal - minVal);
+    const y = padTop + chartHeight - ((pt.val - minVal) / range) * chartHeight;
+    return {
+      x,
+      y,
+      val: pt.val,
+      hour: pt.hour,
+      minuteIdx: pt.minuteIdx
+    };
   });
 
   const pathD = points.reduce((acc, pt, i) => {
@@ -295,7 +329,9 @@ export function calculateProfileHoverData(
     relativeY < 0 ||
     relativeY > rectHeight ||
     rectWidth <= 0 ||
-    rectHeight <= 0
+    rectHeight <= 0 ||
+    !points ||
+    points.length === 0
   ) {
     return null;
   }
@@ -303,24 +339,26 @@ export function calculateProfileHoverData(
   const ratio = Math.max(0, Math.min(1, relativeX / rectWidth));
   const cursorSvgX = padLeft + ratio * chartWidth;
 
-  const exactIdx = ratio * PROFILE_HOURLY_INTERVALS;
-  const segIdx = Math.min(PROFILE_HOURLY_INTERVALS - 1, Math.floor(exactIdx));
-  const segFraction = exactIdx - segIdx;
+  // Find closest point in points array
+  let closestIndex = 0;
+  let minDiff = Infinity;
 
-  const pt1 = points[segIdx] || points[0];
-  const pt2 = points[segIdx + 1] || pt1;
+  for (let i = 0; i < points.length; i++) {
+    const diff = Math.abs(points[i].x - cursorSvgX);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIndex = i;
+    }
+  }
 
-  const hoverY = pt1 ? pt1.y + segFraction * (pt2.y - pt1.y) : 0;
-  const hoverVal = pt1 ? Math.round(pt1.val + segFraction * (pt2.val - pt1.val)) : 0;
-
+  const targetPoint = points[closestIndex];
   const totalMinutes = Math.min(PROFILE_SPAN_MINUTES, Math.max(0, Math.round(ratio * PROFILE_SPAN_MINUTES)));
-  const hourStr = formatMinuteToHHMM(totalMinutes);
 
   return {
-    x: cursorSvgX,
-    y: hoverY,
-    val: hoverVal,
-    hourStr,
+    x: targetPoint.x,
+    y: targetPoint.y,
+    val: targetPoint.val,
+    hourStr: targetPoint.hour,
     minuteIndex: totalMinutes
   };
 }
