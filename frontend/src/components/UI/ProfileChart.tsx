@@ -154,6 +154,7 @@ export interface InteractiveTrafficChartProps {
   readonly currentMinuteIndex?: number;
   readonly isRed?: boolean;
   readonly onUpdatePoint: (hour: string, newValue: number) => void;
+  readonly onUpdateProfile?: (updatedProfile: InternetProfileItem) => void;
   readonly onUpdateName: (newName: string) => void;
 }
 
@@ -165,6 +166,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   currentMinuteIndex,
   isRed,
   onUpdatePoint,
+  onUpdateProfile,
   onUpdateName
 }) => {
   const isSimulating = useFlowStore((state) => state.isSimulating);
@@ -210,6 +212,27 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
 
   const handlePointerDown = (hour: string, e: React.PointerEvent) => {
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+
+    // Hydrate all current points into explicit hourly keys if any are missing
+    if (intervalMinutes < 60 && onUpdateProfile) {
+      const updatedHourly = { ...profile.hourly };
+      let modified = false;
+
+      for (const pt of points) {
+        if (updatedHourly[pt.hour] === undefined) {
+          updatedHourly[pt.hour] = pt.val;
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        onUpdateProfile({
+          ...profile,
+          hourly: updatedHourly
+        });
+      }
+    }
+
     setDraggingHour(hour);
   };
 
@@ -299,7 +322,43 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           <span className="font-semibold text-slate-300">Interval:</span>
           <select
             value={intervalMinutes}
-            onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+            onChange={(e) => {
+              const newInterval = Number(e.target.value);
+              setIntervalMinutes(newInterval);
+
+              // Hydrate profile points into explicit keys for non-60m intervals so dragging a point does not affect intermediate points
+              if (newInterval < 60) {
+                const totalSteps = Math.floor(1380 / newInterval);
+                const updatedHourly = { ...profile.hourly };
+                let modified = false;
+
+                for (let i = 0; i <= totalSteps; i++) {
+                  const minuteIdx = Math.min(1380, i * newInterval);
+                  const hh = String(Math.floor(minuteIdx / 60)).padStart(2, '0');
+                  const mm = String(minuteIdx % 60).padStart(2, '0');
+                  const key = `${hh}:${mm}`;
+
+                  if (updatedHourly[key] === undefined) {
+                    const h1 = Math.min(22, Math.floor(minuteIdx / 60));
+                    const mInH = minuteIdx - h1 * 60;
+                    const frac = mInH / 60;
+                    const k1 = `${String(h1).padStart(2, '0')}:00`;
+                    const k2 = `${String(h1 + 1).padStart(2, '0')}:00`;
+                    const v1 = profile.hourly?.[k1] ?? 0;
+                    const v2 = profile.hourly?.[k2] ?? v1;
+                    updatedHourly[key] = Math.round(v1 + frac * (v2 - v1));
+                    modified = true;
+                  }
+                }
+
+                if (modified && onUpdateProfile) {
+                  onUpdateProfile({
+                    ...profile,
+                    hourly: updatedHourly
+                  });
+                }
+              }
+            }}
             className={cn(
               "px-2 py-1 rounded border text-xs font-bold outline-none cursor-pointer transition-all",
               colorMode === 'dark' ? "bg-slate-900 border-slate-700 text-blue-400" : "bg-white border-slate-300 text-blue-600"

@@ -79,6 +79,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     handleApplyProfile,
     handleOpenDetails,
     handleUpdateDetailPoint,
+    handleSetDetailProfileObj,
     handleUpdateDetailName,
     handleSaveAndApplyDetailProfile,
     handleSaveCustomProfile,
@@ -346,6 +347,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               currentMinuteIndex={currentMinuteIndex}
               isRed={isRed}
               onUpdatePoint={handleUpdateDetailPoint}
+              onUpdateProfile={handleSetDetailProfileObj}
               onUpdateName={handleUpdateDetailName}
             />
           </div>
