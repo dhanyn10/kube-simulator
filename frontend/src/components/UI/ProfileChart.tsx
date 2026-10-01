@@ -288,7 +288,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     )}>
       {/* Simplify Data Confirmation Warning Overlay */}
       {pendingInterval !== null && (
-        <div data-testid="interval-resample-warning-overlay" className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200 rounded-xl">
+        <div data-testid="interval-resample-warning-overlay" className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200 rounded-xl">
           <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 mb-3 border border-amber-500/30">
             <AlertTriangle size={24} />
           </div>
@@ -365,7 +365,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             value={intervalMinutes}
             onChange={(e) => {
               const newInterval = Number(e.target.value);
-              if (newInterval > intervalMinutes && hasSubHourlyKeys(profile.hourly)) {
+              if (newInterval !== intervalMinutes && hasSubHourlyKeys(profile.hourly)) {
                 setPendingInterval(newInterval);
                 return;
               }

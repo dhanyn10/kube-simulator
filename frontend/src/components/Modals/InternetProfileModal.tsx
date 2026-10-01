@@ -87,6 +87,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     newProfileName,
     setNewProfileName,
     customHourlyValues,
+    setCustomHourlyValues,
     handleStartCustomProfile,
     handleRandomizeCustomValues,
     handleUpdateCustomPoint
@@ -400,6 +401,7 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
               currentHourIndex={currentHourIndex}
               isRed={isRed}
               onUpdatePoint={handleUpdateCustomPoint}
+              onUpdateProfile={(updated) => setCustomHourlyValues(updated.hourly)}
               onUpdateName={setNewProfileName}
             />
           </div>
