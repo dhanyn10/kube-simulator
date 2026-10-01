@@ -173,6 +173,10 @@ export const useInternetProfileModal = (
     });
   };
 
+  const handleSetDetailProfileObj = (newProfileObj: InternetProfileItem) => {
+    setDetailProfile(newProfileObj);
+  };
+
   const handleUpdateDetailName = (newName: string) => {
     setDetailProfile((prev) => ({
       ...prev,
@@ -264,6 +268,7 @@ export const useInternetProfileModal = (
     handleApplyProfile,
     handleOpenDetails,
     handleUpdateDetailPoint,
+    handleSetDetailProfileObj,
     handleUpdateDetailName,
     handleSaveAndApplyDetailProfile,
     handleSaveCustomProfile,

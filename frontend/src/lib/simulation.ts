@@ -265,18 +265,46 @@ export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext):
 export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number): number => {
   if (!profile) return 1000;
   const safeMinute = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
-  const currentHour = Math.floor(safeMinute / 60) % 24;
-  const nextHour = (currentHour + 1) % 24;
-  const minuteInHour = safeMinute % 60;
-  const fraction = minuteInHour / 60;
 
-  const h1Key = `${String(currentHour).padStart(2, '0')}:00`;
-  const h2Key = `${String(nextHour).padStart(2, '0')}:00`;
+  const hourly = profile.hourly || profile.daily || {};
+  const hh = String(Math.floor(safeMinute / 60)).padStart(2, '0');
+  const mm = String(safeMinute % 60).padStart(2, '0');
+  const exactKey = `${hh}:${mm}`;
 
-  const v1 = profile.hourly?.[h1Key] ?? profile.daily?.[h1Key] ?? 0;
-  const v2 = profile.hourly?.[h2Key] ?? profile.daily?.[h2Key] ?? 0;
+  if (hourly[exactKey] !== undefined) {
+    return hourly[exactKey];
+  }
 
-  return Math.round(v1 + fraction * (v2 - v1));
+  const existingMinuteKeys = Object.keys(hourly)
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { minute: (h || 0) * 60 + (m || 0), val: Number(hourly[k]) };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
+  if (existingMinuteKeys.length === 0) return 1000;
+
+  let prev = existingMinuteKeys[0];
+  let next = existingMinuteKeys.at(-1)!;
+
+  for (const item of existingMinuteKeys) {
+    if (item.minute <= safeMinute && item.minute >= prev.minute) {
+      prev = item;
+    }
+    if (item.minute >= safeMinute && item.minute <= next.minute) {
+      next = item;
+    }
+  }
+
+  if (prev.minute === next.minute || prev.minute >= safeMinute) {
+    return prev.val;
+  }
+  if (next.minute <= safeMinute) {
+    return next.val;
+  }
+
+  const fraction = (safeMinute - prev.minute) / (next.minute - prev.minute);
+  return Math.round(prev.val + fraction * (next.val - prev.val));
 };
 
 /**

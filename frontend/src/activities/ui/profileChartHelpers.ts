@@ -40,16 +40,16 @@ export const getPointFillClass = (
 ): string => {
   if (isHoveredThis && isSameHour) {
     return isRed
-      ? 'fill-rose-500 stroke-white ring-4 ring-rose-500/50'
-      : 'fill-emerald-400 stroke-white ring-4 ring-emerald-500/50';
+      ? 'fill-rose-500 stroke-white'
+      : 'fill-emerald-400 stroke-white';
   }
   if (isSimulatingActive && !isHoveredThis) {
     return isRed
-      ? 'fill-rose-500 stroke-white dark:stroke-slate-900 ring-4 ring-rose-500/50'
-      : 'fill-emerald-400 stroke-white dark:stroke-slate-900 ring-4 ring-emerald-500/50';
+      ? 'fill-rose-500 stroke-white dark:stroke-slate-900'
+      : 'fill-emerald-400 stroke-white dark:stroke-slate-900';
   }
   if (isDraggingThis || isHoveredThis) {
-    return 'fill-blue-400 stroke-white ring-4 ring-blue-500/50';
+    return 'fill-blue-400 stroke-white';
   }
   return 'fill-blue-500 stroke-white dark:stroke-slate-900';
 };

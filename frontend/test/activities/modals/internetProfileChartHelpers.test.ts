@@ -5,6 +5,8 @@ import {
   calculateMinuteIndexFromX,
   calculateYValueFromPointer,
   calculateProfileHoverData,
+  generateProfileIntervalPoints,
+  PROFILE_INTERVAL_OPTIONS,
   formatMinuteToHHMM,
   calculateMinutePoint
 } from '@/activities/modals/internetProfileChartHelpers';
@@ -121,9 +123,23 @@ describe('internetProfileChartHelpers', () => {
     // Valid inside bounds case (middle relativeX = 100 on rectWidth = 200)
     const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
     expect(hoverResult).not.toBeNull();
-    expect(hoverResult?.x).toBe(100);
-    expect(hoverResult?.hourStr).toBe('11:30');
+    expect(hoverResult?.hourStr).toBe('11:00');
     expect(hoverResult?.minuteIndex).toBe(690);
+  });
+
+  it('generates profile interval points according to selected interval resolution', () => {
+    expect(PROFILE_INTERVAL_OPTIONS).toHaveLength(3);
+    expect(PROFILE_INTERVAL_OPTIONS[0].label).toBe('1 Hour');
+    expect(PROFILE_INTERVAL_OPTIONS[2].label).toBe('10 Minutes');
+
+    const result60 = generateProfileIntervalPoints(dummyProfile, 60, 200, 100, 10, 10, 10, 10);
+    expect(result60.intervalPoints).toHaveLength(24);
+    expect(result60.intervalPoints[0].hour).toBe('00:00');
+    expect(result60.intervalPoints[23].hour).toBe('23:00');
+
+    const result30 = generateProfileIntervalPoints(dummyProfile, 30, 200, 100, 10, 10, 10, 10);
+    expect(result30.intervalPoints).toHaveLength(47); // 00:00 to 23:00 step 30 min
+    expect(result30.intervalPoints[1].hour).toBe('00:30');
   });
 
   it('calculates minute point position and linear interpolation accurately', () => {
