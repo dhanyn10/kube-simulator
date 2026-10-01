@@ -418,8 +418,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           onPointerLeave={handleGraphPointerLeave}
         />
 
-        {/* Minute-level Active Traffic Indicator Dot (shown when not hovering) */}
-        {isSimulating && isApplied && !hoverData && (
+        {/* Minute-level Active Traffic Indicator Dot (shown when not hovering and not dragging) */}
+        {isSimulating && isApplied && !hoverData && !draggingHour && (
           <g key={`interactive-active-traffic-dot-${minuteIdx}`} data-testid="interactive-active-traffic-dot">
             <line
               x1={activeMinutePt.x}
@@ -493,15 +493,15 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         {/* Interactive Data points & X-axis Hour/Time labels */}
         {points.map((pt, idx) => {
           const isDraggingThis = draggingHour === pt.hour;
-          const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
-          const isSameHour = idx === safeHourIdx;
+          const isSimulatingActive = !draggingHour && isSimulating && isApplied && pt.minuteIdx === minuteIdx;
+          const isSameHour = pt.minuteIdx === minuteIdx;
 
           // Dynamic label step calculation so time labels adapt cleanly as zoom/interval changes like Google Maps
           const labelStep = calculateDynamicLabelStep(chartWidth, points.length, 50);
           const showLabel = idx % labelStep === 0 || idx === points.length - 1;
 
           const guideLineStroke = getGuideLineStroke(false, isSimulatingActive, isSameHour, isRed);
-          const pointFillClass = getPointFillClass(false, isSameHour, isSimulatingActive, isDraggingThis, isRed);
+          const pointFillClass = getPointFillClass(false, false, false, isDraggingThis, isRed);
 
           return (
             <g key={`pt-${pt.hour}`}>
