@@ -359,7 +359,7 @@ describe('InternetProfileModal', () => {
     expect(stopSimulationMock).toHaveBeenCalled();
   });
 
-  it('displays "None" in footer when no active profile is applied and triggers onClose when Close button is clicked', async () => {
+  it('renders modal cleanly without footer elements', async () => {
     const nodeWithoutProfile = {
       id: 'node-internet-1',
       data: {
@@ -379,11 +379,6 @@ describe('InternetProfileModal', () => {
       );
     });
 
-    expect(screen.getByText('None')).toBeDefined();
-
-    const closeButtons = screen.getAllByRole('button', { name: 'Close' });
-    const closeFooterBtn = closeButtons.find((btn) => btn.textContent === 'Close') || closeButtons[0];
-    fireEvent.click(closeFooterBtn);
-    expect(mockOnClose).toHaveBeenCalled();
+    expect(screen.queryByText(/Active Connection Profile:/i)).toBeNull();
   });
 });

@@ -132,12 +132,13 @@ describe('internetProfileChartHelpers', () => {
     expect(PROFILE_INTERVAL_OPTIONS[0].label).toBe('1 Hour');
     expect(PROFILE_INTERVAL_OPTIONS[2].label).toBe('10 Minutes');
 
-    const result60 = generateProfileIntervalPoints(dummyProfile, 60, 200, 100, 10, 10, 10, 10);
+    const padding = { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 };
+    const result60 = generateProfileIntervalPoints(dummyProfile, 60, 200, 100, padding);
     expect(result60.intervalPoints).toHaveLength(24);
     expect(result60.intervalPoints[0].hour).toBe('00:00');
     expect(result60.intervalPoints[23].hour).toBe('23:00');
 
-    const result30 = generateProfileIntervalPoints(dummyProfile, 30, 200, 100, 10, 10, 10, 10);
+    const result30 = generateProfileIntervalPoints(dummyProfile, 30, 200, 100, padding);
     expect(result30.intervalPoints).toHaveLength(47); // 00:00 to 23:00 step 30 min
     expect(result30.intervalPoints[1].hour).toBe('00:30');
   });
