@@ -512,4 +512,72 @@ describe('useInternetProfileModal', () => {
       await result.current.handleDeleteProfile('Test Custom Without Go');
     });
   });
+
+  describe('Auto Save functionality', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('triggers debounced auto-save after 3 seconds upon detail profile modification', async () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+
+      expect(result.current.autoSaveStatus).toBe('idle');
+
+      act(() => {
+        result.current.handleUpdateDetailPoint('00:00', 3300);
+      });
+
+      expect(mockSaveInternetProfile).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(mockSaveInternetProfile).toHaveBeenCalled();
+      expect(result.current.autoSaveStatus).toBe('saved');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      expect(result.current.autoSaveStatus).toBe('idle');
+    });
+
+    it('handles manual auto save click immediately and clears pending timer', async () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+
+      act(() => {
+        result.current.handleUpdateDetailPoint('01:00', 4400);
+      });
+
+      await act(async () => {
+        result.current.handleManualAutoSave();
+      });
+
+      expect(mockSaveInternetProfile).toHaveBeenCalled();
+
+      mockSaveInternetProfile.mockClear();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(mockSaveInternetProfile).not.toHaveBeenCalled();
+    });
+  });
 });

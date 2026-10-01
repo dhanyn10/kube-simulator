@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Globe, Plus, Trash2, Check, Sparkles, LayoutGrid, ArrowLeft, Eye, Shuffle, Pause, Square } from 'lucide-react';
+import { Globe, Plus, Trash2, Check, Sparkles, LayoutGrid, ArrowLeft, Eye, Shuffle, Pause, Square, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
 import {
@@ -89,7 +89,9 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     setCustomHourlyValues,
     handleStartCustomProfile,
     handleRandomizeCustomValues,
-    handleUpdateCustomPoint
+    handleUpdateCustomPoint,
+    autoSaveStatus,
+    handleManualAutoSave
   } = useInternetProfileModal(isOpen, selectedNode, performUpdate, onClose);
 
   return (
@@ -323,6 +325,45 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
                 <span>Back to Profiles Gallery</span>
               </button>
               <div className="flex items-center gap-2">
+                {/* Auto Save Button with 3-icon horizontal spinner indicator */}
+                <button
+                  type="button"
+                  data-testid="auto-save-btn"
+                  onClick={handleManualAutoSave}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border shadow-sm transition-all cursor-pointer",
+                    autoSaveStatus === 'saving'
+                      ? "border-blue-500/50 bg-blue-500/10 text-blue-400"
+                      : autoSaveStatus === 'saved'
+                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                      : colorMode === 'dark'
+                      ? "border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
+                      : "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  )}
+                  title="Click to manually save immediately (Auto saves 3s after edits)"
+                >
+                  {autoSaveStatus === 'saving' ? (
+                    <>
+                      <div className="flex items-center gap-1" data-testid="horizontal-spinner">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:150ms]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:300ms]" />
+                      </div>
+                      <span>Saving...</span>
+                    </>
+                  ) : autoSaveStatus === 'saved' ? (
+                    <>
+                      <Check size={14} className="text-emerald-400" />
+                      <span>Auto Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} className="text-blue-400" />
+                      <span>Auto Save</span>
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => void handleSaveAndApplyDetailProfile()}
