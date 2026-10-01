@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Activity, Edit2, ZoomIn, Clock } from 'lucide-react';
+import { Activity, Edit2, ZoomIn, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
@@ -8,8 +8,9 @@ import {
   calculateYValueFromPointer,
   calculateMinutePoint,
   calculateProfileHoverData,
-  generateProfileIntervalPoints,
   calculateDynamicLabelStep,
+  hasSubHourlyKeys,
+  resampleProfileHourly,
   PROFILE_INTERVAL_OPTIONS,
   ProfileHoverData
 } from '@/activities/modals';
@@ -173,6 +174,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
   const [intervalMinutes, setIntervalMinutes] = useState<number>(60);
+  const [pendingInterval, setPendingInterval] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState<number>(100);
 
   const baseWidth = 680;
@@ -200,7 +202,6 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     return { val, y };
   });
 
-  const safeHourIdx = typeof currentHourIndex === 'number' ? (currentHourIndex % 24) : 0;
   let minuteIdx = 0;
   if (typeof currentMinuteIndex === 'number') {
     minuteIdx = currentMinuteIndex;
@@ -285,6 +286,46 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       "p-5 rounded-xl border flex flex-col relative overflow-hidden animate-in fade-in duration-200",
       colorMode === 'dark' ? "bg-slate-950/80 border-slate-800" : "bg-slate-50 border-slate-200"
     )}>
+      {/* Simplify Data Confirmation Warning Overlay */}
+      {pendingInterval !== null && (
+        <div data-testid="interval-resample-warning-overlay" className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200 rounded-xl">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 mb-3 border border-amber-500/30">
+            <AlertTriangle size={24} />
+          </div>
+          <h4 className="text-sm font-bold text-slate-100 mb-1">
+            Simplify Data Warning
+          </h4>
+          <p className="text-xs text-slate-300 max-w-md mb-5 leading-relaxed">
+            Changing the interval will simplify your data to hourly reference points. Continue?
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              data-testid="cancel-resample-btn"
+              onClick={() => setPendingInterval(null)}
+              className="px-4 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              data-testid="confirm-resample-btn"
+              onClick={() => {
+                const resampled = resampleProfileHourly(profile);
+                if (onUpdateProfile) {
+                  onUpdateProfile(resampled);
+                }
+                setIntervalMinutes(pendingInterval);
+                setPendingInterval(null);
+              }}
+              className="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-xs font-bold text-slate-950 shadow-md transition-colors cursor-pointer"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Title Header with In-Place Editable Name */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3 px-1">
         <div className="flex items-center gap-2 flex-1 min-w-[240px]">
@@ -324,6 +365,11 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
             value={intervalMinutes}
             onChange={(e) => {
               const newInterval = Number(e.target.value);
+              if (newInterval !== intervalMinutes && hasSubHourlyKeys(profile.hourly)) {
+                setPendingInterval(newInterval);
+                return;
+              }
+
               setIntervalMinutes(newInterval);
 
               // Hydrate profile points into explicit keys for non-60m intervals so dragging a point does not affect intermediate points
