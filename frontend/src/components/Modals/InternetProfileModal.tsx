@@ -72,7 +72,6 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
     colorMode,
     profiles,
     activeProfileName,
-    activeProfile,
     viewMode,
     setViewMode,
     detailProfile,
