@@ -189,10 +189,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
     profile,
     width,
     height,
-    padLeft,
-    padRight,
-    padTop,
-    padBottom,
+    { padLeft, padRight, padTop, padBottom },
     intervalMinutes
   );
 

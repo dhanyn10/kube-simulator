@@ -93,8 +93,8 @@ export function calculateMinutePoint(
 }
 
 function resolvePadding(
-  padLeftOrPadding: number | ChartPadding = 0,
-  restArgs: number[]
+  padLeftOrPadding?: number | ChartPadding,
+  restArgs: number[] = []
 ): { padLeft: number; padRight: number; padTop: number; padBottom: number } {
   if (typeof padLeftOrPadding === 'object' && padLeftOrPadding !== null) {
     return {
@@ -105,7 +105,7 @@ function resolvePadding(
     };
   }
   return {
-    padLeft: padLeftOrPadding,
+    padLeft: typeof padLeftOrPadding === 'number' ? padLeftOrPadding : 0,
     padRight: restArgs[0] ?? 0,
     padTop: restArgs[1] ?? 0,
     padBottom: restArgs[2] ?? 0
@@ -203,23 +203,7 @@ export function generateProfileIntervalPoints(
   intervalMinutes: number,
   width: number,
   height: number,
-  padLeft: number,
-  padRight: number,
-  padTop: number,
-  padBottom: number
-): {
-  intervalPoints: Array<{ x: number; y: number; val: number; hour: string; minuteIdx: number }>;
-  minVal: number;
-  maxVal: number;
-  chartWidth: number;
-  chartHeight: number;
-};
-export function generateProfileIntervalPoints(
-  profile: InternetProfileItem,
-  intervalMinutes: number,
-  width: number,
-  height: number,
-  padLeftOrPadding: number | ChartPadding = 0,
+  padLeftOrPadding?: ChartPadding | number,
   ...restPads: number[]
 ) {
   const { padLeft, padRight, padTop, padBottom } = resolvePadding(padLeftOrPadding, restPads);
@@ -281,7 +265,7 @@ export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,
   height: number,
-  padding: ChartPadding,
+  padding?: ChartPadding,
   intervalMinutes?: number
 ): {
   values: number[];
@@ -300,8 +284,7 @@ export function calculateProfileChartData(
   padLeft: number,
   padRight: number,
   padTop: number,
-  padBottom: number,
-  intervalMinutes?: number
+  padBottom: number
 ): {
   values: number[];
   points: Array<{ x: number; y: number; val: number; hour: string; minuteIdx: number }>;
@@ -316,7 +299,7 @@ export function calculateProfileChartData(
   profile: InternetProfileItem,
   width: number,
   height: number,
-  padLeftOrPadding: number | ChartPadding = 0,
+  padLeftOrPadding?: ChartPadding | number,
   ...restArgs: number[]
 ) {
   const { padLeft, padRight, padTop, padBottom } = resolvePadding(padLeftOrPadding, restArgs);
