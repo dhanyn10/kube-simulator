@@ -531,9 +531,9 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isDraggingThis ? 6 : 3}
+                r={3}
                 className={cn(
-                  "cursor-ns-resize transition-all hover:scale-150",
+                  "cursor-ns-resize transition-all",
                   isDraggingThis ? pointFillClass : "fill-blue-500/70 hover:fill-blue-400"
                 )}
                 strokeWidth="1.5"
