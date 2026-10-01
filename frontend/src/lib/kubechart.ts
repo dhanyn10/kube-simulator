@@ -170,23 +170,49 @@ export function calculateProfileChartData(
   const safeInterval = Math.max(1, Math.min(60, intervalMinutes));
   const totalSteps = Math.floor(PROFILE_SPAN_MINUTES / safeInterval);
 
+  // Collect sorted existing keys from profile.hourly for nearest-neighbor interpolation
+  const hourly = profile.hourly || {};
+  const existingMinuteKeys = Object.keys(hourly)
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { key: k, minute: (h || 0) * 60 + (m || 0), val: hourly[k] };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
   const rawPoints = Array.from({ length: totalSteps + 1 }, (_, i) => {
     const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
     const timeStr = formatMinuteToHHMM(minuteIdx);
 
     let val = 0;
-    if (profile.hourly?.[timeStr] !== undefined) {
-      val = profile.hourly[timeStr];
-    } else {
-      // Interpolate value from nearest hourly keys if exact minute key is omitted
-      const h1 = Math.min(22, Math.floor(minuteIdx / 60));
-      const mInH = minuteIdx - h1 * 60;
-      const frac = mInH / 60;
-      const k1 = formatMinuteToHHMM(h1 * 60);
-      const k2 = formatMinuteToHHMM((h1 + 1) * 60);
-      const v1 = profile.hourly?.[k1] ?? 0;
-      const v2 = profile.hourly?.[k2] ?? v1;
-      val = Math.round(v1 + frac * (v2 - v1));
+    if (hourly[timeStr] !== undefined) {
+      val = hourly[timeStr];
+    } else if (existingMinuteKeys.length > 0) {
+      let prev = existingMinuteKeys[0];
+      let next = existingMinuteKeys[existingMinuteKeys.length - 1];
+
+      for (const item of existingMinuteKeys) {
+        if (item.minute <= minuteIdx && (prev === undefined || item.minute >= prev.minute)) {
+          prev = item;
+        }
+        if (item.minute >= minuteIdx && (next === undefined || item.minute <= next.minute)) {
+          next = item;
+        }
+      }
+
+      if (!prev && !next) {
+        val = 0;
+      } else if (!prev) {
+        val = next.val;
+      } else if (!next) {
+        val = prev.val;
+      } else if (prev.minute === next.minute || prev.minute >= minuteIdx) {
+        val = prev.val;
+      } else if (next.minute <= minuteIdx) {
+        val = next.val;
+      } else {
+        const frac = (minuteIdx - prev.minute) / (next.minute - prev.minute);
+        val = Math.round(prev.val + frac * (next.val - prev.val));
+      }
     }
 
     return { minuteIdx, hour: timeStr, val };
