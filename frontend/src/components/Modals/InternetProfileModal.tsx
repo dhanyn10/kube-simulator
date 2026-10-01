@@ -406,23 +406,6 @@ export const InternetProfileModal: React.FC<InternetProfileModalProps> = ({
             />
           </div>
         )}
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
-          <p className="text-[11px] text-slate-400 font-medium">
-            Active Connection Profile: <span className="text-blue-400 font-bold">{activeProfile ? activeProfile.name : 'None'}</span>
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className={cn(
-              "px-5 py-2 rounded-lg text-xs font-bold transition-colors shadow",
-              colorMode === 'dark' ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-            )}
-          >
-            Close
-          </button>
-        </div>
       </div>
     </Modal>
   );

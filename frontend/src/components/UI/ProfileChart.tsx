@@ -180,10 +180,10 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const baseWidth = 680;
   const width = Math.round((baseWidth * zoomScale) / 100);
   const height = 280;
-  const padLeft = 65;
-  const padRight = 35;
-  const padTop = 35;
-  const padBottom = 45;
+  const padLeft = 45;
+  const padRight = 20;
+  const padTop = 20;
+  const padBottom = 30;
 
   const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
