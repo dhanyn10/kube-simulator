@@ -46,12 +46,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          version: 10.30.3
+          node-version: 24
 
-      - name: Setup Node.js & pnpm Cache
+      - name: Enable Corepack & Install pnpm
+        shell: bash
+        run: |
+          corepack enable pnpm
+          corepack prepare pnpm@10.30.3 --activate
+
+      - name: Setup pnpm Cache
         uses: actions/setup-node@v4
         with:
           node-version: 24
