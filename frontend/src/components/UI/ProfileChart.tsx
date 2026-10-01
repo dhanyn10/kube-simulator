@@ -9,6 +9,7 @@ import {
   calculateMinutePoint,
   calculateProfileHoverData,
   generateProfileIntervalPoints,
+  calculateDynamicLabelStep,
   PROFILE_INTERVAL_OPTIONS,
   ProfileHoverData
 } from '@/activities/modals';
@@ -495,8 +496,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           const isSimulatingActive = isSimulating && isApplied && idx === safeHourIdx;
           const isSameHour = idx === safeHourIdx;
 
-          // Display label step according to interval density to prevent crowding
-          const labelStep = intervalMinutes <= 5 ? 12 : intervalMinutes <= 10 ? 6 : intervalMinutes <= 30 ? 2 : 3;
+          // Dynamic label step calculation so time labels adapt cleanly as zoom/interval changes like Google Maps
+          const labelStep = calculateDynamicLabelStep(chartWidth, points.length, 50);
           const showLabel = idx % labelStep === 0 || idx === points.length - 1;
 
           const guideLineStroke = getGuideLineStroke(false, isSimulatingActive, isSameHour, isRed);

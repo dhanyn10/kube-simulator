@@ -241,6 +241,20 @@ export function calculateProfileChartData(
  * @param chartWidth Calculated inner chart width
  * @returns Clamped hour index (0 to 23)
  */
+/**
+ * Calculates dynamic label step stride so time labels on the X-axis adapt cleanly
+ * based on chart pixel width and interval density without crowding or colliding.
+ */
+export function calculateDynamicLabelStep(
+  chartWidth: number,
+  totalPoints: number,
+  minSpacingPx: number = 50
+): number {
+  if (totalPoints <= 1 || chartWidth <= 0) return 1;
+  const pixelsPerPoint = chartWidth / (totalPoints - 1);
+  return Math.max(1, Math.ceil(minSpacingPx / pixelsPerPoint));
+}
+
 export function calculateHourIndexFromX(
   mouseX: number,
   rectWidth: number,

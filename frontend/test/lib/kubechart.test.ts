@@ -6,7 +6,8 @@ import {
   calculateYValueFromPointer,
   calculateProfileHoverData,
   formatMinuteToHHMM,
-  calculateMinutePoint
+  calculateMinutePoint,
+  calculateDynamicLabelStep
 } from '@/lib/kubechart';
 
 describe('kubechart library', () => {
@@ -77,6 +78,17 @@ describe('kubechart library', () => {
 
     const bottomVal = calculateYValueFromPointer(90, 100, height, padTop, chartHeight, minVal, maxVal);
     expect(bottomVal).toBe(10);
+  });
+
+  it('calculates dynamic label step stride accurately for different chart widths and point counts', () => {
+    expect(calculateDynamicLabelStep(0, 24, 50)).toBe(1);
+    expect(calculateDynamicLabelStep(500, 1, 50)).toBe(1);
+    // 580px width, 24 points -> pixelsPerPoint = 580/23 = 25.21px -> ceil(50/25.21) = 2
+    expect(calculateDynamicLabelStep(580, 24, 50)).toBe(2);
+    // 580px width, 139 points -> pixelsPerPoint = 580/138 = 4.2px -> ceil(50/4.2) = 12
+    expect(calculateDynamicLabelStep(580, 139, 50)).toBe(12);
+    // zoomed in 4x (2320px width), 139 points -> pixelsPerPoint = 2320/138 = 16.8px -> ceil(50/16.8) = 3
+    expect(calculateDynamicLabelStep(2320, 139, 50)).toBe(3);
   });
 
   it('formats minute index to HH:MM time string', () => {
