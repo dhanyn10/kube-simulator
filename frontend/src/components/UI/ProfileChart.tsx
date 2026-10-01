@@ -384,7 +384,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
         viewBox={`0 0 ${width} ${height}`}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-pointer"
+        className="w-full h-auto max-h-[260px] overflow-visible select-none touch-none cursor-ns-resize"
       >
         <defs>
           <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
@@ -450,7 +450,7 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
           y={padTop}
           width={chartWidth}
           height={chartHeight}
-          className="fill-transparent cursor-pointer pointer-events-auto"
+          className="fill-transparent cursor-ns-resize pointer-events-auto"
           onPointerMove={handleGraphPointerMove}
           onPointerLeave={handleGraphPointerLeave}
         />
