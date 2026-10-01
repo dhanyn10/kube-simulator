@@ -249,7 +249,7 @@ export function convertProfileToTimeSeries(
     })
     .sort((a, b) => a.minute - b.minute);
 
-  return Array.from({ length: totalSteps + 1 }, (_, i) => {
+  return Array.from({ length: intervalMinutes === 60 ? 24 : totalSteps + 1 }, (_, i) => {
     const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
     const timeStr = formatMinuteToHHMM(minuteIdx);
     const value = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);

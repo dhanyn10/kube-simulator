@@ -26,18 +26,56 @@ jobs:
         run: |
           mkdir -p frontend/dist
           echo "dummy" > frontend/dist/index.html
-          go test ./backend/... . -v -coverprofile=coverage-backend-windows.out
+          go test ./backend/... . -v -coverprofile=coverage-backend-windows.out -json > report-backend.json
 
       - name: Upload Windows Backend Coverage Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-backend-coverage-out
-          path: coverage-backend-windows.out
+          path: |
+            coverage-backend-windows.out
+            report-backend.json
+
+  frontend-test-shard:
+    name: Frontend Tests (Shard ${{ matrix.index }}/3)
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        index: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js & pnpm Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable Corepack & Install Frontend Dependencies
+        shell: bash
+        working-directory: frontend
+        run: |
+          corepack enable pnpm
+          pnpm install --frozen-lockfile
+
+      - name: Run Vitest Shard with Coverage
+        shell: bash
+        env:
+          MSYS_NO_PATHCONV: '1'
+        working-directory: frontend
+        run: |
+          pnpm exec vitest run --shard=${{ matrix.index }}/3 --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage-shard-${{ matrix.index }}
+
+      - name: Upload Frontend Coverage Shard Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-shard-${{ matrix.index }}
+          path: frontend/coverage-shard-${{ matrix.index }}/lcov.info
 
   sonarqube:
     name: SonarQube Scan
-    runs-on: ubuntu-latest
-    needs: [backend-windows-test]
+    runs-on: windows-latest
+    needs: [backend-windows-test, frontend-test-shard]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,34 +87,30 @@ jobs:
           name: windows-backend-coverage-out
           path: .
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Download Frontend Coverage Shard 1
+        uses: actions/download-artifact@v4
         with:
-          go-version: '1.25.x'
+          name: frontend-coverage-shard-1
+          path: frontend/coverage-shard-1
 
-      - name: Run Backend Tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-          mkdir -p frontend/dist
-          echo "dummy" > frontend/dist/index.html
-          go test ./... -v -coverprofile=coverage-backend.out -json > report-backend.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download Frontend Coverage Shard 2
+        uses: actions/download-artifact@v4
         with:
-          node-version: 24
+          name: frontend-coverage-shard-2
+          path: frontend/coverage-shard-2
 
-      - name: Run Frontend Tests
-        working-directory: frontend
+      - name: Download Frontend Coverage Shard 3
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage-shard-3
+          path: frontend/coverage-shard-3
+
+      - name: Merge Frontend LCOV Coverage Files
+        shell: bash
         run: |
-          corepack enable pnpm
-          pnpm install
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
-          (cd .. && mkdir -p frontend/dist && echo "dummy" > frontend/dist/index.html && $HOME/go/bin/wails build -s -platform windows/amd64 -nopackage)
-          npx vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
-          mkdir -p ../coverage
-          cp coverage/lcov.info ../coverage/lcov.info
+          mkdir -p coverage
+          cat frontend/coverage-shard-1/lcov.info frontend/coverage-shard-2/lcov.info frontend/coverage-shard-3/lcov.info > coverage/lcov.info
+          cp coverage-backend-windows.out coverage-backend.out
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
