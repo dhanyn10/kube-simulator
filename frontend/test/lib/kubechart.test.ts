@@ -9,6 +9,7 @@ import {
   calculateMinutePoint,
   calculateDynamicLabelStep,
   hasSubHourlyKeys,
+  detectProfileInterval,
   resampleProfileHourly,
   computeChartLayout,
   convertProfileToTimeSeries,
@@ -108,6 +109,13 @@ describe('kubechart library', () => {
     expect(hasSubHourlyKeys({})).toBe(false);
     expect(hasSubHourlyKeys({ '00:00': 100, '01:00': 200 })).toBe(false);
     expect(hasSubHourlyKeys({ '00:00': 100, '00:30': 150 })).toBe(true);
+  });
+
+  it('detects profile interval correctly based on hourly keys', () => {
+    expect(detectProfileInterval({})).toBe(60);
+    expect(detectProfileInterval({ '00:00': 100, '01:00': 200 })).toBe(60);
+    expect(detectProfileInterval({ '00:00': 100, '00:30': 150 })).toBe(30);
+    expect(detectProfileInterval({ '00:00': 100, '00:10': 120, '00:30': 150 })).toBe(10);
   });
 
   it('resamples profile hourly correctly', () => {

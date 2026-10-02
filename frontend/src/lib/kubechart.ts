@@ -125,6 +125,26 @@ export function hasSubHourlyKeys(hourly: Record<string, number> = {}): boolean {
 }
 
 /**
+ * Detects the finest interval granularity (10m, 30m, or 60m) present in a profile's hourly/sub-hourly map keys.
+ */
+export function detectProfileInterval(hourly: Record<string, number> = {}): number {
+  let finest = 60;
+  for (const k of Object.keys(hourly)) {
+    const parts = k.split(':');
+    if (parts.length === 2) {
+      const minutes = Number(parts[1]);
+      if (isNaN(minutes)) continue;
+      if (minutes % 10 === 0 && minutes % 30 !== 0 && minutes !== 0) {
+        finest = Math.min(finest, 10);
+      } else if (minutes % 30 === 0 && minutes !== 0) {
+        finest = Math.min(finest, 30);
+      }
+    }
+  }
+  return finest;
+}
+
+/**
  * Calculates minute-level interpolated point coordinates on a profile chart path.
  */
 export function calculateMinutePoint(

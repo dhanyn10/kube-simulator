@@ -85,11 +85,34 @@ describe('ProfileChart', () => {
   });
 
   describe('InteractiveTrafficChart', () => {
-    it('renders interval dropdown and horizontal zoom slider', () => {
+    it('renders interval dropdown and horizontal zoom slider and auto-detects profile interval', () => {
       const onUpdatePoint = vi.fn();
       const onUpdateName = vi.fn();
 
-      render(
+      const subHourly10mProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:10': 120,
+          '00:30': 150,
+        }
+      };
+
+      const { rerender } = render(
+        <InteractiveTrafficChart
+          profile={subHourly10mProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      const intervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      expect(intervalSelect).toBeInTheDocument();
+      expect(intervalSelect.value).toBe('10');
+
+      rerender(
         <InteractiveTrafficChart
           profile={dummyProfile}
           colorMode="dark"
@@ -98,15 +121,10 @@ describe('ProfileChart', () => {
           onUpdateName={onUpdateName}
         />
       );
-
-      const intervalSelect = screen.getByRole('combobox');
-      expect(intervalSelect).toBeInTheDocument();
-      expect(screen.getByText('1 Hour')).toBeInTheDocument();
-      expect(screen.getByText('30 Minutes')).toBeInTheDocument();
-      expect(screen.getByText('10 Minutes')).toBeInTheDocument();
+      expect(intervalSelect.value).toBe('60');
 
       fireEvent.change(intervalSelect, { target: { value: '30' } });
-      expect((intervalSelect as HTMLSelectElement).value).toBe('30');
+      expect(intervalSelect.value).toBe('30');
 
       const zoomSlider = screen.getByRole('slider');
       expect(zoomSlider).toBeInTheDocument();
