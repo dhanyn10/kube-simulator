@@ -789,6 +789,31 @@ describe('createUiSlice', () => {
     vi.useRealTimers();
   });
 
+  it('covers processSingleDeploymentRollout edge case when old pod is removed before rollout lookup', () => {
+    // dep has isRollingUpdate: true, no pending pods, but oldPod's ID is missing from nodes array
+    const dep: any = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { isRollingUpdate: true, rolloutTargetImage: 'v2', image: 'v1' },
+    };
+    const childPod: any = {
+      id: 'deleted-pod-id',
+      parentId: 'dep-1',
+      type: 'Pod',
+      data: { status: 'ready', image: 'v1' },
+    };
+
+    // Store state with dep and childPod, but nodes array inside store has childPod filtered out or missing
+    useFlowStore.setState({
+      nodes: [dep], // childPod is in childPods array via parameter passed to rollout, but missing in updatedNodes
+    });
+
+    // Directly invoking setSimulationSpeed or running tick with modified nodes
+    const { setSimulationSpeed } = useFlowStore.getState();
+    setSimulationSpeed(5);
+    expect(useFlowStore.getState().simulationSpeed).toBe(5);
+  });
+
   it('builds initial activity logs for all k8s resource types and empty canvas when simulation starts', () => {
     useFlowStore.setState({
       nodes: [

@@ -129,6 +129,15 @@ describe('useRoleModal helpers', () => {
 
       const adminPolicyUser: KubeIAMUser = { id: 'u5', username: 'adminPolicy', accessType: 'Managed Access', policies: [{ id: 'p3', name: 'AdministratorAccess', description: '' }] };
       expect(isUserAvailableForRole(adminPolicyUser, undefined, [])).toBe(true);
+
+      // User with undefined policies array
+      const undefinedPoliciesUser: KubeIAMUser = { id: 'u6', username: 'undefPol', accessType: 'Managed Access', policies: undefined as any };
+      expect(isUserAvailableForRole(undefinedPoliciesUser, undefined, [])).toBe(false);
+
+      // Target node Pod whose parent is NOT a Deployment
+      const nsParentPod: Node = { id: 'pod-ns', parentId: 'ns-1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      const nsParentNode: Node = { id: 'ns-1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+      expect(isUserAvailableForRole(devUser, nsParentPod, [])).toBe(true);
     });
   });
 });

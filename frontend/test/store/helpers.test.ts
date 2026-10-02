@@ -206,4 +206,46 @@ describe('store helpers', () => {
     const resolved = resolveGlobalCollisions(pods);
     expect(resolved[0].position.x).not.toBe(0);
   });
+
+  it('covers applyOverlapResolution y-axis overlap branch, vertical collision, and replicaSuffix preservation', () => {
+    // 1. Vertical collision (dy > dx) triggers y-axis overlap resolution
+    const vertNodes = [
+      { id: 'v1', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} } as any,
+      { id: 'v2', position: { x: 0, y: 10 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedVert = resolveGlobalCollisions(vertNodes);
+    expect(resolvedVert[0].position.y).not.toBe(0);
+    expect(resolvedVert[1].position.y).not.toBe(10);
+
+    // 2. Vertical collision with fixedNodeId = 'v1'
+    const resolvedFixedV1 = resolveGlobalCollisions(vertNodes, 'v1');
+    expect(resolvedFixedV1[0].position.y).toBe(0);
+
+    // 3. Vertical collision with fixedNodeId = 'v2'
+    const resolvedFixedV2 = resolveGlobalCollisions(vertNodes, 'v2');
+    expect(resolvedFixedV2[1].position.y).toBe(10);
+
+    // 4. syncPodsInDeployment with existingPod containing replicaSuffix and forceRandomize = false
+    const dep = { id: 'd1', type: 'Deployment', data: { replicas: 2, label: 'app' } } as any;
+    const pod1 = {
+      id: 'p1',
+      parentId: 'd1',
+      type: 'Pod',
+      width: 200,
+      height: 150,
+      measured: { width: 200, height: 150 },
+      data: {
+        label: 'app-h1-s1',
+        baseName: 'app',
+        podHash: 'h1',
+        replicaSuffix: 's1',
+        replicaSuffixes: ['s1', 's2'],
+        isManuallyResized: true,
+      }
+    } as any;
+
+    const synced = syncPodsInDeployment(dep, [pod1]);
+    expect(synced[0].data.replicaSuffix).toBe('s1');
+    expect(synced[0].width).toBe(200);
+  });
 });

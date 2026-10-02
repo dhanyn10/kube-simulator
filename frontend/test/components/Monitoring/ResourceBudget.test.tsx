@@ -101,4 +101,37 @@ describe('ResourceBudget', () => {
     expect(screen.getByText('System Overload!')).toBeDefined();
     expect(screen.getAllByText('0.0GB').length).toBeGreaterThan(0);
   });
+
+  it('covers calculateResourceTotals branches: non-workload nodes, child pod with non-controller parent, and missing cpu/mem limits individually', () => {
+    useFlowStore.setState({
+      systemResources: {
+        cpuCores: 4,
+        totalMemoryGB: 16,
+        freeMemoryGB: 8,
+        cpuUsage: 20
+      },
+      nodes: [
+        // Non-workload node (Service)
+        { id: 'svc1', type: 'Service', data: {} },
+
+        // Child pod whose parent is a Namespace (non Deployment/ReplicaSet) -> included in totals
+        { id: 'ns1', type: 'Namespace', data: {} },
+        { id: 'pod-in-ns', parentId: 'ns1', type: 'Pod', data: { cpuRequest: '200m', memoryRequest: '256Mi', cpuLimit: '500m' } }, // missing memoryLimit only
+
+        // Standalone pod with memoryLimit set but cpuLimit missing
+        { id: 'pod-no-cpu-lim', type: 'Pod', data: { cpuRequest: '100m', memoryRequest: '128Mi', memoryLimit: '256Mi' } },
+
+        // Workload with no type specified
+        { id: 'no-type', data: {} }
+      ] as any
+    });
+
+    render(<ResourceBudget />);
+
+    // Shows missing limits warning
+    expect(screen.getByText(/Some nodes have no limits/)).toBeDefined();
+
+    // CPU Req: pod-in-ns (200m) + pod-no-cpu-lim (100m) = 300m
+    expect(screen.getByText(/K8s Req: 300m/)).toBeDefined();
+  });
 });

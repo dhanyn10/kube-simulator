@@ -223,6 +223,13 @@ describe('nodeUtils', () => {
     const customWorkload = syncWorkloadMetadata('ReplicaSet', { webserver: 'apache', isAutoImage: false, image: 'custom:2.0' } as any);
     expect(customWorkload.status).toBe('ready');
     expect(customWorkload.image).toBe('custom:2.0');
+    expect(customWorkload.isAutoImage).toBe(false);
+
+    // Explicit test for isAutoImage: false branch when runtime is set
+    const explicitCustomImage = syncWorkloadMetadata('Pod', { runtime: 'nodejs', isAutoImage: false, image: 'my-custom-image:1.0' } as any);
+    expect(explicitCustomImage.status).toBe('ready');
+    expect(explicitCustomImage.image).toBe('my-custom-image:1.0');
+    expect(explicitCustomImage.isAutoImage).toBe(false);
 
     // syncWorkloadMetadata for Pod with runtime and isAutoImage undefined
     const podWorkload = syncWorkloadMetadata('Pod', { runtime: 'java' } as any);

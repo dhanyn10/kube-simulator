@@ -150,6 +150,29 @@ describe('IAMUserDetailView', () => {
     expect(screen.queryByText('(Pod)')).not.toBeInTheDocument();
   });
 
+  it('handles attached roles with undefined createdAt and single word nodeId', () => {
+    const rolesWithoutCreatedAt = [
+      {
+        nodeId: 'singleword',
+        nodeLabel: 'Single Node',
+        nodeType: 'Deployment',
+        roleId: 'role-3',
+        roleName: 'AppRole',
+        createdAt: undefined,
+      },
+    ];
+
+    render(
+      <IAMUserDetailView
+        {...defaultProps}
+        attachedRoles={rolesWithoutCreatedAt}
+      />
+    );
+
+    expect(screen.getByText('AppRole-rb-singleword')).toBeInTheDocument();
+    expect(screen.getByText('System Default')).toBeInTheDocument();
+  });
+
   it('switches to editing mode, cancels edit or finishes edit with Full Access and updates active identity', () => {
     useFlowStore.setState({ activeIdentity: 'developer1' });
     const updateIamUser = vi.spyOn(useFlowStore.getState(), 'updateIamUser');

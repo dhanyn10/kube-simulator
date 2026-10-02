@@ -172,4 +172,39 @@ describe('DeploymentNode', () => {
     expect(screen.getByTitle('Secret: my-sec')).toBeDefined();
     expect(screen.getByTitle('HPA: autoscale')).toBeDefined();
   });
+
+  it('covers getRoleDragClass and getDeploymentBorderClass for unselected and role drag compatibility', () => {
+    useFlowStore.setState({
+      draggingSidebarItem: 'Role',
+      colorMode: 'dark',
+    });
+
+    const unselectedProps = {
+      id: 'd-unselected',
+      type: 'Deployment',
+      selected: false,
+      data: {
+        label: 'Unselected Dep',
+        isHovered: false,
+      }
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <DeploymentNode {...unselectedProps} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Unselected Dep')).toBeDefined();
+
+    // Rerender in light mode selected
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode {...unselectedProps} selected={true} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Unselected Dep')).toBeDefined();
+  });
 });

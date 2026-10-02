@@ -135,15 +135,27 @@ describe('RoleSubjectsSection', () => {
     }
   });
 
-  it('renders default placeholder when assignedUsers is empty', () => {
-    render(
+  it('renders default placeholder when assignedUsers is empty and handles light/dark color modes', () => {
+    const { rerender } = render(
       <RoleSubjectsSection
         {...defaultProps}
+        colorMode="dark"
         iamUsers={dummyUsers}
         assignedUsers={[]}
       />
     );
 
     expect(screen.getByPlaceholderText('Type to search or add IAM users...')).toBeInTheDocument();
+
+    rerender(
+      <RoleSubjectsSection
+        {...defaultProps}
+        colorMode="light"
+        iamUsers={dummyUsers}
+        assignedUsers={['dev-alice']}
+      />
+    );
+
+    expect(screen.getByPlaceholderText('Add user...')).toBeInTheDocument();
   });
 });
