@@ -183,4 +183,21 @@ describe('SimulationControls', () => {
     fireEvent.click(btn10x);
     expect(useFlowStore.getState().simulationSpeed).toBe(10);
   });
+
+  it('renders button group dividers in light mode when simulating', () => {
+    render(
+      <SimulationControls
+        isSimulating={true}
+        startSimulation={vi.fn()}
+        stopSimulation={vi.fn()}
+        pauseSimulation={vi.fn()}
+        hasInternet={true}
+        hasHpaValidationError={false}
+        colorMode="light"
+      />
+    );
+
+    const group = screen.getByTestId('simulation-button-group');
+    expect(group.className).toContain('divide-slate-200');
+  });
 });
