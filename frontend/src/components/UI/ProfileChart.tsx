@@ -46,14 +46,14 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const padTop = 10;
   const padBottom = 10;
 
+  const intervalMinutes = detectProfileInterval(profile.hourly);
+
   const { points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
     width,
     height,
-    padLeft,
-    padRight,
-    padTop,
-    padBottom
+    { padLeft, padRight, padTop, padBottom },
+    intervalMinutes
   );
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;

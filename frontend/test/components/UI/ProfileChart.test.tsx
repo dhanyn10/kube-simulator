@@ -82,6 +82,32 @@ describe('ProfileChart', () => {
 
       expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
     });
+
+    it('renders mini curve preview with sub-hourly interval granularity', () => {
+      const subHourlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:10': 120,
+          '00:20': 140,
+          '00:30': 150,
+          '01:00': 200,
+        }
+      };
+
+      const { container } = render(
+        <MiniCurvePreview
+          profile={subHourlyProfile}
+          isApplied={true}
+          currentMinuteIndex={10}
+          isRed={false}
+        />
+      );
+
+      const path = container.querySelector('path[stroke="#3b82f6"]');
+      expect(path).toBeInTheDocument();
+      expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
+    });
   });
 
   describe('InteractiveTrafficChart', () => {
