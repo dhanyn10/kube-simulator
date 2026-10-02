@@ -133,7 +133,7 @@ export function detectProfileInterval(hourly: Record<string, number> = {}): numb
     const parts = k.split(':');
     if (parts.length === 2) {
       const minutes = Number(parts[1]);
-      if (isNaN(minutes)) continue;
+      if (Number.isNaN(minutes)) continue;
       if (minutes % 10 === 0 && minutes % 30 !== 0 && minutes !== 0) {
         finest = Math.min(finest, 10);
       } else if (minutes % 30 === 0 && minutes !== 0) {
@@ -169,7 +169,7 @@ export function calculateMinutePoint(
     return { x: pt.x, y, val: pt.val, hour: formatMinuteToHHMM(safeMin) };
   }
 
-  const lastPt = points.at(-1) || points[points.length - 1];
+  const lastPt = points.at(-1) || points[0];
   const lastMinIdx = lastPt.minuteIdx ?? PROFILE_SPAN_MINUTES;
   if (safeMin >= lastMinIdx) {
     const range = Math.max(1, maxVal - minVal);

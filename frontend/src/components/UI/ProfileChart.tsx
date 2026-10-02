@@ -1,8 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Activity, Edit2, ZoomIn, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
-import { useEffect } from 'react';
 import {
   InternetProfileItem,
   calculateProfileChartData,
