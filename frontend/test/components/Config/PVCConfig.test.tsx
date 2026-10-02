@@ -36,7 +36,7 @@ describe('PVCConfig', () => {
       />
     );
 
-    expect(screen.getByText('Kapasitas (Storage)')).toBeDefined();
+    expect(screen.getByText('Storage Capacity')).toBeDefined();
     expect(screen.getByDisplayValue('5Gi')).toBeDefined();
     expect(screen.getByText('RWO')).toBeDefined();
   });

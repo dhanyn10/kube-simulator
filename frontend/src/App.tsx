@@ -5,12 +5,11 @@ import {
   Panel,
   BackgroundVariant,
   useReactFlow,
-  MiniMap,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { logger } from './lib/logger';
-import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel } from './components/Layout';
+import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel, CanvasMiniMap } from './components/Layout';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import {
@@ -254,23 +253,7 @@ export default function App() {
               style={{ opacity: canvasBgOpacity }}
             />
 
-            <MiniMap
-              position="bottom-right"
-              className={cn(
-                'rounded-lg shadow-2xl !m-12',
-                colorMode === 'dark' ? '!bg-slate-900 !border-slate-800' : '!bg-slate-100 !border-slate-300'
-              )}
-              nodeColor={(node) => {
-                if (node.type === 'Deployment') return '#8b5cf6';
-                if (node.type === 'Pod') return '#22d3ee';
-                if (node.type === 'Service') return '#f59e0b';
-                return colorMode === 'dark' ? '#475569' : '#94A3B8';
-              }}
-              maskColor={colorMode === 'dark' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(241, 245, 249, 0.7)'}
-              nodeStrokeWidth={3}
-              zoomable
-              pannable
-            />
+            <CanvasMiniMap />
 
             <CanvasControlsPanel />
 

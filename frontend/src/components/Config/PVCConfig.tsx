@@ -26,15 +26,15 @@ export const PVCConfig = ({
   const data = selectedNode.data;
 
   const accessModes = [
-    { value: 'ReadWriteOnce', label: 'RWO', desc: 'ReadWriteOnce: Bisa diakses 1 Pod (Read/Write)' },
-    { value: 'ReadOnlyMany', label: 'ROX', desc: 'ReadOnlyMany: Banyak Pod bisa baca saja' },
-    { value: 'ReadWriteMany', label: 'RWX', desc: 'ReadWriteMany: Banyak Pod bisa Read/Write' },
+    { value: 'ReadWriteOnce', label: 'RWO', desc: 'ReadWriteOnce: Accessible by 1 Pod (Read/Write)' },
+    { value: 'ReadOnlyMany', label: 'ROX', desc: 'ReadOnlyMany: Multiple Pods can read-only' },
+    { value: 'ReadWriteMany', label: 'RWX', desc: 'ReadWriteMany: Multiple Pods can Read/Write' },
   ];
 
   return (
     <div className="space-y-4">
       {/* Storage Capacity Section */}
-      <ConfigSection title="Kapasitas (Storage)" icon={Database}>
+      <ConfigSection title="Storage Capacity" icon={Database}>
         <div className="space-y-2">
           <SelectorGroup
             options={[
@@ -51,14 +51,14 @@ export const PVCConfig = ({
           <ConfigInput
             value={data.storageCapacity || '1Gi'}
             onChange={(e: any) => performUpdate({ storageCapacity: e.target.value })}
-            placeholder="Custom (misal: 20Gi)"
+            placeholder="Custom (e.g., 20Gi)"
             colorMode={colorMode}
           />
         </div>
       </ConfigSection>
 
       {/* Access Mode Selection */}
-      <ConfigSection title="Mode Akses" icon={ShieldCheck}>
+      <ConfigSection title="Access Mode" icon={ShieldCheck}>
         <div className="flex flex-col gap-2">
           {accessModes.map((mode) => {
             const isActive = data.accessMode === mode.value;
