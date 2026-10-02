@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
-import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, ProfileHoverData } from '@/activities/modals';
+import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, detectProfileInterval, ProfileHoverData } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -62,10 +62,13 @@ const ReadOnlyProfileChart = ({
   const padTop = 8;
   const padBottom = 8;
 
+  const intervalMinutes = detectProfileInterval(profile.hourly);
+
   const { points, values, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = computeChartLayout(profile, {
     width,
     height,
-    padding: { padLeft, padRight, padTop, padBottom }
+    padding: { padLeft, padRight, padTop, padBottom },
+    intervalMinutes
   });
 
   let minuteIdx = 0;
