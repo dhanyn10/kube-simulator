@@ -134,19 +134,24 @@ describe('simulation test suite', () => {
     expect(res.traffic).toBe(0);
   });
 
-  it('calculates linear interpolated profile traffic per minute', () => {
+  it('calculates linear interpolated profile traffic per minute including sub-hourly 10-minute intervals', () => {
     const profile = {
       hourly: {
         '00:00': 100,
-        '01:00': 200,
+        '00:10': 500,
+        '00:20': 200,
+        '01:00': 1000,
         '23:00': 500
       }
     };
 
     expect(getInterpolatedProfileTraffic(null, 0)).toBe(1000);
     expect(getInterpolatedProfileTraffic(profile, 0)).toBe(100);
-    expect(getInterpolatedProfileTraffic(profile, 30)).toBe(150);
-    expect(getInterpolatedProfileTraffic(profile, 60)).toBe(200);
+    expect(getInterpolatedProfileTraffic(profile, 5)).toBe(300); // interpolated between 00:00 (100) and 00:10 (500)
+    expect(getInterpolatedProfileTraffic(profile, 10)).toBe(500); // exact 10m sub-hourly point
+    expect(getInterpolatedProfileTraffic(profile, 15)).toBe(350); // interpolated between 00:10 (500) and 00:20 (200)
+    expect(getInterpolatedProfileTraffic(profile, 20)).toBe(200); // exact 20m sub-hourly point
+    expect(getInterpolatedProfileTraffic(profile, 60)).toBe(1000);
   });
 
   it('updates internet node traffic with minute-level profile resolution', () => {
