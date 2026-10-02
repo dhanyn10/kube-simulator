@@ -28,8 +28,12 @@ import {
 } from './ui-handlers';
 import { dispatchLiveCommand } from '@/activities/terminal/liveUpdateCommands';
 
+export type MiniMapPosition = 'bottom-right' | 'bottom-left' | 'top-right';
+
 export interface UiSlice {
   colorMode: 'dark' | 'light';
+  minimapPosition: MiniMapPosition;
+  setMinimapPosition: (position: MiniMapPosition) => void;
   roleModalTargetNode: { id: string; label: string } | null;
   setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
   configMapModalTargetNode: { id: string; label: string } | null;
@@ -579,6 +583,13 @@ const handleStopSimulation = (
 
 export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get) => ({
   colorMode: 'dark',
+  minimapPosition: 'bottom-right',
+  setMinimapPosition: (position) => {
+    set({ minimapPosition: position });
+    if (globalThis.go?.main?.App?.SaveSetting) {
+      void globalThis.go.main.App.SaveSetting('minimap_position', position);
+    }
+  },
   roleModalTargetNode: null,
   setRoleModalTargetNode: (target) => set({ roleModalTargetNode: target }),
   configMapModalTargetNode: null,
@@ -787,6 +798,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       void globalThis.go.main.App.GetSetting('active_identity').then((val: string) => {
         if (val) {
           set({ activeIdentity: val });
+        }
+      });
+      void globalThis.go.main.App.GetSetting('minimap_position').then((val: string) => {
+        if (val === 'bottom-left' || val === 'bottom-right' || val === 'top-right') {
+          set({ minimapPosition: val });
         }
       });
       void globalThis.go.main.App.GetSetting('kube_iam_users').then((val: string) => {

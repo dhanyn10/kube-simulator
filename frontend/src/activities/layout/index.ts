@@ -4,3 +4,4 @@ export * from './sidebarHelpers';
 export * from './canvasBgHelpers';
 export * from './rightSidebarHelpers';
 export * from './useRightSidebar';
+export * from './useCanvasMiniMap';
