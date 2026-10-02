@@ -41,8 +41,8 @@ export const CanvasMiniMap: React.FC = () => {
               type="button"
               onClick={() => moveToPosition('bottom-left')}
               className={cn(arrowBtnClass, 'right-full mr-2 top-1/2 -translate-y-1/2')}
-              title="Pindahkan MiniMap ke Kiri Bawah"
-              aria-label="Pindahkan MiniMap ke Kiri Bawah"
+              title="Move MiniMap to Bottom Left"
+              aria-label="Move MiniMap to Bottom Left"
               data-testid="minimap-arrow-left"
             >
               <ChevronLeft size={16} />
@@ -52,8 +52,8 @@ export const CanvasMiniMap: React.FC = () => {
               type="button"
               onClick={() => moveToPosition('top-right')}
               className={cn(arrowBtnClass, 'bottom-full mb-2 left-1/2 -translate-x-1/2')}
-              title="Pindahkan MiniMap ke Kanan Atas"
-              aria-label="Pindahkan MiniMap ke Kanan Atas"
+              title="Move MiniMap to Top Right"
+              aria-label="Move MiniMap to Top Right"
               data-testid="minimap-arrow-up"
             >
               <ChevronUp size={16} />
@@ -66,8 +66,8 @@ export const CanvasMiniMap: React.FC = () => {
             type="button"
             onClick={() => moveToPosition('bottom-right')}
             className={cn(arrowBtnClass, 'left-full ml-2 top-1/2 -translate-y-1/2')}
-            title="Pindahkan MiniMap ke Kanan Bawah"
-            aria-label="Pindahkan MiniMap ke Kanan Bawah"
+            title="Move MiniMap to Bottom Right"
+            aria-label="Move MiniMap to Bottom Right"
             data-testid="minimap-arrow-right"
           >
             <ChevronRight size={16} />
@@ -79,8 +79,8 @@ export const CanvasMiniMap: React.FC = () => {
             type="button"
             onClick={() => moveToPosition('bottom-right')}
             className={cn(arrowBtnClass, 'top-full mt-2 left-1/2 -translate-x-1/2')}
-            title="Pindahkan MiniMap ke Kanan Bawah"
-            aria-label="Pindahkan MiniMap ke Kanan Bawah"
+            title="Move MiniMap to Bottom Right"
+            aria-label="Move MiniMap to Bottom Right"
             data-testid="minimap-arrow-down"
           >
             <ChevronDown size={16} />
