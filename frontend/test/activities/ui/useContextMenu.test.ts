@@ -65,6 +65,20 @@ describe('useContextMenuHandler', () => {
 
     expect(result.current.canViewLogs).toBe(true);
     expect(result.current.canPaste).toBe(false);
+
+    // Update node to ReplicaSet
+    useFlowStore.setState({
+      nodes: [{ id: 'rs1', type: 'ReplicaSet', selected: true, data: {} }] as any,
+    });
+    rerender();
+    expect(result.current.canViewLogs).toBe(true);
+
+    // Update node to Pod
+    useFlowStore.setState({
+      nodes: [{ id: 'pod1', type: 'Pod', selected: true, data: {} }] as any,
+    });
+    rerender();
+    expect(result.current.canViewLogs).toBe(true);
   });
 
   it('handles keyboard navigation for ArrowDown, ArrowUp, and Tab keys with menuRef element', () => {

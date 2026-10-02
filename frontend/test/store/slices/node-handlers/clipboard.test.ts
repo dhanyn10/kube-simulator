@@ -147,6 +147,19 @@ describe('clipboardHandlers', () => {
     useFlowStore.getState().pasteNodes();
     expect(updateSpy).toHaveBeenCalledWith('rs1', { replicas: 6 });
 
+    // 3b. Parent ReplicaSet with no replicas set -> fallback 0
+    updateSpy.mockClear();
+    const rsNoReplicas: Node = { id: 'rs-no-rep', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: {} };
+    const childPodRSNoRep: Node = { id: 'clip-pod', type: 'Pod', parentId: 'rs-no-rep', selected: true, position: { x: 0, y: 0 }, data: { label: 'my-app' } };
+
+    useFlowStore.setState({
+      nodes: [rsNoReplicas, childPodRSNoRep] as any,
+      clipboard: { nodes: [clipboardPod], edges: [] },
+      updateNodeData: updateSpy,
+    });
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).toHaveBeenCalledWith('rs-no-rep', { replicas: 1 });
+
     // 4. Parent is a Namespace (non-controller) -> target is pod itself
     updateSpy.mockClear();
     const nsNode: Node = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
@@ -264,6 +277,31 @@ describe('clipboardHandlers', () => {
     expect(updateSpy).not.toHaveBeenCalled();
     // Falls back to pasting new node
     expect(useFlowStore.getState().nodes).toHaveLength(3);
+  });
+
+  it('tryIncrementPodReplicas returns false when clipboard has no pod or selected node is not a pod', () => {
+    const updateSpy = vi.fn();
+    const clipSvc: Node = { id: 'clip-svc', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+    const selPod: Node = { id: 'sel-pod', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: {} };
+
+    useFlowStore.setState({
+      nodes: [selPod] as any,
+      clipboard: { nodes: [clipSvc], edges: [] },
+      updateNodeData: updateSpy,
+    });
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).not.toHaveBeenCalled();
+
+    const clipPod: Node = { id: 'clip-pod', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    const selSvc: Node = { id: 'sel-svc', type: 'Service', selected: true, position: { x: 0, y: 0 }, data: {} };
+
+    useFlowStore.setState({
+      nodes: [selSvc] as any,
+      clipboard: { nodes: [clipPod], edges: [] },
+      updateNodeData: updateSpy,
+    });
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('copyNodes handles non-Deployment nodes and uncopied edge targets', () => {

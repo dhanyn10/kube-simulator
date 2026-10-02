@@ -189,4 +189,33 @@ describe('IAMUserDetailView', () => {
     // Editing mode closed
     expect(screen.queryByText('Edit User Profile')).not.toBeInTheDocument();
   });
+
+  it('finishes edit with Managed Access when AdministratorAccess is not selected and activeIdentity differs', () => {
+    useFlowStore.setState({ activeIdentity: 'system:admin' });
+    const updateIamUser = vi.spyOn(useFlowStore.getState(), 'updateIamUser');
+    const setActiveIdentity = vi.spyOn(useFlowStore.getState(), 'setActiveIdentity');
+
+    render(<IAMUserDetailView {...defaultProps} />);
+
+    // Click Edit Profile button
+    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
+
+    // Step 1: Change username -> Next
+    const usernameInput = screen.getByDisplayValue('developer1');
+    fireEvent.change(usernameInput, { target: { value: 'dev_managed' } });
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    // Step 2: Keep ReadOnlyAccess (do not select AdministratorAccess) -> Next
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    // Step 3: Finish Update
+    fireEvent.click(screen.getByRole('button', { name: /Update User/i }));
+
+    expect(updateIamUser).toHaveBeenCalledWith('usr-1', {
+      username: 'dev_managed',
+      accessType: 'Managed Access',
+      policies: expect.arrayContaining([expect.objectContaining({ name: 'ReadOnlyAccess' })]),
+    });
+    expect(setActiveIdentity).not.toHaveBeenCalled();
+  });
 });

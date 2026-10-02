@@ -48,6 +48,21 @@ describe('nodeUtils', () => {
     podParentHandlers.onRename("renamed-app");
     expect(updateNodeDataMock).toHaveBeenCalledWith("dep-1", { label: "renamed-app" });
 
+    // Test onRename on Pod with ReplicaSet parent
+    updateNodeDataMock.mockClear();
+    const storeWithReplicaSet = () =>
+      ({
+        nodes: [
+          { id: "rs-1", type: "ReplicaSet", data: { label: "old-rs" } },
+          { id: "pod-1", type: "Pod", parentId: "rs-1", data: {} },
+        ],
+        updateNodeData: updateNodeDataMock,
+      } as any);
+
+    const podRsHandlers = createNodeHandlers("pod-1", storeWithReplicaSet);
+    podRsHandlers.onRename("renamed-rs-app");
+    expect(updateNodeDataMock).toHaveBeenCalledWith("rs-1", { label: "renamed-rs-app" });
+
     // Test onRename on Service node
     updateNodeDataMock.mockClear();
     const serviceStore = () =>

@@ -120,4 +120,31 @@ describe('useMonitoringDashboardHandler', () => {
 
     delete (globalThis as any).runtime;
   });
+
+  it('ignores mousemove when not dragging and handles broadcast channel when runtime is missing', () => {
+    delete (globalThis as any).runtime;
+
+    let onMessageCallback: ((event: any) => void) | null = null;
+    class MockBroadcastChannel {
+      set onmessage(cb: any) {
+        onMessageCallback = cb;
+      }
+      close() {}
+    }
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
+
+    const { result } = renderHook(() => useMonitoringDashboardHandler());
+
+    // Dispatch mousemove on document without dragging
+    act(() => {
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 999, clientY: 999 }));
+    });
+    expect(result.current.position).toEqual({ x: 400, y: 100 });
+
+    // BroadcastChannel message when runtime is undefined
+    act(() => {
+      onMessageCallback?.({ data: { type: 'DETACHED_OPEN' } });
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+  });
 });
