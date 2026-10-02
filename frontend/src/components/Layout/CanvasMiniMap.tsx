@@ -8,7 +8,7 @@ export const CanvasMiniMap: React.FC = () => {
   const { minimapPosition, colorMode, moveToPosition } = useCanvasMiniMap();
 
   const arrowBtnClass = cn(
-    'absolute w-7 h-7 rounded-full flex items-center justify-center shadow-lg z-20 cursor-pointer transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110',
+    'absolute w-7 h-7 rounded-md flex items-center justify-center shadow-lg z-20 cursor-pointer transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110',
     colorMode === 'dark'
       ? 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-blue-600 hover:text-white hover:border-blue-500'
       : 'bg-white text-slate-700 border border-slate-300 hover:bg-blue-500 hover:text-white hover:border-blue-400'
@@ -40,7 +40,7 @@ export const CanvasMiniMap: React.FC = () => {
             <button
               type="button"
               onClick={() => moveToPosition('bottom-left')}
-              className={cn(arrowBtnClass, '-left-3 top-1/2 -translate-y-1/2')}
+              className={cn(arrowBtnClass, 'right-full mr-2 top-1/2 -translate-y-1/2')}
               title="Pindahkan MiniMap ke Kiri Bawah"
               aria-label="Pindahkan MiniMap ke Kiri Bawah"
               data-testid="minimap-arrow-left"
@@ -51,7 +51,7 @@ export const CanvasMiniMap: React.FC = () => {
             <button
               type="button"
               onClick={() => moveToPosition('top-right')}
-              className={cn(arrowBtnClass, '-top-3 left-1/2 -translate-x-1/2')}
+              className={cn(arrowBtnClass, 'bottom-full mb-2 left-1/2 -translate-x-1/2')}
               title="Pindahkan MiniMap ke Kanan Atas"
               aria-label="Pindahkan MiniMap ke Kanan Atas"
               data-testid="minimap-arrow-up"
@@ -65,7 +65,7 @@ export const CanvasMiniMap: React.FC = () => {
           <button
             type="button"
             onClick={() => moveToPosition('bottom-right')}
-            className={cn(arrowBtnClass, '-right-3 top-1/2 -translate-y-1/2')}
+            className={cn(arrowBtnClass, 'left-full ml-2 top-1/2 -translate-y-1/2')}
             title="Pindahkan MiniMap ke Kanan Bawah"
             aria-label="Pindahkan MiniMap ke Kanan Bawah"
             data-testid="minimap-arrow-right"
@@ -78,7 +78,7 @@ export const CanvasMiniMap: React.FC = () => {
           <button
             type="button"
             onClick={() => moveToPosition('bottom-right')}
-            className={cn(arrowBtnClass, '-bottom-3 left-1/2 -translate-x-1/2')}
+            className={cn(arrowBtnClass, 'top-full mt-2 left-1/2 -translate-x-1/2')}
             title="Pindahkan MiniMap ke Kanan Bawah"
             aria-label="Pindahkan MiniMap ke Kanan Bawah"
             data-testid="minimap-arrow-down"
