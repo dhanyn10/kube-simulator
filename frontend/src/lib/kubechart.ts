@@ -76,8 +76,8 @@ export const PROFILE_INTERVAL_OPTIONS = [
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_IN_DAY = 24;
 export const MINUTES_IN_DAY = HOURS_IN_DAY * MINUTES_PER_HOUR; // 1440
-export const PROFILE_HOURLY_INTERVALS = 23;
-export const PROFILE_SPAN_MINUTES = PROFILE_HOURLY_INTERVALS * MINUTES_PER_HOUR; // 1380 minutes (00:00 to 23:00)
+export const PROFILE_HOURLY_INTERVALS = 24;
+export const PROFILE_SPAN_MINUTES = MINUTES_IN_DAY; // 1440 minutes (00:00 to 24:00)
 
 export const HOURS_OF_DAY = Array.from({ length: HOURS_IN_DAY }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
@@ -297,14 +297,21 @@ export function convertProfileToTimeSeries(
     })
     .sort((a, b) => a.minute - b.minute);
 
-  return Array.from({ length: intervalMinutes === 60 ? 24 : totalSteps + 1 }, (_, i) => {
+  // Append 24:00 (1440) endpoint wrapping back to 00:00 for continuous 24h loop
+  const minuteKeysWithLoop = [...existingMinuteKeys];
+  if (existingMinuteKeys.length > 0 && !existingMinuteKeys.some((k) => k.minute === 1440)) {
+    const min0 = existingMinuteKeys.find((k) => k.minute === 0) || existingMinuteKeys[0];
+    minuteKeysWithLoop.push({ key: '24:00', minute: 1440, val: min0.val });
+  }
+
+  return Array.from({ length: totalSteps + 1 }, (_, i) => {
     const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
-    const timeStr = formatMinuteToHHMM(minuteIdx);
-    const value = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);
+    const timeStr = minuteIdx === 1440 ? '24:00' : formatMinuteToHHMM(minuteIdx);
+    const value = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, minuteKeysWithLoop);
     return {
       time: timeStr,
       value,
-      label: timeStr
+      label: timeStr === '24:00' ? '00:00' : timeStr
     };
   });
 }

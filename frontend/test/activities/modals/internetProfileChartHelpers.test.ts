@@ -24,8 +24,8 @@ describe('internetProfileChartHelpers', () => {
 
   it('calculates profile chart data bounds and paths correctly including points fallback', () => {
     const result = calculateProfileChartData(dummyProfile, 200, 100, 10, 10, 10, 10);
-    expect(result.values).toHaveLength(24);
-    expect(result.points).toHaveLength(24);
+    expect(result.values).toHaveLength(25);
+    expect(result.points).toHaveLength(25);
     expect(result.pathD).toContain('M');
     expect(result.areaD).toContain('Z');
     expect(result.maxVal).toBeGreaterThanOrEqual(1500);
@@ -73,11 +73,11 @@ describe('internetProfileChartHelpers', () => {
     // Left edge -> minute index 0
     expect(calculateMinuteIndexFromX(5, 200, width, padLeft, padRight, chartWidth)).toBe(0);
 
-    // Right edge -> minute index 1380 (23:00)
-    expect(calculateMinuteIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(1380);
+    // Right edge -> minute index 1440 (24:00)
+    expect(calculateMinuteIndexFromX(195, 200, width, padLeft, padRight, chartWidth)).toBe(1440);
 
-    // Middle -> minute index around 690 (11:30)
-    expect(calculateMinuteIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(690);
+    // Middle -> minute index around 720 (12:00)
+    expect(calculateMinuteIndexFromX(100, 200, width, padLeft, padRight, chartWidth)).toBe(720);
   });
 
   it('calculates Y traffic value when dragging chart point', () => {
@@ -123,8 +123,8 @@ describe('internetProfileChartHelpers', () => {
     // Valid inside bounds case (middle relativeX = 100 on rectWidth = 200)
     const hoverResult = calculateProfileHoverData(100, 50, 200, 100, 10, chartWidth, points);
     expect(hoverResult).not.toBeNull();
-    expect(hoverResult?.hourStr).toBe('11:00');
-    expect(hoverResult?.minuteIndex).toBe(690);
+    expect(hoverResult?.hourStr).toBe('12:00');
+    expect(hoverResult?.minuteIndex).toBe(720);
   });
 
   it('generates profile interval points according to selected interval resolution', () => {
@@ -134,16 +134,16 @@ describe('internetProfileChartHelpers', () => {
 
     const padding = { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 };
     const result60 = generateProfileIntervalPoints(dummyProfile, 60, 200, 100, padding);
-    expect(result60.intervalPoints).toHaveLength(24);
+    expect(result60.intervalPoints).toHaveLength(25);
     expect(result60.intervalPoints[0].hour).toBe('00:00');
     expect(result60.intervalPoints[23].hour).toBe('23:00');
 
     const result30 = generateProfileIntervalPoints(dummyProfile, 30, 200, 100, padding);
-    expect(result30.intervalPoints).toHaveLength(47); // 00:00 to 23:00 step 30 min
+    expect(result30.intervalPoints).toHaveLength(49); // 00:00 to 24:00 step 30 min
     expect(result30.intervalPoints[1].hour).toBe('00:30');
   });
 
-  it('calculates minute point position and linear interpolation accurately', () => {
+  it('calculates minute point position and linear interpolation accurately including 23:00-23:59 motion', () => {
     const { points, minVal, maxVal, chartHeight } = calculateProfileChartData(
       dummyProfile,
       200,
@@ -174,9 +174,9 @@ describe('internetProfileChartHelpers', () => {
     expect(ptMin30.val).toBe(150);
     expect(ptMin30.hour).toBe('00:30');
 
-    // Minute 1439 (23:59) - x stays at right edge (points[23].x)
+    // Minute 1439 (23:59) - glides right near points[24] (24:00)
     const ptMin2359 = calculateMinutePoint(points, 1439, minVal, maxVal, chartHeight, 10);
-    expect(ptMin2359.x).toBe(points[23].x);
+    expect(ptMin2359.x).toBeGreaterThan(points[23].x);
     expect(ptMin2359.hour).toBe('23:59');
   });
 });

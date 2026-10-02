@@ -284,6 +284,12 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
 
   if (existingMinuteKeys.length === 0) return 1000;
 
+  // Append 24:00 (1440) endpoint wrapping back to 00:00 for continuous 24h loop
+  if (!existingMinuteKeys.some((k) => k.minute === 1440)) {
+    const min0 = existingMinuteKeys.find((k) => k.minute === 0) || existingMinuteKeys[0];
+    existingMinuteKeys.push({ minute: 1440, val: min0.val });
+  }
+
   let prev = existingMinuteKeys[0];
   let next = existingMinuteKeys.at(-1)!;
 
@@ -296,11 +302,8 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
     }
   }
 
-  if (prev.minute === next.minute || prev.minute >= safeMinute) {
+  if (prev.minute === next.minute) {
     return prev.val;
-  }
-  if (next.minute <= safeMinute) {
-    return next.val;
   }
 
   const fraction = (safeMinute - prev.minute) / (next.minute - prev.minute);
