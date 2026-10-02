@@ -904,4 +904,14 @@ describe('createUiSlice', () => {
     await new Promise(process.nextTick);
     expect(useFlowStore.getState().activeIdentity).toBe('dev-identity');
   });
+
+  it('covers getSimulationIntervalDuration speed bounds and fallbackToLegacySettings when GetSetting is missing', async () => {
+    const { getSimulationIntervalDuration } = await import('@/store/slices/createUiSlice');
+    expect(getSimulationIntervalDuration(0)).toBe(150);
+    expect(getSimulationIntervalDuration(10)).toBe(15);
+
+    delete (globalThis as any).go.main.App.GetSetting;
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+  });
 });

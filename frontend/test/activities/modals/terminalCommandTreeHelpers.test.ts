@@ -35,4 +35,19 @@ describe('terminalCommandTreeHelpers', () => {
     expect(allIds).toContain('util-history');
     expect(allIds).toContain('util-clear');
   });
+
+  it('handles custom nodes without command or description in filterCommandTree', () => {
+    const customNodes = [
+      { id: 'custom-parent', name: 'parent-node', children: [{ id: 'custom-child', name: 'child-item' }] },
+      { id: 'custom-leaf', name: 'no-desc-leaf', command: 'custom cmd' },
+    ];
+
+    const result = filterCommandTree(customNodes, 'child');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('custom-parent');
+
+    const cmdResult = filterCommandTree(customNodes, 'custom cmd');
+    expect(cmdResult).toHaveLength(1);
+    expect(cmdResult[0].id).toBe('custom-leaf');
+  });
 });
