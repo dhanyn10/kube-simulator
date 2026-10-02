@@ -63,22 +63,34 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows).toEqual([]);
   });
 
-  it('loads initialConfigMap rows when provided', () => {
-    const { result } = renderHook(() =>
-      useConfigMapModal({
+  it('loads initialConfigMap rows when provided and falls back to app-config when name is empty', () => {
+    const { result, rerender } = renderHook((props) => useConfigMapModal(props), {
+      initialProps: {
         ...defaultProps,
         initialConfigMap: {
           id: 'cm-1',
           name: 'existing-cm',
           configData: [{ key: 'PORT', value: '8080' }],
         },
-      })
-    );
+      },
+    });
 
     expect(result.current.cmName).toBe('existing-cm');
     expect(result.current.rows).toHaveLength(1);
     expect(result.current.rows[0].key).toBe('PORT');
     expect(result.current.rows[0].value).toBe('8080');
+
+    // Test when initialConfigMap.name is empty string -> fallback to 'app-config'
+    rerender({
+      ...defaultProps,
+      initialConfigMap: {
+        id: 'cm-empty-name',
+        name: '',
+        configData: [{ key: 'LOG_LEVEL', value: 'debug' }],
+      },
+    });
+
+    expect(result.current.cmName).toBe('app-config');
   });
 
   it('skips initialization effect when isOpen is false', () => {

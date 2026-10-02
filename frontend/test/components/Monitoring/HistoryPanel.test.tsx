@@ -107,6 +107,10 @@ describe('HistoryPanel', () => {
     const { container, rerender } = render(<HistoryPanel colorMode="dark" />);
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(1);
 
+    // Rerender skeleton loading in light mode
+    rerender(<HistoryPanel colorMode="light" />);
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(1);
+
     // Background refetching while logs exist
     mockLogs = [{ actionName: 'Refetch Log', index: 1, timestamp: Date.now() }];
     mockIsLoading = true;

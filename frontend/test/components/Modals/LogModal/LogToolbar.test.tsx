@@ -76,7 +76,7 @@ describe('LogToolbar', () => {
     expect(screen.getByText('All')).toBeInTheDocument();
   });
 
-  it('handles dropdown selection menu and click outside', () => {
+  it('handles dropdown selection menu and click outside in dark and light modes', () => {
     const setIsSelectMenuOpen = vi.fn();
     const onSelectByType = vi.fn();
 
@@ -85,9 +85,10 @@ describe('LogToolbar', () => {
       isSelectMenuOpen: true,
       setIsSelectMenuOpen,
       onSelectByType,
+      colorMode: 'light' as const,
     };
 
-    render(<LogToolbar {...props} />);
+    const { rerender } = render(<LogToolbar {...props} />);
 
     const selectAllOption = screen.getByTestId('log-select-all');
     fireEvent.click(selectAllOption);
@@ -96,6 +97,10 @@ describe('LogToolbar', () => {
     // Trigger click outside listener
     fireEvent.mouseDown(document.body);
     expect(setIsSelectMenuOpen).toHaveBeenCalledWith(false);
+
+    // Rerender in dark mode
+    rerender(<LogToolbar {...props} colorMode="dark" />);
+    expect(screen.getByTestId('log-select-all')).toBeInTheDocument();
   });
 
   it('toggles dropdown menu on chevron button click', () => {
