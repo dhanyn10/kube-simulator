@@ -30,6 +30,10 @@ describe('useRoleModal helpers', () => {
 
       const depNodeZero: Node = { id: 'd2', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 0 } };
       expect(deriveDeploymentResources(depNodeZero, [])).toEqual(['deployments']);
+
+      const depWithPodZeroRep: Node = { id: 'd3', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 0 } };
+      const childPod: Node = { id: 'p1', parentId: 'd3', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveDeploymentResources(depWithPodZeroRep, [childPod])).toEqual(['deployments', 'pods']);
     });
   });
 
@@ -65,6 +69,10 @@ describe('useRoleModal helpers', () => {
 
       const customNode: Node = { id: 'c1', type: 'CustomWidget', position: { x: 0, y: 0 }, data: {} };
       expect(deriveResourcesFromTargetNode(customNode, [])).toEqual(['customwidgets']);
+
+      const rsParentPod: Node = { id: 'pod-rs', parentId: 'rs1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      const rsNode: Node = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveResourcesFromTargetNode(rsParentPod, [rsNode, rsParentPod])).toEqual(['pods']);
     });
   });
 
@@ -85,6 +93,14 @@ describe('useRoleModal helpers', () => {
     it('identifies Full Access users correctly', () => {
       expect(isUserFullAccess(adminUser)).toBe(true);
       expect(isUserFullAccess(devUser)).toBe(false);
+
+      const adminByPolicy: KubeIAMUser = {
+        id: 'u3',
+        username: 'admin2',
+        accessType: 'Managed Access',
+        policies: [{ id: 'p1', name: 'AdministratorAccess', description: '' }],
+      };
+      expect(isUserFullAccess(adminByPolicy)).toBe(true);
     });
 
     it('checks policy resource matches', () => {
@@ -93,6 +109,7 @@ describe('useRoleModal helpers', () => {
       expect(checkPolicyResourceMatch(new Set(['persistentvolumeclaims']), new Set(['StorageAdminPolicy']))).toBe(true);
       expect(checkPolicyResourceMatch(new Set(['pods']), new Set(['ReadOnlyAccess']))).toBe(true);
       expect(checkPolicyResourceMatch(new Set(), new Set())).toBe(true);
+      expect(checkPolicyResourceMatch(new Set(['pods']), new Set(['NetworkingAdminPolicy']))).toBe(false);
     });
 
     it('checks availability of IAM users for roles including PowerUserAccess and wildcard resources', () => {
@@ -106,6 +123,12 @@ describe('useRoleModal helpers', () => {
 
       const noPolicyUser: KubeIAMUser = { id: 'u4', username: 'none', accessType: 'Managed Access', policies: [] };
       expect(isUserAvailableForRole(noPolicyUser, undefined, [])).toBe(false);
+
+      const svcTargetNode: Node = { id: 's1', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+      expect(isUserAvailableForRole(devUser, svcTargetNode, [])).toBe(false);
+
+      const adminPolicyUser: KubeIAMUser = { id: 'u5', username: 'adminPolicy', accessType: 'Managed Access', policies: [{ id: 'p3', name: 'AdministratorAccess', description: '' }] };
+      expect(isUserAvailableForRole(adminPolicyUser, undefined, [])).toBe(true);
     });
   });
 });
@@ -163,6 +186,26 @@ describe('useRoleModal hook', () => {
 
     expect(result.current.roleName).toBe('existing-role');
     expect(result.current.assignedUsers).toContain('dev-bob');
+
+    // Initial role with non-empty rules provided
+    const initialRoleWithRules: K8sRoleItem = {
+      id: 'r2',
+      name: 'custom-role',
+      rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] }],
+      assignedUsers: ['dev-bob'],
+      createdAt: 1000,
+    };
+
+    rerender({
+      isOpen: true,
+      targetNodeId: 'node-1',
+      initialRole: initialRoleWithRules,
+      onClose,
+      onSave,
+    });
+
+    expect(result.current.roleName).toBe('custom-role');
+    expect(result.current.rules).toEqual([{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] }]);
   });
 
   it('supports adding, removing, updating rules, and user assignments', () => {

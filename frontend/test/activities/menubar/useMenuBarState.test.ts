@@ -173,4 +173,82 @@ describe('useMenuBarState', () => {
       releaseUrl: 'https://github.com/dhanyn10/kube-simulator/releases',
     });
   });
+
+  it('handles Resource Save for new/unsaved project (onOpenProjects fallback) and UpdateProject returning false', async () => {
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    useFlowStore.setState({ currentProject: null });
+
+    const { result, rerender } = renderHook(() => useMenuBarState(defaultProps));
+
+    let resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource');
+    let saveItem = resourceMenu?.items.find((i) => i.label === 'Save');
+
+    await act(async () => {
+      await saveItem?.onClick?.();
+    });
+    expect(defaultProps.onOpenProjects).toHaveBeenCalled();
+
+    // Test when UpdateProject fails (returns false)
+    useFlowStore.setState({ currentProject: { id: 2, name: 'Project 2' } });
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: vi.fn().mockResolvedValue(false),
+        },
+      },
+    };
+    rerender();
+
+    resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource');
+    saveItem = resourceMenu?.items.find((i) => i.label === 'Save');
+
+    await act(async () => {
+      await saveItem?.onClick?.();
+    });
+    expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(2, expect.any(String));
+  });
+
+  it('handles simulatedUpdateInfo override and background update error catch', async () => {
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockRejectedValue(new Error('Network error')),
+          },
+        },
+      },
+    };
+
+    useFlowStore.setState({
+      simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: 'https://example.com' },
+    });
+
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useMenuBarState(defaultProps));
+
+    expect(result.current.effectiveUpdateInfo).toEqual({
+      version: '2.0.0',
+      releaseUrl: 'https://example.com',
+    });
+  });
 });

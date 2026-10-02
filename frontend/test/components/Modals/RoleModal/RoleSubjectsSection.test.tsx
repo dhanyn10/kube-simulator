@@ -84,8 +84,8 @@ describe('RoleSubjectsSection', () => {
     expect(defaultProps.onOpenIamModal).toHaveBeenCalled();
   });
 
-  it('renders NoUsersBanner when iamUsers is empty and handles light mode', () => {
-    render(
+  it('renders NoUsersBanner when iamUsers is empty and handles light mode and dark mode', () => {
+    const { rerender } = render(
       <RoleSubjectsSection
         {...defaultProps}
         iamUsers={[]}
@@ -98,6 +98,17 @@ describe('RoleSubjectsSection', () => {
     const linkBtn = screen.getByRole('button', { name: /Go to Kube IAM Management/i });
     fireEvent.click(linkBtn);
     expect(defaultProps.onOpenIamModal).toHaveBeenCalled();
+
+    // Rerender in dark mode
+    rerender(
+      <RoleSubjectsSection
+        {...defaultProps}
+        iamUsers={[]}
+        assignedUsers={[]}
+        colorMode="dark"
+      />
+    );
+    expect(screen.getByText('No Kube IAM users created yet.')).toBeInTheDocument();
   });
 
   it('handles non-full access user chip removal and placeholder when assignedUsers is empty or user is missing from iamUsers list', () => {

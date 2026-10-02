@@ -38,6 +38,10 @@ describe('podSizing utils', () => {
       const widthMega = calculatePodWidth(dataMega, []);
       expect(widthMega).toBeGreaterThanOrEqual(POD_MIN_DIMENSIONS.width * 2);
 
+      const dataMegaReplicas = { label: 'mega-rep', replicas: 100 };
+      const widthMegaRep = calculatePodWidth(dataMegaReplicas, []);
+      expect(widthMegaRep).toBeGreaterThanOrEqual(POD_MIN_DIMENSIONS.width * 2);
+
       const dataMulti = {
         label: 'multi-pod',
         replicas: 10,
@@ -46,6 +50,14 @@ describe('podSizing utils', () => {
       };
       const widthMulti = calculatePodWidth(dataMulti, []);
       expect(widthMulti).toBeGreaterThan(POD_MIN_DIMENSIONS.width);
+
+      const dataImageHidden = {
+        label: 'hidden-img',
+        image: 'nginx:latest',
+        displaySettings: { image: false },
+      };
+      const widthHidden = calculatePodWidth(dataImageHidden, []);
+      expect(widthHidden).toBe(POD_MIN_DIMENSIONS.width);
     });
   });
 
@@ -88,6 +100,14 @@ describe('podSizing utils', () => {
       });
       expect(sizeWithWebserver.width).toBeGreaterThan(0);
       expect(sizeWithWebserver.height).toBeGreaterThan(0);
+
+      const sizeWithNone = getPodMinimumSize({
+        label: 'app',
+        runtime: 'none',
+        webserver: 'none',
+      });
+      expect(sizeWithNone.width).toBeGreaterThan(0);
+      expect(sizeWithNone.height).toBeGreaterThan(0);
     });
   });
 });

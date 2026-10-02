@@ -182,4 +182,24 @@ describe('createLogSlice', () => {
     storeState.setLogModalOpen(true);
     expect(storeState.isLogModalOpen).toBe(true);
   });
+
+  it('addLog sets isLogToastVisible for warn and fatal log levels', () => {
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice, isLogToastVisible: false };
+
+    storeState.addLog('warn', 'Warning log message');
+    expect(storeState.isLogToastVisible).toBe(true);
+
+    storeState.isLogToastVisible = false;
+    storeState.addLog('fatal', 'Fatal log message');
+    expect(storeState.isLogToastVisible).toBe(true);
+  });
+
+  it('internalError handles missing _originalConsoleError gracefully', () => {
+    delete (globalThis as any)._originalConsoleError;
+    sessionStorage.setItem('k8s_sim_logs', 'invalid json format');
+
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    expect(slice.logs).toEqual([]);
+  });
 });

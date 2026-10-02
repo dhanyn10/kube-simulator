@@ -39,6 +39,20 @@ describe('useLogModal', () => {
     });
     expect(result.current.filteredLogs).toHaveLength(2);
 
+    // Filter level: warn
+    act(() => {
+      result.current.setActiveLevelFilter('warn');
+    });
+    expect(result.current.filteredLogs).toHaveLength(1);
+    expect(result.current.filteredLogs[0].level).toBe('warn');
+
+    // Filter level: info
+    act(() => {
+      result.current.setActiveLevelFilter('info');
+    });
+    expect(result.current.filteredLogs).toHaveLength(1);
+    expect(result.current.filteredLogs[0].level).toBe('info');
+
     // Filter scope: System (includes l4 with missing scope fallback)
     act(() => {
       result.current.setActiveLevelFilter('all');
@@ -105,5 +119,23 @@ describe('useLogModal', () => {
       result.current.selectByType('none');
     });
     expect(result.current.selectedIds.size).toBe(0);
+
+    // Select by type: 'all'
+    act(() => {
+      result.current.selectByType('all');
+    });
+    expect(result.current.selectedIds.size).toBe(4);
+
+    // Select by type: 'warn'
+    act(() => {
+      result.current.selectByType('warn');
+    });
+    expect(result.current.selectedIds.size).toBe(1);
+
+    // Select by type: 'info'
+    act(() => {
+      result.current.selectByType('info');
+    });
+    expect(result.current.selectedIds.size).toBe(1);
   });
 });
