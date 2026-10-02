@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFlowStore } from '@/store';
 import { safeRandom } from '@/lib/utils';
 import { HOURS_OF_DAY, InternetProfileItem } from './internetProfileChartHelpers';
@@ -68,6 +68,16 @@ export const useInternetProfileModal = (
     generateRandomHourlyValues()
   );
 
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState<boolean>(true);
+
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const savedStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstDetailRender = useRef<boolean>(true);
+  const lastSavedDetailJsonRef = useRef<string>('');
+  const initialDetailProfileNameRef = useRef<string>('');
+  const prevIsOpenRef = useRef<boolean>(false);
+
   const normalizeProfile = useCallback((p: any): InternetProfileItem => {
     if (p.hourly && Object.keys(p.hourly).length > 0) {
       return p as InternetProfileItem;
@@ -103,9 +113,17 @@ export const useInternetProfileModal = (
     if (isOpen) {
       void fetchProfiles();
       setActiveProfileName(selectedNode?.data?.activeProfileName || '');
-      setViewMode('grid');
-      setIsModifiedCustom(false);
+      if (!prevIsOpenRef.current) {
+        setViewMode('grid');
+        setIsModifiedCustom(false);
+        setAutoSaveStatus('idle');
+      }
+    } else {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current);
+      setAutoSaveStatus('idle');
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, fetchProfiles, selectedNode]);
 
   const handleStartCustomProfile = () => {
@@ -150,8 +168,13 @@ export const useInternetProfileModal = (
 
   const handleOpenDetails = (profileName: string) => {
     const target = profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
-    setDetailProfile({ ...target, hourly: { ...target.hourly } });
+    const detailObj = { ...target, hourly: { ...target.hourly } };
+    setDetailProfile(detailObj);
+    initialDetailProfileNameRef.current = target.name;
+    lastSavedDetailJsonRef.current = JSON.stringify(detailObj);
     setIsModifiedCustom(false);
+    isFirstDetailRender.current = true;
+    setAutoSaveStatus('idle');
     setViewMode('details');
   };
 
@@ -184,8 +207,104 @@ export const useInternetProfileModal = (
     }));
   };
 
+  const executeAutoSave = useCallback(async (currentDetail: InternetProfileItem) => {
+    if (!currentDetail.name.trim()) return;
+
+    setAutoSaveStatus('saving');
+
+    const profileToSave: InternetProfileItem = {
+      name: currentDetail.name.trim(),
+      hourly: { ...currentDetail.hourly },
+      timestamp: Date.now()
+    };
+
+    lastSavedDetailJsonRef.current = JSON.stringify(currentDetail);
+
+    try {
+      await window.go?.main?.App?.SaveInternetProfile?.(
+        profileToSave.name,
+        JSON.stringify(profileToSave)
+      );
+    } catch {
+      // Fallback
+    }
+
+    await fetchProfiles();
+
+    const isNodeActive = Boolean(
+      activeProfileName && (
+        activeProfileName === profileToSave.name ||
+        activeProfileName === initialDetailProfileNameRef.current
+      )
+    );
+
+    if (isNodeActive) {
+      initialDetailProfileNameRef.current = profileToSave.name;
+      setActiveProfileName(profileToSave.name);
+      performUpdate({
+        connectionProfile: profileToSave,
+        activeProfileName: profileToSave.name,
+        traffic: profileToSave.hourly['00:00'] || 1000
+      });
+    }
+
+    setAutoSaveStatus('saved');
+    if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current);
+    savedStatusTimerRef.current = setTimeout(() => {
+      setAutoSaveStatus('idle');
+    }, 2000);
+  }, [fetchProfiles, activeProfileName, selectedNode, performUpdate]);
+
+  const handleManualAutoSave = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    void executeAutoSave(detailProfile);
+  }, [executeAutoSave, detailProfile]);
+
+  useEffect(() => {
+    if (viewMode === 'details') {
+      if (isFirstDetailRender.current) {
+        isFirstDetailRender.current = false;
+        return;
+      }
+
+      if (!isAutoSaveEnabled) return;
+
+      if (JSON.stringify(detailProfile) === lastSavedDetailJsonRef.current) {
+        return;
+      }
+
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+
+      autoSaveTimerRef.current = setTimeout(() => {
+        void executeAutoSave(detailProfile);
+      }, 3000);
+    } else {
+      isFirstDetailRender.current = true;
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [detailProfile, viewMode, isAutoSaveEnabled, executeAutoSave]);
+
   const handleSaveAndApplyDetailProfile = async () => {
     if (!detailProfile.name.trim()) return;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
 
     const profileToSave: InternetProfileItem = {
       name: detailProfile.name.trim(),
@@ -202,7 +321,7 @@ export const useInternetProfileModal = (
       // Fallback
     }
 
-    void fetchProfiles();
+    await fetchProfiles();
     handleApplyProfile(profileToSave.name, profileToSave);
     setViewMode('grid');
   };
@@ -272,6 +391,10 @@ export const useInternetProfileModal = (
     handleUpdateDetailName,
     handleSaveAndApplyDetailProfile,
     handleSaveCustomProfile,
-    handleDeleteProfile
+    handleDeleteProfile,
+    autoSaveStatus,
+    isAutoSaveEnabled,
+    setIsAutoSaveEnabled,
+    handleManualAutoSave
   };
 };

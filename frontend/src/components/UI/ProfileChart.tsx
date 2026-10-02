@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Activity, Edit2, ZoomIn, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
@@ -10,6 +10,7 @@ import {
   calculateProfileHoverData,
   calculateDynamicLabelStep,
   hasSubHourlyKeys,
+  detectProfileInterval,
   resampleProfileHourly,
   PROFILE_INTERVAL_OPTIONS,
   ProfileHoverData
@@ -44,14 +45,14 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const padTop = 10;
   const padBottom = 10;
 
+  const intervalMinutes = detectProfileInterval(profile.hourly);
+
   const { points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
     profile,
     width,
     height,
-    padLeft,
-    padRight,
-    padTop,
-    padBottom
+    { padLeft, padRight, padTop, padBottom },
+    intervalMinutes
   );
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
@@ -173,9 +174,13 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const isSimulating = useFlowStore((state) => state.isSimulating);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draggingHour, setDraggingHour] = useState<string | null>(null);
-  const [intervalMinutes, setIntervalMinutes] = useState<number>(60);
+  const [intervalMinutes, setIntervalMinutes] = useState<number>(() => detectProfileInterval(profile.hourly));
   const [pendingInterval, setPendingInterval] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState<number>(100);
+
+  useEffect(() => {
+    setIntervalMinutes(detectProfileInterval(profile.hourly));
+  }, [profile.name, profile.hourly]);
 
   const baseWidth = 680;
   const width = Math.round((baseWidth * zoomScale) / 100);

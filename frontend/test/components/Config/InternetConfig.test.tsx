@@ -181,7 +181,8 @@ describe('InternetConfig', () => {
     expect(screen.getByTestId('profile-chart-preview')).toBeDefined();
     expect(screen.getByText('Custom Profile')).toBeDefined();
     expect(screen.getByTestId('active-traffic-dot')).toBeDefined();
-    expect(screen.getByText('03:00')).toBeDefined();
+    expect(screen.getAllByText('03:00').length).toBeGreaterThan(0);
+    expect(screen.getByText(/2,000 visits/)).toBeDefined();
     expect(screen.queryByTestId('traffic-numeric-input')).toBeNull();
 
     const chartSvg = container.querySelector('svg[viewBox="0 0 240 80"]')!;

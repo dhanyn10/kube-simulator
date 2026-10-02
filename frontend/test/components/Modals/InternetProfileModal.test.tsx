@@ -381,4 +381,32 @@ describe('InternetProfileModal', () => {
 
     expect(screen.queryByText(/Active Connection Profile:/i)).toBeNull();
   });
+
+  it('renders Auto Save button in details view and triggers manual auto save on click', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
+    await act(async () => {
+      fireEvent.click(detailsButtons[0]);
+    });
+
+    const autoSaveBtn = screen.getByTestId('auto-save-btn');
+    expect(autoSaveBtn).toBeDefined();
+    expect(screen.getByText('Auto Save')).toBeDefined();
+
+    await act(async () => {
+      fireEvent.click(autoSaveBtn);
+    });
+
+    expect(mockSaveInternetProfile).toHaveBeenCalled();
+  });
 });

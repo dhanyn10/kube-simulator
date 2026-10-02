@@ -6,6 +6,7 @@ import { validateResourceLimits } from '@/lib/utils';
 
 // Centralize side-effect handlers
 const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
+let consecutiveUnreadyTicks = 0;
 
 /**
  * Retrieves the Wails runtime if available.
@@ -93,20 +94,27 @@ export const checkEmergencyStop = (params: {
   const readyPods = allPods.filter(p => (p.data as K8sNodeData).status === 'ready');
 
   if (allPods.length > 0 && readyPods.length === 0) {
-    logger.error('[Simulation] CRITICAL: All pods are in pending state. Emergency shutdown.');
-    if (simulationInterval.current) {
-        clearInterval(simulationInterval.current);
-        simulationInterval.current = null;
-    }
-    set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, isMonitoringOpen: false, isMonitoringDetached: false });
+    consecutiveUnreadyTicks++;
+    // Allow pod recovery grace period (~40 ticks = 6s) before emergency shutdown
+    if (consecutiveUnreadyTicks >= 40) {
+      consecutiveUnreadyTicks = 0;
+      logger.error('[Simulation] CRITICAL: All pods are in pending state after grace period. Emergency shutdown.');
+      if (simulationInterval.current) {
+          clearInterval(simulationInterval.current);
+          simulationInterval.current = null;
+      }
+      set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, isMonitoringOpen: false, isMonitoringDetached: false });
 
-    if (metricsChannel) {
-        metricsChannel.postMessage({ type: 'DETACHED_CLOSED' });
-    }
+      if (metricsChannel) {
+          metricsChannel.postMessage({ type: 'DETACHED_CLOSED' });
+      }
 
-    const runtime = getRuntime();
-    if (runtime) runtime.EventsEmit('detached-closed');
-    return true;
+      const runtime = getRuntime();
+      if (runtime) runtime.EventsEmit('detached-closed');
+      return true;
+    }
+  } else {
+    consecutiveUnreadyTicks = 0;
   }
   return false;
 };

@@ -76,8 +76,8 @@ export const PROFILE_INTERVAL_OPTIONS = [
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_IN_DAY = 24;
 export const MINUTES_IN_DAY = HOURS_IN_DAY * MINUTES_PER_HOUR; // 1440
-export const PROFILE_HOURLY_INTERVALS = 23;
-export const PROFILE_SPAN_MINUTES = PROFILE_HOURLY_INTERVALS * MINUTES_PER_HOUR; // 1380 minutes (00:00 to 23:00)
+export const PROFILE_HOURLY_INTERVALS = 24;
+export const PROFILE_SPAN_MINUTES = MINUTES_IN_DAY; // 1440 minutes (00:00 to 24:00)
 
 export const HOURS_OF_DAY = Array.from({ length: HOURS_IN_DAY }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
@@ -125,10 +125,30 @@ export function hasSubHourlyKeys(hourly: Record<string, number> = {}): boolean {
 }
 
 /**
+ * Detects the finest interval granularity (10m, 30m, or 60m) present in a profile's hourly/sub-hourly map keys.
+ */
+export function detectProfileInterval(hourly: Record<string, number> = {}): number {
+  let finest = 60;
+  for (const k of Object.keys(hourly)) {
+    const parts = k.split(':');
+    if (parts.length === 2) {
+      const minutes = Number(parts[1]);
+      if (Number.isNaN(minutes)) continue;
+      if (minutes % 10 === 0 && minutes % 30 !== 0 && minutes !== 0) {
+        finest = Math.min(finest, 10);
+      } else if (minutes % 30 === 0 && minutes !== 0) {
+        finest = Math.min(finest, 30);
+      }
+    }
+  }
+  return finest;
+}
+
+/**
  * Calculates minute-level interpolated point coordinates on a profile chart path.
  */
 export function calculateMinutePoint(
-  points: { x: number; y: number; val: number; hour: string }[],
+  points: { x: number; y: number; val: number; hour: string; minuteIdx?: number }[],
   minuteIndex: number,
   minVal: number,
   maxVal: number,
@@ -140,15 +160,43 @@ export function calculateMinutePoint(
   }
 
   const safeMin = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
-  const hour1 = Math.min(22, Math.floor(safeMin / MINUTES_PER_HOUR));
-  const minuteInHour = safeMin - hour1 * MINUTES_PER_HOUR;
-  const fraction = Math.min(1, minuteInHour / MINUTES_PER_HOUR);
 
-  const pt1 = points[hour1] || points[0];
-  const pt2 = points[hour1 + 1] || pt1;
+  const firstMinIdx = points[0].minuteIdx ?? 0;
+  if (safeMin <= firstMinIdx) {
+    const pt = points[0];
+    const range = Math.max(1, maxVal - minVal);
+    const y = padTop + chartHeight - ((pt.val - minVal) / range) * chartHeight;
+    return { x: pt.x, y, val: pt.val, hour: formatMinuteToHHMM(safeMin) };
+  }
 
-  const x = pt1.x + fraction * (pt2.x - pt1.x);
-  const val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
+  const lastPt = points.at(-1) || points[0];
+  const lastMinIdx = lastPt.minuteIdx ?? PROFILE_SPAN_MINUTES;
+  if (safeMin >= lastMinIdx) {
+    const range = Math.max(1, maxVal - minVal);
+    const y = padTop + chartHeight - ((lastPt.val - minVal) / range) * chartHeight;
+    return { x: lastPt.x, y, val: lastPt.val, hour: formatMinuteToHHMM(safeMin) };
+  }
+
+  let pt1 = points[0];
+  let pt2 = lastPt;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const m1 = points[i].minuteIdx ?? Math.round(i * (PROFILE_SPAN_MINUTES / Math.max(1, points.length - 1)));
+    const m2 = points[i + 1].minuteIdx ?? Math.round((i + 1) * (PROFILE_SPAN_MINUTES / Math.max(1, points.length - 1)));
+    if (m1 <= safeMin && m2 >= safeMin) {
+      pt1 = points[i];
+      pt2 = points[i + 1];
+      break;
+    }
+  }
+
+  const m1 = pt1.minuteIdx ?? 0;
+  const m2 = pt2.minuteIdx ?? PROFILE_SPAN_MINUTES;
+  const span = m2 - m1;
+  const frac = span > 0 ? Math.min(1, Math.max(0, (safeMin - m1) / span)) : 0;
+
+  const x = pt1.x + frac * (pt2.x - pt1.x);
+  const val = Math.round(pt1.val + frac * (pt2.val - pt1.val));
 
   const range = Math.max(1, maxVal - minVal);
   const y = padTop + chartHeight - ((val - minVal) / range) * chartHeight;
@@ -249,14 +297,21 @@ export function convertProfileToTimeSeries(
     })
     .sort((a, b) => a.minute - b.minute);
 
-  return Array.from({ length: intervalMinutes === 60 ? 24 : totalSteps + 1 }, (_, i) => {
+  // Append 24:00 (1440) endpoint wrapping back to 00:00 for continuous 24h loop
+  const minuteKeysWithLoop = [...existingMinuteKeys];
+  if (existingMinuteKeys.length > 0 && !existingMinuteKeys.some((k) => k.minute === 1440)) {
+    const min0 = existingMinuteKeys.find((k) => k.minute === 0) || existingMinuteKeys[0];
+    minuteKeysWithLoop.push({ key: '24:00', minute: 1440, val: min0.val });
+  }
+
+  return Array.from({ length: totalSteps + 1 }, (_, i) => {
     const minuteIdx = Math.min(PROFILE_SPAN_MINUTES, i * safeInterval);
-    const timeStr = formatMinuteToHHMM(minuteIdx);
-    const value = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, existingMinuteKeys);
+    const timeStr = minuteIdx === 1440 ? '24:00' : formatMinuteToHHMM(minuteIdx);
+    const value = getInterpolatedValueForMinute(timeStr, minuteIdx, hourly, minuteKeysWithLoop);
     return {
       time: timeStr,
       value,
-      label: timeStr
+      label: timeStr === '24:00' ? '00:00' : timeStr
     };
   });
 }

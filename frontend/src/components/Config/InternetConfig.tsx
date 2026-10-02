@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Network, Sparkles, Activity } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
-import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, ProfileHoverData } from '@/activities/modals';
+import { calculateMinutePoint, calculateMinuteIndexFromX, calculateProfileHoverData, computeChartLayout, detectProfileInterval, ProfileHoverData } from '@/activities/modals';
 import { useFlowStore } from '@/store/useFlowStore';
 import {
   calculateMaxTrafficRange,
@@ -62,10 +62,13 @@ const ReadOnlyProfileChart = ({
   const padTop = 8;
   const padBottom = 8;
 
+  const intervalMinutes = detectProfileInterval(profile.hourly);
+
   const { points, values, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = computeChartLayout(profile, {
     width,
     height,
-    padding: { padLeft, padRight, padTop, padBottom }
+    padding: { padLeft, padRight, padTop, padBottom },
+    intervalMinutes
   });
 
   let minuteIdx = 0;
@@ -104,6 +107,21 @@ const ReadOnlyProfileChart = ({
     const minIdx = calculateMinuteIndexFromX(mouseX, rectWidth, width, padLeft, padRight, chartWidth);
     onSeekMinute?.(minIdx);
   };
+
+  let trafficStatsContent: React.ReactNode;
+  if (hoverData) {
+    trafficStatsContent = (
+      <>Traffic ({hoverData.hourStr}): <strong className="text-blue-400">{hoverData.val.toLocaleString()} visits</strong></>
+    );
+  } else if (isSimulating) {
+    trafficStatsContent = (
+      <>Traffic ({currentPt.hour}): <strong className="text-emerald-400 font-bold">{currentPt.val.toLocaleString()} visits</strong></>
+    );
+  } else {
+    trafficStatsContent = (
+      <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
+    );
+  }
 
   return (
     <div className="p-2.5 rounded-lg border border-blue-500/30 bg-slate-900/60 space-y-1.5" data-testid="profile-chart-preview">
@@ -178,13 +196,7 @@ const ReadOnlyProfileChart = ({
       </div>
 
       <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 pt-0.5 border-t border-slate-800">
-        <span>
-          {hoverData ? (
-            <>Traffic ({hoverData.hourStr}): <strong className="text-blue-400">{hoverData.val.toLocaleString()} visits</strong></>
-          ) : (
-            <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
-          )}
-        </span>
+        <span>{trafficStatsContent}</span>
         <span>Peak: <strong className="text-blue-400">{Math.max(...values).toLocaleString()}</strong></span>
       </div>
     </div>

@@ -149,7 +149,7 @@ describe('simulationManager', () => {
       expect(result).toBe(false);
     });
 
-    it('returns true and stops simulation if all pods pending with runtime EventsEmit', () => {
+    it('returns true and stops simulation after grace period of consecutive unready ticks', () => {
       const set = vi.fn();
       const mockEmit = vi.fn();
       (globalThis as any).runtime = { EventsEmit: mockEmit };
@@ -161,14 +161,17 @@ describe('simulationManager', () => {
       const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
       const interval = { current: setInterval(() => {}, 1000) as any };
 
-      const result = checkEmergencyStop({
-        ticks: 5,
-        workloads,
-        nodes,
-        metrics,
-        set,
-        simulationInterval: interval
-      });
+      let result = false;
+      for (let i = 0; i < 40; i++) {
+        result = checkEmergencyStop({
+          ticks: 5 + i,
+          workloads,
+          nodes,
+          metrics,
+          set,
+          simulationInterval: interval
+        });
+      }
 
       expect(result).toBe(true);
       expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
@@ -176,7 +179,7 @@ describe('simulationManager', () => {
       expect(mockEmit).toHaveBeenCalledWith('detached-closed');
     });
 
-    it('returns true and stops simulation when simulationInterval.current is null without runtime', () => {
+    it('returns true and stops simulation when simulationInterval.current is null without runtime after grace period', () => {
       const set = vi.fn();
       const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
       const nodes = [
@@ -185,14 +188,17 @@ describe('simulationManager', () => {
       const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
       const interval = { current: null };
 
-      const result = checkEmergencyStop({
-        ticks: 5,
-        workloads,
-        nodes,
-        metrics,
-        set,
-        simulationInterval: interval
-      });
+      let result = false;
+      for (let i = 0; i < 40; i++) {
+        result = checkEmergencyStop({
+          ticks: 5 + i,
+          workloads,
+          nodes,
+          metrics,
+          set,
+          simulationInterval: interval
+        });
+      }
 
       expect(result).toBe(true);
       expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
