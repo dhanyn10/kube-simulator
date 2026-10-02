@@ -184,6 +184,8 @@ const ReadOnlyProfileChart = ({
         <span>
           {hoverData ? (
             <>Traffic ({hoverData.hourStr}): <strong className="text-blue-400">{hoverData.val.toLocaleString()} visits</strong></>
+          ) : isSimulating ? (
+            <>Traffic ({currentPt.hour}): <strong className="text-emerald-400 font-bold">{currentPt.val.toLocaleString()} visits</strong></>
           ) : (
             <>Min: <strong className="text-slate-200">{Math.min(...values).toLocaleString()}</strong></>
           )}
