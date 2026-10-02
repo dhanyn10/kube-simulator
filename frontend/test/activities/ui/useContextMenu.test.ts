@@ -119,6 +119,15 @@ describe('useContextMenuHandler', () => {
     });
 
     expect(onClose).toHaveBeenCalledOnce();
+
+    // Key press that is neither ArrowUp/ArrowDown nor Escape/Tab (e.g. Enter or letter key)
+    const otherKeyEvent = mockEvent('Enter');
+    act(() => {
+      result.current.handleMenuKeyDown(otherKeyEvent);
+    });
+    expect(otherKeyEvent.stopPropagation).toHaveBeenCalled();
+    expect(otherKeyEvent.preventDefault).not.toHaveBeenCalled();
+
     document.body.removeChild(container);
   });
 });

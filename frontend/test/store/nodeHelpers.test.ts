@@ -151,6 +151,20 @@ describe('nodeHelpers', () => {
       expect(deployment.width).toBeGreaterThan(0);
       expect(hydrated.filter(n => n.parentId === 'd1')).toHaveLength(1);
     });
+
+    it('handles attached resources nullish/empty checks in calculateDeploymentDimensions', () => {
+      const nodes = [
+        { id: 'd-null', type: 'Deployment', data: { label: 'dep-null', replicas: 1, roles: null, configMaps: undefined, secrets: null, hpas: undefined } },
+        { id: 'd-role-only', type: 'Deployment', data: { label: 'dep-role', replicas: 1, roles: [{ id: 'r1' }] } },
+        { id: 'd-cm-only', type: 'Deployment', data: { label: 'dep-cm', replicas: 1, configMaps: [{ id: 'cm1' }] } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      expect(hydrated.find(n => n.id === 'd-null')).toBeDefined();
+      expect(hydrated.find(n => n.id === 'd-role-only')).toBeDefined();
+      expect(hydrated.find(n => n.id === 'd-cm-only')).toBeDefined();
+    });
   });
 
   describe('syncDeployment', () => {
@@ -175,6 +189,16 @@ describe('nodeHelpers', () => {
 
       expect(updatedDeployment.data.replicas).toBe(0);
       expect(laidOut).toHaveLength(0);
+    });
+
+    it('handles forceRandomize flag in syncDeployment', () => {
+      const deployment = { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 2 } } as any;
+      const pod1 = { id: 'p1', type: 'Pod', parentId: 'd1', data: { label: 'pod-1', podHash: 'old1', replicaSuffix: 'old2' } } as any;
+      const get = () => useFlowStore.getState();
+
+      const { laidOut } = syncDeployment(deployment, [deployment, pod1], 0, get, undefined, true);
+
+      expect(laidOut).toHaveLength(2);
     });
   });
 

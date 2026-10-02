@@ -579,5 +579,43 @@ describe('useInternetProfileModal', () => {
 
       expect(mockSaveInternetProfile).not.toHaveBeenCalled();
     });
+
+    it('skips auto-save timer when isAutoSaveEnabled is set to false', async () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+        result.current.setIsAutoSaveEnabled(false);
+      });
+
+      act(() => {
+        result.current.handleUpdateDetailPoint('02:00', 5000);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      expect(mockSaveInternetProfile).not.toHaveBeenCalled();
+    });
+
+    it('does nothing in executeAutoSave when detailProfile name is empty string', async () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+        result.current.handleUpdateDetailName('');
+      });
+
+      await act(async () => {
+        result.current.handleManualAutoSave();
+      });
+
+      expect(mockSaveInternetProfile).not.toHaveBeenCalled();
+    });
   });
 });
