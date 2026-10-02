@@ -189,6 +189,33 @@ describe('kubechart library', () => {
     expect(ptMin2359.hour).toBe('23:59');
   });
 
+  it('calculates minute point position across sub-hourly 10m point arrays accurately', () => {
+    const subHourly10mProfile = {
+      name: '10m Profile',
+      hourly: {
+        '00:00': 100,
+        '00:10': 200,
+        '12:00': 1000,
+        '23:00': 500
+      }
+    };
+
+    const result = calculateProfileChartData(subHourly10mProfile, 200, 100, { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 }, 10);
+    expect(result.points).toHaveLength(139);
+
+    // Minute 0 -> 00:00 -> x = padLeft (10)
+    const pt0 = calculateMinutePoint(result.points, 0, result.minVal, result.maxVal, result.chartHeight, 10);
+    expect(pt0.x).toBe(10);
+
+    // Minute 690 -> 11:30 AM -> x = padLeft + 0.5 * chartWidth (100)
+    const pt690 = calculateMinutePoint(result.points, 690, result.minVal, result.maxVal, result.chartHeight, 10);
+    expect(pt690.x).toBeCloseTo(100);
+
+    // Minute 1380 -> 23:00 -> x = padLeft + chartWidth (190)
+    const pt1380 = calculateMinutePoint(result.points, 1380, result.minVal, result.maxVal, result.chartHeight, 10);
+    expect(pt1380.x).toBe(190);
+  });
+
   it('computes generic time-series chart layout cleanly', () => {
     const timeSeriesData = [
       { time: '00:00', value: 50 },

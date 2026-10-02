@@ -148,7 +148,7 @@ export function detectProfileInterval(hourly: Record<string, number> = {}): numb
  * Calculates minute-level interpolated point coordinates on a profile chart path.
  */
 export function calculateMinutePoint(
-  points: { x: number; y: number; val: number; hour: string }[],
+  points: { x: number; y: number; val: number; hour: string; minuteIdx?: number }[],
   minuteIndex: number,
   minVal: number,
   maxVal: number,
@@ -160,15 +160,43 @@ export function calculateMinutePoint(
   }
 
   const safeMin = ((Math.floor(minuteIndex) % MINUTES_IN_DAY) + MINUTES_IN_DAY) % MINUTES_IN_DAY;
-  const hour1 = Math.min(22, Math.floor(safeMin / MINUTES_PER_HOUR));
-  const minuteInHour = safeMin - hour1 * MINUTES_PER_HOUR;
-  const fraction = Math.min(1, minuteInHour / MINUTES_PER_HOUR);
 
-  const pt1 = points[hour1] || points[0];
-  const pt2 = points[hour1 + 1] || pt1;
+  const firstMinIdx = points[0].minuteIdx ?? 0;
+  if (safeMin <= firstMinIdx) {
+    const pt = points[0];
+    const range = Math.max(1, maxVal - minVal);
+    const y = padTop + chartHeight - ((pt.val - minVal) / range) * chartHeight;
+    return { x: pt.x, y, val: pt.val, hour: formatMinuteToHHMM(safeMin) };
+  }
 
-  const x = pt1.x + fraction * (pt2.x - pt1.x);
-  const val = Math.round(pt1.val + fraction * (pt2.val - pt1.val));
+  const lastPt = points.at(-1) || points[points.length - 1];
+  const lastMinIdx = lastPt.minuteIdx ?? PROFILE_SPAN_MINUTES;
+  if (safeMin >= lastMinIdx) {
+    const range = Math.max(1, maxVal - minVal);
+    const y = padTop + chartHeight - ((lastPt.val - minVal) / range) * chartHeight;
+    return { x: lastPt.x, y, val: lastPt.val, hour: formatMinuteToHHMM(safeMin) };
+  }
+
+  let pt1 = points[0];
+  let pt2 = lastPt;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const m1 = points[i].minuteIdx ?? Math.round(i * (PROFILE_SPAN_MINUTES / Math.max(1, points.length - 1)));
+    const m2 = points[i + 1].minuteIdx ?? Math.round((i + 1) * (PROFILE_SPAN_MINUTES / Math.max(1, points.length - 1)));
+    if (m1 <= safeMin && m2 >= safeMin) {
+      pt1 = points[i];
+      pt2 = points[i + 1];
+      break;
+    }
+  }
+
+  const m1 = pt1.minuteIdx ?? 0;
+  const m2 = pt2.minuteIdx ?? PROFILE_SPAN_MINUTES;
+  const span = m2 - m1;
+  const frac = span > 0 ? Math.min(1, Math.max(0, (safeMin - m1) / span)) : 0;
+
+  const x = pt1.x + frac * (pt2.x - pt1.x);
+  const val = Math.round(pt1.val + frac * (pt2.val - pt1.val));
 
   const range = Math.max(1, maxVal - minVal);
   const y = padTop + chartHeight - ((val - minVal) / range) * chartHeight;
