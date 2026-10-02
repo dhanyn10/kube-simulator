@@ -75,6 +75,8 @@ export const useInternetProfileModal = (
   const savedStatusTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstDetailRender = useRef<boolean>(true);
   const lastSavedDetailJsonRef = useRef<string>('');
+  const initialDetailProfileNameRef = useRef<string>('');
+  const prevIsOpenRef = useRef<boolean>(false);
 
   const normalizeProfile = useCallback((p: any): InternetProfileItem => {
     if (p.hourly && Object.keys(p.hourly).length > 0) {
@@ -111,14 +113,17 @@ export const useInternetProfileModal = (
     if (isOpen) {
       void fetchProfiles();
       setActiveProfileName(selectedNode?.data?.activeProfileName || '');
-      setViewMode('grid');
-      setIsModifiedCustom(false);
-      setAutoSaveStatus('idle');
+      if (!prevIsOpenRef.current) {
+        setViewMode('grid');
+        setIsModifiedCustom(false);
+        setAutoSaveStatus('idle');
+      }
     } else {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       if (savedStatusTimerRef.current) clearTimeout(savedStatusTimerRef.current);
       setAutoSaveStatus('idle');
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, fetchProfiles, selectedNode]);
 
   const handleStartCustomProfile = () => {
@@ -165,6 +170,7 @@ export const useInternetProfileModal = (
     const target = profiles.find((p) => p.name === profileName) || ECOMMERCE_PROFILE;
     const detailObj = { ...target, hourly: { ...target.hourly } };
     setDetailProfile(detailObj);
+    initialDetailProfileNameRef.current = target.name;
     lastSavedDetailJsonRef.current = JSON.stringify(detailObj);
     setIsModifiedCustom(false);
     isFirstDetailRender.current = true;
@@ -225,7 +231,15 @@ export const useInternetProfileModal = (
 
     await fetchProfiles();
 
-    if (activeProfileName === profileToSave.name || activeProfileName === selectedNode?.data?.activeProfileName) {
+    const isNodeActive = Boolean(
+      activeProfileName && (
+        activeProfileName === profileToSave.name ||
+        activeProfileName === initialDetailProfileNameRef.current
+      )
+    );
+
+    if (isNodeActive) {
+      initialDetailProfileNameRef.current = profileToSave.name;
       setActiveProfileName(profileToSave.name);
       performUpdate({
         connectionProfile: profileToSave,
