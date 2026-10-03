@@ -85,6 +85,23 @@ const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   return connectedPVCs;
 };
 
+const calculateWorkloadReplicaCount = (
+  wNode: Node,
+  connectedWorkloadIds: Set<string>
+): number => {
+  if (wNode.type === 'Deployment' || wNode.type === 'ReplicaSet') {
+    const rep = Number(wNode.data?.replicas);
+    return Number.isNaN(rep) || rep < 1 ? 1 : rep;
+  }
+  if (wNode.type === 'Pod') {
+    const parentId = String(wNode.parentId || wNode.data?.parentId || '');
+    if (!parentId || !connectedWorkloadIds.has(parentId)) {
+      return 1;
+    }
+  }
+  return 0;
+};
+
 /**
  * Calculates total active replicas connected to a PVC node across all connected workloads.
  */
@@ -108,16 +125,8 @@ export const countConnectedPvcReplicas = (
   let totalReplicas = 0;
   for (const wId of connectedWorkloadIds) {
     const wNode = ctx.nodeMap?.get(wId) || ctx.updatedNodes.find(n => n.id === wId) || ctx.nodes.find(n => n.id === wId);
-    if (!wNode) continue;
-
-    if (wNode.type === 'Deployment' || wNode.type === 'ReplicaSet') {
-      const rep = Number(wNode.data?.replicas);
-      totalReplicas += Number.isNaN(rep) || rep < 1 ? 1 : rep;
-    } else if (wNode.type === 'Pod') {
-      const parentId = String(wNode.parentId || wNode.data?.parentId || '');
-      if (!parentId || !connectedWorkloadIds.has(parentId)) {
-        totalReplicas += 1;
-      }
+    if (wNode) {
+      totalReplicas += calculateWorkloadReplicaCount(wNode, connectedWorkloadIds);
     }
   }
 
