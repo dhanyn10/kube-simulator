@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePvcConnectedReplicas, evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
+import {
+  calculatePvcConnectedReplicas,
+  evaluatePvcRealtimeStatus,
+  handlePvcRwoAccessMode,
+  syncPvcRealtimeState,
+} from '@/activities/config/pvcConfigHelpers';
 import { Node, Edge } from '@xyflow/react';
 
 describe('pvcConfigHelpers test suite', () => {
@@ -58,5 +63,44 @@ describe('pvcConfigHelpers test suite', () => {
 
     // Disconnected -> Pending
     expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode], [])).toBe('Pending');
+  });
+
+  it('handlePvcRwoAccessMode evaluates and toggles RWO PVC multi-attach error state and pod statuses', () => {
+    const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
+    const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } };
+    const podNode: Node = { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { status: 'ready', webserver: 'nginx' }, position: { x: 0, y: 0 } };
+    const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} }];
+
+    // 1. When replicas = 3 (> 1), handlePvcRwoAccessMode sets Multi-Attach Error and marks pod pending
+    const resError = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode, podNode], edges);
+    const updatedPvcError = resError.nodes.find((n) => n.id === 'pvc-1');
+    const updatedPodPending = resError.nodes.find((n) => n.id === 'pod-1');
+    expect(updatedPvcError?.data?.pvcStatus).toBe('Multi-Attach Error');
+    expect(updatedPodPending?.data?.status).toBe('pending');
+    expect(resError.edges[0].data?.validationError).toContain('Multi-Attach Error');
+
+    // 2. When replica count is scaled down to 1, handlePvcRwoAccessMode clears error, restores Bound status & ready pod status
+    const depNode1 = { ...depNode, data: { replicas: 1 } };
+    const resBound = handlePvcRwoAccessMode(updatedPvcError!, [updatedPvcError!, depNode1, updatedPodPending!], resError.edges);
+    const updatedPvcBound = resBound.nodes.find((n) => n.id === 'pvc-1');
+    const updatedPodReady = resBound.nodes.find((n) => n.id === 'pod-1');
+    expect(updatedPvcBound?.data?.pvcStatus).toBe('Bound');
+    expect(updatedPodReady?.data?.status).toBe('ready');
+    expect(resBound.edges[0].data?.validationError).toBeUndefined();
+  });
+
+  it('syncPvcRealtimeState dynamically updates PVC status across all PVC nodes on canvas', () => {
+    const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
+    const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } };
+    const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} }];
+
+    const syncedError = syncPvcRealtimeState([pvcNode, depNode], edges);
+    const updatedPvcError = syncedError.nodes.find((n) => n.id === 'pvc-1');
+    expect(updatedPvcError?.data?.pvcStatus).toBe('Multi-Attach Error');
+
+    const depNode1 = { ...depNode, data: { replicas: 1 } };
+    const syncedBound = syncPvcRealtimeState([updatedPvcError!, depNode1], syncedError.edges);
+    const updatedPvcBound = syncedBound.nodes.find((n) => n.id === 'pvc-1');
+    expect(updatedPvcBound?.data?.pvcStatus).toBe('Bound');
   });
 });
