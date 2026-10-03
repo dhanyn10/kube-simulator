@@ -250,6 +250,38 @@ describe('SaveModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
+  it('covers non-autosave file rows, non-matching project ID, and contextMenu item present in light mode', async () => {
+    useFlowStore.setState({
+      colorMode: 'light',
+      currentProject: { id: 999, name: 'Different Project' }, // currentProject.id !== file.id
+    });
+
+    render(<SaveModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Web Architecture')).toBeInTheDocument();
+    });
+
+    const nonAutosaveRow = screen.getByText('Web Architecture').closest('tr')!;
+    expect(nonAutosaveRow.textContent).not.toContain('Auto-Save');
+    expect(nonAutosaveRow.textContent).not.toContain('Active');
+
+    act(() => {
+      fireEvent.contextMenu(nonAutosaveRow);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Load Profile')).toBeInTheDocument();
+    });
+
+    // Test Load Profile click from context menu in light mode
+    await act(async () => {
+      fireEvent.click(screen.getByText('Load Profile'));
+    });
+
+    expect(defaultProps.onClose).toHaveBeenCalled();
+  });
+
   it('renders context menu without Load Profile button when target item is null and handles open folder location on project item', async () => {
     render(<SaveModal {...defaultProps} />);
 

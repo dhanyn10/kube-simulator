@@ -170,6 +170,50 @@ describe('HPANode', () => {
     expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
   });
 
+  it('covers connected edge with missing target node and target deployment with cpuRequest but missing memoryRequest', () => {
+    // 1. Edge targets non-existent node (targetNode is null)
+    const edgeOrphan = { id: 'e-orphan', source: 'h1', target: 'missing-node-id' };
+    useFlowStore.setState({
+      nodes: [],
+      edges: [edgeOrphan]
+    } as any);
+
+    const props = {
+      id: 'h1',
+      type: 'HPA',
+      data: { label: 'My HPA' }
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <HPANode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+
+    // 2. Edge targets Deployment with cpuRequest set but missing memoryRequest
+    const depPartialRequests = {
+      id: 'd-partial',
+      type: 'Deployment',
+      data: { label: 'Partial Requests Dep', cpuRequest: '100m' } // missing memoryRequest
+    };
+    const edgePartial = { id: 'e-partial', source: 'h1', target: 'd-partial' };
+
+    useFlowStore.setState({
+      nodes: [depPartialRequests],
+      edges: [edgePartial]
+    } as any);
+
+    rerender(
+      <ReactFlowProvider>
+        <HPANode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+  });
+
   it('renders load color and bar color as red when currentCPU exceeds targetCPU', () => {
     const props = {
       id: 'h1',

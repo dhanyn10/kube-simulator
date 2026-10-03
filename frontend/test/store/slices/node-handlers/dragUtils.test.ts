@@ -123,4 +123,24 @@ describe('dragUtils', () => {
     const resultMissingOld = handleGenericContainerMove('ns1', pod, [pod, ns], 'missing-old-id', { x: 0, y: 0 }, get);
     expect(resultMissingOld).toBeDefined();
   });
+
+  it('calculateOverlap covers unmeasured container dimension fallbacks and handleGenericContainerMove covers non-Pod with oldParentId', () => {
+    // 1. unmeasured container with Deployment type (320x160 fallback) vs non-Deployment type (600x400 fallback)
+    const node = { id: 'p1', width: 50, height: 50 } as any;
+    const depBareContainer = { id: 'd1', type: 'Deployment', position: { x: 0, y: 0 } } as any;
+    const resDep = calculateOverlap(node, { x: 0, y: 0 }, depBareContainer, [depBareContainer]);
+    expect(resDep.intersects).toBe(true);
+
+    const otherBareContainer = { id: 'c1', type: 'Service', position: { x: 0, y: 0 } } as any;
+    const resOther = calculateOverlap(node, { x: 0, y: 0 }, otherBareContainer, [otherBareContainer]);
+    expect(resOther.intersects).toBe(true);
+
+    // 2. handleGenericContainerMove when oldParentId is set on a non-Pod node
+    const svcNode = { id: 's1', type: 'Service', parentId: 'old-ns', position: { x: 0, y: 0 } } as any;
+    const targetNs = { id: 'new-ns', type: 'Namespace', position: { x: 100, y: 100 } } as any;
+    const getDummy = () => ({}) as any;
+
+    const resSvc = handleGenericContainerMove('new-ns', svcNode, [svcNode, targetNs], 'old-ns', { x: 150, y: 150 }, getDummy);
+    expect(resSvc.find(n => n.id === 's1')?.parentId).toBe('new-ns');
+  });
 });

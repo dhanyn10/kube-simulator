@@ -262,5 +262,20 @@ describe('nodeHelpers', () => {
       const updatedParent = nextNodes.find(n => n.id === 'parent-c');
       expect(updatedParent.width).toBeGreaterThan(300);
     });
+
+    it('covers syncContainerSize for Internet child node, shiftX=0/shiftY=0 positive expansion, and top-level container return', () => {
+      // 1. Container with Internet child (computeChildrenBounds ignores Internet node)
+      const nsContainer = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, width: 100, height: 100 } as any;
+      const internetChild = { id: 'inet1', type: 'Internet', parentId: 'ns1', position: { x: 0, y: 0 } } as any;
+      const resInet = syncContainerSize('ns1', [nsContainer, internetChild]);
+      expect(resInet).toBeDefined();
+
+      // 2. Container expansion on positive coordinates only (shiftX=0 and shiftY=0)
+      const podPosChild = { id: 'p1', type: 'Pod', parentId: 'ns1', position: { x: 200, y: 200 }, width: 100, height: 100 } as any;
+      const resPos = syncContainerSize('ns1', [nsContainer, podPosChild]);
+      const updatedNs = resPos.find(n => n.id === 'ns1');
+      expect(updatedNs.width).toBeGreaterThan(200);
+      expect(updatedNs.position.x).toBe(0); // shiftX == 0
+    });
   });
 });

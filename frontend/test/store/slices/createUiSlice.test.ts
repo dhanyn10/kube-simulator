@@ -939,4 +939,36 @@ describe('createUiSlice', () => {
     const { loadSettingsJson } = useFlowStore.getState();
     await loadSettingsJson();
   });
+
+  it('covers addTerminalLog cap, updateIamUser non-existent ID, and setSimulationSpeed timer restart', () => {
+    const { addTerminalLog, updateIamUser, setSimulationSpeed, startSimulation, stopSimulation } = useFlowStore.getState();
+
+    // 1. addTerminalLog caps at 200 lines
+    for (let i = 0; i < 210; i++) {
+      addTerminalLog('res-cap', `log line ${i}`);
+    }
+    expect(useFlowStore.getState().terminalLogs['res-cap']).toHaveLength(200);
+
+    // 2. updateIamUser with non-existent user ID returns empty state update
+    updateIamUser('non-existent-user-id-999', { username: 'foo' });
+
+    // 3. setSimulationSpeed while simulating restarts simulation timer
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep1' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'd1' }] as any,
+    });
+
+    vi.useFakeTimers();
+    startSimulation();
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+
+    setSimulationSpeed(10);
+    expect(useFlowStore.getState().simulationSpeed).toBe(10);
+
+    stopSimulation();
+    vi.useRealTimers();
+  });
 });

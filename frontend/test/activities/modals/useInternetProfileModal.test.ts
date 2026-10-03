@@ -641,5 +641,27 @@ describe('useInternetProfileModal', () => {
         // Trigger fetchProfiles
       });
     });
+
+    it('covers handleApplyProfile when activeProfileName matches profileName but profileObj is provided', () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      const profileObj: InternetProfileItem = {
+        name: ECOMMERCE_PROFILE.name,
+        hourly: { '00:00': 3000 }
+      };
+
+      act(() => {
+        result.current.handleApplyProfile(ECOMMERCE_PROFILE.name, profileObj);
+      });
+
+      expect(mockPerformUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          activeProfileName: ECOMMERCE_PROFILE.name,
+          traffic: 3000
+        })
+      );
+    });
   });
 });

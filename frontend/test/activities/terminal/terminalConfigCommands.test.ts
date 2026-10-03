@@ -210,5 +210,39 @@ describe('terminalConfigCommands', () => {
       const result = evaluateRbacForCommand('kubectl get pods', mockCtxWithState as any);
       expect(result).toBe(true);
     });
+
+    it('covers checkIamPolicy policy fallback, undefined rule/roles arrays, activeIdentity fallback, and SaveSetting backend IPC in use-context', () => {
+      // 1. User without policies trying delete verb -> false
+      storeState.activeIdentity = 'no_policy_user';
+      storeState.iamUsers.push({ id: 'u-7', username: 'no_policy_user', accessType: 'Managed Access', policies: [] });
+      expect(checkRbacPermission(mockCtx, 'delete', 'pods')).toBe(false);
+
+      // 2. Nodes with non-array roles or undefined rules/assignedUsers for non-admin user
+      const malformedNodesCtx: any = {
+        ...mockCtx,
+        nodes: [
+          { id: 'n1', type: 'Pod', data: { roles: 'not-an-array' } },
+          { id: 'n2', type: 'Pod', data: { roles: [{ name: 'r1' }] } }, // assignedUsers undefined
+          { id: 'n3', type: 'Pod', data: { roles: [{ name: 'r2', assignedUsers: ['budi'] }] } }, // rules undefined
+        ],
+        getStoreState: () => ({ activeIdentity: 'no_policy_user', iamUsers: storeState.iamUsers }),
+      };
+      expect(checkRbacPermission(malformedNodesCtx, 'get', 'pods')).toBe(false);
+
+      // 3. handleKubectlConfigCommand use-context with SaveSetting backend available
+      (globalThis as any).go = {
+        main: {
+          App: {
+            SaveSetting: vi.fn().mockResolvedValue(true),
+          },
+        },
+      };
+
+      const handled = handleKubectlConfigCommand('kubectl config use-context budi', mockCtx);
+      expect(handled).toBe(true);
+      expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('active_identity', 'budi');
+
+      delete (globalThis as any).go;
+    });
   });
 });
