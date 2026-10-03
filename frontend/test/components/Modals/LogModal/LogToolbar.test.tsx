@@ -119,6 +119,21 @@ describe('LogToolbar', () => {
     expect(setIsSelectMenuOpen).toHaveBeenCalledWith(true);
   });
 
+  it('triggers master checkbox click when selectedIds has items', () => {
+    const onHandleSelectAll = vi.fn();
+    const props = {
+      ...defaultProps,
+      selectedIds: new Set(['1']),
+      onHandleSelectAll,
+    };
+
+    render(<LogToolbar {...props} />);
+
+    const masterCheckbox = screen.getByTestId('log-master-checkbox');
+    fireEvent.click(masterCheckbox);
+    expect(onHandleSelectAll).toHaveBeenCalledTimes(1);
+  });
+
   it('renders selection mode controls, master checkbox icon variations, and triggers bulk delete', () => {
     const onBulkDelete = vi.fn();
     const filteredLogs = [

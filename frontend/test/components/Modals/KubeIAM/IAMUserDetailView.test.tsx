@@ -122,6 +122,19 @@ describe('IAMUserDetailView', () => {
     expect(onNavigateToRole).toHaveBeenCalledWith('node-pod-1', 'Web Pod');
   });
 
+  it('renders user summary cards and role table in light mode when inactive', () => {
+    render(
+      <IAMUserDetailView
+        {...defaultProps}
+        isDark={false}
+        isActive={false}
+      />
+    );
+
+    expect(screen.getByText('Never / Inactive')).toBeInTheDocument();
+    expect(screen.getAllByText('developer1').length).toBeGreaterThan(0);
+  });
+
   it('handles undefined user policies and attached roles without nodeType', () => {
     const userWithoutPolicies: KubeIAMUser = {
       ...dummyUser,
