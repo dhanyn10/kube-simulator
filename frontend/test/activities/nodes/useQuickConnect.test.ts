@@ -44,4 +44,44 @@ describe('useQuickConnect', () => {
 
     expect(mockOnQuickConnect).toHaveBeenCalledWith('node-1', 'left');
   });
+
+  it('covers light mode styling, forbidden node, and child pod hidden arrowStyle with early returns', () => {
+    const mockOnQuickConnect = vi.fn();
+    useFlowStore.setState({
+      colorMode: 'light',
+      onQuickConnect: mockOnQuickConnect,
+      activeIdentity: 'system:admin',
+      iamUsers: [],
+      nodes: [
+        { id: 'regular-node', type: 'Pod', data: {} } as any,
+        { id: 'child-pod-1', parentId: 'dep-1', type: 'Pod', data: {} } as any,
+      ],
+    });
+
+    // Light mode node styling
+    const { result: lightResult } = renderHook(() => useQuickConnect('regular-node', 'blue'));
+    expect(lightResult.current.arrowStyle).toContain('bg-blue-500/10');
+
+    // Child pod returns hidden arrowStyle and ignores connection
+    const { result: childResult } = renderHook(() => useQuickConnect('child-pod-1', 'blue'));
+    expect(childResult.current.arrowStyle).toBe('hidden');
+
+    const clickEvent = { stopPropagation: vi.fn() } as any;
+    act(() => {
+      childResult.current.handleConnect('top')(clickEvent);
+    });
+    expect(mockOnQuickConnect).not.toHaveBeenCalled();
+
+    // Forbidden node returns hidden arrowStyle and ignores connection
+    useFlowStore.setState({
+      activeIdentity: 'dev-restricted',
+      iamUsers: [{ id: 'u2', username: 'dev-restricted', accessType: 'Managed Access', policies: [] }],
+    });
+    const { result: forbiddenResult } = renderHook(() => useQuickConnect('regular-node', 'blue'));
+    expect(forbiddenResult.current.arrowStyle).toBe('hidden');
+    act(() => {
+      forbiddenResult.current.handleConnect('bottom')(clickEvent);
+    });
+    expect(mockOnQuickConnect).not.toHaveBeenCalled();
+  });
 });

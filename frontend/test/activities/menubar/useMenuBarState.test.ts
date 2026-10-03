@@ -295,4 +295,35 @@ describe('useMenuBarState', () => {
       releaseUrl: 'https://example.com',
     });
   });
+
+  it('covers Close Simulation monitoring label when isMonitoringOpen is true and History item when right sidebar is already visible', () => {
+    useFlowStore.setState({
+      isMonitoringOpen: true,
+      isMonitoringDetached: false,
+      isRightSidebarVisible: true,
+    });
+
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useMenuBarState(defaultProps));
+
+    const viewMenu = result.current.menuItems.find((m) => m.label === 'View');
+    const monitoringItem = viewMenu?.items.find((i) => i.label === 'Close Simulation');
+    expect(monitoringItem).toBeDefined();
+
+    const historyItem = viewMenu?.items.find((i) => i.label === 'History');
+    act(() => {
+      historyItem?.onClick?.();
+    });
+    expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
+  });
 });

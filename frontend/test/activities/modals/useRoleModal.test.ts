@@ -22,6 +22,12 @@ describe('useRoleModal helpers', () => {
         expect.arrayContaining(['apps', 'batch', 'networking.k8s.io', 'autoscaling', 'storage.k8s.io', 'rbac.authorization.k8s.io', ''])
       );
     });
+
+    it('covers rolebindings, clusterroles, clusterrolebindings and unmapped resources for rbac and core api groups', () => {
+      expect(deriveApiGroupsFromResources(['rolebindings', 'clusterroles', 'clusterrolebindings', 'unknown_res'])).toEqual(
+        expect.arrayContaining(['rbac.authorization.k8s.io', ''])
+      );
+    });
   });
 
   describe('deriveDeploymentResources', () => {

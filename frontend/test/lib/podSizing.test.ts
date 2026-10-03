@@ -84,6 +84,19 @@ describe('podSizing utils', () => {
       const heightMega = calculatePodHeight(dataWithDashed, 168, ['runtime-go'], true);
       expect(heightMega).toBeGreaterThan(height);
     });
+
+    it('covers showDashedProgress false for child Pod with parentReplicas <= 3, and displaySettings.resources = false', () => {
+      const childPodSmallReplicas = {
+        type: 'Pod' as any,
+        parentId: 'dep-1',
+        parentReplicas: 2,
+        replicas: 1,
+        cpuLimit: '100m',
+        displaySettings: { resources: false },
+      };
+      const h = calculatePodHeight(childPodSmallReplicas, 168, [], false);
+      expect(h).toBe(POD_MIN_DIMENSIONS.height);
+    });
   });
 
   describe('getPodMinimumSize', () => {

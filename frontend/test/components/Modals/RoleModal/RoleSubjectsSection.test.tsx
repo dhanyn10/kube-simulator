@@ -136,6 +136,21 @@ describe('RoleSubjectsSection', () => {
     }
   });
 
+  it('covers AssignedUserChip for user missing from iamUsers array in dark mode', () => {
+    const onToggleAssignment = vi.fn();
+    render(
+      <RoleSubjectsSection
+        {...defaultProps}
+        colorMode="dark"
+        iamUsers={dummyUsers}
+        assignedUsers={['missing-user']}
+        onToggleAssignment={onToggleAssignment}
+      />
+    );
+
+    expect(screen.getByText('missing-user')).toBeInTheDocument();
+  });
+
   it('renders default placeholder when assignedUsers is empty and handles light/dark color modes', () => {
     const { rerender } = render(
       <RoleSubjectsSection

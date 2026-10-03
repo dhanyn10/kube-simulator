@@ -106,6 +106,7 @@ describe('useMonitoringDashboardHandler', () => {
     act(() => {
       onMessageCallback?.({ data: { type: 'OTHER_EVENT' } });
     });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
 
     // Trigger runtime event handlers
     act(() => {

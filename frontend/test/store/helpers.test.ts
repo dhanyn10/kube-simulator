@@ -248,4 +248,25 @@ describe('store helpers', () => {
     expect(synced[0].data.replicaSuffix).toBe('s1');
     expect(synced[0].width).toBe(200);
   });
+
+  it('covers getEffectiveSize for Namespace, PodGroup collision skip, and fallback sizes', () => {
+    // 1. getEffectiveSize for Namespace
+    const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;
+    const nsNode2 = { id: 'ns2', type: 'Namespace', position: { x: 10, y: 10 }, data: {} } as any;
+    const resolvedNs = resolveGlobalCollisions([nsNode, nsNode2]);
+    expect(resolvedNs[0].position.x).not.toBe(0);
+
+    // 2. getEffectiveSize for unknown node type (fallback 160x80)
+    const unknownNode1 = { id: 'u1', type: 'UnknownWidget', position: { x: 0, y: 0 }, data: {} } as any;
+    const unknownNode2 = { id: 'u2', type: 'UnknownWidget', position: { x: 5, y: 5 }, data: {} } as any;
+    const resolvedUnknown = resolveGlobalCollisions([unknownNode1, unknownNode2]);
+    expect(resolvedUnknown[0].position.x).not.toBe(0);
+
+    // 3. Collision resolution skips PodGroup parent
+    const pgParent = { id: 'pg1', type: 'PodGroup', position: { x: 0, y: 0 }, data: {} } as any;
+    const pgChild1 = { id: 'p1', parentId: 'pg1', position: { x: 0, y: 0 }, data: {} } as any;
+    const pgChild2 = { id: 'p2', parentId: 'pg1', position: { x: 5, y: 5 }, data: {} } as any;
+    const resolvedPg = resolveGlobalCollisions([pgParent, pgChild1, pgChild2]);
+    expect(resolvedPg.find(n => n.id === 'p1')?.position.x).toBe(0);
+  });
 });

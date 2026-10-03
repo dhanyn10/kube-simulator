@@ -216,4 +216,34 @@ describe('LogToolbar', () => {
     const scopeSelect = screen.getByTestId('log-scope-filter');
     expect(scopeSelect).toBeInTheDocument();
   });
+
+  it('covers empty filteredLogs with debug log levels rendering master square checkbox icon', () => {
+    const debugLogs: any[] = [
+      { id: 'd1', level: 'debug', message: 'debug log', scope: 'System', timestamp: '2025-01-01' },
+    ];
+
+    render(
+      <LogToolbar
+        logs={debugLogs}
+        filteredLogs={[]}
+        selectedIds={new Set()}
+        activeLevelFilter="all"
+        setActiveLevelFilter={vi.fn()}
+        activeScopeFilter="all"
+        setActiveScopeFilter={vi.fn()}
+        availableScopes={['System']}
+        searchQuery=""
+        setSearchQuery={vi.fn()}
+        isSelectMenuOpen={false}
+        setIsSelectMenuOpen={vi.fn()}
+        onHandleSelectAll={vi.fn()}
+        onSelectByType={vi.fn()}
+        onBulkDelete={vi.fn()}
+        onExportLogs={vi.fn()}
+        colorMode="light"
+      />
+    );
+
+    expect(screen.getByTestId('log-master-checkbox')).toBeInTheDocument();
+  });
 });
