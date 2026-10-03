@@ -41,3 +41,30 @@ export const calculatePvcConnectedReplicas = (
 
   return totalReplicas;
 };
+
+/**
+ * Evaluates real-time PVC status based on connected workload replicas and PVC accessMode.
+ *
+ * @param pvcNode - The PVC canvas node object.
+ * @param nodes - List of all canvas nodes.
+ * @param edges - List of all canvas edges.
+ * @returns Status string: 'Multi-Attach Error', 'Bound', or 'Pending'.
+ */
+export const evaluatePvcRealtimeStatus = (
+  pvcNode: Node,
+  nodes: Node[],
+  edges: Edge[]
+): 'Multi-Attach Error' | 'Bound' | 'Pending' => {
+  const connectedReplicas = calculatePvcConnectedReplicas(pvcNode.id, nodes, edges);
+  const accessMode = pvcNode.data?.accessMode || 'ReadWriteOnce';
+
+  if (accessMode === 'ReadWriteOnce' && connectedReplicas > 1) {
+    return 'Multi-Attach Error';
+  }
+
+  if (connectedReplicas > 0) {
+    return 'Bound';
+  }
+
+  return (pvcNode.data?.pvcStatus as 'Bound' | 'Pending') || 'Pending';
+};

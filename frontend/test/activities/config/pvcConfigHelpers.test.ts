@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePvcConnectedReplicas } from '@/activities/config/pvcConfigHelpers';
+import { calculatePvcConnectedReplicas, evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
 import { Node, Edge } from '@xyflow/react';
 
 describe('pvcConfigHelpers test suite', () => {
@@ -42,5 +42,21 @@ describe('pvcConfigHelpers test suite', () => {
 
     const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
     expect(total).toBe(2); // Only dep-1 replicas counted
+  });
+
+  it('evaluatePvcRealtimeStatus evaluates Multi-Attach Error vs Bound vs Pending correctly', () => {
+    const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' }, position: { x: 0, y: 0 } };
+    const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 2 }, position: { x: 0, y: 0 } };
+    const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1' }];
+
+    // Replicas = 2 with RWO -> Multi-Attach Error
+    expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode, depNode], edges)).toBe('Multi-Attach Error');
+
+    // Replicas scaled down to 1 with RWO -> Bound
+    const depNodeScaledDown = { ...depNode, data: { replicas: 1 } };
+    expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode, depNodeScaledDown], edges)).toBe('Bound');
+
+    // Disconnected -> Pending
+    expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode], [])).toBe('Pending');
   });
 });

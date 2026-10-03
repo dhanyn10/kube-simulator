@@ -16,6 +16,7 @@ import {
   createNodeHandlers,
   syncWorkloadMetadata
 } from './nodeUtils';
+import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
 import { formatPodName, safeRandom } from '@/lib/utils';
 import {
   emitLiveScaleCommand,
@@ -239,7 +240,17 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
     } : {})
   };
 
-  const nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
+  let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
+
+  // Responsive real-time PVC status update on PVC accessMode change or connected workload replica changes
+  nextNodes = nextNodes.map((n) => {
+    if (n.type !== 'PVC') return n;
+    const realTimeStatus = evaluatePvcRealtimeStatus(n, nextNodes, get().edges);
+    if (n.data?.pvcStatus !== realTimeStatus) {
+      return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
+    }
+    return n;
+  });
   const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
   set({ nodes: collisionResolvedNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
 
