@@ -164,6 +164,14 @@ describe('useCanvasHandlers hook', () => {
       { padding: 0.2, duration: 800 }
     );
 
+    // Edge click when right sidebar is already visible
+    mockFitBounds.mockClear();
+    useFlowStore.setState({ isRightSidebarVisible: true });
+    act(() => {
+      result.current.onEdgeClick(mockEvent, edge);
+    });
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+
     // Edge click with missing source/target nodes
     mockFitBounds.mockClear();
     const brokenEdge: Edge = { id: 'e-broken', source: 'n-missing-1', target: 'n-missing-2' };
@@ -171,6 +179,93 @@ describe('useCanvasHandlers hook', () => {
       result.current.onEdgeClick(mockEvent, brokenEdge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
+  });
+
+  it('covers fallback node dimensions, container bounds, forbidden node, and null iamUsers in autofocus', () => {
+    // 1. Node without measured or width/height (fallbacks 150/100)
+    const nodeNoDimensions: Node = {
+      id: 'n-nodim',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {},
+    };
+
+    // Container with 0 rect width/height (fallbacks 1024/768)
+    const zeroRectEl = document.createElement('div');
+    zeroRectEl.className = 'react-flow__renderer';
+    Object.defineProperty(zeroRectEl, 'getBoundingClientRect', {
+      value: () => ({ width: 0, height: 0 }),
+    });
+    document.body.appendChild(zeroRectEl);
+
+    useFlowStore.setState({
+      nodes: [nodeNoDimensions],
+      onNodeClick: vi.fn(),
+      isAutofocusEnabled: true,
+      activeIdentity: 'system:admin',
+      iamUsers: undefined,
+    });
+
+    const { result } = renderHook(() => useCanvasHandlers());
+
+    const mockEvent = {} as any;
+    act(() => {
+      result.current.onNodeClick(mockEvent, nodeNoDimensions);
+    });
+
+    expect(mockSetCenter).toHaveBeenCalledWith(75, 50, expect.objectContaining({ duration: 800 }));
+    document.body.removeChild(zeroRectEl);
+
+    // 2. Forbidden node access skips autofocus
+    mockSetCenter.mockClear();
+    const forbiddenNode: Node = {
+      id: 'n-forbidden',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: { namespace: 'restricted-ns' },
+    };
+
+    useFlowStore.setState({
+      nodes: [forbiddenNode],
+      isAutofocusEnabled: true,
+      activeIdentity: 'restricted-user',
+      iamUsers: [
+        {
+          username: 'restricted-user',
+          role: 'custom',
+          policies: [{ name: 'DenyPodPolicy', resources: ['Pod'], namespaces: ['restricted-ns'], action: 'deny' }],
+        },
+      ] as any,
+    });
+
+    act(() => {
+      result.current.onNodeClick(mockEvent, forbiddenNode);
+    });
+
+    expect(mockSetCenter).not.toHaveBeenCalled();
+
+    // 3. Edge click with source/target nodes having no measured or width/height (fallbacks 150/100)
+    const srcNoDim: Node = { id: 's1', position: { x: 0, y: 0 }, data: {} };
+    const tgtNoDim: Node = { id: 't1', position: { x: 200, y: 200 }, data: {} };
+    const edgeNoDim: Edge = { id: 'e-nodim', source: 's1', target: 't1' };
+
+    useFlowStore.setState({
+      nodes: [srcNoDim, tgtNoDim],
+      edges: [edgeNoDim],
+      isAutofocusEnabled: true,
+      setConfiguringEdgeId: vi.fn(),
+    });
+
+    const { result: edgeResult } = renderHook(() => useCanvasHandlers());
+
+    act(() => {
+      edgeResult.current.onEdgeClick(mockEvent, edgeNoDim);
+    });
+
+    expect(mockFitBounds).toHaveBeenCalledWith(
+      { x: 0, y: 0, width: 350, height: 300 },
+      { padding: 0.2, duration: 800 }
+    );
   });
 
   it('handles handleExport and generates YAML', async () => {

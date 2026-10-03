@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { IngressNode } from '@/components/Nodes/Ingress';
+import '@testing-library/jest-dom';
 import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
 
@@ -81,5 +82,23 @@ describe('IngressNode', () => {
 
     expect(screen.queryByText(/host:/)).toBeNull();
     expect(screen.queryByText('Path')).toBeNull();
+  });
+
+  it('renders host text styling in light colorMode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const props = {
+      id: 'i1',
+      type: 'Ingress',
+      data: { label: 'My Ingress Light' }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <IngressNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    const hostEl = screen.getByText(/host: example.local/);
+    expect(hostEl).toHaveClass('text-slate-500');
   });
 });

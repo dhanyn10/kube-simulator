@@ -211,4 +211,32 @@ describe('HPAConfig', () => {
     const updatedDep = useFlowStore.getState().nodes.find(n => n.id === 'dep1');
     expect(updatedDep?.data.cpuRequest).toBe('100m');
   });
+
+  it('handles Fix automatically when connected target is not a Deployment', () => {
+    const podNode = {
+      id: 'pod1',
+      type: 'Pod',
+      data: { label: 'My Pod' }
+    };
+    useFlowStore.setState({
+      nodes: [selectedNode, podNode],
+      edges: [{ id: 'e1', source: 'hpa1', target: 'pod1' }]
+    });
+
+    render(
+      <HPAConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('MISSING RESOURCE REQUESTS')).toBeDefined();
+    const fixBtn = screen.getByText('Fix automatically');
+    fireEvent.click(fixBtn);
+
+    const updatedPod = useFlowStore.getState().nodes.find(n => n.id === 'pod1');
+    expect(updatedPod?.data.cpuRequest).toBeUndefined();
+  });
 });
