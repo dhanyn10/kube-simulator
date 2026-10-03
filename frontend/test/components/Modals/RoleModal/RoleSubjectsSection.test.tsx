@@ -42,6 +42,7 @@ describe('RoleSubjectsSection', () => {
     render(<RoleSubjectsSection {...defaultProps} iamUsers={dummyUsers} />);
 
     expect(screen.getByText('dev-alice')).toBeInTheDocument();
+    expect(screen.getByText('(Full Access)')).toBeInTheDocument();
 
     const input = screen.getByPlaceholderText('Add user...');
     fireEvent.focus(input);

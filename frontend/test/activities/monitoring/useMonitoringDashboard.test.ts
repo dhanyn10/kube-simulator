@@ -146,5 +146,11 @@ describe('useMonitoringDashboardHandler', () => {
       onMessageCallback?.({ data: { type: 'DETACHED_OPEN' } });
     });
     expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+
+    // BroadcastChannel message with DETACHED_CLOSED when runtime is undefined
+    act(() => {
+      onMessageCallback?.({ data: { type: 'DETACHED_CLOSED' } });
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
   });
 });

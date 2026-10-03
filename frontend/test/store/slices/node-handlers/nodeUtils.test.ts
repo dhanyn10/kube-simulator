@@ -248,5 +248,11 @@ describe('nodeUtils', () => {
     // syncWorkloadMetadata with webserver provided but runtime undefined
     const wsOnlyWorkload = syncWorkloadMetadata('Deployment', { webserver: 'nginx' } as any);
     expect(wsOnlyWorkload.status).toBe('ready');
+
+    // applyAutoImageLogic when data.runtime and targetData.runtime are both undefined (testing rightmost fallback operand ?? 'none')
+    const targetNoRt = { label: 'pod', image: '', isAutoImage: true } as any;
+    const resNoRt = applyAutoImageLogic(targetNoRt, { webserver: 'apache' });
+    expect(resNoRt.image).toBe('httpd:latest');
+    expect(resNoRt.isAutoImage).toBe(true);
   });
 });

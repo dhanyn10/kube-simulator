@@ -150,4 +150,55 @@ describe('LogToolbar', () => {
     rerender(<LogToolbar {...propsAll} />);
     expect(screen.getByTestId('log-selection-count')).toHaveTextContent('2 selected');
   });
+
+  it('covers fatal log level counting, partial selection checkbox icon, and select menu dropdown options', () => {
+    const onSelectByType = vi.fn();
+    const setIsSelectMenuOpen = vi.fn();
+
+    const logs: any[] = [
+      { id: '1', level: 'fatal', message: 'fatal log', scope: 'UI', timestamp: '2025-01-01' },
+      { id: '2', level: 'info', message: 'info log', scope: 'UI', timestamp: '2025-01-01' },
+      { id: '3', level: 'warn', message: 'warn log', scope: 'UI', timestamp: '2025-01-01' },
+      { id: '4', level: 'error', message: 'error log', scope: 'UI', timestamp: '2025-01-01' },
+      { id: '5', level: 'other', message: 'other log', scope: 'UI', timestamp: '2025-01-01' },
+    ];
+
+    const filteredLogs = logs;
+    const selectedIds = new Set(['1']); // 1 selected out of 5 -> isSomeSelected = true
+
+    render(
+      <LogToolbar
+        logs={logs}
+        filteredLogs={filteredLogs}
+        selectedIds={selectedIds}
+        activeLevelFilter="all"
+        setActiveLevelFilter={vi.fn()}
+        activeScopeFilter="all"
+        setActiveScopeFilter={vi.fn()}
+        availableScopes={['UI', 'Backend']}
+        searchQuery=""
+        setSearchQuery={vi.fn()}
+        isSelectMenuOpen={true}
+        setIsSelectMenuOpen={setIsSelectMenuOpen}
+        onHandleSelectAll={vi.fn()}
+        onSelectByType={onSelectByType}
+        onBulkDelete={vi.fn()}
+        onExportLogs={vi.fn()}
+        colorMode="dark"
+      />
+    );
+
+    // Verify select menu dropdown options click
+    const errorSelectOption = screen.getByTestId('log-select-error');
+    fireEvent.click(errorSelectOption);
+    expect(onSelectByType).toHaveBeenCalledWith('error');
+
+    const noneSelectOption = screen.getByTestId('log-select-none');
+    fireEvent.click(noneSelectOption);
+    expect(onSelectByType).toHaveBeenCalledWith('none');
+
+    // Verify scope filter option selection
+    const scopeSelect = screen.getByTestId('log-scope-filter');
+    expect(scopeSelect).toBeInTheDocument();
+  });
 });
