@@ -164,6 +164,23 @@ describe('IAMUserDetailView', () => {
     expect(screen.queryByText('(Pod)')).not.toBeInTheDocument();
   });
 
+  it('handles editing profile when activeIdentity matches user username and updates active identity', () => {
+    useFlowStore.setState({ activeIdentity: 'developer1' });
+    const setActiveIdentity = vi.spyOn(useFlowStore.getState(), 'setActiveIdentity');
+
+    render(<IAMUserDetailView {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit Profile/i }));
+
+    const usernameInput = screen.getByDisplayValue('developer1');
+    fireEvent.change(usernameInput, { target: { value: 'dev_new_active' } });
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Update User/i }));
+
+    expect(setActiveIdentity).toHaveBeenCalledWith('dev_new_active');
+  });
+
   it('handles attached roles with undefined createdAt and single word nodeId', () => {
     const rolesWithoutCreatedAt = [
       {

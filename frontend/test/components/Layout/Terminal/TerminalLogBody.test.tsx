@@ -108,4 +108,60 @@ describe('TerminalLogBody', () => {
     expect(screen.getByText('$ kubectl get pods')).toBeInTheDocument();
     expect(screen.getByText('web-pod Running')).toBeInTheDocument();
   });
+
+  it('renders empty states in light mode for activity and logs tabs', () => {
+    const { rerender } = render(
+      <TerminalLogBody
+        isSimulating={false}
+        terminalActiveTab="activity"
+        activeLogs={[]}
+        loggableResources={[]}
+        paginatedLogs={[]}
+        searchQuery=""
+        colorMode="light"
+        startSimulation={vi.fn()}
+        currentPage={1}
+        pageSize={25}
+      />
+    );
+
+    expect(screen.getByText('Terminal Idle')).toBeInTheDocument();
+
+    rerender(
+      <TerminalLogBody
+        isSimulating={true}
+        terminalActiveTab="logs"
+        activeLogs={[]}
+        loggableResources={[]}
+        paginatedLogs={[]}
+        searchQuery=""
+        colorMode="light"
+        startSimulation={vi.fn()}
+        currentPage={1}
+        pageSize={25}
+      />
+    );
+
+    expect(screen.getByText('No Loggable Resources')).toBeInTheDocument();
+  });
+
+  it('calculates actualIndex correctly when terminalActiveTab is logs', () => {
+    const mockResource = [{ id: 'pod-1', type: 'Pod' }] as any;
+    render(
+      <TerminalLogBody
+        isSimulating={true}
+        terminalActiveTab="logs"
+        activeLogs={Array.from({ length: 30 }, (_, i) => `log line ${i}`)}
+        loggableResources={mockResource}
+        paginatedLogs={['log line 25']}
+        searchQuery=""
+        colorMode="dark"
+        startSimulation={vi.fn()}
+        currentPage={2}
+        pageSize={25}
+      />
+    );
+
+    expect(screen.getByText('log line 25')).toBeInTheDocument();
+  });
 });

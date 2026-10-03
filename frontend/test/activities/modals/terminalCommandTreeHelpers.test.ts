@@ -64,4 +64,26 @@ describe('terminalCommandTreeHelpers', () => {
     expect(result).toHaveLength(1);
     expect(result[0].command).toBeUndefined();
   });
+
+  it('handles whitespace search strings and child node matches', () => {
+    // 1. Whitespace search string returns all nodes
+    const resultSpace = filterCommandTree(COMMAND_TREE_DATA, '   ');
+    expect(resultSpace).toHaveLength(COMMAND_TREE_DATA.length);
+
+    // 2. Parent node does not match, but child matches term
+    const customParentWithChildren = [
+      {
+        id: 'p1',
+        name: 'unrelated-parent',
+        description: 'no match',
+        children: [{ id: 'c1', name: 'target-child', description: 'match term' }]
+      }
+    ];
+
+    const result = filterCommandTree(customParentWithChildren, 'target-child');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('p1');
+    expect(result[0].children).toHaveLength(1);
+    expect(result[0].children![0].id).toBe('c1');
+  });
 });

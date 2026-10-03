@@ -208,6 +208,28 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows).toHaveLength(0);
   });
 
+  it('evaluates activeRow, filteredKeys, and filteredValues when activeDropdown is null or rowId is non-matching', () => {
+    const { result } = renderHook(() => useConfigMapModal(defaultProps));
+
+    act(() => {
+      result.current.handleAddRow();
+    });
+
+    expect(result.current.activeDropdown).toBeNull();
+    expect(result.current.activeRow).toBeUndefined();
+    expect(result.current.filteredKeys).toEqual([]);
+    expect(result.current.filteredValues).toEqual([]);
+
+    // Removing a non-active row ID preserves activeDropdown
+    act(() => {
+      result.current.setActiveDropdown({ rowId: 'row-99', field: 'value' });
+    });
+    act(() => {
+      result.current.handleRemoveRow('non-existent-row-id');
+    });
+    expect(result.current.activeDropdown).toEqual({ rowId: 'row-99', field: 'value' });
+  });
+
   it('handleSave builds ConfigMap item and calls onSave and onClose with initialConfigMap id', () => {
     const onClose = vi.fn();
     const onSave = vi.fn();

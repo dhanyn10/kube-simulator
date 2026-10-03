@@ -71,6 +71,21 @@ describe('clipboardHandlers', () => {
     expect(updateNodeData).toHaveBeenCalledWith('dep-1', { replicas: 1 });
   });
 
+  it('tryIncrementPodReplicas handles non-Pod target node with no replicas in data fallback', () => {
+    const clipboardPod: Node = { id: 'clip-pod-nonpod', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'app-pod' } };
+    const selectedPod: Node = { id: 'clip-pod-nonpod', parentId: 'parent-svc', selected: true, type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'app-pod' } };
+
+    const updateNodeData = vi.fn();
+    useFlowStore.setState({
+      clipboard: { nodes: [clipboardPod], edges: [] },
+      nodes: [selectedPod],
+      updateNodeData,
+    });
+
+    useFlowStore.getState().pasteNodes();
+    expect(updateNodeData).toHaveBeenCalledWith('clip-pod-nonpod', { replicas: 2 });
+  });
+
   it('pasteNodes increments pod replicas when pasting matching selected pod', () => {
     const updateSpy = vi.fn();
     const podNode: Node = { id: 'pod1', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: { label: 'pod1', replicas: 1 } };

@@ -43,6 +43,16 @@ describe('ConfigUI uncovered conditions', () => {
     expect(screen.getByText('Child Content')).toBeInTheDocument();
   });
 
+  it('covers ConfigSection with isYamlEnabled=false and icon omitted', () => {
+    // ConfigSection without Icon and with isYamlEnabled=false
+    render(
+      <ConfigSection title="No Icon Section" isYamlEnabled={false} onYamlToggle={vi.fn()}>
+        <div>Child Section</div>
+      </ConfigSection>
+    );
+    expect(screen.getByText('No Icon Section')).toBeInTheDocument();
+  });
+
   it('covers AdvancedSection toggle open and colorMode branches', () => {
     const { rerender } = render(<AdvancedSection colorMode="dark"><div>Advanced Content</div></AdvancedSection>);
     const toggleBtn = screen.getByText('Advanced Options');

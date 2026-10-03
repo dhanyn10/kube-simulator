@@ -238,5 +238,20 @@ describe('DeploymentNode', () => {
     );
 
     expect(screen.getByText('Detach Dep')).toBeDefined();
+
+    // 3. Default state with no hover or detaching
+    const defaultPropsNode = {
+      id: 'd-default',
+      type: 'Deployment',
+      data: { label: 'Default Dep', isHovered: false, isDetaching: false }
+    } as any;
+
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode {...defaultPropsNode} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Default Dep')).toBeDefined();
   });
 });

@@ -214,5 +214,56 @@ describe('simulationManager', () => {
       broadcastMetrics({ 'd1': [] }, [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node]);
       expect(mockEmit).toHaveBeenCalledWith('metrics-update', expect.any(String));
     });
+
+    it('handles workload without replicas property falling back to 1', () => {
+      const mockEmit = vi.fn();
+      (globalThis as any).runtime = { EventsEmit: mockEmit };
+
+      const workloadNoReplicas = { id: 'd-noreps', data: { label: 'noreps' }, position: { x: 0, y: 0 } } as unknown as Node;
+      broadcastMetrics({ 'd-noreps': [] }, [workloadNoReplicas]);
+
+      expect(mockEmit).toHaveBeenCalledWith(
+        'metrics-update',
+        expect.stringContaining('"replicas":1')
+      );
+    });
+  });
+
+  describe('uncovered fallback branches', () => {
+    it('handles pauseSimulation and stopSimulation when interval ref is null', () => {
+      const setFn = vi.fn();
+      const intervalRef = { current: null };
+
+      pauseSimulation(setFn, intervalRef);
+      expect(setFn).toHaveBeenCalledWith({ isSimulating: false, isPaused: true });
+
+      const getFn = vi.fn().mockReturnValue({ nodes: [{ id: 'other', type: 'Pod', data: {} }] });
+      stopSimulation(setFn, getFn, intervalRef);
+      expect(setFn).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
+    });
+
+    it('checkEmergencyStop returns false when activeWorkloads is empty after tick 3', () => {
+      const result = checkEmergencyStop({
+        ticks: 10,
+        workloads: [{ id: 'w1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} }], // no metrics -> activeWorkloads empty
+        nodes: [],
+        metrics: {},
+        set: vi.fn(),
+        simulationInterval: { current: null }
+      });
+      expect(result).toBe(false);
+    });
+
+    it('validateHpaTargets returns false when cpuLimit is present but memoryLimit is missing', () => {
+      const nodes: Node[] = [
+        { id: 'hpa1', type: 'HPA', data: {}, position: { x: 0, y: 0 } } as Node,
+        { id: 'dep1', type: 'Deployment', data: { label: 'web', cpuLimit: '500m' }, position: { x: 0, y: 0 } } as Node, // memoryLimit missing
+      ];
+      const edges: Edge[] = [
+        { id: 'e1', source: 'hpa1', target: 'dep1' } as Edge,
+      ];
+
+      expect(validateHpaTargets(nodes, edges)).toBe(false);
+    });
   });
 });

@@ -219,4 +219,22 @@ describe('createLogSlice', () => {
     const slice = createLogSlice(setStore as any, getStore as any, {} as any);
     expect(slice.logs).toEqual([]);
   });
+
+  it('covers initial isLogToastVisible state based on stored log levels and non-important addLog level', () => {
+    // 1. Initial logs with error/warn/fatal set isLogToastVisible to true
+    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: '1', level: 'fatal', message: 'Fatal' }]));
+    const sliceWithFatal = createLogSlice(setStore as any, getStore as any, {} as any);
+    expect(sliceWithFatal.isLogToastVisible).toBe(true);
+
+    // 2. Initial logs with info level set isLogToastVisible to false
+    sessionStorage.setItem('k8s_sim_logs', JSON.stringify([{ id: '2', level: 'info', message: 'Info' }]));
+    const sliceWithInfo = createLogSlice(setStore as any, getStore as any, {} as any);
+    expect(sliceWithInfo.isLogToastVisible).toBe(false);
+
+    // 3. addLog with non-important level ('info') does not alter isLogToastVisible when false
+    storeState = { logs: [], isLogToastVisible: false };
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    slice.addLog('info', 'non-important info');
+    expect(storeState.isLogToastVisible).toBe(false);
+  });
 });

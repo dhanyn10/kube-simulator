@@ -230,4 +230,74 @@ describe('useCustomEdge & edge helpers', () => {
       expect.stringContaining('is not in ready state')
     );
   });
+
+  it('handles label fallbacks for unreadyNode id and props.target in useCustomEdge onAlertClick', () => {
+    const addActivityLog = vi.fn();
+    const mockEvent = { stopPropagation: vi.fn() } as any;
+
+    // Case 1: unreadyNode has no label, falls back to unreadyNode.id
+    const unreadyNoLabel = { id: 'pod-id-only', type: 'Pod', data: { status: 'pending' } };
+    useFlowStore.setState({
+      activeSimulationEdges: ['e1'],
+      nodes: [
+        { id: 'src', type: 'Service', data: { label: 'SrcSvc' } },
+        unreadyNoLabel,
+      ] as any,
+      edges: [{ id: 'e1', source: 'src', target: 'pod-id-only' }] as any,
+      addActivityLog,
+    });
+
+    const { result: res1 } = renderHook(() =>
+      useCustomEdge({
+        id: 'e1',
+        source: 'src',
+        target: 'pod-id-only',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    act(() => {
+      res1.current.onAlertClick(mockEvent);
+    });
+    expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('pod-id-only'));
+
+    // Case 2: unreadyNode has no label, falls back to unreadyNode.id ('target-fallback-id')
+    addActivityLog.mockClear();
+    const unreadyNoLabelTarget = { id: 'target-fallback-id', type: 'Pod', data: { status: 'pending' } };
+    useFlowStore.setState({
+      activeSimulationEdges: ['e2'],
+      nodes: [
+        { id: 'src2', type: 'Service', data: { label: 'Src2' } },
+        unreadyNoLabelTarget,
+      ] as any,
+      edges: [{ id: 'e2', source: 'src2', target: 'target-fallback-id' }] as any,
+      addActivityLog,
+    });
+
+    const { result: res2 } = renderHook(() =>
+      useCustomEdge({
+        id: 'e2',
+        source: 'src2',
+        target: 'target-fallback-id',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    act(() => {
+      res2.current.onAlertClick(mockEvent);
+    });
+    expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('target-fallback-id'));
+  });
 });

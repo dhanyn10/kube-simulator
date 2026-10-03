@@ -310,10 +310,18 @@ describe('MenuBar', () => {
       });
     });
 
-    render(<MenuBar {...defaultProps} />);
+    const { container } = render(<MenuBar {...defaultProps} />);
 
     const badge = screen.getByTestId('bell-error-badge');
     expect(badge).toHaveTextContent('99+');
+    expect(container.firstChild).toHaveClass('bg-slate-50');
+  });
+
+  it('handles non-File label in onMenuClick callback without calling onSave', async () => {
+    render(<MenuBar {...defaultProps} />);
+
+    fireEvent.click(screen.getByText('Resource'));
+    expect(defaultProps.onSave).not.toHaveBeenCalled();
   });
 
   it('toggles theme mode, sidebar, and autofocus', () => {
