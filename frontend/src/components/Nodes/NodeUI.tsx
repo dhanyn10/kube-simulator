@@ -1,4 +1,3 @@
-
 import { Settings, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
@@ -36,7 +35,15 @@ export const NodeActionButtons = ({
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        onDelete?.();
+        if (onDelete) {
+          onDelete();
+        } else {
+          const store = useFlowStore.getState();
+          const node = store.nodes.find((n) => n.id === id);
+          if (node) {
+            store.deleteNodes([node]);
+          }
+        }
       }}
       className={cn(
         "p-1 rounded transition-all",
