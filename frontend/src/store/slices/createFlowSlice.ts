@@ -222,6 +222,17 @@ const rerouteRoleConnection = (
   return undefined;
 };
 
+const rerouteChildPodConnection = (
+  podNode: Node | undefined,
+  nodes: Node[]
+): Node | undefined => {
+  if (podNode?.type === 'Pod' && (podNode.parentId || podNode.data?.parentId)) {
+    const parentId = String(podNode.parentId || podNode.data?.parentId);
+    return nodes.find((n) => n.id === parentId && (n.type === 'Deployment' || n.type === 'ReplicaSet'));
+  }
+  return undefined;
+};
+
 const checkHpaPrerequisite = (
   sourceNode: Node | undefined,
   targetNode: Node | undefined,
@@ -344,6 +355,18 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     ) {
       addLog('warn', `[API Server Auth] Connection rejected: User "${activeIdentity}" cannot connect forbidden card(s).`, 'UI');
       return;
+    }
+
+    const sourceChildParent = rerouteChildPodConnection(sourceNode, nodes);
+    if (sourceChildParent) {
+      sourceId = sourceChildParent.id;
+      sourceNode = sourceChildParent;
+    }
+
+    const targetChildParent = rerouteChildPodConnection(targetNode, nodes);
+    if (targetChildParent) {
+      targetId = targetChildParent.id;
+      targetNode = targetChildParent;
     }
 
     if (sourceNode?.type === 'Role') {

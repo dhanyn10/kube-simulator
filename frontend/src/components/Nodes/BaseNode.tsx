@@ -138,6 +138,8 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     displayLabel,
   } = useBaseNodeHandler({ id, data, selected, color, statusOverride });
 
+  const isChildPod = Boolean(data.parentId || (data as any).parentId);
+
   return (
     <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200 relative")}>
       <ForbiddenOverlay nodeType={data.type || title} data={data} />
@@ -166,7 +168,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         .animate-pulse-slow { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         .animate-crash-blink { animation: crash-blink 0.4s ease-in-out infinite; }
       `}</style>
-      <QuickConnectArrows nodeId={id} color={color} />
+      {!isChildPod && <QuickConnectArrows nodeId={id} color={color} />}
 
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -204,14 +206,18 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         <AttachedResourcesFooter data={data} />
       </div>
 
-      <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-      <Handle type="source" position={Position.Top} id="top-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-      <Handle type="target" position={Position.Bottom} id="bottom-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-      <Handle type="source" position={Position.Bottom} id="bottom-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-      <Handle type="target" position={Position.Left} id="left-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
-      <Handle type="source" position={Position.Left} id="left-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-      <Handle type="target" position={Position.Right} id="right-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
-      <Handle type="source" position={Position.Right} id="right-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+      {!isChildPod && (
+        <>
+          <Handle type="target" position={Position.Top} id="top-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+          <Handle type="source" position={Position.Top} id="top-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
+          <Handle type="target" position={Position.Bottom} id="bottom-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
+          <Handle type="source" position={Position.Bottom} id="bottom-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+          <Handle type="target" position={Position.Left} id="left-t" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+          <Handle type="source" position={Position.Left} id="left-s" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
+          <Handle type="target" position={Position.Right} id="right-t" className={cn("!w-2 !h-2 !border-none !opacity-0", `!bg-${color}-500`)} />
+          <Handle type="source" position={Position.Right} id="right-s" className={cn("!w-2 !h-2 !border-none", `!bg-${color}-500`)} />
+        </>
+      )}
     </div>
   );
 });
