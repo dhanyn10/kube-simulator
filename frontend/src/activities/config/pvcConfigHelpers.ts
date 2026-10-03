@@ -30,7 +30,7 @@ export const calculatePvcConnectedReplicas = (
 
     if (node.type === 'Deployment' || node.type === 'ReplicaSet') {
       const rep = Number(node.data?.replicas);
-      totalReplicas += isNaN(rep) || rep < 1 ? 1 : rep;
+      totalReplicas += Number.isNaN(rep) || rep < 1 ? 1 : rep;
     } else if (node.type === 'Pod') {
       // Only count standalone Pods if they don't have a parent Deployment already counted
       if (!node.data?.parentId || !connectedNodeIds.has(String(node.data.parentId))) {
@@ -95,11 +95,14 @@ export const handlePvcRwoAccessMode = (
   let nodesChanged = false;
   let edgesChanged = false;
 
-  const targetPvcStatus = isMultiAttachConflict
-    ? 'Multi-Attach Error'
-    : connectedReplicas > 0
-    ? 'Bound'
-    : 'Pending';
+  let targetPvcStatus: 'Multi-Attach Error' | 'Bound' | 'Pending';
+  if (isMultiAttachConflict) {
+    targetPvcStatus = 'Multi-Attach Error';
+  } else if (connectedReplicas > 0) {
+    targetPvcStatus = 'Bound';
+  } else {
+    targetPvcStatus = 'Pending';
+  }
 
   if (pvcNode.data?.pvcStatus !== targetPvcStatus) {
     nodesChanged = true;
@@ -121,18 +124,18 @@ export const handlePvcRwoAccessMode = (
     : undefined;
 
   updatedEdges = updatedEdges.map((edge) => {
-    if (edge.source === pvcNode.id || edge.target === pvcNode.id) {
-      if (isMultiAttachConflict) {
-        if (edge.data?.validationError !== errorMsg) {
-          edgesChanged = true;
-          return { ...edge, data: { ...edge.data, validationError: errorMsg } };
-        }
-      } else {
-        if (edge.data?.validationError?.includes('Multi-Attach Error')) {
-          edgesChanged = true;
-          return { ...edge, data: { ...edge.data, validationError: undefined } };
-        }
+    if (edge.source !== pvcNode.id && edge.target !== pvcNode.id) {
+      return edge;
+    }
+
+    if (isMultiAttachConflict) {
+      if (edge.data?.validationError !== errorMsg) {
+        edgesChanged = true;
+        return { ...edge, data: { ...edge.data, validationError: errorMsg } };
       }
+    } else if (edge.data?.validationError?.includes('Multi-Attach Error')) {
+      edgesChanged = true;
+      return { ...edge, data: { ...edge.data, validationError: undefined } };
     }
     return edge;
   });

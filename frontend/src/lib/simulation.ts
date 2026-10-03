@@ -112,7 +112,7 @@ export const countConnectedPvcReplicas = (
 
     if (wNode.type === 'Deployment' || wNode.type === 'ReplicaSet') {
       const rep = Number(wNode.data?.replicas);
-      totalReplicas += isNaN(rep) || rep < 1 ? 1 : rep;
+      totalReplicas += Number.isNaN(rep) || rep < 1 ? 1 : rep;
     } else if (wNode.type === 'Pod') {
       const parentId = String(wNode.parentId || wNode.data?.parentId || '');
       if (!parentId || !connectedWorkloadIds.has(parentId)) {
@@ -192,6 +192,42 @@ const resolvePvcMultiAttachError = (
  * Checks PVC binding status and access mode limits for connected workload nodes,
  * marking pods as pending and triggering Multi-Attach Error if ReadWriteOnce limits are exceeded.
  */
+const evaluateSingleConnectedPvc = (
+  pvc: Node,
+  childPods: Node[],
+  ctx: SimulationContext
+): { hasChanges: boolean; isBlocked: boolean } => {
+  let hasChanges = false;
+  let isBlocked = false;
+
+  const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
+  const { totalReplicas, connectedEdges } = countConnectedPvcReplicas(pvc, ctx);
+
+  if (accessMode === 'ReadWriteOnce' && totalReplicas > 1) {
+    if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, childPods, ctx)) {
+      hasChanges = true;
+    }
+    return { hasChanges, isBlocked: true };
+  }
+
+  if (resolvePvcMultiAttachError(pvc, connectedEdges, ctx)) {
+    hasChanges = true;
+  }
+
+  const currentPvcNode = ctx.updatedNodes.find(n => n.id === pvc.id) || pvc;
+  if (currentPvcNode.data?.pvcStatus !== 'Bound') {
+    const unboundResult = handleUnboundPvcs([currentPvcNode], childPods, ctx);
+    if (unboundResult.hasChanges) hasChanges = true;
+    isBlocked = true;
+  }
+
+  return { hasChanges, isBlocked };
+};
+
+/**
+ * Checks PVC binding status and access mode limits for connected workload nodes,
+ * marking pods as pending and triggering Multi-Attach Error if ReadWriteOnce limits are exceeded.
+ */
 export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
   const connectedPVCs = findConnectedPVCs(dep, ctx);
@@ -204,27 +240,9 @@ export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChang
   let isBlocked = false;
 
   for (const pvc of connectedPVCs) {
-    const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
-    const { totalReplicas, connectedEdges } = countConnectedPvcReplicas(pvc, ctx);
-
-    if (accessMode === 'ReadWriteOnce' && totalReplicas > 1) {
-      if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, childPods, ctx)) {
-        hasChanges = true;
-      }
-      isBlocked = true;
-      continue;
-    }
-
-    if (resolvePvcMultiAttachError(pvc, connectedEdges, ctx)) {
-      hasChanges = true;
-    }
-
-    const currentPvcNode = ctx.updatedNodes.find(n => n.id === pvc.id) || pvc;
-    if (currentPvcNode.data?.pvcStatus !== 'Bound') {
-      const unboundResult = handleUnboundPvcs([currentPvcNode], childPods, ctx);
-      if (unboundResult.hasChanges) hasChanges = true;
-      isBlocked = true;
-    }
+    const res = evaluateSingleConnectedPvc(pvc, childPods, ctx);
+    if (res.hasChanges) hasChanges = true;
+    if (res.isBlocked) isBlocked = true;
   }
 
   if (!isBlocked) {

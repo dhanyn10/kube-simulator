@@ -19,16 +19,19 @@ export const PVCNode = memo((props: NodeProps) => {
     accessText = 'RWX';
   }
 
+  let statusBadgeStyle = "bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse";
+  if (isMultiAttachError) {
+    statusBadgeStyle = "bg-red-500/20 text-red-500 border border-red-500/30 animate-pulse";
+  } else if (isBound) {
+    statusBadgeStyle = "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30";
+  }
+
   return (
     <SimpleResourceNode {...props} title="PVC" icon={Database} color="orange">
       <div className="flex items-center gap-1.5 mb-1.5">
         <div className={cn(
           "px-1.5 py-0.5 rounded-full text-[7px] font-bold uppercase tracking-wider",
-          isMultiAttachError
-            ? "bg-red-500/20 text-red-500 border border-red-500/30 animate-pulse"
-            : isBound
-            ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30"
-            : "bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse"
+          statusBadgeStyle
         )}>
           {data.pvcStatus || 'Pending'}
         </div>
