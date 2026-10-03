@@ -411,6 +411,44 @@ export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext):
   return false;
 };
 
+interface ProfileMinutePoint {
+  minute: number;
+  val: number;
+}
+
+const parseProfileMinutePoints = (hourly: Record<string, number>): ProfileMinutePoint[] => {
+  const points = Object.keys(hourly)
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { minute: (h || 0) * 60 + (m || 0), val: Number(hourly[k]) };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
+  if (points.length > 0 && !points.some((k) => k.minute === 1440)) {
+    const min0 = points.find((k) => k.minute === 0) || points[0];
+    points.push({ minute: 1440, val: min0.val });
+  }
+  return points;
+};
+
+const findBoundingMinutePoints = (
+  points: ProfileMinutePoint[],
+  safeMinute: number
+): { prev: ProfileMinutePoint; next: ProfileMinutePoint } => {
+  let prev = points[0];
+  let next = points.at(-1)!;
+
+  for (const item of points) {
+    if (item.minute <= safeMinute && item.minute >= prev.minute) {
+      prev = item;
+    }
+    if (item.minute >= safeMinute && item.minute <= next.minute) {
+      next = item;
+    }
+  }
+  return { prev, next };
+};
+
 /**
  * Calculates linear interpolated traffic for a given minute index (0..1439).
  */
@@ -427,33 +465,10 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
     return hourly[exactKey];
   }
 
-  const existingMinuteKeys = Object.keys(hourly)
-    .map((k) => {
-      const [h, m] = k.split(':').map(Number);
-      return { minute: (h || 0) * 60 + (m || 0), val: Number(hourly[k]) };
-    })
-    .sort((a, b) => a.minute - b.minute);
-
+  const existingMinuteKeys = parseProfileMinutePoints(hourly);
   if (existingMinuteKeys.length === 0) return 1000;
 
-  // Append 24:00 (1440) endpoint wrapping back to 00:00 for continuous 24h loop
-  if (!existingMinuteKeys.some((k) => k.minute === 1440)) {
-    const min0 = existingMinuteKeys.find((k) => k.minute === 0) || existingMinuteKeys[0];
-    existingMinuteKeys.push({ minute: 1440, val: min0.val });
-  }
-
-  let prev = existingMinuteKeys[0];
-  let next = existingMinuteKeys.at(-1)!;
-
-  for (const item of existingMinuteKeys) {
-    if (item.minute <= safeMinute && item.minute >= prev.minute) {
-      prev = item;
-    }
-    if (item.minute >= safeMinute && item.minute <= next.minute) {
-      next = item;
-    }
-  }
-
+  const { prev, next } = findBoundingMinutePoints(existingMinuteKeys, safeMinute);
   if (prev.minute === next.minute) {
     return prev.val;
   }
