@@ -6,6 +6,7 @@ import { SelectorGroup } from '@/components/UI/SelectorGroup';
 import { RUNTIMES, WEBSERVERS } from '@/constants/config';
 import { cn } from '@/lib/utils';
 import { FrameworkSelector } from '@/components/Workload/FrameworkSelector';
+import { WorkloadAdvancedConfig } from '@/components/Workload/WorkloadAdvancedConfig';
 import { useWorkloadConfigHandler } from '@/activities/config';
 
 interface WorkloadConfigProps {
@@ -114,6 +115,13 @@ export const WorkloadConfig = ({
           />
         </>
       )}
+
+      <WorkloadAdvancedConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
     </div>
   );
 };

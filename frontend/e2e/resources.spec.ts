@@ -7,22 +7,22 @@ test.describe('Workload Resource Validation', () => {
   });
 
   test('disables request options higher than current limit', async ({ page }) => {
-    // Add a Pod node from sidebar
-    await page.getByText('Pod', { exact: true }).first().click();
+    // Add a Pod node
+    await page.getByRole('button', { name: 'Pod', exact: false }).first().click();
 
     const podNode = page.locator('.react-flow__node-Pod');
     await expect(podNode).toBeVisible();
 
-    // Open Config Panel by clicking the pod node
+    // Open Config Panel by clicking the node
     await podNode.click();
 
-    // Open Resource Limits modal by clicking Attach/Configure Resource Limit button
-    await page.getByRole('button', { name: /Resource Limit/i }).first().click();
+    // Verify RightSidebar has the config
+    await expect(page.locator('h3').filter({ hasText: /POD CONFIG/i })).toBeVisible();
 
-    // Verify Resource Limit modal is visible
-    await expect(page.getByText('Configure CPU and Memory limits/requests')).toBeVisible();
+    // Open Advanced Options to reveal Resource Settings
+    await page.getByText('Advanced Options').click();
 
-    // Set CPU Limit to 250m
+    // Set CPU Limit to 250m (CPU Limit is first group)
     await page.getByRole('button', { name: '250m' }).first().click();
 
     // CPU Request options higher than 250m (500m, 1 Core, 2 Cores in CPU Request group) should be disabled
