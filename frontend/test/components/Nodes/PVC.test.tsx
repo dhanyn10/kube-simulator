@@ -84,4 +84,25 @@ describe('PVCNode', () => {
 
     expect(screen.getByText('RWX')).toBeDefined();
   });
+
+  it('renders Multi-Attach Error status badge and warning icon', () => {
+    const props = {
+      id: 'pvc1',
+      type: 'PVC',
+      data: {
+        label: 'My PVC',
+        accessMode: 'ReadWriteOnce',
+        pvcStatus: 'Multi-Attach Error'
+      }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <PVCNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Multi-Attach Error')).toBeDefined();
+    expect(screen.getByText('RWO')).toBeDefined();
+  });
 });

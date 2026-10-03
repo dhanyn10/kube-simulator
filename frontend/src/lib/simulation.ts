@@ -69,12 +69,14 @@ const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   const connectedPVCs: Node[] = [];
 
   for (const wId of workloadIds) {
-    const outgoing = ctx.edgeMap?.get(wId);
-    if (!outgoing) continue;
+    const outgoing = ctx.edgeMap?.get(wId) || [];
+    const incoming = ctx.targetEdgeMap?.get(wId) || [];
+    const allEdges = [...outgoing, ...incoming];
 
-    for (const edge of outgoing) {
-      const targetNode = ctx.nodeMap?.get(String(edge.target));
-      if (targetNode?.type === 'PVC') {
+    for (const edge of allEdges) {
+      const otherId = edge.source === wId ? edge.target : edge.source;
+      const targetNode = ctx.nodeMap?.get(String(otherId)) || ctx.nodes.find(n => n.id === String(otherId));
+      if (targetNode?.type === 'PVC' && !connectedPVCs.some(p => p.id === targetNode.id)) {
         connectedPVCs.push(targetNode);
       }
     }
@@ -83,8 +85,157 @@ const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   return connectedPVCs;
 };
 
+const calculateWorkloadReplicaCount = (
+  wNode: Node,
+  connectedWorkloadIds: Set<string>
+): number => {
+  if (wNode.type === 'Deployment' || wNode.type === 'ReplicaSet') {
+    const rep = Number(wNode.data?.replicas);
+    return Number.isNaN(rep) || rep < 1 ? 1 : rep;
+  }
+  if (wNode.type === 'Pod') {
+    const parentId = String(wNode.parentId || wNode.data?.parentId || '');
+    if (!parentId || !connectedWorkloadIds.has(parentId)) {
+      return 1;
+    }
+  }
+  return 0;
+};
+
 /**
- * Checks PVC binding status for connected workload nodes, marking pods as pending if PVC is unbound.
+ * Calculates total active replicas connected to a PVC node across all connected workloads.
+ */
+export const countConnectedPvcReplicas = (
+  pvc: Node,
+  ctx: SimulationContext
+): { totalReplicas: number; connectedEdges: Edge[] } => {
+  const connectedEdges: Edge[] = [];
+  const connectedWorkloadIds = new Set<string>();
+
+  for (const edge of ctx.edges) {
+    if (edge.source === pvc.id) {
+      connectedEdges.push(edge);
+      connectedWorkloadIds.add(edge.target);
+    } else if (edge.target === pvc.id) {
+      connectedEdges.push(edge);
+      connectedWorkloadIds.add(edge.source);
+    }
+  }
+
+  let totalReplicas = 0;
+  for (const wId of connectedWorkloadIds) {
+    const wNode = ctx.nodeMap?.get(wId) || ctx.updatedNodes.find(n => n.id === wId) || ctx.nodes.find(n => n.id === wId);
+    if (wNode) {
+      totalReplicas += calculateWorkloadReplicaCount(wNode, connectedWorkloadIds);
+    }
+  }
+
+  return { totalReplicas, connectedEdges };
+};
+
+const handlePvcMultiAttachError = (
+  pvc: Node,
+  totalReplicas: number,
+  connectedEdges: Edge[],
+  childPods: Node[],
+  ctx: SimulationContext
+): boolean => {
+  let hasChanges = false;
+  const errorMsg = `Multi-Attach Error: Volume "${pvc.data?.label || pvc.id}" (ReadWriteOnce) cannot be mounted by ${totalReplicas} replicas simultaneously`;
+
+  if (pvc.data?.pvcStatus !== 'Multi-Attach Error') {
+    if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Multi-Attach Error' })) {
+      hasChanges = true;
+    }
+    try {
+      ctx.get()?.addLog?.('error', `[PVC Multi-Attach Error] ${errorMsg}. Workload pods set to Pending!`, 'Simulation');
+    } catch (e) {
+      logger.error('[PVC Simulation] Failed to add log', e);
+    }
+  }
+
+  for (const edge of connectedEdges) {
+    if (edge.data?.validationError !== errorMsg) {
+      edge.data = { ...edge.data, validationError: errorMsg };
+      hasChanges = true;
+    }
+  }
+
+  for (const pod of childPods) {
+    if (pod.data?.status === 'ready') {
+      if (updateNodeData(ctx, pod.id, { status: 'pending' })) {
+        hasChanges = true;
+      }
+    }
+  }
+
+  return hasChanges;
+};
+
+const resolvePvcMultiAttachError = (
+  pvc: Node,
+  connectedEdges: Edge[],
+  ctx: SimulationContext
+): boolean => {
+  let hasChanges = false;
+  if (pvc.data?.pvcStatus === 'Multi-Attach Error') {
+    if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Bound' })) {
+      hasChanges = true;
+    }
+    for (const edge of connectedEdges) {
+      if (edge.data?.validationError?.includes('Multi-Attach Error')) {
+        edge.data = { ...edge.data, validationError: undefined };
+        hasChanges = true;
+      }
+    }
+    try {
+      ctx.get()?.addLog?.('info', `[PVC Multi-Attach Resolved] Multi-Attach conflict resolved for volume "${pvc.data?.label || pvc.id}".`, 'Simulation');
+    } catch (e) {
+      logger.error('[PVC Simulation] Failed to add log', e);
+    }
+  }
+  return hasChanges;
+};
+
+/**
+ * Checks PVC binding status and access mode limits for connected workload nodes,
+ * marking pods as pending and triggering Multi-Attach Error if ReadWriteOnce limits are exceeded.
+ */
+const evaluateSingleConnectedPvc = (
+  pvc: Node,
+  childPods: Node[],
+  ctx: SimulationContext
+): { hasChanges: boolean; isBlocked: boolean } => {
+  let hasChanges = false;
+  let isBlocked = false;
+
+  const accessMode = pvc.data?.accessMode || 'ReadWriteOnce';
+  const { totalReplicas, connectedEdges } = countConnectedPvcReplicas(pvc, ctx);
+
+  if (accessMode === 'ReadWriteOnce' && totalReplicas > 1) {
+    if (handlePvcMultiAttachError(pvc, totalReplicas, connectedEdges, childPods, ctx)) {
+      hasChanges = true;
+    }
+    return { hasChanges, isBlocked: true };
+  }
+
+  if (resolvePvcMultiAttachError(pvc, connectedEdges, ctx)) {
+    hasChanges = true;
+  }
+
+  const currentPvcNode = ctx.updatedNodes.find(n => n.id === pvc.id) || pvc;
+  if (currentPvcNode.data?.pvcStatus !== 'Bound') {
+    const unboundResult = handleUnboundPvcs([currentPvcNode], childPods, ctx);
+    if (unboundResult.hasChanges) hasChanges = true;
+    isBlocked = true;
+  }
+
+  return { hasChanges, isBlocked };
+};
+
+/**
+ * Checks PVC binding status and access mode limits for connected workload nodes,
+ * marking pods as pending and triggering Multi-Attach Error if ReadWriteOnce limits are exceeded.
  */
 export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean } => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
@@ -94,11 +245,21 @@ export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChang
     return { hasChanges: false, isBlocked: false };
   }
 
-  const hasUnboundPVC = connectedPVCs.some(pvc => pvc.data.pvcStatus !== 'Bound');
+  let hasChanges = false;
+  let isBlocked = false;
 
-  return hasUnboundPVC
-    ? handleUnboundPvcs(connectedPVCs, childPods, ctx)
-    : handleBoundPvcs(childPods, ctx);
+  for (const pvc of connectedPVCs) {
+    const res = evaluateSingleConnectedPvc(pvc, childPods, ctx);
+    if (res.hasChanges) hasChanges = true;
+    if (res.isBlocked) isBlocked = true;
+  }
+
+  if (!isBlocked) {
+    const boundResult = handleBoundPvcs(childPods, ctx);
+    if (boundResult.hasChanges) hasChanges = true;
+  }
+
+  return { hasChanges, isBlocked };
 };
 
 /**
@@ -128,7 +289,7 @@ export const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx:
   let hasChanges = false;
 
   connectedPVCs.forEach(pvc => {
-    if (pvc.data.pvcStatus !== 'Bound' && safeRandom() > 0.7) {
+    if (pvc.data.pvcStatus !== 'Bound' && pvc.data.pvcStatus !== 'Multi-Attach Error' && safeRandom() > 0.7) {
       if (updateNodeData(ctx, pvc.id, { pvcStatus: 'Bound' })) hasChanges = true;
     }
   });
@@ -259,6 +420,44 @@ export const isInternetConnectionRed = (internet: Node, ctx: SimulationContext):
   return false;
 };
 
+interface ProfileMinutePoint {
+  minute: number;
+  val: number;
+}
+
+const parseProfileMinutePoints = (hourly: Record<string, number>): ProfileMinutePoint[] => {
+  const points = Object.keys(hourly)
+    .map((k) => {
+      const [h, m] = k.split(':').map(Number);
+      return { minute: (h || 0) * 60 + (m || 0), val: Number(hourly[k]) };
+    })
+    .sort((a, b) => a.minute - b.minute);
+
+  if (points.length > 0 && !points.some((k) => k.minute === 1440)) {
+    const min0 = points.find((k) => k.minute === 0) || points[0];
+    points.push({ minute: 1440, val: min0.val });
+  }
+  return points;
+};
+
+const findBoundingMinutePoints = (
+  points: ProfileMinutePoint[],
+  safeMinute: number
+): { prev: ProfileMinutePoint; next: ProfileMinutePoint } => {
+  let prev = points[0];
+  let next = points.at(-1)!;
+
+  for (const item of points) {
+    if (item.minute <= safeMinute && item.minute >= prev.minute) {
+      prev = item;
+    }
+    if (item.minute >= safeMinute && item.minute <= next.minute) {
+      next = item;
+    }
+  }
+  return { prev, next };
+};
+
 /**
  * Calculates linear interpolated traffic for a given minute index (0..1439).
  */
@@ -275,33 +474,10 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
     return hourly[exactKey];
   }
 
-  const existingMinuteKeys = Object.keys(hourly)
-    .map((k) => {
-      const [h, m] = k.split(':').map(Number);
-      return { minute: (h || 0) * 60 + (m || 0), val: Number(hourly[k]) };
-    })
-    .sort((a, b) => a.minute - b.minute);
-
+  const existingMinuteKeys = parseProfileMinutePoints(hourly);
   if (existingMinuteKeys.length === 0) return 1000;
 
-  // Append 24:00 (1440) endpoint wrapping back to 00:00 for continuous 24h loop
-  if (!existingMinuteKeys.some((k) => k.minute === 1440)) {
-    const min0 = existingMinuteKeys.find((k) => k.minute === 0) || existingMinuteKeys[0];
-    existingMinuteKeys.push({ minute: 1440, val: min0.val });
-  }
-
-  let prev = existingMinuteKeys[0];
-  let next = existingMinuteKeys.at(-1)!;
-
-  for (const item of existingMinuteKeys) {
-    if (item.minute <= safeMinute && item.minute >= prev.minute) {
-      prev = item;
-    }
-    if (item.minute >= safeMinute && item.minute <= next.minute) {
-      next = item;
-    }
-  }
-
+  const { prev, next } = findBoundingMinutePoints(existingMinuteKeys, safeMinute);
   if (prev.minute === next.minute) {
     return prev.val;
   }

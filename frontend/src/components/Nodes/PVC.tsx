@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
-import { Database } from 'lucide-react';
+import { Database, AlertTriangle } from 'lucide-react';
 import { SimpleResourceNode } from './SimpleResourceNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
@@ -10,6 +10,7 @@ export const PVCNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
   const isBound = data.pvcStatus === 'Bound';
+  const isMultiAttachError = data.pvcStatus === 'Multi-Attach Error';
 
   let accessText = 'RWO';
   if (data.accessMode === 'ReadOnlyMany') {
@@ -18,14 +19,19 @@ export const PVCNode = memo((props: NodeProps) => {
     accessText = 'RWX';
   }
 
+  let statusBadgeStyle = "bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse";
+  if (isMultiAttachError) {
+    statusBadgeStyle = "bg-red-500/20 text-red-500 border border-red-500/30 animate-pulse";
+  } else if (isBound) {
+    statusBadgeStyle = "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30";
+  }
+
   return (
     <SimpleResourceNode {...props} title="PVC" icon={Database} color="orange">
       <div className="flex items-center gap-1.5 mb-1.5">
         <div className={cn(
           "px-1.5 py-0.5 rounded-full text-[7px] font-bold uppercase tracking-wider",
-          isBound
-            ? "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30"
-            : "bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse"
+          statusBadgeStyle
         )}>
           {data.pvcStatus || 'Pending'}
         </div>
@@ -37,8 +43,15 @@ export const PVCNode = memo((props: NodeProps) => {
         </div>
         <div className="flex justify-between items-center text-[9px] font-mono">
           <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>access:</span>
-          <span className="text-orange-500 font-bold" title={data.accessMode || 'ReadWriteOnce'}>
+          <span
+            className={cn(
+              "font-bold flex items-center gap-1",
+              isMultiAttachError ? "text-red-500 animate-pulse" : "text-orange-500"
+            )}
+            title={data.accessMode || 'ReadWriteOnce'}
+          >
             {accessText}
+            {isMultiAttachError && <AlertTriangle size={10} className="text-red-500 shrink-0" />}
           </span>
         </div>
       </div>

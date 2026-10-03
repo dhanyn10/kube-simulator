@@ -19,6 +19,7 @@ import {
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
+import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -222,6 +223,17 @@ const rerouteRoleConnection = (
   return undefined;
 };
 
+const rerouteChildPodConnection = (
+  podNode: Node | undefined,
+  nodes: Node[]
+): Node | undefined => {
+  if (podNode?.type === 'Pod' && (podNode.parentId || podNode.data?.parentId)) {
+    const parentId = String(podNode.parentId || podNode.data?.parentId);
+    return nodes.find((n) => n.id === parentId && (n.type === 'Deployment' || n.type === 'ReplicaSet'));
+  }
+  return undefined;
+};
+
 const checkHpaPrerequisite = (
   sourceNode: Node | undefined,
   targetNode: Node | undefined,
@@ -346,6 +358,18 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       return;
     }
 
+    const sourceChildParent = rerouteChildPodConnection(sourceNode, nodes);
+    if (sourceChildParent) {
+      sourceId = sourceChildParent.id;
+      sourceNode = sourceChildParent;
+    }
+
+    const targetChildParent = rerouteChildPodConnection(targetNode, nodes);
+    if (targetChildParent) {
+      targetId = targetChildParent.id;
+      targetNode = targetChildParent;
+    }
+
     if (sourceNode?.type === 'Role') {
       const parentDep = rerouteRoleConnection(targetNode, nodes);
       if (parentDep) {
@@ -385,7 +409,18 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
       isAdded = true;
       const nextEdges = addEdge(newEdge, state.edges);
-      const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+      let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+
+      // Responsive real-time PVC status sync when edge connection is established
+      syncedNodes = syncedNodes.map((n) => {
+        if (n.type !== 'PVC') return n;
+        const realTimeStatus = evaluatePvcRealtimeStatus(n, syncedNodes, nextEdges);
+        if (n.data?.pvcStatus !== realTimeStatus) {
+          return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
+        }
+        return n;
+      });
+
       return {
         edges: nextEdges,
         nodes: syncedNodes,

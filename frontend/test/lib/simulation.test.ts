@@ -478,4 +478,86 @@ describe('simulation test suite', () => {
     expect(cmStatusChaos.isBlocked).toBe(true);
     expect(ctx.updatedNodes.find(n => n.id === 'pod-cm-test')?.data.status).toBe('crashing');
   });
+
+  describe('PVC Multi-Attach simulation tests', () => {
+    it('detects RWO multi-attach conflict when connected replicas > 1', () => {
+      const pvc = createNode('pvc-rwo', 'PVC', { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' });
+      const dep = createNode('d-multi', 'Deployment', { replicas: 3, status: 'ready' });
+      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'ready' });
+      const edge = { id: 'e-pvc', source: 'd-multi', target: 'pvc-rwo', data: {} } as Edge;
+
+      const addLogMock = vi.fn();
+      const ctx = getMockCtx({
+        nodes: [dep, pod1, pvc],
+        edges: [edge],
+        get: vi.fn().mockReturnValue({ addLog: addLogMock }),
+        edgeMap: new Map([['d-multi', [edge]]]),
+        targetEdgeMap: new Map([['pvc-rwo', [edge]]]),
+        nodeMap: new Map([['d-multi', dep], ['pod-m1', pod1], ['pvc-rwo', pvc]]),
+        childPodMap: new Map([['d-multi', [pod1]]])
+      });
+      ctx.updatedNodes = [dep, pod1, pvc];
+      ctx.nodeIndexMap = new Map([['d-multi', 0], ['pod-m1', 1], ['pvc-rwo', 2]]);
+
+      const res = checkPvcReadiness(dep, ctx);
+
+      expect(res.isBlocked).toBe(true);
+      expect(ctx.updatedNodes[2].data.pvcStatus).toBe('Multi-Attach Error');
+      expect(edge.data?.validationError).toContain('Multi-Attach Error');
+      expect(ctx.updatedNodes[1].data.status).toBe('pending');
+      expect(addLogMock).toHaveBeenCalledWith('error', expect.stringContaining('Multi-Attach Error'), 'Simulation');
+    });
+
+    it('resolves RWO multi-attach conflict when replicas scale down to 1', () => {
+      const pvc = createNode('pvc-rwo', 'PVC', { accessMode: 'ReadWriteOnce', pvcStatus: 'Multi-Attach Error' });
+      const dep = createNode('d-multi', 'Deployment', { replicas: 1, status: 'pending' });
+      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'pending', webserver: 'nginx' });
+      const edge = { id: 'e-pvc', source: 'd-multi', target: 'pvc-rwo', data: { validationError: 'Multi-Attach Error' } } as Edge;
+
+      const addLogMock = vi.fn();
+      const ctx = getMockCtx({
+        nodes: [dep, pod1, pvc],
+        edges: [edge],
+        get: vi.fn().mockReturnValue({ addLog: addLogMock }),
+        edgeMap: new Map([['d-multi', [edge]]]),
+        targetEdgeMap: new Map([['pvc-rwo', [edge]]]),
+        nodeMap: new Map([['d-multi', dep], ['pod-m1', pod1], ['pvc-rwo', pvc]]),
+        childPodMap: new Map([['d-multi', [pod1]]])
+      });
+      ctx.updatedNodes = [dep, pod1, pvc];
+      ctx.nodeIndexMap = new Map([['d-multi', 0], ['pod-m1', 1], ['pvc-rwo', 2]]);
+
+      const res = checkPvcReadiness(dep, ctx);
+
+      expect(res.isBlocked).toBe(false);
+      expect(ctx.updatedNodes[2].data.pvcStatus).toBe('Bound');
+      expect(edge.data?.validationError).toBeUndefined();
+      expect(ctx.updatedNodes[1].data.status).toBe('ready');
+      expect(addLogMock).toHaveBeenCalledWith('info', expect.stringContaining('Multi-Attach conflict resolved'), 'Simulation');
+    });
+
+    it('allows ReadWriteMany (RWX) and ReadOnlyMany (ROX) with multiple replicas', () => {
+      const pvcRwx = createNode('pvc-rwx', 'PVC', { accessMode: 'ReadWriteMany', pvcStatus: 'Bound' });
+      const dep = createNode('d-multi', 'Deployment', { replicas: 5, status: 'ready' });
+      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'pending', webserver: 'nginx' });
+      const edge = { id: 'e-pvc', source: 'd-multi', target: 'pvc-rwx', data: {} } as Edge;
+
+      const ctx = getMockCtx({
+        nodes: [dep, pod1, pvcRwx],
+        edges: [edge],
+        edgeMap: new Map([['d-multi', [edge]]]),
+        targetEdgeMap: new Map([['pvc-rwx', [edge]]]),
+        nodeMap: new Map([['d-multi', dep], ['pod-m1', pod1], ['pvc-rwx', pvcRwx]]),
+        childPodMap: new Map([['d-multi', [pod1]]])
+      });
+      ctx.updatedNodes = [dep, pod1, pvcRwx];
+      ctx.nodeIndexMap = new Map([['d-multi', 0], ['pod-m1', 1], ['pvc-rwx', 2]]);
+
+      const res = checkPvcReadiness(dep, ctx);
+
+      expect(res.isBlocked).toBe(false);
+      expect(ctx.updatedNodes[2].data.pvcStatus).toBe('Bound');
+      expect(ctx.updatedNodes[1].data.status).toBe('ready');
+    });
+  });
 });

@@ -12,6 +12,7 @@ export function useQuickConnect(nodeId: string, color: string = 'blue') {
   const iamUsers = useFlowStore((state) => state.iamUsers);
 
   const isForbidden = isNodeAccessForbidden(activeIdentity, iamUsers || [], node?.type, node?.data, nodes);
+  const isChildPod = Boolean(node?.parentId || node?.data?.parentId);
 
   let colorClasses = `bg-${color}-500/10 hover:bg-${color}-500/20 text-${color}-600 focus:ring-${color}-500/30`;
   if (colorMode === 'dark') {
@@ -23,13 +24,13 @@ export function useQuickConnect(nodeId: string, color: string = 'blue') {
     colorClasses
   );
 
-  if (isForbidden) {
+  if (isForbidden || isChildPod) {
     arrowStyle = 'hidden';
   }
 
   const handleConnect = (direction: 'top' | 'right' | 'bottom' | 'left') => (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
-    if (isForbidden) return;
+    if (isForbidden || isChildPod) return;
     if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
     onQuickConnect(nodeId, direction);
   };

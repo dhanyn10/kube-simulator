@@ -5,7 +5,8 @@ import { K8sNodeData } from '@/types';
  */
 export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefined, color: string, colorMode: 'dark' | 'light') => {
   const effectiveStatus = statusOverride || data.status;
-  const isPending = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'pending';
+  const isPvcMultiAttachError = data.type === 'PVC' && data.pvcStatus === 'Multi-Attach Error';
+  const isPending = ((data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'pending') || isPvcMultiAttachError;
   const isReady = (data.type === 'Pod' || data.type === 'Deployment') && effectiveStatus === 'ready';
   const isCrashing = effectiveStatus === 'crashing';
 
