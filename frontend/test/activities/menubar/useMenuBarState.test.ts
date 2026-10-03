@@ -174,6 +174,38 @@ describe('useMenuBarState', () => {
     });
   });
 
+  it('handles update check returning updateAvailable false or null sysInfo version', async () => {
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockResolvedValue(null),
+            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: false }),
+          },
+        },
+      },
+    };
+
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useMenuBarState(defaultProps));
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(result.current.effectiveUpdateInfo).toBeNull();
+  });
+
   it('handles Resource Save for new/unsaved project (onOpenProjects fallback) and UpdateProject returning false', async () => {
     const defaultProps = {
       onExportYaml: vi.fn(),

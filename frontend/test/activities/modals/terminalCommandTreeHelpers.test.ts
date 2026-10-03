@@ -40,6 +40,7 @@ describe('terminalCommandTreeHelpers', () => {
     const customNodes = [
       { id: 'custom-parent', name: 'parent-node', children: [{ id: 'custom-child', name: 'child-item' }] },
       { id: 'custom-leaf', name: 'no-desc-leaf', command: 'custom cmd' },
+      { id: 'no-prop-node', name: 'xyz', command: undefined, description: undefined },
     ];
 
     const result = filterCommandTree(customNodes, 'child');
@@ -49,6 +50,10 @@ describe('terminalCommandTreeHelpers', () => {
     const cmdResult = filterCommandTree(customNodes, 'custom cmd');
     expect(cmdResult).toHaveLength(1);
     expect(cmdResult[0].id).toBe('custom-leaf');
+
+    const noPropResult = filterCommandTree(customNodes, 'xyz');
+    expect(noPropResult).toHaveLength(1);
+    expect(noPropResult[0].id).toBe('no-prop-node');
   });
 
   it('omits command property when command parameter is omitted in LeafSpec', () => {

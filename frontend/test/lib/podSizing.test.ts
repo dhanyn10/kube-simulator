@@ -108,6 +108,23 @@ describe('podSizing utils', () => {
       });
       expect(sizeWithNone.width).toBeGreaterThan(0);
       expect(sizeWithNone.height).toBeGreaterThan(0);
+
+      // Explicit false displaySettings for runtime/webserver and falsy runtime/webserver values
+      const sizeDisabledBadges = getPodMinimumSize({
+        label: 'app-disabled',
+        runtime: 'go',
+        webserver: 'apache',
+        displaySettings: { runtime: false, webserver: false },
+      });
+      expect(sizeDisabledBadges.width).toBeGreaterThan(0);
+
+      const sizeFalsyValues = getPodMinimumSize({
+        label: 'app-falsy',
+        runtime: '',
+        webserver: '',
+        displaySettings: { runtime: true, webserver: true },
+      });
+      expect(sizeFalsyValues.width).toBeGreaterThan(0);
     });
   });
 });

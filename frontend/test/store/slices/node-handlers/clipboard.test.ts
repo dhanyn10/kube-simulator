@@ -40,6 +40,37 @@ describe('clipboardHandlers', () => {
     expect(useFlowStore.getState().nodes).toEqual([]);
   });
 
+  it('tryIncrementPodReplicas handles zero initial replicas on controller target and standalone pod target', () => {
+    const clipboardPod: Node = { id: 'clip-pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'worker-pod' } };
+
+    // Controller parent exists but targetNode data.replicas is undefined/0 (non-Pod target fallback to 0)
+    const parentDep: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'dep' }, // no replicas field -> defaults to 0
+    };
+
+    const childPod: Node = {
+      id: 'clip-pod-1',
+      parentId: 'dep-1',
+      type: 'Pod',
+      selected: true,
+      position: { x: 0, y: 0 },
+      data: { label: 'worker-pod' },
+    };
+
+    const updateNodeData = vi.fn();
+    useFlowStore.setState({
+      clipboard: { nodes: [clipboardPod], edges: [] },
+      nodes: [parentDep, childPod],
+      updateNodeData,
+    });
+
+    useFlowStore.getState().pasteNodes();
+    expect(updateNodeData).toHaveBeenCalledWith('dep-1', { replicas: 1 });
+  });
+
   it('pasteNodes increments pod replicas when pasting matching selected pod', () => {
     const updateSpy = vi.fn();
     const podNode: Node = { id: 'pod1', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: { label: 'pod1', replicas: 1 } };

@@ -5,6 +5,7 @@ import {
   deriveApiGroupsFromResources,
   deriveDeploymentResources,
   deriveNamespaceResources,
+  collectNamespaceChildResources,
   deriveResourcesFromTargetNode,
   isUserFullAccess,
   checkPolicyResourceMatch,
@@ -72,6 +73,32 @@ describe('useRoleModal helpers', () => {
       const nsNode3: Node = { id: 'ns3', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
       expect(deriveNamespaceResources(nsNode3, [unmappedChild])).toEqual(['namespaces']);
     });
+
+  it('covers collectNamespaceChildResources for non-Deployment nodes and missing child types', () => {
+    const resSet = new Set<string>();
+
+    // 1. Child with missing type or unknown type
+    const noTypeChild: Node = { id: 'c1', type: undefined, position: { x: 0, y: 0 }, data: {} };
+    collectNamespaceChildResources(noTypeChild, [], resSet);
+    expect(resSet.size).toBe(0);
+
+    // 2. Child with SINGLE_CHILD_TYPE_MAP type (e.g. Service -> services)
+    const svcChild: Node = { id: 'c2', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+    collectNamespaceChildResources(svcChild, [], resSet);
+    expect(resSet.has('services')).toBe(true);
+
+    // 3. Child is Deployment without child pods or replicas
+    const depChild: Node = { id: 'c3', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+    collectNamespaceChildResources(depChild, [], resSet);
+    expect(resSet.has('deployments')).toBe(true);
+    expect(resSet.has('pods')).toBe(false);
+  });
+
+  it('covers checkPolicyResourceMatch with ReadOnlyAccess policy', () => {
+    const resourcesSet = new Set(['pods']);
+    const policyNames = new Set(['ReadOnlyAccess']);
+    expect(checkPolicyResourceMatch(resourcesSet, policyNames)).toBe(true);
+  });
   });
 
   describe('deriveResourcesFromTargetNode', () => {
