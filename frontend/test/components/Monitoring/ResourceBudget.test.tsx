@@ -134,4 +134,23 @@ describe('ResourceBudget', () => {
     // CPU Req: pod-in-ns (200m) + pod-no-cpu-lim (100m) = 300m
     expect(screen.getByText(/K8s Req: 300m/)).toBeDefined();
   });
+
+  it('handles orphan child pod with non-existent parentId and totalMemPercent over 95%', () => {
+    useFlowStore.setState({
+      systemResources: {
+        cpuCores: 4,
+        totalMemoryGB: 16,
+        freeMemoryGB: 0.5, // Used memory = 15.5GB / 16GB = 96.875% > 95%
+        cpuUsage: 10
+      },
+      nodes: [
+        // Orphan pod pointing to non-existent parent ID
+        { id: 'orphan-pod', parentId: 'non-existent-id', type: 'Pod', data: { cpuRequest: '100m', memoryRequest: '128Mi', cpuLimit: '100m', memoryLimit: '128Mi' } }
+      ] as any
+    });
+
+    render(<ResourceBudget />);
+
+    expect(screen.getByText('System Overload!')).toBeDefined();
+  });
 });

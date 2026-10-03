@@ -36,5 +36,12 @@ describe('useQuickConnect', () => {
     });
 
     expect(mockOnQuickConnect).toHaveBeenCalledWith('node-1', 'right');
+
+    const spaceKeyEvent = { stopPropagation, key: ' ' } as any;
+    act(() => {
+      result.current.handleConnect('left')(spaceKeyEvent);
+    });
+
+    expect(mockOnQuickConnect).toHaveBeenCalledWith('node-1', 'left');
   });
 });

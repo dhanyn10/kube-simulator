@@ -176,6 +176,9 @@ describe('SaveModal', () => {
       expect(screen.getByText('Exit')).toBeInTheDocument();
     });
 
+    // Check dark mode context menu row highlight
+    expect(itemRow).toHaveClass('bg-blue-900/40');
+
     // Test Change Theme button
     act(() => {
       fireEvent.click(screen.getByText('Change Theme'));
@@ -237,6 +240,8 @@ describe('SaveModal', () => {
       expect(screen.getByText('Delete Document')).toBeInTheDocument();
       expect(screen.getByText('Exit')).toBeInTheDocument();
     });
+
+    expect(itemRow).toHaveClass('bg-blue-100/80');
 
     act(() => {
       fireEvent.click(screen.getByText('Exit'));

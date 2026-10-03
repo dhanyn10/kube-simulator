@@ -50,4 +50,13 @@ describe('terminalCommandTreeHelpers', () => {
     expect(cmdResult).toHaveLength(1);
     expect(cmdResult[0].id).toBe('custom-leaf');
   });
+
+  it('omits command property when command parameter is omitted in LeafSpec', () => {
+    const customNodes = [
+      { id: 'no-cmd-node', name: 'no-cmd', description: 'node without command string' }
+    ];
+    const result = filterCommandTree(customNodes, 'no-cmd');
+    expect(result).toHaveLength(1);
+    expect(result[0].command).toBeUndefined();
+  });
 });

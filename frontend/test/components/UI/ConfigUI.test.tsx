@@ -37,8 +37,8 @@ describe('ConfigUI uncovered conditions', () => {
     expect(input.className).toContain('bg-slate-50');
   });
 
-  it('covers ConfigSection optional props fallback branches', () => {
-    render(<ConfigSection title="Section Title"><div>Child Content</div></ConfigSection>);
+  it('covers ConfigSection optional props fallback branches and disableYamlToggle', () => {
+    render(<ConfigSection title="Section Title" onYamlToggle={vi.fn()} disableYamlToggle={true}><div>Child Content</div></ConfigSection>);
     expect(screen.getByText('Section Title')).toBeInTheDocument();
     expect(screen.getByText('Child Content')).toBeInTheDocument();
   });
@@ -55,13 +55,15 @@ describe('ConfigUI uncovered conditions', () => {
     expect(toggleBtn.className).toContain('text-slate-500');
   });
 
-  it('covers NumberStepper empty input, dark mode, and bound clamping', () => {
+  it('covers NumberStepper empty input, dark mode, NaN input, disabled limits, and bound clamping', () => {
     const onChange = vi.fn();
     const { rerender } = render(<NumberStepper value={5} onChange={onChange} colorMode="light" min={1} max={100} />);
     const input = screen.getByRole('spinbutton');
 
     fireEvent.change(input, { target: { value: '' } });
     expect(onChange).toHaveBeenCalledWith(0);
+
+    fireEvent.change(input, { target: { value: 'invalid-nan' } });
 
     fireEvent.change(input, { target: { value: '25' } });
     expect(onChange).toHaveBeenCalledWith(25);
