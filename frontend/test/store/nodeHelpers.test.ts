@@ -191,7 +191,7 @@ describe('nodeHelpers', () => {
       expect(laidOut).toHaveLength(0);
     });
 
-    it('handles forceRandomize flag in syncDeployment', () => {
+    it('handles forceRandomize flag in syncDeployment and clamps replicas between 0 and 1000', () => {
       const deployment = { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 2 } } as any;
       const pod1 = { id: 'p1', type: 'Pod', parentId: 'd1', data: { label: 'pod-1', podHash: 'old1', replicaSuffix: 'old2' } } as any;
       const get = () => useFlowStore.getState();
@@ -199,6 +199,14 @@ describe('nodeHelpers', () => {
       const { laidOut } = syncDeployment(deployment, [deployment, pod1], 0, get, undefined, true);
 
       expect(laidOut).toHaveLength(2);
+
+      // Clamp replicas < 0 -> 0
+      const { updatedDeployment: dep0 } = syncDeployment(deployment, [deployment], -10, get);
+      expect(dep0.data.replicas).toBe(0);
+
+      // Clamp replicas > 1000 -> 1000
+      const { updatedDeployment: dep1000 } = syncDeployment(deployment, [deployment], 1200, get);
+      expect(dep1000.data.replicas).toBe(1000);
     });
   });
 
