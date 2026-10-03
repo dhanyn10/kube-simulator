@@ -172,6 +172,23 @@ describe('createLogSlice', () => {
     expect(storeState.isLogModalOpen).toBe(false);
   });
 
+  it('handles Wails WriteLog IPC rejection gracefully', () => {
+    (globalThis as any).go = {
+      main: {
+        App: {
+          WriteLog: vi.fn().mockRejectedValue(new Error('IPC Write error')),
+        },
+      },
+    };
+
+    const slice = createLogSlice(setStore as any, getStore as any, {} as any);
+    storeState = { ...storeState, ...slice };
+
+    slice.addLog('info', 'Info log with failing IPC', 'UI');
+    expect(storeState.logs).toHaveLength(1);
+    delete (globalThis as any).go;
+  });
+
   it('setLogToastVisible and setLogModalOpen update UI state', () => {
     const slice = createLogSlice(setStore as any, getStore as any, {} as any);
     storeState = { ...storeState, ...slice };
