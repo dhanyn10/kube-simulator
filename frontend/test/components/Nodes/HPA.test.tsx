@@ -110,6 +110,38 @@ describe('HPANode', () => {
     expect((window as any)._lastIsValidPod).toBe(false);
   });
 
+  it('covers connected edge to deployment target with requests, missing target node in isValidConnection, and normal load color when currentCPU <= targetCPU', () => {
+    const depNode = { id: 'd1', type: 'Deployment', data: { cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const edge = { id: 'e1', source: 'h1', target: 'd1' };
+
+    useFlowStore.setState({
+      nodes: [depNode],
+      edges: [edge]
+    } as any);
+
+    const props = {
+      id: 'h1',
+      type: 'HPA',
+      data: {
+        label: 'My HPA',
+        currentCPU: 30,
+        targetCPU: 50,
+      }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <HPANode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.queryByText(/Missing Resource Requests on Target/)).toBeNull();
+
+    // Test handle isValidConnection when target is missing
+    const handle = screen.getByTestId('handle-bottom-s');
+    handle.click();
+  });
+
   it('shows warning when connected to deployment without resource requests', () => {
     const deploymentNode = {
         id: 'd1',

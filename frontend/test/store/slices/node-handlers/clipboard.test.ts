@@ -258,6 +258,26 @@ describe('clipboardHandlers', () => {
     expect(state.edges[1].target).toBe('missing-target');
   });
 
+  it('pasteNodes handles partially mapped edge where source is in idMap but target is unmapped', () => {
+    const nodeA: Node = { id: 'nodeA', type: 'Service', position: { x: 0, y: 0 }, data: {} };
+    // Edge source 'nodeA' will be mapped to new random ID in idMap, but target 'unmappedTarget' will fall back via || e.target
+    const partialEdge = { id: 'e-partial', source: 'nodeA', target: 'unmappedTarget' };
+
+    useFlowStore.setState({
+      nodes: [],
+      edges: [],
+      clipboard: { nodes: [nodeA], edges: [partialEdge] },
+    });
+
+    useFlowStore.getState().pasteNodes();
+
+    const state = useFlowStore.getState();
+    expect(state.nodes).toHaveLength(1);
+    expect(state.edges).toHaveLength(1);
+    expect(state.edges[0].source).not.toBe('nodeA'); // mapped to new ID
+    expect(state.edges[0].target).toBe('unmappedTarget'); // fallback to original e.target
+  });
+
   it('tryIncrementPodReplicas returns false when targetNode is missing from nodes list', () => {
     const updateSpy = vi.fn();
     const clipPod: Node = { id: 'pod-target-missing', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'orphan' } };

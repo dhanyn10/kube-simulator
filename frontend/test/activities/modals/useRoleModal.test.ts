@@ -48,6 +48,29 @@ describe('useRoleModal helpers', () => {
       expect(deriveNamespaceResources(nsNode, [depChild, svcChild, unknownChild])).toEqual(
         expect.arrayContaining(['deployments', 'pods', 'services'])
       );
+
+      // Namespace with Deployment child that has grandchild pods
+      const depChild2: Node = { id: 'dep2', parentId: 'ns1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 0 } };
+      const podGrandchild: Node = { id: 'pod1', parentId: 'dep2', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveNamespaceResources(nsNode, [depChild2, podGrandchild])).toEqual(
+        expect.arrayContaining(['deployments', 'pods'])
+      );
+
+      // Namespace with children of type ConfigMap, Secret, PVC, Ingress, HPA
+      const cmChild: Node = { id: 'cm1', parentId: 'ns2', type: 'ConfigMap', position: { x: 0, y: 0 }, data: {} };
+      const secChild: Node = { id: 'sec1', parentId: 'ns2', type: 'Secret', position: { x: 0, y: 0 }, data: {} };
+      const pvcChild: Node = { id: 'pvc1', parentId: 'ns2', type: 'PVC', position: { x: 0, y: 0 }, data: {} };
+      const ingChild: Node = { id: 'ing1', parentId: 'ns2', type: 'Ingress', position: { x: 0, y: 0 }, data: {} };
+      const hpaChild: Node = { id: 'hpa1', parentId: 'ns2', type: 'HPA', position: { x: 0, y: 0 }, data: {} };
+      const nsNode2: Node = { id: 'ns2', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveNamespaceResources(nsNode2, [cmChild, secChild, pvcChild, ingChild, hpaChild])).toEqual(
+        expect.arrayContaining(['configmaps', 'secrets', 'persistentvolumeclaims', 'ingresses', 'horizontalpodautoscalers'])
+      );
+
+      // Namespace with unmapped children returning default ['namespaces']
+      const unmappedChild: Node = { id: 'un1', parentId: 'ns3', type: 'UnknownType', position: { x: 0, y: 0 }, data: {} };
+      const nsNode3: Node = { id: 'ns3', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+      expect(deriveNamespaceResources(nsNode3, [unmappedChild])).toEqual(['namespaces']);
     });
   });
 
@@ -107,6 +130,8 @@ describe('useRoleModal helpers', () => {
       expect(checkPolicyResourceMatch(new Set(['pods']), new Set(['ContainerDeveloperPolicy']))).toBe(true);
       expect(checkPolicyResourceMatch(new Set(['services']), new Set(['NetworkingAdminPolicy']))).toBe(true);
       expect(checkPolicyResourceMatch(new Set(['persistentvolumeclaims']), new Set(['StorageAdminPolicy']))).toBe(true);
+    expect(checkPolicyResourceMatch(new Set(['pvcs']), new Set(['StorageAdminPolicy']))).toBe(true);
+    expect(checkPolicyResourceMatch(new Set(['storage']), new Set(['StorageAdminPolicy']))).toBe(true);
       expect(checkPolicyResourceMatch(new Set(['pods']), new Set(['ReadOnlyAccess']))).toBe(true);
       expect(checkPolicyResourceMatch(new Set(), new Set())).toBe(true);
       expect(checkPolicyResourceMatch(new Set(['pods']), new Set(['NetworkingAdminPolicy']))).toBe(false);
@@ -215,6 +240,27 @@ describe('useRoleModal hook', () => {
 
     expect(result.current.roleName).toBe('custom-role');
     expect(result.current.rules).toEqual([{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] }]);
+
+    // Initial role with empty name and undefined rules/assignedUsers
+    const initialRoleNoName: K8sRoleItem = {
+      id: 'r3',
+      name: '',
+      rules: undefined as any,
+      assignedUsers: undefined as any,
+      createdAt: 1000,
+    };
+
+    rerender({
+      isOpen: true,
+      targetNodeId: 'node-1',
+      initialRole: initialRoleNoName,
+      onClose,
+      onSave,
+    });
+
+    expect(result.current.roleName).toBe('app-reader-role');
+    expect(result.current.rules).toHaveLength(1);
+    expect(result.current.assignedUsers).toContain('admin');
   });
 
   it('supports adding, removing, updating rules, and user assignments', () => {

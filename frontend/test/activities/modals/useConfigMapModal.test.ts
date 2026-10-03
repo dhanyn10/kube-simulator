@@ -120,6 +120,18 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows).toEqual([]);
   });
 
+  it('generates random cmName when initialConfigMap is provided without name', () => {
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        ...defaultProps,
+        isOpen: true,
+        initialConfigMap: { id: 'cm-no-name' } as any,
+      })
+    );
+
+    expect(result.current.cmName).toMatch(/^cm-/);
+  });
+
   it('handles handleInputFocusOrChange callback', () => {
     const { result } = renderHook(() => useConfigMapModal(defaultProps));
 

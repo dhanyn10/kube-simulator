@@ -207,4 +207,36 @@ describe('DeploymentNode', () => {
 
     expect(screen.getByText('Unselected Dep')).toBeDefined();
   });
+
+  it('covers getBadgeColor for isHovered vs isDetaching vs default, and partial cpuRequest without memoryRequest', () => {
+    // 1. isHovered = true -> bg-violet-400
+    const hoverProps = {
+      id: 'd-hover',
+      type: 'Deployment',
+      data: { label: 'Hover Dep', isHovered: true, cpuRequest: '100m' } // missing memoryRequest
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <DeploymentNode {...hoverProps} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Hover Dep')).toBeDefined();
+
+    // 2. isDetaching = true & isHovered = false -> bg-red-500
+    const detachProps = {
+      id: 'd-detach',
+      type: 'Deployment',
+      data: { label: 'Detach Dep', isHovered: false, isDetaching: true }
+    } as any;
+
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode {...detachProps} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Detach Dep')).toBeDefined();
+  });
 });

@@ -109,6 +109,7 @@ describe('IAMUserDetailView', () => {
 
     expect(screen.getByText('Active Session')).toBeInTheDocument();
     expect(screen.getByText('Active Context')).toBeInTheDocument();
+    expect(screen.getByText('(Pod)')).toBeInTheDocument();
 
     // Click role row
     const roleRow = screen.getByText('PodReaderRole-rb-node').closest('tr')!;

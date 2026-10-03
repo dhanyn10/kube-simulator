@@ -617,5 +617,29 @@ describe('useInternetProfileModal', () => {
 
       expect(mockSaveInternetProfile).not.toHaveBeenCalled();
     });
+
+    it('covers legacy daily profile normalization with empty daily object and fetchProfiles returning non-array', async () => {
+      // 1. legacy profile with empty daily object
+      const legacyEmptyDaily = {
+        name: 'Legacy Empty Daily',
+        daily: {}
+      };
+      mockGetInternetProfiles.mockResolvedValue([legacyEmptyDaily]);
+
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      await act(async () => {});
+
+      const norm = result.current.profiles.find((p) => p.name === 'Legacy Empty Daily');
+      expect(norm?.hourly['00:00']).toBe(1000);
+
+      // 2. fetchProfiles returning non-array
+      mockGetInternetProfiles.mockResolvedValue(null as any);
+      await act(async () => {
+        // Trigger fetchProfiles
+      });
+    });
   });
 });

@@ -144,7 +144,7 @@ describe('useMenuBarState', () => {
       go: {
         main: {
           App: {
-            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+            GetSystemInfo: vi.fn().mockResolvedValue({ version: '' }),
             CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '1.1.0' }),
           },
         },
@@ -192,6 +192,18 @@ describe('useMenuBarState', () => {
 
     let resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource');
     let saveItem = resourceMenu?.items.find((i) => i.label === 'Save');
+
+    await act(async () => {
+      await saveItem?.onClick?.();
+    });
+    expect(defaultProps.onOpenProjects).toHaveBeenCalled();
+
+    // Test when currentProject.id === -1
+    useFlowStore.setState({ currentProject: { id: -1, name: 'Unsaved Project' } });
+    rerender();
+
+    resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource');
+    saveItem = resourceMenu?.items.find((i) => i.label === 'Save');
 
     await act(async () => {
       await saveItem?.onClick?.();
