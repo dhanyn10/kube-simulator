@@ -19,6 +19,9 @@ describe('ConfigUI uncovered conditions', () => {
     expect(btn).toBeDisabled();
     expect(btn.className).toContain('cursor-not-allowed');
 
+    rerender(<YamlToggle isEnabled={true} onToggle={onToggle} disabled={true} />);
+    expect(btn).toBeDisabled();
+
     rerender(<YamlToggle isEnabled={false} onToggle={onToggle} disabled={false} />);
     expect(btn).not.toBeDisabled();
     expect(btn.className).toContain('text-slate-500');
