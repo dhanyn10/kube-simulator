@@ -1,5 +1,4 @@
 import { Node, Edge } from '@xyflow/react';
-import { K8sNodeData } from '@/types';
 import { SimulationContext } from './simulationTypes';
 
 const processOutgoingEdges = (
