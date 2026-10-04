@@ -47,7 +47,7 @@ export const syncParentPodUpdates = (selectedNode: any, updates: any) => {
   if (!parent) return;
 
   const syncData: any = {};
-  const syncKeys = ['cpuLimit', 'memoryLimit', 'label', 'image', 'status', 'webserver', 'runtime'];
+  const syncKeys = ['cpuLimit', 'memoryLimit', 'label', 'image', 'status', 'webserver', 'runtime', 'restartPolicy'];
   syncKeys.forEach((key) => {
     if (key in updates) syncData[key] = updates[key];
   });
