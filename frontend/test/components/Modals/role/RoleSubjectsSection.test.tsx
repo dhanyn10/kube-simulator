@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RoleSubjectsSection } from '@/components/Modals/RoleModal/RoleSubjectsSection';
+import { RoleSubjectsSection } from '@/components/Modals/role/RoleSubjectsSection';
 import { KubeIAMUser } from '@/types';
 import '@testing-library/jest-dom';
 

@@ -3,7 +3,7 @@ import {
   mapProjectNodes,
   mapProjectEdges,
   generateTimestampedProjectName,
-} from '@/components/Modals/ResourceManager/resourceManagerHelpers';
+} from '@/components/Modals/resource-manager/resourceManagerHelpers';
 
 describe('resourceManagerHelpers', () => {
   describe('mapProjectNodes', () => {

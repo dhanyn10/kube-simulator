@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { FilterLevel } from '@/components/Modals/LogModal/LogToolbar';
+import { FilterLevel } from '@/components/Modals/log/LogToolbar';
 import { exportLogsToFile } from './logExport';
 
 export const useLogModal = () => {

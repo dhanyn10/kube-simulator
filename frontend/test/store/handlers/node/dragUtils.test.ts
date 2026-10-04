@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from '@/store/slices/node-handlers/dragUtils';
+import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from '@/store/handlers/node/dragUtils';
 
 describe('dragUtils', () => {
   it('calculateOverlap detects partial intersections and handles fallback dimensions', () => {

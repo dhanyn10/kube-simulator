@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { DockerRegistryTab, DockerRegistryTabProps } from '@/components/Modals/ResourceManager/DockerRegistryTab';
+import { DockerRegistryTab, DockerRegistryTabProps } from '@/components/Modals/resource-manager/DockerRegistryTab';
 import { DEFAULT_REGISTRY_IMAGES } from '@/constants/config';
 
 // Mock Wails App functions

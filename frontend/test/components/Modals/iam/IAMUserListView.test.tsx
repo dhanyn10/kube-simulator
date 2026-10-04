@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
-import { IAMUserListView, IAMUserListViewProps } from '@/components/Modals/KubeIAM/IAMUserListView';
+import { IAMUserListView, IAMUserListViewProps } from '@/components/Modals/iam/IAMUserListView';
 import { useFlowStore } from '@/store';
 import { KubeIAMUser } from '@/types';
 

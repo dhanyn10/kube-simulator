@@ -8,7 +8,7 @@ import {
   resolveGlobalCollisions
 } from '@/store/helpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
-import { syncWorkloadMetadata, getInitialData, createNodeHandlers } from '@/store/slices/node-handlers/nodeUtils';
+import { syncWorkloadMetadata, getInitialData, createNodeHandlers } from '@/store/handlers/node/nodeUtils';
 
 export const attachHandlers = createNodeHandlers;
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getContainerFocusBorderClass } from '@/components/Modals/RoleModal/roleModalHelpers';
+import { getContainerFocusBorderClass } from '@/components/Modals/role/roleModalHelpers';
 
 describe('roleModalHelpers', () => {
   it('returns container border classes for active/focused and inactive states across dark and light modes', () => {

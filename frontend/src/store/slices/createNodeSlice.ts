@@ -4,10 +4,10 @@ import type { FlowState } from '@/store/types';
 import { K8sResourceType, K8sNodeData } from '@/types';
 
 // Import modular handlers
-import { nodeActions } from './node-handlers/nodeActions';
-import { dragHandlers } from './node-handlers/dragHandlers';
-import { resizeHandlers } from './node-handlers/resizeHandlers';
-import { clipboardHandlers } from './node-handlers/clipboardHandlers';
+import { nodeActions } from '../handlers/node/nodeActions';
+import { dragHandlers } from '../handlers/node/dragHandlers';
+import { resizeHandlers } from '../handlers/node/resizeHandlers';
+import { clipboardHandlers } from '../handlers/node/clipboardHandlers';
 
 export interface NodeSlice {
   addNode: (type: K8sResourceType, position?: { x: number; y: number }, parentId?: string) => void;

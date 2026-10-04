@@ -6,7 +6,7 @@ import {
   DockerImageCard,
   LocalImageRow,
   parseDockerResults,
-} from '@/components/Modals/ResourceManager/DockerImageRow';
+} from '@/components/Modals/resource-manager/DockerImageRow';
 
 describe('DockerImageRow components and helpers', () => {
   describe('DockerImageCard', () => {

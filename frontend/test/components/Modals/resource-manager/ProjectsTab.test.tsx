@@ -2,8 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
-import { ProjectsTab, ProjectsTabProps } from '@/components/Modals/ResourceManager/ProjectsTab';
-import { Project } from '@/components/Modals/ResourceManager/ArchitectureRow';
+import { ProjectsTab, ProjectsTabProps } from '@/components/Modals/resource-manager/ProjectsTab';
+import { Project } from '@/components/Modals/resource-manager/ArchitectureRow';
 
 describe('ProjectsTab', () => {
   const sampleProjects: Project[] = [

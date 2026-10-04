@@ -8,7 +8,7 @@ import {
   RoleModalHeaderHint,
   RoleSubjectsSection,
   RoleRulesSection,
-} from './RoleModal/index';
+} from './role/index';
 
 export interface RoleModalProps {
   readonly isOpen: boolean;

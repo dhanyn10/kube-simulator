@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
-import { RoleUserOptionRow, RoleUserOptionRowProps } from '@/components/Modals/RoleModal/RoleUserOptionRow';
+import { RoleUserOptionRow, RoleUserOptionRowProps } from '@/components/Modals/role/RoleUserOptionRow';
 import { KubeIAMUser } from '@/types';
 
 describe('RoleUserOptionRow', () => {

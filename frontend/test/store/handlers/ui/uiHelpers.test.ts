@@ -8,7 +8,7 @@ import {
   removeUserFromRole,
   purgeUserFromNodes,
   renameUserInNodeRoles,
-} from '@/store/slices/ui-handlers/uiHelpers';
+} from '@/store/handlers/ui/uiHelpers';
 import { Node } from '@xyflow/react';
 
 describe('uiHelpers', () => {

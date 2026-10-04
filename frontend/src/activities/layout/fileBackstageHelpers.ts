@@ -1,5 +1,5 @@
 import { useFlowStore } from '@/store';
-import { mapProjectNodes, mapProjectEdges } from '@/components/Modals/ResourceManager/resourceManagerHelpers';
+import { mapProjectNodes, mapProjectEdges } from '@/components/Modals/resource-manager/resourceManagerHelpers';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
 
