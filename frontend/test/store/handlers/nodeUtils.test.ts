@@ -117,7 +117,8 @@ describe('nodeUtils', () => {
 
     const podData = getInitialData('Pod', 'p1', get as any);
     expect(podData.replicas).toBe(1);
-    expect(podData.image).toBe('nginx:latest');
+    expect(podData.image).toBe('');
+    expect(podData.status).toBe('pending');
 
     const hpaData = getInitialData('HPA', 'h1', get as any);
     expect(hpaData.maxReplicas).toBe(10);
@@ -171,14 +172,14 @@ describe('nodeUtils', () => {
     expect(result.image).toBe("node:18-alpine");
     expect(result.isAutoImage).toBe(true);
 
-    const syncedReady = syncWorkloadMetadata('Pod', { runtime: 'go' } as any);
+    const syncedReady = syncWorkloadMetadata('Pod', { image: 'nginx:latest' } as any);
     expect(syncedReady.status).toBe('ready');
 
-    const syncedPending = syncWorkloadMetadata('Pod', { runtime: 'none' } as any);
+    const syncedPending = syncWorkloadMetadata('Pod', { image: '' } as any);
     expect(syncedPending.status).toBe('pending');
 
-    const nonWorkload = syncWorkloadMetadata('Service', { runtime: 'nodejs' } as any);
-    expect(nonWorkload).toEqual({ runtime: 'nodejs' });
+    const nonWorkload = syncWorkloadMetadata('Service', { image: 'test' } as any);
+    expect(nonWorkload).toEqual({ image: 'test' });
   });
 
   it('sanitizeResourceLimits keeps values in range and handles undefined fields', () => {
@@ -202,57 +203,12 @@ describe('nodeUtils', () => {
     const customResult = applyAutoImageLogic(customImgTarget, { runtime: 'nodejs' });
     expect(customResult).toEqual({ runtime: 'nodejs' });
 
-    // Target data has no runtime property (falls back to targetData.runtime fallback operand in `data.runtime ?? targetData.runtime ?? 'none'`)
-    const targetWithRt = { label: 'pod', image: 'node:18-alpine', isAutoImage: true, runtime: 'go' } as any;
-    const fallbackRtResult = applyAutoImageLogic(targetWithRt, { webserver: 'nginx' });
-    expect(fallbackRtResult.image).toBe('golang:1.21-alpine');
-
-    // Target has empty image string and isAutoImage: false (evaluates !targetData.image branch as true)
-    const emptyImgTarget = { label: 'pod', image: '', isAutoImage: false } as any;
-    const emptyResult = applyAutoImageLogic(emptyImgTarget, { runtime: 'go' });
-    expect(emptyResult.image).toBe('golang:1.21-alpine');
-    expect(emptyResult.isAutoImage).toBe(true);
-
-    // Target has non-empty image and isAutoImage: true (evaluates targetData.isAutoImage branch as true)
-    const autoImgTarget = { label: 'pod', image: 'node:18-alpine', isAutoImage: true } as any;
-    const autoResult = applyAutoImageLogic(autoImgTarget, { runtime: 'python' });
-    expect(autoResult.image).toBe('python:3.11-slim');
-    expect(autoResult.isAutoImage).toBe(true);
-
-    // syncWorkloadMetadata for ReplicaSet with webserver and isAutoImage = false
-    const customWorkload = syncWorkloadMetadata('ReplicaSet', { webserver: 'apache', isAutoImage: false, image: 'custom:2.0' } as any);
+    // syncWorkloadMetadata for ReplicaSet with image
+    const customWorkload = syncWorkloadMetadata('ReplicaSet', { image: 'custom:2.0' } as any);
     expect(customWorkload.status).toBe('ready');
-    expect(customWorkload.image).toBe('custom:2.0');
-    expect(customWorkload.isAutoImage).toBe(false);
 
-    // Explicit test for isAutoImage: false branch when runtime is set
-    const explicitCustomImage = syncWorkloadMetadata('Pod', { runtime: 'nodejs', isAutoImage: false, image: 'my-custom-image:1.0' } as any);
-    expect(explicitCustomImage.status).toBe('ready');
-    expect(explicitCustomImage.image).toBe('my-custom-image:1.0');
-    expect(explicitCustomImage.isAutoImage).toBe(false);
-
-    // syncWorkloadMetadata for Pod with runtime and isAutoImage undefined
-    const podWorkload = syncWorkloadMetadata('Pod', { runtime: 'java' } as any);
-    expect(podWorkload.status).toBe('ready');
-    expect(podWorkload.image).toBe('openjdk:17-jdk-slim');
-    expect(podWorkload.isAutoImage).toBe(true);
-
-    // syncWorkloadMetadata with runtime = 'none' and webserver = 'none'
-    const pendingWorkload = syncWorkloadMetadata('Deployment', { runtime: 'none', webserver: 'none' } as any);
+    // syncWorkloadMetadata with empty image
+    const pendingWorkload = syncWorkloadMetadata('Deployment', { image: '' } as any);
     expect(pendingWorkload.status).toBe('pending');
-
-    // syncWorkloadMetadata with runtime provided but webserver undefined
-    const rtOnlyWorkload = syncWorkloadMetadata('Deployment', { runtime: 'go' } as any);
-    expect(rtOnlyWorkload.status).toBe('ready');
-
-    // syncWorkloadMetadata with webserver provided but runtime undefined
-    const wsOnlyWorkload = syncWorkloadMetadata('Deployment', { webserver: 'nginx' } as any);
-    expect(wsOnlyWorkload.status).toBe('ready');
-
-    // applyAutoImageLogic when data.runtime and targetData.runtime are both undefined (testing rightmost fallback operand ?? 'none')
-    const targetNoRt = { label: 'pod', image: '', isAutoImage: true } as any;
-    const resNoRt = applyAutoImageLogic(targetNoRt, { webserver: 'apache' });
-    expect(resNoRt.image).toBe('httpd:latest');
-    expect(resNoRt.isAutoImage).toBe(true);
   });
 });

@@ -86,9 +86,7 @@ const applySimulatedFailures = (
 };
 
 const isPodReadyConfigured = (pData: K8sNodeData): boolean => {
-  const hasWeb = !!(pData.webserver && pData.webserver !== 'none');
-  const hasRuntime = !!(pData.runtime && pData.runtime !== 'none');
-  return hasWeb || hasRuntime;
+  return Boolean(pData.image);
 };
 
 const recoverSinglePod = (pod: Node, ctx: SimulationContext): boolean => {

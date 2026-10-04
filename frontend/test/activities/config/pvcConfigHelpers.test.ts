@@ -68,7 +68,7 @@ describe('pvcConfigHelpers test suite', () => {
   it('handlePvcRwoAccessMode evaluates and toggles RWO PVC multi-attach error state and pod statuses', () => {
     const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
     const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } };
-    const podNode: Node = { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { status: 'ready', webserver: 'nginx' }, position: { x: 0, y: 0 } };
+    const podNode: Node = { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { status: 'ready', image: 'nginx:latest' }, position: { x: 0, y: 0 } };
     const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} }];
 
     // 1. When replicas = 3 (> 1), handlePvcRwoAccessMode sets Multi-Attach Error and marks pod pending

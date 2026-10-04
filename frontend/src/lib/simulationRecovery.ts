@@ -45,7 +45,7 @@ export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationConte
     if (nodeToRecover?.data.status !== 'crashing') return;
 
     const currentPData = nodeToRecover.data as K8sNodeData;
-    const isReadyConfigured = !!(currentPData.webserver && currentPData.webserver !== 'none') || !!(currentPData.runtime && currentPData.runtime !== 'none');
+    const isReadyConfigured = Boolean(currentPData.image);
     const nextStatus = isReadyConfigured ? 'ready' : 'pending';
 
     latestState.updateNodeData?.(podId, { status: nextStatus, simulatedFailureCM: undefined });

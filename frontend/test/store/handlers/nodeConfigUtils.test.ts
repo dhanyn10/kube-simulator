@@ -57,42 +57,12 @@ describe('configUtils', () => {
       expect(updates).toEqual({});
     });
 
-    it('returns webserver default when enabling webserver visibility', () => {
-      const data = { webserver: 'none' };
-      const updates = getVisibilityUpdates('webserver', true, data);
-      expect(updates.webserver).toBe('nginx');
-    });
-
-    it('returns runtime default when enabling runtime visibility', () => {
-      const data = { runtime: 'none' };
-      const updates = getVisibilityUpdates('runtime', true, data);
-      expect(updates.runtime).toBe('nodejs');
-    });
-
     it('returns empty updates when visibility is turned off', () => {
       expect(getVisibilityUpdates('resources', false, {})).toEqual({});
     });
   });
 
   describe('getAutoNameUpdate', () => {
-    it('returns lowercase slugified label when auto-named and ready', () => {
-      const nextData = { status: 'ready', isAutoNamed: true, webserver: 'Nginx Server', runtime: 'Node JS' };
-      const update = getAutoNameUpdate(nextData);
-      expect(update.label).toBe('nginx-server-node-js');
-    });
-
-    it('returns webserver only if runtime is none', () => {
-      const nextData = { status: 'ready', isAutoNamed: true, webserver: 'Nginx', runtime: 'none' };
-      const update = getAutoNameUpdate(nextData);
-      expect(update.label).toBe('nginx');
-    });
-
-    it('returns runtime only if webserver is none', () => {
-      const nextData = { status: 'ready', isAutoNamed: true, webserver: 'none', runtime: 'Go' };
-      const update = getAutoNameUpdate(nextData);
-      expect(update.label).toBe('go');
-    });
-
     it('returns undefined image if status is pending', () => {
       const nextData = { status: 'pending' };
       expect(getAutoNameUpdate(nextData)).toEqual({ image: undefined });
@@ -106,13 +76,12 @@ describe('configUtils', () => {
 
   describe('getWorkloadUpdates', () => {
     it('syncs metadata and autoname', () => {
-      const data = { type: 'Pod', runtime: 'none', webserver: 'none', isAutoNamed: true };
-      const updates = { runtime: 'nodejs' };
+      const data = { type: 'Pod', image: '', isAutoNamed: true };
+      const updates = { image: 'nginx:latest' };
       const result = getWorkloadUpdates('Pod', data, updates);
 
-      expect(result.runtime).toBe('nodejs');
+      expect(result.image).toBe('nginx:latest');
       expect(result.status).toBe('ready');
-      expect(result.label).toBe('nodejs');
     });
 
     it('deletes replica info for child pods', () => {

@@ -216,7 +216,7 @@ describe('simulation test suite', () => {
 
   it('handleBoundPvcs transitions pods to ready', () => {
       const ctx = getMockCtx();
-      const pod = createNode('pod1', 'Pod', { status: 'pending', webserver: 'nginx' });
+      const pod = createNode('pod1', 'Pod', { status: 'pending', image: 'nginx:latest' });
       ctx.updatedNodes.push(pod);
       ctx.nodeIndexMap?.set('pod1', ctx.updatedNodes.length - 1);
 
@@ -367,7 +367,7 @@ describe('simulation test suite', () => {
   });
 
   it('scheduleRecovery recovers a crashing pod in-place without deleting it', () => {
-      const pod = createNode('pod1', 'Pod', { status: 'crashing', webserver: 'nginx' });
+      const pod = createNode('pod1', 'Pod', { status: 'crashing', image: 'nginx:latest' });
       const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
           get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock })
@@ -395,7 +395,7 @@ describe('simulation test suite', () => {
   });
 
   it('scheduleRecovery with restartPolicy Always or OnFailure logs warning and recovers pod', () => {
-    const pod = createNode('pod-always', 'Pod', { status: 'crashing', restartPolicy: 'OnFailure', label: 'OnFailPod', webserver: 'nginx' });
+    const pod = createNode('pod-always', 'Pod', { status: 'crashing', restartPolicy: 'OnFailure', label: 'OnFailPod', image: 'nginx:latest' });
     const updateNodeDataMock = vi.fn();
     const addLogMock = vi.fn();
     const ctx = getMockCtx({
@@ -411,7 +411,7 @@ describe('simulation test suite', () => {
   });
 
   it('scheduleRecovery returns early if pod status is no longer crashing', () => {
-      const pod = createNode('pod1', 'Pod', { status: 'ready', webserver: 'nginx' });
+      const pod = createNode('pod1', 'Pod', { status: 'ready', image: 'nginx:latest' });
       const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
           get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock })
@@ -542,7 +542,7 @@ describe('simulation test suite', () => {
     it('resolves RWO multi-attach conflict when replicas scale down to 1', () => {
       const pvc = createNode('pvc-rwo', 'PVC', { accessMode: 'ReadWriteOnce', pvcStatus: 'Multi-Attach Error' });
       const dep = createNode('d-multi', 'Deployment', { replicas: 1, status: 'pending' });
-      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'pending', webserver: 'nginx' });
+      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'pending', image: 'nginx:latest' });
       const edge = { id: 'e-pvc', source: 'd-multi', target: 'pvc-rwo', data: { validationError: 'Multi-Attach Error' } } as Edge;
 
       const addLogMock = vi.fn();
@@ -570,7 +570,7 @@ describe('simulation test suite', () => {
     it('allows ReadWriteMany (RWX) and ReadOnlyMany (ROX) with multiple replicas', () => {
       const pvcRwx = createNode('pvc-rwx', 'PVC', { accessMode: 'ReadWriteMany', pvcStatus: 'Bound' });
       const dep = createNode('d-multi', 'Deployment', { replicas: 5, status: 'ready' });
-      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'pending', webserver: 'nginx' });
+      const pod1 = createNode('pod-m1', 'Pod', { parentId: 'd-multi', status: 'pending', image: 'nginx:latest' });
       const edge = { id: 'e-pvc', source: 'd-multi', target: 'pvc-rwx', data: {} } as Edge;
 
       const ctx = getMockCtx({

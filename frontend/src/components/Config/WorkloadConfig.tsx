@@ -1,11 +1,8 @@
 import { useFlowStore } from '@/store';
-import { Box, Code, Layers, RotateCcw, Server } from 'lucide-react';
+import { Box, Layers, RotateCcw } from 'lucide-react';
 import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
-import { RUNTIMES, WEBSERVERS } from '@/constants/config';
-import { cn } from '@/lib/utils';
-import { FrameworkSelector } from '@/components/Workload/FrameworkSelector';
 import { useWorkloadConfigHandler } from '@/activities/config';
 
 interface WorkloadConfigProps {
@@ -63,61 +60,10 @@ export const WorkloadConfig = ({
           >
             <ImageDropdown
               value={data.image || ''}
-              onChange={(val) => performUpdate({ image: val })}
+              onChange={(val) => performUpdate({ image: val, status: val ? 'ready' : 'pending' })}
               colorMode={colorMode}
             />
           </ConfigSection>
-
-          {/* Web Server */}
-          <ConfigSection
-            title="Web Server"
-            icon={Server}
-            isVisible={data.displaySettings?.webserver}
-            onToggle={() => toggleVisibility('webserver')}
-            isYamlEnabled={data.yamlSettings?.webserver}
-            onYamlToggle={() => toggleYaml('webserver')}
-            disableYamlToggle={Boolean(data.webserver) === false || data.webserver === 'none'}
-          >
-            <SelectorGroup
-              options={WEBSERVERS}
-              currentValue={data.webserver}
-              onSelect={(val) => performUpdate({ webserver: val })}
-              colorMode={colorMode}
-            />
-          </ConfigSection>
-
-          {/* Runtime */}
-          <ConfigSection
-            title="App Runtime"
-            icon={Code}
-            isVisible={data.displaySettings?.runtime}
-            onToggle={() => toggleVisibility('runtime')}
-            isYamlEnabled={data.yamlSettings?.runtime}
-            onYamlToggle={() => toggleYaml('runtime')}
-            disableYamlToggle={Boolean(data.runtime) === false || data.runtime === 'none'}
-          >
-            <select
-              value={data.runtime || 'none'}
-              onChange={(e) => performUpdate({ runtime: e.target.value, framework: '' })}
-              className={cn(
-                "w-full text-[10px] p-2 rounded border outline-none",
-                colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-              )}
-            >
-              {Object.entries(RUNTIMES).map(([id, rt]) => (
-                <option key={id} value={id}>
-                  {rt.label}
-                </option>
-              ))}
-            </select>
-          </ConfigSection>
-
-          <FrameworkSelector
-            runtime={data.runtime}
-            framework={data.framework}
-            colorMode={colorMode}
-            performUpdate={performUpdate}
-          />
 
           {/* Restart Policy */}
           <ConfigSection

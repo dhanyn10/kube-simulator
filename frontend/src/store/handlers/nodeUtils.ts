@@ -73,16 +73,18 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
       return {
         ...base,
         replicas: 1,
-        image: 'nginx:latest',
-        isAutoImage: true,
-        displaySettings: { runtime: false, webserver: false, image: false, resources: false },
+        image: '',
+        status: 'pending',
+        displaySettings: { image: false, resources: false },
         yamlSettings: { image: true, resources: true }
       };
     case 'Deployment':
       return {
         ...base,
         replicas: 0,
-        displaySettings: { runtime: false, webserver: false, image: false, resources: false },
+        image: '',
+        status: 'pending',
+        displaySettings: { image: false, resources: false },
         yamlSettings: { image: true, resources: true }
       };
     case 'Ingress':
@@ -202,17 +204,10 @@ export const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNo
 export const syncWorkloadMetadata = (type: string, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   if (!['Pod', 'Deployment', 'ReplicaSet'].includes(type)) return data;
 
-  const hasRuntime = data.runtime && data.runtime !== 'none';
-  const hasWebserver = data.webserver && data.webserver !== 'none';
-
   const nextData = { ...data };
-  if (hasRuntime || hasWebserver) {
+  if (data.image) {
     nextData.status = 'ready';
-    if (data.isAutoImage !== false) {
-      nextData.image = resolveAutoImage(data.runtime || 'none', data.webserver || 'none');
-      nextData.isAutoImage = true;
-    }
-  } else {
+  } else if (data.image === '') {
     nextData.status = 'pending';
   }
 

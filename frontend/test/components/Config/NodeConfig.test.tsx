@@ -151,11 +151,11 @@ describe('NodeConfig', () => {
     const { rerender } = render(<NodeConfig selectedNode={readyNode} />);
     expect(screen.getByText(/Ready to Deploy/i)).toBeDefined();
 
-    // Workload with status ready and configured webserver
+    // Workload with status ready and configured image
     const configuredPod = {
       id: 'p1',
       type: 'Pod',
-      data: { label: 'pod', status: 'ready', webserver: 'nginx' }
+      data: { label: 'pod', status: 'ready', image: 'nginx:latest' }
     };
     rerender(<NodeConfig selectedNode={configuredPod} />);
     expect(screen.getByText(/Ready to Deploy/i)).toBeDefined();
