@@ -8,10 +8,13 @@ import {
 import { Node, Edge } from '@xyflow/react';
 
 describe('pvcConfigHelpers test suite', () => {
-  it('returns 0 when PVC has no connected workload edges', () => {
+  it('returns 0 when PVC has no connected workload edges or invalid nodes', () => {
     const pvcId = 'pvc-1';
-    const nodes: Node[] = [{ id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } }];
-    const edges: Edge[] = [];
+    const nodes: Node[] = [
+      { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
+      { id: 'unknown-1', type: 'Unknown', data: {}, position: { x: 0, y: 0 } },
+    ];
+    const edges: Edge[] = [{ id: 'e1', source: 'pvc-1', target: 'unknown-1' }];
 
     const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
     expect(total).toBe(0);
@@ -22,11 +25,11 @@ describe('pvcConfigHelpers test suite', () => {
     const nodes: Node[] = [
       { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
       { id: 'dep-1', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } },
-      { id: 'pod-1', type: 'Pod', data: {}, position: { x: 0, y: 0 } }
+      { id: 'pod-1', type: 'Pod', data: {}, position: { x: 0, y: 0 } },
     ];
     const edges: Edge[] = [
       { id: 'e1', source: 'dep-1', target: 'pvc-1' },
-      { id: 'e2', source: 'pvc-1', target: 'pod-1' }
+      { id: 'e2', source: 'pvc-1', target: 'pod-1' },
     ];
 
     const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
@@ -38,11 +41,11 @@ describe('pvcConfigHelpers test suite', () => {
     const nodes: Node[] = [
       { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
       { id: 'dep-1', type: 'Deployment', data: { replicas: 2 }, position: { x: 0, y: 0 } },
-      { id: 'pod-child', type: 'Pod', data: { parentId: 'dep-1' }, position: { x: 0, y: 0 } }
+      { id: 'pod-child', type: 'Pod', data: { parentId: 'dep-1' }, position: { x: 0, y: 0 } },
     ];
     const edges: Edge[] = [
       { id: 'e1', source: 'dep-1', target: 'pvc-1' },
-      { id: 'e2', source: 'pod-child', target: 'pvc-1' }
+      { id: 'e2', source: 'pod-child', target: 'pvc-1' },
     ];
 
     const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
@@ -50,12 +53,26 @@ describe('pvcConfigHelpers test suite', () => {
   });
 
   it('evaluatePvcRealtimeStatus evaluates Multi-Attach Error vs Bound vs Pending correctly', () => {
-    const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' }, position: { x: 0, y: 0 } };
-    const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 2 }, position: { x: 0, y: 0 } };
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 2 },
+      position: { x: 0, y: 0 },
+    };
     const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1' }];
 
     // Replicas = 2 with RWO -> Multi-Attach Error
     expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode, depNode], edges)).toBe('Multi-Attach Error');
+
+    // RWX accessMode with 2 replicas -> Bound
+    const rwxPvcNode = { ...pvcNode, data: { accessMode: 'ReadWriteMany' } };
+    expect(evaluatePvcRealtimeStatus(rwxPvcNode, [rwxPvcNode, depNode], edges)).toBe('Bound');
 
     // Replicas scaled down to 1 with RWO -> Bound
     const depNodeScaledDown = { ...depNode, data: { replicas: 1 } };
@@ -66,32 +83,69 @@ describe('pvcConfigHelpers test suite', () => {
   });
 
   it('handlePvcRwoAccessMode evaluates and toggles RWO PVC multi-attach error state and pod statuses', () => {
-    const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
-    const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } };
-    const podNode: Node = { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { status: 'ready', image: 'nginx:latest' }, position: { x: 0, y: 0 } };
-    const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} }];
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 3 },
+      position: { x: 0, y: 0 },
+    };
+    const podNode: Node = {
+      id: 'pod-1',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: { status: 'ready', image: 'nginx:latest' },
+      position: { x: 0, y: 0 },
+    };
+    const edges: Edge[] = [
+      { id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} },
+    ];
 
-    // 1. When replicas = 3 (> 1), handlePvcRwoAccessMode sets Multi-Attach Error and marks pod pending
-    const resError = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode, podNode], edges);
+    // 1. When replicas > 1, sets Multi-Attach Error and marks pod pending
+    const resError = handlePvcRwoAccessMode(
+      pvcNode,
+      [pvcNode, depNode, podNode],
+      edges
+    );
     const updatedPvcError = resError.nodes.find((n) => n.id === 'pvc-1');
     const updatedPodPending = resError.nodes.find((n) => n.id === 'pod-1');
     expect(updatedPvcError?.data?.pvcStatus).toBe('Multi-Attach Error');
     expect(updatedPodPending?.data?.status).toBe('pending');
     expect(resError.edges[0].data?.validationError).toContain('Multi-Attach Error');
 
-    // 2. When replica count is scaled down to 1, handlePvcRwoAccessMode clears error, restores Bound status & ready pod status
+    // 2. Scale down replica count to 1 -> clears error, restores Bound status & ready pod status for configured pod
     const depNode1 = { ...depNode, data: { replicas: 1 } };
-    const resBound = handlePvcRwoAccessMode(updatedPvcError!, [updatedPvcError!, depNode1, updatedPodPending!], resError.edges);
+    const resBound = handlePvcRwoAccessMode(
+      updatedPvcError!,
+      [updatedPvcError!, depNode1, updatedPodPending!],
+      resError.edges
+    );
     const updatedPvcBound = resBound.nodes.find((n) => n.id === 'pvc-1');
     const updatedPodReady = resBound.nodes.find((n) => n.id === 'pod-1');
+
     expect(updatedPvcBound?.data?.pvcStatus).toBe('Bound');
     expect(updatedPodReady?.data?.status).toBe('ready');
     expect(resBound.edges[0].data?.validationError).toBeUndefined();
   });
 
   it('syncPvcRealtimeState dynamically updates PVC status across all PVC nodes on canvas', () => {
-    const pvcNode: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
-    const depNode: Node = { id: 'dep-1', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } };
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 3 },
+      position: { x: 0, y: 0 },
+    };
     const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} }];
 
     const syncedError = syncPvcRealtimeState([pvcNode, depNode], edges);
@@ -102,5 +156,9 @@ describe('pvcConfigHelpers test suite', () => {
     const syncedBound = syncPvcRealtimeState([updatedPvcError!, depNode1], syncedError.edges);
     const updatedPvcBound = syncedBound.nodes.find((n) => n.id === 'pvc-1');
     expect(updatedPvcBound?.data?.pvcStatus).toBe('Bound');
+
+    // Return original arrays unchanged if no PVC nodes exist
+    const noPvcRes = syncPvcRealtimeState([depNode], edges);
+    expect(noPvcRes.nodes).toEqual([depNode]);
   });
 });
