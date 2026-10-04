@@ -147,21 +147,23 @@ func TestCreateResourceMap(t *testing.T) {
 func TestGetResourceConfig(t *testing.T) {
 	t.Run("Disabled", func(t *testing.T) {
 		data := k8s.K8sNodeData{
-			YamlSettings: map[string]bool{"resources": false},
-			CpuRequest:   "100m",
+			YamlSettings:   map[string]bool{"resources": false},
+			CpuRequest:     "100m",
+			ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
 		}
-		res := getResourceConfig(data)
+		res := getResourceConfig(data, []string{"p1"}, nil)
 		if res != nil {
 			t.Error("Expected nil for disabled resources")
 		}
 	})
 
-	t.Run("Enabled with values", func(t *testing.T) {
+	t.Run("Enabled with attached ResourceLimits", func(t *testing.T) {
 		data := k8s.K8sNodeData{
-			CpuRequest: "100m",
-			MemoryLimit: "256Mi",
+			CpuRequest:     "100m",
+			MemoryLimit:    "256Mi",
+			ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
 		}
-		res := getResourceConfig(data)
+		res := getResourceConfig(data, []string{"p1"}, nil)
 		if res == nil {
 			t.Fatal("Expected non-nil resources")
 		}
@@ -170,6 +172,17 @@ func TestGetResourceConfig(t *testing.T) {
 		}
 		if res.Limits["memory"] != "256Mi" {
 			t.Errorf("Expected Memory limit 256Mi, got %s", res.Limits["memory"])
+		}
+	})
+
+	t.Run("No ResourceLimit attached or connected returns nil", func(t *testing.T) {
+		data := k8s.K8sNodeData{
+			CpuRequest:  "100m",
+			MemoryLimit: "256Mi",
+		}
+		res := getResourceConfig(data, []string{"p1"}, nil)
+		if res != nil {
+			t.Error("Expected nil when no ResourceLimit attached or connected")
 		}
 	})
 }

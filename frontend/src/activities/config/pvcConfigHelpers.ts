@@ -153,10 +153,9 @@ export const handlePvcRwoAccessMode = (
             return { ...node, data: { ...node.data, status: 'pending' } };
           }
         } else {
-          // Restore to ready if webserver/runtime/image configured and currently pending due to multi-attach
-          const hasWeb = !!(node.data?.webserver && node.data?.webserver !== 'none');
-          const hasRuntime = !!(node.data?.runtime && node.data?.runtime !== 'none');
-          const isConfigured = hasWeb || hasRuntime || Boolean(node.data?.image);
+          // Restore to ready if image configured and currently pending due to multi-attach
+          const isConfigured = Boolean(node.data?.image);
+          const newStatus = isConfigured ? 'ready' : 'pending';
 
           if (isConfigured && node.data?.status === 'pending') {
             nodesChanged = true;

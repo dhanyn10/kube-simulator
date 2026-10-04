@@ -67,8 +67,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
 
   const isWorkload = selectedNode.type === 'Pod' || selectedNode.type === 'Deployment' || selectedNode.type === 'ReplicaSet';
   const isConfiguredWorkload = isWorkload
-    ? data.status === 'ready' &&
-      ((!!data.webserver && data.webserver !== 'none') || (!!data.runtime && data.runtime !== 'none'))
+    ? data.status === 'ready' && !!data.image
     : true;
 
   const isReady = isConfiguredWorkload && (

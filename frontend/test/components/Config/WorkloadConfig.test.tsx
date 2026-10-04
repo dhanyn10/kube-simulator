@@ -35,17 +35,16 @@ describe('WorkloadConfig', () => {
     expect(screen.queryByText('Container Image')).toBeNull();
   });
 
-  it('renders correctly for Pod and handles toggling visibility / YAML for image, webserver, and runtime', () => {
+  it('renders correctly for Pod and handles toggling visibility / YAML for image and restart policy', () => {
     const selectedNode = {
       id: 'p1',
       type: 'Pod',
       data: {
         label: 'My Pod',
-        image: 'nginx',
-        webserver: 'nginx',
-        runtime: 'nodejs',
-        displaySettings: { image: true, webserver: true, runtime: true },
-        yamlSettings: { image: true, webserver: true, runtime: true }
+        image: 'nginx:latest',
+        restartPolicy: 'Always',
+        displaySettings: { image: true, restartPolicy: true },
+        yamlSettings: { image: true, restartPolicy: true }
       }
     };
     useFlowStore.setState({ nodes: [selectedNode] as any });
@@ -60,8 +59,7 @@ describe('WorkloadConfig', () => {
     );
 
     expect(screen.getByText('Container Image')).toBeDefined();
-    expect(screen.getByText('Web Server')).toBeDefined();
-    expect(screen.getByText('App Runtime')).toBeDefined();
+    expect(screen.getByText('Restart Policy')).toBeDefined();
 
     // Trigger toggle buttons on Container Image section
     const imgHeader = screen.getByText('Container Image').closest('div');
@@ -70,19 +68,12 @@ describe('WorkloadConfig', () => {
     expect(toggleVisibility).toHaveBeenCalledWith('image');
     expect(toggleYaml).toHaveBeenCalledWith('image');
 
-    // Trigger toggle buttons on Web Server section
-    const wsHeader = screen.getByText('Web Server').closest('div');
-    const wsButtons = wsHeader?.querySelectorAll('button') || [];
-    wsButtons.forEach((btn) => fireEvent.click(btn));
-    expect(toggleVisibility).toHaveBeenCalledWith('webserver');
-    expect(toggleYaml).toHaveBeenCalledWith('webserver');
-
-    // Trigger toggle buttons on App Runtime section
-    const rtHeader = screen.getByText('App Runtime').closest('div');
-    const rtButtons = rtHeader?.querySelectorAll('button') || [];
-    rtButtons.forEach((btn) => fireEvent.click(btn));
-    expect(toggleVisibility).toHaveBeenCalledWith('runtime');
-    expect(toggleYaml).toHaveBeenCalledWith('runtime');
+    // Trigger toggle buttons on Restart Policy section
+    const rpHeader = screen.getByText('Restart Policy').closest('div');
+    const rpButtons = rpHeader?.querySelectorAll('button') || [];
+    rpButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('restartPolicy');
+    expect(toggleYaml).toHaveBeenCalledWith('restartPolicy');
   });
 
   it('handles replica updates for Deployment', () => {
@@ -136,72 +127,14 @@ describe('WorkloadConfig', () => {
     expect(updateNodeData).toHaveBeenCalledWith('d1', { replicas: 2 });
   });
 
-  it('handles runtime updates for Pod', () => {
-    const selectedNode = {
-      id: 'p1',
-      type: 'Pod',
-      data: { label: 'My Pod', displaySettings: { runtime: true } }
-    };
-    useFlowStore.setState({ nodes: [selectedNode] as any });
-
-    render(
-      <WorkloadConfig
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-        toggleVisibility={toggleVisibility}
-        toggleYaml={toggleYaml}
-      />
-    );
-
-    const select = screen.getByDisplayValue('None');
-    fireEvent.change(select, { target: { value: 'nodejs' } });
-
-    expect(performUpdate).toHaveBeenCalledWith({ runtime: 'nodejs', framework: '' });
-  });
-
-  it('handles Pod with empty/missing image, webserver set to none, and runtime set to none in light mode', () => {
-    useFlowStore.setState({ colorMode: 'light' });
-
-    const selectedNode = {
-      id: 'p2',
-      type: 'Pod',
-      data: {
-        label: 'Pod with None settings',
-        image: '',
-        webserver: 'none',
-        runtime: 'none',
-        displaySettings: { image: true, webserver: true, runtime: true }
-      }
-    };
-    useFlowStore.setState({ nodes: [selectedNode] as any });
-
-    render(
-      <WorkloadConfig
-        selectedNode={selectedNode}
-        performUpdate={performUpdate}
-        toggleVisibility={toggleVisibility}
-        toggleYaml={toggleYaml}
-      />
-    );
-
-    expect(screen.getByText('Container Image')).toBeDefined();
-    expect(screen.getByText('Web Server')).toBeDefined();
-    expect(screen.getByText('App Runtime')).toBeDefined();
-
-    // Verify select element has light mode background class
-    const select = screen.getByDisplayValue('None');
-    expect(select.className).toContain('bg-slate-50');
-  });
-
-  it('handles updating webserver via SelectorGroup selection and image via ImageDropdown', () => {
+  it('handles image selection via ImageDropdown', () => {
     const selectedNode = {
       id: 'p3',
       type: 'Pod',
       data: {
         label: 'Pod WS test',
         image: 'nginx:latest',
-        webserver: 'none',
-        displaySettings: { image: true, webserver: true }
+        displaySettings: { image: true }
       }
     };
     useFlowStore.setState({ nodes: [selectedNode] as any });
@@ -214,10 +147,6 @@ describe('WorkloadConfig', () => {
         toggleYaml={toggleYaml}
       />
     );
-
-    const nginxButton = screen.getByText('Nginx');
-    fireEvent.click(nginxButton);
-    expect(performUpdate).toHaveBeenCalledWith({ webserver: 'nginx' });
 
     // Open image dropdown and select another image option
     const dropdownTrigger = screen.getByText('nginx:latest');
@@ -226,6 +155,34 @@ describe('WorkloadConfig', () => {
     const redisOption = screen.getByText('redis:alpine');
     fireEvent.click(redisOption);
 
-    expect(performUpdate).toHaveBeenCalledWith({ image: 'redis:alpine' });
+    expect(performUpdate).toHaveBeenCalledWith({ image: 'redis:alpine', status: 'ready' });
+  });
+
+  it('renders Restart Policy selector for Pod and handles policy updates', () => {
+    const selectedNode = {
+      id: 'p1',
+      type: 'Pod',
+      data: {
+        label: 'My Pod',
+        restartPolicy: 'Always',
+        displaySettings: { restartPolicy: true },
+        yamlSettings: { restartPolicy: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Restart Policy')).toBeDefined();
+    const neverBtn = screen.getByText('Never');
+    fireEvent.click(neverBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'Never' });
   });
 });

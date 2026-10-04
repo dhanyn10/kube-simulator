@@ -22,6 +22,16 @@ type ConfigDataItem struct {
 	Value string `json:"value"`
 }
 
+// ResourceLimitItem represents a resource limit configuration attached to a workload node.
+type ResourceLimitItem struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	CpuRequest    string `json:"cpuRequest,omitempty"`
+	CpuLimit      string `json:"cpuLimit,omitempty"`
+	MemoryRequest string `json:"memoryRequest,omitempty"`
+	MemoryLimit   string `json:"memoryLimit,omitempty"`
+}
+
 // K8sNodeData encapsulates configuration attributes for a canvas node.
 type K8sNodeData struct {
 	ID              string                 `json:"id"`
@@ -36,6 +46,7 @@ type K8sNodeData struct {
 	Webserver       string                 `json:"webserver,omitempty"`
 	Runtime         string                 `json:"runtime,omitempty"`
 	Framework       string                 `json:"framework,omitempty"`
+	RestartPolicy   string                 `json:"restartPolicy,omitempty"`
 	CpuRequest      string                 `json:"cpuRequest,omitempty"`
 	CpuLimit        string                 `json:"cpuLimit,omitempty"`
 	MemoryRequest   string                 `json:"memoryRequest,omitempty"`
@@ -52,6 +63,7 @@ type K8sNodeData struct {
 	AccessMode      string                 `json:"accessMode,omitempty"`
 	StorageClass    string                 `json:"storageClass,omitempty"`
 	ConfigData      []ConfigDataItem       `json:"configData,omitempty"`
+	ResourceLimits  []ResourceLimitItem    `json:"resourceLimits,omitempty"`
 }
 
 // FrontendNode represents a node object received from the frontend canvas payload.

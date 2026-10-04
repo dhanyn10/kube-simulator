@@ -110,6 +110,7 @@ export interface K8sNodeData {
   webserver?: string;
   runtime?: string;
   framework?: string;
+  restartPolicy?: 'Always' | 'OnFailure' | 'Never';
   isAutoNamed?: boolean;
 
   // Resource Limits

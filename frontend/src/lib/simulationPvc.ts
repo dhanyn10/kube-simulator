@@ -227,7 +227,7 @@ export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   let hasChanges = false;
   childPods.forEach(pod => {
     const pData = pod.data as K8sNodeData;
-    const isReadyStatus = !!(pData.webserver && pData.webserver !== 'none') || !!(pData.runtime && pData.runtime !== 'none');
+    const isReadyStatus = Boolean(pData.image);
     if (pData.status === 'pending' && isReadyStatus) {
       if (updateNodeData(ctx, pod.id, { status: 'ready' })) hasChanges = true;
     }
