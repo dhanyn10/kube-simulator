@@ -289,7 +289,8 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
   const paddingX = 24;
   const paddingY = 48; // Account for deployment header
   const deploymentWidth = deployment.width || deployment.measured?.width || 320;
-  const deployableWidth = Math.max(100, deploymentWidth - (2 * paddingX));
+  const maxPodWidth = Math.max(0, ...pods.map(p => getPodDimensions(p).podW));
+  const deployableWidth = Math.max(maxPodWidth, deploymentWidth - (2 * paddingX));
 
   let state: PodLayoutState = {
     currentX: paddingX,
