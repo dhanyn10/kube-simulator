@@ -97,6 +97,26 @@ describe('podSizing utils', () => {
       const h = calculatePodHeight(childPodSmallReplicas, 168, [], false);
       expect(h).toBe(POD_MIN_DIMENSIONS.height);
     });
+
+    it('covers replicas > 1 with parentId defined, and memoryLimit without cpuLimit', () => {
+      // 1. Replicas > 1 with parentId defined -> !data.parentId evaluates to false
+      const childPodWithParent = {
+        type: 'Pod' as any,
+        parentId: 'dep-2',
+        replicas: 3,
+        parentReplicas: 1,
+      };
+      const h1 = calculatePodHeight(childPodWithParent, 168, [], false);
+      expect(h1).toBe(POD_MIN_DIMENSIONS.height);
+
+      // 2. memoryLimit defined without cpuLimit -> evaluates false || true branch
+      const podMemoryOnly = {
+        type: 'Pod' as any,
+        memoryLimit: '256Mi',
+      };
+      const h2 = calculatePodHeight(podMemoryOnly, 168, [], false);
+      expect(h2).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
+    });
   });
 
   describe('getPodMinimumSize', () => {

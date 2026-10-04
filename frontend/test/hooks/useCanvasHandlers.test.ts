@@ -179,6 +179,14 @@ describe('useCanvasHandlers hook', () => {
       result.current.onEdgeClick(mockEvent, brokenEdge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
+
+    // Edge click where sourceNode exists but targetNode is missing
+    mockFitBounds.mockClear();
+    const partialEdge: Edge = { id: 'e-partial', source: 'n1', target: 'n-missing-target' };
+    act(() => {
+      result.current.onEdgeClick(mockEvent, partialEdge);
+    });
+    expect(mockFitBounds).not.toHaveBeenCalled();
   });
 
   it('covers fallback node dimensions, container bounds, forbidden node, and null iamUsers in autofocus', () => {

@@ -234,8 +234,8 @@ describe('HPANode', () => {
     expect(screen.getAllByText('90%').length).toBeGreaterThan(0);
   });
 
-  it('respects displaySettings', () => {
-    const props = {
+  it('respects displaySettings enabled vs disabled', () => {
+    const propsDisabled = {
       id: 'h1',
       type: 'HPA',
       data: {
@@ -248,14 +248,37 @@ describe('HPANode', () => {
       }
     } as any;
 
-    render(
+    const { rerender } = render(
       <ReactFlowProvider>
-        <HPANode {...props} />
+        <HPANode {...propsDisabled} />
       </ReactFlowProvider>
     );
 
     expect(screen.queryByText('min:')).toBeNull();
     expect(screen.queryByText('max:')).toBeNull();
     expect(screen.queryByTestId('progress-bar')).toBeNull();
+
+    // Explicit true displaySettings
+    const propsEnabled = {
+      id: 'h1',
+      type: 'HPA',
+      data: {
+        label: 'My HPA',
+        displaySettings: {
+            replicas: true,
+            targetCPU: true,
+            targetMemory: true
+        }
+      }
+    } as any;
+
+    rerender(
+      <ReactFlowProvider>
+        <HPANode {...propsEnabled} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('min:')).toBeDefined();
+    expect(screen.getAllByTestId('progress-bar')).toHaveLength(3);
   });
 });

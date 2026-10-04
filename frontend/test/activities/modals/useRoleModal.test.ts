@@ -317,7 +317,13 @@ describe('useRoleModal hook', () => {
     });
     expect(result.current.rules[0].resources).toEqual(['services']);
 
-    // Update rule tags on non-matching index
+    // Update rule tags on non-matching index when multiple rules exist
+    act(() => {
+      result.current.handleUpdateRuleTags(1, 'verbs', ['get', 'list']);
+    });
+    expect(result.current.rules[1].verbs).toEqual(['get', 'list']);
+    expect(result.current.rules[0].resources).toEqual(['services']);
+
     act(() => {
       result.current.handleUpdateRuleTags(99, 'verbs', ['get']);
     });
@@ -368,8 +374,9 @@ describe('useRoleModal hook', () => {
     });
     expect(result.current.filteredAvailableUsers).toHaveLength(1);
 
-    // Remove all rules and save role
+    // Set invalid roleName that sanitizes to empty string and remove all rules
     act(() => {
+      result.current.setRoleName('$$$');
       result.current.handleRemoveRule(0);
     });
     expect(result.current.rules).toHaveLength(0);
@@ -380,6 +387,7 @@ describe('useRoleModal hook', () => {
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
+        name: 'unnamed-role',
         rules: [{ apiGroups: [''], resources: ['*'], verbs: ['*'] }],
       })
     );

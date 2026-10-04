@@ -249,6 +249,27 @@ describe('store helpers', () => {
     expect(synced[0].width).toBe(200);
   });
 
+  it('covers selectValue fallback, style minHeight in getPodDimensions, and ReplicaSet collision skip', () => {
+    // 1. ReplicaSet collision skip
+    const rsParent = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: {} } as any;
+    const rsChild1 = { id: 'p1', parentId: 'rs1', position: { x: 0, y: 0 }, data: {} } as any;
+    const rsChild2 = { id: 'p2', parentId: 'rs1', position: { x: 5, y: 5 }, data: {} } as any;
+    const resolvedRs = resolveGlobalCollisions([rsParent, rsChild1, rsChild2]);
+    expect(resolvedRs.find(n => n.id === 'p1')?.position.x).toBe(0);
+
+    // 2. Pod dimensions with style.minHeight
+    const podStyleMinHeight = {
+      id: 'p-style',
+      type: 'Pod',
+      parentId: 'dep1',
+      style: { minHeight: 180 },
+      data: { replicas: 1 }
+    } as any;
+    const dep = { id: 'dep1', width: 400, data: {} } as any;
+    const laidOut = layoutPodsInDeployment(dep, [podStyleMinHeight]);
+    expect(laidOut[0].style.minHeight).toBeGreaterThanOrEqual(180);
+  });
+
   it('covers getEffectiveSize for Namespace, PodGroup collision skip, and fallback sizes', () => {
     // 1. getEffectiveSize for Namespace
     const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} } as any;

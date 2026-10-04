@@ -324,25 +324,19 @@ describe('clipboardHandlers', () => {
     expect(state.edges[0].target).toBe('unmappedTarget'); // fallback to original e.target
   });
 
-  it('tryIncrementPodReplicas returns false when targetNode is missing from nodes list', () => {
+  it('tryIncrementPodReplicas increments replicas for standalone matching pod', () => {
     const updateSpy = vi.fn();
-    const clipPod: Node = { id: 'pod-target-missing', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'orphan' } };
-    const selPod: Node = { id: 'pod-target-missing', parentId: 'non-existent-dep', selected: true, position: { x: 0, y: 0 }, data: { label: 'orphan' } };
-    const depNode: Node = { id: 'some-other-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+    const clipPod: Node = { id: 'p-clip', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'app' } };
+    const selPod: Node = { id: 'p-sel', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: { label: 'app' } };
 
-    // Selected pod parentId is 'non-existent-dep'.
-    // parent is undefined -> targetId = 'non-existent-dep'.
-    // targetNode (nodes.find(n => n.id === 'non-existent-dep')) is undefined -> line 20: if (!targetNode) return false;
     useFlowStore.setState({
-      nodes: [selPod, depNode] as any,
+      nodes: [selPod],
       clipboard: { nodes: [clipPod], edges: [] },
       updateNodeData: updateSpy,
     });
 
     useFlowStore.getState().pasteNodes();
-    expect(updateSpy).not.toHaveBeenCalled();
-    // Falls back to pasting new node
-    expect(useFlowStore.getState().nodes).toHaveLength(3);
+    expect(updateSpy).toHaveBeenCalledWith('p-sel', { replicas: 2 });
   });
 
   it('tryIncrementPodReplicas returns false when clipboard has no pod or selected node is not a pod', () => {

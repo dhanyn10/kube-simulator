@@ -206,6 +206,15 @@ describe('DeploymentNode', () => {
     );
 
     expect(screen.getByText('Unselected Dep')).toBeDefined();
+
+    // Test dragging incompatible item where nodeType is not in compatible list
+    useFlowStore.setState({ draggingSidebarItem: 'Role' });
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode id="d-incompat" type="UnknownType" selected={true} data={{ label: 'Incompat Dep' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('Incompat Dep')).toBeDefined();
   });
 
   it('covers getBadgeColor for isHovered vs isDetaching vs default, and partial cpuRequest without memoryRequest', () => {

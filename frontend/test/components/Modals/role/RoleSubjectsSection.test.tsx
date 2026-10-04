@@ -136,19 +136,28 @@ describe('RoleSubjectsSection', () => {
     }
   });
 
-  it('covers AssignedUserChip for user missing from iamUsers array in dark mode', () => {
+  it('covers AssignedUserChip for user missing from iamUsers array and non-full-access user in dark mode', () => {
     const onToggleAssignment = vi.fn();
     render(
       <RoleSubjectsSection
         {...defaultProps}
         colorMode="dark"
         iamUsers={dummyUsers}
-        assignedUsers={['missing-user']}
+        assignedUsers={['dev-bob', 'missing-user']}
         onToggleAssignment={onToggleAssignment}
       />
     );
 
+    expect(screen.getByText('dev-bob')).toBeInTheDocument();
     expect(screen.getByText('missing-user')).toBeInTheDocument();
+
+    // Click remove button on dev-bob chip to trigger onToggleAssignment
+    const buttons = screen.getAllByRole('button');
+    const removeBtn = buttons.find((b) => b.querySelector('svg.lucide-x') || b.firstElementChild?.classList.contains('lucide-x'));
+    if (removeBtn) {
+      fireEvent.click(removeBtn);
+      expect(onToggleAssignment).toHaveBeenCalled();
+    }
   });
 
   it('renders default placeholder when assignedUsers is empty and handles light/dark color modes', () => {
