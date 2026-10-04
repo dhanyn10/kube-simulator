@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
-import { TerminalCommandForm } from '@/components/Layout/Terminal/TerminalCommandForm';
+import { TerminalCommandForm } from '@/components/Terminal/TerminalCommandForm';
 import { useFlowStore } from '@/store';
 import { SuggestionItem } from '@/activities/terminal';
 
