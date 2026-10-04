@@ -379,6 +379,37 @@ describe('simulation test suite', () => {
       expect(updateNodeDataMock).toHaveBeenCalledWith('pod1', { status: 'ready', simulatedFailureCM: undefined });
   });
 
+  it('scheduleRecovery with restartPolicy Never skips automatic recovery', () => {
+    const pod = createNode('pod-never', 'Pod', { status: 'crashing', restartPolicy: 'Never', label: 'NeverPod' });
+    const updateNodeDataMock = vi.fn();
+    const addLogMock = vi.fn();
+    const ctx = getMockCtx({
+      get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock, addLog: addLogMock })
+    });
+
+    scheduleRecovery(baseNodes[0], 'pod-never', ctx);
+
+    vi.advanceTimersByTime(3000);
+    expect(updateNodeDataMock).not.toHaveBeenCalled();
+    expect(addLogMock).toHaveBeenCalledWith('error', expect.stringContaining('restartPolicy: Never'), 'Simulation');
+  });
+
+  it('scheduleRecovery with restartPolicy Always or OnFailure logs warning and recovers pod', () => {
+    const pod = createNode('pod-always', 'Pod', { status: 'crashing', restartPolicy: 'OnFailure', label: 'OnFailPod', webserver: 'nginx' });
+    const updateNodeDataMock = vi.fn();
+    const addLogMock = vi.fn();
+    const ctx = getMockCtx({
+      get: vi.fn().mockReturnValue({ nodes: [baseNodes[0], pod], updateNodeData: updateNodeDataMock, addLog: addLogMock })
+    });
+
+    scheduleRecovery(baseNodes[0], 'pod-always', ctx);
+
+    expect(addLogMock).toHaveBeenCalledWith('warning', expect.stringContaining('restartPolicy: OnFailure'), 'Simulation');
+    vi.advanceTimersByTime(3000);
+    expect(updateNodeDataMock).toHaveBeenCalledWith('pod-always', { status: 'ready', simulatedFailureCM: undefined });
+    expect(addLogMock).toHaveBeenCalledWith('info', expect.stringContaining('restarted successfully'), 'Simulation');
+  });
+
   it('scheduleRecovery returns early if pod status is no longer crashing', () => {
       const pod = createNode('pod1', 'Pod', { status: 'ready', webserver: 'nginx' });
       const updateNodeDataMock = vi.fn();

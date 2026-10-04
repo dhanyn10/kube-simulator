@@ -38,9 +38,17 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 		container.Ports = []k8s.ContainerPort{{ContainerPort: data.Port}}
 	}
 
+	restartPolicy := ""
+	if val, ok := data.YamlSettings["restartPolicy"]; !ok || val {
+		if data.RestartPolicy != "" {
+			restartPolicy = data.RestartPolicy
+		}
+	}
+
 	return k8s.PodSpec{
-		Containers: []k8s.Container{container},
-		Volumes:    volumes,
+		Containers:    []k8s.Container{container},
+		Volumes:       volumes,
+		RestartPolicy: restartPolicy,
 	}
 }
 
@@ -220,13 +228,19 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8
 		container.Ports = []k8s.ContainerPort{{ContainerPort: podData.Port}}
 	}
 
+	restartPolicy := ""
+	if podData.RestartPolicy != "" {
+		restartPolicy = podData.RestartPolicy
+	}
+
 	return k8s.PodTemplate{
 		Metadata: k8s.ObjectMeta{
 			Labels: map[string]string{"app": name},
 		},
 		Spec: k8s.PodSpec{
-			Containers: []k8s.Container{container},
-			Volumes:    volumes,
+			Containers:    []k8s.Container{container},
+			Volumes:       volumes,
+			RestartPolicy: restartPolicy,
 		},
 	}
 }

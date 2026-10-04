@@ -27,6 +27,12 @@ export const PodNode = memo((props: NodeProps) => {
           )}
         </div>
       )}
+      {data.displaySettings?.restartPolicy !== false && !!data.restartPolicy && (
+        <div className="flex justify-between items-center text-[9px] font-mono mt-1 pt-1 border-t border-slate-700/30">
+          <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>restart:</span>
+          <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.restartPolicy}</span>
+        </div>
+      )}
     </BaseNode>
   );
 });

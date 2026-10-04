@@ -63,8 +63,9 @@ type Volume struct {
 }
 
 type PodSpec struct {
-	Containers []Container `yaml:"containers" json:"containers"`
-	Volumes    []Volume    `yaml:"volumes,omitempty" json:"volumes,omitempty"`
+	Containers    []Container `yaml:"containers" json:"containers"`
+	Volumes       []Volume    `yaml:"volumes,omitempty" json:"volumes,omitempty"`
+	RestartPolicy string      `yaml:"restartPolicy,omitempty" json:"restartPolicy,omitempty"`
 }
 
 type Pod struct {

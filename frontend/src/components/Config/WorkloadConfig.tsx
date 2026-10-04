@@ -1,5 +1,5 @@
 import { useFlowStore } from '@/store';
-import { Box, Code, Layers, Server } from 'lucide-react';
+import { Box, Code, Layers, RotateCcw, Server } from 'lucide-react';
 import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
@@ -30,6 +30,12 @@ export const WorkloadConfig = ({
   const { replicaValue, updateReplicas } = useWorkloadConfigHandler(selectedNode);
 
   const data = selectedNode.data;
+
+  const RESTART_POLICIES = [
+    { id: 'Always', label: 'Always' },
+    { id: 'OnFailure', label: 'On Failure' },
+    { id: 'Never', label: 'Never' }
+  ] as const;
 
   return (
     <div className="space-y-4">
@@ -112,6 +118,24 @@ export const WorkloadConfig = ({
             colorMode={colorMode}
             performUpdate={performUpdate}
           />
+
+          {/* Restart Policy */}
+          <ConfigSection
+            title="Restart Policy"
+            icon={RotateCcw}
+            isVisible={data.displaySettings?.restartPolicy}
+            onToggle={() => toggleVisibility('restartPolicy')}
+            isYamlEnabled={data.yamlSettings?.restartPolicy}
+            onYamlToggle={() => toggleYaml('restartPolicy')}
+            disableYamlToggle={Boolean(data.restartPolicy) === false}
+          >
+            <SelectorGroup
+              options={RESTART_POLICIES}
+              currentValue={data.restartPolicy || 'Always'}
+              onSelect={(val) => performUpdate({ restartPolicy: val })}
+              colorMode={colorMode}
+            />
+          </ConfigSection>
         </>
       )}
     </div>

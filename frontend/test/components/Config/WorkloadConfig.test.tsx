@@ -228,4 +228,38 @@ describe('WorkloadConfig', () => {
 
     expect(performUpdate).toHaveBeenCalledWith({ image: 'redis:alpine' });
   });
+
+  it('renders Restart Policy selector for Pod and handles policy updates and toggles', () => {
+    const selectedNode = {
+      id: 'p1',
+      type: 'Pod',
+      data: {
+        label: 'My Pod',
+        restartPolicy: 'Always',
+        displaySettings: { restartPolicy: true },
+        yamlSettings: { restartPolicy: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Restart Policy')).toBeDefined();
+    const neverBtn = screen.getByText('Never');
+    fireEvent.click(neverBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'Never' });
+
+    const rpHeader = screen.getByText('Restart Policy').closest('div');
+    const rpButtons = rpHeader?.querySelectorAll('button') || [];
+    rpButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('restartPolicy');
+    expect(toggleYaml).toHaveBeenCalledWith('restartPolicy');
+  });
 });

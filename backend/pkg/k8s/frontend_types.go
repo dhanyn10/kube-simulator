@@ -36,6 +36,7 @@ type K8sNodeData struct {
 	Webserver       string                 `json:"webserver,omitempty"`
 	Runtime         string                 `json:"runtime,omitempty"`
 	Framework       string                 `json:"framework,omitempty"`
+	RestartPolicy   string                 `json:"restartPolicy,omitempty"`
 	CpuRequest      string                 `json:"cpuRequest,omitempty"`
 	CpuLimit        string                 `json:"cpuLimit,omitempty"`
 	MemoryRequest   string                 `json:"memoryRequest,omitempty"`

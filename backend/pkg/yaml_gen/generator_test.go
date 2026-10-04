@@ -47,6 +47,18 @@ func TestGeneratePod(t *testing.T) {
 	}
 }
 
+func TestGeneratePodWithRestartPolicy(t *testing.T) {
+	nodesJson := `[
+		{"id":"p1","type":"Pod","data":{"label":"My Pod","restartPolicy":"Never"}}
+	]`
+	edgesJson := `[]`
+
+	result := Generate(nodesJson, edgesJson)
+	if !strings.Contains(result, "restartPolicy") || !strings.Contains(result, "Never") {
+		t.Errorf("Generate failed to include restartPolicy in Pod: %s", result)
+	}
+}
+
 func TestGeneratePodWithReplicas(t *testing.T) {
 	// replicas=1 -> Pod
 	nodesJson1 := `[{"id":"p1","type":"Pod","data":{"label":"My Pod","replicas":1}}]`
