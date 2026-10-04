@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPeerPod, getVisibilityUpdates, getAutoNameUpdate, getWorkloadUpdates } from '@/store/handlers/node/configUtils';
+import { isPeerPod, getVisibilityUpdates, getAutoNameUpdate, getWorkloadUpdates } from '@/store/handlers/nodeConfigUtils';
 
 describe('configUtils', () => {
   describe('isPeerPod', () => {

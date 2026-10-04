@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
-import { clipboardHandlers } from '@/store/handlers/node/clipboardHandlers';
+import { clipboardHandlers } from '@/store/handlers/nodeClipboardHandlers';
 import { Node } from '@xyflow/react';
 
 describe('clipboardHandlers', () => {

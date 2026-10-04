@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { resizeHandlers } from '@/store/handlers/node/resizeHandlers';
+import { resizeHandlers } from '@/store/handlers/nodeResizeHandlers';
 import { Node } from '@xyflow/react';
 
 describe('resizeHandlers', () => {

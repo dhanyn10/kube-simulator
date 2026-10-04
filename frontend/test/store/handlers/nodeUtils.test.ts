@@ -6,7 +6,7 @@ import {
   syncWorkloadMetadata,
   sanitizeResourceLimits,
   applyAutoImageLogic,
-} from '@/store/handlers/node/nodeUtils';
+} from '@/store/handlers/nodeUtils';
 
 describe('nodeUtils', () => {
   it('executes onDelete and onRename handlers', () => {

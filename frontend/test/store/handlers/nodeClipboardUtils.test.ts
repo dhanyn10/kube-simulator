@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Node } from '@xyflow/react';
-import { findLogicalPodMatch, updateReplicaDelta } from '@/store/handlers/node/clipboardUtils';
+import { findLogicalPodMatch, updateReplicaDelta } from '@/store/handlers/nodeClipboardUtils';
 
 describe('clipboardUtils', () => {
   describe('findLogicalPodMatch', () => {

@@ -8,7 +8,7 @@ import {
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
-import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './dragUtils';
+import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './nodeDragUtils';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 /**
