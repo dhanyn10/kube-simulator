@@ -68,9 +68,8 @@ func TestGetEnvFromNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			env := getEnvFromNode(tt.node)
-			if len(env) != tt.expected {
-				t.Errorf("getEnvFromNode() len = %d, want %d", len(env), tt.expected)
+			if len(getEnvFromNode(tt.node)) != tt.expected {
+				t.Errorf("getEnvFromNode() len = %d, want %d", len(getEnvFromNode(tt.node)), tt.expected)
 			}
 		})
 	}
@@ -112,8 +111,7 @@ func TestGetVolumeConfig(t *testing.T) {
 				"pod1": {{Source: "pod1", Target: "pvc1"}},
 			},
 		}
-		volumes, _ := getVolumeConfig([]string{"pod1"}, ctx)
-		if volumes[0].PersistentVolumeClaim.ClaimName != "pvc-storage" {
+		if volumes, _ := getVolumeConfig([]string{"pod1"}, ctx); volumes[0].PersistentVolumeClaim.ClaimName != "pvc-storage" {
 			t.Errorf("Expected fallback name 'pvc-storage', got '%s'", volumes[0].PersistentVolumeClaim.ClaimName)
 		}
 	})
@@ -128,8 +126,7 @@ func TestGetEnvFromConnections(t *testing.T) {
 			"pod1": {{Source: "cm1", Target: "pod1"}},
 		},
 	}
-	env := getEnvFromConnections([]string{"pod1"}, ctx)
-	if len(env) != 1 || env[0].Name != "K1" {
+	if env := getEnvFromConnections([]string{"pod1"}, ctx); len(env) != 1 || env[0].Name != "K1" {
 		t.Errorf("Expected 1 env var K1, got %v", env)
 	}
 }
@@ -138,8 +135,7 @@ func TestCreateResourceMap(t *testing.T) {
 	if createResourceMap("", "") != nil {
 		t.Error("Expected nil for empty inputs")
 	}
-	res := createResourceMap("100m", "")
-	if res["cpu"] != "100m" || res["memory"] != "" {
+	if res := createResourceMap("100m", ""); res["cpu"] != "100m" || res["memory"] != "" {
 		t.Errorf("Expected only cpu, got %v", res)
 	}
 }
@@ -150,7 +146,7 @@ func TestGetResourceConfigDisabled(t *testing.T) {
 		CpuRequest:     "100m",
 		ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
 	}
-	if res := getResourceConfig(data, []string{"p1"}, nil); res != nil {
+	if getResourceConfig(data, []string{"p1"}, nil) != nil {
 		t.Error("Expected nil for disabled resources")
 	}
 }
@@ -161,11 +157,7 @@ func TestGetResourceConfigAttached(t *testing.T) {
 		MemoryLimit:    "256Mi",
 		ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
 	}
-	res := getResourceConfig(data, []string{"p1"}, nil)
-	if res == nil {
-		t.Fatal("Expected non-nil resources")
-	}
-	if res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
+	if res := getResourceConfig(data, []string{"p1"}, nil); res == nil || res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
 		t.Errorf("Unexpected resource requirements: %v", res)
 	}
 }
@@ -183,8 +175,7 @@ func TestGetResourceConfigTargetEdge(t *testing.T) {
 			"p1": {{Source: "rl1", Target: "p1"}},
 		},
 	}
-	res := getResourceConfig(data, []string{"p1"}, ctx)
-	if res == nil || res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
+	if res := getResourceConfig(data, []string{"p1"}, ctx); res == nil || res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
 		t.Errorf("Unexpected resource requirements when connected via targetEdgeMap: %v", res)
 	}
 }
@@ -201,8 +192,7 @@ func TestGetResourceConfigSourceEdge(t *testing.T) {
 			"p1": {{Source: "p1", Target: "rl1"}},
 		},
 	}
-	res := getResourceConfig(data, []string{"p1"}, ctx)
-	if res == nil || res.Limits["cpu"] != "500m" {
+	if res := getResourceConfig(data, []string{"p1"}, ctx); res == nil || res.Limits["cpu"] != "500m" {
 		t.Errorf("Unexpected resource requirements when connected via sourceEdgeMap: %v", res)
 	}
 }
@@ -212,7 +202,7 @@ func TestGetResourceConfigNoLimits(t *testing.T) {
 		CpuRequest:  "100m",
 		MemoryLimit: "256Mi",
 	}
-	if res := getResourceConfig(data, []string{"p1"}, nil); res != nil {
+	if getResourceConfig(data, []string{"p1"}, nil) != nil {
 		t.Error("Expected nil when no ResourceLimit attached or connected")
 	}
 }
