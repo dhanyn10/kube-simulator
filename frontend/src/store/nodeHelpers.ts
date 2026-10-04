@@ -130,8 +130,8 @@ export const syncDeployment = (
 const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const data = deployment.data as K8sNodeData;
   const isReplicaSet = deployment.type === 'ReplicaSet';
-  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0);
-  const bottomPadding = hasAttached ? 48 : 24;
+  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0);
+  const bottomPadding = hasAttached ? 64 : 36;
 
   const paddingX = 20;
   const headerHeight = isReplicaSet ? 30 : 40;

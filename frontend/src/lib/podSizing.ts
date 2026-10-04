@@ -22,7 +22,12 @@ export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, ba
   let height = 72;
   if (showDashedProgress) height += isMegaPod ? 120 : 14;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) height += 38;
+  if (data.displaySettings?.restartPolicy !== false && !!data.restartPolicy) height += 24;
   if (badges.length > 0) height += 20;
+
+  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0);
+  if (hasAttached) height += 28;
+
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
   if (showImage) {
     const charsPerLine = Math.max(10, Math.floor((width - 24) / 5.5));
