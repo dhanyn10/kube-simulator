@@ -113,16 +113,22 @@ describe('useMenuBarState', () => {
       monitoringItem?.onClick?.();
     });
 
-    // Test Help menu items (Take a Tour, About)
+    // Test Help menu items (Take a Tour, About, Report Issue)
+    const browserOpenSpy = vi.fn();
+    (globalThis as any).BrowserOpenURL = browserOpenSpy;
+
     let helpMenu = result.current.menuItems.find((m) => m.label === 'Help');
     let tourItem = helpMenu?.items.find((i) => i.label === 'Take a Tour');
     let aboutItem = helpMenu?.items.find((i) => i.label === 'About');
+    let reportIssueItem = helpMenu?.items.find((i) => i.label === 'Report Issue');
 
     act(() => {
       tourItem?.onClick?.();
       aboutItem?.onClick?.();
+      reportIssueItem?.onClick?.();
     });
     expect(defaultProps.onOpenAbout).toHaveBeenCalled();
+    expect(browserOpenSpy).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
 
     // Test outside click to close active menu
     (result.current.menuRef as any).current = document.createElement('div');

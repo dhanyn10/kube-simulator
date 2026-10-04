@@ -135,7 +135,7 @@ describe('IAMUserDetailView', () => {
     expect(screen.getAllByText('developer1').length).toBeGreaterThan(0);
   });
 
-  it('handles undefined user policies and attached roles without nodeType', () => {
+  it('handles undefined user policies and attached roles without nodeType or with empty string nodeType', () => {
     const userWithoutPolicies: KubeIAMUser = {
       ...dummyUser,
       policies: undefined as any,
@@ -147,6 +147,14 @@ describe('IAMUserDetailView', () => {
         nodeType: undefined as any,
         roleId: 'role-2',
         roleName: 'WorkerRole',
+        createdAt: 1700000000000,
+      },
+      {
+        nodeId: 'node-pod-3',
+        nodeLabel: 'Empty Type Pod',
+        nodeType: '',
+        roleId: 'role-3',
+        roleName: 'EmptyTypeRole',
         createdAt: 1700000000000,
       },
     ];
@@ -161,6 +169,7 @@ describe('IAMUserDetailView', () => {
 
     expect(screen.getByText('Attached IAM Policies (0)')).toBeInTheDocument();
     expect(screen.getByText('Worker Pod')).toBeInTheDocument();
+    expect(screen.getByText('Empty Type Pod')).toBeInTheDocument();
     expect(screen.queryByText('(Pod)')).not.toBeInTheDocument();
   });
 

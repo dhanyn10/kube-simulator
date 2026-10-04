@@ -94,9 +94,16 @@ describe('LogToolbar', () => {
     fireEvent.click(selectAllOption);
     expect(onSelectByType).toHaveBeenCalledWith('all');
 
-    // Trigger click outside listener
+    // Trigger click outside listener with normal DOM element
     fireEvent.mouseDown(document.body);
     expect(setIsSelectMenuOpen).toHaveBeenCalledWith(false);
+
+    // Trigger click outside listener where event.target is not an instance of Node
+    setIsSelectMenuOpen.mockClear();
+    const nonNodeEvent = new MouseEvent('mousedown', { bubbles: true });
+    Object.defineProperty(nonNodeEvent, 'target', { value: { notANode: true } });
+    document.dispatchEvent(nonNodeEvent);
+    expect(setIsSelectMenuOpen).not.toHaveBeenCalled();
 
     // Rerender in dark mode
     rerender(<LogToolbar {...props} colorMode="dark" />);

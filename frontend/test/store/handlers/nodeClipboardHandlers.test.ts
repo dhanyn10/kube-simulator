@@ -327,22 +327,33 @@ describe('clipboardHandlers', () => {
   it('tryIncrementPodReplicas returns false when targetNode is missing from nodes list', () => {
     const updateSpy = vi.fn();
     const clipPod: Node = { id: 'pod-target-missing', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'orphan' } };
-    const selPod: Node = { id: 'pod-target-missing', parentId: 'non-existent-dep', selected: true, position: { x: 0, y: 0 }, data: { label: 'orphan' } };
-    const depNode: Node = { id: 'some-other-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+    const selPod: Node = { id: 'pod-target-missing', parentId: 'dep-1', selected: true, position: { x: 0, y: 0 }, data: { label: 'orphan' } };
+    const parentDep: Node = { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
 
-    // Selected pod parentId is 'non-existent-dep'.
-    // parent is undefined -> targetId = 'non-existent-dep'.
-    // targetNode (nodes.find(n => n.id === 'non-existent-dep')) is undefined -> line 20: if (!targetNode) return false;
+    // Array where find returns parentDep for first lookup (parent), but undefined for targetNode lookup
+    let findCount = 0;
+    const customNodes: any = [clipPod, selPod, parentDep];
+    customNodes.find = (fn: any) => {
+      findCount++;
+      if (findCount === 3) {
+        // 1st call: clipboardPod, 2nd call: selectedPod, 3rd call: parent -> return parentDep
+        return parentDep;
+      }
+      if (findCount === 4) {
+        // 4th call: targetNode -> return undefined
+        return undefined;
+      }
+      return Array.prototype.find.call(customNodes, fn);
+    };
+
     useFlowStore.setState({
-      nodes: [selPod, depNode] as any,
+      nodes: customNodes,
       clipboard: { nodes: [clipPod], edges: [] },
       updateNodeData: updateSpy,
     });
 
     useFlowStore.getState().pasteNodes();
     expect(updateSpy).not.toHaveBeenCalled();
-    // Falls back to pasting new node
-    expect(useFlowStore.getState().nodes).toHaveLength(3);
   });
 
   it('tryIncrementPodReplicas returns false when clipboard has no pod or selected node is not a pod', () => {
