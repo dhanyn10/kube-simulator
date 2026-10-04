@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { generateTimestampedProjectName } from '@/components/UI/ResourceManager/resourceManagerHelpers';
+import { generateTimestampedProjectName } from '@/components/Modals/ResourceManager/resourceManagerHelpers';
 import { useFitView } from '@/hooks/useFitView';
 import { restoreRecentFile, deleteRecentFile, openRecentFileFolder } from '@/activities/layout/fileBackstageHelpers';
 import { useRecentFilesState } from '@/activities/layout/useRecentFilesState';

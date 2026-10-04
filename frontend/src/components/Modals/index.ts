@@ -18,3 +18,4 @@ export * from './KubeIAMModal';
 export * from './SaveModal';
 export * from './InternetProfileModal';
 export * from './TerminalCommandTreeModal';
+export * from './ResourceManager';

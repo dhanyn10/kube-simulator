@@ -6,11 +6,11 @@ import { hydrateNodes } from '@/store/nodeHelpers';
 import { Modal } from '@/components/Modals/Modal';
 import { useFitView } from '@/hooks/useFitView';
 
-import { Project } from './ResourceManager/ArchitectureRow';
-import { ProjectsTab } from './ResourceManager/ProjectsTab';
-import { DockerRegistryTab } from './ResourceManager/DockerRegistryTab';
-import { LocalImagesTab } from './ResourceManager/LocalImagesTab';
-import { mapProjectNodes, mapProjectEdges, generateTimestampedProjectName } from './ResourceManager/resourceManagerHelpers';
+import { Project } from './ArchitectureRow';
+import { ProjectsTab } from './ProjectsTab';
+import { DockerRegistryTab } from './DockerRegistryTab';
+import { LocalImagesTab } from './LocalImagesTab';
+import { mapProjectNodes, mapProjectEdges, generateTimestampedProjectName } from './resourceManagerHelpers';
 
 /** Props interface for the ResourceManager modal component. */
 export interface ResourceManagerProps {
