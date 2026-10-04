@@ -2,7 +2,12 @@ import { syncWorkloadMetadata } from './nodeUtils';
 import { sanitizeSlug } from '@/lib/utils';
 
 /**
- * Checks if a node is a peer pod of the selected node.
+ * Checks if a candidate node is a sibling/peer pod of the currently selected pod.
+ *
+ * @param node Candidate node to evaluate
+ * @param selectedNode Currently active/selected node
+ * @param selectedNodeLabel Label string of the selected node
+ * @returns True if node is a peer pod sharing parent or standalone status, false otherwise
  */
 export const isPeerPod = (node: any, selectedNode: any, selectedNodeLabel: string) => {
   if (node.type !== 'Pod' || node.id === selectedNode.id) return false;
@@ -19,8 +24,13 @@ export const isPeerPod = (node: any, selectedNode: any, selectedNodeLabel: strin
 };
 
 /**
- * Calculates additional updates based on visibility toggles.
- * If enabling a feature that is currently empty, set default values.
+ * Calculates additional data updates when toggling visibility settings on workload cards.
+ * Sets default initial values when enabling a previously unconfigured feature.
+ *
+ * @param field Field name being toggled (e.g. 'resources', 'webserver', 'runtime')
+ * @param nextVisibility Targeted visibility boolean state
+ * @param data Current node data object
+ * @returns Data patch object with initial default settings
  */
 export const getVisibilityUpdates = (field: string, nextVisibility: boolean, data: any) => {
   const updates: any = {};
@@ -44,7 +54,10 @@ export const getVisibilityUpdates = (field: string, nextVisibility: boolean, dat
 };
 
 /**
- * Handles automatic naming logic for workloads based on webserver and runtime.
+ * Derives automatic workload label updates based on selected webserver and runtime configurations.
+ *
+ * @param nextData Merged next node data object
+ * @returns Patch object containing sanitized automatic label or image adjustments
  */
 export const getAutoNameUpdate = (nextData: any) => {
   if (nextData.status === 'ready' && nextData.isAutoNamed) {
@@ -63,7 +76,12 @@ export const getAutoNameUpdate = (nextData: any) => {
 };
 
 /**
- * Syncs workload metadata and handles status-based updates.
+ * Synchronizes workload metadata, status transitions, and automatic naming rules.
+ *
+ * @param type K8s resource node type (e.g., 'Pod', 'Deployment')
+ * @param data Existing node data
+ * @param updates Incoming data updates patch
+ * @returns Fully reconciled node data object
  */
 export const getWorkloadUpdates = (type: string, data: any, updates: any) => {
   let nextData = { ...data, ...updates };

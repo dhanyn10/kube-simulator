@@ -4,6 +4,14 @@ import { hydrateNodes } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
 import { randomId } from '@/lib/utils';
 
+/**
+ * Attempts to increment replica count when pasting a copied Pod over an existing matching Pod or Controller.
+ *
+ * @param nodes Current canvas nodes array
+ * @param clipboardNodes Nodes currently stored in the clipboard
+ * @param updateNodeData Store action to update node data properties
+ * @returns True if replica count was successfully incremented, false otherwise
+ */
 const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNodeData: any): boolean => {
   const clipboardPod = clipboardNodes.find((n: Node) => n.type === 'Pod');
   const selectedPod = nodes.find(n => n.selected && n.type === 'Pod');
@@ -24,7 +32,18 @@ const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNo
   return true;
 };
 
+/**
+ * Higher-order store handler providing copy and paste operations for canvas nodes and edges.
+ *
+ * @param set Zustand store setter function
+ * @param get Zustand store getter function returning current FlowState
+ * @returns Object containing `copyNodes` and `pasteNodes` store actions
+ */
 export const clipboardHandlers = (set: any, get: () => FlowState) => ({
+  /**
+   * Copies all currently selected nodes and their connecting edges to the store clipboard.
+   * If a Deployment is selected, all child pods inside it are automatically included.
+   */
   copyNodes: () => {
     const { nodes, edges } = get();
     const selectedNodes = nodes.filter(n => n.selected);
@@ -50,6 +69,10 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
     set({ clipboard: { nodes: nodesToCopy, edges: edgesToCopy } });
   },
 
+  /**
+   * Pastes elements from the store clipboard onto the canvas with an offset.
+   * Generates new unique IDs, maps edge source/target IDs, and selects newly pasted nodes.
+   */
   pasteNodes: () => {
     const { clipboard, nodes, updateNodeData } = get();
     if (!clipboard || clipboard.nodes.length === 0) return;

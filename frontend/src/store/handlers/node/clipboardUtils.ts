@@ -2,8 +2,12 @@ import { Node } from '@xyflow/react';
 import { getNodeData } from '@/store/helpers';
 
 /**
- * Finds a logical match for a pasted pod.
- * If it's in a controller, we return the match to trigger replication.
+ * Finds a logical match for a pasted pod within an existing container.
+ * If the pod belongs to a controller, returns the matching pod to trigger replica scaling rather than duplicate creation.
+ *
+ * @param pastedPod Pod node being pasted
+ * @param nodes Current array of canvas nodes
+ * @returns Matching pod node if found, or null
  */
 export const findLogicalPodMatch = (pastedPod: Node, nodes: Node[]) => {
   const parentId = pastedPod.parentId;
@@ -17,7 +21,12 @@ export const findLogicalPodMatch = (pastedPod: Node, nodes: Node[]) => {
 };
 
 /**
- * Updates replica count for a target's parent.
+ * Updates replica count delta for a target workload or its parent controller.
+ *
+ * @param target Target workload node or pod
+ * @param delta Replica count change (+1 or -1)
+ * @param nodes Current array of canvas nodes
+ * @param updateNodeData Function to dispatch node data updates
  */
 export const updateReplicaDelta = (target: Node, delta: number, nodes: Node[], updateNodeData: Function) => {
   const parentId = (target.type === 'Deployment' || target.type === 'ReplicaSet') ? target.id : target.parentId;

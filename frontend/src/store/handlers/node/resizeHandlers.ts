@@ -7,7 +7,10 @@ import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
 import type { FlowState } from '@/store/types';
 
 /**
- * Gets the minimum allowed size for a node during resize.
+ * Gets the minimum allowed dimensions for a node during user resize interactions.
+ *
+ * @param node Target canvas node
+ * @returns Object containing minimum `width` and `height` numbers
  */
 const getMinNodeSize = (node: Node) => {
   if (node.type === 'Pod') return getPodMinimumSize(node.data);
@@ -15,7 +18,10 @@ const getMinNodeSize = (node: Node) => {
 };
 
 /**
- * Calculates the bounding box required to fit all child pods within a container.
+ * Calculates the total minimum bounding box required to fit all child pods within a container.
+ *
+ * @param pods Array of child pod nodes
+ * @returns Object containing minimum required `width` and `height` numbers
  */
 const calculateMinContainerBounds = (pods: Node[]) => {
   const maxX = Math.max(0, ...pods.map(p => (p.position.x || 0) + (p.width || p.measured?.width || 160)));
@@ -24,7 +30,12 @@ const calculateMinContainerBounds = (pods: Node[]) => {
 };
 
 /**
- * Updates a container's size to ensure it fits its children.
+ * Updates a container node's dimensions to ensure it expands sufficiently to fit child nodes.
+ *
+ * @param nodes Array of canvas nodes
+ * @param containerId Container node ID
+ * @param bounds Required inner dimensions bounding box
+ * @returns Updated array of canvas nodes
  */
 const syncContainerSizeToBounds = (nodes: Node[], containerId: string, bounds: { width: number, height: number }) => {
   return nodes.map(n => {
@@ -36,7 +47,11 @@ const syncContainerSizeToBounds = (nodes: Node[], containerId: string, bounds: {
 };
 
 /**
- * Handles logic for when a Pod is resized.
+ * Handles layout recalculation and sibling pod size synchronization when a pod is resized.
+ *
+ * @param nodes Array of canvas nodes
+ * @param resizedNode Pod node being resized
+ * @returns Reconciled array of canvas nodes
  */
 const applyPodResize = (nodes: Node[], resizedNode: Node) => {
   const parentId = resizedNode.parentId;
@@ -69,7 +84,11 @@ const applyPodResize = (nodes: Node[], resizedNode: Node) => {
 };
 
 /**
- * Handles logic for when a Deployment is resized.
+ * Handles layout recalculation for child pods when a container deployment is resized.
+ *
+ * @param nodes Array of canvas nodes
+ * @param resizedNode Deployment container node being resized
+ * @returns Reconciled array of canvas nodes
  */
 const applyDeploymentResize = (nodes: Node[], resizedNode: Node) => {
   const childPods = nodes.filter(n => n.parentId === resizedNode.id);
@@ -82,7 +101,17 @@ const applyDeploymentResize = (nodes: Node[], resizedNode: Node) => {
   return syncContainerSizeToBounds(nextNodes, resizedNode.id, calculateMinContainerBounds(laidOut));
 };
 
+/**
+ * Higher-order store handler managing card resize interactions (`onNodeResize` and `onNodeResizeStop`).
+ *
+ * @param set Zustand store state setter
+ * @param get Zustand store state getter
+ * @returns Object containing React Flow node resize event handlers
+ */
 export const resizeHandlers = (set: any, get?: () => FlowState) => ({
+  /**
+   * Triggered continuously as a node card handle is dragged to resize.
+   */
   onNodeResize: (_event: any, node: Node) => {
     set((state: FlowState) => {
       const currentNode = state.nodes.find((n: Node) => n.id === node.id);
@@ -114,6 +143,9 @@ export const resizeHandlers = (set: any, get?: () => FlowState) => ({
     });
   },
 
+  /**
+   * Triggered when a card resize drag ends. Logs action dimensions and coordinates to history log.
+   */
   onNodeResizeStop: (_event: any, node: Node) => {
     if (get && node) {
       const nodes = get().nodes;

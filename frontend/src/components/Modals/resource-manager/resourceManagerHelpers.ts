@@ -1,3 +1,9 @@
+/**
+ * Maps raw backend project node objects into React Flow node structures with stringified IDs.
+ *
+ * @param nodes Raw node array from saved project payload
+ * @returns Array of mapped node objects with stringified ID references
+ */
 export const mapProjectNodes = (nodes: any[]): any[] => {
   return (nodes || []).map((n: any) => ({
     ...n,
@@ -6,6 +12,12 @@ export const mapProjectNodes = (nodes: any[]): any[] => {
   }));
 };
 
+/**
+ * Maps raw backend project edge objects into custom React Flow edges with stringified IDs.
+ *
+ * @param edges Raw edge array from saved project payload
+ * @returns Array of mapped edge objects with 'custom' edge rendering type
+ */
 export const mapProjectEdges = (edges: any[]): any[] => {
   return (edges || []).map((e: any) => ({
     ...e,
@@ -16,6 +28,11 @@ export const mapProjectEdges = (edges: any[]): any[] => {
   }));
 };
 
+/**
+ * Generates a default timestamped architecture project name in 'Project-DDMMYYYYHHMMSS' format.
+ *
+ * @returns Formatted timestamped default project name string
+ */
 export const generateTimestampedProjectName = (): string => {
   const d = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');

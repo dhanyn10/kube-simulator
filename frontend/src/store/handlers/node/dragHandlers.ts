@@ -12,7 +12,13 @@ import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 /**
- * Determines the relationship between a node and a potential container.
+ * Determines the interaction relationship between a dragging node and a target container.
+ *
+ * @param node Dragging node
+ * @param container Potential container node
+ * @param intersects True if bounding boxes intersect
+ * @param overlapPercentage Calculated overlap area percentage
+ * @returns Status string ('detaching' | 'hovering') or null
  */
 const getRelationshipStatus = (node: Node, container: Node, intersects: boolean, overlapPercentage: number) => {
   if (node.parentId === container.id) {
@@ -25,7 +31,12 @@ const getRelationshipStatus = (node: Node, container: Node, intersects: boolean,
 };
 
 /**
- * Finds the container that the node is currently hovering over or detaching from.
+ * Finds the container node that the dragging node is hovering over or detaching from.
+ *
+ * @param node Dragging node
+ * @param nodeAbs Absolute top-left position of the dragging node
+ * @param nodes Array of all canvas nodes
+ * @returns Object containing `hoveredId` and `detachingId`
  */
 const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nodes: Node[]) => {
   const containers = nodes.filter(n => n.type === 'Deployment' || n.type === 'Namespace')
@@ -49,9 +60,16 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
   return { hoveredId, detachingId };
 };
 
-
 /**
- * Case 1: Drop into a new container
+ * Applies new parent container assignment when dropping a node into a target container.
+ *
+ * @param node Node being dropped
+ * @param nextNodes Canvas nodes array
+ * @param hoveredId Target container node ID
+ * @param absPos Absolute coordinates of the dropped node
+ * @param get Store state getter
+ * @param finalNode Final node object reference
+ * @returns Updated array of canvas nodes
  */
 const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos: { x: number, y: number }, get: () => FlowState, finalNode: Node) => {
   const target = nextNodes.find(n => n.id === hoveredId);
@@ -64,7 +82,14 @@ const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos
 };
 
 /**
- * Case 2: Detach from current container
+ * Applies container detachment logic when dragging a node outside its current parent container.
+ *
+ * @param node Detaching node
+ * @param nextNodes Canvas nodes array
+ * @param oldParentId Previous parent container ID
+ * @param absPos Absolute coordinates of the node
+ * @param get Store state getter
+ * @returns Updated array of canvas nodes
  */
 const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, absPos: { x: number, y: number }, get: () => FlowState) => {
   const parent = nextNodes.find(n => n.id === oldParentId);
@@ -86,7 +111,14 @@ const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, abs
 };
 
 /**
- * Case 3: Move within same container or fallback
+ * Applies internal position movement within the same parent container and resizes container accordingly.
+ *
+ * @param node Moving node
+ * @param finalNode Node object with updated position
+ * @param nextNodes Canvas nodes array
+ * @param oldParentId Parent container ID
+ * @param get Store state getter
+ * @returns Updated array of canvas nodes
  */
 const applyInternalMove = (node: Node, finalNode: Node, nextNodes: Node[], oldParentId: string, get: () => FlowState) => {
   const parent = nextNodes.find(n => n.id === oldParentId);
@@ -104,7 +136,15 @@ const applyInternalMove = (node: Node, finalNode: Node, nextNodes: Node[], oldPa
 };
 
 /**
- * Handles the logic for re-parenting, detaching, or moving a node within its container after drop.
+ * Handles overall drop parenting logic (re-parenting, detaching, or internal position movement).
+ *
+ * @param node Dropped node
+ * @param finalNode Final node object state
+ * @param nextNodes Canvas nodes array
+ * @param hoveredId Hovered container ID if dropping inside
+ * @param detachingId Detaching container ID if dropping outside
+ * @param get Store state getter
+ * @returns Reconciled array of canvas nodes
  */
 const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hoveredId: string | null, detachingId: string | null, get: () => FlowState) => {
   const oldParentId = node.parentId;
@@ -125,7 +165,17 @@ const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hov
   return nextNodes;
 };
 
+/**
+ * Higher-order store handler managing node drag events on the canvas (drag start, drag movement, drag stop).
+ *
+ * @param set Zustand store state setter
+ * @param get Zustand store state getter
+ * @returns Object containing React Flow node drag event handlers
+ */
 export const dragHandlers = (set: any, get: () => FlowState) => ({
+  /**
+   * Triggered when a node drag interaction begins. Enforces RBAC permissions and tracks active deployment.
+   */
   onNodeDragStart: (_event: any, node: Node) => {
     const store = get();
     if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
@@ -145,6 +195,9 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     }
   },
 
+  /**
+   * Triggered during active node dragging. Detects container hover and detachment states.
+   */
   onNodeDrag: (_event: any, node: Node) => {
     const store = get();
     if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
@@ -170,6 +223,9 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     });
   },
 
+  /**
+   * Triggered when a node drag stops. Resolves collisions, updates parenting, and logs action coordinates.
+   */
   onNodeDragStop: (_event: any, node: Node) => {
     const store = get();
     if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {

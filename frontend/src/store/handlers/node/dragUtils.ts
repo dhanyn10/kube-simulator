@@ -4,7 +4,13 @@ import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
 
 /**
- * Calculates overlap percentage and checks intersection between a node and a container.
+ * Calculates overlap percentage and checks intersection between a dragging node and a candidate container.
+ *
+ * @param node Dragging node
+ * @param nodeAbs Calculated absolute coordinates of the dragging node
+ * @param container Target container node
+ * @param nodes Current array of canvas nodes
+ * @returns Object containing `intersects` boolean flag and `overlapPercentage` number
  */
 export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, nodes: Node[]) => {
   const nodeWidth = node.width || node.measured?.width || 160;
@@ -26,7 +32,13 @@ export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, node
 };
 
 /**
- * Syncs old parent deployment when a pod is removed from it.
+ * Synchronizes and updates former parent deployment layout when a pod is removed or detached.
+ *
+ * @param parentId Former parent container node ID
+ * @param currentNodes Array of canvas nodes
+ * @param movingReplicas Replica count delta being removed
+ * @param get Store state getter
+ * @returns Updated array of canvas nodes
  */
 const syncOldParentDeployment = (parentId: string, currentNodes: Node[], movingReplicas: number, get: () => FlowState) => {
   const oldParent = currentNodes.find(n => n.id === parentId);
@@ -39,7 +51,16 @@ const syncOldParentDeployment = (parentId: string, currentNodes: Node[], movingR
 };
 
 /**
- * Handles the logic when a pod is moved into a deployment.
+ * Handles node structure updates when a pod is moved into a Deployment or ReplicaSet container.
+ *
+ * @param targetParentId Destination container node ID
+ * @param targetParent Destination container node object
+ * @param node Pod node being moved
+ * @param nextNodes Current array of canvas nodes
+ * @param oldParentId Previous container node ID if re-parenting
+ * @param get Store state getter
+ * @param finalNode Final node object reference
+ * @returns Reconciled array of canvas nodes
  */
 export const handlePodMoveToDeployment = (targetParentId: string, targetParent: Node, node: Node, nextNodes: Node[], oldParentId: string | undefined, get: () => FlowState, finalNode: Node) => {
   const movingReplicas = getNodeData(node).replicas || 1;
@@ -52,7 +73,15 @@ export const handlePodMoveToDeployment = (targetParentId: string, targetParent: 
 };
 
 /**
- * Handles generic node move between containers.
+ * Handles generic node movement into non-workload containers (such as Namespaces).
+ *
+ * @param targetParentId Target container node ID
+ * @param node Node being moved
+ * @param nextNodes Current array of canvas nodes
+ * @param oldParentId Former container node ID if detaching/re-parenting
+ * @param absPos Calculated absolute coordinates of the node
+ * @param get Store state getter
+ * @returns Reconciled array of canvas nodes
  */
 export const handleGenericContainerMove = (targetParentId: string, node: Node, nextNodes: Node[], oldParentId: string | undefined, absPos: any, get: () => FlowState) => {
   let resultNodes = nextNodes.map(n => {

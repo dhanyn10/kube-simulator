@@ -3,6 +3,13 @@ import { K8sResourceType, K8sNodeData } from '@/types';
 import type { FlowState } from '@/store/types';
 import { formatPodName, sanitizeSlug } from '@/lib/utils';
 
+/**
+ * Creates node-level interaction handlers (`onDelete`, `onRename`) for a specific canvas node ID.
+ *
+ * @param id Unique target node ID
+ * @param get Store state getter function
+ * @returns Object containing `onDelete` and `onRename` callback handlers
+ */
 export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onDelete: () => {
     const node = get().nodes.find((n: Node) => n.id === id);
@@ -32,6 +39,14 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   }
 });
 
+/**
+ * Generates initial default node data payload according to Kubernetes resource type.
+ *
+ * @param type K8s resource node type
+ * @param id Unique node ID
+ * @param get Store state getter
+ * @returns Initial node data object with defaults and handlers attached
+ */
 export const getInitialData = (type: K8sResourceType, id: string, get: () => FlowState): K8sNodeData => {
   const handlers = createNodeHandlers(id, get);
   const base: K8sNodeData = {
@@ -123,7 +138,12 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
   }
 };
 
-
+/**
+ * Sanitizes and clamps numerical resource limits (replicas, minReplicas, maxReplicas) within safe bounds.
+ *
+ * @param data Node data updates patch
+ * @returns Sanitized node data patch
+ */
 export const sanitizeResourceLimits = (data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   const res = { ...data };
   const limit = (val: any, min: number, max: number) => Math.max(min, Math.min(max, Number(val)));
@@ -133,6 +153,13 @@ export const sanitizeResourceLimits = (data: Partial<K8sNodeData>): Partial<K8sN
   return res;
 };
 
+/**
+ * Resolves standard Docker container image names based on selected runtime and webserver frameworks.
+ *
+ * @param runtime Target runtime identifier ('nodejs', 'go', 'python', 'java', 'php')
+ * @param webserver Target webserver identifier ('nginx', 'apache')
+ * @returns Container image tag string
+ */
 export const resolveAutoImage = (runtime: string, webserver: string) => {
   if (runtime === 'nodejs') return 'node:18-alpine';
   if (runtime === 'go') return 'golang:1.21-alpine';
@@ -148,6 +175,13 @@ export const resolveAutoImage = (runtime: string, webserver: string) => {
   return 'nginx:latest';
 };
 
+/**
+ * Automatically updates node container image tag when runtime or webserver settings change.
+ *
+ * @param targetData Current node data object
+ * @param data Incoming data updates
+ * @returns Patch object with resolved auto-image tag if auto-image mode is active
+ */
 export const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   if (data.runtime === undefined && data.webserver === undefined) return data;
   const rt = data.runtime ?? targetData.runtime ?? 'none';
@@ -158,6 +192,13 @@ export const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNo
   return data;
 };
 
+/**
+ * Synchronizes workload status ('ready' vs 'pending') and auto-image properties based on metadata configuration.
+ *
+ * @param type K8s resource node type
+ * @param data Workload data object
+ * @returns Updated workload node data patch
+ */
 export const syncWorkloadMetadata = (type: string, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
   if (!['Pod', 'Deployment', 'ReplicaSet'].includes(type)) return data;
 

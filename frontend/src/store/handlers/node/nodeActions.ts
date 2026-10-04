@@ -29,6 +29,16 @@ import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
+/**
+ * Transforms a standalone pod into a ReplicaSet controller group when scaling replicas > 1.
+ *
+ * @param nodeId Target pod node ID
+ * @param updatedNode Updated pod node object
+ * @param updatedData Updated node data payload
+ * @param nodes Array of canvas nodes
+ * @param get Store state getter
+ * @returns Updated array of canvas nodes containing the new ReplicaSet group
+ */
 const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, nodes: Node[], get: () => FlowState) => {
   const podPos = getAbsPos(nodeId, nodes);
   const groupId = `replicaset-${crypto.randomUUID().split('-')[0]}`;
@@ -41,6 +51,16 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
   return sortNodes([...nodes.filter(n => n.id !== nodeId), updatedDeployment, ...laidOut]);
 };
 
+/**
+ * Synchronizes a child pod with its parent controller (Deployment or ReplicaSet).
+ *
+ * @param target Target node
+ * @param updatedNode Updated pod node object
+ * @param newData Changed node data patch
+ * @param nodes Array of canvas nodes
+ * @param get Store state getter
+ * @returns Reconciled array of canvas nodes
+ */
 const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
@@ -75,6 +95,14 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
   return syncContainerSize(parent.parentId, resultNodes);
 };
 
+/**
+ * Synchronizes child pods and layout dimensions when updating a controller node.
+ *
+ * @param updatedNode Container node being updated
+ * @param nodes Array of canvas nodes
+ * @param get Store state getter
+ * @returns Reconciled array of canvas nodes
+ */
 const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowState) => {
   const { updatedDeployment, laidOut } = syncDeployment(updatedNode, nodes, 0, get);
   const others = nodes.filter(n => n.id !== updatedNode.id && n.parentId !== updatedNode.id);
@@ -82,6 +110,18 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
   return syncContainerSize(updatedNode.parentId, resultNodes);
 };
 
+/**
+ * Dispatches node-specific synchronization logic after a node data update.
+ *
+ * @param nodeId Target node ID
+ * @param updatedNode Updated node object
+ * @param updatedData Merged updated node data payload
+ * @param target Original node object before update
+ * @param newData Updated fields patch
+ * @param nodes Array of canvas nodes
+ * @param get Store state getter
+ * @returns Reconciled array of canvas nodes
+ */
 const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, target: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
   if (updatedNode.type === 'Pod') {
@@ -104,6 +144,14 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
   return nextNodes;
 };
 
+/**
+ * Cleans up child pods and updates parent controller layouts during node deletion.
+ *
+ * @param node Node being deleted
+ * @param currentNodes Array of canvas nodes
+ * @param get Store state getter
+ * @returns Reconciled array of canvas nodes
+ */
 const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowState) => {
   let nextNodes = currentNodes;
   if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
@@ -119,6 +167,14 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
   return nextNodes;
 };
 
+/**
+ * Synchronizes parent controller layout when adding a new pod inside a container.
+ *
+ * @param newNode Newly created node
+ * @param nodes Array of canvas nodes
+ * @param get Store state getter
+ * @returns Sorted array of canvas nodes
+ */
 const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) => {
   if (newNode.parentId && newNode.type === 'Pod') {
     const parent = nodes.find(n => n.id === newNode.parentId);
@@ -133,6 +189,9 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) 
 
 // -- ACTION IMPLEMENTATIONS --
 
+/**
+ * Adds a new Kubernetes resource node to the canvas at target coordinates or initial random position.
+ */
 const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (type: K8sResourceType, position?: { x: number, y: number }, parentId?: string) => {
   let targetParentId = parentId;
   const currentNodes = get().nodes;
@@ -176,6 +235,9 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   emitLiveNodeCreatedCommand(type, (newNode.data?.label as string) || id);
 };
 
+/**
+ * Removes specified nodes and their associated edge connections from the store.
+ */
 const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodesToDelete: Node[]) => {
   const { nodes, edges } = get();
   const deleteIds = new Set(nodesToDelete.map(n => n.id));
@@ -208,6 +270,9 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
   });
 };
 
+/**
+ * Updates data properties for a specific canvas node and emits live terminal command logs.
+ */
 const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodeId: string, newData: Partial<K8sNodeData>) => {
   const { nodes } = get();
   const target = nodes.find((n: Node) => n.id === nodeId);
@@ -279,6 +344,13 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
 
 // -- MAIN EXPORT --
 
+/**
+ * Higher-order store slice factory providing node CRUD, selection, grouping, and click actions.
+ *
+ * @param set Zustand state setter
+ * @param get Zustand state getter
+ * @returns Object containing all node slice actions
+ */
 export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => ({
   addNode: addNodeImpl(set, get),
   deleteNodes: deleteNodesImpl(set, get),
