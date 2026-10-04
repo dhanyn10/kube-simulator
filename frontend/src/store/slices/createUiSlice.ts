@@ -25,7 +25,7 @@ import {
   simulateAllResourceLogs,
   purgeUserFromNodes,
   renameUserInNodeRoles,
-} from './ui-handlers';
+} from '../handlers/uiHelpers';
 import { dispatchLiveCommand } from '@/activities/terminal/liveUpdateCommands';
 
 export type MiniMapPosition = 'bottom-right' | 'bottom-left' | 'top-right';

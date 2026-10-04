@@ -12,7 +12,7 @@ import {
   IAMStep2Permissions,
   IAMStep3Review,
   IAMWizardFooter,
-} from './KubeIAM';
+} from './iam';
 
 export const KubeIAMModal: React.FC = () => {
   const {

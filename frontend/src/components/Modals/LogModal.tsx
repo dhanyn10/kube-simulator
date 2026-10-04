@@ -1,9 +1,9 @@
 import React from 'react';
 import { Modal } from './Modal';
 import { Bell, Trash2 } from 'lucide-react';
-import { LogToolbar } from './LogModal/LogToolbar';
-import { LogRow } from './LogModal/LogRow';
-import { LogPagination } from './LogModal/LogPagination';
+import { LogToolbar } from './log/LogToolbar';
+import { LogRow } from './log/LogRow';
+import { LogPagination } from './log/LogPagination';
 import { useLogModal } from '@/activities/modals';
 
 export const LogModal: React.FC = () => {

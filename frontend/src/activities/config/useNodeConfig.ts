@@ -5,7 +5,7 @@
 import { useFlowStore } from '@/store';
 import { sortNodes } from '@/store/helpers';
 import { syncDeployment } from '@/store/nodeHelpers';
-import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/slices/node-handlers/configUtils';
+import { getVisibilityUpdates, getWorkloadUpdates, isPeerPod } from '@/store/handlers/nodeConfigUtils';
 import { generateRandomHash, sanitizeSlug } from '@/lib/utils';
 
 export const syncPeersAndParent = (

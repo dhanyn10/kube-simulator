@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { ResourceManager } from '@/components/Modals/ResourceManager';
+import { ResourceManager } from '@/components/Modals/resource-manager';
 import { useFlowStore } from '@/store';
 
 // Mock Wails App
