@@ -76,6 +76,19 @@ describe('podSizing utils', () => {
       expect(h2).toBeGreaterThan(h1);
     });
 
+    it('increases height for restart policy and attached resources', () => {
+      const base = { type: 'Pod' as any };
+      const withRestart = { type: 'Pod' as any, restartPolicy: 'Always' as const };
+      const withAttached = { type: 'Pod' as any, resourceLimits: [{ id: 'rl-1', cpuLimit: '1000m' }] };
+
+      const hBase = calculatePodHeight(base, 168, [], false);
+      const hRestart = calculatePodHeight(withRestart, 168, [], false);
+      const hAttached = calculatePodHeight(withAttached, 168, [], false);
+
+      expect(hRestart).toBeGreaterThan(hBase);
+      expect(hAttached).toBeGreaterThan(hBase);
+    });
+
     it('increases height for dashed progress, badges, and image display', () => {
       const dataWithDashed = { type: 'Pod' as any, parentReplicas: 5, image: 'nginx:latest' };
       const height = calculatePodHeight(dataWithDashed, 168, ['runtime-go'], false);

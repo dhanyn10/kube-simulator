@@ -167,6 +167,26 @@ func TestResourceGenerators_Pod(t *testing.T) {
 			t.Errorf("Expected image nginx:latest, got %s", pod.Spec.Containers[0].Image)
 		}
 	})
+
+	t.Run("Restart Policy and Resource Limits", func(t *testing.T) {
+		data := k8s.K8sNodeData{
+			Image:         "redis:alpine",
+			RestartPolicy: "OnFailure",
+			CpuLimit:      "500m",
+			MemoryLimit:   "256Mi",
+			ResourceLimits: []k8s.ResourceLimitItem{
+				{ID: "rl1"},
+			},
+		}
+		res := generatePodOrDeployment(data, "my-pod", "default", &GenContext{})
+		pod := res.(k8s.Pod)
+		if pod.Spec.RestartPolicy != "OnFailure" {
+			t.Errorf("Expected RestartPolicy OnFailure, got %s", pod.Spec.RestartPolicy)
+		}
+		if pod.Spec.Containers[0].Resources == nil || pod.Spec.Containers[0].Resources.Limits["cpu"] != "500m" {
+			t.Errorf("Expected CPU limit 500m, got %v", pod.Spec.Containers[0].Resources)
+		}
+	})
 }
 
 func TestResourceGenerators_ConfigMap(t *testing.T) {
