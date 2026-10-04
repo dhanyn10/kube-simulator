@@ -7,4 +7,4 @@ export * from './SimulationControls';
 export * from './WindowControls';
 export * from './CanvasControlsPanel';
 export * from './CanvasMiniMap';
-export * from './Terminal';
+export * from '../Terminal';

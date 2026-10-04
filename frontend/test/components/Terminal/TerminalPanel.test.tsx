@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
-import { TerminalPanel } from '@/components/Layout/Terminal/TerminalPanel';
+import { TerminalPanel } from '@/components/Terminal/TerminalPanel';
 import {
   handleGetPods,
   handleGetDeployments,
