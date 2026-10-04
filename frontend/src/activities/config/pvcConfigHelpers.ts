@@ -70,6 +70,123 @@ export const evaluatePvcRealtimeStatus = (
 };
 
 /**
+ * Determines the target PVC status based on multi-attach conflict state and connected replica count.
+ *
+ * @param isMultiAttachConflict - Whether a multi-attach error condition exists.
+ * @param connectedReplicas - Number of connected workload replicas.
+ * @returns Target PVC status string.
+ */
+const determinePvcTargetStatus = (
+  isMultiAttachConflict: boolean,
+  connectedReplicas: number
+): 'Multi-Attach Error' | 'Bound' | 'Pending' => {
+  if (isMultiAttachConflict) return 'Multi-Attach Error';
+  if (connectedReplicas > 0) return 'Bound';
+  return 'Pending';
+};
+
+/**
+ * Extracts connected workload node IDs directly connected to the specified PVC node.
+ *
+ * @param pvcNodeId - ID of the PVC node.
+ * @param edges - Array of canvas edges.
+ * @returns Set of connected workload node IDs.
+ */
+const getConnectedWorkloadIds = (pvcNodeId: string, edges: Edge[]): Set<string> => {
+  const connectedWorkloadIds = new Set<string>();
+  edges.forEach((e) => {
+    if (e.source === pvcNodeId) connectedWorkloadIds.add(e.target);
+    if (e.target === pvcNodeId) connectedWorkloadIds.add(e.source);
+  });
+  return connectedWorkloadIds;
+};
+
+/**
+ * Updates validation errors on canvas edges connected to a PVC node.
+ *
+ * @param pvcNode - Target PVC node.
+ * @param edges - Array of canvas edges.
+ * @param isMultiAttachConflict - Whether multi-attach conflict exists.
+ * @param connectedReplicas - Number of connected replicas.
+ * @returns Object containing updated edges array and changed boolean flag.
+ */
+const updatePvcEdges = (
+  pvcNode: Node,
+  edges: Edge[],
+  isMultiAttachConflict: boolean,
+  connectedReplicas: number
+): { edges: Edge[]; changed: boolean } => {
+  let edgesChanged = false;
+  const errorMsg = isMultiAttachConflict
+    ? `Multi-Attach Error: Volume "${pvcNode.data?.label || pvcNode.id}" (ReadWriteOnce) cannot be mounted by ${connectedReplicas} replicas simultaneously`
+    : undefined;
+
+  const updatedEdges = edges.map((edge) => {
+    if (edge.source !== pvcNode.id && edge.target !== pvcNode.id) {
+      return edge;
+    }
+
+    if (isMultiAttachConflict) {
+      if (edge.data?.validationError !== errorMsg) {
+        edgesChanged = true;
+        return { ...edge, data: { ...edge.data, validationError: errorMsg } };
+      }
+    } else if (
+      typeof edge.data?.validationError === 'string' &&
+      edge.data.validationError.includes('Multi-Attach Error')
+    ) {
+      edgesChanged = true;
+      return { ...edge, data: { ...edge.data, validationError: undefined } };
+    }
+    return edge;
+  });
+
+  return { edges: updatedEdges, changed: edgesChanged };
+};
+
+/**
+ * Synchronizes Pod statuses for workloads connected to a PVC node.
+ *
+ * @param nodes - Array of canvas nodes.
+ * @param connectedWorkloadIds - Set of connected workload IDs.
+ * @param isMultiAttachConflict - Whether multi-attach conflict exists.
+ * @returns Object containing updated nodes array and changed boolean flag.
+ */
+const updateConnectedPodStatuses = (
+  nodes: Node[],
+  connectedWorkloadIds: Set<string>,
+  isMultiAttachConflict: boolean
+): { nodes: Node[]; changed: boolean } => {
+  if (connectedWorkloadIds.size === 0) {
+    return { nodes, changed: false };
+  }
+
+  let nodesChanged = false;
+  const updatedNodes = nodes.map((node) => {
+    const isConnectedDirectly = connectedWorkloadIds.has(node.id);
+    const isConnectedParent = node.parentId && connectedWorkloadIds.has(String(node.parentId));
+
+    if (node.type === 'Pod' && (isConnectedDirectly || isConnectedParent)) {
+      if (isMultiAttachConflict) {
+        if (node.data?.status !== 'pending') {
+          nodesChanged = true;
+          return { ...node, data: { ...node.data, status: 'pending' } };
+        }
+      } else {
+        const isConfigured = Boolean(node.data?.image);
+        if (isConfigured && node.data?.status === 'pending') {
+          nodesChanged = true;
+          return { ...node, data: { ...node.data, status: 'ready' } };
+        }
+      }
+    }
+    return node;
+  });
+
+  return { nodes: updatedNodes, changed: nodesChanged };
+};
+
+/**
  * Dedicated function to handle ReadWriteOnce (RWO) PVC access mode validation and state synchronization.
  * Evaluates connected workload replicas in real-time (whether in simulation or edit mode):
  * - If connected replicas > 1 for RWO, sets PVC status to 'Multi-Attach Error', applies edge validation errors, and marks workload pods as pending.
@@ -90,20 +207,10 @@ export const handlePvcRwoAccessMode = (
   const isRWO = accessMode === 'ReadWriteOnce';
   const isMultiAttachConflict = isRWO && connectedReplicas > 1;
 
-  let updatedNodes = [...nodes];
-  let updatedEdges = [...edges];
   let nodesChanged = false;
-  let edgesChanged = false;
+  let updatedNodes = [...nodes];
 
-  let targetPvcStatus: 'Multi-Attach Error' | 'Bound' | 'Pending';
-  if (isMultiAttachConflict) {
-    targetPvcStatus = 'Multi-Attach Error';
-  } else if (connectedReplicas > 0) {
-    targetPvcStatus = 'Bound';
-  } else {
-    targetPvcStatus = 'Pending';
-  }
-
+  const targetPvcStatus = determinePvcTargetStatus(isMultiAttachConflict, connectedReplicas);
   if (pvcNode.data?.pvcStatus !== targetPvcStatus) {
     nodesChanged = true;
     updatedNodes = updatedNodes.map((n) =>
@@ -111,64 +218,22 @@ export const handlePvcRwoAccessMode = (
     );
   }
 
-  // Find connected workload IDs
-  const connectedWorkloadIds = new Set<string>();
-  edges.forEach((e) => {
-    if (e.source === pvcNode.id) connectedWorkloadIds.add(e.target);
-    if (e.target === pvcNode.id) connectedWorkloadIds.add(e.source);
-  });
+  const { edges: updatedEdges, changed: edgesChanged } = updatePvcEdges(
+    pvcNode,
+    edges,
+    isMultiAttachConflict,
+    connectedReplicas
+  );
 
-  // Update edge validation errors
-  const errorMsg = isMultiAttachConflict
-    ? `Multi-Attach Error: Volume "${pvcNode.data?.label || pvcNode.id}" (ReadWriteOnce) cannot be mounted by ${connectedReplicas} replicas simultaneously`
-    : undefined;
-
-  updatedEdges = updatedEdges.map((edge) => {
-    if (edge.source !== pvcNode.id && edge.target !== pvcNode.id) {
-      return edge;
-    }
-
-    if (isMultiAttachConflict) {
-      if (edge.data?.validationError !== errorMsg) {
-        edgesChanged = true;
-        return { ...edge, data: { ...edge.data, validationError: errorMsg } };
-      }
-    } else if (edge.data?.validationError?.includes('Multi-Attach Error')) {
-      edgesChanged = true;
-      return { ...edge, data: { ...edge.data, validationError: undefined } };
-    }
-    return edge;
-  });
-
-  // Synchronize pod status for connected workloads
-  if (connectedWorkloadIds.size > 0) {
-    updatedNodes = updatedNodes.map((node) => {
-      const isConnectedDirectly = connectedWorkloadIds.has(node.id);
-      const isConnectedParent = node.parentId && connectedWorkloadIds.has(String(node.parentId));
-
-      if (node.type === 'Pod' && (isConnectedDirectly || isConnectedParent)) {
-        if (isMultiAttachConflict) {
-          if (node.data?.status !== 'pending') {
-            nodesChanged = true;
-            return { ...node, data: { ...node.data, status: 'pending' } };
-          }
-        } else {
-          // Restore to ready if image configured and currently pending due to multi-attach
-          const isConfigured = Boolean(node.data?.image);
-          const newStatus = isConfigured ? 'ready' : 'pending';
-
-          if (isConfigured && node.data?.status === 'pending') {
-            nodesChanged = true;
-            return { ...node, data: { ...node.data, status: 'ready' } };
-          }
-        }
-      }
-      return node;
-    });
-  }
+  const connectedWorkloadIds = getConnectedWorkloadIds(pvcNode.id, edges);
+  const { nodes: syncedNodes, changed: podsChanged } = updateConnectedPodStatuses(
+    updatedNodes,
+    connectedWorkloadIds,
+    isMultiAttachConflict
+  );
 
   return {
-    nodes: nodesChanged ? updatedNodes : nodes,
+    nodes: nodesChanged || podsChanged ? syncedNodes : nodes,
     edges: edgesChanged ? updatedEdges : edges,
   };
 };

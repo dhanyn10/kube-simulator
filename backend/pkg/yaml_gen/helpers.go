@@ -109,38 +109,43 @@ func createResourceMap(cpu, memory string) map[string]string {
 	return res
 }
 
+// isConnectedToResourceLimit checks if any edge in the provided list connects to a ResourceLimit node.
+func isConnectedToResourceLimit(edges []k8s.FrontendEdge, nodeMap map[string]*k8s.FrontendNode, isTarget bool) bool {
+	for _, e := range edges {
+		nodeID := e.Source
+		if isTarget {
+			nodeID = e.Target
+		}
+		if node, ok := nodeMap[nodeID]; ok && node != nil && node.Type == "ResourceLimit" {
+			return true
+		}
+	}
+	return false
+}
+
+// checkConnectedResourceLimit determines whether any of the target node IDs connect to a ResourceLimit node in the canvas graph.
+func checkConnectedResourceLimit(targetIDs []string, ctx *GenContext) bool {
+	if ctx == nil {
+		return false
+	}
+	for _, id := range targetIDs {
+		if isConnectedToResourceLimit(ctx.targetEdgeMap[id], ctx.nodeMap, false) {
+			return true
+		}
+		if isConnectedToResourceLimit(ctx.sourceEdgeMap[id], ctx.nodeMap, true) {
+			return true
+		}
+	}
+	return false
+}
+
 // getResourceConfig builds resource requirements (requests and limits) from workload node settings.
 func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext) *k8s.ResourceRequirements {
 	if val, ok := data.YamlSettings["resources"]; ok && !val {
 		return nil
 	}
 
-	hasResourceLimit := len(data.ResourceLimits) > 0
-
-	if !hasResourceLimit && ctx != nil {
-		for _, id := range targetIDs {
-			for _, e := range ctx.targetEdgeMap[id] {
-				sourceNode := ctx.nodeMap[e.Source]
-				if sourceNode != nil && sourceNode.Type == "ResourceLimit" {
-					hasResourceLimit = true
-					break
-				}
-			}
-			if !hasResourceLimit {
-				for _, e := range ctx.sourceEdgeMap[id] {
-					targetNode := ctx.nodeMap[e.Target]
-					if targetNode != nil && targetNode.Type == "ResourceLimit" {
-						hasResourceLimit = true
-						break
-					}
-				}
-			}
-			if hasResourceLimit {
-				break
-			}
-		}
-	}
-
+	hasResourceLimit := len(data.ResourceLimits) > 0 || checkConnectedResourceLimit(targetIDs, ctx)
 	if !hasResourceLimit {
 		return nil
 	}
