@@ -144,88 +144,75 @@ func TestCreateResourceMap(t *testing.T) {
 	}
 }
 
-func TestGetResourceConfig(t *testing.T) {
-	t.Run("Disabled", func(t *testing.T) {
-		data := k8s.K8sNodeData{
-			YamlSettings:   map[string]bool{"resources": false},
-			CpuRequest:     "100m",
-			ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
-		}
-		res := getResourceConfig(data, []string{"p1"}, nil)
-		if res != nil {
-			t.Error("Expected nil for disabled resources")
-		}
-	})
+func TestGetResourceConfigDisabled(t *testing.T) {
+	data := k8s.K8sNodeData{
+		YamlSettings:   map[string]bool{"resources": false},
+		CpuRequest:     "100m",
+		ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
+	}
+	if res := getResourceConfig(data, []string{"p1"}, nil); res != nil {
+		t.Error("Expected nil for disabled resources")
+	}
+}
 
-	t.Run("Enabled with attached ResourceLimits", func(t *testing.T) {
-		data := k8s.K8sNodeData{
-			CpuRequest:     "100m",
-			MemoryLimit:    "256Mi",
-			ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
-		}
-		res := getResourceConfig(data, []string{"p1"}, nil)
-		if res == nil {
-			t.Fatal("Expected non-nil resources")
-		}
-		if res.Requests["cpu"] != "100m" {
-			t.Errorf("Expected CPU request 100m, got %s", res.Requests["cpu"])
-		}
-		if res.Limits["memory"] != "256Mi" {
-			t.Errorf("Expected Memory limit 256Mi, got %s", res.Limits["memory"])
-		}
-	})
+func TestGetResourceConfigAttached(t *testing.T) {
+	data := k8s.K8sNodeData{
+		CpuRequest:     "100m",
+		MemoryLimit:    "256Mi",
+		ResourceLimits: []k8s.ResourceLimitItem{{ID: "rl1", Name: "limits"}},
+	}
+	res := getResourceConfig(data, []string{"p1"}, nil)
+	if res == nil {
+		t.Fatal("Expected non-nil resources")
+	}
+	if res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
+		t.Errorf("Unexpected resource requirements: %v", res)
+	}
+}
 
-	t.Run("Connected ResourceLimit via targetEdgeMap", func(t *testing.T) {
-		data := k8s.K8sNodeData{
-			CpuRequest:  "100m",
-			MemoryLimit: "256Mi",
-		}
-		ctx := &GenContext{
-			nodeMap: map[string]*k8s.FrontendNode{
-				"rl1": {ID: "rl1", Type: "ResourceLimit"},
-			},
-			targetEdgeMap: map[string][]k8s.FrontendEdge{
-				"p1": {{Source: "rl1", Target: "p1"}},
-			},
-		}
-		res := getResourceConfig(data, []string{"p1"}, ctx)
-		if res == nil {
-			t.Fatal("Expected non-nil resources when connected via targetEdgeMap")
-		}
-		if res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
-			t.Errorf("Unexpected resource values: %v", res)
-		}
-	})
+func TestGetResourceConfigTargetEdge(t *testing.T) {
+	data := k8s.K8sNodeData{
+		CpuRequest:  "100m",
+		MemoryLimit: "256Mi",
+	}
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"rl1": {ID: "rl1", Type: "ResourceLimit"},
+		},
+		targetEdgeMap: map[string][]k8s.FrontendEdge{
+			"p1": {{Source: "rl1", Target: "p1"}},
+		},
+	}
+	res := getResourceConfig(data, []string{"p1"}, ctx)
+	if res == nil || res.Requests["cpu"] != "100m" || res.Limits["memory"] != "256Mi" {
+		t.Errorf("Unexpected resource requirements when connected via targetEdgeMap: %v", res)
+	}
+}
 
-	t.Run("Connected ResourceLimit via sourceEdgeMap", func(t *testing.T) {
-		data := k8s.K8sNodeData{
-			CpuLimit: "500m",
-		}
-		ctx := &GenContext{
-			nodeMap: map[string]*k8s.FrontendNode{
-				"rl1": {ID: "rl1", Type: "ResourceLimit"},
-			},
-			sourceEdgeMap: map[string][]k8s.FrontendEdge{
-				"p1": {{Source: "p1", Target: "rl1"}},
-			},
-		}
-		res := getResourceConfig(data, []string{"p1"}, ctx)
-		if res == nil {
-			t.Fatal("Expected non-nil resources when connected via sourceEdgeMap")
-		}
-		if res.Limits["cpu"] != "500m" {
-			t.Errorf("Expected CPU limit 500m, got %s", res.Limits["cpu"])
-		}
-	})
+func TestGetResourceConfigSourceEdge(t *testing.T) {
+	data := k8s.K8sNodeData{
+		CpuLimit: "500m",
+	}
+	ctx := &GenContext{
+		nodeMap: map[string]*k8s.FrontendNode{
+			"rl1": {ID: "rl1", Type: "ResourceLimit"},
+		},
+		sourceEdgeMap: map[string][]k8s.FrontendEdge{
+			"p1": {{Source: "p1", Target: "rl1"}},
+		},
+	}
+	res := getResourceConfig(data, []string{"p1"}, ctx)
+	if res == nil || res.Limits["cpu"] != "500m" {
+		t.Errorf("Unexpected resource requirements when connected via sourceEdgeMap: %v", res)
+	}
+}
 
-	t.Run("No ResourceLimit attached or connected returns nil", func(t *testing.T) {
-		data := k8s.K8sNodeData{
-			CpuRequest:  "100m",
-			MemoryLimit: "256Mi",
-		}
-		res := getResourceConfig(data, []string{"p1"}, nil)
-		if res != nil {
-			t.Error("Expected nil when no ResourceLimit attached or connected")
-		}
-	})
+func TestGetResourceConfigNoLimits(t *testing.T) {
+	data := k8s.K8sNodeData{
+		CpuRequest:  "100m",
+		MemoryLimit: "256Mi",
+	}
+	if res := getResourceConfig(data, []string{"p1"}, nil); res != nil {
+		t.Error("Expected nil when no ResourceLimit attached or connected")
+	}
 }
