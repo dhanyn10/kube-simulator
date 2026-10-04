@@ -110,8 +110,38 @@ func createResourceMap(cpu, memory string) map[string]string {
 }
 
 // getResourceConfig builds resource requirements (requests and limits) from workload node settings.
-func getResourceConfig(data k8s.K8sNodeData) *k8s.ResourceRequirements {
+func getResourceConfig(data k8s.K8sNodeData, targetIDs []string, ctx *GenContext) *k8s.ResourceRequirements {
 	if val, ok := data.YamlSettings["resources"]; ok && !val {
+		return nil
+	}
+
+	hasResourceLimit := len(data.ResourceLimits) > 0
+
+	if !hasResourceLimit && ctx != nil {
+		for _, id := range targetIDs {
+			for _, e := range ctx.targetEdgeMap[id] {
+				sourceNode := ctx.nodeMap[e.Source]
+				if sourceNode != nil && sourceNode.Type == "ResourceLimit" {
+					hasResourceLimit = true
+					break
+				}
+			}
+			if !hasResourceLimit {
+				for _, e := range ctx.sourceEdgeMap[id] {
+					targetNode := ctx.nodeMap[e.Target]
+					if targetNode != nil && targetNode.Type == "ResourceLimit" {
+						hasResourceLimit = true
+						break
+					}
+				}
+			}
+			if hasResourceLimit {
+				break
+			}
+		}
+	}
+
+	if !hasResourceLimit {
 		return nil
 	}
 

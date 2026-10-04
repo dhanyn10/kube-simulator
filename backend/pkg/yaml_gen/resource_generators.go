@@ -11,7 +11,7 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	targetIDs := []string{data.ID}
 	volumes, volumeMounts := getVolumeConfig(targetIDs, ctx)
 	env := getEnvFromConnections(targetIDs, ctx)
-	resources := getResourceConfig(data)
+	resources := getResourceConfig(data, targetIDs, ctx)
 
 	containerName := "main"
 	if data.Label != "" {
@@ -38,11 +38,12 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 		container.Ports = []k8s.ContainerPort{{ContainerPort: data.Port}}
 	}
 
-	restartPolicy := ""
-	if val, ok := data.YamlSettings["restartPolicy"]; !ok || val {
-		if data.RestartPolicy != "" {
-			restartPolicy = data.RestartPolicy
-		}
+	restartPolicy := "Always"
+	if data.RestartPolicy != "" {
+		restartPolicy = data.RestartPolicy
+	}
+	if val, ok := data.YamlSettings["restartPolicy"]; ok && !val {
+		restartPolicy = ""
 	}
 
 	return k8s.PodSpec{
@@ -203,7 +204,7 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8
 
 	volumes, volumeMounts := getVolumeConfig(targetIDs, ctx)
 	env := getEnvFromConnections(targetIDs, ctx)
-	resources := getResourceConfig(podData)
+	resources := getResourceConfig(podData, targetIDs, ctx)
 
 	containerName := "main"
 	if podData.Label != "" {
@@ -228,9 +229,12 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8
 		container.Ports = []k8s.ContainerPort{{ContainerPort: podData.Port}}
 	}
 
-	restartPolicy := ""
+	restartPolicy := "Always"
 	if podData.RestartPolicy != "" {
 		restartPolicy = podData.RestartPolicy
+	}
+	if val, ok := podData.YamlSettings["restartPolicy"]; ok && !val {
+		restartPolicy = ""
 	}
 
 	return k8s.PodTemplate{
