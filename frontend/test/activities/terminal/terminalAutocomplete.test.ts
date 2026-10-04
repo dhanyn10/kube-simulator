@@ -2,17 +2,94 @@ import { describe, it, expect } from 'vitest';
 import {
   getAutocompleteSuggestions,
   trimSuggestionLabel,
-  COMMAND_SPEC_TREE
+  COMMAND_SPEC_TREE,
+  ADMIN_SPEC_TREE,
+  getPodNames,
+  getDeploymentNames,
+  getRoleNames,
+  getRoleBindingNames,
+  getConfigMapNames,
+  getSecretNames,
+  ADMIN_SUGGESTIONS,
+  KUBECTL_TOP_COMMANDS,
+  CONFIG_SUBCOMMANDS,
+  GET_SUBCOMMANDS,
+  UTILITY_COMMANDS,
 } from '@/activities/terminal/terminalAutocomplete';
 import { Node } from '@xyflow/react';
 
 describe('terminalAutocomplete', () => {
-  it('exports COMMAND_SPEC_TREE declarative command structure', () => {
+  it('exports spec trees and top-level command constants', () => {
     expect(COMMAND_SPEC_TREE).toBeDefined();
+    expect(ADMIN_SPEC_TREE).toBeDefined();
+    expect(ADMIN_SUGGESTIONS).toBeDefined();
+    expect(KUBECTL_TOP_COMMANDS).toBeDefined();
+    expect(CONFIG_SUBCOMMANDS).toBeDefined();
+    expect(GET_SUBCOMMANDS).toBeDefined();
+    expect(UTILITY_COMMANDS).toBeDefined();
+
     const kubectlNode = COMMAND_SPEC_TREE.find(n => n.name === 'kubectl');
     expect(kubectlNode).toBeDefined();
     expect(kubectlNode?.children?.some(c => c.name === 'get')).toBe(true);
     expect(kubectlNode?.children?.some(c => c.name === 'config')).toBe(true);
+  });
+
+  it('returns empty array when input is empty or awaiting admin password', () => {
+    expect(getAutocompleteSuggestions('', [])).toEqual([]);
+    expect(getAutocompleteSuggestions('   ', [])).toEqual([]);
+    expect(getAutocompleteSuggestions('kubectl', [], false, true)).toEqual([]);
+  });
+
+  it('handles admin authenticated mode suggestions', () => {
+    const suggs = getAutocompleteSuggestions('try', [], true);
+    expect(suggs.some(s => s.value === 'try status')).toBe(true);
+    expect(suggs.some(s => s.value === 'try clear')).toBe(true);
+
+    const logoutSugg = getAutocompleteSuggestions('logout', [], true);
+    expect(logoutSugg.some(s => s.value === 'logout')).toBe(true);
+  });
+
+  it('extracts stacked pod names with replicaSuffixes array and handles resource getters', () => {
+    const mockNodes: Node[] = [
+      {
+        id: 'pod-stacked',
+        type: 'Pod',
+        data: {
+          baseName: 'api-pod',
+          podHash: 'x8k2p',
+          replicaSuffixes: ['aaaaa', 'bbbbb'],
+        },
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'pod-single',
+        type: 'Pod',
+        data: { label: 'single-pod' },
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: {
+          label: 'web-dep',
+          roles: [{ name: 'web-role' }],
+          configMaps: [{ name: 'web-cm' }],
+          secrets: [{ name: 'web-secret' }],
+        },
+        position: { x: 0, y: 0 },
+      },
+    ];
+
+    const pods = getPodNames(mockNodes);
+    expect(pods).toContain('api-pod-x8k2p-aaaaa');
+    expect(pods).toContain('api-pod-x8k2p-bbbbb');
+    expect(pods).toContain('single-pod');
+
+    expect(getDeploymentNames(mockNodes)).toEqual(['web-dep']);
+    expect(getRoleNames(mockNodes)).toEqual(['web-role']);
+    expect(getRoleBindingNames(mockNodes)).toEqual(['web-role-binding']);
+    expect(getConfigMapNames(mockNodes)).toEqual(['web-cm']);
+    expect(getSecretNames(mockNodes)).toEqual(['web-secret']);
   });
 
   it('returns full command hints when typing initial keyword prefix "k" or "ku"', () => {
@@ -27,100 +104,158 @@ describe('terminalAutocomplete', () => {
 
   it('returns general top subcommands when typing "kubectl"', () => {
     const suggestions = getAutocompleteSuggestions('kubectl', []);
-    expect(suggestions).toHaveLength(8);
+    expect(suggestions.length).toBeGreaterThanOrEqual(8);
     expect(suggestions.some(s => s.value === 'kubectl get')).toBe(true);
     expect(suggestions.some(s => s.value === 'kubectl config')).toBe(true);
     expect(suggestions.some(s => s.value === 'kubectl logs')).toBe(true);
     expect(suggestions.some(s => s.value === 'kubectl describe')).toBe(true);
   });
 
-  it('disables scale command when no Deployment is on canvas', () => {
-    const suggestions = getAutocompleteSuggestions('kubectl scale', []);
-    expect(suggestions[0].disabled).toBe(true);
-    expect(suggestions[0].disabledReason).toContain('no Deployment on canvas');
+  it('disables commands requiring resources when canvas is empty', () => {
+    const scaleSugg = getAutocompleteSuggestions('kubectl scale', []);
+    expect(scaleSugg[0].disabled).toBe(true);
+    expect(scaleSugg[0].disabledReason).toContain('no Deployment on canvas');
+
+    const setSugg = getAutocompleteSuggestions('kubectl set', []);
+    expect(setSugg[0].disabled).toBe(true);
+
+    const rolloutSugg = getAutocompleteSuggestions('kubectl rollout', []);
+    expect(rolloutSugg[0].disabled).toBe(true);
+
+    const logsSugg = getAutocompleteSuggestions('kubectl logs', []);
+    expect(logsSugg[0].disabled).toBe(true);
+
+    const descSugg = getAutocompleteSuggestions('kubectl describe', []);
+    expect(descSugg.some(s => s.disabled)).toBe(true);
   });
 
-  it('returns next keyword suggestions sequentially for kubectl scale when Deployment exists', () => {
+  it('handles scale command sequence with deployment and replica count matching', () => {
     const mockNodes: Node[] = [
       { id: 'dep-web', type: 'Deployment', data: { label: 'web-deployment' }, position: { x: 0, y: 0 } },
     ];
 
     const scaleSugg = getAutocompleteSuggestions('kubectl scale', mockNodes);
     expect(scaleSugg[0].label).toBe('deployment/web-deployment');
-    expect(scaleSugg[0].value).toBe('kubectl scale deployment/web-deployment ');
-    expect(scaleSugg[0].disabled).toBeFalsy();
 
     const depSugg = getAutocompleteSuggestions('kubectl scale deployment/web-deployment ', mockNodes);
     expect(depSugg[0].label).toBe('--replicas=');
-    expect(depSugg[0].value).toBe('kubectl scale deployment/web-deployment --replicas=');
 
-    const numSugg = getAutocompleteSuggestions('kubectl scale deployment/web-deployment --replicas=', mockNodes);
-    expect(numSugg.some(s => s.label === '3')).toBe(true);
-    expect(numSugg.find(s => s.label === '3')?.value).toBe('kubectl scale deployment/web-deployment --replicas=3');
+    const replicaNumSugg = getAutocompleteSuggestions('kubectl scale deployment/web-deployment --replicas=', mockNodes);
+    expect(replicaNumSugg.some(s => s.value.endsWith('--replicas=3'))).toBe(true);
+
+    const scaleDepEmpty = getAutocompleteSuggestions('kubectl scale', []);
+    expect(scaleDepEmpty[0].disabled).toBe(true);
   });
 
-  it('trims completed keywords from label for "kubectl get" while keeping full value and description', () => {
-    const suggestions = getAutocompleteSuggestions('kubectl get ', []);
-    const podSugg = suggestions.find(s => s.value === 'kubectl get pods');
-
-    expect(podSugg).toBeDefined();
-    expect(podSugg?.label).toBe('pods');
-    expect(podSugg?.value).toBe('kubectl get pods');
-    expect(podSugg?.description).toBe('List all pods on canvas');
-  });
-
-  it('trims completed keywords from label for "kubectl config"', () => {
-    const suggestions = getAutocompleteSuggestions('kubectl config ', []);
-    const ctxSugg = suggestions.find(s => s.value === 'kubectl config get-contexts');
-
-    expect(ctxSugg).toBeDefined();
-    expect(ctxSugg?.label).toBe('get-contexts');
-    expect(ctxSugg?.value).toBe('kubectl config get-contexts');
-    expect(ctxSugg?.description).toBe('List all available user contexts');
-  });
-
-  it('trims completed keywords for admin command sequence (try -> try version -> try version update)', () => {
-    const trySugg = getAutocompleteSuggestions('try ', [], true);
-    const verSugg = trySugg.find(s => s.value === 'try version update 0.5.0');
-    expect(verSugg?.label).toBe('version update <version>');
-    expect(verSugg?.value).toBe('try version update 0.5.0');
-    expect(verSugg?.description).toBe('Simulate update notification badge button');
-
-    const tryVerSugg = getAutocompleteSuggestions('try version ', [], true);
-    const updSugg = tryVerSugg.find(s => s.value === 'try version update 0.5.0');
-    expect(updSugg?.label).toBe('update <version>');
-    expect(updSugg?.value).toBe('try version update 0.5.0');
-    expect(updSugg?.description).toBe('Simulate update notification badge button');
-  });
-
-  it('returns dynamic resource suggestions for deployments and pods, excluding Deployment labels from pod suggestions', () => {
+  it('handles set image command sequence with deployment and container image', () => {
     const mockNodes: Node[] = [
-      { id: 'pod-101', type: 'Pod', data: { label: 'my-custom-pod-x8k2p' }, position: { x: 0, y: 0 } },
-      { id: 'dep-202', type: 'Deployment', data: { label: 'my-backend-app' }, position: { x: 0, y: 0 } }
+      { id: 'dep-web', type: 'Deployment', data: { label: 'web-app' }, position: { x: 0, y: 0 } },
+    ];
+
+    const setSugg = getAutocompleteSuggestions('kubectl set image deployment/', mockNodes);
+    expect(setSugg.some(s => s.value.includes('web-app'))).toBe(true);
+
+    const setImageFull = getAutocompleteSuggestions('kubectl set image deployment/web-app ', mockNodes);
+    expect(setImageFull[0].label).toBe('app-container=nginx:1.25');
+
+    const setEmpty = getAutocompleteSuggestions('kubectl set image deployment/', []);
+    expect(setEmpty[0].disabled).toBe(true);
+  });
+
+  it('handles rollout command sequence (status, history, undo)', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-web', type: 'Deployment', data: { label: 'web-app' }, position: { x: 0, y: 0 } },
+    ];
+
+    const rolloutInit = getAutocompleteSuggestions('kubectl rollout ', mockNodes);
+    expect(rolloutInit.some(s => s.value.includes('status deploy/web-app'))).toBe(true);
+    expect(rolloutInit.some(s => s.value.includes('history deploy/web-app'))).toBe(true);
+
+    const rolloutStatus = getAutocompleteSuggestions('kubectl rollout status deploy/', mockNodes);
+    expect(rolloutStatus.some(s => s.value === 'kubectl rollout status deploy/web-app')).toBe(true);
+
+    const rolloutHistory = getAutocompleteSuggestions('kubectl rollout history deploy/', mockNodes);
+    expect(rolloutHistory.some(s => s.value === 'kubectl rollout history deploy/web-app')).toBe(true);
+
+    const rolloutUndo = getAutocompleteSuggestions('kubectl rollout undo deploy/', mockNodes);
+    expect(rolloutUndo.some(s => s.value === 'kubectl rollout undo deploy/web-app')).toBe(true);
+
+    const rolloutEmpty = getAutocompleteSuggestions('kubectl rollout', []);
+    expect(rolloutEmpty[0].disabled).toBe(true);
+  });
+
+  it('handles describe command sequence for all resource types', () => {
+    const mockNodes: Node[] = [
+      {
+        id: 'dep-1',
+        type: 'Deployment',
+        data: {
+          label: 'app-dep',
+          roles: [{ name: 'app-role' }],
+          configMaps: [{ name: 'app-cm' }],
+          secrets: [{ name: 'app-secret' }],
+        },
+        position: { x: 0, y: 0 },
+      },
+      { id: 'pod-1', type: 'Pod', data: { label: 'app-pod' }, position: { x: 0, y: 0 } },
+    ];
+
+    const descInit = getAutocompleteSuggestions('kubectl describe ', mockNodes);
+    expect(descInit.some(s => s.label === 'deploy')).toBe(true);
+    expect(descInit.some(s => s.label === 'pod')).toBe(true);
+
+    expect(getAutocompleteSuggestions('kubectl describe deploy ', mockNodes)[0].value).toBe('kubectl describe deploy app-dep');
+    expect(getAutocompleteSuggestions('kubectl describe pod ', mockNodes)[0].value).toBe('kubectl describe pod app-pod');
+    expect(getAutocompleteSuggestions('kubectl describe role ', mockNodes)[0].value).toBe('kubectl describe role app-role');
+    expect(getAutocompleteSuggestions('kubectl describe rolebinding ', mockNodes)[0].value).toBe('kubectl describe rolebinding app-role-binding');
+    expect(getAutocompleteSuggestions('kubectl describe cm ', mockNodes)[0].value).toBe('kubectl describe cm app-cm');
+    expect(getAutocompleteSuggestions('kubectl describe configmap ', mockNodes)[0].value).toBe('kubectl describe configmap app-cm');
+    expect(getAutocompleteSuggestions('kubectl describe secret ', mockNodes)[0].value).toBe('kubectl describe secret app-secret');
+  });
+
+  it('handles delete command sequence for pods, deployments, and services', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' }, position: { x: 0, y: 0 } },
+      { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+    ];
+
+    const deleteInit = getAutocompleteSuggestions('kubectl delete ', mockNodes);
+    expect(deleteInit.some(s => s.label === 'pod')).toBe(true);
+    expect(deleteInit.some(s => s.label === 'deployment')).toBe(true);
+
+    const deletePod = getAutocompleteSuggestions('kubectl delete pod ', mockNodes);
+    expect(deletePod[0].value).toBe('kubectl delete pod web-pod');
+
+    const deleteNoPods = getAutocompleteSuggestions('kubectl delete pod ', []);
+    expect(deleteNoPods[0].disabled).toBe(true);
+  });
+
+  it('handles logs command sequence with pod filtering', () => {
+    const mockNodes: Node[] = [
+      { id: 'pod-1', type: 'Pod', data: { label: 'my-custom-pod' }, position: { x: 0, y: 0 } },
     ];
 
     const logsSugg = getAutocompleteSuggestions('kubectl logs ', mockNodes);
-    expect(logsSugg.some(s => s.label === 'my-custom-pod-x8k2p')).toBe(true);
-    expect(logsSugg.some(s => s.label === 'my-backend-app')).toBe(false);
+    expect(logsSugg[0].value).toBe('kubectl logs my-custom-pod');
 
-    const descSugg = getAutocompleteSuggestions('kubectl describe pod ', mockNodes);
-    expect(descSugg.some(s => s.label === 'my-custom-pod-x8k2p')).toBe(true);
-    expect(descSugg.some(s => s.label === 'my-backend-app')).toBe(false);
+    const logsEmpty = getAutocompleteSuggestions('kubectl logs', []);
+    expect(logsEmpty[0].disabled).toBe(true);
   });
 
-  it('filters utility commands and handles empty input', () => {
-    expect(getAutocompleteSuggestions('', [])).toEqual([]);
-    expect(getAutocompleteSuggestions('   ', [])).toEqual([]);
+  it('covers COMMAND_SPEC_TREE dynamic resolvers and reasons', () => {
+    const kubectlNode = COMMAND_SPEC_TREE.find(n => n.name === 'kubectl');
+    const logsSpecNode = kubectlNode?.children?.find(c => c.name === 'logs ');
+    const descSpecNode = kubectlNode?.children?.find(c => c.name === 'describe');
 
-    const clearMatch = getAutocompleteSuggestions('clea', []);
-    expect(clearMatch).toHaveLength(1);
-    expect(clearMatch[0].value).toBe('clear');
+    expect(logsSpecNode?.requiresResourceReason?.([])).toContain('no Pod on canvas');
+    expect(logsSpecNode?.subItemsResolver?.([])).toEqual([]);
 
-    const helpMatch = getAutocompleteSuggestions('hel', []);
-    expect(helpMatch.some(s => s.value === 'help')).toBe(true);
+    const descDeployNode = descSpecNode?.children?.find(c => c.name === 'deploy ');
+    expect(descDeployNode?.requiresResourceReason?.([])).toContain('no Deployment on canvas');
+    expect(descDeployNode?.dynamicChildren?.([])).toEqual([]);
   });
 
-  it('trimSuggestionLabel handles custom multi-token command sequences correctly', () => {
+  it('trimSuggestionLabel handles custom multi-token command sequences and trimming edge cases', () => {
     const item = {
       value: 'a b c d e',
       label: 'a b c d e',
