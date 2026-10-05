@@ -63,11 +63,13 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
     case 'Service':
       return {
         ...base,
+        serviceType: 'ClusterIP',
         port: 80,
         targetPort: 80,
+        nodePort: undefined,
         selector: 'app-label',
-        displaySettings: { port: true, targetPort: false, selector: false },
-        yamlSettings: { targetPort: true, selector: true }
+        displaySettings: { serviceType: true, nodePort: true, port: true, targetPort: true, selector: true },
+        yamlSettings: { serviceType: true, nodePort: true, targetPort: true, selector: true }
       };
     case 'Pod':
       return {

@@ -185,24 +185,34 @@ const buildPodOrDeploymentManifest = (
   };
 };
 
-const buildServiceManifest = (node: any, metadata: any, name: string) => ({
-  apiVersion: 'v1',
-  kind: 'Service',
-  metadata,
-  spec: {
-    ports: [
-      {
-        protocol: 'TCP',
-        port: Number(node.data.port || 80),
-        targetPort: Number(node.data.targetPort || node.data.port || 80),
-      },
-    ],
-    selector:
-      node.data.yamlSettings?.selector !== false
-        ? { app: sanitizeName(node.data.selector || name) }
-        : undefined,
-  },
-});
+const buildServiceManifest = (node: any, metadata: any, name: string) => {
+  const serviceType = node.data.serviceType || 'ClusterIP';
+  const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && node.data.nodePort;
+  const nodePort = showNodePort && node.data.yamlSettings?.nodePort !== false ? Number(node.data.nodePort) : undefined;
+
+  const portObject: Record<string, any> = {
+    protocol: 'TCP',
+    port: Number(node.data.port || 80),
+    targetPort: Number(node.data.targetPort || node.data.port || 80),
+  };
+  if (nodePort !== undefined) {
+    portObject.nodePort = nodePort;
+  }
+
+  return {
+    apiVersion: 'v1',
+    kind: 'Service',
+    metadata,
+    spec: {
+      type: node.data.yamlSettings?.serviceType !== false ? serviceType : undefined,
+      ports: [portObject],
+      selector:
+        node.data.yamlSettings?.selector !== false
+          ? { app: sanitizeName(node.data.selector || name) }
+          : undefined,
+    },
+  };
+};
 
 const buildConfigMapManifest = (node: any, metadata: any) => {
   const configData: Record<string, string> = {};

@@ -95,8 +95,10 @@ export interface K8sNodeData {
   type: K8sResourceType;
   replicas?: number;
   image?: string;
+  serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
   port?: number;
   targetPort?: number;
+  nodePort?: number;
   selector?: string;
   onDelete?: () => void;
   onRename?: (newName: string) => void;

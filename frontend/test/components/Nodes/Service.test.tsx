@@ -35,6 +35,8 @@ describe('ServiceNode', () => {
     );
 
     expect(screen.getByText('Service')).toBeDefined();
+    expect(screen.getByText('type:')).toHaveClass('text-slate-500');
+    expect(screen.getByText('ClusterIP')).toBeDefined();
     expect(screen.getByText('port:')).toHaveClass('text-slate-500');
     expect(screen.getByText('targetPort:')).toHaveClass('text-slate-500');
     expect(screen.getByText('Selector')).toBeDefined();
@@ -55,18 +57,21 @@ describe('ServiceNode', () => {
       </ReactFlowProvider>
     );
 
+    expect(screen.getByText('type:')).toHaveClass('text-slate-400');
     expect(screen.getByText('port:')).toHaveClass('text-slate-400');
     expect(screen.getByText('targetPort:')).toHaveClass('text-slate-400');
   });
 
-  it('renders custom ports and selector', () => {
+  it('renders custom ports, serviceType, nodePort, and selector', () => {
     const props = {
       id: 's1',
       type: 'Service',
       data: {
         label: 'My Service',
+        serviceType: 'NodePort',
         port: 8080,
         targetPort: 9090,
+        nodePort: 30080,
         selector: 'my-app'
       }
     } as any;
@@ -77,8 +82,11 @@ describe('ServiceNode', () => {
       </ReactFlowProvider>
     );
 
+    expect(screen.getByText('NodePort')).toBeDefined();
     expect(screen.getByText('8080')).toBeDefined();
     expect(screen.getByText('9090')).toBeDefined();
+    expect(screen.getByText('nodePort:')).toBeDefined();
+    expect(screen.getByText('30080')).toBeDefined();
     expect(screen.getByText('app: my-app')).toBeDefined();
   });
 
@@ -88,9 +96,13 @@ describe('ServiceNode', () => {
       type: 'Service',
       data: {
         label: 'My Service',
+        serviceType: 'NodePort',
+        nodePort: 30080,
         displaySettings: {
+          serviceType: false,
           port: false,
           targetPort: false,
+          nodePort: false,
           selector: false
         }
       }
@@ -102,8 +114,10 @@ describe('ServiceNode', () => {
       </ReactFlowProvider>
     );
 
+    expect(screen.queryByText('type:')).toBeNull();
     expect(screen.queryByText('port:')).toBeNull();
     expect(screen.queryByText('targetPort:')).toBeNull();
+    expect(screen.queryByText('nodePort:')).toBeNull();
     expect(screen.queryByText('Selector')).toBeNull();
   });
 });
