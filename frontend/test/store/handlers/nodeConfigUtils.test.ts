@@ -51,6 +51,18 @@ describe('configUtils', () => {
       });
     });
 
+    it('returns webserver default when enabling webserver visibility', () => {
+      const data = { webserver: 'none' };
+      const updates = getVisibilityUpdates('webserver', true, data);
+      expect(updates).toEqual({ webserver: 'nginx' });
+    });
+
+    it('returns runtime default when enabling runtime visibility', () => {
+      const data = { runtime: 'none' };
+      const updates = getVisibilityUpdates('runtime', true, data);
+      expect(updates).toEqual({ runtime: 'nodejs' });
+    });
+
     it('does not return resource defaults if already set', () => {
       const data = { cpuLimit: '500m' };
       const updates = getVisibilityUpdates('resources', true, data);
@@ -66,6 +78,14 @@ describe('configUtils', () => {
     it('returns undefined image if status is pending', () => {
       const nextData = { status: 'pending' };
       expect(getAutoNameUpdate(nextData)).toEqual({ image: undefined });
+    });
+
+    it('generates auto label when status is ready and isAutoNamed is true', () => {
+      const nextDataBoth = { status: 'ready', isAutoNamed: true, webserver: 'nginx', runtime: 'nodejs' };
+      expect(getAutoNameUpdate(nextDataBoth)).toEqual({ label: 'nginx-nodejs' });
+
+      const nextDataSingle = { status: 'ready', isAutoNamed: true, webserver: 'nginx', runtime: 'none' };
+      expect(getAutoNameUpdate(nextDataSingle)).toEqual({ label: 'nginx' });
     });
 
     it('returns empty object if not auto-named', () => {

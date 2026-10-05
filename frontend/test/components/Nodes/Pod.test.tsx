@@ -86,6 +86,36 @@ describe('PodNode', () => {
     expect(screen.getByText('512Mi')).toBeDefined();
   });
 
+  it('renders restartPolicy in dark and light modes', () => {
+    const props = {
+      id: '1',
+      type: 'Pod',
+      data: {
+        label: 'My Pod',
+        restartPolicy: 'Always',
+        displaySettings: { restartPolicy: true }
+      }
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <PodNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('restart:')).toHaveClass('text-slate-500');
+    expect(screen.getByText('Always')).toBeDefined();
+
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <ReactFlowProvider>
+        <PodNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('restart:')).toHaveClass('text-slate-400');
+  });
+
   it('renders cpuLimit only when memoryLimit is absent', () => {
     const props = {
       id: '1',

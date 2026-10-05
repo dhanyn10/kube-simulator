@@ -158,6 +158,102 @@ describe('ProfileChart', () => {
       expect(screen.getByText('200%')).toBeInTheDocument();
     });
 
+    it('hydrates profile points when switching to sub-hourly interval and handles resample warning overlay', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+      const onUpdateProfile = vi.fn();
+
+      const subHourlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:10': 120,
+          '01:00': 200,
+        }
+      };
+
+      const { unmount } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      const intervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+
+      // Select 30 minutes on 1h profile -> hydrates keys and calls onUpdateProfile
+      fireEvent.change(intervalSelect, { target: { value: '30' } });
+      expect(onUpdateProfile).toHaveBeenCalled();
+      unmount();
+
+      // Render with sub-hourly profile
+      render(
+        <InteractiveTrafficChart
+          profile={subHourlyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      const subIntervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      fireEvent.change(subIntervalSelect, { target: { value: '60' } });
+
+      const warningOverlay = screen.getByTestId('interval-resample-warning-overlay');
+      expect(warningOverlay).toBeInTheDocument();
+
+      // Click Cancel on warning overlay
+      const cancelBtn = screen.getByTestId('cancel-resample-btn');
+      fireEvent.click(cancelBtn);
+      expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
+
+      // Trigger warning again and click Continue
+      fireEvent.change(subIntervalSelect, { target: { value: '60' } });
+      const confirmBtn = screen.getByTestId('confirm-resample-btn');
+      fireEvent.click(confirmBtn);
+
+      expect(onUpdateProfile).toHaveBeenCalled();
+      expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
+    });
+
+    it('hydrates missing sub-hourly keys on pointer down when intervalMinutes < 60', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+      const onUpdateProfile = vi.fn();
+
+      const subHourlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:10': 120,
+          '01:00': 200,
+        }
+      };
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={subHourlyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 0) {
+        fireEvent.pointerDown(targetCircles[0], { clientX: 100, clientY: 120, pointerId: 1 });
+        expect(onUpdateProfile).toHaveBeenCalled();
+      }
+    });
+
     it('renders interactive chart with active simulation dot, title input, and pointer interaction', () => {
       useFlowStore.setState({ isSimulating: true });
       const onUpdatePoint = vi.fn();

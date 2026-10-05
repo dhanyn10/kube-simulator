@@ -1,6 +1,6 @@
 import '@/init-console';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { formatLogMessage, setupConsoleOverrides } from '@/activities/ui/mainLogger';
+import { formatLogMessage, setupConsoleOverrides, initMainLogger } from '@/activities/ui/mainLogger';
 
 const addLogSpy = vi.fn();
 vi.mock('@/store', () => ({
@@ -49,8 +49,23 @@ describe('mainLogger activity', () => {
   });
 
   it('resolves original console methods from window and globalThis', () => {
+    const mockOriginalLog = vi.fn();
+    const mockOriginalWarn = vi.fn();
     const mockOriginalError = vi.fn();
+
+    (window as any)._originalConsoleLog = mockOriginalLog;
+    (window as any)._originalConsoleWarn = mockOriginalWarn;
     (window as any)._originalConsoleError = mockOriginalError;
+
+    setupConsoleOverrides();
+
+    console.log('window orig log');
+    console.warn('window orig warn');
+    console.error('window orig error');
+
+    expect(mockOriginalLog).toHaveBeenCalledWith('window orig log');
+    expect(mockOriginalWarn).toHaveBeenCalledWith('window orig warn');
+    expect(mockOriginalError).toHaveBeenCalledWith('window orig error');
 
     const circular: any = {};
     circular.self = circular;
@@ -58,11 +73,23 @@ describe('mainLogger activity', () => {
     expect(formatLogMessage([circular])).toBe('[Unserializable Object]');
     expect(mockOriginalError).toHaveBeenCalled();
 
+    delete (window as any)._originalConsoleLog;
+    delete (window as any)._originalConsoleWarn;
     delete (window as any)._originalConsoleError;
+
     (globalThis as any)._originalConsoleError = mockOriginalError;
+
+    // Test fallback when window is not defined
+    const originalWindow = globalThis.window;
+    delete (globalThis as any).window;
 
     expect(formatLogMessage([circular])).toBe('[Unserializable Object]');
 
+    globalThis.window = originalWindow;
     delete (globalThis as any)._originalConsoleError;
+  });
+
+  it('initializes main logger with initMainLogger', () => {
+    expect(() => initMainLogger()).not.toThrow();
   });
 });

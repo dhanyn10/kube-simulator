@@ -18,7 +18,8 @@ import {
   parseConfigMapSettings,
   logLogLevelStream,
   handleChaosModeSimulation,
-  checkPortMismatch
+  checkPortMismatch,
+  isInternetConnectionRed
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
@@ -98,11 +99,63 @@ describe('simulation test suite', () => {
     expect(calculateReachability([internetNode], ctx.edgeMap!, activeSet).has('d1')).toBe(true);
   });
 
-  it('calculateReachability ignores edges with validationError', () => {
+  it('calculateReachability ignores edges with validationError and skips duplicate queue entries', () => {
     const edgeWithError = { id: 'e1', source: 'i1', target: 'd1', data: { validationError: 'error' } } as any;
     const edgeMap = new Map([['i1', [edgeWithError]]]);
     const internetNode = baseNodes.find(n => n.type === 'Internet')!;
     expect(calculateReachability([internetNode], edgeMap, ['e1']).has('d1')).toBe(false);
+
+    // Test duplicate queue skipping when multiple edges target same node
+    const edge1 = { id: 'e1', source: 'n1', target: 'n2' } as Edge;
+    const edge2 = { id: 'e2', source: 'n1', target: 'n2' } as Edge;
+    const multiEdgeMap = new Map([['n1', [edge1, edge2]]]);
+    const n1 = createNode('n1', 'Service');
+
+    const reachSet = calculateReachability([n1], multiEdgeMap, ['e1', 'e2']);
+    expect(reachSet.has('n2')).toBe(true);
+  });
+
+  it('isInternetConnectionRed evaluates downstream paths, unready Deployment child pods, and validation errors', () => {
+    const internet = createNode('i1', 'Internet');
+    const depNode = createNode('dep1', 'Deployment', { status: 'ready' });
+    const childPodUnready = createNode('pod1', 'Pod', { parentId: 'dep1', status: 'pending', type: 'Pod' });
+
+    const edgeIntDep = { id: 'e-int-dep', source: 'i1', target: 'dep1' } as Edge;
+    const ctxUnreadyChild = getMockCtx({
+      nodes: [internet, depNode, childPodUnready],
+      activeSimulationEdges: ['e-int-dep'],
+      edgeMap: new Map([['i1', [edgeIntDep]]]),
+      nodeMap: new Map([['i1', internet], ['dep1', depNode], ['pod1', childPodUnready]])
+    });
+
+    // Deployment with unready child pod makes internet connection red
+    expect(isInternetConnectionRed(internet, ctxUnreadyChild)).toBe(true);
+
+    // Multi-hop downstream path with validation error on downstream edge
+    const srvNode = createNode('srv1', 'Service');
+    const edgeDepSrv = { id: 'e-dep-srv', source: 'dep1', target: 'srv1', data: { validationError: 'error' } } as Edge;
+    const childPodReady = createNode('pod1', 'Pod', { parentId: 'dep1', status: 'ready', type: 'Pod' });
+
+    const ctxDownstreamErr = getMockCtx({
+      nodes: [internet, depNode, childPodReady, srvNode],
+      activeSimulationEdges: ['e-int-dep', 'e-dep-srv'],
+      edgeMap: new Map([['i1', [edgeIntDep]], ['dep1', [edgeDepSrv]]]),
+      nodeMap: new Map([['i1', internet], ['dep1', depNode], ['pod1', childPodReady], ['srv1', srvNode]])
+    });
+
+    expect(isInternetConnectionRed(internet, ctxDownstreamErr)).toBe(true);
+
+    // ReplicaSet workload check
+    const rsNode = createNode('rs1', 'ReplicaSet', { status: 'crashing' });
+    const edgeIntRs = { id: 'e-int-rs', source: 'i1', target: 'rs1' } as Edge;
+    const ctxRs = getMockCtx({
+      nodes: [internet, rsNode],
+      activeSimulationEdges: ['e-int-rs'],
+      edgeMap: new Map([['i1', [edgeIntRs]]]),
+      nodeMap: new Map([['i1', internet], ['rs1', rsNode]])
+    });
+
+    expect(isInternetConnectionRed(internet, ctxRs)).toBe(true);
   });
 
   it('internet traffic logic - increment after startup ticks delay', () => {
@@ -340,10 +393,15 @@ describe('simulation test suite', () => {
       expect(res).toBe(false);
   });
 
-  it('handleOomCrashes crashes a pod and handles non-OOM / already crashing pod', () => {
+  it('handleOomCrashes crashes a pod and handles non-OOM / already crashing pod / empty childPods', () => {
       // Non-OOM returns false
       const ctx0 = getMockCtx();
       expect(handleOomCrashes(baseNodes[0], false, ctx0)).toBe(false);
+
+      // Empty childPods returns false
+      const ctxEmptyPods = getMockCtx();
+      ctxEmptyPods.childPodMap = new Map([['d1', []]]);
+      expect(handleOomCrashes(baseNodes[0], true, ctxEmptyPods)).toBe(false);
 
       (safeRandom as any).mockReturnValue(0.6); // > 0.5 triggers crash check
       const ctx = getMockCtx();
@@ -370,7 +428,7 @@ describe('simulation test suite', () => {
     expect(typeof res.hasChanges).toBe('boolean');
   });
 
-  it('scheduleRecovery recovers a crashing pod in-place without deleting it', () => {
+  it('scheduleRecovery recovers a crashing pod in-place without deleting it and catches addLog exceptions', () => {
       const pod = createNode('pod1', 'Pod', { status: 'crashing', image: 'nginx:latest' });
       const updateNodeDataMock = vi.fn();
       const ctx = getMockCtx({
@@ -381,6 +439,29 @@ describe('simulation test suite', () => {
 
       vi.advanceTimersByTime(3000);
       expect(updateNodeDataMock).toHaveBeenCalledWith('pod1', { status: 'ready', simulatedFailureCM: undefined });
+
+      // Test catch blocks when addLog throws in scheduleRecovery
+      const podNever = createNode('pod-never-err', 'Pod', { status: 'crashing', restartPolicy: 'Never' });
+      const ctxErr = getMockCtx({
+        get: vi.fn().mockReturnValue({
+          nodes: [baseNodes[0], podNever],
+          addLog: vi.fn().mockImplementation(() => { throw new Error('addLog error'); })
+        })
+      });
+
+      expect(() => scheduleRecovery(baseNodes[0], 'pod-never-err', ctxErr)).not.toThrow();
+
+      const podAlwaysErr = createNode('pod-always-err', 'Pod', { status: 'crashing', restartPolicy: 'Always', image: 'nginx:latest' });
+      const ctxErr2 = getMockCtx({
+        get: vi.fn().mockReturnValue({
+          nodes: [baseNodes[0], podAlwaysErr],
+          updateNodeData: vi.fn(),
+          addLog: vi.fn().mockImplementation(() => { throw new Error('addLog error'); })
+        })
+      });
+
+      expect(() => scheduleRecovery(baseNodes[0], 'pod-always-err', ctxErr2)).not.toThrow();
+      vi.advanceTimersByTime(3000);
   });
 
   it('scheduleRecovery with restartPolicy Never skips automatic recovery', () => {
@@ -698,6 +779,72 @@ describe('simulation test suite', () => {
       expect(res.isBlocked).toBe(false);
       expect(ctx.updatedNodes[2].data.pvcStatus).toBe('Bound');
       expect(ctx.updatedNodes[1].data.status).toBe('ready');
+    });
+
+    it('handles PVC lookup fallback, pod parentId connection, logger catch blocks, and unbound PVC binding', () => {
+      // 1. PVC lookup fallback via ctx.nodes.find when nodeMap does not contain target PVC
+      const pvcNode = createNode('pvc-find', 'PVC', { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' });
+      const depNode = createNode('d-find', 'Deployment', { replicas: 2, status: 'ready' });
+      const edge = { id: 'e-find', source: 'pvc-find', target: 'd-find', data: {} } as Edge;
+
+      const ctxFind = getMockCtx({
+        nodes: [depNode, pvcNode],
+        edges: [edge],
+        edgeMap: new Map([['d-find', [edge]]]),
+        targetEdgeMap: new Map([['pvc-find', [edge]]]),
+        nodeMap: new Map([['d-find', depNode]]) // pvc-find missing from nodeMap
+      });
+      ctxFind.updatedNodes = [depNode, pvcNode];
+      ctxFind.nodeIndexMap = new Map([['d-find', 0], ['pvc-find', 1]]);
+
+      expect(checkPvcReadiness(depNode, ctxFind).isBlocked).toBe(true);
+
+      // 2. Pod parentId matching in calculateWorkloadReplicaCount
+      const childPodStandalone = createNode('pod-standalone', 'Pod', { parentId: 'd-find', status: 'ready' });
+      const edgePodPvc = { id: 'e-pod-pvc', source: 'pod-standalone', target: 'pvc-find', data: {} } as Edge;
+
+      const ctxPodPvc = getMockCtx({
+        nodes: [depNode, childPodStandalone, pvcNode],
+        edges: [edgePodPvc],
+        edgeMap: new Map([['pod-standalone', [edgePodPvc]]]),
+        targetEdgeMap: new Map([['pvc-find', [edgePodPvc]]]),
+        nodeMap: new Map([['d-find', depNode], ['pod-standalone', childPodStandalone], ['pvc-find', pvcNode]])
+      });
+      ctxPodPvc.updatedNodes = [depNode, childPodStandalone, pvcNode];
+      ctxPodPvc.nodeIndexMap = new Map([['d-find', 0], ['pod-standalone', 1], ['pvc-find', 2]]);
+
+      // Standalone pod connected to PVC, but parent d-find is NOT connected to PVC -> Pod returns replica count 1
+      expect(checkPvcReadiness(childPodStandalone, ctxPodPvc).isBlocked).toBe(false);
+
+      // 3. Catch block in handlePvcMultiAttachError and resolvePvcMultiAttachError when get() throws
+      const ctxErr = getMockCtx({
+        nodes: [depNode, pvcNode],
+        edges: [edge],
+        get: vi.fn().mockImplementation(() => { throw new Error('addLog error'); }),
+        edgeMap: new Map([['d-find', [edge]]]),
+        targetEdgeMap: new Map([['pvc-find', [edge]]]),
+        nodeMap: new Map([['d-find', depNode], ['pvc-find', pvcNode]])
+      });
+      ctxErr.updatedNodes = [depNode, pvcNode];
+      ctxErr.nodeIndexMap = new Map([['d-find', 0], ['pvc-find', 1]]);
+
+      checkPvcReadiness(depNode, ctxErr);
+
+      pvcNode.data.pvcStatus = 'Multi-Attach Error';
+      depNode.data.replicas = 1;
+      checkPvcReadiness(depNode, ctxErr);
+
+      // 4. handleUnboundPvcs with safeRandom <= 0.7 does not bind PVC
+      (safeRandom as any).mockReturnValue(0.5);
+      const unboundPvc = createNode('pvc-unbound', 'PVC', { pvcStatus: 'Pending' });
+      const podPending = createNode('pod-p1', 'Pod', { status: 'ready' });
+      const ctxUnbound = getMockCtx();
+      ctxUnbound.updatedNodes = [unboundPvc, podPending];
+      ctxUnbound.nodeIndexMap = new Map([['pvc-unbound', 0], ['pod-p1', 1]]);
+
+      const unboundRes = handleUnboundPvcs([unboundPvc], [podPending], ctxUnbound);
+      expect(unboundRes.isBlocked).toBe(true);
+      expect(unboundPvc.data.pvcStatus).toBe('Pending');
     });
   });
 });

@@ -87,6 +87,19 @@ describe('terminalCommands', () => {
 
       expect(handleDescribeSecretCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
+
+    it('handleDescribeSecretCommand describes all secrets when target name is omitted', () => {
+      activityLogs = [];
+      let handled = handleDescribeSecretCommand('kubectl describe secret', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('Name:         app-sec'))).toBe(true);
+
+      mockCtx.nodes = [];
+      activityLogs = [];
+      handled = handleDescribeSecretCommand('kubectl describe secrets', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No secrets found'))).toBe(true);
+    });
   });
 
 
@@ -120,6 +133,19 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('configmap "missing-cm" not found'))).toBe(true);
 
       expect(handleDescribeConfigMapCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
+    });
+
+    it('handleDescribeConfigMapCommand describes all configmaps when target name is omitted', () => {
+      activityLogs = [];
+      let handled = handleDescribeConfigMapCommand('kubectl describe cm', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('Name:         app-cm'))).toBe(true);
+
+      mockCtx.nodes = [];
+      activityLogs = [];
+      handled = handleDescribeConfigMapCommand('kubectl describe configmaps', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No configmaps found'))).toBe(true);
     });
   });
 
@@ -161,6 +187,28 @@ describe('terminalCommands', () => {
 
       expect(handleDescribeRoleCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
     });
+
+    it('handleDescribeRoleCommand describes all roles or rolebindings when target name is omitted', () => {
+      activityLogs = [];
+      let handled = handleDescribeRoleCommand('kubectl describe roles', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('reader-role'))).toBe(true);
+
+      activityLogs = [];
+      handled = handleDescribeRoleCommand('kubectl describe rolebindings', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('reader-role-binding'))).toBe(true);
+
+      mockCtx.nodes = [];
+      activityLogs = [];
+      handled = handleDescribeRoleCommand('kubectl describe roles', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No roles found'))).toBe(true);
+
+      handled = handleDescribeRoleCommand('kubectl describe rolebindings', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No rolebindings found'))).toBe(true);
+    });
   });
 
   describe('Deployment & Pod Commands', () => {
@@ -174,6 +222,19 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('deployment "unknown-dep" not found'))).toBe(true);
 
       expect(handleDescribeDeploymentCommand('kubectl describe pod my-pod', mockCtx)).toBe(false);
+    });
+
+    it('handleDescribeDeploymentCommand describes all deployments when target name is omitted', () => {
+      activityLogs = [];
+      let handled = handleDescribeDeploymentCommand('kubectl describe deploy', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('my-dep'))).toBe(true);
+
+      mockCtx.nodes = [];
+      activityLogs = [];
+      handled = handleDescribeDeploymentCommand('kubectl describe deployment', mockCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs.some(l => l.includes('No deployments found'))).toBe(true);
     });
 
     it('handleScaleCommand handles scaling deployment, replicaset, or not found', () => {
