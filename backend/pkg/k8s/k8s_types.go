@@ -119,10 +119,12 @@ type ServicePort struct {
 	Protocol   string `yaml:"protocol" json:"protocol"`
 	Port       int    `yaml:"port" json:"port"`
 	TargetPort int    `yaml:"targetPort,omitempty" json:"targetPort,omitempty"`
+	NodePort   int    `yaml:"nodePort,omitempty" json:"nodePort,omitempty"`
 }
 
 type ServiceSpec struct {
-	Selector map[string]string `yaml:"selector" json:"selector"`
+	Type     string            `yaml:"type,omitempty" json:"type,omitempty"`
+	Selector map[string]string `yaml:"selector,omitempty" json:"selector,omitempty"`
 	Ports    []ServicePort     `yaml:"ports" json:"ports"`
 }
 

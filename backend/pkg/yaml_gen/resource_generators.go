@@ -340,6 +340,26 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 		targetPort = 0
 	}
 
+	serviceType := "ClusterIP"
+	if data.ServiceType != "" {
+		serviceType = data.ServiceType
+	}
+
+	nodePort := 0
+	if (serviceType == "NodePort" || serviceType == "LoadBalancer") && data.NodePort != 0 {
+		nodePort = data.NodePort
+	}
+	if val, ok := data.YamlSettings["nodePort"]; ok && !val {
+		nodePort = 0
+	}
+
+	svcPort := k8s.ServicePort{
+		Protocol:   "TCP",
+		Port:       port,
+		TargetPort: targetPort,
+		NodePort:   nodePort,
+	}
+
 	svc := k8s.Service{
 		ApiVersion: "v1",
 		Kind:       "Service",
@@ -348,10 +368,12 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 			Namespace: namespace,
 		},
 		Spec: k8s.ServiceSpec{
-			Ports: []k8s.ServicePort{
-				{Protocol: "TCP", Port: port, TargetPort: targetPort},
-			},
+			Ports: []k8s.ServicePort{svcPort},
 		},
+	}
+
+	if val, ok := data.YamlSettings["serviceType"]; !ok || val {
+		svc.Spec.Type = serviceType
 	}
 
 	if val, ok := data.YamlSettings["selector"]; !ok || val {

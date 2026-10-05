@@ -151,6 +151,16 @@ func TestGenerateService(t *testing.T) {
 	}
 }
 
+func TestGenerateServiceNodePort(t *testing.T) {
+	nodesJson := `[
+		{"id":"s1","type":"Service","data":{"label":"My Svc","serviceType":"NodePort","port":80,"targetPort":8080,"nodePort":30080}}
+	]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "NodePort") || !strings.Contains(result, "30080") {
+		t.Errorf("Generate failed for NodePort Service: %s", result)
+	}
+}
+
 func TestGenerateIngress(t *testing.T) {
 	nodesJson := `[
 		{"id":"i1","type":"Ingress","data":{"label":"My Ing","ingressHost":"example.com","ingressPath":"/api"}},

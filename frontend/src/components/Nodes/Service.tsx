@@ -1,4 +1,4 @@
-import  { memo } from 'react';
+import { memo } from 'react';
 import { NodeProps } from '@xyflow/react';
 import { Network } from 'lucide-react';
 import { BaseNode } from './BaseNode';
@@ -8,10 +8,18 @@ import { useFlowStore } from '@/store';
 export const ServiceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const serviceType = data.serviceType || 'ClusterIP';
+  const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && Boolean(data.nodePort);
 
   return (
     <BaseNode {...props} data={data} title="Service" icon={Network} color="amber" id={props.id} type={props.type}>
       <div className="space-y-1.5 mt-1">
+        {data.displaySettings?.serviceType !== false && (
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>type:</span>
+            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{serviceType}</span>
+          </div>
+        )}
         {data.displaySettings?.port !== false && (
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>port:</span>
@@ -22,6 +30,12 @@ export const ServiceNode = memo((props: NodeProps) => {
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>targetPort:</span>
             <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.targetPort || 80}</span>
+          </div>
+        )}
+        {showNodePort && data.displaySettings?.nodePort !== false && (
+          <div className="flex justify-between items-center text-[9px] font-mono">
+            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>nodePort:</span>
+            <span className="font-bold" style={{ color: 'var(--color-mat-amber)' }}>{data.nodePort}</span>
           </div>
         )}
       </div>

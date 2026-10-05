@@ -149,6 +149,7 @@ describe('manifestGenerator test suite', () => {
 
     expect(yamlOutput).toContain('kind: Service');
     expect(yamlOutput).toContain('namespace: production');
+    expect(yamlOutput).toContain('type: ClusterIP');
     expect(yamlOutput).toContain('app: custom-app');
 
     expect(yamlOutput).not.toContain('app: no-selector-service');
@@ -213,6 +214,39 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('memory: 256Mi');
 
     expect(yamlOutput).not.toContain('name: disabled-resources-pod\n    spec:\n      containers:\n        - name: disabled-resources-pod\n          image: nginx:latest\n          imagePullPolicy: IfNotPresent\n          resources:');
+  });
+
+  it('generates Service manifests with custom serviceType and nodePort', () => {
+    const nodes = [
+      {
+        id: 'svc1',
+        type: 'Service',
+        data: {
+          label: 'NodePort Service',
+          serviceType: 'NodePort',
+          port: '80',
+          targetPort: '8080',
+          nodePort: '30080',
+        },
+      },
+      {
+        id: 'svc2',
+        type: 'Service',
+        data: {
+          label: 'LoadBalancer Service',
+          serviceType: 'LoadBalancer',
+          port: '443',
+          targetPort: '8443',
+          nodePort: '30443',
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('type: NodePort');
+    expect(yamlOutput).toContain('nodePort: 30080');
+    expect(yamlOutput).toContain('type: LoadBalancer');
+    expect(yamlOutput).toContain('nodePort: 30443');
   });
 
   it('sanitizes labels with special characters, consecutive dashes, and truncates long labels', () => {

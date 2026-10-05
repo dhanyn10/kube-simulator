@@ -39,8 +39,10 @@ type K8sNodeData struct {
 	Type            K8sResourceType        `json:"type"`
 	Replicas        *int                   `json:"replicas,omitempty"`
 	Image           string                 `json:"image,omitempty"`
+	ServiceType     string                 `json:"serviceType,omitempty"`
 	Port            int                    `json:"port,omitempty"`
 	TargetPort      int                    `json:"targetPort,omitempty"`
+	NodePort        int                    `json:"nodePort,omitempty"`
 	Selector        string                 `json:"selector,omitempty"`
 	Status          string                 `json:"status,omitempty"`
 	Webserver       string                 `json:"webserver,omitempty"`
