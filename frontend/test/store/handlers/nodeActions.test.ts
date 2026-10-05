@@ -186,15 +186,30 @@ describe('nodeActions', () => {
     expect(state.edges).toHaveLength(0);
   });
 
-  it('updateNodeData updates data and handles special workload logic', () => {
-    const pod = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'old-label', replicas: 1 } };
-    useFlowStore.setState({ nodes: [pod] as any });
+  it('updateNodeData updates data and invalidates Service selector if workload label changes', () => {
+    const dep = { id: 'd1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'old-dep', replicas: 1 } };
+    const svc = { id: 's1', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'my-svc', selector: 'old-dep' } };
+    useFlowStore.setState({ nodes: [dep, svc] as any });
 
     const { updateNodeData } = useFlowStore.getState();
-    updateNodeData('p1', { label: 'new-label' });
+    updateNodeData('d1', { label: 'renamed-dep' });
 
     const state = useFlowStore.getState();
-    expect(state.nodes[0].data.label).toBe('new-label');
+    expect(state.nodes.find(n => n.id === 'd1')?.data.label).toBe('renamed-dep');
+    expect(state.nodes.find(n => n.id === 's1')?.data.selector).toBe('');
+  });
+
+  it('deleteNodes invalidates Service selector if targeted workload is deleted', () => {
+    const dep = { id: 'd1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'web-app' } };
+    const svc = { id: 's1', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'web-svc', selector: 'web-app' } };
+    useFlowStore.setState({ nodes: [dep, svc] as any, edges: [] });
+
+    const { deleteNodes } = useFlowStore.getState();
+    deleteNodes([dep] as any);
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some(n => n.id === 'd1')).toBe(false);
+    expect(state.nodes.find(n => n.id === 's1')?.data.selector).toBe('');
   });
 
   it('updateNodeData triggers ReplicaSet transform for standalone Pod with replicas > 1', () => {

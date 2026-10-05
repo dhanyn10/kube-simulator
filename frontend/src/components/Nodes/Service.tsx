@@ -4,12 +4,31 @@ import { Network } from 'lucide-react';
 import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
+import { cn } from '@/lib/utils';
 
 export const ServiceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
+  const nodes = useFlowStore((state) => state.nodes);
+
   const serviceType = data.serviceType || 'ClusterIP';
   const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && Boolean(data.nodePort);
+
+  // Check if current selector matches an active workload on canvas
+  const isSelectorValid = Boolean(
+    data.selector &&
+    nodes.some((n) => {
+      if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
+        const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+        return label === data.selector;
+      }
+      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) {
+        const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+        return label === data.selector;
+      }
+      return false;
+    })
+  );
 
   return (
     <BaseNode {...props} data={data} title="Service" icon={Network} color="amber" id={props.id} type={props.type}>
@@ -43,7 +62,15 @@ export const ServiceNode = memo((props: NodeProps) => {
       {data.displaySettings?.selector !== false && (
         <div className="mt-auto pt-2 border-t border-slate-700/30">
           <span className="text-[8px] uppercase font-bold text-slate-500">Selector</span>
-          <div className="text-[9px] font-mono mt-0.5 break-all" style={{ color: 'var(--color-mat-amber)' }}>app: {data.selector || 'app-label'}</div>
+          <div
+            className={cn(
+              "text-[9px] font-mono mt-0.5 break-all font-bold",
+              isSelectorValid ? "" : "text-rose-400"
+            )}
+            style={isSelectorValid ? { color: 'var(--color-mat-amber)' } : undefined}
+          >
+            app: {isSelectorValid ? data.selector : '---'}
+          </div>
         </div>
       )}
     </BaseNode>

@@ -191,7 +191,7 @@ const isNodeInDirection = (
   nodes: Node[]
 ): boolean => {
   if (targetNode.id === sourceNode.id) return false;
-  if (getConnectionError(sourceNode.type || '', targetNode.type || '') !== null) return false;
+  if (getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data) !== null) return false;
 
   const sourceCenter = getNodeAbsCenter(sourceNode, nodes);
   const targetCenter = getNodeAbsCenter(targetNode, nodes);
@@ -336,7 +336,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const targetNode = nodes.find((n) => n.id === edge.target);
     if (!sourceNode || !targetNode) return edge;
 
-    const error = getConnectionError(sourceNode.type || '', targetNode.type || '');
+    const error = getConnectionError(sourceNode.type || '', targetNode.type || '', sourceNode.data, targetNode.data);
     return {
       ...edge,
       data: { ...edge.data, validationError: error },

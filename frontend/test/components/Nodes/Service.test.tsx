@@ -18,10 +18,15 @@ vi.mock('@/components/Nodes/BaseNode', () => ({
 describe('ServiceNode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'dep1', type: 'Deployment', data: { label: 'my-app' } }
+      ] as any
+    });
   });
 
-  it('renders correctly with default data in dark mode', () => {
+  it('renders correctly with default data in dark mode when selector is invalid', () => {
     const props = {
       id: 's1',
       type: 'Service',
@@ -40,7 +45,7 @@ describe('ServiceNode', () => {
     expect(screen.getByText('port:')).toHaveClass('text-slate-500');
     expect(screen.getByText('targetPort:')).toHaveClass('text-slate-500');
     expect(screen.getByText('Selector')).toBeDefined();
-    expect(screen.getByText('app: app-label')).toBeDefined();
+    expect(screen.getByText('app: ---')).toBeDefined();
   });
 
   it('renders correctly in light mode with light mode slate classes', () => {
@@ -62,7 +67,7 @@ describe('ServiceNode', () => {
     expect(screen.getByText('targetPort:')).toHaveClass('text-slate-400');
   });
 
-  it('renders custom ports, serviceType, nodePort, and selector', () => {
+  it('renders custom ports, serviceType, nodePort, and valid selector', () => {
     const props = {
       id: 's1',
       type: 'Service',
