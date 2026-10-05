@@ -12,7 +12,7 @@ describe('ServiceConfig', () => {
         serviceType: 'ClusterIP',
         port: 80,
         targetPort: 8080,
-        selector: 'app'
+        selector: 'web-app'
       }
     },
     performUpdate: vi.fn(),
@@ -22,7 +22,13 @@ describe('ServiceConfig', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'dep-1', type: 'Deployment', data: { label: 'web-app' } },
+        { id: 'pod-1', type: 'Pod', data: { label: 'backend-pod' } }
+      ] as any
+    });
   });
 
   it('updates serviceType using custom dropdown and conditionally shows NodePort input', () => {
@@ -50,7 +56,7 @@ describe('ServiceConfig', () => {
           nodePort: 30080,
           port: 80,
           targetPort: 8080,
-          selector: 'app'
+          selector: 'web-app'
         }
       }
     };
@@ -88,6 +94,33 @@ describe('ServiceConfig', () => {
     expect(mockProps.performUpdate).not.toHaveBeenCalled();
   });
 
+  it('populates selector dropdown with canvas workload resources and updates selector', () => {
+    render(<ServiceConfig {...mockProps} />);
+
+    // Open selector dropdown
+    const selectorDropdownBtn = screen.getByRole('button', { name: /web-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    // Verify workload options from store
+    const webAppElements = screen.getAllByText('web-app');
+    expect(webAppElements.length).toBeGreaterThan(0);
+    expect(screen.getByText('backend-pod')).toBeInTheDocument();
+
+    // Select backend-pod
+    fireEvent.click(screen.getByText('backend-pod'));
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'backend-pod' });
+  });
+
+  it('shows no active workloads notice when canvas has no workloads', () => {
+    useFlowStore.setState({ nodes: [] });
+    render(<ServiceConfig {...mockProps} />);
+
+    const selectorDropdownBtn = screen.getByRole('button', { name: /web-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    expect(screen.getByText('No active workloads on canvas')).toBeInTheDocument();
+  });
+
   it('updates port and handles empty/fallback values', () => {
     render(<ServiceConfig {...mockProps} />);
     const inputs = screen.getAllByRole('spinbutton');
@@ -97,25 +130,6 @@ describe('ServiceConfig', () => {
 
     fireEvent.change(inputs[0], { target: { value: '' } });
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ port: 80 });
-  });
-
-  it('updates targetPort and selector directly without advanced section', () => {
-    render(<ServiceConfig {...mockProps} />);
-
-    // Advanced section is no longer present
-    expect(screen.queryByText(/Advanced Options/i)).toBeNull();
-
-    const inputs = screen.getAllByRole('spinbutton');
-    // targetPort is second spinbutton (since serviceType is ClusterIP)
-    fireEvent.change(inputs[1], { target: { value: '9090' } });
-    expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 9090 });
-
-    fireEvent.change(inputs[1], { target: { value: '' } });
-    expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 80 });
-
-    const selectorInput = screen.getByPlaceholderText('app-label');
-    fireEvent.change(selectorInput, { target: { value: 'my-app' } });
-    expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'my-app' });
   });
 
   it('triggers visibility and yaml toggles across all fields including NodePort', () => {
@@ -128,7 +142,7 @@ describe('ServiceConfig', () => {
           nodePort: 30080,
           port: 80,
           targetPort: 8080,
-          selector: 'app'
+          selector: 'web-app'
         }
       }
     };

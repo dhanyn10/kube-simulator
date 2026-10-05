@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { Network, Box, Server, ChevronDown, Check, Lock } from 'lucide-react';
-import { ConfigInput, ConfigSection } from '@/components/UI/ConfigUI';
+import { Network, Box, Server, ChevronDown, Check, Lock, AlertCircle } from 'lucide-react';
+import { ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
 
 interface ServiceConfigProps {
@@ -49,24 +49,48 @@ export const ServiceConfig = ({
   toggleYaml
 }: ServiceConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const nodes = useFlowStore((state) => state.nodes);
   const data = selectedNode.data;
   const currentServiceType = data.serviceType || 'ClusterIP';
   const showNodePort = currentServiceType === 'NodePort' || currentServiceType === 'LoadBalancer';
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isServiceTypeDropdownOpen, setIsServiceTypeDropdownOpen] = useState(false);
+  const [isSelectorDropdownOpen, setIsSelectorDropdownOpen] = useState(false);
+
+  const serviceTypeDropdownRef = useRef<HTMLDivElement>(null);
+  const selectorDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+      if (serviceTypeDropdownRef.current && !serviceTypeDropdownRef.current.contains(event.target as Node)) {
+        setIsServiceTypeDropdownOpen(false);
+      }
+      if (selectorDropdownRef.current && !selectorDropdownRef.current.contains(event.target as Node)) {
+        setIsSelectorDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedOption = SERVICE_TYPE_OPTIONS.find((opt) => opt.value === currentServiceType) || SERVICE_TYPE_OPTIONS[0];
+  const selectedServiceTypeOption = SERVICE_TYPE_OPTIONS.find((opt) => opt.value === currentServiceType) || SERVICE_TYPE_OPTIONS[0];
+
+  // Collect available workload resources on canvas (Deployment, Pod, ReplicaSet)
+  const workloadNodes = nodes.filter((n) => {
+    if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
+    if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
+    return false;
+  });
+
+  const availableWorkloadLabels = Array.from(
+    new Set(
+      workloadNodes
+        .map((n) => (n.data?.label as string) || (n.data?.baseName as string) || n.id)
+        .filter(Boolean)
+    )
+  );
+
+  const currentSelector = data.selector || '';
 
   return (
     <div className="space-y-4">
@@ -79,10 +103,10 @@ export const ServiceConfig = ({
         isYamlEnabled={data.yamlSettings?.serviceType}
         onYamlToggle={() => toggleYaml('serviceType')}
       >
-        <div ref={dropdownRef} className="relative w-full">
+        <div ref={serviceTypeDropdownRef} className="relative w-full">
           <button
             type="button"
-            onClick={() => setIsDropdownOpen((prev) => !prev)}
+            onClick={() => setIsServiceTypeDropdownOpen((prev) => !prev)}
             className={cn(
               "w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm",
               colorMode === 'dark'
@@ -91,12 +115,12 @@ export const ServiceConfig = ({
             )}
           >
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-amber-500">{selectedOption.label}</span>
+              <span className="font-semibold text-amber-500">{selectedServiceTypeOption.label}</span>
             </div>
-            <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60", isDropdownOpen && "rotate-180")} />
+            <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60", isServiceTypeDropdownOpen && "rotate-180")} />
           </button>
 
-          {isDropdownOpen && (
+          {isServiceTypeDropdownOpen && (
             <div
               className={cn(
                 "absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100",
@@ -115,7 +139,7 @@ export const ServiceConfig = ({
                     onClick={() => {
                       if (!isDisabled) {
                         performUpdate({ serviceType: option.value });
-                        setIsDropdownOpen(false);
+                        setIsServiceTypeDropdownOpen(false);
                       }
                     }}
                     className={cn(
@@ -162,14 +186,17 @@ export const ServiceConfig = ({
           onYamlToggle={() => toggleYaml('nodePort')}
           disableYamlToggle={Boolean(data.nodePort) === false}
         >
-          <ConfigInput
+          <input
             type="number"
             min={30000}
             max={32767}
             value={data.nodePort ?? ''}
             onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
             placeholder="30000-32767 (Optional)"
-            colorMode={colorMode}
+            className={cn(
+              "w-full text-[10px] p-2 rounded border outline-none font-mono",
+              colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+            )}
           />
         </ConfigSection>
       )}
@@ -181,11 +208,14 @@ export const ServiceConfig = ({
         isVisible={data.displaySettings?.port}
         onToggle={() => toggleVisibility('port')}
       >
-        <ConfigInput
+        <input
           type="number"
           value={data.port || 80}
           onChange={(e: any) => performUpdate({ port: Number.parseInt(e.target.value, 10) || 80 })}
-          colorMode={colorMode}
+          className={cn(
+            "w-full text-[10px] p-2 rounded border outline-none font-mono",
+            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+          )}
         />
       </ConfigSection>
 
@@ -199,15 +229,18 @@ export const ServiceConfig = ({
         onYamlToggle={() => toggleYaml('targetPort')}
         disableYamlToggle={Boolean(data.targetPort) === false}
       >
-        <ConfigInput
+        <input
           type="number"
           value={data.targetPort || 80}
           onChange={(e: any) => performUpdate({ targetPort: Number.parseInt(e.target.value, 10) || 80 })}
-          colorMode={colorMode}
+          className={cn(
+            "w-full text-[10px] p-2 rounded border outline-none font-mono",
+            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
+          )}
         />
       </ConfigSection>
 
-      {/* Selector Configuration */}
+      {/* Selector Configuration Dropdown from Canvas Resources */}
       <ConfigSection
         title="Selector (app)"
         icon={Box}
@@ -217,12 +250,69 @@ export const ServiceConfig = ({
         onYamlToggle={() => toggleYaml('selector')}
         disableYamlToggle={Boolean(data.selector) === false}
       >
-        <ConfigInput
-          value={data.selector || ''}
-          onChange={(e: any) => performUpdate({ selector: e.target.value })}
-          placeholder="app-label"
-          colorMode={colorMode}
-        />
+        <div ref={selectorDropdownRef} className="relative w-full">
+          <button
+            type="button"
+            onClick={() => setIsSelectorDropdownOpen((prev) => !prev)}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm",
+              colorMode === 'dark'
+                ? "bg-slate-900/90 border-slate-700 text-slate-100 hover:border-slate-600 focus:border-amber-500/80"
+                : "bg-white border-slate-300 text-slate-800 hover:border-slate-400 focus:border-amber-500/80"
+            )}
+          >
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="font-semibold text-amber-500 truncate">
+                {currentSelector || 'Select workload target...'}
+              </span>
+            </div>
+            <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60 shrink-0", isSelectorDropdownOpen && "rotate-180")} />
+          </button>
+
+          {isSelectorDropdownOpen && (
+            <div
+              className={cn(
+                "absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-56 overflow-y-auto",
+                colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+              )}
+            >
+              {availableWorkloadLabels.length === 0 ? (
+                <div className="p-3 text-center text-xs opacity-60 flex items-center justify-center gap-1.5 font-sans">
+                  <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                  <span>No active workloads on canvas</span>
+                </div>
+              ) : (
+                availableWorkloadLabels.map((label) => {
+                  const isSelected = currentSelector === label;
+
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => {
+                        performUpdate({ selector: label });
+                        setIsSelectorDropdownOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer",
+                        isSelected
+                          ? colorMode === 'dark'
+                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                            : "bg-amber-50 text-amber-800 border border-amber-200"
+                          : colorMode === 'dark'
+                          ? "hover:bg-slate-800 hover:text-white"
+                          : "hover:bg-slate-100 hover:text-slate-900"
+                      )}
+                    >
+                      <span className="truncate">{label}</span>
+                      {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
       </ConfigSection>
     </div>
   );
