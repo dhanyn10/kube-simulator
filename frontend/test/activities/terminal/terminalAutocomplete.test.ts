@@ -315,19 +315,23 @@ describe('terminalAutocomplete', () => {
       },
     ];
 
+    let executedCount = 0;
     const traverse = (nodes: any[]) => {
       nodes.forEach((node) => {
         if (node.requiresResourceReason) {
           node.requiresResourceReason([]);
           node.requiresResourceReason(mockNodesWithAll);
+          executedCount++;
         }
         if (node.dynamicChildren) {
           node.dynamicChildren([]);
           node.dynamicChildren(mockNodesWithAll);
+          executedCount++;
         }
         if (node.subItemsResolver) {
           node.subItemsResolver([]);
           node.subItemsResolver(mockNodesWithAll);
+          executedCount++;
         }
         if (node.children) {
           traverse(node.children);
@@ -336,6 +340,7 @@ describe('terminalAutocomplete', () => {
     };
 
     traverse(COMMAND_SPEC_TREE);
+    expect(executedCount).toBeGreaterThan(0);
   });
 
   it('covers describe sequence empty canvas reasons', () => {
