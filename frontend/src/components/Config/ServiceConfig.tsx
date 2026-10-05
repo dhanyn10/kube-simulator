@@ -91,6 +91,7 @@ export const ServiceConfig = ({
   );
 
   const currentSelector = data.selector || '';
+  const isSelectorValid = currentSelector && availableWorkloadLabels.includes(currentSelector);
 
   return (
     <div className="space-y-4">
@@ -262,8 +263,13 @@ export const ServiceConfig = ({
             )}
           >
             <div className="flex items-center gap-2 overflow-hidden">
-              <span className="font-semibold text-amber-500 truncate">
-                {currentSelector || 'Select workload target...'}
+              <span
+                className={cn(
+                  "font-semibold truncate",
+                  isSelectorValid ? "text-amber-500" : "text-rose-400 font-mono tracking-widest"
+                )}
+              >
+                {isSelectorValid ? currentSelector : '---'}
               </span>
             </div>
             <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60 shrink-0", isSelectorDropdownOpen && "rotate-180")} />

@@ -111,11 +111,11 @@ describe('ServiceConfig', () => {
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'backend-pod' });
   });
 
-  it('shows no active workloads notice when canvas has no workloads', () => {
+  it('shows no active workloads notice when canvas has no workloads and displays ---', () => {
     useFlowStore.setState({ nodes: [] });
     render(<ServiceConfig {...mockProps} />);
 
-    const selectorDropdownBtn = screen.getByRole('button', { name: /web-app/i });
+    const selectorDropdownBtn = screen.getByRole('button', { name: '---' });
     fireEvent.click(selectorDropdownBtn);
 
     expect(screen.getByText('No active workloads on canvas')).toBeInTheDocument();

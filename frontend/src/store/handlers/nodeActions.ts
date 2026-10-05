@@ -168,6 +168,30 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
 };
 
 /**
+ * Invalidates Service selectors pointing to a deleted or renamed workload label.
+ *
+ * @param oldLabel Deleted or previous workload label
+ * @param nodes Array of canvas nodes
+ * @returns Reconciled array of canvas nodes with invalidated Service selectors
+ */
+const invalidateServiceSelectors = (oldLabel: string | undefined, nodes: Node[]): Node[] => {
+  if (!oldLabel) return nodes;
+
+  return nodes.map((n) => {
+    if (n.type === 'Service' && n.data?.selector === oldLabel) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          selector: ''
+        }
+      };
+    }
+    return n;
+  });
+};
+
+/**
  * Synchronizes parent controller layout when adding a new pod inside a container.
  *
  * @param newNode Newly created node
@@ -261,6 +285,10 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
   nodesToDelete.forEach(node => {
     nextNodes = processNodeDeletion(node, nextNodes, get);
+    if (['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) {
+      const oldLabel = (node.data?.label as string) || (node.data?.baseName as string) || node.id;
+      nextNodes = invalidateServiceSelectors(oldLabel, nextNodes);
+    }
   });
 
   set({
@@ -286,6 +314,7 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
 
   const prevReplicas = targetData.replicas;
   const prevImage = targetData.image;
+  const prevLabel = (targetData.label as string) || (targetData.baseName as string);
 
   let sanitizedData = sanitizeResourceLimits(newData);
   sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
@@ -306,6 +335,17 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   };
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
+
+  // Invalidate Service selectors if a workload's label/name changed
+  const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
+  if (
+    ['Deployment', 'Pod', 'ReplicaSet'].includes(target.type || '') &&
+    newData.label !== undefined &&
+    prevLabel &&
+    newLabel !== prevLabel
+  ) {
+    nextNodes = invalidateServiceSelectors(prevLabel, nextNodes);
+  }
 
   // Responsive real-time PVC status update on PVC accessMode change or connected workload replica changes
   nextNodes = nextNodes.map((n) => {
