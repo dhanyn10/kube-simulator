@@ -315,18 +315,19 @@ func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
 	return nil
 }
 
-// generateService constructs a Kubernetes Service resource object.
-func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
-	targetWorkload := findTargetWorkload(data.ID, ctx)
-
-	selectorLabel := "app-label"
-	if data.Selector != "" {
-		selectorLabel = data.Selector
-	}
+// determineServiceSelector derives selector label from target workload or node settings.
+func determineServiceSelector(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode) string {
 	if targetWorkload != nil {
-		selectorLabel = sanitizeName(targetWorkload.Data.Label)
+		return sanitizeName(targetWorkload.Data.Label)
 	}
+	if data.Selector != "" {
+		return data.Selector
+	}
+	return "app-label"
+}
 
+// determineServicePort derives service port and target port from node settings.
+func determineServicePort(data k8s.K8sNodeData) (int, int) {
 	port := 80
 	if data.Port != 0 {
 		port = data.Port
@@ -340,18 +341,32 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 		targetPort = 0
 	}
 
+	return port, targetPort
+}
+
+// determineNodePort derives node port based on service type and yaml settings.
+func determineNodePort(data k8s.K8sNodeData, serviceType string) int {
+	if val, ok := data.YamlSettings["nodePort"]; ok && !val {
+		return 0
+	}
+	if (serviceType == "NodePort" || serviceType == "LoadBalancer") && data.NodePort != 0 {
+		return data.NodePort
+	}
+	return 0
+}
+
+// generateService constructs a Kubernetes Service resource object.
+func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	targetWorkload := findTargetWorkload(data.ID, ctx)
+	selectorLabel := determineServiceSelector(data, targetWorkload)
+	port, targetPort := determineServicePort(data)
+
 	serviceType := "ClusterIP"
 	if data.ServiceType != "" {
 		serviceType = data.ServiceType
 	}
 
-	nodePort := 0
-	if (serviceType == "NodePort" || serviceType == "LoadBalancer") && data.NodePort != 0 {
-		nodePort = data.NodePort
-	}
-	if val, ok := data.YamlSettings["nodePort"]; ok && !val {
-		nodePort = 0
-	}
+	nodePort := determineNodePort(data, serviceType)
 
 	svcPort := k8s.ServicePort{
 		Protocol:   "TCP",
