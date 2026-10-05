@@ -685,7 +685,8 @@ describe('simulation test suite', () => {
     });
 
     // Triggers logPortMismatchError with exception
-    checkPortMismatch(dep, ctxErr, 8080);
+    const mismatchRes = checkPortMismatch(dep, ctxErr, 8080);
+    expect(mismatchRes.isBlocked).toBe(true);
 
     // Triggers handleTrafficThrottling with exception
     dep.data = {
@@ -697,7 +698,9 @@ describe('simulation test suite', () => {
         }
       ]
     };
-    processWorkloadSimulation(dep, ctxErr);
+    const processRes = processWorkloadSimulation(dep, ctxErr);
+    expect(processRes).toBeDefined();
+    expect(typeof processRes.hasChanges).toBe('boolean');
   });
 
   describe('PVC Multi-Attach simulation tests', () => {
