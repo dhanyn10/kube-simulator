@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { NODE_TYPES, INITIAL_NODES, INITIAL_EDGES } from '@/constants';
+import { LAYOUT, DEFAULT_DIMENSIONS } from '@/constants/layout';
 
 describe('constants', () => {
   it('contains valid NODE_TYPES definition for all resource types', () => {
@@ -20,5 +21,19 @@ describe('constants', () => {
   it('contains empty initial nodes and edges arrays', () => {
     expect(INITIAL_NODES).toEqual([]);
     expect(INITIAL_EDGES).toEqual([]);
+  });
+
+  it('exports layout constants and default dimensions', () => {
+    expect(LAYOUT).toBeDefined();
+    expect(LAYOUT.PADDING_X).toBe(24);
+    expect(LAYOUT.PADDING_Y).toBe(48);
+    expect(LAYOUT.SPACING).toBe(20);
+
+    expect(DEFAULT_DIMENSIONS).toBeDefined();
+    expect(DEFAULT_DIMENSIONS.Pod).toEqual({ width: 180, height: 130 });
+    expect(DEFAULT_DIMENSIONS.Service).toEqual({ width: 180, height: 120 });
+    expect(DEFAULT_DIMENSIONS.Deployment).toEqual({ width: 400, height: 300 });
+    expect(DEFAULT_DIMENSIONS.Namespace).toEqual({ width: 600, height: 400 });
+    expect(DEFAULT_DIMENSIONS.Internet).toEqual({ width: 180, height: 100 });
   });
 });

@@ -87,19 +87,62 @@ describe('ServiceConfig', () => {
     fireEvent.change(inputs[1], { target: { value: '9090' } });
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 9090 });
 
+    fireEvent.change(inputs[1], { target: { value: '' } });
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 80 });
+
     const selectorInput = screen.getByPlaceholderText('app-label');
     fireEvent.change(selectorInput, { target: { value: 'my-app' } });
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'my-app' });
   });
 
-  it('triggers visibility and yaml toggles', () => {
-    render(<ServiceConfig {...mockProps} />);
+  it('triggers visibility and yaml toggles across all fields including NodePort', () => {
+    const nodePortProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's1',
+        data: {
+          serviceType: 'NodePort',
+          nodePort: 30080,
+          port: 80,
+          targetPort: 8080,
+          selector: 'app'
+        }
+      }
+    };
+    render(<ServiceConfig {...nodePortProps} />);
+
     const toggleBtns = screen.getAllByTitle('Show/Hide on Card');
+    // Toggles for: serviceType, nodePort, port, targetPort, selector
+    expect(toggleBtns.length).toBe(5);
     fireEvent.click(toggleBtns[0]);
     expect(mockProps.toggleVisibility).toHaveBeenCalledWith('serviceType');
+    fireEvent.click(toggleBtns[1]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('nodePort');
+    fireEvent.click(toggleBtns[2]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('port');
+    fireEvent.click(toggleBtns[3]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('targetPort');
+    fireEvent.click(toggleBtns[4]);
+    expect(mockProps.toggleVisibility).toHaveBeenCalledWith('selector');
 
     const yamlBtns = screen.getAllByTitle('Include in YAML');
+    // Yaml toggles for: serviceType, nodePort, targetPort, selector
+    expect(yamlBtns.length).toBe(4);
     fireEvent.click(yamlBtns[0]);
     expect(mockProps.toggleYaml).toHaveBeenCalledWith('serviceType');
+    fireEvent.click(yamlBtns[1]);
+    expect(mockProps.toggleYaml).toHaveBeenCalledWith('nodePort');
+    fireEvent.click(yamlBtns[2]);
+    expect(mockProps.toggleYaml).toHaveBeenCalledWith('targetPort');
+    fireEvent.click(yamlBtns[3]);
+    expect(mockProps.toggleYaml).toHaveBeenCalledWith('selector');
+  });
+
+  it('renders light mode styling when colorMode is light', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(<ServiceConfig {...mockProps} />);
+
+    const typeSelect = screen.getByRole('combobox');
+    expect(typeSelect).toHaveClass('bg-slate-50 border-slate-200 text-slate-800');
   });
 });
