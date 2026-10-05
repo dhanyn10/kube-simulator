@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAppInit, useAttachmentHandlers } from '@/hooks/useAppHelpers';
 import { useFlowStore } from '@/store';
-import { K8sRoleItem, K8sConfigMapItem } from '@/types';
+import { K8sRoleItem, K8sConfigMapItem, K8sResourceLimitItem } from '@/types';
 
 vi.mock('@wailsjs/go/main/App.js', () => ({
   GetSystemResources: vi.fn(),
@@ -35,11 +35,17 @@ describe('useAppHelpers', () => {
             configMaps: [
               { id: 'cm-1', name: 'old-cm', configData: [] },
             ],
+            resourceLimits: [
+              { id: 'res-1', name: 'old-limit', cpuRequest: '100m', cpuLimit: '200m' },
+            ],
           },
         },
       ],
       roleModalTargetNode: null,
       configMapModalTargetNode: null,
+      secretModalTargetNode: null,
+      hpaModalTargetNode: null,
+      resourceLimitModalTargetNode: null,
       configuringNodeId: null,
       configuringEdgeId: null,
       isRightSidebarVisible: false,
@@ -371,6 +377,68 @@ describe('useAppHelpers', () => {
 
       updatedNodes = useFlowStore.getState().nodes;
       expect(updatedNodes[0].data.hpas).toEqual([hpa1Updated]);
+    });
+
+    it('handleResourceLimitSave returns early or attaches new/updated ResourceLimit', () => {
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      const resItem: K8sResourceLimitItem = {
+        id: 'res-1',
+        name: 'updated-limit',
+        cpuRequest: '250m',
+        cpuLimit: '500m',
+        memoryRequest: '128Mi',
+        memoryLimit: '256Mi',
+      };
+
+      // Return early when resourceLimitModalTargetNode is null
+      act(() => {
+        result.current.handleResourceLimitSave(resItem);
+      });
+
+      // Return early when target node not found
+      act(() => {
+        result.current.setResourceLimitModalTargetNode({ id: 'non-existent', label: 'NonExistent' });
+      });
+
+      act(() => {
+        result.current.handleResourceLimitSave(resItem);
+      });
+
+      // Valid target node save - update existing item (index >= 0)
+      act(() => {
+        result.current.setResourceLimitModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      act(() => {
+        result.current.handleResourceLimitSave(resItem);
+      });
+
+      let updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.resourceLimits).toEqual([resItem]);
+      expect(updatedNodes[0].data.cpuLimit).toBe('500m');
+      expect(useFlowStore.getState().configuringNodeId).toBe('node-1');
+
+      // Valid target node save - add new item (index < 0)
+      act(() => {
+        result.current.setResourceLimitModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      const newResItem: K8sResourceLimitItem = {
+        id: 'res-2',
+        name: 'new-limit',
+        cpuRequest: '500m',
+        cpuLimit: '1000m',
+        memoryRequest: '256Mi',
+        memoryLimit: '512Mi',
+      };
+
+      act(() => {
+        result.current.handleResourceLimitSave(newResItem);
+      });
+
+      updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.resourceLimits).toEqual([resItem, newResItem]);
     });
   });
 });

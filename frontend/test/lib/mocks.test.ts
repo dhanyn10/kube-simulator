@@ -1,19 +1,6 @@
 /**
  * @file mocks.test.ts
  * @description Unit tests for Wails browser mocks (`frontend/src/lib/mocks.ts`).
- *
- * Why `mocks.ts` needs unit testing:
- * 1. API Contract Verification: `mocks.ts` provides mock implementations for Wails backend Go methods (`go.main.App`)
- *    and runtime events (`runtime.EventsOn`, `LogInfo`, etc.) when running in browser mode. Testing ensures the mock
- *    interface matches expected signatures and returns standard data structures without breaking frontend components.
- * 2. State & Persistence Integrity: It manages `localStorage` operations for simulated projects (`mock_projects`) and
- *    history logs (`mock_history`). Testing verifies CRUD logic, correct JSON serialization/deserialization, timestamp
- *    handling, and filtering/updating edge cases.
- * 3. Development & Test Stability: In browser or testing environments where the compiled Wails Go binary is absent,
- *    frontend components rely on these mocks. Ensuring `mocks.ts` behaves consistently prevents false failure cascades
- *    in UI tests.
- * 4. Exception Safety: Tests verify that logging fallbacks (`LogPrint`, `LogError`, `LogFatal`) safely route messages
- *    to original console methods without throwing unhandled errors or crashing.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -138,6 +125,9 @@ describe("initWailsMocks", () => {
     expect(await app.ImportProjectFile()).toBe("");
     expect(await app.GetSetting()).toBe("");
     expect(await app.SaveSetting()).toBe(true);
+    expect(await app.OpenFileFolder()).toBe(true);
+    expect(await app.FileExists()).toBe(true);
+    expect(await app.GetAutosaveProfiles()).toEqual([]);
 
     // GetSystemResources & GetSystemInfo
     const sysRes = await app.GetSystemResources();
@@ -155,6 +145,27 @@ describe("initWailsMocks", () => {
       goVersion: "go1.25.0",
       version: "0.4.0",
     });
+
+    // Internet Profiles
+    let profiles = await app.GetInternetProfiles();
+    expect(profiles).toEqual([]);
+
+    const profileObj = { name: "Custom Traffic", hourly: { "00:00": 100 } };
+    await app.SaveInternetProfile("Custom Traffic", JSON.stringify(profileObj));
+
+    profiles = await app.GetInternetProfiles();
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0].name).toBe("Custom Traffic");
+
+    // Save existing profile update
+    const updatedProfileObj = { name: "Custom Traffic", hourly: { "00:00": 200 } };
+    await app.SaveInternetProfile("Custom Traffic", JSON.stringify(updatedProfileObj));
+    profiles = await app.GetInternetProfiles();
+    expect(profiles[0].hourly["00:00"]).toBe(200);
+
+    // Delete Internet Profile
+    await app.DeleteInternetProfile("Custom Traffic");
+    expect(await app.GetInternetProfiles()).toEqual([]);
 
     // Window controls
     await app.MinimizeWindow();

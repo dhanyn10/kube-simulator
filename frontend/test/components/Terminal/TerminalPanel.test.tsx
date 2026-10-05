@@ -193,6 +193,39 @@ describe('TerminalPanel', () => {
     expect(input.value).toBe('');
   });
 
+  it('handles terminal-insert-command window custom event', () => {
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('terminal-insert-command', { detail: 'kubectl describe pod web-pod' }));
+    });
+
+    expect(input.value).toBe('kubectl describe pod web-pod');
+  });
+
+  it('dismisses autocomplete dropdown on pointerdown outside terminal footer', () => {
+    act(() => {
+      useFlowStore.setState({ isTerminalOpen: true, isSimulating: true });
+    });
+    render(<TerminalPanel />);
+
+    const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: 'kubectl get' } });
+    expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.pointerDown(document.body);
+    });
+
+    expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
+  });
+
   it('handles kubectl get services command', () => {
     act(() => {
       useFlowStore.setState({
@@ -1038,12 +1071,15 @@ describe('TerminalPanel', () => {
       unmount();
     });
 
-    it('covers handleSelectSuggestion when selecting suggestion from autocomplete popup', () => {
+    it('covers handleSelectSuggestion with podName and subItems in autocomplete popup', () => {
       act(() => {
         useFlowStore.setState({
           isTerminalOpen: true,
           isSimulating: true,
           terminalActiveTab: 'activity',
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+          ]
         });
       });
 
@@ -1051,14 +1087,14 @@ describe('TerminalPanel', () => {
 
       const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
 
-      fireEvent.change(input, { target: { value: 'kubectl get' } });
+      fireEvent.change(input, { target: { value: 'kubectl logs ' } });
 
       expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
 
       const item0 = screen.getByTestId('autocomplete-item-0');
       fireEvent.click(item0);
 
-      expect(input.value).toBe('kubectl get pods');
+      expect(input.value).toBe('kubectl logs web-pod');
       unmount();
     });
   });
