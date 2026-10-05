@@ -47,4 +47,22 @@ describe('mainLogger activity', () => {
     console.error('Test error log');
     expect(addLogSpy).toHaveBeenCalledWith('error', 'Test error log');
   });
+
+  it('resolves original console methods from window and globalThis', () => {
+    const mockOriginalError = vi.fn();
+    (window as any)._originalConsoleError = mockOriginalError;
+
+    const circular: any = {};
+    circular.self = circular;
+
+    expect(formatLogMessage([circular])).toBe('[Unserializable Object]');
+    expect(mockOriginalError).toHaveBeenCalled();
+
+    delete (window as any)._originalConsoleError;
+    (globalThis as any)._originalConsoleError = mockOriginalError;
+
+    expect(formatLogMessage([circular])).toBe('[Unserializable Object]');
+
+    delete (globalThis as any)._originalConsoleError;
+  });
 });
