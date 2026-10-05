@@ -39,6 +39,19 @@ describe('NodeUI', () => {
       expect(mockOnDelete).toHaveBeenCalled();
     });
 
+    it('deletes node from store when onDelete is not provided', () => {
+      const deleteNodesSpy = vi.spyOn(useFlowStore.getState(), 'deleteNodes');
+      const testNode = { id: 'test-node-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [testNode as any] });
+
+      render(<NodeActionButtons id="test-node-1" colorMode="dark" />);
+
+      const buttons = screen.getAllByRole('button');
+      fireEvent.click(buttons[1]); // Delete button
+
+      expect(deleteNodesSpy).toHaveBeenCalledWith([testNode]);
+    });
+
     it('hides settings button if hideSettings is true', () => {
       render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" hideSettings={true} />);
       const buttons = screen.getAllByRole('button');
@@ -97,18 +110,27 @@ describe('NodeUI', () => {
       expect(input).toBeDefined();
     });
 
-    it('updates edit value on change', () => {
+    it('updates edit value on change and handles input event propagation and keydown', () => {
+      const mockOnKeyDown = vi.fn();
       render(
         <NodeRenameInput
           isEditing={true}
-          editValue=""
+          editValue="test"
           setEditValue={mockSetEditValue}
+          onKeyDown={mockOnKeyDown}
           colorMode="light"
         />
       );
       const input = screen.getByRole('textbox');
       fireEvent.change(input, { target: { value: 'New Name' } });
       expect(mockSetEditValue).toHaveBeenCalledWith('New Name');
+
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(mockOnKeyDown).toHaveBeenCalled();
+
+      fireEvent.click(input);
+      fireEvent.mouseDown(input);
+      fireEvent.pointerDown(input);
     });
   });
 });

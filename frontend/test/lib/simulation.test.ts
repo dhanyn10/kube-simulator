@@ -14,7 +14,11 @@ import {
   handleOomCrashes,
   scheduleRecovery,
   checkConfigMapSimulationStatus,
-  processWorkloadSimulation
+  processWorkloadSimulation,
+  parseConfigMapSettings,
+  logLogLevelStream,
+  handleChaosModeSimulation,
+  checkPortMismatch
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
@@ -459,6 +463,70 @@ describe('simulation test suite', () => {
     expect(scaled).toBe(false);
   });
 
+  it('parseConfigMapSettings handles undefined/empty keys, invalid ports, and MAX_CONNECTIONS', () => {
+    const configMaps = [
+      {
+        id: 'cm1',
+        name: 'app-cm',
+        configData: [
+          { key: undefined, value: 'val' },
+          { key: 'PORT', value: 'invalid-port' },
+          { key: 'MAX_CONNECTIONS', value: 'invalid-max' },
+          { key: 'SIMULATE_FAILURE', value: 'true' },
+          { key: 'LOG_LEVEL', value: 'warn' }
+        ]
+      }
+    ];
+
+    const parsed = parseConfigMapSettings(configMaps as any);
+    expect(parsed.hasSimulatedFailure).toBe(true);
+    expect(parsed.cmPort).toBeNull();
+    expect(parsed.maxConnections).toBeNull();
+    expect(parsed.logLevel).toBe('WARN');
+  });
+
+  it('logLogLevelStream logs WARN, ERROR, and INFO levels based on ticks', () => {
+    const addLogMock = vi.fn();
+    const ctx = getMockCtx({
+      ticks: 3,
+      get: vi.fn().mockReturnValue({ addLog: addLogMock })
+    });
+    const dep = createNode('dep1', 'Deployment', { label: 'my-dep' });
+
+    (safeRandom as any).mockReturnValue(0.9); // > 0.4 triggers log
+
+    logLogLevelStream(dep, ctx, 'WARN');
+    expect(addLogMock).toHaveBeenCalledWith('warning', expect.stringContaining('Connection pool threshold'), 'App');
+
+    logLogLevelStream(dep, ctx, 'ERROR');
+    expect(addLogMock).toHaveBeenCalledWith('error', expect.stringContaining('Unhandled internal exception'), 'App');
+
+    logLogLevelStream(dep, ctx, 'INFO');
+    expect(addLogMock).toHaveBeenCalledWith('info', expect.stringContaining('HTTP 200 OK'), 'App');
+
+    // Covers addLog exception catch blocks in applyPodSimulatedFailure and recoverSinglePod
+    const ctxErr = getMockCtx({
+      ticks: 3,
+      get: vi.fn().mockImplementation(() => { throw new Error('addLog error'); })
+    });
+
+    const failingCmName = 'failing-cm';
+    const podToCrash = createNode('pod1', 'Pod', { status: 'ready', simulatedFailureCM: undefined });
+    ctxErr.updatedNodes = [podToCrash];
+    ctxErr.nodeIndexMap = new Map([['pod1', 0]]);
+
+    handleChaosModeSimulation([podToCrash], ctxErr, true, failingCmName);
+
+    const podToRecover = createNode('pod1', 'Pod', { status: 'crashing', simulatedFailureCM: failingCmName, image: 'nginx:latest' });
+    ctxErr.updatedNodes = [podToRecover];
+    ctxErr.nodeIndexMap = new Map([['pod1', 0]]);
+
+    handleChaosModeSimulation([podToRecover], ctxErr, false, failingCmName);
+
+    // Covers catch block in logLogLevelStream
+    logLogLevelStream(dep, ctxErr, 'INFO');
+  });
+
   it('ConfigMap simulation PLAY mode: Port mismatch, capacity throttling, logging, and chaos mode', () => {
     const pod = createNode('pod-cm-test', 'Pod', { status: 'ready', webserver: 'nginx' });
     const srv = createNode('srv1', 'Service', { targetPort: 80 });
@@ -480,6 +548,7 @@ describe('simulation test suite', () => {
     const edgeSrvDep = { id: 'e-srv-dep', source: 'srv1', target: 'dep-cm-test', data: {} } as Edge;
     const addLogMock = vi.fn();
     const ctx = getMockCtx({
+      ticks: 2,
       get: vi.fn().mockReturnValue({ addLog: addLogMock }),
       targetEdgeMap: new Map([['dep-cm-test', [edgeSrvDep]]]),
       nodeMap: new Map([['srv1', srv], ['dep-cm-test', dep]])
@@ -503,11 +572,51 @@ describe('simulation test suite', () => {
     expect(cmStatus2.isBlocked).toBe(false);
     expect(cmStatus2.effectiveTrafficLimit).toBe(100);
 
+    // Clear initial port mismatch error log call
+    addLogMock.mockClear();
+
+    // Setup internet incoming traffic so traffic (1000) > maxConnections limit (100)
+    const internetNode = createNode('i1', 'Internet', { currentTraffic: 1000 });
+    ctx.internetNodes = [internetNode];
+    ctx.internetReachableMap = new Map([['i1', new Set(['dep-cm-test'])]]);
+
+    // Test traffic throttling with limit
+    processWorkloadSimulation(dep, ctx);
+    expect(addLogMock).toHaveBeenCalledWith('warning', expect.stringContaining('MAX_CONNECTIONS=100'), 'Simulation');
+
     // Enable Chaos mode
     dep.data.configMaps[0].configData[3].value = 'enabled';
     const cmStatusChaos = checkConfigMapSimulationStatus(dep, ctx);
     expect(cmStatusChaos.isBlocked).toBe(true);
     expect(ctx.updatedNodes.find(n => n.id === 'pod-cm-test')?.data.status).toBe('crashing');
+  });
+
+  it('covers error handling in logPortMismatchError and handleTrafficThrottling', () => {
+    const srv = createNode('srv1', 'Service', { targetPort: 80 });
+    const dep = createNode('dep-cm-test', 'Deployment', {});
+    const edgeSrvDep = { id: 'e-srv-dep', source: 'srv1', target: 'dep-cm-test', data: {} } as Edge;
+
+    const ctxErr = getMockCtx({
+      ticks: 2,
+      get: vi.fn().mockImplementation(() => { throw new Error('addLog error'); }),
+      targetEdgeMap: new Map([['dep-cm-test', [edgeSrvDep]]]),
+      nodeMap: new Map([['srv1', srv], ['dep-cm-test', dep]])
+    });
+
+    // Triggers logPortMismatchError with exception
+    checkPortMismatch(dep, ctxErr, 8080);
+
+    // Triggers handleTrafficThrottling with exception
+    dep.data = {
+      configMaps: [
+        {
+          id: 'cm1',
+          name: 'app-cm',
+          configData: [{ key: 'MAX_CONNECTIONS', value: '10' }]
+        }
+      ]
+    };
+    processWorkloadSimulation(dep, ctxErr);
   });
 
   describe('PVC Multi-Attach simulation tests', () => {

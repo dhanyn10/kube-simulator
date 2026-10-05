@@ -89,4 +89,37 @@ describe('TerminalCommandTreeModal', () => {
 
     expect(dispatchSpy).toHaveBeenCalled();
   });
+
+  it('handles node expand/collapse toggle buttons and keyboard navigation', () => {
+    useFlowStore.setState({ isTerminalCommandTreeModalOpen: true, colorMode: 'light' });
+    render(<TerminalCommandTreeModal />);
+
+    const kubectlNodeBtn = screen.getByText('kubectl');
+    fireEvent.keyDown(kubectlNodeBtn, { key: 'Enter' });
+    fireEvent.keyDown(kubectlNodeBtn, { key: ' ' });
+
+    const collapseBtns = screen.getAllByRole('button', { name: /Collapse/i });
+    if (collapseBtns.length > 0) {
+      fireEvent.click(collapseBtns[0]);
+    }
+
+    const expandBtns = screen.getAllByRole('button', { name: /Expand/i });
+    if (expandBtns.length > 0) {
+      fireEvent.click(expandBtns[0]);
+    }
+  });
+
+  it('handles Run button click directly on executable nodes', async () => {
+    useFlowStore.setState({ isTerminalCommandTreeModalOpen: true });
+    render(<TerminalCommandTreeModal />);
+
+    const runBtns = screen.getAllByRole('button', { name: /Run/i });
+    expect(runBtns.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      fireEvent.click(runBtns[0]);
+    });
+
+    expect(useFlowStore.getState().isTerminalCommandTreeModalOpen).toBe(false);
+  });
 });
