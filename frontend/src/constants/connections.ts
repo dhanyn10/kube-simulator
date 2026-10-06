@@ -1,5 +1,9 @@
 import { K8sResourceType } from '@/types';
 
+/**
+ * Record mapping each source Kubernetes resource type to an array of valid target resource types.
+ * Defines the macro-level edge connection matrix for canvas diagramming and validation.
+ */
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
   Internet: ['Service'],
   Ingress: ['Service'],
@@ -15,6 +19,14 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
   Role: [],
 };
 
+/**
+ * Validates outgoing edge connection rules originating from an Internet source node.
+ * Internet can strictly connect only to LoadBalancer or NodePort Services.
+ *
+ * @param targetType - The resource type of the connection target.
+ * @param targetData - Optional node configuration data for the target node.
+ * @returns An English error message if the connection is invalid, or `null` if valid.
+ */
 const checkInternetRules = (targetType: string, targetData?: Record<string, any>): string | null => {
   if (targetType === 'Service') {
     const targetServiceType = targetData?.serviceType || 'ClusterIP';
@@ -25,6 +37,14 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
   return null;
 };
 
+/**
+ * Validates incoming edge connection rules targeting an Ingress resource node.
+ * Ingress only accepts incoming traffic from LoadBalancer or NodePort Services.
+ *
+ * @param sourceType - The resource type of the connection source.
+ * @param sourceData - Optional node configuration data for the source node.
+ * @returns An English error message if the incoming connection is invalid, or `null` if valid.
+ */
 const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string, any>): string | null => {
   if (sourceType !== 'Service') {
     return `${sourceType} cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
@@ -36,6 +56,14 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
   return null;
 };
 
+/**
+ * Validates outgoing edge connection rules originating from an Ingress resource node.
+ * Ingress can strictly connect only to ClusterIP Services (bypassing direct routing to Pods/Deployments).
+ *
+ * @param targetType - The resource type of the connection target.
+ * @param targetData - Optional node configuration data for the target node.
+ * @returns An English error message if the outgoing connection is invalid, or `null` if valid.
+ */
 const checkIngressSourceRules = (targetType: string, targetData?: Record<string, any>): string | null => {
   if (targetType === 'Service') {
     const targetServiceType = targetData?.serviceType || 'ClusterIP';
@@ -47,6 +75,14 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
   return `Ingress cannot be connected directly to ${targetType}. Direct routing without a Service is prohibited.`;
 };
 
+/**
+ * Validates incoming edge connection rules targeting a Service resource node.
+ * Specifically enforces that LoadBalancer Services accept incoming connections exclusively from Internet.
+ *
+ * @param sourceType - The resource type of the connection source.
+ * @param targetData - Optional node configuration data for the target node.
+ * @returns An English error message if the incoming connection is invalid, or `null` if valid.
+ */
 const checkServiceTargetRules = (sourceType: string, targetData?: Record<string, any>): string | null => {
   const targetServiceType = targetData?.serviceType || 'ClusterIP';
   if (targetServiceType === 'LoadBalancer' && sourceType !== 'Internet') {
@@ -55,6 +91,15 @@ const checkServiceTargetRules = (sourceType: string, targetData?: Record<string,
   return null;
 };
 
+/**
+ * Validates outgoing edge connection rules originating from a Service resource node.
+ * Enforces specific restrictions for LoadBalancer Services (allowing connection to Ingress or ClusterIP/NodePort Services).
+ *
+ * @param targetType - The resource type of the connection target.
+ * @param sourceData - Optional node configuration data for the source Service node.
+ * @param targetData - Optional node configuration data for the target node.
+ * @returns An English error message if the outgoing connection is invalid, or `null` if valid.
+ */
 const checkServiceSourceRules = (
   targetType: string,
   sourceData?: Record<string, any>,
@@ -76,6 +121,17 @@ const checkServiceSourceRules = (
   return `Service type "LoadBalancer" is not allowed to connect to ${targetType}.`;
 };
 
+/**
+ * Evaluates whether a proposed edge connection between a source node and a target node is valid.
+ * Checks the macro-level matrix in `VALID_CONNECTIONS` as well as fine-grained resource rules for
+ * Internet, Ingress, and Service components (ClusterIP, NodePort, LoadBalancer).
+ *
+ * @param sourceType - The string resource type of the source node (e.g., 'Internet', 'Service', 'Ingress', 'Deployment').
+ * @param targetType - The string resource type of the target node (e.g., 'Service', 'Pod', 'PVC').
+ * @param sourceData - Optional data object containing configuration properties (e.g. `serviceType`) for the source node.
+ * @param targetData - Optional data object containing configuration properties for the target node.
+ * @returns `null` if the connection is permitted, or a descriptive English error message string explaining why it is rejected.
+ */
 export const getConnectionError = (
   sourceType: string,
   targetType: string,
