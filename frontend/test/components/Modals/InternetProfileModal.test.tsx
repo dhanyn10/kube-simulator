@@ -357,6 +357,15 @@ describe('InternetProfileModal', () => {
     expect(stopBtns.length).toBeGreaterThan(0);
     fireEvent.click(stopBtns[0]);
     expect(stopSimulationMock).toHaveBeenCalled();
+
+    // Click Pause and Stop on the Add Custom Profile card overlay
+    const customPauseBtn = screen.getByRole('button', { name: /^Pause$/i });
+    fireEvent.click(customPauseBtn);
+    expect(pauseSimulationMock).toHaveBeenCalledTimes(2);
+
+    const customStopBtn = screen.getByRole('button', { name: /^Stop$/i });
+    fireEvent.click(customStopBtn);
+    expect(stopSimulationMock).toHaveBeenCalledTimes(2);
   });
 
   it('renders modal cleanly without footer elements', async () => {
@@ -382,7 +391,7 @@ describe('InternetProfileModal', () => {
     expect(screen.queryByText(/Active Connection Profile:/i)).toBeNull();
   });
 
-  it('renders Auto Save button in details view and triggers manual auto save on click', async () => {
+  it('renders Auto Save button in details view, triggers manual auto save on click, and displays Auto Saved state', async () => {
     await act(async () => {
       render(
         <InternetProfileModal
@@ -408,5 +417,6 @@ describe('InternetProfileModal', () => {
     });
 
     expect(mockSaveInternetProfile).toHaveBeenCalled();
+    expect(screen.getByText('Auto Saved')).toBeDefined();
   });
 });

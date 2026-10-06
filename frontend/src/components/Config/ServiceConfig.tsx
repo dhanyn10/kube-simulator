@@ -38,6 +38,41 @@ const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
 ];
 
 /**
+ * Computes class names for Service Type dropdown option buttons.
+ */
+const getServiceTypeOptionClasses = (isDisabled: boolean, isSelected: boolean, colorMode: string): string => {
+  if (isDisabled) {
+    return 'opacity-50 cursor-not-allowed bg-slate-800/20';
+  }
+  if (isSelected) {
+    if (colorMode === 'dark') {
+      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    }
+    return 'bg-amber-50 text-amber-800 border border-amber-200';
+  }
+  if (colorMode === 'dark') {
+    return 'hover:bg-slate-800 hover:text-white';
+  }
+  return 'hover:bg-slate-100 hover:text-slate-900';
+};
+
+/**
+ * Computes class names for Workload Selector dropdown option buttons.
+ */
+const getWorkloadSelectorOptionClasses = (isSelected: boolean, colorMode: string): string => {
+  if (isSelected) {
+    if (colorMode === 'dark') {
+      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    }
+    return 'bg-amber-50 text-amber-800 border border-amber-200';
+  }
+  if (colorMode === 'dark') {
+    return 'hover:bg-slate-800 hover:text-white';
+  }
+  return 'hover:bg-slate-100 hover:text-slate-900';
+};
+
+/**
  * Configuration component for Kubernetes Service resources.
  *
  * @param props - Component properties including update and toggle handlers.
@@ -145,15 +180,7 @@ export const ServiceConfig = ({
                     }}
                     className={cn(
                       "w-full text-left p-2 rounded text-xs transition-colors flex items-start justify-between gap-2 group",
-                      isDisabled
-                        ? "opacity-50 cursor-not-allowed bg-slate-800/20"
-                        : isSelected
-                        ? colorMode === 'dark'
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                          : "bg-amber-50 text-amber-800 border border-amber-200"
-                        : colorMode === 'dark'
-                        ? "hover:bg-slate-800 hover:text-white"
-                        : "hover:bg-slate-100 hover:text-slate-900"
+                      getServiceTypeOptionClasses(Boolean(isDisabled), isSelected, colorMode)
                     )}
                   >
                     <div className="space-y-0.5 pr-1">
@@ -301,13 +328,7 @@ export const ServiceConfig = ({
                       }}
                       className={cn(
                         "w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer",
-                        isSelected
-                          ? colorMode === 'dark'
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            : "bg-amber-50 text-amber-800 border border-amber-200"
-                          : colorMode === 'dark'
-                          ? "hover:bg-slate-800 hover:text-white"
-                          : "hover:bg-slate-100 hover:text-slate-900"
+                        getWorkloadSelectorOptionClasses(isSelected, colorMode)
                       )}
                     >
                       <span className="truncate">{label}</span>

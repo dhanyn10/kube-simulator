@@ -186,7 +186,7 @@ describe('terminalKeyDown', () => {
       expect(setSelectedIndex).toHaveBeenCalledWith(0);
     });
 
-    it('handles Enter key on subItem suggestion', () => {
+    it('handles Enter key on subItem suggestion and simple suggestion', () => {
       const e = createKeyboardEvent('Enter');
       const setCommandInput = vi.fn();
       const setIsDropdownOpen = vi.fn();
@@ -207,6 +207,63 @@ describe('terminalKeyDown', () => {
       expect(e.preventDefault).toHaveBeenCalled();
       expect(setCommandInput).toHaveBeenCalledWith('kubectl logs pod-beta');
       expect(setIsDropdownOpen).toHaveBeenCalledWith(false);
+
+      // Simple item without subItems on Enter
+      const eSimple = createKeyboardEvent('Enter');
+      const setCommandInputSimple = vi.fn();
+      handleTerminalKeyDown({
+        e: eSimple,
+        commandHistory: [],
+        historyIndex: -1,
+        setHistoryIndex: vi.fn(),
+        setCommandInput: setCommandInputSimple,
+        suggestions: suggestionsSimple,
+        selectedIndex: 0,
+        isDropdownOpen: true,
+        setIsDropdownOpen,
+      });
+      expect(setCommandInputSimple).toHaveBeenCalledWith('kubectl get pods');
+    });
+
+    it('handles Tab key on suggestion with subItems', () => {
+      const e = createKeyboardEvent('Tab');
+      const setCommandInput = vi.fn();
+      const setIsDropdownOpen = vi.fn();
+
+      handleTerminalKeyDown({
+        e,
+        commandHistory: [],
+        historyIndex: -1,
+        setHistoryIndex: vi.fn(),
+        setCommandInput,
+        suggestions: suggestionsWithSubItems,
+        selectedIndex: 0,
+        selectedSubIndex: 0,
+        isDropdownOpen: true,
+        setIsDropdownOpen,
+      });
+
+      expect(e.preventDefault).toHaveBeenCalled();
+      expect(setCommandInput).toHaveBeenCalledWith('kubectl logs pod-alpha');
+      expect(setIsDropdownOpen).toHaveBeenCalledWith(false);
+    });
+
+    it('ignores Enter when selectedIndex is negative', () => {
+      const e = createKeyboardEvent('Enter');
+      const setCommandInput = vi.fn();
+
+      handleTerminalKeyDown({
+        e,
+        commandHistory: [],
+        historyIndex: -1,
+        setHistoryIndex: vi.fn(),
+        setCommandInput,
+        suggestions: suggestionsSimple,
+        selectedIndex: -1,
+        isDropdownOpen: true,
+      });
+
+      expect(setCommandInput).not.toHaveBeenCalled();
     });
 
     it('handles Escape key to close dropdown', () => {
@@ -249,7 +306,7 @@ describe('terminalKeyDown', () => {
       expect(setCommandInput).toHaveBeenCalledWith('cmd3');
     });
 
-    it('handles ArrowDown when navigating history forward', () => {
+    it('handles ArrowDown when navigating history forward and resetting at boundary', () => {
       const e = createKeyboardEvent('ArrowDown');
       const setHistoryIndex = vi.fn();
       const setCommandInput = vi.fn();
@@ -265,6 +322,56 @@ describe('terminalKeyDown', () => {
       expect(e.preventDefault).toHaveBeenCalled();
       expect(setHistoryIndex).toHaveBeenCalledWith(1);
       expect(setCommandInput).toHaveBeenCalledWith('cmd2');
+
+      // Boundary reset when historyIndex is at last item
+      const eEnd = createKeyboardEvent('ArrowDown');
+      const setHistoryIndexEnd = vi.fn();
+      const setCommandInputEnd = vi.fn();
+
+      handleTerminalKeyDown({
+        e: eEnd,
+        commandHistory: ['cmd1', 'cmd2'],
+        historyIndex: 1,
+        setHistoryIndex: setHistoryIndexEnd,
+        setCommandInput: setCommandInputEnd,
+      });
+
+      expect(setHistoryIndexEnd).toHaveBeenCalledWith(-1);
+      expect(setCommandInputEnd).toHaveBeenCalledWith('');
+    });
+
+    it('returns early on ArrowDown when historyIndex is -1', () => {
+      const e = createKeyboardEvent('ArrowDown');
+      const setHistoryIndex = vi.fn();
+      const setCommandInput = vi.fn();
+
+      handleTerminalKeyDown({
+        e,
+        commandHistory: ['cmd1'],
+        historyIndex: -1,
+        setHistoryIndex,
+        setCommandInput,
+      });
+
+      expect(e.preventDefault).toHaveBeenCalled();
+      expect(setHistoryIndex).not.toHaveBeenCalled();
+      expect(setCommandInput).not.toHaveBeenCalled();
+    });
+
+    it('returns early on ArrowUp when commandHistory is empty', () => {
+      const e = createKeyboardEvent('ArrowUp');
+      const setHistoryIndex = vi.fn();
+
+      handleTerminalKeyDown({
+        e,
+        commandHistory: [],
+        historyIndex: -1,
+        setHistoryIndex,
+        setCommandInput: vi.fn(),
+      });
+
+      expect(e.preventDefault).toHaveBeenCalled();
+      expect(setHistoryIndex).not.toHaveBeenCalled();
     });
   });
 });

@@ -209,5 +209,41 @@ describe('useRoleConfig', () => {
         ],
       });
     });
+
+    it('handleDisconnectResource disconnects deployments when connected deployment edges exist', () => {
+      const rules: K8sRoleRule[] = [
+        { apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+      const depNode: Node = { id: 'dep-1', type: 'Deployment', position: { x: 100, y: 0 }, data: {} };
+      const edge: Edge = { id: 'e1', source: 'role-1', target: 'dep-1' };
+
+      useFlowStore.setState({
+        nodes: [roleNode, depNode] as any,
+        edges: [edge] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rules));
+
+      act(() => {
+        result.current.handleDisconnectResource('deployments');
+      });
+
+      expect(setEdgesSpy).toHaveBeenCalledWith([]);
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
+        rules: [
+          {
+            apiGroups: ['apps'],
+            resources: [],
+            verbs: ['get'],
+          },
+        ],
+      });
+    });
   });
 });
