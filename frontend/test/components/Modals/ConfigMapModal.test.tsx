@@ -102,4 +102,33 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
   });
+
+  it('handles focusing value input, selecting value option from portal, hovering portal items, and removing rows', () => {
+    render(<ConfigMapModal {...defaultProps} />);
+
+    // Add a row
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+
+    // Focus key input to open key autocomplete portal
+    const keyInput = screen.getByLabelText('Key');
+    fireEvent.focus(keyInput);
+
+    const keyOption = screen.getByTestId('key-option-LOG_LEVEL');
+    fireEvent.mouseEnter(keyOption);
+    fireEvent.mouseDown(keyOption);
+    expect(keyInput).toHaveValue('LOG_LEVEL');
+
+    // Focus value input to open value autocomplete portal
+    const valInput = screen.getByLabelText('Value');
+    fireEvent.focus(valInput);
+
+    const valOption = screen.getByTestId('val-option-INFO');
+    fireEvent.mouseEnter(valOption);
+    fireEvent.mouseDown(valOption);
+    expect(valInput).toHaveValue('INFO');
+
+    // Remove row
+    fireEvent.click(screen.getByTitle('Remove row'));
+    expect(screen.queryByLabelText('Key')).not.toBeInTheDocument();
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateProfileChartData,
+  generateProfileIntervalPoints,
   calculateHourIndexFromX,
   calculateMinuteIndexFromX,
   calculateYValueFromPointer,
@@ -255,6 +256,43 @@ describe('kubechart library', () => {
       padTop: 15,
       padBottom: 20
     });
+  });
+
+  it('generateProfileIntervalPoints computes interval points correctly and handles ChartPadding object', () => {
+    const res = generateProfileIntervalPoints(dummyProfile, 30, 200, 100, 10, 10, 10, 10);
+    expect(res.intervalPoints).toHaveLength(49);
+    expect(res.minVal).toBe(0);
+    expect(res.maxVal).toBeGreaterThanOrEqual(1500);
+
+    const resObj = generateProfileIntervalPoints(dummyProfile, 30, 200, 100, { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 });
+    expect(resObj.intervalPoints).toHaveLength(49);
+
+    const pointsNoIdx = [{ x: 10, y: 10, val: 100, hour: '01:00' }, { x: 20, y: 10, val: 200, hour: '02:00' }];
+    const ptNoIdx = calculateMinutePoint(pointsNoIdx, 720, 0, 1000, 80, 10);
+    expect(ptNoIdx.val).toBeDefined();
+  });
+
+  it('calculateProfileChartData handles ChartPadding object parameter correctly', () => {
+    const res = calculateProfileChartData(dummyProfile, 200, 100, { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 }, 30);
+    expect(res.points.length).toBeGreaterThan(0);
+    expect(res.pathD).toContain('M');
+  });
+
+  it('calculateMinutePoint handles minute index before first point or after last point', () => {
+    const singlePoint = [{ x: 10, y: 10, val: 100, hour: '01:00', minuteIdx: 60 }];
+    const ptBefore = calculateMinutePoint(singlePoint, 30, 0, 1000, 80, 10);
+    expect(ptBefore.hour).toBe('00:30');
+    expect(ptBefore.val).toBe(100);
+
+    const ptAfter = calculateMinutePoint(singlePoint, 120, 0, 1000, 80, 10);
+    expect(ptAfter.hour).toBe('02:00');
+    expect(ptAfter.val).toBe(100);
+  });
+
+  it('calculateProfileHoverData returns null for zero/negative rect dimensions or empty points array', () => {
+    expect(calculateProfileHoverData(10, 10, 0, 100, 10, 180, [{ x: 10, y: 10, val: 100, hour: '00:00' }])).toBeNull();
+    expect(calculateProfileHoverData(10, 10, 200, 0, 10, 180, [{ x: 10, y: 10, val: 100, hour: '00:00' }])).toBeNull();
+    expect(calculateProfileHoverData(10, 10, 200, 100, 10, 180, [])).toBeNull();
   });
 
   it('converts profile to generic time series points array including 24:00 loop endpoint', () => {

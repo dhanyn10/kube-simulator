@@ -78,8 +78,77 @@ describe('pvcConfigHelpers test suite', () => {
     const depNodeScaledDown = { ...depNode, data: { replicas: 1 } };
     expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode, depNodeScaledDown], edges)).toBe('Bound');
 
-    // Disconnected -> Pending
+    // Disconnected -> Pending (or fallback to existing pvcStatus 'Bound' when disconnected)
     expect(evaluatePvcRealtimeStatus(pvcNode, [pvcNode], [])).toBe('Pending');
+    const pvcBoundNoConn: Node = { id: 'pvc-1', type: 'PVC', data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' }, position: { x: 0, y: 0 } };
+    expect(evaluatePvcRealtimeStatus(pvcBoundNoConn, [pvcBoundNoConn], [])).toBe('Bound');
+  });
+
+  it('handlePvcRwoAccessMode handles unchanged edge errors, disconnected PVCs, and unconfigured pending pods', () => {
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Multi-Attach Error' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 3 },
+      position: { x: 0, y: 0 },
+    };
+    const unconfiguredPodNode: Node = {
+      id: 'pod-unconfig',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: { status: 'pending', image: '' }, // empty image
+      position: { x: 0, y: 0 },
+    };
+    const errorMsg = 'Multi-Attach Error: Volume "pvc-1" (ReadWriteOnce) cannot be mounted by 3 replicas simultaneously';
+    const edgeWithError: Edge = {
+      id: 'e1',
+      source: 'dep-1',
+      target: 'pvc-1',
+      data: { validationError: errorMsg },
+    };
+
+    // Edge already has errorMsg -> edgesChanged is false
+    const resSameError = handlePvcRwoAccessMode(
+      pvcNode,
+      [pvcNode, depNode, unconfiguredPodNode],
+      [edgeWithError]
+    );
+    expect(resSameError.edges[0].data?.validationError).toBe(errorMsg);
+
+    // Disconnected PVC node with connectedWorkloadIds.size === 0
+    const pvcDisconnected: Node = {
+      id: 'pvc-disc',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Pending' },
+      position: { x: 0, y: 0 },
+    };
+    const resDisc = handlePvcRwoAccessMode(pvcDisconnected, [pvcDisconnected], []);
+    expect(resDisc.nodes).toEqual([pvcDisconnected]);
+
+    // When replicas scale down to 1, unconfigured pod remains pending (image is empty)
+    const depNode1 = { ...depNode, data: { replicas: 1 } };
+    const resScaleDownUnconfig = handlePvcRwoAccessMode(
+      pvcNode,
+      [pvcNode, depNode1, unconfiguredPodNode],
+      [edgeWithError]
+    );
+    const updatedUnconfigPod = resScaleDownUnconfig.nodes.find((n) => n.id === 'pod-unconfig');
+    expect(updatedUnconfigPod?.data?.status).toBe('pending');
+
+    // Edge with non-Multi-Attach validationError remains unchanged
+    const edgeOtherErr: Edge = {
+      id: 'e1',
+      source: 'dep-1',
+      target: 'pvc-1',
+      data: { validationError: 'Other Error' },
+    };
+    const resOtherErr = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode1], [edgeOtherErr]);
+    expect(resOtherErr.edges[0].data?.validationError).toBe('Other Error');
   });
 
   it('handlePvcRwoAccessMode evaluates and toggles RWO PVC multi-attach error state and pod statuses', () => {
