@@ -28,13 +28,11 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
  * @returns An English error message if the connection is invalid, or `null` if valid.
  */
 const checkInternetRules = (targetType: string, targetData?: Record<string, any>): string | null => {
-  if (targetType === 'Service') {
-    const targetServiceType = targetData?.serviceType || 'ClusterIP';
-    if (targetServiceType !== 'LoadBalancer' && targetServiceType !== 'NodePort') {
-      return `Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ${targetServiceType} Service.`;
-    }
-  }
-  return null;
+  if (targetType !== 'Service') return null;
+  const tType = targetData?.serviceType || 'ClusterIP';
+  return tType === 'LoadBalancer' || tType === 'NodePort'
+    ? null
+    : `Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ${tType} Service.`;
 };
 
 /**
@@ -49,11 +47,10 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
   if (sourceType !== 'Service') {
     return `${sourceType} cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
   }
-  const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
-  if (sourceServiceType !== 'LoadBalancer' && sourceServiceType !== 'NodePort') {
-    return `${sourceServiceType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
-  }
-  return null;
+  const sType = sourceData?.serviceType || 'ClusterIP';
+  return sType === 'LoadBalancer' || sType === 'NodePort'
+    ? null
+    : `${sType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
 };
 
 /**
@@ -65,14 +62,13 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
  * @returns An English error message if the outgoing connection is invalid, or `null` if valid.
  */
 const checkIngressSourceRules = (targetType: string, targetData?: Record<string, any>): string | null => {
-  if (targetType === 'Service') {
-    const targetServiceType = targetData?.serviceType || 'ClusterIP';
-    if (targetServiceType !== 'ClusterIP') {
-      return `Ingress can only connect to ClusterIP Service. Cannot connect to ${targetServiceType} Service.`;
-    }
-    return null;
+  if (targetType !== 'Service') {
+    return `Ingress cannot be connected directly to ${targetType}. Direct routing without a Service is prohibited.`;
   }
-  return `Ingress cannot be connected directly to ${targetType}. Direct routing without a Service is prohibited.`;
+  const tType = targetData?.serviceType || 'ClusterIP';
+  return tType === 'ClusterIP'
+    ? null
+    : `Ingress can only connect to ClusterIP Service. Cannot connect to ${tType} Service.`;
 };
 
 /**
@@ -84,11 +80,23 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkServiceTargetRules = (sourceType: string, targetData?: Record<string, any>): string | null => {
-  const targetServiceType = targetData?.serviceType || 'ClusterIP';
-  if (targetServiceType === 'LoadBalancer' && sourceType !== 'Internet') {
-    return `${sourceType} cannot be connected to LoadBalancer Service. Only Internet can connect to LoadBalancer Service.`;
-  }
-  return null;
+  const tType = targetData?.serviceType || 'ClusterIP';
+  return tType === 'LoadBalancer' && sourceType !== 'Internet'
+    ? `${sourceType} cannot be connected to LoadBalancer Service. Only Internet can connect to LoadBalancer Service.`
+    : null;
+};
+
+/**
+ * Validates target Service types when originating from a LoadBalancer Service.
+ *
+ * @param targetData - Optional node configuration data for the target node.
+ * @returns An English error message if target Service type is invalid, or `null` if valid.
+ */
+const checkLoadBalancerTargetService = (targetData?: Record<string, any>): string | null => {
+  const tType = targetData?.serviceType || 'ClusterIP';
+  return tType === 'ClusterIP' || tType === 'NodePort'
+    ? null
+    : `LoadBalancer Service cannot connect to ${tType} Service.`;
 };
 
 /**
@@ -105,20 +113,11 @@ const checkServiceSourceRules = (
   sourceData?: Record<string, any>,
   targetData?: Record<string, any>
 ): string | null => {
-  const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
-  if (sourceServiceType !== 'LoadBalancer') return null;
-
-  if (targetType === 'Ingress') return null;
-
-  if (targetType === 'Service') {
-    const targetServiceType = targetData?.serviceType || 'ClusterIP';
-    if (targetServiceType === 'ClusterIP' || targetServiceType === 'NodePort') {
-      return null;
-    }
-    return `LoadBalancer Service cannot connect to ${targetServiceType} Service.`;
-  }
-
-  return `Service type "LoadBalancer" is not allowed to connect to ${targetType}.`;
+  const sType = sourceData?.serviceType || 'ClusterIP';
+  if (sType !== 'LoadBalancer' || targetType === 'Ingress') return null;
+  return targetType === 'Service'
+    ? checkLoadBalancerTargetService(targetData)
+    : `Service type "LoadBalancer" is not allowed to connect to ${targetType}.`;
 };
 
 /**
