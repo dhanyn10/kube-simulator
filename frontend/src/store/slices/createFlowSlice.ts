@@ -413,10 +413,41 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
       // Responsive real-time PVC status sync when edge connection is established
       syncedNodes = syncedNodes.map((n) => {
-        if (n.type !== 'PVC') return n;
-        const realTimeStatus = evaluatePvcRealtimeStatus(n, syncedNodes, nextEdges);
-        if (n.data?.pvcStatus !== realTimeStatus) {
-          return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
+        if (n.type === 'PVC') {
+          const realTimeStatus = evaluatePvcRealtimeStatus(n, syncedNodes, nextEdges);
+          if (n.data?.pvcStatus !== realTimeStatus) {
+            return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
+          }
+        }
+        // Bidirectional Node Linking: Sync Form State when Visual Edge is dragged on canvas
+        if (n.id === sourceId) {
+          const sType = String(n.type || n.data?.type || sourceNode?.type || '').toLowerCase();
+          const targetNodeInStore = state.nodes.find((item) => item.id === targetId);
+          const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || targetNode?.type || '').toLowerCase();
+
+          if (sType === 'ingress' && tType === 'service') {
+            const targetLabel = (targetNodeInStore?.data?.label as string) || targetNodeInStore?.id || targetId;
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                backendServiceName: targetLabel
+              }
+            };
+          }
+          if (
+            sType === 'service' &&
+            ['deployment', 'pod', 'replicaset'].includes(tType)
+          ) {
+            const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || targetId;
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                selector: targetLabel
+              }
+            };
+          }
         }
         return n;
       });
