@@ -132,6 +132,21 @@ const checkServiceSourceRules = (
  * @param targetData - Optional data object containing configuration properties for the target node.
  * @returns `null` if the connection is permitted, or a descriptive English error message string explaining why it is rejected.
  */
+type RuleChecker = (
+  s: string,
+  t: string,
+  sData?: Record<string, any>,
+  tData?: Record<string, any>
+) => string | null;
+
+const SPECIFIC_RULES: RuleChecker[] = [
+  (s, t, _, tData) => (s === 'Internet' ? checkInternetRules(t, tData) : null),
+  (s, t, sData) => (t === 'Ingress' ? checkIngressTargetRules(s, sData) : null),
+  (s, t, _, tData) => (s === 'Ingress' ? checkIngressSourceRules(t, tData) : null),
+  (s, t, _, tData) => (t === 'Service' ? checkServiceTargetRules(s, tData) : null),
+  (s, t, sData, tData) => (s === 'Service' ? checkServiceSourceRules(t, sData, tData) : null),
+];
+
 export const getConnectionError = (
   sourceType: string,
   targetType: string,
@@ -145,28 +160,8 @@ export const getConnectionError = (
     return `${sourceType} cannot be connected to ${targetType}.`;
   }
 
-  if (sourceType === 'Internet') {
-    const err = checkInternetRules(targetType, targetData);
-    if (err) return err;
-  }
-
-  if (targetType === 'Ingress') {
-    const err = checkIngressTargetRules(sourceType, sourceData);
-    if (err) return err;
-  }
-
-  if (sourceType === 'Ingress') {
-    const err = checkIngressSourceRules(targetType, targetData);
-    if (err) return err;
-  }
-
-  if (targetType === 'Service') {
-    const err = checkServiceTargetRules(sourceType, targetData);
-    if (err) return err;
-  }
-
-  if (sourceType === 'Service') {
-    const err = checkServiceSourceRules(targetType, sourceData, targetData);
+  for (const checkRule of SPECIFIC_RULES) {
+    const err = checkRule(sourceType, targetType, sourceData, targetData);
     if (err) return err;
   }
 
