@@ -486,6 +486,102 @@ describe('useDropHandler', () => {
       );
     });
 
+    it('onDrop handles dropping a ResourceLimit onto a target workload card', () => {
+      const depNode = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: { label: 'My Deployment' }
+      };
+
+      useFlowStore.setState({
+        nodes: [depNode] as any
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('ResourceLimit')
+        }
+      } as any;
+
+      act(() => {
+        result.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().resourceLimitModalTargetNode).toEqual({
+        id: 'dep1',
+        label: 'My Deployment'
+      });
+    });
+
+    it('onDrop checks HPA prerequisite and blocks attach when Resource Limit is missing vs allows when attached', () => {
+      const depNodeNoLimit = {
+        id: 'dep1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 320,
+        height: 160,
+        data: { label: 'Dep Without Limit' }
+      };
+      const addLogSpy = vi.fn();
+
+      useFlowStore.setState({
+        nodes: [depNodeNoLimit] as any,
+        edges: [],
+        addLog: addLogSpy
+      });
+
+      const { result: resultNoLimit } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockEvent = {
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: {
+          getData: vi.fn().mockReturnValue('HPA')
+        }
+      } as any;
+
+      act(() => {
+        resultNoLimit.current.onDrop(mockEvent);
+      });
+
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('Resource Limit is required on target workload before attaching HPA.'),
+        'UI'
+      );
+
+      // Now with attached Resource Limit
+      const depNodeWithLimit = {
+        ...depNodeNoLimit,
+        data: { label: 'Dep With Limit', resourceLimits: ['rl1'] }
+      };
+
+      useFlowStore.setState({
+        nodes: [depNodeWithLimit] as any,
+        edges: []
+      });
+
+      const { result: resultWithLimit } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      act(() => {
+        resultWithLimit.current.onDrop(mockEvent);
+      });
+
+      expect(useFlowStore.getState().hpaModalTargetNode).toEqual({
+        id: 'dep1',
+        label: 'Dep With Limit'
+      });
+    });
+
     it('onDrop handles dropping an HPA onto empty canvas and logs HPA-specific warning', () => {
       const addLogSpy = vi.fn();
       useFlowStore.setState({

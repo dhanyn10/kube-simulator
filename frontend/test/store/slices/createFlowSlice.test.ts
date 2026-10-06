@@ -158,11 +158,12 @@ describe('createFlowSlice', () => {
 
   it('onConnect handles existing duplicate edge and missing nodes', () => {
     const hpa = { id: 'h1', type: 'HPA', data: {} };
-    const dep = { id: 'd1', type: 'Deployment', data: { cpuRequest: '100m', memoryRequest: '128Mi' } };
+    const dep = { id: 'd1', type: 'Deployment', data: { label: 'd1' } };
+    const res = { id: 'r1', type: 'ResourceLimit', data: {} };
     const existingEdge: Edge = { id: 'eh1-d1', source: 'h1', target: 'd1' };
-    useFlowStore.setState({ nodes: [hpa, dep] as any, edges: [existingEdge] });
+    useFlowStore.setState({ nodes: [hpa, dep, res] as any, edges: [existingEdge] });
 
-    // Connecting existing edge returns state unchanged
+    // Connecting existing edge returns state unchanged (line 421 return state)
     useFlowStore.getState().onConnect({ source: 'h1', target: 'd1' });
     expect(useFlowStore.getState().edges).toHaveLength(1);
   });
@@ -293,9 +294,11 @@ describe('createFlowSlice', () => {
     expect(state.nodes.find(n => n.id === 'c1')?.position).toEqual({ x: 10, y: 10 });
   });
 
-  it('onEdgesChange updates selected state and handles edge deletion', () => {
+  it('onEdgesChange updates selected state and handles edge deletion with live log commands', () => {
+    const node1: Node = { id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+    const node2: Node = { id: 'n2', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'svc-1' } };
     const edge: Edge = { id: 'e1', source: 'n1', target: 'n2', selected: false };
-    useFlowStore.setState({ edges: [edge] });
+    useFlowStore.setState({ nodes: [node1, node2], edges: [edge] });
 
     useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'select', selected: true }]);
     expect(useFlowStore.getState().edges[0].selected).toBe(true);
@@ -303,6 +306,66 @@ describe('createFlowSlice', () => {
     useFlowStore.getState().onEdgesChange([{ id: 'e1', type: 'remove' }]);
     expect(useFlowStore.getState().edges).toHaveLength(0);
     expect(useFlowStore.getState().lastActionName).toBe('Delete Edge');
+  });
+
+  it('onConnect rejects connection when source or target node is forbidden for active user', () => {
+    const devUser = {
+      id: 'dev1',
+      username: 'dev-user',
+      policies: [{ name: 'ContainerDeveloperPolicy', description: 'Dev' }],
+      roles: [],
+    };
+    const svcNode = { id: 'svc1', type: 'Service', data: {} };
+    const podNode = { id: 'pod1', type: 'Pod', data: {} };
+    const addLogSpy = vi.fn();
+
+    useFlowStore.setState({
+      nodes: [svcNode, podNode] as any,
+      edges: [],
+      activeIdentity: 'dev-user',
+      iamUsers: [devUser] as any,
+      addLog: addLogSpy,
+    });
+
+    useFlowStore.getState().onConnect({ source: 'svc1', target: 'pod1' });
+
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Connection rejected: User "dev-user" cannot connect forbidden card(s).'), 'UI');
+  });
+
+  it('onConnect blocks HPA connection when target workload lacks Resource Limit prerequisite', () => {
+    const hpaNode = { id: 'hpa1', type: 'HPA', data: {} };
+    const depNode = { id: 'dep1', type: 'Deployment', data: { label: 'my-dep' } };
+    const addLogSpy = vi.fn();
+
+    useFlowStore.setState({
+      nodes: [hpaNode, depNode] as any,
+      edges: [],
+      addLog: addLogSpy,
+    });
+
+    useFlowStore.getState().onConnect({ source: 'hpa1', target: 'dep1' });
+
+    expect(useFlowStore.getState().edges).toHaveLength(0);
+    expect(addLogSpy).toHaveBeenCalledWith('error', expect.stringContaining('Resource Limit is required on target workload before attaching HPA.'), 'UI');
+  });
+
+  it('onConnect reroutes child pod in ReplicaSet and updates PVC status on connection', () => {
+    const rsNode = { id: 'rs1', type: 'ReplicaSet', data: {} };
+    const childPod = { id: 'pod1', type: 'Pod', parentId: 'rs1', data: { parentId: 'rs1' } };
+    const pvcNode = { id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Pending' } };
+
+    useFlowStore.setState({
+      nodes: [rsNode, childPod, pvcNode] as any,
+      edges: [],
+    });
+
+    useFlowStore.getState().onConnect({ source: 'pod1', target: 'pvc1' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges).toHaveLength(1);
+    expect(edges[0].source).toBe('rs1');
+    expect(edges[0].target).toBe('pvc1');
   });
 
   it('onConnect handles invalid connection with error log and edge validation error', () => {

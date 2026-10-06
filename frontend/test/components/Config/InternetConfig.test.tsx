@@ -211,9 +211,15 @@ describe('InternetConfig', () => {
       toJSON: () => {}
     });
 
-    // Hover at x matching hour 3 -> clientX = 37
+    // Hover at x matching hour 3 (same hour) -> clientX = 37
     await act(async () => {
       fireEvent.pointerMove(overlayRect, { clientX: 37, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+
+    // Hover at different hour (e.g. hour 0) -> clientX = 8
+    await act(async () => {
+      fireEvent.pointerMove(overlayRect, { clientX: 8, clientY: 10 });
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
@@ -223,12 +229,51 @@ describe('InternetConfig', () => {
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
 
+    // Click on chart to seek minute
+    await act(async () => {
+      fireEvent.click(overlayRect, { clientX: 50 });
+    });
+    expect(performUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      currentMinuteIndex: expect.any(Number),
+      currentHourIndex: expect.any(Number),
+    }));
+
     // Mouse leave
     await act(async () => {
       fireEvent.pointerLeave(overlayRect);
     });
     expect(screen.queryByTestId('hover-traffic-dot')).toBeNull();
   });
+
+  it('renders ReadOnlyProfileChart Min stats when not simulating and not hovering', () => {
+    useFlowStore.setState({ isSimulating: false });
+
+    const activeProfileNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        currentMinuteIndex: 120,
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Static Profile',
+          hourly: { '00:00': 100, '12:00': 500 }
+        }
+      }
+    };
+
+    render(
+      <InternetConfig
+        selectedNode={activeProfileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    expect(screen.getByText('Min:')).toBeDefined();
+    expect(screen.getByText('100')).toBeDefined();
+  });
+
 
   it('handles ReadOnlyProfileChart when isRed is true (error/disconnected status) and fallback daily traffic profile data', async () => {
     useFlowStore.setState({
