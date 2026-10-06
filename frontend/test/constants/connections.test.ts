@@ -3,8 +3,9 @@ import { getConnectionError } from '@/constants/connections';
 
 describe('connections constants', () => {
   it('should return null for valid connections', () => {
-    expect(getConnectionError('Internet', 'Ingress')).toBeNull();
-    expect(getConnectionError('Internet', 'Service')).toBeNull();
+    expect(getConnectionError('Internet', 'Service', {}, { serviceType: 'LoadBalancer' })).toBeNull();
+    expect(getConnectionError('Internet', 'Service', {}, { serviceType: 'NodePort' })).toBeNull();
+    expect(getConnectionError('Ingress', 'Service', {}, { serviceType: 'ClusterIP' })).toBeNull();
     expect(getConnectionError('Service', 'Pod')).toBeNull();
     expect(getConnectionError('Service', 'Pod', { serviceType: 'ClusterIP' })).toBeNull();
     expect(getConnectionError('Service', 'Pod', { serviceType: 'NodePort' })).toBeNull();
@@ -17,10 +18,55 @@ describe('connections constants', () => {
     expect(error).toBe('Internet cannot be connected to Namespace.');
   });
 
-  it('should return error when connecting Internet directly to Pod, Deployment, or ReplicaSet', () => {
+  it('should return error when connecting Internet directly to Ingress, ClusterIP Service, Pod, Deployment, or ReplicaSet', () => {
+    expect(getConnectionError('Internet', 'Ingress')).toBe('Internet cannot be connected to Ingress.');
+    expect(getConnectionError('Internet', 'Service', {}, { serviceType: 'ClusterIP' })).toBe(
+      'Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ClusterIP Service.'
+    );
     expect(getConnectionError('Internet', 'Pod')).toBe('Internet cannot be connected to Pod.');
     expect(getConnectionError('Internet', 'Deployment')).toBe('Internet cannot be connected to Deployment.');
     expect(getConnectionError('Internet', 'ReplicaSet')).toBe('Internet cannot be connected to ReplicaSet.');
+  });
+
+  it('should return null for valid Ingress incoming and outgoing connections', () => {
+    // Service: LoadBalancer -> Ingress
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'LoadBalancer' })).toBeNull();
+    // Service: NodePort -> Ingress
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'NodePort' })).toBeNull();
+    // Ingress -> Service: ClusterIP
+    expect(getConnectionError('Ingress', 'Service', {}, { serviceType: 'ClusterIP' })).toBeNull();
+  });
+
+  it('should return error for invalid incoming connections to Ingress', () => {
+    // Internet -> Ingress
+    expect(getConnectionError('Internet', 'Ingress')).toBe('Internet cannot be connected to Ingress.');
+
+    // ClusterIP Service -> Ingress
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'ClusterIP' })).toBe(
+      'ClusterIP Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.'
+    );
+
+    // Pod / Deployment -> Ingress (fails in VALID_CONNECTIONS check)
+    expect(getConnectionError('Pod', 'Ingress')).toBe('Pod cannot be connected to Ingress.');
+    expect(getConnectionError('Deployment', 'Ingress')).toBe('Deployment cannot be connected to Ingress.');
+  });
+
+  it('should return error for invalid outgoing connections from Ingress', () => {
+    // Ingress -> Service: NodePort / LoadBalancer
+    expect(getConnectionError('Ingress', 'Service', {}, { serviceType: 'NodePort' })).toBe(
+      'Ingress can only connect to ClusterIP Service. Cannot connect to NodePort Service.'
+    );
+    expect(getConnectionError('Ingress', 'Service', {}, { serviceType: 'LoadBalancer' })).toBe(
+      'Ingress can only connect to ClusterIP Service. Cannot connect to LoadBalancer Service.'
+    );
+
+    // Ingress -> Pod / Deployment
+    expect(getConnectionError('Ingress', 'Pod')).toBe(
+      'Ingress cannot be connected to Pod.'
+    );
+    expect(getConnectionError('Ingress', 'Deployment')).toBe(
+      'Ingress cannot be connected to Deployment.'
+    );
   });
 
   it('should return error when connecting Pod, Deployment, or ReplicaSet directly to another Pod or Deployment', () => {
@@ -52,7 +98,7 @@ describe('connections constants', () => {
       'Pod cannot be connected to LoadBalancer Service. Only Internet can connect to LoadBalancer Service.'
     );
     expect(getConnectionError('Ingress', 'Service', {}, { serviceType: 'LoadBalancer' })).toBe(
-      'Ingress cannot be connected to LoadBalancer Service. Only Internet can connect to LoadBalancer Service.'
+      'Ingress can only connect to ClusterIP Service. Cannot connect to LoadBalancer Service.'
     );
     expect(
       getConnectionError(

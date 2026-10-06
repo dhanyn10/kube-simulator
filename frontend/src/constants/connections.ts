@@ -1,7 +1,7 @@
 import { K8sResourceType } from '@/types';
 
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
-  Internet: ['Ingress', 'Service'],
+  Internet: ['Service'],
   Ingress: ['Service'],
   Service: ['Deployment', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
   Deployment: ['Service', 'PVC', 'ConfigMap', 'Secret'],
@@ -28,6 +28,39 @@ export const getConnectionError = (
     return `${sourceType} cannot be connected to ${targetType}.`;
   }
 
+  // Internet outgoing rules: can ONLY connect to Service (LoadBalancer or NodePort)
+  if (sourceType === 'Internet') {
+    if (targetType === 'Service') {
+      const targetServiceType = targetData?.serviceType || 'ClusterIP';
+      if (targetServiceType !== 'LoadBalancer' && targetServiceType !== 'NodePort') {
+        return `Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ${targetServiceType} Service.`;
+      }
+    }
+  }
+
+  // Incoming edge rules for Ingress: ONLY allow from Service: LoadBalancer or Service: NodePort
+  if (targetType === 'Ingress') {
+    if (sourceType !== 'Service') {
+      return `${sourceType} cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
+    }
+    const sourceServiceType = sourceData?.serviceType || 'ClusterIP';
+    if (sourceServiceType !== 'LoadBalancer' && sourceServiceType !== 'NodePort') {
+      return `${sourceServiceType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
+    }
+  }
+
+  // Outgoing edge rules for Ingress: ONLY allow connection to Service: ClusterIP
+  if (sourceType === 'Ingress') {
+    if (targetType === 'Service') {
+      const targetServiceType = targetData?.serviceType || 'ClusterIP';
+      if (targetServiceType !== 'ClusterIP') {
+        return `Ingress can only connect to ClusterIP Service. Cannot connect to ${targetServiceType} Service.`;
+      }
+    } else {
+      return `Ingress cannot be connected directly to ${targetType}. Direct routing without a Service is prohibited.`;
+    }
+  }
+
   // Incoming edge rule for LoadBalancer Service: only Internet allowed as source
   if (targetType === 'Service') {
     const targetServiceType = targetData?.serviceType || 'ClusterIP';
@@ -52,11 +85,6 @@ export const getConnectionError = (
         return `LoadBalancer Service cannot connect to ${targetServiceType} Service.`;
       }
       return `Service type "LoadBalancer" is not allowed to connect to ${targetType}.`;
-    } else {
-      // ClusterIP or NodePort Services cannot connect to Ingress
-      if (targetType === 'Ingress') {
-        return `${sourceServiceType} Service cannot be connected to Ingress.`;
-      }
     }
   }
 
