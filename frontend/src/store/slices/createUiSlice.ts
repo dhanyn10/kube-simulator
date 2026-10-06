@@ -379,7 +379,7 @@ const runSimulationTick = (params: {
   // 2. Pre-calculate reachability for internet nodes
   const activeEdgesSet = new Set(ctx.activeSimulationEdges);
   for (const node of internetNodes) {
-    const reachable = calculateReachability([node], edgeMap, activeEdgesSet);
+    const reachable = calculateReachability([node], edgeMap, activeEdgesSet, ctx.nodes);
     ctx.internetReachableMap?.set(node.id, reachable);
   }
 
@@ -517,7 +517,7 @@ const startSimulationInternal = (
         : nodes.filter(n => n.type === 'Internet');
       if (startNodes.length === 0) return;
 
-      const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)));
+      const reachableNodes = calculateReachability(startNodes, edgeMap, edges.map(e => String(e.id)), nodes);
       const activeEdges = edges.filter(e => reachableNodes.has(String(e.source))).map(e => String(e.id));
 
       // Clear logs and show terminal only when starting fresh (not resuming)

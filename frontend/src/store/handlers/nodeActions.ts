@@ -168,13 +168,13 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
 };
 
 /**
- * Invalidates Service selectors pointing to a deleted or renamed workload label.
+ * Invalidates Service selectors and Ingress backend service references pointing to a deleted or renamed resource label.
  *
- * @param oldLabel Deleted or previous workload label
+ * @param oldLabel Deleted or previous resource label
  * @param nodes Array of canvas nodes
- * @returns Reconciled array of canvas nodes with invalidated Service selectors
+ * @returns Reconciled array of canvas nodes with invalidated references
  */
-const invalidateServiceSelectors = (oldLabel: string | undefined, nodes: Node[]): Node[] => {
+const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[]): Node[] => {
   if (!oldLabel) return nodes;
 
   return nodes.map((n) => {
@@ -184,6 +184,15 @@ const invalidateServiceSelectors = (oldLabel: string | undefined, nodes: Node[])
         data: {
           ...n.data,
           selector: ''
+        }
+      };
+    }
+    if (n.type === 'Ingress' && n.data?.backendServiceName === oldLabel) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          backendServiceName: ''
         }
       };
     }
@@ -285,9 +294,9 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
   nodesToDelete.forEach(node => {
     nextNodes = processNodeDeletion(node, nextNodes, get);
-    if (['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) {
+    if (['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(node.type || '')) {
       const oldLabel = (node.data?.label as string) || (node.data?.baseName as string) || node.id;
-      nextNodes = invalidateServiceSelectors(oldLabel, nextNodes);
+      nextNodes = invalidateTargetReferences(oldLabel, nextNodes);
     }
   });
 
@@ -336,15 +345,15 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
 
-  // Invalidate Service selectors if a workload's label/name changed
+  // Invalidate Service selectors and Ingress references if a workload or Service label/name changed
   const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
   if (
-    ['Deployment', 'Pod', 'ReplicaSet'].includes(target.type || '') &&
+    ['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(target.type || '') &&
     newData.label !== undefined &&
     prevLabel &&
     newLabel !== prevLabel
   ) {
-    nextNodes = invalidateServiceSelectors(prevLabel, nextNodes);
+    nextNodes = invalidateTargetReferences(prevLabel, nextNodes);
   }
 
   // Responsive real-time PVC status update on PVC accessMode change or connected workload replica changes

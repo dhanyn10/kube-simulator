@@ -57,8 +57,10 @@ type K8sNodeData struct {
 	MaxReplicas     *int                   `json:"maxReplicas,omitempty"`
 	TargetCPU       *int                   `json:"targetCPU,omitempty"`
 	TargetMemory    *int                   `json:"targetMemory,omitempty"`
-	IngressHost     string                 `json:"ingressHost,omitempty"`
-	IngressPath     string                 `json:"ingressPath,omitempty"`
+	IngressHost        string                 `json:"ingressHost,omitempty"`
+	IngressPath        string                 `json:"ingressPath,omitempty"`
+	BackendServiceName string                 `json:"backendServiceName,omitempty"`
+	ServicePort        int                    `json:"servicePort,omitempty"`
 	Traffic         float64                `json:"traffic,omitempty"`
 	YamlSettings    map[string]bool        `json:"yamlSettings,omitempty"`
 	StorageCapacity string                 `json:"storageCapacity,omitempty"`

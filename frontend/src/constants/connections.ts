@@ -8,9 +8,9 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
   Internet: ['Service'],
   Ingress: ['Service'],
   Service: ['Deployment', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
-  Deployment: ['Service', 'PVC', 'ConfigMap', 'Secret'],
-  Pod: ['Service', 'PVC', 'ConfigMap', 'Secret'],
-  ReplicaSet: ['Service', 'PVC', 'ConfigMap', 'Secret'],
+  Deployment: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
+  Pod: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
+  ReplicaSet: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
   HPA: ['Deployment', 'ReplicaSet'],
   PVC: [],
   ConfigMap: [],
@@ -37,20 +37,23 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
 
 /**
  * Validates incoming edge connection rules targeting an Ingress resource node.
- * Ingress only accepts incoming traffic from LoadBalancer or NodePort Services.
+ * Ingress accepts incoming traffic from LoadBalancer or NodePort Services or Ingress Controller workloads.
  *
  * @param sourceType - The resource type of the connection source.
  * @param sourceData - Optional node configuration data for the source node.
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string, any>): string | null => {
-  if (sourceType !== 'Service') {
-    return `${sourceType} cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
+  if (sourceType === 'Service') {
+    const sType = sourceData?.serviceType || 'ClusterIP';
+    return sType === 'LoadBalancer' || sType === 'NodePort'
+      ? null
+      : `${sType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
   }
-  const sType = sourceData?.serviceType || 'ClusterIP';
-  return sType === 'LoadBalancer' || sType === 'NodePort'
-    ? null
-    : `${sType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
+  if (sourceType === 'Pod' || sourceType === 'Deployment' || sourceType === 'ReplicaSet') {
+    return null;
+  }
+  return `${sourceType} cannot be connected to Ingress. Only Services or Workloads can connect to Ingress.`;
 };
 
 /**
@@ -63,7 +66,7 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
  */
 const checkIngressSourceRules = (targetType: string, targetData?: Record<string, any>): string | null => {
   if (targetType !== 'Service') {
-    return `Ingress cannot be connected directly to ${targetType}. Direct routing without a Service is prohibited.`;
+    return `Ingress cannot be connected directly to ${targetType}. Ingress routes traffic strictly through a ClusterIP Service (via backend.service.name).`;
   }
   const tType = targetData?.serviceType || 'ClusterIP';
   return tType === 'ClusterIP'
@@ -73,7 +76,7 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
 
 /**
  * Validates incoming edge connection rules targeting a Service resource node.
- * Specifically enforces that LoadBalancer Services accept incoming connections exclusively from Internet.
+ * Enforces specific restrictions for LoadBalancer Services.
  *
  * @param sourceType - The resource type of the connection source.
  * @param targetData - Optional node configuration data for the target node.
@@ -81,9 +84,10 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
  */
 const checkServiceTargetRules = (sourceType: string, targetData?: Record<string, any>): string | null => {
   const tType = targetData?.serviceType || 'ClusterIP';
-  return tType === 'LoadBalancer' && sourceType !== 'Internet'
-    ? `${sourceType} cannot be connected to LoadBalancer Service. Only Internet can connect to LoadBalancer Service.`
-    : null;
+  if (tType === 'LoadBalancer' && sourceType !== 'Internet' && sourceType !== 'Service' && sourceType !== 'Pod' && sourceType !== 'Deployment') {
+    return `${sourceType} cannot be connected to LoadBalancer Service.`;
+  }
+  return null;
 };
 
 /**
@@ -101,7 +105,7 @@ const checkLoadBalancerTargetService = (targetData?: Record<string, any>): strin
 
 /**
  * Validates outgoing edge connection rules originating from a Service resource node.
- * Enforces specific restrictions for LoadBalancer Services (allowing connection to Ingress or ClusterIP/NodePort Services).
+ * Service nodes route traffic to Pods/Deployments (via spec.selector), Ingress, or downstream Services.
  *
  * @param targetType - The resource type of the connection target.
  * @param sourceData - Optional node configuration data for the source Service node.
@@ -114,10 +118,14 @@ const checkServiceSourceRules = (
   targetData?: Record<string, any>
 ): string | null => {
   const sType = sourceData?.serviceType || 'ClusterIP';
-  if (sType !== 'LoadBalancer' || targetType === 'Ingress') return null;
-  return targetType === 'Service'
-    ? checkLoadBalancerTargetService(targetData)
-    : `Service type "LoadBalancer" is not allowed to connect to ${targetType}.`;
+  if (targetType === 'Pod' || targetType === 'Deployment' || targetType === 'ReplicaSet') {
+    return null;
+  }
+  if (sType === 'LoadBalancer') {
+    if (targetType === 'Ingress') return null;
+    if (targetType === 'Service') return checkLoadBalancerTargetService(targetData);
+  }
+  return null;
 };
 
 /**

@@ -317,11 +317,11 @@ func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
 
 // determineServiceSelector derives selector label from target workload or node settings.
 func determineServiceSelector(data k8s.K8sNodeData, targetWorkload *k8s.FrontendNode) string {
+	if data.Selector != "" {
+		return sanitizeName(data.Selector)
+	}
 	if targetWorkload != nil {
 		return sanitizeName(targetWorkload.Data.Label)
-	}
-	if data.Selector != "" {
-		return data.Selector
 	}
 	return "app-label"
 }
@@ -415,12 +415,16 @@ func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 
 	serviceName := "tbd-service"
 	servicePort := 80
-	if targetService != nil {
+	if data.BackendServiceName != "" {
+		serviceName = sanitizeName(data.BackendServiceName)
+	} else if targetService != nil {
 		serviceName = sanitizeName(targetService.Data.Label)
+	}
+
+	if data.ServicePort != 0 {
+		servicePort = data.ServicePort
+	} else if targetService != nil && targetService.Data.Port != 0 {
 		servicePort = targetService.Data.Port
-		if servicePort == 0 {
-			servicePort = 80
-		}
 	}
 
 	path := "/"

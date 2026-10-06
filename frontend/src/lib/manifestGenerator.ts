@@ -185,7 +185,13 @@ const buildPodOrDeploymentManifest = (
   };
 };
 
-const buildServiceManifest = (node: any, metadata: any, name: string) => {
+const buildServiceManifest = (
+  node: any,
+  metadata: any,
+  name: string,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>
+) => {
   const serviceType = node.data.serviceType || 'ClusterIP';
   const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && node.data.nodePort;
   const nodePort = showNodePort && node.data.yamlSettings?.nodePort !== false ? Number(node.data.nodePort) : undefined;
@@ -199,6 +205,21 @@ const buildServiceManifest = (node: any, metadata: any, name: string) => {
     portObject.nodePort = nodePort;
   }
 
+  let selectorLabel = node.data.selector ? sanitizeName(node.data.selector) : '';
+  if (!selectorLabel && sourceEdgeMap) {
+    const outgoing = sourceEdgeMap.get(node.id) || [];
+    for (const e of outgoing) {
+      const target = nodeMap.get(e.target);
+      if (target && (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet')) {
+        selectorLabel = sanitizeName(target.data?.label || name);
+        break;
+      }
+    }
+  }
+  if (!selectorLabel) {
+    selectorLabel = sanitizeName(name);
+  }
+
   return {
     apiVersion: 'v1',
     kind: 'Service',
@@ -208,8 +229,73 @@ const buildServiceManifest = (node: any, metadata: any, name: string) => {
       ports: [portObject],
       selector:
         node.data.yamlSettings?.selector !== false
-          ? { app: sanitizeName(node.data.selector || name) }
+          ? { app: selectorLabel }
           : undefined,
+    },
+  };
+};
+
+const buildIngressManifest = (
+  node: any,
+  metadata: any,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>
+) => {
+  let serviceName = node.data.backendServiceName || node.data.serviceName || '';
+  let servicePort = Number(node.data.servicePort || 80);
+
+  if (!serviceName) {
+    const outgoing = sourceEdgeMap.get(node.id) || [];
+    for (const e of outgoing) {
+      const target = nodeMap.get(e.target);
+      if (target && target.type === 'Service') {
+        serviceName = sanitizeName(target.data?.label || '');
+        if (target.data?.port) {
+          servicePort = Number(target.data.port);
+        }
+        break;
+      }
+    }
+  }
+
+  if (!serviceName) {
+    serviceName = 'app-service';
+  }
+
+  const path = node.data.ingressPath || '/';
+  const host = node.data.ingressHost || 'example.local';
+
+  return {
+    apiVersion: 'networking.k8s.io/v1',
+    kind: 'Ingress',
+    metadata: {
+      ...metadata,
+      annotations: {
+        'nginx.ingress.kubernetes.io/rewrite-target': '/',
+        'kubernetes.io/ingress.class': 'nginx',
+      },
+    },
+    spec: {
+      ingressClassName: 'nginx',
+      rules: [
+        {
+          host,
+          http: {
+            paths: [
+              {
+                path,
+                pathType: 'Prefix',
+                backend: {
+                  service: {
+                    name: sanitizeName(serviceName),
+                    port: { number: servicePort },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ],
     },
   };
 };
@@ -289,7 +375,9 @@ const buildNodeManifest = (
         nodeMap
       );
     case 'Service':
-      return buildServiceManifest(node, metadata, name);
+      return buildServiceManifest(node, metadata, name, nodeMap, sourceEdgeMap);
+    case 'Ingress':
+      return buildIngressManifest(node, metadata, nodeMap, sourceEdgeMap);
     case 'Namespace':
       return { apiVersion: 'v1', kind: 'Namespace', metadata: { name } };
     case 'ConfigMap':

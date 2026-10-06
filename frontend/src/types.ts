@@ -130,6 +130,8 @@ export interface K8sNodeData {
   // Ingress specific fields
   ingressHost?: string;
   ingressPath?: string;
+  backendServiceName?: string;
+  servicePort?: number;
 
   // Internet specific fields
   traffic?: number;
