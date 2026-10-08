@@ -357,9 +357,50 @@ describe('nodeActions', () => {
     const { updateNodeData } = useFlowStore.getState();
     updateNodeData('s1', { selector: 'web-pod' });
 
-    const state = useFlowStore.getState();
+    let state = useFlowStore.getState();
     expect(state.edges.some(e => e.source === 's1' && e.target === 'p1')).toBe(true);
     expect(state.edges.some(e => e.source === 's1' && e.target === 'p2')).toBe(false);
+
+    // Test clearing selector to empty string disconnects outgoing edges
+    updateNodeData('s1', { selector: '' });
+    state = useFlowStore.getState();
+    expect(state.edges.some(e => e.source === 's1')).toBe(false);
+  });
+
+  it('supports Service selector edge creation targeting Ingress node when selector is updated', () => {
+    const lbSvc = { id: 's1', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'lb-svc', type: 'Service', serviceType: 'LoadBalancer', selector: '' } };
+    const ing = { id: 'i1', type: 'Ingress', position: { x: 100, y: 0 }, data: { label: 'main-ingress', type: 'Ingress' } };
+
+    useFlowStore.setState({ nodes: [lbSvc, ing] as any, edges: [] });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('s1', { selector: 'main-ingress' });
+
+    let state = useFlowStore.getState();
+    expect(state.edges.some(e => e.source === 's1' && e.target === 'i1')).toBe(true);
+
+    // Changing serviceType to ClusterIP clears selector pointing to Ingress and removes edge
+    updateNodeData('s1', { serviceType: 'ClusterIP' });
+    state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 's1')?.data.selector).toBe('');
+    expect(state.edges.some(e => e.source === 's1' && e.target === 'i1')).toBe(false);
+  });
+
+  it('preserves incoming Internet edge when Service type changes from LoadBalancer to ClusterIP while removing Ingress selector edge', () => {
+    const internet = { id: 'inet1', type: 'Internet', position: { x: 0, y: 0 }, data: { label: 'Internet', type: 'Internet' } };
+    const lbSvc = { id: 's1', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'lb-svc', type: 'Service', serviceType: 'LoadBalancer', selector: 'main-ingress' } };
+    const ing = { id: 'i1', type: 'Ingress', position: { x: 200, y: 0 }, data: { label: 'main-ingress', type: 'Ingress' } };
+    const edgeIn = { id: 'e-inet-s1', source: 'inet1', target: 's1' };
+    const edgeOut = { id: 'e-s1-ing', source: 's1', target: 'i1' };
+
+    useFlowStore.setState({ nodes: [internet, lbSvc, ing] as any, edges: [edgeIn, edgeOut] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('s1', { serviceType: 'ClusterIP' });
+
+    const state = useFlowStore.getState();
+    expect(state.edges.some(e => e.source === 'inet1' && e.target === 's1')).toBe(true);
+    expect(state.edges.some(e => e.source === 's1' && e.target === 'i1')).toBe(false);
   });
 
   it('supports Bidirectional Node Linking: Form Settings backendServiceName update on Ingress creates/updates visual canvas edges', () => {

@@ -26,6 +26,7 @@ import {
   emitLiveNodeDeletedCommand,
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
+import { getConnectionError } from '@/constants/connections';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -185,26 +186,31 @@ const syncEdgesFromFormSelection = (
   let nextEdges = [...edges];
 
   // Service form selector update
-  if (targetNode.type === 'Service' && newData.selector !== undefined) {
-    const newSelector = newData.selector;
-    // Remove existing outgoing edges from this Service to non-matching workloads
+  if (targetNode.type === 'Service') {
+    const effectiveServiceType = newData.serviceType !== undefined ? newData.serviceType : targetNode.data?.serviceType || 'ClusterIP';
+    const effectiveSelector = newData.selector !== undefined ? newData.selector : targetNode.data?.selector;
+
+    // Remove existing outgoing edges from this Service to non-matching workloads or Ingress
     nextEdges = nextEdges.filter((e) => {
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
-      if (!target || !['Deployment', 'Pod', 'ReplicaSet'].includes(target.type || '')) return true;
+      if (!target || !['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
+      if (target.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
+      if (!effectiveSelector) return false;
       const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
-      return tLabel === newSelector;
+      return tLabel === effectiveSelector;
     });
 
-    if (newSelector) {
-      const matchingWorkloads = nodes.filter((n) => {
-        if (!['Deployment', 'Pod', 'ReplicaSet'].includes(n.type || '')) return false;
+    if (effectiveSelector) {
+      const matchingTargets = nodes.filter((n) => {
+        if (n.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
+        if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n.type || '')) return false;
         if (n.type === 'Pod' && (n.parentId || n.data?.parentId)) return false;
         const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
-        return tLabel === newSelector;
+        return tLabel === effectiveSelector;
       });
 
-      matchingWorkloads.forEach((w) => {
+      matchingTargets.forEach((w) => {
         const edgeExists = nextEdges.some((e) => e.source === targetNode.id && e.target === w.id);
         if (!edgeExists) {
           nextEdges.push({
@@ -219,6 +225,7 @@ const syncEdgesFromFormSelection = (
       });
     }
   }
+
 
   // Ingress form backendServiceName update
   if (targetNode.type === 'Ingress' && newData.backendServiceName !== undefined) {
@@ -421,6 +428,18 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   }
 
   let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
+
+  // If Service type changed from LoadBalancer to ClusterIP/NodePort while pointing to an Ingress, clear selector
+  if (target.type === 'Service' && newData.serviceType && newData.serviceType !== 'LoadBalancer') {
+    const currentSelector = updatedData.selector;
+    if (currentSelector) {
+      const isIngressTarget = nodes.some((n) => n.type === 'Ingress' && (n.data?.label === currentSelector || n.id === currentSelector));
+      if (isIngressTarget) {
+        updatedData.selector = '';
+      }
+    }
+  }
+
   updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
   const updatedNode: Node = {
@@ -455,7 +474,8 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   });
 
   // Bidirectional Node Linking: Sync Canvas Edges when target is selected in Form Settings
-  const nextEdges = syncEdgesFromFormSelection(target, newData, nextNodes, get().edges);
+  const currentTargetNode = nextNodes.find((n) => n.id === nodeId) || updatedNode;
+  const nextEdges = syncEdgesFromFormSelection(currentTargetNode, newData, nextNodes, get().edges);
 
   const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
   set({

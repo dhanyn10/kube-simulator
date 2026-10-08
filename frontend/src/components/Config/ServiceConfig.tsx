@@ -37,8 +37,7 @@ const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
   {
     value: 'LoadBalancer',
     label: 'LoadBalancer',
-    description: 'Exposes service externally using cloud provider’s load balancer (Disabled in local PC mode).',
-    disabled: true
+    description: 'Exposes service externally using cloud provider’s load balancer.'
   }
 ];
 

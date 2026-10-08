@@ -308,6 +308,20 @@ describe('createFlowSlice', () => {
     expect(useFlowStore.getState().lastActionName).toBe('Delete Edge');
   });
 
+  it('onEdgesChange clears Service selector when Service outgoing edge to workload is removed', () => {
+    const svcNode: Node = { id: 's1', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'web-svc', selector: 'web-pod' } };
+    const podNode: Node = { id: 'p1', type: 'Pod', position: { x: 100, y: 0 }, data: { label: 'web-pod' } };
+    const edge: Edge = { id: 'e-s1-p1', source: 's1', target: 'p1' };
+
+    useFlowStore.setState({ nodes: [svcNode, podNode], edges: [edge] });
+
+    useFlowStore.getState().onEdgesChange([{ id: 'e-s1-p1', type: 'remove' }]);
+
+    const state = useFlowStore.getState();
+    expect(state.edges).toHaveLength(0);
+    expect(state.nodes.find(n => n.id === 's1')?.data.selector).toBe('');
+  });
+
   it('onConnect rejects connection when source or target node is forbidden for active user', () => {
     const devUser = {
       id: 'dev1',
