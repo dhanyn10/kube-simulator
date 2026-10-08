@@ -17,10 +17,6 @@ export const useGlobalContextMenu = () => {
 
   useEffect(() => {
     const handleGlobalContextMenu = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest?.('#canvas-main')) {
-        return;
-      }
       e.preventDefault();
       setDefaultContextMenu({ x: e.clientX, y: e.clientY });
     };
@@ -28,11 +24,9 @@ export const useGlobalContextMenu = () => {
     const handleClose = () => setDefaultContextMenu(null);
 
     window.addEventListener('contextmenu', handleGlobalContextMenu);
-    window.addEventListener('contextmenu', handleClose, true);
     window.addEventListener('click', handleClose);
     return () => {
       window.removeEventListener('contextmenu', handleGlobalContextMenu);
-      window.removeEventListener('contextmenu', handleClose, true);
       window.removeEventListener('click', handleClose);
     };
   }, []);

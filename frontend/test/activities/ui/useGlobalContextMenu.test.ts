@@ -30,7 +30,7 @@ describe('useGlobalContextMenu hook', () => {
     document.body.removeChild(outsideElem);
   });
 
-  it('ignores right-click inside #canvas-main element', () => {
+  it('triggers right-click anywhere including #canvas-main element', () => {
     const { result } = renderHook(() => useGlobalContextMenu());
 
     const canvasElem = document.createElement('div');
@@ -49,7 +49,7 @@ describe('useGlobalContextMenu hook', () => {
       childElem.dispatchEvent(event);
     });
 
-    expect(result.current.defaultContextMenu).toBeNull();
+    expect(result.current.defaultContextMenu).toEqual({ x: 100, y: 200 });
 
     document.body.removeChild(canvasElem);
   });

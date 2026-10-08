@@ -155,18 +155,18 @@ describe('App Component', () => {
     });
 
     fireEvent.contextMenu(nodeElement);
-    expect(screen.getByText('Delete')).toBeDefined();
+    expect(screen.getByTestId('global-default-context-menu')).toBeDefined();
 
     // Test pane context menu
     fireEvent.contextMenu(screen.getByTestId('pane'));
-    expect(screen.getByText('Delete')).toBeDefined();
+    expect(screen.getByTestId('global-default-context-menu')).toBeDefined();
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Delete'));
+      fireEvent.click(screen.getByTestId('global-change-theme'));
     });
 
     await waitFor(() => {
-      expect(screen.queryByText('Delete')).toBeNull();
+      expect(screen.queryByTestId('global-default-context-menu')).toBeNull();
     });
   });
 

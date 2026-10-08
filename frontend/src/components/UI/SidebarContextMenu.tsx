@@ -10,6 +10,7 @@ interface SidebarContextMenuProps {
   readonly y: number;
   readonly colorMode: 'dark' | 'light';
   readonly toggleColorMode: () => void;
+  readonly onInspectYaml?: () => void;
   readonly onCloseSidebar?: () => void;
   readonly onCloseContextMenu: () => void;
   readonly testId?: string;
@@ -22,6 +23,7 @@ export function SidebarContextMenu({
   y,
   colorMode,
   toggleColorMode,
+  onInspectYaml,
   onCloseSidebar,
   onCloseContextMenu,
   testId = 'sidebar-context-menu',
@@ -42,6 +44,26 @@ export function SidebarContextMenu({
         isDark ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
       )}
     >
+      {onInspectYaml && (
+        <>
+          <button
+            type="button"
+            data-testid="context-menu-inspect-yaml"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInspectYaml();
+              onCloseContextMenu();
+            }}
+            className={cn(
+              "w-full px-3 py-1.5 text-xs font-medium flex items-center gap-2 transition-colors text-left",
+              isDark ? "hover:bg-slate-800 hover:text-white" : "hover:bg-slate-100 hover:text-slate-900"
+            )}
+          >
+            Inspect YAML
+          </button>
+          <div className={cn("h-px my-1", isDark ? "bg-slate-800" : "bg-slate-200")} />
+        </>
+      )}
       <button
         type="button"
         data-testid={changeThemeTestId}
