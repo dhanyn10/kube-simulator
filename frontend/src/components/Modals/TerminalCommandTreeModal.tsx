@@ -177,7 +177,9 @@ export const TerminalCommandTreeModal = () => {
     setTerminalActiveTab('activity');
     onClose();
     setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('terminal-insert-command', { detail: cmd }));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('terminal-insert-command', { detail: cmd }));
+      }
     }, 100);
   };
 
