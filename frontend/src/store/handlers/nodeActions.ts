@@ -26,6 +26,7 @@ import {
   emitLiveNodeDeletedCommand,
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
+import { getConnectionError } from '@/constants/connections';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -186,12 +187,15 @@ const syncEdgesFromFormSelection = (
 
   // Service form selector update
   if (targetNode.type === 'Service') {
+    const effectiveServiceType = newData.serviceType !== undefined ? newData.serviceType : targetNode.data?.serviceType || 'ClusterIP';
     const effectiveSelector = newData.selector !== undefined ? newData.selector : targetNode.data?.selector;
+
     // Remove existing outgoing edges from this Service to non-matching workloads or Ingress
     nextEdges = nextEdges.filter((e) => {
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
       if (!target || !['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
+      if (target.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
       if (!effectiveSelector) return false;
       const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
       return tLabel === effectiveSelector;
@@ -199,6 +203,7 @@ const syncEdgesFromFormSelection = (
 
     if (effectiveSelector) {
       const matchingTargets = nodes.filter((n) => {
+        if (n.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
         if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n.type || '')) return false;
         if (n.type === 'Pod' && (n.parentId || n.data?.parentId)) return false;
         const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
@@ -220,6 +225,20 @@ const syncEdgesFromFormSelection = (
       });
     }
   }
+
+  // Filter out any connected edges to targetNode that violate connection rules (e.g. Internet -> ClusterIP Service)
+  nextEdges = nextEdges.filter((e) => {
+    if (e.source !== targetNode.id && e.target !== targetNode.id) return true;
+    const sNode = nodes.find((n) => n.id === e.source);
+    const tNode = nodes.find((n) => n.id === e.target);
+    if (!sNode || !tNode) return true;
+
+    const sData = sNode.id === targetNode.id ? { ...sNode.data, ...newData } : sNode.data;
+    const tData = tNode.id === targetNode.id ? { ...tNode.data, ...newData } : tNode.data;
+
+    const error = getConnectionError(sNode.type || '', tNode.type || '', sData, tData);
+    return error === null;
+  });
 
   // Ingress form backendServiceName update
   if (targetNode.type === 'Ingress' && newData.backendServiceName !== undefined) {
@@ -422,6 +441,18 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   }
 
   let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
+
+  // If Service type changed from LoadBalancer to ClusterIP/NodePort while pointing to an Ingress, clear selector
+  if (target.type === 'Service' && newData.serviceType && newData.serviceType !== 'LoadBalancer') {
+    const currentSelector = updatedData.selector;
+    if (currentSelector) {
+      const isIngressTarget = nodes.some((n) => n.type === 'Ingress' && (n.data?.label === currentSelector || n.id === currentSelector));
+      if (isIngressTarget) {
+        updatedData.selector = '';
+      }
+    }
+  }
+
   updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
   const updatedNode: Node = {

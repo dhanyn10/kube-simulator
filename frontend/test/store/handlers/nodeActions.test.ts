@@ -376,8 +376,28 @@ describe('nodeActions', () => {
     const { updateNodeData } = useFlowStore.getState();
     updateNodeData('s1', { selector: 'main-ingress' });
 
-    const state = useFlowStore.getState();
+    let state = useFlowStore.getState();
     expect(state.edges.some(e => e.source === 's1' && e.target === 'i1')).toBe(true);
+
+    // Changing serviceType to ClusterIP clears selector pointing to Ingress and removes edge
+    updateNodeData('s1', { serviceType: 'ClusterIP' });
+    state = useFlowStore.getState();
+    expect(state.nodes.find(n => n.id === 's1')?.data.selector).toBe('');
+    expect(state.edges.some(e => e.source === 's1' && e.target === 'i1')).toBe(false);
+  });
+
+  it('removes incoming Internet edge when Service type changes from LoadBalancer to ClusterIP', () => {
+    const internet = { id: 'inet1', type: 'Internet', position: { x: 0, y: 0 }, data: { label: 'Internet', type: 'Internet' } };
+    const lbSvc = { id: 's1', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'lb-svc', type: 'Service', serviceType: 'LoadBalancer' } };
+    const edge = { id: 'e-inet-s1', source: 'inet1', target: 's1' };
+
+    useFlowStore.setState({ nodes: [internet, lbSvc] as any, edges: [edge] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('s1', { serviceType: 'ClusterIP' });
+
+    const state = useFlowStore.getState();
+    expect(state.edges.some(e => e.source === 'inet1' && e.target === 's1')).toBe(false);
   });
 
   it('supports Bidirectional Node Linking: Form Settings backendServiceName update on Ingress creates/updates visual canvas edges', () => {
