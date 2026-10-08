@@ -15,14 +15,21 @@ describe('IngressConfig', () => {
       label: 'My Ingress',
       ingressHost: 'example.com',
       ingressPath: '/api',
-      displaySettings: { host: true, path: true },
-      yamlSettings: { path: true }
+      backendServiceName: 'web-service',
+      displaySettings: { host: true, path: true, backendService: true },
+      yamlSettings: { path: true, backendService: true }
     }
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useFlowStore.setState({ colorMode: 'dark' });
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc1', type: 'Service', data: { label: 'web-service', serviceType: 'ClusterIP' } },
+        { id: 'svc2', type: 'Service', data: { label: 'api-service', serviceType: 'ClusterIP' } }
+      ]
+    });
   });
 
   it('renders correctly and handles input updates', () => {
@@ -43,6 +50,26 @@ describe('IngressConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ ingressHost: 'test.com' });
   });
 
+  it('renders backend service dropdown and selects ClusterIP service', () => {
+    render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Backend Service (ClusterIP)')).toBeDefined();
+    const dropdownBtn = screen.getByRole('button', { name: /web-service/i });
+    fireEvent.click(dropdownBtn);
+
+    expect(screen.getByRole('button', { name: /api-service/i })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /api-service/i }));
+
+    expect(performUpdate).toHaveBeenCalledWith({ backendServiceName: 'api-service' });
+  });
+
   it('handles path updates and toggle callbacks in advanced section', () => {
     render(
       <IngressConfig
@@ -53,7 +80,7 @@ describe('IngressConfig', () => {
       />
     );
 
-    // Toggle host visibility button (eye icon inside Host ConfigSection)
+    // Toggle host visibility button
     const hostToggleBtn = screen.getByText('Host').closest('div')?.querySelector('button');
     if (hostToggleBtn) {
       fireEvent.click(hostToggleBtn);
@@ -67,7 +94,6 @@ describe('IngressConfig', () => {
     fireEvent.change(pathInput, { target: { value: '/v1' } });
     expect(performUpdate).toHaveBeenCalledWith({ ingressPath: '/v1' });
 
-    // Click path visibility and yaml toggles
     const pathSectionHeader = screen.getByText('Path').closest('div');
     const buttons = pathSectionHeader?.querySelectorAll('button') || [];
     buttons.forEach((btn) => fireEvent.click(btn));
@@ -82,7 +108,7 @@ describe('IngressConfig', () => {
       type: 'Ingress',
       data: {
         label: 'Empty Ingress',
-        displaySettings: { host: true, path: true },
+        displaySettings: { host: true, path: true, backendService: true },
       }
     };
 

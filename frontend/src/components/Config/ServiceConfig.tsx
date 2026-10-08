@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { Network, Box, Server, ChevronDown, Check, Lock, AlertCircle } from 'lucide-react';
+import { Network, Box, Server, ChevronDown, Check, Lock } from 'lucide-react';
 import { ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +16,11 @@ interface ServiceTypeOption {
   label: string;
   description: string;
   disabled?: boolean;
+}
+
+interface SelectorDropdownOption {
+  label: string;
+  category: 'INGRESS' | 'POD' | 'DEPLOYMENT' | 'REPLICASET';
 }
 
 const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
@@ -110,23 +115,65 @@ export const ServiceConfig = ({
 
   const selectedServiceTypeOption = SERVICE_TYPE_OPTIONS.find((opt) => opt.value === currentServiceType) || SERVICE_TYPE_OPTIONS[0];
 
-  // Collect available workload resources on canvas (Deployment, Pod, ReplicaSet)
-  const workloadNodes = nodes.filter((n) => {
-    if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
-    if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
-    return false;
-  });
+  // Canvas inspection: Namespace filtering
+  const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
+  const inSameNamespace = (n: any) => {
+    if (!selectedNamespaceId) {
+      return !n.parentId || n.parentId === '';
+    }
+    return n.parentId === selectedNamespaceId;
+  };
 
-  const availableWorkloadLabels = Array.from(
-    new Set(
-      workloadNodes
-        .map((n) => (n.data?.label as string) || (n.data?.baseName as string) || n.id)
-        .filter(Boolean)
-    )
-  );
+  // Inspect canvas state for available target options based on Service Type
+  const optionsMap = new Map<string, SelectorDropdownOption>();
 
+  if (currentServiceType === 'LoadBalancer') {
+    // 1. Check Ingress in same namespace
+    const ingressNodes = nodes.filter((n) => n.type === 'Ingress' && inSameNamespace(n));
+    ingressNodes.forEach((n) => {
+      const label = (n.data?.label as string) || n.id;
+      if (label && !optionsMap.has(label)) {
+        optionsMap.set(label, { label, category: 'INGRESS' });
+      }
+    });
+
+    // 2. Check Pods / Deployments in same namespace
+    const workloadNodes = nodes.filter((n) => {
+      if (!inSameNamespace(n)) return false;
+      if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
+      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
+      return false;
+    });
+
+    workloadNodes.forEach((n) => {
+      const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+      if (label && !optionsMap.has(label)) {
+        const cat = (n.type?.toUpperCase() || 'POD') as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
+        optionsMap.set(label, { label, category: cat });
+      }
+    });
+  } else {
+    // ClusterIP or NodePort: Check Pods / Deployments in same namespace
+    const workloadNodes = nodes.filter((n) => {
+      if (!inSameNamespace(n)) return false;
+      if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
+      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
+      return false;
+    });
+
+    workloadNodes.forEach((n) => {
+      const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+      if (label && !optionsMap.has(label)) {
+        const cat = (n.type?.toUpperCase() || 'POD') as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
+        optionsMap.set(label, { label, category: cat });
+      }
+    });
+  }
+
+  const availableOptions = Array.from(optionsMap.values());
   const currentSelector = data.selector || '';
-  const isSelectorValid = currentSelector && availableWorkloadLabels.includes(currentSelector);
+  const selectedOptionObj = availableOptions.find((opt) => opt.label === currentSelector);
+  const isSelectorValid = Boolean(currentSelector && selectedOptionObj);
 
   return (
     <div className="space-y-4">
@@ -268,62 +315,69 @@ export const ServiceConfig = ({
         />
       </ConfigSection>
 
-      {/* Selector Configuration Dropdown from Canvas Resources */}
-      <ConfigSection
-        title="Selector (app)"
-        icon={Box}
-        isVisible={data.displaySettings?.selector}
-        onToggle={() => toggleVisibility('selector')}
-        isYamlEnabled={data.yamlSettings?.selector}
-        onYamlToggle={() => toggleYaml('selector')}
-        disableYamlToggle={Boolean(data.selector) === false}
-      >
-        <div ref={selectorDropdownRef} className="relative w-full">
-          <button
-            type="button"
-            onClick={() => setIsSelectorDropdownOpen((prev) => !prev)}
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm",
-              colorMode === 'dark'
-                ? "bg-slate-900/90 border-slate-700 text-slate-100 hover:border-slate-600 focus:border-amber-500/80"
-                : "bg-white border-slate-300 text-slate-800 hover:border-slate-400 focus:border-amber-500/80"
-            )}
-          >
-            <div className="flex items-center gap-2 overflow-hidden">
-              <span
-                className={cn(
-                  "font-semibold truncate",
-                  isSelectorValid ? "text-amber-500" : "text-rose-400 font-mono tracking-widest"
-                )}
-              >
-                {isSelectorValid ? currentSelector : '---'}
-              </span>
-            </div>
-            <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60 shrink-0", isSelectorDropdownOpen && "rotate-180")} />
-          </button>
-
-          {isSelectorDropdownOpen && (
-            <div
+      {/* Selector Configuration Dropdown (Only rendered when matching options exist on canvas in same namespace) */}
+      {availableOptions.length > 0 && (
+        <ConfigSection
+          title="Selector (app)"
+          icon={Box}
+          isVisible={data.displaySettings?.selector}
+          onToggle={() => toggleVisibility('selector')}
+          isYamlEnabled={data.yamlSettings?.selector}
+          onYamlToggle={() => toggleYaml('selector')}
+          disableYamlToggle={Boolean(data.selector) === false}
+        >
+          <div ref={selectorDropdownRef} className="relative w-full">
+            <button
+              type="button"
+              onClick={() => setIsSelectorDropdownOpen((prev) => !prev)}
               className={cn(
-                "absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-56 overflow-y-auto",
-                colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                "w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm",
+                colorMode === 'dark'
+                  ? "bg-slate-900/90 border-slate-700 text-slate-100 hover:border-slate-600 focus:border-amber-500/80"
+                  : "bg-white border-slate-300 text-slate-800 hover:border-slate-400 focus:border-amber-500/80"
               )}
             >
-              {availableWorkloadLabels.length === 0 ? (
-                <div className="p-3 text-center text-xs opacity-60 flex items-center justify-center gap-1.5 font-sans">
-                  <AlertCircle size={14} className="text-amber-500 shrink-0" />
-                  <span>No active workloads on canvas</span>
-                </div>
-              ) : (
-                availableWorkloadLabels.map((label) => {
-                  const isSelected = currentSelector === label;
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span
+                  className={cn(
+                    "font-semibold truncate",
+                    isSelectorValid ? "text-amber-500" : "text-rose-400 font-mono tracking-widest"
+                  )}
+                >
+                  {isSelectorValid ? currentSelector : '---'}
+                </span>
+                {selectedOptionObj && (
+                  <span
+                    className={cn(
+                      "text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0",
+                      selectedOptionObj.category === 'INGRESS'
+                        ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                        : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                    )}
+                  >
+                    {selectedOptionObj.category}
+                  </span>
+                )}
+              </div>
+              <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60 shrink-0", isSelectorDropdownOpen && "rotate-180")} />
+            </button>
+
+            {isSelectorDropdownOpen && (
+              <div
+                className={cn(
+                  "absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-56 overflow-y-auto",
+                  colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                )}
+              >
+                {availableOptions.map((opt) => {
+                  const isSelected = currentSelector === opt.label;
 
                   return (
                     <button
-                      key={label}
+                      key={`${opt.category}-${opt.label}`}
                       type="button"
                       onClick={() => {
-                        performUpdate({ selector: label });
+                        performUpdate({ selector: opt.label });
                         setIsSelectorDropdownOpen(false);
                       }}
                       className={cn(
@@ -331,16 +385,28 @@ export const ServiceConfig = ({
                         getWorkloadSelectorOptionClasses(isSelected, colorMode)
                       )}
                     >
-                      <span className="truncate">{label}</span>
-                      {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
+                      <span className="truncate">{opt.label}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={cn(
+                            "text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider",
+                            opt.category === 'INGRESS'
+                              ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                              : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                          )}
+                        >
+                          {opt.category}
+                        </span>
+                        {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
+                      </div>
                     </button>
                   );
-                })
-              )}
-            </div>
-          )}
-        </div>
-      </ConfigSection>
+                })}
+              </div>
+            )}
+          </div>
+        </ConfigSection>
+      )}
     </div>
   );
 };

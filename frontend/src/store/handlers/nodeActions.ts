@@ -168,13 +168,101 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
 };
 
 /**
- * Invalidates Service selectors pointing to a deleted or renamed workload label.
+ * Synchronizes visual canvas edges when a target resource is selected in node Form Settings.
  *
- * @param oldLabel Deleted or previous workload label
- * @param nodes Array of canvas nodes
- * @returns Reconciled array of canvas nodes with invalidated Service selectors
+ * @param targetNode Node being updated
+ * @param newData Changed properties patch
+ * @param nodes Current canvas nodes
+ * @param edges Current canvas edges
+ * @returns Updated array of canvas edges
  */
-const invalidateServiceSelectors = (oldLabel: string | undefined, nodes: Node[]): Node[] => {
+const syncEdgesFromFormSelection = (
+  targetNode: Node,
+  newData: Partial<K8sNodeData>,
+  nodes: Node[],
+  edges: Edge[]
+): Edge[] => {
+  let nextEdges = [...edges];
+
+  // Service form selector update
+  if (targetNode.type === 'Service' && newData.selector !== undefined) {
+    const newSelector = newData.selector;
+    // Remove existing outgoing edges from this Service to non-matching workloads
+    nextEdges = nextEdges.filter((e) => {
+      if (e.source !== targetNode.id) return true;
+      const target = nodes.find((n) => n.id === e.target);
+      if (!target || !['Deployment', 'Pod', 'ReplicaSet'].includes(target.type || '')) return true;
+      const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+      return tLabel === newSelector;
+    });
+
+    if (newSelector) {
+      const matchingWorkloads = nodes.filter((n) => {
+        if (!['Deployment', 'Pod', 'ReplicaSet'].includes(n.type || '')) return false;
+        if (n.type === 'Pod' && (n.parentId || n.data?.parentId)) return false;
+        const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
+        return tLabel === newSelector;
+      });
+
+      matchingWorkloads.forEach((w) => {
+        const edgeExists = nextEdges.some((e) => e.source === targetNode.id && e.target === w.id);
+        if (!edgeExists) {
+          nextEdges.push({
+            id: `e-${targetNode.id}-${w.id}-${Date.now()}`,
+            source: targetNode.id,
+            target: w.id,
+            type: 'custom',
+            sourceHandle: 'right-s',
+            targetHandle: 'left-t',
+          });
+        }
+      });
+    }
+  }
+
+  // Ingress form backendServiceName update
+  if (targetNode.type === 'Ingress' && newData.backendServiceName !== undefined) {
+    const newBackend = newData.backendServiceName;
+    // Remove existing outgoing edges from this Ingress to non-matching Services
+    nextEdges = nextEdges.filter((e) => {
+      if (e.source !== targetNode.id) return true;
+      const target = nodes.find((n) => n.id === e.target);
+      if (!target || target.type !== 'Service') return true;
+      return target.data?.label === newBackend;
+    });
+
+    if (newBackend) {
+      const matchingServices = nodes.filter(
+        (n) => n.type === 'Service' && n.data?.label === newBackend
+      );
+
+      matchingServices.forEach((s) => {
+        const edgeExists = nextEdges.some((e) => e.source === targetNode.id && e.target === s.id);
+        if (!edgeExists) {
+          nextEdges.push({
+            id: `e-${targetNode.id}-${s.id}-${Date.now()}`,
+            source: targetNode.id,
+            target: s.id,
+            type: 'custom',
+            sourceHandle: 'right-s',
+            targetHandle: 'left-t',
+          });
+        }
+      });
+    }
+  }
+
+  return nextEdges;
+};
+
+/**
+ * Invalidates Service selectors and Ingress backend service references pointing to a deleted or renamed resource label.
+ *
+ * @param oldLabel Deleted or previous resource label
+ * @param nodes Array of canvas nodes
+ * @returns Reconciled array of canvas nodes with invalidated references
+ */
+const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[]): Node[] => {
   if (!oldLabel) return nodes;
 
   return nodes.map((n) => {
@@ -184,6 +272,15 @@ const invalidateServiceSelectors = (oldLabel: string | undefined, nodes: Node[])
         data: {
           ...n.data,
           selector: ''
+        }
+      };
+    }
+    if (n.type === 'Ingress' && n.data?.backendServiceName === oldLabel) {
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          backendServiceName: ''
         }
       };
     }
@@ -285,9 +382,9 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
   nodesToDelete.forEach(node => {
     nextNodes = processNodeDeletion(node, nextNodes, get);
-    if (['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) {
+    if (['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(node.type || '')) {
       const oldLabel = (node.data?.label as string) || (node.data?.baseName as string) || node.id;
-      nextNodes = invalidateServiceSelectors(oldLabel, nextNodes);
+      nextNodes = invalidateTargetReferences(oldLabel, nextNodes);
     }
   });
 
@@ -336,15 +433,15 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
 
-  // Invalidate Service selectors if a workload's label/name changed
+  // Invalidate Service selectors and Ingress references if a workload or Service label/name changed
   const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
   if (
-    ['Deployment', 'Pod', 'ReplicaSet'].includes(target.type || '') &&
+    ['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(target.type || '') &&
     newData.label !== undefined &&
     prevLabel &&
     newLabel !== prevLabel
   ) {
-    nextNodes = invalidateServiceSelectors(prevLabel, nextNodes);
+    nextNodes = invalidateTargetReferences(prevLabel, nextNodes);
   }
 
   // Responsive real-time PVC status update on PVC accessMode change or connected workload replica changes
@@ -356,8 +453,17 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
     }
     return n;
   });
+
+  // Bidirectional Node Linking: Sync Canvas Edges when target is selected in Form Settings
+  const nextEdges = syncEdgesFromFormSelection(target, newData, nextNodes, get().edges);
+
   const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
-  set({ nodes: collisionResolvedNodes, lastActionId: `update-${Date.now()}`, lastActionName: 'Update Node Data' });
+  set({
+    nodes: collisionResolvedNodes,
+    edges: nextEdges,
+    lastActionId: `update-${Date.now()}`,
+    lastActionName: 'Update Node Data'
+  });
 
   // Auto-emit kubectl live command for updated fields
   const nodeLabel = (targetData.label as string) || target.id;
