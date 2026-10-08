@@ -35,7 +35,7 @@ export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap
   const outgoing = edgeMap?.get(ingressNode.id) || [];
   for (const e of outgoing) {
     const target = nodes.find(n => n.id === e.target);
-    if (target && target.type === 'Service' && (target.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
+    if (target?.type === 'Service' && (target?.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
       return true;
     }
   }
@@ -64,7 +64,7 @@ const isServiceValidForProcessing = (
   const outgoing = edgeMap.get(currId) || [];
   const hasIngressTarget = outgoing.some(e => {
     const t = nodes?.find(n => n.id === e.target);
-    return t && t.type === 'Ingress';
+    return t?.type === 'Ingress';
   });
 
   return hasWorkloadTarget || hasIngressTarget;
@@ -167,8 +167,8 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
   const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet';
   if (isWorkload && node.data?.status !== 'ready') return true;
 
-  if (node.type === 'Service') {
-    const sType = node.data?.serviceType || 'ClusterIP';
+  if (node?.type === 'Service') {
+    const sType = node?.data?.serviceType || 'ClusterIP';
     const outgoing = nodes.filter(n =>
       (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
       isServiceSelectorMatching(node, n)
@@ -179,13 +179,13 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
     }
   }
 
-  if (node.type === 'Ingress') {
+  if (node?.type === 'Ingress') {
     if (!hasValidIngressBackend(node, nodes)) {
       return true;
     }
   }
 
-  if (node.type === 'Deployment') {
+  if (node?.type === 'Deployment') {
     const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
     if (childPods.some((p) => p.data?.status !== 'ready')) return true;
   }
