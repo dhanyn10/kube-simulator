@@ -226,19 +226,6 @@ const syncEdgesFromFormSelection = (
     }
   }
 
-  // Filter out any connected edges to targetNode that violate connection rules (e.g. Internet -> ClusterIP Service)
-  nextEdges = nextEdges.filter((e) => {
-    if (e.source !== targetNode.id && e.target !== targetNode.id) return true;
-    const sNode = nodes.find((n) => n.id === e.source);
-    const tNode = nodes.find((n) => n.id === e.target);
-    if (!sNode || !tNode) return true;
-
-    const sData = sNode.id === targetNode.id ? { ...sNode.data, ...newData } : sNode.data;
-    const tData = tNode.id === targetNode.id ? { ...tNode.data, ...newData } : tNode.data;
-
-    const error = getConnectionError(sNode.type || '', tNode.type || '', sData, tData);
-    return error === null;
-  });
 
   // Ingress form backendServiceName update
   if (targetNode.type === 'Ingress' && newData.backendServiceName !== undefined) {
