@@ -841,7 +841,7 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     }
 
     const runtime = getRuntime();
-    if (runtime) runtime.EventsEmit('theme-sync', newMode);
+    runtime?.EventsEmit?.('theme-sync', newMode);
   },
   setGlobalEdgeColors: (color, errorColor) => {
     set({ globalEdgeColor: color, globalEdgeErrorColor: errorColor });

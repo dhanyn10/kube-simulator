@@ -30,21 +30,19 @@ const setupDetachedListeners = (
     }
   };
 
-  if (runtime) {
-    runtime.EventsOn('metrics-update', (json: string) => {
-      try { handleUpdate(JSON.parse(json)); } catch (e) { /* ignore parse error */ }
-    });
-    runtime.EventsOn('theme-sync', (mode: any) => {
-      handleTheme(mode);
-    });
-  }
+  runtime?.EventsOn?.('metrics-update', (json: string) => {
+    try { handleUpdate(JSON.parse(json)); } catch (e) { /* ignore parse error */ }
+  });
+  runtime?.EventsOn?.('theme-sync', (mode: any) => {
+    handleTheme(mode);
+  });
 
   channel.postMessage({ type: 'DETACHED_OPEN' });
-  if (runtime) runtime.EventsEmit('detached-open');
+  runtime?.EventsEmit?.('detached-open');
 
   return () => {
     channel.postMessage({ type: 'DETACHED_CLOSED' });
-    if (runtime) runtime.EventsEmit('detached-closed');
+    runtime?.EventsEmit?.('detached-closed');
     channel.close();
   };
 };

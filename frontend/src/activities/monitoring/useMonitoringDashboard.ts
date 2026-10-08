@@ -46,10 +46,8 @@ export const useMonitoringDashboardHandler = () => {
       }
     };
 
-    if (runtime) {
-      runtime.EventsOn('detached-open', handleOpen);
-      runtime.EventsOn('detached-closed', handleClose);
-    }
+    runtime?.EventsOn?.('detached-open', handleOpen);
+    runtime?.EventsOn?.('detached-closed', handleClose);
 
     return () => channel.close();
   }, [setMonitoringDetached, setMonitoringOpen]);

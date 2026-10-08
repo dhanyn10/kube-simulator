@@ -1,4 +1,4 @@
-package main
+package explorer
 
 import (
 	"os"
@@ -19,8 +19,8 @@ func TestOpenInExplorer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test openInExplorer handles directory path resolution
-	err = openInExplorer(filePath)
+	// Test OpenInExplorer handles directory path resolution
+	err = OpenInExplorer(filePath)
 	// On headless Linux CI environments, xdg-open may return error if no desktop environment is installed.
 	// The function returns error or nil, both are valid outcomes in test environments.
 	_ = err

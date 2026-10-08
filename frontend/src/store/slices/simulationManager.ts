@@ -66,7 +66,7 @@ export const broadcastMetrics = (metrics: Record<string, SimulationMetricPoint[]
   }
 
   const runtime = getRuntime();
-  if (runtime) runtime.EventsEmit('metrics-update', JSON.stringify(payload));
+  runtime?.EventsEmit?.('metrics-update', JSON.stringify(payload));
 };
 
 /**
@@ -110,7 +110,7 @@ export const checkEmergencyStop = (params: {
       }
 
       const runtime = getRuntime();
-      if (runtime) runtime.EventsEmit('detached-closed');
+      runtime?.EventsEmit?.('detached-closed');
       return true;
     }
   } else {
