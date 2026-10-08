@@ -26,7 +26,6 @@ import {
   emitLiveNodeDeletedCommand,
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
-import { getConnectionError } from '@/constants/connections';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -68,11 +67,11 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
 
   const targetData = target.data as K8sNodeData;
 
-  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data.replicas) || 0) === 1) {
+  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data?.replicas) || 0) === 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
-    const baseName = updatedNode.data.baseName || updatedNode.data.label || 'pod';
-    const cleanBase = formatPodName(baseName, updatedNode.data.podHash, updatedNode.data.replicaSuffix, 1);
+    const baseName = updatedNode.data?.baseName || updatedNode.data?.label || 'pod';
+    const cleanBase = formatPodName(baseName, updatedNode.data?.podHash, updatedNode.data?.replicaSuffix, 1);
     const updatedPodWithCleanLabel = {
       ...updatedNode,
       parentId: undefined,
@@ -187,8 +186,8 @@ const syncEdgesFromFormSelection = (
 
   // Service form selector update
   if (targetNode.type === 'Service') {
-    const effectiveServiceType = newData.serviceType !== undefined ? newData.serviceType : targetNode.data?.serviceType || 'ClusterIP';
-    const effectiveSelector = newData.selector !== undefined ? newData.selector : targetNode.data?.selector;
+    const effectiveServiceType = newData.serviceType ?? targetNode.data?.serviceType ?? 'ClusterIP';
+    const effectiveSelector = newData.selector ?? targetNode.data?.selector;
 
     // Remove existing outgoing edges from this Service to non-matching workloads or Ingress
     nextEdges = nextEdges.filter((e) => {
