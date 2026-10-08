@@ -187,24 +187,24 @@ const syncEdgesFromFormSelection = (
   // Service form selector update
   if (targetNode.type === 'Service' && newData.selector !== undefined) {
     const newSelector = newData.selector;
-    // Remove existing outgoing edges from this Service to non-matching workloads
+    // Remove existing outgoing edges from this Service to non-matching workloads or Ingress
     nextEdges = nextEdges.filter((e) => {
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
-      if (!target || !['Deployment', 'Pod', 'ReplicaSet'].includes(target.type || '')) return true;
+      if (!target || !['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
       const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
       return tLabel === newSelector;
     });
 
     if (newSelector) {
-      const matchingWorkloads = nodes.filter((n) => {
-        if (!['Deployment', 'Pod', 'ReplicaSet'].includes(n.type || '')) return false;
+      const matchingTargets = nodes.filter((n) => {
+        if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n.type || '')) return false;
         if (n.type === 'Pod' && (n.parentId || n.data?.parentId)) return false;
         const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
         return tLabel === newSelector;
       });
 
-      matchingWorkloads.forEach((w) => {
+      matchingTargets.forEach((w) => {
         const edgeExists = nextEdges.some((e) => e.source === targetNode.id && e.target === w.id);
         if (!edgeExists) {
           nextEdges.push({
@@ -455,7 +455,8 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   });
 
   // Bidirectional Node Linking: Sync Canvas Edges when target is selected in Form Settings
-  const nextEdges = syncEdgesFromFormSelection(target, newData, nextNodes, get().edges);
+  const currentTargetNode = nextNodes.find((n) => n.id === nodeId) || updatedNode;
+  const nextEdges = syncEdgesFromFormSelection(currentTargetNode, newData, nextNodes, get().edges);
 
   const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
   set({

@@ -362,6 +362,19 @@ describe('nodeActions', () => {
     expect(state.edges.some(e => e.source === 's1' && e.target === 'p2')).toBe(false);
   });
 
+  it('supports Service selector edge creation targeting Ingress node when selector is updated', () => {
+    const lbSvc = { id: 's1', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'lb-svc', type: 'Service', serviceType: 'LoadBalancer', selector: '' } };
+    const ing = { id: 'i1', type: 'Ingress', position: { x: 100, y: 0 }, data: { label: 'main-ingress', type: 'Ingress' } };
+
+    useFlowStore.setState({ nodes: [lbSvc, ing] as any, edges: [] });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('s1', { selector: 'main-ingress' });
+
+    const state = useFlowStore.getState();
+    expect(state.edges.some(e => e.source === 's1' && e.target === 'i1')).toBe(true);
+  });
+
   it('supports Bidirectional Node Linking: Form Settings backendServiceName update on Ingress creates/updates visual canvas edges', () => {
     const ing = { id: 'i1', type: 'Ingress', position: { x: 0, y: 0 }, data: { label: 'main-ing', type: 'Ingress', backendServiceName: '' } };
     const svc1 = { id: 's1', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'app-svc', type: 'Service', serviceType: 'ClusterIP' } };

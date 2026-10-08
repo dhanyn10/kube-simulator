@@ -14,10 +14,14 @@ export const ServiceNode = memo((props: NodeProps) => {
   const serviceType = data.serviceType || 'ClusterIP';
   const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && Boolean(data.nodePort);
 
-  // Check if current selector matches an active workload on canvas
+  // Check if current selector matches an active workload or Ingress on canvas
   const isSelectorValid = Boolean(
     data.selector &&
     nodes.some((n) => {
+      if (serviceType === 'LoadBalancer' && n.type === 'Ingress') {
+        const label = (n.data?.label as string) || n.id;
+        return label === data.selector;
+      }
       if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
         const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
         return label === data.selector;

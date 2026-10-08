@@ -75,7 +75,7 @@ describe('ServiceConfig', () => {
     expect(mockProps.performUpdate).toHaveBeenCalledWith({ nodePort: undefined });
   });
 
-  it('renders LoadBalancer option as disabled with lock badge', () => {
+  it('renders LoadBalancer option as enabled and allows selecting LoadBalancer', () => {
     render(<ServiceConfig {...mockProps} />);
 
     // Open dropdown
@@ -84,14 +84,49 @@ describe('ServiceConfig', () => {
 
     const loadBalancerOption = screen.getByText('LoadBalancer');
     const loadBalancerBtn = loadBalancerOption.closest('button');
-    expect(loadBalancerBtn).toBeDisabled();
-    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(loadBalancerBtn).not.toBeDisabled();
 
-    // Clicking disabled LoadBalancer should not update serviceType
+    // Clicking LoadBalancer should update serviceType
     if (loadBalancerBtn) {
       fireEvent.click(loadBalancerBtn);
     }
-    expect(mockProps.performUpdate).not.toHaveBeenCalled();
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ serviceType: 'LoadBalancer' });
+  });
+
+  it('renders Ingress options in selector dropdown when serviceType is LoadBalancer', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ing-1', type: 'Ingress', data: { label: 'main-ingress' } },
+        { id: 'dep-1', type: 'Deployment', data: { label: 'web-app' } }
+      ] as any
+    });
+
+    const lbProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's1',
+        data: {
+          serviceType: 'LoadBalancer',
+          port: 80,
+          targetPort: 8080,
+          selector: 'main-ingress'
+        }
+      }
+    };
+
+    render(<ServiceConfig {...lbProps} />);
+
+    // Verify trigger button shows selected Ingress label and INGRESS category badge
+    expect(screen.getByText('main-ingress')).toBeInTheDocument();
+    expect(screen.getByText('INGRESS')).toBeInTheDocument();
+
+    // Open selector dropdown
+    const selectorDropdownBtn = screen.getByRole('button', { name: /main-ingress/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    // Click on web-app deployment option
+    fireEvent.click(screen.getByText('web-app'));
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ selector: 'web-app' });
   });
 
   it('populates selector dropdown with canvas workload resources and updates selector', () => {
