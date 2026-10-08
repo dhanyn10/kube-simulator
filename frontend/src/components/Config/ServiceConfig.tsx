@@ -64,16 +64,7 @@ const getServiceTypeOptionClasses = (isDisabled: boolean, isSelected: boolean, c
  * Computes class names for Workload Selector dropdown option buttons.
  */
 const getWorkloadSelectorOptionClasses = (isSelected: boolean, colorMode: string): string => {
-  if (isSelected) {
-    if (colorMode === 'dark') {
-      return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
-    }
-    return 'bg-amber-50 text-amber-800 border border-amber-200';
-  }
-  if (colorMode === 'dark') {
-    return 'hover:bg-slate-800 hover:text-white';
-  }
-  return 'hover:bg-slate-100 hover:text-slate-900';
+  return getServiceTypeOptionClasses(false, isSelected, colorMode);
 };
 
 /**
@@ -127,7 +118,7 @@ export const ServiceConfig = ({
   const optionsMap = new Map<string, SelectorDropdownOption>();
 
   if (currentServiceType === 'LoadBalancer') {
-    // 1. Check Ingress in same namespace
+    // Check Ingress in same namespace for LoadBalancer services
     const ingressNodes = nodes.filter((n) => n.type === 'Ingress' && inSameNamespace(n));
     ingressNodes.forEach((n) => {
       const label = (n.data?.label as string) || n.id;
@@ -135,39 +126,23 @@ export const ServiceConfig = ({
         optionsMap.set(label, { label, category: 'INGRESS' });
       }
     });
-
-    // 2. Check Pods / Deployments in same namespace
-    const workloadNodes = nodes.filter((n) => {
-      if (!inSameNamespace(n)) return false;
-      if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
-      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
-      return false;
-    });
-
-    workloadNodes.forEach((n) => {
-      const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-      if (label && !optionsMap.has(label)) {
-        const cat = (n.type?.toUpperCase() || 'POD') as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
-        optionsMap.set(label, { label, category: cat });
-      }
-    });
-  } else {
-    // ClusterIP or NodePort: Check Pods / Deployments in same namespace
-    const workloadNodes = nodes.filter((n) => {
-      if (!inSameNamespace(n)) return false;
-      if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
-      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
-      return false;
-    });
-
-    workloadNodes.forEach((n) => {
-      const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-      if (label && !optionsMap.has(label)) {
-        const cat = (n.type?.toUpperCase() || 'POD') as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
-        optionsMap.set(label, { label, category: cat });
-      }
-    });
   }
+
+  // Check Pods / Deployments / ReplicaSets in same namespace for all service types
+  const workloadNodes = nodes.filter((n) => {
+    if (!inSameNamespace(n)) return false;
+    if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
+    if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
+    return false;
+  });
+
+  workloadNodes.forEach((n) => {
+    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+    if (label && !optionsMap.has(label)) {
+      const cat = (n.type?.toUpperCase() || 'POD') as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
+      optionsMap.set(label, { label, category: cat });
+    }
+  });
 
   const availableOptions = Array.from(optionsMap.values());
   const currentSelector = data.selector || '';
