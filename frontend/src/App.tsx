@@ -272,6 +272,15 @@ export default function App() {
 
           <MonitoringDashboard />
 
+          {contextMenu && (
+            <ContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onClose={() => setContextMenu(null)}
+              onInspect={handleExport}
+              onDelete={() => deleteNodes(nodes.filter((n) => n.selected))}
+            />
+          )}
 
           <AboutDialog isOpen={isAboutDialogOpen} onClose={() => setIsAboutDialogOpen(false)} />
 
@@ -351,7 +360,6 @@ export default function App() {
           y={defaultContextMenu.y}
           colorMode={colorMode}
           toggleColorMode={useFlowStore.getState().toggleColorMode}
-          onInspectYaml={handleExport}
           onCloseContextMenu={() => setDefaultContextMenu(null)}
           testId="global-default-context-menu"
           changeThemeTestId="global-change-theme"
