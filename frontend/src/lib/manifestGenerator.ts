@@ -185,6 +185,33 @@ const buildPodOrDeploymentManifest = (
   };
 };
 
+const determineServiceNodePort = (nodeData: any): number | undefined => {
+  const serviceType = nodeData.serviceType || 'ClusterIP';
+  const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && nodeData.nodePort;
+  return showNodePort && nodeData.yamlSettings?.nodePort !== false ? Number(nodeData.nodePort) : undefined;
+};
+
+const determineServiceSelector = (
+  node: any,
+  name: string,
+  nodeMap: Map<string, any>,
+  sourceEdgeMap: Map<string, any[]>
+): string => {
+  if (node.data?.selector) {
+    return sanitizeName(node.data.selector);
+  }
+  if (sourceEdgeMap) {
+    const outgoing = sourceEdgeMap.get(node.id) || [];
+    for (const e of outgoing) {
+      const target = nodeMap.get(e.target);
+      if (target && (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet')) {
+        return sanitizeName(target.data?.label || name);
+      }
+    }
+  }
+  return sanitizeName(name);
+};
+
 const buildServiceManifest = (
   node: any,
   metadata: any,
@@ -193,8 +220,7 @@ const buildServiceManifest = (
   sourceEdgeMap: Map<string, any[]>
 ) => {
   const serviceType = node.data.serviceType || 'ClusterIP';
-  const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && node.data.nodePort;
-  const nodePort = showNodePort && node.data.yamlSettings?.nodePort !== false ? Number(node.data.nodePort) : undefined;
+  const nodePort = determineServiceNodePort(node.data);
 
   const portObject: Record<string, any> = {
     protocol: 'TCP',
@@ -205,20 +231,7 @@ const buildServiceManifest = (
     portObject.nodePort = nodePort;
   }
 
-  let selectorLabel = node.data.selector ? sanitizeName(node.data.selector) : '';
-  if (!selectorLabel && sourceEdgeMap) {
-    const outgoing = sourceEdgeMap.get(node.id) || [];
-    for (const e of outgoing) {
-      const target = nodeMap.get(e.target);
-      if (target && (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet')) {
-        selectorLabel = sanitizeName(target.data?.label || name);
-        break;
-      }
-    }
-  }
-  if (!selectorLabel) {
-    selectorLabel = sanitizeName(name);
-  }
+  const selectorLabel = determineServiceSelector(node, name, nodeMap, sourceEdgeMap);
 
   return {
     apiVersion: 'v1',
