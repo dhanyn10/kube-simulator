@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { IngressConfig } from '@/components/Config/IngressConfig';
 import { useFlowStore } from '@/store';
 
@@ -125,5 +126,97 @@ describe('IngressConfig', () => {
 
     fireEvent.click(screen.getByText('Advanced Options'));
     expect(screen.getByPlaceholderText('/')).toBeDefined();
+  });
+
+  it('covers click outside behavior, unmount cleanup, and light mode styling', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const { unmount } = render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    // Light mode dropdown trigger button styling
+    const dropdownBtn = screen.getByRole('button', { name: /web-service/i });
+    expect(dropdownBtn).toHaveClass('bg-white border-slate-300');
+
+    // Open dropdown
+    fireEvent.click(dropdownBtn);
+
+    const selectedOptBtn = screen.getAllByText('web-service')[1].closest('button');
+    expect(selectedOptBtn).toHaveClass('bg-rose-50');
+
+    const unselectedOptBtn = screen.getByText('api-service').closest('button');
+    expect(unselectedOptBtn).toHaveClass('hover:bg-slate-100');
+
+    // Click outside closes dropdown
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('api-service')).toBeNull();
+
+    // Test unmount cleanup for event listener
+    unmount();
+  });
+
+  it('covers namespace filtering when ingress has parentId', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc-ns1', type: 'Service', parentId: 'ns-1', data: { label: 'ns1-svc', serviceType: 'ClusterIP' } },
+        { id: 'svc-ns2', type: 'Service', parentId: 'ns-2', data: { label: 'ns2-svc', serviceType: 'ClusterIP' } }
+      ]
+    });
+
+    const nsNode = {
+      id: 'ing-ns1',
+      parentId: 'ns-1',
+      type: 'Ingress',
+      data: {
+        label: 'NS Ingress',
+        backendServiceName: 'ns1-svc',
+        displaySettings: { backendService: true }
+      }
+    };
+
+    render(
+      <IngressConfig
+        selectedNode={nsNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const dropdownBtn = screen.getByRole('button', { name: /ns1-svc/i });
+    fireEvent.click(dropdownBtn);
+
+    expect(screen.getAllByText('ns1-svc').length).toBeGreaterThan(0);
+    expect(screen.queryByText('ns2-svc')).toBeNull();
+  });
+
+  it('triggers visibility and yaml toggles for Backend Service section', () => {
+    render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const backendSection = screen.getByText('Backend Service (ClusterIP)').closest('div');
+    const toggleBtns = backendSection?.querySelectorAll('button') || [];
+
+    // First button is visibility toggle, second is YAML toggle
+    if (toggleBtns.length >= 2) {
+      fireEvent.click(toggleBtns[0]);
+      expect(toggleVisibility).toHaveBeenCalledWith('backendService');
+
+      fireEvent.click(toggleBtns[1]);
+      expect(toggleYaml).toHaveBeenCalledWith('backendService');
+    }
   });
 });

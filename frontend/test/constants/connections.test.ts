@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getConnectionError } from '@/constants/connections';
+import { getConnectionError, VALID_CONNECTIONS } from '@/constants/connections';
 
 describe('connections constants', () => {
   it('should return null for valid connections', () => {
@@ -99,6 +99,11 @@ describe('connections constants', () => {
   });
 
   it('should return error for invalid incoming connections to LoadBalancer Service', () => {
+    // ReplicaSet -> Service: LoadBalancer is forbidden (only Pod/Deployment/Internet/Service allowed)
+    expect(getConnectionError('ReplicaSet', 'Service', {}, { serviceType: 'LoadBalancer' })).toBe(
+      'ReplicaSet cannot be connected to LoadBalancer Service.'
+    );
+
     // PVC / ConfigMap / Secret -> Service: LoadBalancer is forbidden
     expect(getConnectionError('PVC', 'Service', {}, { serviceType: 'LoadBalancer' })).toBe(
       'PVC cannot be connected to Service.'
@@ -108,8 +113,41 @@ describe('connections constants', () => {
     );
   });
 
+  it('should return error when LoadBalancer Service connects to another LoadBalancer Service', () => {
+    expect(
+      getConnectionError('Service', 'Service', { serviceType: 'LoadBalancer' }, { serviceType: 'LoadBalancer' })
+    ).toBe('LoadBalancer Service cannot connect to LoadBalancer Service.');
+  });
+
   it('should return error for unrecognized source type', () => {
     const error = getConnectionError('Unknown', 'Pod');
     expect(error).toBe('Source type Unknown is not recognized.');
+  });
+
+  it('should return null when Ingress connects to Service with default ClusterIP targetData', () => {
+    expect(getConnectionError('Ingress', 'Service')).toBeNull();
+  });
+
+  it('should evaluate checkIngressTargetRules fallback for non-workload source', () => {
+    // Temporarily add Ingress to VALID_CONNECTIONS for Secret to test line 56
+    const originalSecret = VALID_CONNECTIONS.Secret;
+    (VALID_CONNECTIONS as any).Secret = ['Ingress'];
+
+    const err = getConnectionError('Secret', 'Ingress');
+    expect(err).toBe('Secret cannot be connected to Ingress. Only Services or Workloads can connect to Ingress.');
+
+    // Cleanup
+    (VALID_CONNECTIONS as any).Secret = originalSecret;
+  });
+
+  it('should evaluate checkIngressSourceRules fallback for non-Service target', () => {
+    // Temporarily add Pod to VALID_CONNECTIONS for Ingress to test line 69
+    (VALID_CONNECTIONS as any).Ingress = ['Service', 'Pod'];
+
+    const err = getConnectionError('Ingress', 'Pod');
+    expect(err).toBe('Ingress cannot be connected directly to Pod. Ingress routes traffic strictly through a ClusterIP Service (via backend.service.name).');
+
+    // Cleanup
+    (VALID_CONNECTIONS as any).Ingress = ['Service'];
   });
 });

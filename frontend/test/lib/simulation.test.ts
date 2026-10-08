@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   calculateReachability,
+  isServiceSelectorMatching,
+  hasValidServiceSelectorTarget,
+  hasValidIngressBackend,
   updateInternetTraffic,
   getInterpolatedProfileTraffic,
   SimulationContext,
@@ -848,6 +851,158 @@ describe('simulation test suite', () => {
       const unboundRes = handleUnboundPvcs([unboundPvc], [podPending], ctxUnbound);
       expect(unboundRes.isBlocked).toBe(true);
       expect(unboundPvc.data.pvcStatus).toBe('Pending');
+    });
+  });
+
+  describe('reachability helper edge cases', () => {
+    it('isServiceSelectorMatching tests all matching logic and edge cases', () => {
+      const svcNoSelector = createNode('s1', 'Service', {});
+      const pod = createNode('p1', 'Pod', { label: 'web', baseName: 'web-base', labels: { app: 'web-app' } });
+
+      expect(isServiceSelectorMatching(svcNoSelector, pod)).toBe(false);
+
+      const svcEmpty = createNode('s2', 'Service', { selector: '   ' });
+      expect(isServiceSelectorMatching(svcEmpty, pod)).toBe(false);
+
+      const svcNumber = createNode('s3', 'Service', { selector: 123 as any });
+      expect(isServiceSelectorMatching(svcNumber, pod)).toBe(false);
+
+      // Matches baseName when label is missing
+      const podBase = createNode('p2', 'Pod', { baseName: 'my-app' });
+      const svcBase = createNode('s4', 'Service', { selector: 'my-app' });
+      expect(isServiceSelectorMatching(svcBase, podBase)).toBe(true);
+
+      // Matches labels.app
+      const podApp = createNode('p3', 'Pod', { label: 'other-name', labels: { app: 'target-app' } });
+      const svcApp = createNode('s5', 'Service', { selector: 'target-app' });
+      expect(isServiceSelectorMatching(svcApp, podApp)).toBe(true);
+    });
+
+    it('hasValidServiceSelectorTarget checks invalid selector or empty nodes', () => {
+      const svc = createNode('s1', 'Service', { selector: '' });
+      expect(hasValidServiceSelectorTarget(svc, [createNode('p1', 'Pod', { label: 'web' })])).toBe(false);
+
+      const svcValid = createNode('s2', 'Service', { selector: 'web' });
+      expect(hasValidServiceSelectorTarget(svcValid, [])).toBe(false);
+      expect(hasValidServiceSelectorTarget(svcValid, [createNode('p1', 'Pod', { label: 'web' })])).toBe(true);
+    });
+
+    it('hasValidIngressBackend covers outgoing edge to non-ClusterIP, serviceName fallback, selector matching', () => {
+      const ing = createNode('i1', 'Ingress', { serviceName: 'backend-svc' });
+
+      // Outgoing edge to a NodePort service (not ClusterIP) -> falls through to name check
+      const npService = createNode('s1', 'Service', { label: 'backend-svc', serviceType: 'NodePort' });
+      const edgeToNp = { id: 'e1', source: 'i1', target: 's1' } as Edge;
+      const edgeMapNp = new Map([['i1', [edgeToNp]]]);
+
+      // Returns false because backend-svc is NodePort, not ClusterIP
+      expect(hasValidIngressBackend(ing, [npService], edgeMapNp)).toBe(false);
+
+      // Match via n.data.selector === backendName
+      const clusterIpWithSelector = createNode('s2', 'Service', { selector: 'backend-svc', serviceType: 'ClusterIP' });
+      expect(hasValidIngressBackend(ing, [clusterIpWithSelector])).toBe(true);
+
+      // Ingress without backendServiceName or serviceName -> false
+      const ingEmpty = createNode('i2', 'Ingress', {});
+      expect(hasValidIngressBackend(ingEmpty, [clusterIpWithSelector])).toBe(false);
+    });
+
+    it('calculateReachability dynamic enqueuing and processing rules', () => {
+      // Service with NodePort is valid for processing
+      const npSvc = createNode('s1', 'Service', { serviceType: 'NodePort' });
+      const edge = { id: 'e1', source: 's1', target: 'p1' } as Edge;
+      const pod = createNode('p1', 'Pod', { label: 'app' });
+      const edgeMap = new Map([['s1', [edge]]]);
+
+      const reach1 = calculateReachability([npSvc], edgeMap, ['e1'], [npSvc, pod]);
+      expect(reach1.has('p1')).toBe(true);
+
+      // Service connected to Ingress target is valid for processing
+      const cipSvc = createNode('s2', 'Service', { serviceType: 'ClusterIP' });
+      const ingNode = createNode('i1', 'Ingress', { backendServiceName: 's2-label' });
+      const edgeS2Ing = { id: 'e2', source: 's2', target: 'i1' } as Edge;
+      const edgeMap2 = new Map([['s2', [edgeS2Ing]]]);
+
+      const reach2 = calculateReachability([cipSvc], edgeMap2, ['e2'], [cipSvc, ingNode]);
+      expect(reach2.has('i1')).toBe(true);
+
+      // Ingress dynamic target enqueuing
+      const ingDynamic = createNode('i2', 'Ingress', { backendServiceName: 'dynamic-svc' });
+      const targetSvc = createNode('s3', 'Service', { label: 'dynamic-svc', serviceType: 'ClusterIP' });
+      const reach3 = calculateReachability([ingDynamic], new Map(), [], [ingDynamic, targetSvc]);
+      expect(reach3.has('s3')).toBe(true);
+
+      // Ingress invalid backend fails processOutgoingEdges
+      const ingInvalid = createNode('i3', 'Ingress', { backendServiceName: 'non-existent' });
+      const edgeInvalid = { id: 'e3', source: 'i3', target: 'p1' } as Edge;
+      const reach4 = calculateReachability([ingInvalid], new Map([['i3', [edgeInvalid]]]), ['e3'], [ingInvalid, pod]);
+      expect(reach4.has('p1')).toBe(false);
+
+      // Processing when currNode is not in allNodes
+      const reach5 = calculateReachability([createNode('unknown', 'Pod')], new Map([['unknown', [{ id: 'e4', source: 'unknown', target: 'p1' } as Edge]]]), ['e4'], [pod]);
+      expect(reach5.has('p1')).toBe(true);
+    });
+
+    it('isInternetConnectionRed handles empty outgoing edges, direct validation error, and unready Ingress/Service', () => {
+      const internet = createNode('i1', 'Internet');
+
+      // 1. No outgoing edges
+      const ctxNoEdges = getMockCtx({
+        nodes: [internet],
+        edgeMap: new Map()
+      });
+      expect(isInternetConnectionRed(internet, ctxNoEdges)).toBe(true);
+
+      // 2. Direct edge has validationError
+      const edgeErr = { id: 'e1', source: 'i1', target: 's1', data: { validationError: 'Bad connection' } } as Edge;
+      const ctxErr = getMockCtx({
+        nodes: [internet],
+        edgeMap: new Map([['i1', [edgeErr]]])
+      });
+      expect(isInternetConnectionRed(internet, ctxErr)).toBe(true);
+
+      // 3. Downstream Service without workload target, without ingress target, and not NodePort -> unready
+      const cipService = createNode('s1', 'Service', { serviceType: 'ClusterIP' });
+      const edgeOk = { id: 'e2', source: 'i1', target: 's1' } as Edge;
+      const ctxUnreadySvc = getMockCtx({
+        nodes: [internet, cipService],
+        activeSimulationEdges: ['e2'],
+        edgeMap: new Map([['i1', [edgeOk]]]),
+        nodeMap: new Map([['i1', internet], ['s1', cipService]])
+      });
+      expect(isInternetConnectionRed(internet, ctxUnreadySvc)).toBe(true);
+
+      // 4. Downstream Ingress without valid backend -> unready
+      const ingUnready = createNode('ing1', 'Ingress', { backendServiceName: 'missing' });
+      const edgeIng = { id: 'e3', source: 'i1', target: 'ing1' } as Edge;
+      const ctxUnreadyIng = getMockCtx({
+        nodes: [internet, ingUnready],
+        activeSimulationEdges: ['e3'],
+        edgeMap: new Map([['i1', [edgeIng]]]),
+        nodeMap: new Map([['i1', internet], ['ing1', ingUnready]])
+      });
+      expect(isInternetConnectionRed(internet, ctxUnreadyIng)).toBe(true);
+
+      // 5. Valid healthy connection returns false (not red)
+      const podReady = createNode('pod1', 'Pod', { status: 'ready' });
+      const edgeHealthy = { id: 'e4', source: 'i1', target: 'pod1' } as Edge;
+      const ctxHealthy = getMockCtx({
+        nodes: [internet, podReady],
+        activeSimulationEdges: ['e4'],
+        edgeMap: new Map([['i1', [edgeHealthy]]]),
+        nodeMap: new Map([['i1', internet], ['pod1', podReady]])
+      });
+      expect(isInternetConnectionRed(internet, ctxHealthy)).toBe(false);
+
+      // 6. Downstream path edge validationError in hasUnreadyDownstreamPath
+      const edgeDownErr = { id: 'e5', source: 'pod1', target: 's1', data: { validationError: 'Downstream Error' } } as Edge;
+      const ctxDownErr = getMockCtx({
+        nodes: [internet, podReady, cipService],
+        activeSimulationEdges: ['e4', 'e5'],
+        edgeMap: new Map([['i1', [edgeHealthy]], ['pod1', [edgeDownErr]]]),
+        nodeMap: new Map([['i1', internet], ['pod1', podReady], ['s1', cipService]])
+      });
+      expect(isInternetConnectionRed(internet, ctxDownErr)).toBe(true);
     });
   });
 });

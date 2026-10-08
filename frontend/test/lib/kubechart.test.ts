@@ -112,11 +112,58 @@ describe('kubechart library', () => {
     expect(hasSubHourlyKeys({ '00:00': 100, '00:30': 150 })).toBe(true);
   });
 
-  it('detects profile interval correctly based on hourly keys', () => {
+  it('detects profile interval correctly based on hourly keys and skips invalid minute keys', () => {
     expect(detectProfileInterval({})).toBe(60);
     expect(detectProfileInterval({ '00:00': 100, '01:00': 200 })).toBe(60);
     expect(detectProfileInterval({ '00:00': 100, '00:30': 150 })).toBe(30);
     expect(detectProfileInterval({ '00:00': 100, '00:10': 120, '00:30': 150 })).toBe(10);
+    expect(detectProfileInterval({ '00:abc': 100, 'invalid-key': 200 })).toBe(60);
+  });
+
+  it('handles getInterpolatedValueForMinute with empty existingMinuteKeys', () => {
+    const res = convertProfileToTimeSeries({ name: 'Empty', hourly: {} }, 60);
+    expect(res).toHaveLength(25);
+    expect(res[0].value).toBe(0);
+  });
+
+  it('calculateProfileChartData handles numeric positional padding arguments overload with custom intervalMinutes', () => {
+    const res = calculateProfileChartData(dummyProfile, 200, 100, 10, 10, 10, 10, 30);
+    expect(res.values).toHaveLength(49);
+    expect(res.chartWidth).toBe(180);
+    expect(res.chartHeight).toBe(80);
+  });
+
+  it('handles getInterpolatedValueForMinute edge cases in resampleProfileHourly', () => {
+    // 1. Empty profile triggers !prev && !next -> returns 0
+    const emptyResample = resampleProfileHourly({ name: 'Empty', hourly: {} });
+    expect(emptyResample.hourly['00:00']).toBe(0);
+
+    // 2. Single/sparse key triggers !prev and !next branches
+    const sparseProfile = {
+      name: 'Sparse',
+      hourly: {
+        '10:00': 500
+      }
+    };
+
+    const resample = resampleProfileHourly(sparseProfile);
+    expect(resample.hourly['00:00']).toBe(500); // minute 0 is before 10:00 -> returns next.val (500)
+    expect(resample.hourly['15:00']).toBe(500); // minute 900 is after 10:00 -> returns prev.val (500)
+  });
+
+  it('computeChartLayout handles numeric time values, custom labels, and fallback unlabelled points', () => {
+    const numPoints = [
+      { time: 0, value: 100 },
+      { time: 720, value: 500, label: 'Noon' },
+      { time: 'custom-time' as any, value: 200, label: 'Custom' },
+      { value: 300 } as any // pt.time is undefined and pt.label is undefined -> hits lines 388-389
+    ];
+
+    const layout = computeChartLayout(numPoints, { width: 200, height: 100 });
+    expect(layout.points).toHaveLength(4);
+    expect(layout.points[0].hour).toBe('00:00');
+    expect(layout.points[2].hour).toBe('Custom');
+    expect(layout.points[3].hour).toBe('3');
   });
 
   it('resamples profile hourly correctly', () => {

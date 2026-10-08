@@ -264,4 +264,128 @@ describe('manifestGenerator test suite', () => {
     // Name should be sanitized and sliced to 63 chars
     expect(yamlOutput).toContain('name: complex-label-');
   });
+
+  it('covers service selector resolution via outgoing edges and nodePort disabling via yamlSettings', () => {
+    const nodes = [
+      {
+        id: 'svc1',
+        type: 'Service',
+        data: {
+          label: 'Edge Selector Service',
+          serviceType: 'NodePort',
+          nodePort: '30080',
+          yamlSettings: { nodePort: false, serviceType: false }
+        }
+      },
+      { id: 'pod1', type: 'Pod', data: { label: 'Linked Workload' } }
+    ];
+
+    const edges = [{ id: 'e1', source: 'svc1', target: 'pod1' }];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    expect(yamlOutput).toContain('kind: Service');
+    expect(yamlOutput).toContain('app: linked-workload');
+    expect(yamlOutput).not.toContain('nodePort: 30080');
+    expect(yamlOutput).not.toContain('type: NodePort');
+  });
+
+  it('covers ingress backend resolution via outgoing edges and fallback to default app-service', () => {
+    // 1. Ingress with outgoing edge to Service
+    const nodes1 = [
+      { id: 'ing1', type: 'Ingress', data: { label: 'My Ingress', ingressHost: 'test.local', ingressPath: '/api' } },
+      { id: 'svc1', type: 'Service', data: { label: 'Backend Service', port: 8080 } }
+    ];
+    const edges1 = [{ id: 'e1', source: 'ing1', target: 'svc1' }];
+
+    const yamlOutput1 = generateYamlClientSide(nodes1, edges1);
+    expect(yamlOutput1).toContain('host: test.local');
+    expect(yamlOutput1).toContain('name: backend-service');
+    expect(yamlOutput1).toContain('number: 8080');
+
+    // 2. Ingress with no backendServiceName and no outgoing edge -> defaults to app-service
+    const nodes2 = [
+      { id: 'ing2', type: 'Ingress', data: { label: 'Fallback Ingress' } }
+    ];
+
+    const yamlOutput2 = generateYamlClientSide(nodes2, []);
+    expect(yamlOutput2).toContain('name: app-service');
+    expect(yamlOutput2).toContain('host: example.local');
+    expect(yamlOutput2).toContain('path: /');
+  });
+
+  it('covers ConfigMap and Secret non-array or missing key handling, and ResourceLimit requests/limits combinations', () => {
+    const nodes = [
+      { id: 'cm1', type: 'ConfigMap', data: { label: 'Bad ConfigMap', configData: null } },
+      { id: 'sec1', type: 'Secret', data: { label: 'Bad Secret', configData: 'invalid' } },
+      {
+        id: 'pod1',
+        type: 'Pod',
+        data: {
+          label: 'Requests Only Pod',
+          cpuRequest: '500m',
+          memoryRequest: '512Mi',
+          resourceLimits: [{ id: 'rl1' }]
+        }
+      },
+      {
+        id: 'pod2',
+        type: 'Pod',
+        data: {
+          label: 'Limits Only Pod',
+          cpuLimit: '1000m',
+          memoryLimit: '1024Mi',
+          resourceLimits: [{ id: 'rl1' }]
+        }
+      }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('kind: ConfigMap');
+    expect(yamlOutput).toContain('data: {}');
+    expect(yamlOutput).toContain('kind: Secret');
+    expect(yamlOutput).toContain('stringData: {}');
+
+    expect(yamlOutput).toContain('name: requests-only-pod');
+    expect(yamlOutput).toContain('cpu: 500m');
+
+    expect(yamlOutput).toContain('name: limits-only-pod');
+    expect(yamlOutput).toContain('cpu: 1000m');
+  });
+
+  it('handles missing parent node in nodeMap gracefully when parentId is specified', () => {
+    const nodes = [
+      { id: 'pod1', type: 'Pod', parentId: 'missing-ns', data: { label: 'Orphan Pod' } }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('name: orphan-pod');
+    expect(yamlOutput).not.toContain('namespace:');
+  });
+
+  it('explicitly covers yamlSettings.resources === false branch and createResourceObject with empty request/limit fields', () => {
+    const nodes = [
+      {
+        id: 'pod1',
+        type: 'Pod',
+        data: {
+          label: 'No Res Pod',
+          cpuRequest: '100m',
+          yamlSettings: { resources: false }
+        }
+      },
+      {
+        id: 'pod2',
+        type: 'Pod',
+        data: {
+          label: 'Empty Res Pod',
+          resourceLimits: [{ id: 'rl1' }]
+          // cpuRequest, cpuLimit, memoryRequest, memoryLimit are all undefined
+        }
+      }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).not.toContain('name: no-res-pod\n          resources:');
+    expect(yamlOutput).not.toContain('name: empty-res-pod\n          resources:');
+  });
 });
