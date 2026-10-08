@@ -132,6 +132,7 @@ export const useCustomEdge = (props: {
   const edges = useFlowStore((state: any) => state.edges);
   const globalEdgeColor = useFlowStore((state: any) => state.globalEdgeColor);
   const globalEdgeErrorColor = useFlowStore((state: any) => state.globalEdgeErrorColor);
+  const colorMode = useFlowStore((state: any) => state.colorMode);
   const setTerminalOpen = useFlowStore((state: any) => state.setTerminalOpen);
   const setTerminalActiveTab = useFlowStore((state: any) => state.setTerminalActiveTab);
   const setTerminalSelectedResourceId = useFlowStore((state: any) => state.setTerminalSelectedResourceId);
@@ -139,6 +140,7 @@ export const useCustomEdge = (props: {
 
   const isConfiguring = String(configuringEdgeId) === String(props.id);
   const isSimulating = activeSimulationEdges.some((eid: any) => String(eid) === String(props.id));
+  const isDark = colorMode === 'dark';
   const validationError = props.data?.validationError;
 
   const isTargetError = checkDownstreamErrorState(
@@ -210,6 +212,8 @@ export const useCustomEdge = (props: {
   return {
     isConfiguring,
     isSimulating,
+    isDark,
+    colorMode,
     validationError,
     isTargetError,
     getStrokeColor,

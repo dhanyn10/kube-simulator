@@ -6,7 +6,7 @@ import { useFlowStore } from '@/store';
 // Mock React Flow
 const mockSetEdges = vi.fn();
 vi.mock('@xyflow/react', () => ({
-  BaseEdge: ({ style, className }: any) => <div data-testid="base-edge" style={style} className={className} />,
+  BaseEdge: ({ style, className }: any) => <path data-testid="base-edge" style={style} className={className} />,
   EdgeLabelRenderer: ({ children }: any) => <div data-testid="edge-label-renderer">{children}</div>,
   getBezierPath: () => ['M0 0L100 100', 50, 50],
   useReactFlow: () => ({
@@ -40,21 +40,63 @@ describe('CustomEdge', () => {
   });
 
   it('renders correctly', () => {
-    render(<CustomEdge {...defaultProps} />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} />
+      </svg>
+    );
     expect(screen.getByTestId('base-edge')).toBeDefined();
   });
 
-  it('shows action buttons when selected', () => {
-    render(<CustomEdge {...defaultProps} selected={true} />);
+  it('shows action buttons when selected and updates background styling based on colorMode', () => {
+    useFlowStore.setState({ colorMode: 'dark' });
+    const { rerender } = render(
+      <svg>
+        <CustomEdge {...defaultProps} selected={true} />
+      </svg>
+    );
     expect(screen.getByTitle('Settings')).toBeDefined();
     expect(screen.getByTitle('Remove')).toBeDefined();
+    const panelDark = screen.getByTestId('edge-settings-panel-e1');
+    expect(panelDark.getAttribute('class')).toContain('bg-slate-900');
+
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <svg>
+        <CustomEdge {...defaultProps} selected={true} />
+      </svg>
+    );
+    const panelLight = screen.getByTestId('edge-settings-panel-e1');
+    expect(panelLight.getAttribute('class')).toContain('bg-white');
+  });
+
+  it('renders animated directional arrows on hover', () => {
+    const { container } = render(
+      <svg>
+        <CustomEdge {...defaultProps} />
+      </svg>
+    );
+    expect(screen.queryByTestId('edge-hover-animation')).toBeNull();
+
+    const hoverPath = container.querySelector('path.cursor-pointer');
+    expect(hoverPath).not.toBeNull();
+
+    fireEvent.mouseEnter(hoverPath!);
+    expect(screen.getByTestId('edge-hover-animation')).toBeDefined();
+
+    fireEvent.mouseLeave(hoverPath!);
+    expect(screen.queryByTestId('edge-hover-animation')).toBeNull();
   });
 
   it('calls setEdges and clears configuringEdgeId when remove is clicked while configuring', () => {
     const setConfiguringEdgeIdSpy = vi.spyOn(useFlowStore.getState(), 'setConfiguringEdgeId');
     useFlowStore.setState({ configuringEdgeId: 'e1' });
 
-    render(<CustomEdge {...defaultProps} selected={true} />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} selected={true} />
+      </svg>
+    );
     fireEvent.click(screen.getByTitle('Remove'));
 
     expect(mockSetEdges).toHaveBeenCalled();
@@ -63,7 +105,11 @@ describe('CustomEdge', () => {
 
   it('calls toggleEdgeSettings when settings is clicked', () => {
     const toggleEdgeSettingsSpy = vi.spyOn(useFlowStore.getState(), 'toggleEdgeSettings');
-    render(<CustomEdge {...defaultProps} selected={true} />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} selected={true} />
+      </svg>
+    );
 
     fireEvent.click(screen.getByTitle('Settings'));
     expect(toggleEdgeSettingsSpy).toHaveBeenCalledWith('e1');
@@ -71,15 +117,23 @@ describe('CustomEdge', () => {
 
   it('shows validation error badge if present', () => {
     const props = { ...defaultProps, data: { validationError: 'Invalid connection' } };
-    render(<CustomEdge {...props} />);
+    render(
+      <svg>
+        <CustomEdge {...props} />
+      </svg>
+    );
     expect(screen.getByText('Invalid connection')).toBeDefined();
   });
 
   it('renders with simulation styles when active', () => {
     useFlowStore.setState({ activeSimulationEdges: ['e1'] });
-    render(<CustomEdge {...defaultProps} />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} />
+      </svg>
+    );
     const edge = screen.getByTestId('base-edge');
-    expect(edge.className).toContain('traffic-line');
+    expect(edge.getAttribute('class')).toContain('traffic-line');
   });
 
   it('detects unready child pod in Deployment and opens Kube Console logs on alert click', () => {
@@ -96,7 +150,11 @@ describe('CustomEdge', () => {
       edges: [{ id: 'e1', source: 'svc1', target: 'dep1' }],
     });
 
-    render(<CustomEdge {...defaultProps} source="svc1" target="dep1" />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} source="svc1" target="dep1" />
+      </svg>
+    );
 
     const badge = screen.getByTestId('edge-alert-badge');
     expect(badge).toBeDefined();
@@ -122,7 +180,11 @@ describe('CustomEdge', () => {
       edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
     });
 
-    render(<CustomEdge {...defaultProps} source="n1" target="n2" />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} source="n1" target="n2" />
+      </svg>
+    );
 
     const badge = screen.getByTestId('edge-alert-badge');
     expect(badge).toBeDefined();
@@ -155,7 +217,11 @@ describe('CustomEdge', () => {
       data: { validationError: 'Service cannot connect directly to Service' },
     };
 
-    render(<CustomEdge {...props} />);
+    render(
+      <svg>
+        <CustomEdge {...props} />
+      </svg>
+    );
 
     const badge = screen.getByTestId('edge-alert-badge');
     fireEvent.click(badge);
@@ -183,7 +249,11 @@ describe('CustomEdge', () => {
       ],
     });
 
-    render(<CustomEdge {...defaultProps} source="n1" target="n2" id="e1" />);
+    render(
+      <svg>
+        <CustomEdge {...defaultProps} source="n1" target="n2" id="e1" />
+      </svg>
+    );
 
     const badge = screen.getByTestId('edge-alert-badge');
     expect(badge).toBeDefined();
