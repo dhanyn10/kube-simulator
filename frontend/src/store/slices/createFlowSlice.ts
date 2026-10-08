@@ -318,7 +318,32 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
     set((state) => {
       const nextEdges = applyEdgeChanges(changes, state.edges);
-      const syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+      let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
+
+      // If a Service's outgoing edge to its target selector is removed, clear its selector
+      syncedNodes = syncedNodes.map((node) => {
+        if (node.type === 'Service' && node.data?.selector) {
+          const currentSelector = node.data.selector;
+          const hasMatchingOutgoingEdge = nextEdges.some((e) => {
+            if (e.source !== node.id) return false;
+            const target = state.nodes.find((n) => n.id === e.target);
+            if (!target) return false;
+            const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+            return tLabel === currentSelector;
+          });
+          if (!hasMatchingOutgoingEdge) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                selector: ''
+              }
+            };
+          }
+        }
+        return node;
+      });
+
       const isRemoval = changes.some((c) => c.type === 'remove');
       return {
         edges: nextEdges,

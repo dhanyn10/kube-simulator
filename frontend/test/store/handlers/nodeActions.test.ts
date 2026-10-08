@@ -357,9 +357,14 @@ describe('nodeActions', () => {
     const { updateNodeData } = useFlowStore.getState();
     updateNodeData('s1', { selector: 'web-pod' });
 
-    const state = useFlowStore.getState();
+    let state = useFlowStore.getState();
     expect(state.edges.some(e => e.source === 's1' && e.target === 'p1')).toBe(true);
     expect(state.edges.some(e => e.source === 's1' && e.target === 'p2')).toBe(false);
+
+    // Test clearing selector to empty string disconnects outgoing edges
+    updateNodeData('s1', { selector: '' });
+    state = useFlowStore.getState();
+    expect(state.edges.some(e => e.source === 's1')).toBe(false);
   });
 
   it('supports Service selector edge creation targeting Ingress node when selector is updated', () => {

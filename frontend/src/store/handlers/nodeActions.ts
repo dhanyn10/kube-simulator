@@ -185,23 +185,24 @@ const syncEdgesFromFormSelection = (
   let nextEdges = [...edges];
 
   // Service form selector update
-  if (targetNode.type === 'Service' && newData.selector !== undefined) {
-    const newSelector = newData.selector;
+  if (targetNode.type === 'Service') {
+    const effectiveSelector = newData.selector !== undefined ? newData.selector : targetNode.data?.selector;
     // Remove existing outgoing edges from this Service to non-matching workloads or Ingress
     nextEdges = nextEdges.filter((e) => {
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
       if (!target || !['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
+      if (!effectiveSelector) return false;
       const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
-      return tLabel === newSelector;
+      return tLabel === effectiveSelector;
     });
 
-    if (newSelector) {
+    if (effectiveSelector) {
       const matchingTargets = nodes.filter((n) => {
         if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n.type || '')) return false;
         if (n.type === 'Pod' && (n.parentId || n.data?.parentId)) return false;
         const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
-        return tLabel === newSelector;
+        return tLabel === effectiveSelector;
       });
 
       matchingTargets.forEach((w) => {
