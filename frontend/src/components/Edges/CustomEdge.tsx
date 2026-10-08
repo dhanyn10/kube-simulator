@@ -11,6 +11,13 @@ export {
   getTargetLoggableNode,
 } from '@/activities/edges';
 
+export const getSettingsButtonClass = (isConfiguring: boolean, isDark: boolean): string => {
+  if (isConfiguring) {
+    return isDark ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-100 text-blue-600';
+  }
+  return isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600';
+};
+
 export default function CustomEdge(props: EdgeProps) {
   const { style = {}, markerEnd, selected, id } = props;
   const [isHovered, setIsHovered] = useState(false);
@@ -139,16 +146,7 @@ export default function CustomEdge(props: EdgeProps) {
             >
               <button
                 type="button"
-                className={cn(
-                  'p-1 rounded transition-colors',
-                  isConfiguring
-                    ? isDark
-                      ? 'bg-blue-900/50 text-blue-400'
-                      : 'bg-blue-100 text-blue-600'
-                    : isDark
-                      ? 'hover:bg-slate-800 text-slate-300'
-                      : 'hover:bg-slate-100 text-slate-600'
-                )}
+                className={cn('p-1 rounded transition-colors', getSettingsButtonClass(isConfiguring, isDark))}
                 onClick={onSettings}
                 title="Settings"
               >
