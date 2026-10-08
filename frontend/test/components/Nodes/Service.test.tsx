@@ -125,4 +125,57 @@ describe('ServiceNode', () => {
     expect(screen.queryByText('nodePort:')).toBeNull();
     expect(screen.queryByText('Selector')).toBeNull();
   });
+
+  it('validates selector matching for LoadBalancer, Ingress, ReplicaSet, and standalone vs child Pods', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ing1', type: 'Ingress', data: { label: 'ingress-label' } },
+        { id: 'ing2', type: 'Ingress', data: {} },
+        { id: 'rs1', type: 'ReplicaSet', data: { baseName: 'rs-app' } },
+        { id: 'pod-standalone', type: 'Pod', data: { baseName: 'standalone-pod' } },
+        { id: 'pod-child', type: 'Pod', parentId: 'dep1', data: { label: 'child-pod' } }
+      ] as any
+    });
+
+    // 1. Service Type LoadBalancer matching Ingress label
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <ServiceNode id="s-lb" type="Service" data={{ serviceType: 'LoadBalancer', nodePort: 31000, selector: 'ingress-label' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ingress-label')).toBeDefined();
+    expect(screen.getByText('nodePort:')).toBeDefined();
+
+    // 2. Service Type LoadBalancer matching Ingress ID when label is empty
+    rerender(
+      <ReactFlowProvider>
+        <ServiceNode id="s-lb2" type="Service" data={{ serviceType: 'LoadBalancer', selector: 'ing2' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ing2')).toBeDefined();
+
+    // 3. Service matching ReplicaSet baseName
+    rerender(
+      <ReactFlowProvider>
+        <ServiceNode id="s-rs" type="Service" data={{ selector: 'rs-app' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: rs-app')).toBeDefined();
+
+    // 4. Service matching standalone Pod baseName
+    rerender(
+      <ReactFlowProvider>
+        <ServiceNode id="s-pod" type="Service" data={{ selector: 'standalone-pod' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: standalone-pod')).toBeDefined();
+
+    // 5. Service attempting to target child Pod (should fail selector match and render '---')
+    rerender(
+      <ReactFlowProvider>
+        <ServiceNode id="s-child" type="Service" data={{ selector: 'child-pod' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ---')).toBeDefined();
+  });
 });

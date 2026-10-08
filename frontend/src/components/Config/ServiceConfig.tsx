@@ -23,7 +23,7 @@ interface SelectorDropdownOption {
   category: 'INGRESS' | 'POD' | 'DEPLOYMENT' | 'REPLICASET';
 }
 
-const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
+export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
   {
     value: 'ClusterIP',
     label: 'ClusterIP',

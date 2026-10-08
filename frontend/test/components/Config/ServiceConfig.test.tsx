@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ServiceConfig } from '@/components/Config/ServiceConfig';
+import { ServiceConfig, SERVICE_TYPE_OPTIONS } from '@/components/Config/ServiceConfig';
 import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
 
@@ -213,5 +213,113 @@ describe('ServiceConfig', () => {
 
     const dropdownButton = screen.getByRole('button', { name: /ClusterIP/i });
     expect(dropdownButton).toHaveClass('bg-white border-slate-300 text-slate-800');
+  });
+
+  it('covers click outside behavior for dropdowns', () => {
+    render(<ServiceConfig {...mockProps} />);
+
+    const serviceTypeBtn = screen.getByRole('button', { name: /ClusterIP/i });
+    fireEvent.click(serviceTypeBtn);
+    expect(screen.getByText('Exposes service on each Node’s IP at a static port.')).toBeInTheDocument();
+
+    // Click outside
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('Exposes service on each Node’s IP at a static port.')).toBeNull();
+
+    // Open selector dropdown and click outside
+    const selectorDropdownBtn = screen.getByRole('button', { name: /web-app/i });
+    fireEvent.click(selectorDropdownBtn);
+    expect(screen.getByText('backend-pod')).toBeInTheDocument();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByText('backend-pod')).toBeNull();
+  });
+
+  it('covers namespace filtering when node has parentId', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'dep-ns1', type: 'Deployment', parentId: 'ns-1', data: { label: 'ns1-app' } },
+        { id: 'dep-ns2', type: 'Deployment', parentId: 'ns-2', data: { label: 'ns2-app' } },
+        { id: 'rs-ns1', type: 'ReplicaSet', parentId: 'ns-1', data: { label: 'ns1-rs' } },
+        { id: 'pod-ns1', type: 'Pod', parentId: 'ns-1', data: { label: 'ns1-pod' } } // child pod with parentId should be ignored
+      ] as any
+    });
+
+    const nsProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-ns1',
+        parentId: 'ns-1',
+        data: {
+          serviceType: 'ClusterIP',
+          selector: 'ns1-app'
+        }
+      }
+    };
+
+    render(<ServiceConfig {...nsProps} />);
+
+    const selectorDropdownBtn = screen.getByRole('button', { name: /ns1-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    expect(screen.getAllByText('ns1-app').length).toBeGreaterThan(0);
+    expect(screen.getByText('ns1-rs')).toBeInTheDocument();
+    expect(screen.queryByText('ns2-app')).toBeNull();
+    expect(screen.queryByText('ns1-pod')).toBeNull();
+  });
+
+  it('covers Target Port input change and fallback values', () => {
+    render(<ServiceConfig {...mockProps} />);
+
+    const targetPortInput = screen.getAllByRole('spinbutton')[1];
+    fireEvent.change(targetPortInput, { target: { value: '9000' } });
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 9000 });
+
+    fireEvent.change(targetPortInput, { target: { value: '' } });
+    expect(mockProps.performUpdate).toHaveBeenCalledWith({ targetPort: 80 });
+  });
+
+  it('covers disabled option rendering and click in light and dark modes', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    // Mark LoadBalancer option as disabled to test isDisabled branch
+    if (SERVICE_TYPE_OPTIONS && SERVICE_TYPE_OPTIONS[2]) {
+      SERVICE_TYPE_OPTIONS[2].disabled = true;
+    }
+
+    render(<ServiceConfig {...mockProps} />);
+
+    // Open dropdown in light mode
+    const dropdownButton = screen.getByRole('button', { name: /ClusterIP/i });
+    fireEvent.click(dropdownButton);
+
+    // Verify disabled option rendering
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+
+    // Clicking disabled option should not perform update
+    const disabledBtn = screen.getByText('Disabled').closest('button');
+    if (disabledBtn) {
+      fireEvent.click(disabledBtn);
+    }
+    expect(mockProps.performUpdate).not.toHaveBeenCalledWith({ serviceType: 'LoadBalancer' });
+
+    // Verify non-selected service type option in light mode
+    const nodePortOptBtn = screen.getByText('NodePort').closest('button');
+    expect(nodePortOptBtn).toHaveClass('hover:bg-slate-100');
+
+    // Restore disabled property
+    if (SERVICE_TYPE_OPTIONS && SERVICE_TYPE_OPTIONS[2]) {
+      delete SERVICE_TYPE_OPTIONS[2].disabled;
+    }
+
+    // Open selector dropdown in light mode and check selected/non-selected option styling
+    const selectorDropdownBtn = screen.getByRole('button', { name: /web-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    const selectedOptionBtn = screen.getByRole('button', { name: /web-app DEPLOYMENT/i });
+    expect(selectedOptionBtn).toHaveClass('bg-amber-50');
+
+    const nonSelectedOptionBtn = screen.getByText('backend-pod').closest('button');
+    expect(nonSelectedOptionBtn).toHaveClass('hover:bg-slate-100');
   });
 });

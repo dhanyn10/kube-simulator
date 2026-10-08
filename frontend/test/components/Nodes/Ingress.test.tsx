@@ -101,4 +101,47 @@ describe('IngressNode', () => {
     const hostEl = screen.getByText(/host: example.local/);
     expect(hostEl).toHaveClass('text-slate-500');
   });
+
+  it('renders backend service resolution by label and by ID, and respects displaySettings.backendService', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc1', type: 'Service', data: { label: 'svc-label-1', serviceType: 'ClusterIP' } },
+        { id: 'svc2', type: 'Service', data: { label: 'svc-label-2', serviceType: 'ClusterIP' } }
+      ] as any
+    });
+
+    // 1. Target service found by matching label
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <IngressNode id="i1" type="Ingress" data={{ backendServiceName: 'svc-label-1' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('Backend Service')).toBeDefined();
+    expect(screen.getByText('svc-label-1')).toBeDefined();
+
+    // 2. Target service found by matching node ID
+    rerender(
+      <ReactFlowProvider>
+        <IngressNode id="i2" type="Ingress" data={{ backendServiceName: 'svc2' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('svc-label-2')).toBeDefined();
+
+    // 3. Backend service invalid or empty
+    rerender(
+      <ReactFlowProvider>
+        <IngressNode id="i3" type="Ingress" data={{ backendServiceName: 'non-existent' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('---')).toBeDefined();
+
+    // 4. displaySettings.backendService is false
+    rerender(
+      <ReactFlowProvider>
+        <IngressNode id="i4" type="Ingress" data={{ displaySettings: { backendService: false } }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.queryByText('Backend Service')).toBeNull();
+  });
 });
