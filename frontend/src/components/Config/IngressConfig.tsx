@@ -110,6 +110,20 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
                 {availableServiceNames.map((svcName) => {
                   const isSelected = currentBackend === svcName;
 
+                  const getSelectedStyles = (mode: string) =>
+                    mode === 'dark'
+                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200';
+
+                  const getUnselectedStyles = (mode: string) =>
+                    mode === 'dark'
+                      ? 'hover:bg-slate-800 hover:text-white'
+                      : 'hover:bg-slate-100 hover:text-slate-900';
+
+                  const buttonClassName = isSelected
+                    ? getSelectedStyles(colorMode)
+                    : getUnselectedStyles(colorMode);
+
                   return (
                     <button
                       key={svcName}
@@ -120,9 +134,7 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
                       }}
                       className={cn(
                         "w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer",
-                        isSelected
-                          ? colorMode === 'dark' ? "bg-rose-500/10 text-rose-400 border border-rose-500/20" : "bg-rose-50 text-rose-800 border border-rose-200"
-                          : colorMode === 'dark' ? "hover:bg-slate-800 hover:text-white" : "hover:bg-slate-100 hover:text-slate-900"
+                        buttonClassName
                       )}
                     >
                       <span className="truncate">{svcName}</span>

@@ -35,7 +35,7 @@ export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap
   const outgoing = edgeMap?.get(ingressNode.id) || [];
   for (const e of outgoing) {
     const target = nodes.find(n => n.id === e.target);
-    if (target && target.type === 'Service' && (target.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
+    if (target?.type === 'Service' && (target?.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
       return true;
     }
   }
@@ -50,6 +50,60 @@ export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap
   return false;
 };
 
+const isServiceValidForProcessing = (
+  currNode: Node,
+  currId: string,
+  nodes: Node[] | undefined,
+  edgeMap: Map<string, Edge[]>
+): boolean => {
+  if (currNode.type !== 'Service') return true;
+  const sType = currNode.data?.serviceType || 'ClusterIP';
+  if (sType === 'NodePort') return true;
+
+  const hasWorkloadTarget = hasValidServiceSelectorTarget(currNode, nodes || []);
+  const outgoing = edgeMap.get(currId) || [];
+  const hasIngressTarget = outgoing.some(e => {
+    const t = nodes?.find(n => n.id === e.target);
+    return t?.type === 'Ingress';
+  });
+
+  return hasWorkloadTarget || hasIngressTarget;
+};
+
+const enqueueDynamicServiceTargets = (
+  currNode: Node,
+  nodes: Node[] | undefined,
+  queue: string[]
+) => {
+  if (currNode.type !== 'Service' || !nodes) return;
+  const selectorTargets = nodes.filter(n =>
+    (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
+    isServiceSelectorMatching(currNode, n)
+  );
+  for (const target of selectorTargets) {
+    queue.push(String(target.id));
+  }
+};
+
+const enqueueDynamicIngressTargets = (
+  currNode: Node,
+  nodes: Node[] | undefined,
+  queue: string[]
+) => {
+  if (currNode.type !== 'Ingress' || !nodes) return;
+  const backendName = currNode.data?.backendServiceName || currNode.data?.serviceName;
+  if (!backendName) return;
+
+  const backendServices = nodes.filter(n =>
+    n.type === 'Service' &&
+    (n.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+    n.data?.label === backendName
+  );
+  for (const svc of backendServices) {
+    queue.push(String(svc.id));
+  }
+};
+
 const processOutgoingEdges = (
   currId: string,
   edgeMap: Map<string, Edge[]>,
@@ -59,61 +113,27 @@ const processOutgoingEdges = (
 ) => {
   const currNode = nodes?.find(n => n.id === currId);
 
-  // If current node is a Service, verify it has a valid selector matching a workload or Ingress
-  if (currNode && currNode.type === 'Service') {
-    const sType = currNode.data?.serviceType || 'ClusterIP';
-    const hasWorkloadTarget = hasValidServiceSelectorTarget(currNode, nodes || []);
-    const outgoing = edgeMap.get(currId) || [];
-    const hasIngressTarget = outgoing.some(e => {
-      const t = nodes?.find(n => n.id === e.target);
-      return t && t.type === 'Ingress';
-    });
-
-    if (!hasWorkloadTarget && !hasIngressTarget && sType !== 'NodePort') {
+  if (currNode) {
+    if (!isServiceValidForProcessing(currNode, currId, nodes, edgeMap)) {
       return;
     }
-  }
-
-  // If current node is an Ingress, verify it has a valid ClusterIP backend Service
-  if (currNode && currNode.type === 'Ingress') {
-    if (!hasValidIngressBackend(currNode, nodes || [], edgeMap)) {
+    if (currNode.type === 'Ingress' && !hasValidIngressBackend(currNode, nodes || [], edgeMap)) {
       return;
     }
   }
 
   const outgoing = edgeMap.get(currId);
-  if (!outgoing) return;
-
-  for (const e of outgoing) {
-    if (activeEdgesSet.has(String(e.id)) && !e.data?.validationError) {
-      queue.push(String(e.target));
-    }
-  }
-
-  // Also resolve selector matching targets dynamically for Service nodes
-  if (currNode && currNode.type === 'Service' && nodes) {
-    const selectorTargets = nodes.filter(n =>
-      (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
-      isServiceSelectorMatching(currNode, n)
-    );
-    for (const target of selectorTargets) {
-      queue.push(String(target.id));
-    }
-  }
-
-  // Also resolve backend service targets dynamically for Ingress nodes
-  if (currNode && currNode.type === 'Ingress' && nodes) {
-    const backendName = currNode.data?.backendServiceName || currNode.data?.serviceName;
-    if (backendName) {
-      const backendServices = nodes.filter(n =>
-        n.type === 'Service' &&
-        (n.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-        n.data?.label === backendName
-      );
-      for (const svc of backendServices) {
-        queue.push(String(svc.id));
+  if (outgoing) {
+    for (const e of outgoing) {
+      if (activeEdgesSet.has(String(e.id)) && !e.data?.validationError) {
+        queue.push(String(e.target));
       }
     }
+  }
+
+  if (currNode) {
+    enqueueDynamicServiceTargets(currNode, nodes, queue);
+    enqueueDynamicIngressTargets(currNode, nodes, queue);
   }
 };
 
@@ -147,8 +167,8 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
   const isWorkload = node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet';
   if (isWorkload && node.data?.status !== 'ready') return true;
 
-  if (node.type === 'Service') {
-    const sType = node.data?.serviceType || 'ClusterIP';
+  if (node?.type === 'Service') {
+    const sType = node?.data?.serviceType || 'ClusterIP';
     const outgoing = nodes.filter(n =>
       (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
       isServiceSelectorMatching(node, n)
@@ -159,13 +179,13 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
     }
   }
 
-  if (node.type === 'Ingress') {
+  if (node?.type === 'Ingress') {
     if (!hasValidIngressBackend(node, nodes)) {
       return true;
     }
   }
 
-  if (node.type === 'Deployment') {
+  if (node?.type === 'Deployment') {
     const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
     if (childPods.some((p) => p.data?.status !== 'ready')) return true;
   }

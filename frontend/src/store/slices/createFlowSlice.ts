@@ -320,17 +320,19 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       const nextEdges = applyEdgeChanges(changes, state.edges);
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
-      // If a Service's outgoing edge to its target selector is removed, clear its selector
+      // Helper function to check if a Service node has matching outgoing edges
+      const isServiceEdgeMatching = (edge: Edge, serviceNodeId: string, currentSelector: string, allNodes: Node[]) => {
+        if (edge.source !== serviceNodeId) return false;
+        const target = allNodes.find((n) => n.id === edge.target);
+        if (!target) return false;
+        const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+        return tLabel === currentSelector;
+      };
+
       syncedNodes = syncedNodes.map((node) => {
         if (node.type === 'Service' && node.data?.selector) {
           const currentSelector = node.data.selector;
-          const hasMatchingOutgoingEdge = nextEdges.some((e) => {
-            if (e.source !== node.id) return false;
-            const target = state.nodes.find((n) => n.id === e.target);
-            if (!target) return false;
-            const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
-            return tLabel === currentSelector;
-          });
+          const hasMatchingOutgoingEdge = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, state.nodes));
           if (!hasMatchingOutgoingEdge) {
             return {
               ...node,
@@ -436,46 +438,45 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       const nextEdges = addEdge(newEdge, state.edges);
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
-      // Responsive real-time PVC status sync when edge connection is established
-      syncedNodes = syncedNodes.map((n) => {
-        if (n.type === 'PVC') {
-          const realTimeStatus = evaluatePvcRealtimeStatus(n, syncedNodes, nextEdges);
-          if (n.data?.pvcStatus !== realTimeStatus) {
-            return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
+      // Helper function to sync PVC status and bidirectional node linking form state
+      const updateConnectedNodeState = (
+        n: Node,
+        syncedNodesList: Node[],
+        edgesList: Edge[],
+        srcId: string,
+        tgtId: string,
+        srcNode?: Node,
+        tgtNode?: Node
+      ): Node => {
+        let updated = n;
+
+        if (updated.type === 'PVC') {
+          const realTimeStatus = evaluatePvcRealtimeStatus(updated, syncedNodesList, edgesList);
+          if (updated.data?.pvcStatus !== realTimeStatus) {
+            updated = { ...updated, data: { ...updated.data, pvcStatus: realTimeStatus } };
           }
         }
-        // Bidirectional Node Linking: Sync Form State when Visual Edge is dragged on canvas
-        if (n.id === sourceId) {
-          const sType = String(n.type || n.data?.type || sourceNode?.type || '').toLowerCase();
-          const targetNodeInStore = state.nodes.find((item) => item.id === targetId);
-          const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || targetNode?.type || '').toLowerCase();
+
+        if (updated.id === srcId) {
+          const sType = String(updated.type || updated.data?.type || srcNode?.type || '').toLowerCase();
+          const targetNodeInStore = state.nodes.find((item) => item.id === tgtId);
+          const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
 
           if (sType === 'ingress' && tType === 'service') {
-            const targetLabel = (targetNodeInStore?.data?.label as string) || targetNodeInStore?.id || targetId;
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                backendServiceName: targetLabel
-              }
-            };
-          }
-          if (
-            sType === 'service' &&
-            ['deployment', 'pod', 'replicaset'].includes(tType)
-          ) {
-            const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || targetId;
-            return {
-              ...n,
-              data: {
-                ...n.data,
-                selector: targetLabel
-              }
-            };
+            const targetLabel = (targetNodeInStore?.data?.label as string) || targetNodeInStore?.id || tgtId;
+            updated = { ...updated, data: { ...updated.data, backendServiceName: targetLabel } };
+          } else if (sType === 'service' && ['deployment', 'pod', 'replicaset'].includes(tType)) {
+            const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
+            updated = { ...updated, data: { ...updated.data, selector: targetLabel } };
           }
         }
-        return n;
-      });
+
+        return updated;
+      };
+
+      syncedNodes = syncedNodes.map((n) =>
+        updateConnectedNodeState(n, syncedNodes, nextEdges, sourceId, targetId, sourceNode, targetNode)
+      );
 
       return {
         edges: nextEdges,

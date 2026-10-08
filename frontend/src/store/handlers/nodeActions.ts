@@ -26,7 +26,6 @@ import {
   emitLiveNodeDeletedCommand,
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
-import { getConnectionError } from '@/constants/connections';
 
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
@@ -68,11 +67,11 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
 
   const targetData = target.data as K8sNodeData;
 
-  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data.replicas) || 0) === 1) {
+  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data?.replicas) || 0) === 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
-    const baseName = updatedNode.data.baseName || updatedNode.data.label || 'pod';
-    const cleanBase = formatPodName(baseName, updatedNode.data.podHash, updatedNode.data.replicaSuffix, 1);
+    const baseName = updatedNode.data?.baseName || updatedNode.data?.label || 'pod';
+    const cleanBase = formatPodName(baseName, updatedNode.data?.podHash, updatedNode.data?.replicaSuffix, 1);
     const updatedPodWithCleanLabel = {
       ...updatedNode,
       parentId: undefined,
@@ -187,8 +186,8 @@ const syncEdgesFromFormSelection = (
 
   // Service form selector update
   if (targetNode.type === 'Service') {
-    const effectiveServiceType = newData.serviceType !== undefined ? newData.serviceType : targetNode.data?.serviceType || 'ClusterIP';
-    const effectiveSelector = newData.selector !== undefined ? newData.selector : targetNode.data?.selector;
+    const effectiveServiceType = newData.serviceType ?? targetNode.data?.serviceType ?? 'ClusterIP';
+    const effectiveSelector = newData.selector ?? targetNode.data?.selector;
 
     // Remove existing outgoing edges from this Service to non-matching workloads or Ingress
     nextEdges = nextEdges.filter((e) => {
@@ -402,90 +401,42 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
   });
 };
 
-/**
- * Updates data properties for a specific canvas node and emits live terminal command logs.
- */
-const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodeId: string, newData: Partial<K8sNodeData>) => {
-  const { nodes } = get();
-  const target = nodes.find((n: Node) => n.id === nodeId);
-  if (!target) return;
-
-  const targetData = target.data as K8sNodeData;
-
-  // Skip if data hasn't actually changed to avoid unnecessary re-renders
-  const hasChanges = Object.entries(newData).some(([key, value]) => (targetData as any)[key] !== value);
-  if (!hasChanges) return;
-
-  const prevReplicas = targetData.replicas;
-  const prevImage = targetData.image;
-  const prevLabel = (targetData.label as string) || (targetData.baseName as string);
-
-  let sanitizedData = sanitizeResourceLimits(newData);
-  sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
-
-  if (newData.image) {
-    sanitizedData.isAutoImage = false;
-  }
-
-  let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
-
-  // If Service type changed from LoadBalancer to ClusterIP/NodePort while pointing to an Ingress, clear selector
+const sanitizeAndUpdateServiceSelector = (
+  target: Node,
+  newData: Partial<K8sNodeData>,
+  updatedData: K8sNodeData,
+  nodes: Node[]
+): K8sNodeData => {
   if (target.type === 'Service' && newData.serviceType && newData.serviceType !== 'LoadBalancer') {
     const currentSelector = updatedData.selector;
     if (currentSelector) {
       const isIngressTarget = nodes.some((n) => n.type === 'Ingress' && (n.data?.label === currentSelector || n.id === currentSelector));
       if (isIngressTarget) {
-        updatedData.selector = '';
+        return { ...updatedData, selector: '' };
       }
     }
   }
+  return updatedData;
+};
 
-  updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
-
-  const updatedNode: Node = {
-    ...target,
-    data: updatedData,
-    ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
-      width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
-    } : {})
-  };
-
-  let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
-
-  // Invalidate Service selectors and Ingress references if a workload or Service label/name changed
-  const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
-  if (
-    ['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(target.type || '') &&
-    newData.label !== undefined &&
-    prevLabel &&
-    newLabel !== prevLabel
-  ) {
-    nextNodes = invalidateTargetReferences(prevLabel, nextNodes);
-  }
-
-  // Responsive real-time PVC status update on PVC accessMode change or connected workload replica changes
-  nextNodes = nextNodes.map((n) => {
+const syncPvcRealtimeStatuses = (nodes: Node[], edges: Edge[]): Node[] => {
+  return nodes.map((n) => {
     if (n.type !== 'PVC') return n;
-    const realTimeStatus = evaluatePvcRealtimeStatus(n, nextNodes, get().edges);
+    const realTimeStatus = evaluatePvcRealtimeStatus(n, nodes, edges);
     if (n.data?.pvcStatus !== realTimeStatus) {
       return { ...n, data: { ...n.data, pvcStatus: realTimeStatus } };
     }
     return n;
   });
+};
 
-  // Bidirectional Node Linking: Sync Canvas Edges when target is selected in Form Settings
-  const currentTargetNode = nextNodes.find((n) => n.id === nodeId) || updatedNode;
-  const nextEdges = syncEdgesFromFormSelection(currentTargetNode, newData, nextNodes, get().edges);
-
-  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
-  set({
-    nodes: collisionResolvedNodes,
-    edges: nextEdges,
-    lastActionId: `update-${Date.now()}`,
-    lastActionName: 'Update Node Data'
-  });
-
-  // Auto-emit kubectl live command for updated fields
+const emitLiveUpdateLogs = (
+  target: Node,
+  targetData: K8sNodeData,
+  newData: Partial<K8sNodeData>,
+  prevReplicas: any,
+  prevImage: any
+) => {
   const nodeLabel = (targetData.label as string) || target.id;
   const nodeType = target.type || 'Deployment';
 
@@ -506,6 +457,69 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
       newData.memoryLimit ?? targetData.memoryLimit
     );
   }
+};
+
+/**
+ * Updates data properties for a specific canvas node and emits live terminal command logs.
+ */
+const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowState) => (nodeId: string, newData: Partial<K8sNodeData>) => {
+  const { nodes } = get();
+  const target = nodes.find((n: Node) => n.id === nodeId);
+  if (!target) return;
+
+  const targetData = target.data as K8sNodeData;
+
+  const hasChanges = Object.entries(newData).some(([key, value]) => (targetData as any)[key] !== value);
+  if (!hasChanges) return;
+
+  const prevReplicas = targetData.replicas;
+  const prevImage = targetData.image;
+  const prevLabel = (targetData.label as string) || (targetData.baseName as string);
+
+  let sanitizedData = sanitizeResourceLimits(newData);
+  sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
+  if (newData.image) {
+    sanitizedData.isAutoImage = false;
+  }
+
+  let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
+  updatedData = sanitizeAndUpdateServiceSelector(target, newData, updatedData, nodes);
+  updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
+
+  const updatedNode: Node = {
+    ...target,
+    data: updatedData,
+    ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
+      width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
+    } : {})
+  };
+
+  let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
+
+  const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
+  if (
+    ['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(target.type || '') &&
+    newData.label !== undefined &&
+    prevLabel &&
+    newLabel !== prevLabel
+  ) {
+    nextNodes = invalidateTargetReferences(prevLabel, nextNodes);
+  }
+
+  nextNodes = syncPvcRealtimeStatuses(nextNodes, get().edges);
+
+  const currentTargetNode = nextNodes.find((n) => n.id === nodeId) || updatedNode;
+  const nextEdges = syncEdgesFromFormSelection(currentTargetNode, newData, nextNodes, get().edges);
+
+  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, nodeId);
+  set({
+    nodes: collisionResolvedNodes,
+    edges: nextEdges,
+    lastActionId: `update-${Date.now()}`,
+    lastActionName: 'Update Node Data'
+  });
+
+  emitLiveUpdateLogs(target, targetData, newData, prevReplicas, prevImage);
 };
 
 // -- MAIN EXPORT --
