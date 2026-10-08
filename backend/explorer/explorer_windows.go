@@ -1,15 +1,15 @@
 //go:build windows
 
-package main
+package explorer
 
 import (
 	"os/exec"
 	"path/filepath"
 )
 
-// openInExplorer opens the specified file or folder in Windows File Explorer.
+// OpenInExplorer opens the specified file or folder in Windows File Explorer.
 // It executes the native Windows `explorer.exe` process without hiding its GUI window.
-func openInExplorer(filePath string) error {
+func OpenInExplorer(filePath string) error {
 	// explorer.exe is a GUI application; do NOT set HideWindow: true as it causes Windows to launch File Explorer in hidden mode.
 	cmd := exec.Command("explorer.exe", filepath.Clean(filePath))
 	if err := cmd.Start(); err != nil {

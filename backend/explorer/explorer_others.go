@@ -1,6 +1,6 @@
 //go:build !windows
 
-package main
+package explorer
 
 import (
 	"os/exec"
@@ -8,9 +8,9 @@ import (
 	"runtime"
 )
 
-// openInExplorer opens the specified file or directory path in the platform's default file browser.
+// OpenInExplorer opens the specified file or directory path in the platform's default file browser.
 // It uses `open` on macOS (darwin) and `xdg-open` on Linux and other Unix-like systems.
-func openInExplorer(filePath string) error {
+func OpenInExplorer(filePath string) error {
 	cleanPath := filepath.Clean(filePath)
 	var cmd *exec.Cmd
 	if runtime.GOOS == "darwin" {

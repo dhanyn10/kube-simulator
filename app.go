@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"build-wails/backend/db"
+	"build-wails/backend/explorer"
 	"build-wails/backend/logger"
 	"build-wails/backend/pkg/yaml_gen"
 	"build-wails/backend/system"
@@ -293,7 +294,7 @@ func (a *App) OpenLogFile() bool {
 	}
 
 	if appCtx == nil || appCtx.Value(isTestKey) == nil {
-		if err := openInExplorer(logFilePath); err != nil {
+		if err := explorer.OpenInExplorer(logFilePath); err != nil {
 			logger.Error("Failed to open log directory %s: %v", dir, err)
 			return false
 		}
@@ -355,7 +356,7 @@ func (a *App) OpenFileFolder(location string) bool {
 	}
 
 	if appCtx == nil || appCtx.Value(isTestKey) == nil {
-		if err := openInExplorer(folderPath); err != nil {
+		if err := explorer.OpenInExplorer(folderPath); err != nil {
 			logger.Error("Failed to open folder %s: %v", folderPath, err)
 			return false
 		}
