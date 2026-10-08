@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BaseEdge, EdgeLabelRenderer, EdgeProps } from '@xyflow/react';
 import { Settings, Trash2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,11 +11,21 @@ export {
   getTargetLoggableNode,
 } from '@/activities/edges';
 
+export const getSettingsButtonClass = (isConfiguring: boolean, isDark: boolean): string => {
+  if (isConfiguring) {
+    return isDark ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-100 text-blue-600';
+  }
+  return isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600';
+};
+
 export default function CustomEdge(props: EdgeProps) {
-  const { style = {}, markerEnd, selected } = props;
+  const { style = {}, markerEnd, selected, id } = props;
+  const [isHovered, setIsHovered] = useState(false);
+
   const {
     isConfiguring,
     isSimulating,
+    isDark,
     hasAlert,
     alertTooltip,
     getStrokeColor,
@@ -27,6 +38,8 @@ export default function CustomEdge(props: EdgeProps) {
     onAlertClick,
   } = useCustomEdge(props);
 
+  const strokeColor = getStrokeColor();
+
   return (
     <>
       <BaseEdge
@@ -36,10 +49,56 @@ export default function CustomEdge(props: EdgeProps) {
         style={{
           ...style,
           strokeWidth: selected ? Number(edgeWidth) + 1 : Number(edgeWidth),
-          stroke: getStrokeColor(),
+          stroke: strokeColor,
           transition: 'stroke 0.2s, stroke-width 0.2s',
         }}
       />
+
+      {/* Invisible wider interaction edge path for hover detection */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={Math.max(20, Number(edgeWidth) + 12)}
+        className="cursor-pointer pointer-events-stroke"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      />
+
+      {/* Directional animated arrow indicators along edge path when hovered */}
+      {isHovered && (
+        <g data-testid="edge-hover-animation" className="pointer-events-none">
+          {/* First arrow */}
+          <g>
+            <path
+              d="M -5 -4 L 5 0 L -5 4 Z"
+              fill={strokeColor}
+            >
+              <animateMotion
+                path={edgePath}
+                dur="2s"
+                repeatCount="indefinite"
+                rotate="auto"
+              />
+            </path>
+          </g>
+          {/* Second arrow offset by 1 second */}
+          <g>
+            <path
+              d="M -5 -4 L 5 0 L -5 4 Z"
+              fill={strokeColor}
+            >
+              <animateMotion
+                path={edgePath}
+                dur="2s"
+                begin="1s"
+                repeatCount="indefinite"
+                rotate="auto"
+              />
+            </path>
+          </g>
+        </g>
+      )}
 
       <EdgeLabelRenderer>
         <div
@@ -62,22 +121,32 @@ export default function CustomEdge(props: EdgeProps) {
               >
                 <AlertCircle size={16} />
               </button>
-              <div className="absolute bottom-full mb-2 hidden group-hover:block bg-slate-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-[4]">
+              <div
+                className={cn(
+                  'absolute bottom-full mb-2 hidden group-hover:block text-[10px] px-2 py-1 rounded whitespace-nowrap z-[4] shadow-md border',
+                  isDark
+                    ? 'bg-slate-900 text-slate-100 border-slate-700'
+                    : 'bg-white text-slate-800 border-slate-200'
+                )}
+              >
                 {alertTooltip}
               </div>
             </div>
           )}
 
           {selected && (
-            <div className="flex gap-1 bg-white dark:bg-slate-800 p-1.5 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
+            <div
+              data-testid={`edge-settings-panel-${id}`}
+              className={cn(
+                'flex gap-1 p-1.5 rounded-lg shadow-lg border transition-colors',
+                isDark
+                  ? 'bg-slate-900 text-slate-200 border-slate-700/80 shadow-black/40'
+                  : 'bg-white text-slate-800 border-slate-200 shadow-slate-300/50'
+              )}
+            >
               <button
                 type="button"
-                className={cn(
-                  'p-1 rounded transition-colors',
-                  isConfiguring
-                    ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                    : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'
-                )}
+                className={cn('p-1 rounded transition-colors', getSettingsButtonClass(isConfiguring, isDark))}
                 onClick={onSettings}
                 title="Settings"
               >
@@ -85,7 +154,10 @@ export default function CustomEdge(props: EdgeProps) {
               </button>
               <button
                 type="button"
-                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-500 transition-colors"
+                className={cn(
+                  'p-1 rounded text-red-500 transition-colors',
+                  isDark ? 'hover:bg-red-950/50' : 'hover:bg-red-100'
+                )}
                 onClick={onRemove}
                 title="Remove"
               >
