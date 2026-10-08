@@ -201,9 +201,12 @@ describe('createFlowSlice', () => {
     expect(validated.data.validationError).toBeDefined();
   });
 
-  it('onReconnect re-routes an existing edge', () => {
+  it('onReconnect re-routes an existing edge with valid node state', () => {
+    const n1 = { id: 'n1', type: 'Service', data: { label: 'svc1' } };
+    const n2 = { id: 'n2', type: 'Pod', data: { label: 'pod2' } };
+    const n3 = { id: 'n3', type: 'Pod', data: { label: 'pod3' } };
     const edge: Edge = { id: 'e1', source: 'n1', target: 'n2' };
-    useFlowStore.setState({ edges: [edge] });
+    useFlowStore.setState({ nodes: [n1, n2, n3] as any, edges: [edge] });
 
     useFlowStore.getState().onReconnect(edge, {
       source: 'n1',
@@ -214,6 +217,30 @@ describe('createFlowSlice', () => {
 
     const edges = useFlowStore.getState().edges;
     expect(edges[0].target).toBe('n3');
+  });
+
+  it('onConnect updates Ingress backendServiceName and Service selector on bidirectional linking', () => {
+    // 1. Ingress -> Service
+    const ing = { id: 'ing1', type: 'Ingress', data: { label: 'MyIngress' } };
+    const svc = { id: 'svc1', type: 'Service', data: { label: 'MyService', serviceType: 'ClusterIP' } };
+    useFlowStore.setState({ nodes: [ing, svc] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'ing1', target: 'svc1' });
+
+    let state = useFlowStore.getState();
+    const updatedIng = state.nodes.find((n) => n.id === 'ing1');
+    expect(updatedIng?.data.backendServiceName).toBe('MyService');
+
+    // 2. Service -> Workload (using baseName fallback)
+    const svc2 = { id: 'svc2', type: 'Service', data: { label: 'Svc2' } };
+    const podBase = { id: 'pod-base', type: 'Pod', data: { baseName: 'my-base-pod' } };
+    useFlowStore.setState({ nodes: [svc2, podBase] as any, edges: [] });
+
+    useFlowStore.getState().onConnect({ source: 'svc2', target: 'pod-base' });
+
+    state = useFlowStore.getState();
+    const updatedSvc2 = state.nodes.find((n) => n.id === 'svc2');
+    expect(updatedSvc2?.data.selector).toBe('my-base-pod');
   });
 
   it('onQuickConnect connects nodes in orthogonal directions (right, left, top, bottom) and logs action', () => {
