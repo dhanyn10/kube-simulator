@@ -128,6 +128,12 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
 
+  const isTerminalOpen = useFlowStore((state) => state.isTerminalOpen);
+  const isMonitoringDashboardOpen = useFlowStore((state) => state.isMonitoringDashboardOpen);
+  const isLogModalOpen = useFlowStore((state) => state.isLogModalOpen);
+  const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamWizardOpen);
+  const isTerminalCommandTreeModalOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
+
   const finalCanvasBgColor = getFinalCanvasBgColor(canvasBgColor, colorMode);
   const { defaultContextMenu, setDefaultContextMenu } = useGlobalContextMenu();
 
@@ -235,7 +241,27 @@ export default function App() {
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onNodesDelete={deleteNodes}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={
+              isFileBackstageOpen ||
+              isProjectOpen ||
+              isScenarioOpen ||
+              isAboutDialogOpen ||
+              isSettingsOpen ||
+              isSaveModalOpen ||
+              isYamlOpen ||
+              roleModalTargetNode !== null ||
+              configMapModalTargetNode !== null ||
+              secretModalTargetNode !== null ||
+              hpaModalTargetNode !== null ||
+              resourceLimitModalTargetNode !== null ||
+              isTerminalOpen ||
+              isMonitoringDashboardOpen ||
+              isLogModalOpen ||
+              isKubeIamWizardOpen ||
+              isTerminalCommandTreeModalOpen
+                ? null
+                : ['Backspace', 'Delete']
+            }
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={defaultEdgeOptions}

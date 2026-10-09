@@ -63,16 +63,7 @@ const findRoleTargetNode = (
     return areaA - areaB;
   });
 
-  let targetNode = sortedCandidates[0];
-
-  if (targetNode?.type === 'Pod' && targetNode.parentId) {
-    const parentDep = nodes.find((p) => p.id === targetNode.parentId && (p.type === 'Deployment' || p.type === 'ReplicaSet'));
-    if (parentDep) {
-      targetNode = parentDep;
-    }
-  }
-
-  return targetNode;
+  return sortedCandidates[0];
 };
 
 const computeFinalDropPosition = (

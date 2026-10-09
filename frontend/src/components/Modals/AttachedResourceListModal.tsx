@@ -131,7 +131,10 @@ export function AttachedResourceListModal<T extends BaseAttachedItem>({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDeleteItem(item.id, item.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteItem(item.id, item.name);
+                    }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
                     title={deleteTitle}
                   >
