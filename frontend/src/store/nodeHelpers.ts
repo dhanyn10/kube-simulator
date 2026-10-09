@@ -130,8 +130,9 @@ export const syncDeployment = (
 const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const data = deployment.data as K8sNodeData;
   const isReplicaSet = deployment.type === 'ReplicaSet';
-  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0);
-  const bottomPadding = hasAttached ? 40 : 36;
+  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0) ||
+                      laidOut.some(p => ((p.data?.roles?.length ?? 0) > 0 || (p.data?.configMaps?.length ?? 0) > 0 || (p.data?.secrets?.length ?? 0) > 0 || (p.data?.hpas?.length ?? 0) > 0 || (p.data?.resourceLimits?.length ?? 0) > 0));
+  const bottomPadding = hasAttached ? 48 : 40;
 
   const paddingX = 20;
   const headerHeight = isReplicaSet ? 30 : 40;
@@ -140,11 +141,13 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
 
   const maxPodX = Math.max(0, ...laidOut.map(p => {
     const minSize = getPodMinimumSize(p.data);
-    return (p.position.x || 0) + Math.max(p.width || 0, p.measured?.width || 0, minSize.width);
+    const podW = Math.max(p.width || 0, p.measured?.width || 0, minSize.width);
+    return (p.position.x || 0) + podW;
   }));
   const maxPodY = Math.max(0, ...laidOut.map(p => {
     const minSize = getPodMinimumSize(p.data);
-    return (p.position.y || 0) + Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height);
+    const podH = Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height);
+    return (p.position.y || 0) + podH;
   }));
   
   let depW = maxPodX + paddingX;

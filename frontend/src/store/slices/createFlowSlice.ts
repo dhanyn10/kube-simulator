@@ -20,6 +20,7 @@ import {
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 import { hasResourceLimitAttachedOrConnected } from '@/activities/nodes/resourceLimitHelpers';
 import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
+import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 
 export type QuickConnectDirection = 'top' | 'bottom' | 'left' | 'right';
 export type LayoutDirection = 'LR' | 'TB';
@@ -295,7 +296,33 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const extraChanges = getGroupDragExtraChanges(allowedChanges, nodes);
     set((state) => {
       const nextNodes = applyNodeChanges([...allowedChanges, ...extraChanges], state.nodes);
-      const syncedNodes = syncRoleRulesFromConnections(nextNodes, state.edges);
+
+      const hasDimensionChanges = allowedChanges.some((c) => c.type === 'dimensions');
+      let containerSyncedNodes = nextNodes;
+      if (hasDimensionChanges) {
+        const parentIds = new Set<string>();
+        allowedChanges.forEach((c) => {
+          if (c.type === 'dimensions' && c.id) {
+            const node = nextNodes.find((n) => n.id === c.id);
+            if (node?.parentId) parentIds.add(node.parentId);
+          }
+        });
+
+        if (parentIds.size > 0) {
+          parentIds.forEach((parentId) => {
+            const parent = containerSyncedNodes.find((n) => n.id === parentId);
+            if (parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet')) {
+              const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
+              const others = containerSyncedNodes.filter((n) => n.id !== parent.id && n.parentId !== parent.id);
+              containerSyncedNodes = [...others, updatedDeployment, ...laidOut];
+            } else if (parentId) {
+              containerSyncedNodes = syncContainerSize(parentId, containerSyncedNodes);
+            }
+          });
+        }
+      }
+
+      const syncedNodes = syncRoleRulesFromConnections(containerSyncedNodes, state.edges);
       return { nodes: syncedNodes };
     });
   },

@@ -21,7 +21,7 @@ export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, ba
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || ((data.replicas || 1) > 1 && !data.parentId));
   let height = 72;
   if (showDashedProgress) height += isMegaPod ? 120 : 14;
-  if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit)) height += 38;
+  if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit || data.cpuRequest || data.memoryRequest)) height += 38;
   if (data.displaySettings?.restartPolicy !== false && !!data.restartPolicy) height += 24;
   if (badges.length > 0) height += 20;
 
