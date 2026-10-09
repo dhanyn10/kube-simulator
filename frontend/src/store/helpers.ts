@@ -106,9 +106,9 @@ const updatePodNode = (
     ...existingPod,
     parentId: deploymentId,
     width,
-    height: undefined,
+    height: existingPod.height || minHeight,
     style: { width, minHeight },
-    measured: undefined,
+    measured: existingPod.measured || { width, height: minHeight },
     extent: 'parent',
     data: { 
       ...existingPod.data, 
@@ -138,9 +138,9 @@ const createPodNode = (
     position: { x: 0, y: 0 },
     parentId: deploymentId,
     width: minSize.width,
-    height: undefined,
+    height: minSize.height,
     style: { width: minSize.width, minHeight: minSize.height },
-    measured: undefined,
+    measured: { width: minSize.width, height: minSize.height },
     extent: 'parent',
     data: {
       type: 'Pod',
