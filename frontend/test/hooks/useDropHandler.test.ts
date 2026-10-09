@@ -611,7 +611,7 @@ describe('useDropHandler', () => {
       );
     });
 
-    it('handles target node label fallback to node id when label is missing, and resolves ReplicaSet parent for Pods', () => {
+    it('handles target node label fallback to node id when label is missing for Pods', () => {
       const rsParent = {
         id: 'rs1',
         type: 'ReplicaSet',
@@ -627,7 +627,7 @@ describe('useDropHandler', () => {
         position: { x: 10, y: 10 },
         width: 100,
         height: 50,
-        data: {}
+        data: { resourceLimits: ['rl1'] }
       };
 
       useFlowStore.setState({
@@ -650,8 +650,8 @@ describe('useDropHandler', () => {
       });
 
       expect(useFlowStore.getState().hpaModalTargetNode).toEqual({
-        id: 'rs1',
-        label: 'rs1'
+        id: 'pod1',
+        label: 'pod1'
       });
     });
 

@@ -113,6 +113,7 @@ const updatePodNode = (
     data: { 
       ...existingPod.data, 
       ...commonData, 
+      parentId: deploymentId,
       baseName,
       podHash,
       replicaSuffix,
@@ -144,6 +145,7 @@ const createPodNode = (
     extent: 'parent',
     data: {
       type: 'Pod',
+      parentId: deploymentId,
       replicas,
       parentReplicas: totalReplicas,
       ...commonData,
