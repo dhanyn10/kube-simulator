@@ -208,6 +208,115 @@ describe('nodeHelpers', () => {
       const { updatedDeployment: dep1000 } = syncDeployment(deployment, [deployment], 1200, get);
       expect(dep1000.data.replicas).toBe(1000);
     });
+
+    it('ensures deployment size is identical when child pod displaySettings toggles show/hide container image', () => {
+      const get = () => useFlowStore.getState();
+      const deployment = { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 1 } } as any;
+      const podShow = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        data: { label: 'pod-1', image: 'nginx:latest', displaySettings: { image: true } }
+      } as any;
+      const podHide = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        data: { label: 'pod-1', image: 'nginx:latest', displaySettings: { image: false } }
+      } as any;
+
+      const { updatedDeployment: depShow } = syncDeployment(deployment, [deployment, podShow], 0, get);
+      const { updatedDeployment: depHide } = syncDeployment(deployment, [deployment, podHide], 0, get);
+
+      expect(depHide.width).toEqual(depShow.width);
+      expect(depHide.height).toEqual(depShow.height);
+    });
+
+    it('integration test: toggling show/hide container image on pod inside deployment does not alter deployment dimensions in store', () => {
+      const initialDeployment = {
+        id: 'd1',
+        type: 'Deployment',
+        data: { label: 'my-app', replicas: 1, image: 'redis:alpine' }
+      } as any;
+
+      const initialPod = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        data: {
+          label: 'my-app-pod',
+          image: 'redis:alpine',
+          displaySettings: { image: true }
+        }
+      } as any;
+
+      const hydrated = hydrateNodes([initialDeployment, initialPod], () => useFlowStore.getState());
+      useFlowStore.setState({ nodes: hydrated });
+
+      const getDeployment = () => useFlowStore.getState().nodes.find(n => n.id === 'd1');
+
+      const initialDepWidth = getDeployment()?.width;
+      const initialDepHeight = getDeployment()?.height;
+
+      // Toggle to hide container image
+      useFlowStore.getState().updateNodeData('p1', {
+        displaySettings: { image: false }
+      });
+
+      const depAfterHide = getDeployment();
+      expect(depAfterHide?.width).toBe(initialDepWidth);
+      expect(depAfterHide?.height).toBe(initialDepHeight);
+
+      // Toggle back to show container image
+      useFlowStore.getState().updateNodeData('p1', {
+        displaySettings: { image: true }
+      });
+
+      const depAfterShow = getDeployment();
+      expect(depAfterShow?.width).toBe(initialDepWidth);
+      expect(depAfterShow?.height).toBe(initialDepHeight);
+    });
+
+    it('integration test: adding attached resources to pod dynamically expands deployment height, and removing them shrinks it', () => {
+      const initialDeployment = {
+        id: 'd1',
+        type: 'Deployment',
+        data: { label: 'my-app', replicas: 1 }
+      } as any;
+
+      const initialPod = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        data: {
+          label: 'my-app-pod',
+          image: 'redis:alpine',
+          roles: []
+        }
+      } as any;
+
+      const hydrated = hydrateNodes([initialDeployment, initialPod], () => useFlowStore.getState());
+      useFlowStore.setState({ nodes: hydrated });
+
+      const getDeployment = () => useFlowStore.getState().nodes.find(n => n.id === 'd1');
+      const baseDepHeight = getDeployment()?.height || 0;
+
+      // Add attached role item to pod
+      useFlowStore.getState().updateNodeData('p1', {
+        roles: [{ id: 'r1', name: 'app-role' }]
+      });
+
+      const depWithRole = getDeployment();
+      expect(depWithRole?.height).toBeGreaterThan(baseDepHeight);
+
+      // Remove attached role item from pod
+      useFlowStore.getState().updateNodeData('p1', {
+        roles: []
+      });
+
+      const depAfterRoleRemove = getDeployment();
+      expect(depAfterRoleRemove?.height).toBe(baseDepHeight);
+    });
   });
 
   describe('syncContainerSize', () => {

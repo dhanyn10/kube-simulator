@@ -95,10 +95,11 @@ const updatePodNode = (
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
-  const width = existingPod.data?.isManuallyResized
+  const isResized = Boolean(existingPod.data?.isManuallyResized);
+  const width = isResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
     : minSize.width;
-  const minHeight = existingPod.data?.isManuallyResized
+  const height = isResized
     ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, minSize.height)
     : minSize.height;
 
@@ -106,9 +107,9 @@ const updatePodNode = (
     ...existingPod,
     parentId: deploymentId,
     width,
-    height: existingPod.height || minHeight,
-    style: { width, minHeight },
-    measured: existingPod.measured || { width, height: minHeight },
+    height,
+    style: { width, minHeight: height },
+    measured: isResized ? (existingPod.measured || { width, height }) : { width, height },
     extent: 'parent',
     data: { 
       ...existingPod.data, 
@@ -231,15 +232,18 @@ interface PodLayoutState {
 }
 
 const getPodDimensions = (pod: Node) => {
-  const minSize = getPodMinimumSize(pod.data);
-  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
+  const showImageSize = getPodMinimumSize({
+    ...pod.data,
+    displaySettings: { ...pod.data?.displaySettings, image: true }
+  });
+  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, showImageSize.width);
   const podH = Math.max(
     pod.height || 0,
     pod.measured?.height || 0,
     Number((pod.style as any)?.minHeight) || 0,
-    minSize.height
+    showImageSize.height
   );
-  return { podW, podH, minHeight: minSize.height };
+  return { podW, podH, minHeight: showImageSize.height };
 };
 
 const getUpdatedLayoutPosition = (
