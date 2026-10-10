@@ -144,7 +144,10 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
       ...p.data,
       displaySettings: { ...p.data?.displaySettings, image: true }
     });
-    const podW = Math.max(p.width || 0, p.measured?.width || 0, showImageSize.width);
+    const isResized = Boolean(p.data?.isManuallyResized);
+    const podW = isResized
+      ? Math.max(p.width || 0, p.measured?.width || 0, showImageSize.width)
+      : showImageSize.width;
     return (p.position.x || 0) + podW;
   }));
   const maxPodY = Math.max(0, ...laidOut.map(p => {
@@ -152,7 +155,10 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
       ...p.data,
       displaySettings: { ...p.data?.displaySettings, image: true }
     });
-    const podH = Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, showImageSize.height);
+    const isResized = Boolean(p.data?.isManuallyResized);
+    const podH = isResized
+      ? Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, showImageSize.height)
+      : showImageSize.height;
     return (p.position.y || 0) + podH;
   }));
   
