@@ -231,15 +231,18 @@ interface PodLayoutState {
 }
 
 const getPodDimensions = (pod: Node) => {
-  const minSize = getPodMinimumSize(pod.data);
-  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
+  const showImageSize = getPodMinimumSize({
+    ...pod.data,
+    displaySettings: { ...pod.data?.displaySettings, image: true }
+  });
+  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, showImageSize.width);
   const podH = Math.max(
     pod.height || 0,
     pod.measured?.height || 0,
     Number((pod.style as any)?.minHeight) || 0,
-    minSize.height
+    showImageSize.height
   );
-  return { podW, podH, minHeight: minSize.height };
+  return { podW, podH, minHeight: showImageSize.height };
 };
 
 const getUpdatedLayoutPosition = (
