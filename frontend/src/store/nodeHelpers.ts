@@ -141,12 +141,18 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
 
   const maxPodX = Math.max(0, ...laidOut.map(p => {
     const minSize = getPodMinimumSize(p.data);
-    const podW = Math.max(p.width || 0, p.measured?.width || 0, minSize.width);
+    const isManuallyResized = Boolean(p.data?.isManuallyResized);
+    const podW = isManuallyResized
+      ? Math.max(p.width || 0, p.measured?.width || 0, minSize.width)
+      : minSize.width;
     return (p.position.x || 0) + podW;
   }));
   const maxPodY = Math.max(0, ...laidOut.map(p => {
     const minSize = getPodMinimumSize(p.data);
-    const podH = Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height);
+    const isManuallyResized = Boolean(p.data?.isManuallyResized);
+    const podH = isManuallyResized
+      ? Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height)
+      : minSize.height;
     return (p.position.y || 0) + podH;
   }));
   

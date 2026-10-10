@@ -208,6 +208,53 @@ describe('nodeHelpers', () => {
       const { updatedDeployment: dep1000 } = syncDeployment(deployment, [deployment], 1200, get);
       expect(dep1000.data.replicas).toBe(1000);
     });
+
+    it('adjusts Deployment dimensions responsively when container image visibility is toggled on a child Pod', () => {
+      const deployment: any = {
+        id: 'd1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: { label: 'web-deployment', replicas: 1, image: 'nginx:latest', restartPolicy: 'Always', displaySettings: { image: true } }
+      };
+      const pod: any = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        position: { x: 24, y: 48 },
+        data: { label: 'web-deployment-12345-abcde', replicas: 1, image: 'nginx:latest', restartPolicy: 'Always', displaySettings: { image: true } }
+      };
+
+      const get = () => useFlowStore.getState();
+
+      // 1. Initial sync with show image (image: true)
+      const { updatedDeployment: shownDeployment, laidOut: shownPods } = syncDeployment(deployment, [deployment, pod], 0, get);
+      const shownHeight = shownDeployment.height!;
+      const shownPodHeight = shownPods[0].height!;
+
+      // 2. Hide image (displaySettings.image = false)
+      const hiddenDeploymentNode = {
+        ...deployment,
+        data: { ...deployment.data, displaySettings: { image: false } }
+      };
+      const hiddenPodNode = {
+        ...pod,
+        data: { ...pod.data, displaySettings: { image: false } }
+      };
+
+      const { updatedDeployment: hiddenDeployment, laidOut: hiddenPods } = syncDeployment(hiddenDeploymentNode, [hiddenDeploymentNode, hiddenPodNode], 0, get);
+      const hiddenHeight = hiddenDeployment.height!;
+      const hiddenPodHeight = hiddenPods[0].height!;
+
+      // Pod height with hidden image should be smaller than with shown image
+      expect(hiddenPodHeight).toBeLessThan(shownPodHeight);
+      // Deployment height wrapping the hidden image Pod should be smaller than when image is shown
+      expect(hiddenHeight).toBeLessThan(shownHeight);
+
+      // 3. Toggle back to show image (image: true)
+      const { updatedDeployment: reshownDeployment, laidOut: reshownPods } = syncDeployment(deployment, [deployment, pod], 0, get);
+      expect(reshownPods[0].height).toBe(shownPodHeight);
+      expect(reshownDeployment.height).toBe(shownHeight);
+    });
   });
 
   describe('syncContainerSize', () => {

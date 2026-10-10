@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
+import { hydrateNodes } from '@/store/nodeHelpers';
 
 const initialAddLog = useFlowStore.getState().addLog;
 
@@ -467,5 +468,51 @@ describe('nodeActions', () => {
 
     // Verify canvas is now completely empty
     expect(useFlowStore.getState().nodes).toHaveLength(0);
+  });
+
+  it('updates Deployment container height responsively when updateNodeData toggles show/hide container image', () => {
+    const rawDep = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'app-dep', type: 'Deployment', replicas: 1, image: 'nginx:latest', restartPolicy: 'Always', displaySettings: { image: true } }
+    };
+    const rawPod = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 24, y: 48 },
+      data: { label: 'app-dep-abc12-xyz34', type: 'Pod', replicas: 1, image: 'nginx:latest', restartPolicy: 'Always', displaySettings: { image: true } }
+    };
+
+    const hydrated = hydrateNodes([rawDep, rawPod], () => useFlowStore.getState());
+    useFlowStore.setState({ nodes: hydrated });
+
+    // Initial state with image shown
+    let state = useFlowStore.getState();
+    const initialDep = state.nodes.find(n => n.id === 'dep1')!;
+    const initialPod = state.nodes.find(n => n.id === 'pod1')!;
+    const initialDepHeight = initialDep.height!;
+    const initialPodHeight = initialPod.height!;
+
+    // Toggle hide image via updateNodeData on pod
+    useFlowStore.getState().updateNodeData('pod1', { displaySettings: { image: false } });
+
+    state = useFlowStore.getState();
+    const hiddenDep = state.nodes.find(n => n.id === 'dep1')!;
+    const hiddenPod = state.nodes.find(n => n.id === 'pod1')!;
+
+    expect(hiddenPod.height!).toBeLessThan(initialPodHeight);
+    expect(hiddenDep.height!).toBeLessThan(initialDepHeight);
+
+    // Toggle show image back
+    useFlowStore.getState().updateNodeData('pod1', { displaySettings: { image: true } });
+
+    state = useFlowStore.getState();
+    const reshownDep = state.nodes.find(n => n.id === 'dep1')!;
+    const reshownPod = state.nodes.find(n => n.id === 'pod1')!;
+
+    expect(reshownPod.height!).toBe(initialPodHeight);
+    expect(reshownDep.height!).toBe(initialDepHeight);
   });
 });

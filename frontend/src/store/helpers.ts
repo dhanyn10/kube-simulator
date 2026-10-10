@@ -94,21 +94,22 @@ const updatePodNode = (
   params: PodNodeParams
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
+  const isManuallyResized = Boolean(existingPod.data?.isManuallyResized);
   const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
-  const width = existingPod.data?.isManuallyResized
+  const width = isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
     : minSize.width;
-  const minHeight = existingPod.data?.isManuallyResized
-    ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, minSize.height)
+  const height = isManuallyResized
+    ? Math.max(existingPod.height || 0, existingPod.measured?.height || 0, Number((existingPod.style as any)?.minHeight) || 0, minSize.height)
     : minSize.height;
 
   return {
     ...existingPod,
     parentId: deploymentId,
     width,
-    height: existingPod.height || minHeight,
-    style: { width, minHeight },
-    measured: existingPod.measured || { width, height: minHeight },
+    height,
+    style: { width, minHeight: height },
+    measured: { width, height },
     extent: 'parent',
     data: { 
       ...existingPod.data, 
@@ -232,13 +233,18 @@ interface PodLayoutState {
 
 const getPodDimensions = (pod: Node) => {
   const minSize = getPodMinimumSize(pod.data);
-  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
-  const podH = Math.max(
-    pod.height || 0,
-    pod.measured?.height || 0,
-    Number((pod.style as any)?.minHeight) || 0,
-    minSize.height
-  );
+  const isManuallyResized = Boolean(pod.data?.isManuallyResized);
+  const podW = isManuallyResized
+    ? Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width)
+    : minSize.width;
+  const podH = isManuallyResized
+    ? Math.max(
+        pod.height || 0,
+        pod.measured?.height || 0,
+        Number((pod.style as any)?.minHeight) || 0,
+        minSize.height
+      )
+    : minSize.height;
   return { podW, podH, minHeight: minSize.height };
 };
 
