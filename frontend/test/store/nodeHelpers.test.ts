@@ -210,6 +210,115 @@ describe('nodeHelpers', () => {
     });
   });
 
+  describe('Toggle Show / Hide Display Settings State Transitions', () => {
+    it('accurately expands on Show and shrinks to baseline dimensions on Hide without phantom whitespace', () => {
+      const get = () => useFlowStore.getState();
+
+      // 1. Initial State (Baseline): Default Pod with optional displaySettings hidden (false/off)
+      const baseDeployment = {
+        id: 'd1',
+        type: 'Deployment',
+        data: { label: 'my-app', replicas: 1 }
+      } as any;
+
+      const basePod = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        data: {
+          label: 'my-app-pod',
+          image: '',
+          restartPolicy: 'Always',
+          displaySettings: {
+            image: false,
+            restartPolicy: false,
+            resources: false,
+          }
+        }
+      } as any;
+
+      const { updatedDeployment: baselineDep } = syncDeployment(baseDeployment, [baseDeployment, basePod], 0, get);
+      const baselineHeight = baselineDep.height;
+      expect(baselineHeight).toBeGreaterThan(0);
+
+      // 2. Skenario Show: Toggle Container Image + Restart Policy + Resource Limits -> Auto-expand beyond deployment minHeight (180)
+      const showAllPod = {
+        ...basePod,
+        data: {
+          ...basePod.data,
+          image: 'docker.io/library/nginx:latest',
+          cpuLimit: '500m',
+          memoryLimit: '512Mi',
+          displaySettings: {
+            image: true,
+            restartPolicy: true,
+            resources: true,
+          }
+        }
+      };
+
+      const { updatedDeployment: expandedDep } = syncDeployment(baseDeployment, [baseDeployment, showAllPod], 0, get);
+      expect(expandedDep.height).toBeGreaterThan(baselineHeight);
+
+      // 3. Skenario Hide: Turn off display settings -> Auto-shrink
+      const hidePartialPod = {
+        ...showAllPod,
+        data: {
+          ...showAllPod.data,
+          displaySettings: {
+            image: true,
+            restartPolicy: false,
+            resources: false,
+          }
+        }
+      };
+
+      const { updatedDeployment: shrunkDep1 } = syncDeployment(baseDeployment, [baseDeployment, hidePartialPod], 0, get);
+      expect(shrunkDep1.height).toBeLessThan(expandedDep.height);
+
+      // Turn off Container Image -> Complete shrink back to exact baseline
+      const hideAllPod = {
+        ...hidePartialPod,
+        data: {
+          ...hidePartialPod.data,
+          image: '',
+          displaySettings: {
+            ...hidePartialPod.data.displaySettings,
+            image: false,
+          }
+        }
+      };
+
+      const { updatedDeployment: finalDep } = syncDeployment(baseDeployment, [baseDeployment, hideAllPod], 0, get);
+      expect(finalDep.height).toBe(baselineHeight);
+
+      // 4. Rapid Toggle State Transitions (Rapid Toggle Stress Test)
+      for (let i = 0; i < 20; i++) {
+        const toggleState = i % 2 === 0;
+        const testPod = {
+          ...basePod,
+          data: {
+            ...basePod.data,
+            image: toggleState ? 'docker.io/library/nginx:latest' : '',
+            cpuLimit: toggleState ? '500m' : undefined,
+            memoryLimit: toggleState ? '512Mi' : undefined,
+            displaySettings: {
+              image: toggleState,
+              restartPolicy: toggleState,
+              resources: toggleState,
+            }
+          }
+        };
+        const { updatedDeployment: stepDep } = syncDeployment(baseDeployment, [baseDeployment, testPod], 0, get);
+        if (toggleState) {
+          expect(stepDep.height).toBe(expandedDep.height);
+        } else {
+          expect(stepDep.height).toBe(baselineHeight);
+        }
+      }
+    });
+  });
+
   describe('syncContainerSize', () => {
     it('returns currentNodes if containerId or container or children are falsy/empty', () => {
       const nodes = [{ id: 'c1', type: 'Namespace', position: { x: 0, y: 0 } }] as any;
