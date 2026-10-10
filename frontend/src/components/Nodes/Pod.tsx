@@ -11,26 +11,27 @@ export const PodNode = memo((props: NodeProps) => {
 
   return (
     <BaseNode {...props} data={data} title="Pod" icon={Box} color="cyan" id={props.id} type={props.type}>
-      {data.displaySettings?.resources !== false && (!!data.cpuLimit || !!data.memoryLimit) && (
-        <div className="space-y-1 mt-1 pt-1 border-t border-slate-700/30">
-          {data.cpuLimit && (
+      {((data.displaySettings?.resources !== false && (!!data.cpuLimit || !!data.memoryLimit)) ||
+        (data.displaySettings?.restartPolicy !== false && !!data.restartPolicy)) && (
+        <div className="space-y-0.5">
+          {data.displaySettings?.resources !== false && data.cpuLimit && (
             <div className="flex justify-between items-center text-[9px] font-mono">
               <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>cpu:</span>
               <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.cpuLimit}</span>
             </div>
           )}
-          {data.memoryLimit && (
+          {data.displaySettings?.resources !== false && data.memoryLimit && (
             <div className="flex justify-between items-center text-[9px] font-mono">
               <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>mem:</span>
               <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.memoryLimit}</span>
             </div>
           )}
-        </div>
-      )}
-      {data.displaySettings?.restartPolicy !== false && !!data.restartPolicy && (
-        <div className="flex justify-between items-center text-[9px] font-mono mt-1 pt-1 border-t border-slate-700/30">
-          <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>restart:</span>
-          <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.restartPolicy}</span>
+          {data.displaySettings?.restartPolicy !== false && !!data.restartPolicy && (
+            <div className="flex justify-between items-center text-[9px] font-mono">
+              <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>restart:</span>
+              <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.restartPolicy}</span>
+            </div>
+          )}
         </div>
       )}
     </BaseNode>
