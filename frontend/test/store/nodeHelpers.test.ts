@@ -165,6 +165,44 @@ describe('nodeHelpers', () => {
       expect(hydrated.find(n => n.id === 'd-role-only')).toBeDefined();
       expect(hydrated.find(n => n.id === 'd-cm-only')).toBeDefined();
     });
+
+    it('expands deployment and replicaset height when child pods show container image, restart policy, or resource limits', () => {
+      const basicNodes = [
+        { id: 'dep-basic', type: 'Deployment', data: { label: 'dep-basic', replicas: 1, roles: [{ id: 'r1' }] } },
+        { id: 'pod-basic', type: 'Pod', parentId: 'dep-basic', data: { label: 'pod-basic', image: '' } },
+      ];
+      const expandedNodes = [
+        { id: 'dep-expanded', type: 'Deployment', data: { label: 'dep-expanded', replicas: 1, roles: [{ id: 'r1' }] } },
+        {
+          id: 'pod-expanded',
+          type: 'Pod',
+          parentId: 'dep-expanded',
+          data: {
+            label: 'pod-expanded',
+            image: 'docker.io/library/nginx:latest-long-tag-name-for-testing',
+            restartPolicy: 'Always',
+            cpuLimit: '500m',
+            memoryLimit: '512Mi',
+            displaySettings: { image: true, restartPolicy: true, resources: true }
+          }
+        },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydratedBasic = hydrateNodes(basicNodes, get);
+      const hydratedExpanded = hydrateNodes(expandedNodes, get);
+
+      const basicDep = hydratedBasic.find(n => n.id === 'dep-basic');
+      const expandedDep = hydratedExpanded.find(n => n.id === 'dep-expanded');
+
+      const basicPod = hydratedBasic.find(n => n.id.startsWith('pod-') || n.parentId === 'dep-basic');
+      const expandedPod = hydratedExpanded.find(n => n.id.startsWith('pod-') || n.parentId === 'dep-expanded');
+
+      expect(expandedPod.height).toBeGreaterThan(basicPod.height);
+      expect(expandedDep.height).toBeGreaterThan(basicDep.height);
+      // Ensure bottom margin is at least 56px above max child pod bottom position
+      expect(expandedDep.height).toBeGreaterThanOrEqual(expandedPod.position.y + expandedPod.height + 56);
+    });
   });
 
   describe('syncDeployment', () => {

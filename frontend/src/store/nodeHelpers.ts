@@ -132,7 +132,8 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const isReplicaSet = deployment.type === 'ReplicaSet';
   const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0) ||
                       laidOut.some(p => ((p.data?.roles?.length ?? 0) > 0 || (p.data?.configMaps?.length ?? 0) > 0 || (p.data?.secrets?.length ?? 0) > 0 || (p.data?.hpas?.length ?? 0) > 0 || (p.data?.resourceLimits?.length ?? 0) > 0));
-  const bottomPadding = hasAttached ? 48 : 40;
+  // Provide extra bottom margin when attached resource badges exist on Deployment/ReplicaSet or child Pods
+  const bottomPadding = hasAttached ? 56 : 40;
 
   const paddingX = 20;
   const headerHeight = isReplicaSet ? 30 : 40;
