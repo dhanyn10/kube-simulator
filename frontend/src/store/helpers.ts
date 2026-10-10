@@ -106,9 +106,9 @@ const updatePodNode = (
     ...existingPod,
     parentId: deploymentId,
     width,
-    height: existingPod.height || minHeight,
+    height: existingPod.data?.isManuallyResized ? existingPod.height : minHeight,
     style: { width, minHeight },
-    measured: existingPod.measured || { width, height: minHeight },
+    measured: existingPod.data?.isManuallyResized && existingPod.measured ? existingPod.measured : { width, height: minHeight },
     extent: 'parent',
     data: { 
       ...existingPod.data, 
@@ -233,12 +233,15 @@ interface PodLayoutState {
 const getPodDimensions = (pod: Node) => {
   const minSize = getPodMinimumSize(pod.data);
   const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
-  const podH = Math.max(
-    pod.height || 0,
-    pod.measured?.height || 0,
-    Number((pod.style as any)?.minHeight) || 0,
-    minSize.height
-  );
+  const isResized = Boolean(pod.data?.isManuallyResized);
+  const podH = isResized
+    ? Math.max(
+        pod.height || 0,
+        pod.measured?.height || 0,
+        Number((pod.style as any)?.minHeight) || 0,
+        minSize.height
+      )
+    : minSize.height;
   return { podW, podH, minHeight: minSize.height };
 };
 
