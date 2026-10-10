@@ -276,6 +276,47 @@ describe('nodeHelpers', () => {
       expect(depAfterShow?.width).toBe(initialDepWidth);
       expect(depAfterShow?.height).toBe(initialDepHeight);
     });
+
+    it('integration test: adding attached resources to pod dynamically expands deployment height, and removing them shrinks it', () => {
+      const initialDeployment = {
+        id: 'd1',
+        type: 'Deployment',
+        data: { label: 'my-app', replicas: 1 }
+      } as any;
+
+      const initialPod = {
+        id: 'p1',
+        type: 'Pod',
+        parentId: 'd1',
+        data: {
+          label: 'my-app-pod',
+          image: 'redis:alpine',
+          roles: []
+        }
+      } as any;
+
+      const hydrated = hydrateNodes([initialDeployment, initialPod], () => useFlowStore.getState());
+      useFlowStore.setState({ nodes: hydrated });
+
+      const getDeployment = () => useFlowStore.getState().nodes.find(n => n.id === 'd1');
+      const baseDepHeight = getDeployment()?.height || 0;
+
+      // Add attached role item to pod
+      useFlowStore.getState().updateNodeData('p1', {
+        roles: [{ id: 'r1', name: 'app-role' }]
+      });
+
+      const depWithRole = getDeployment();
+      expect(depWithRole?.height).toBeGreaterThan(baseDepHeight);
+
+      // Remove attached role item from pod
+      useFlowStore.getState().updateNodeData('p1', {
+        roles: []
+      });
+
+      const depAfterRoleRemove = getDeployment();
+      expect(depAfterRoleRemove?.height).toBe(baseDepHeight);
+    });
   });
 
   describe('syncContainerSize', () => {

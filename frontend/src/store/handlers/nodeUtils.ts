@@ -78,7 +78,7 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
         image: '',
         restartPolicy: 'Always',
         status: 'pending',
-        displaySettings: { image: true, resources: false },
+        displaySettings: { image: false, resources: false },
         yamlSettings: { image: true, resources: true }
       };
     case 'Deployment':
@@ -87,7 +87,7 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
         replicas: 0,
         image: '',
         status: 'pending',
-        displaySettings: { image: true, resources: false },
+        displaySettings: { image: false, resources: false },
         yamlSettings: { image: true, resources: true }
       };
     case 'Ingress':
