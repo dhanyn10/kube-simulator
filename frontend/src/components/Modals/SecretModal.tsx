@@ -89,6 +89,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
               value={secretName}
               onChange={(e) => setSecretName(e.target.value)}
               placeholder="e.g. app-secret"
+              maxLength={63}
               className={cn(
                 "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
                 colorMode === 'dark'

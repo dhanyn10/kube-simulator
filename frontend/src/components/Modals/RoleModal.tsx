@@ -117,6 +117,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
             value={roleName}
             onChange={(e) => setRoleName(e.target.value)}
             placeholder="e.g. app-reader-role"
+            maxLength={63}
             className={cn(
               "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 transition-all",
               colorMode === 'dark'

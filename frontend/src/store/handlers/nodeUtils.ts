@@ -10,6 +10,59 @@ import { formatPodName, sanitizeSlug } from '@/lib/utils';
  * @param get Store state getter function
  * @returns Object containing `onDelete` and `onRename` callback handlers
  */
+/**
+ * Ensures a resource name is unique for a given resource type (Kind) within a specific Namespace.
+ * Two resources with the same Kind in the same Namespace cannot share the exact same name.
+ * Resources with different Kinds in the same Namespace are allowed to have the same name.
+ *
+ * @param desiredName Desired resource name
+ * @param type K8s resource type (Kind)
+ * @param parentId Namespace parent ID (or undefined)
+ * @param currentNodes Current canvas nodes
+ * @param excludeNodeId Optional node ID to exclude (e.g. self during rename)
+ * @returns Unique resource name compliant with RFC 1123
+ */
+export const ensureUniqueResourceName = (
+  desiredName: string,
+  type: string,
+  parentId: string | undefined,
+  currentNodes: Node[],
+  excludeNodeId?: string
+): string => {
+  const sanitized = sanitizeSlug(desiredName) || `${type.toLowerCase()}`;
+
+  const existingNames = new Set(
+    currentNodes
+      .filter((n) => {
+        if (!n.type) return false;
+        if (excludeNodeId && (n.id === excludeNodeId || n.parentId === excludeNodeId)) return false;
+        if (n.type !== type) return false; // Different Kinds can share the same name!
+        const sameNamespace = (n.parentId || undefined) === (parentId || undefined);
+        return sameNamespace;
+      })
+      .map((n) => {
+        const data = n.data as K8sNodeData;
+        return (data?.baseName || data?.label || '').toLowerCase();
+      })
+  );
+
+  if (!existingNames.has(sanitized.toLowerCase())) {
+    return sanitized;
+  }
+
+  let counter = 1;
+  while (counter < 1000) {
+    const candidateBase = `${sanitized}-${counter}`;
+    const candidate = sanitizeSlug(candidateBase);
+    if (!existingNames.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+    counter++;
+  }
+
+  return sanitizeSlug(`${sanitized}-${Date.now().toString(36)}`);
+};
+
 export const createNodeHandlers = (id: string, get: () => FlowState) => ({
   onDelete: () => {
     const node = get().nodes.find((n: Node) => n.id === id);

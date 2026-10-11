@@ -95,19 +95,24 @@ func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 
 // sanitizeName formats node labels into valid DNS-1123 compliant Kubernetes resource names.
 func sanitizeName(label string) string {
-	res := strings.ReplaceAll(strings.ToLower(label), " ", "-")
+	res := strings.ReplaceAll(strings.ToLower(label), "_", "-")
+	res = strings.ReplaceAll(res, " ", "-")
 	// Kubernetes DNS-1123: only alphanumeric and '-'
 	f := func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
 			return r
 		}
-		return -1
+		return '-'
 	}
 	res = strings.Map(f, res)
+	for strings.Contains(res, "--") {
+		res = strings.ReplaceAll(res, "--", "-")
+	}
 	// Ensure it starts and ends with alphanumeric
 	res = strings.Trim(res, "-")
 	if len(res) > 63 {
 		res = res[:63]
+		res = strings.TrimRight(res, "-")
 	}
 	return res
 }

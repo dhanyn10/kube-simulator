@@ -1,30 +1,9 @@
 import yaml from 'js-yaml';
+import { sanitizeSlug } from './utils';
 
 const sanitizeName = (label: string): string => {
   if (!label) return '';
-  const lower = label.toLowerCase();
-  let result = '';
-  let prevDash = false;
-
-  for (const char of lower) {
-    const c = char === ' ' ? '-' : char;
-    const isAlphaNum = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
-    if (isAlphaNum) {
-      result += c;
-      prevDash = false;
-    } else if (c === '-') {
-      if (!prevDash && result.length > 0) {
-        result += '-';
-        prevDash = true;
-      }
-    }
-  }
-
-  while (result.endsWith('-')) {
-    result = result.slice(0, -1);
-  }
-
-  return result.slice(0, 63);
+  return sanitizeSlug(label);
 };
 
 const buildEdgeMaps = (edges: any[]) => {

@@ -88,6 +88,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
               value={podBaseName}
               onChange={(e: any) => updatePodBaseName(e.target.value)}
               placeholder="pod-name"
+              maxLength={63}
               colorMode={colorMode}
               className="font-mono w-full"
             />
@@ -135,6 +136,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
                 label: sanitizeSlug(e.target.value)
               })}
               placeholder="node-name"
+              maxLength={63}
               colorMode={colorMode}
               className="font-mono flex-1 min-w-0"
             />

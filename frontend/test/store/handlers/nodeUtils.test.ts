@@ -6,6 +6,7 @@ import {
   syncWorkloadMetadata,
   sanitizeResourceLimits,
   applyAutoImageLogic,
+  ensureUniqueResourceName,
 } from '@/store/handlers/nodeUtils';
 
 describe('nodeUtils', () => {
@@ -191,6 +192,35 @@ describe('nodeUtils', () => {
 
     const emptyData = sanitizeResourceLimits({});
     expect(emptyData).toEqual({});
+  });
+
+  describe('ensureUniqueResourceName', () => {
+    it('disallows duplicate names for the SAME Kind in the SAME Namespace', () => {
+      const nodes: any[] = [
+        { id: 's1', type: 'Service', parentId: 'ns1', data: { label: 'backend' } },
+      ];
+
+      const name = ensureUniqueResourceName('backend', 'Service', 'ns1', nodes);
+      expect(name).toBe('backend-1');
+    });
+
+    it('allows identical names for DIFFERENT Kinds in the SAME Namespace', () => {
+      const nodes: any[] = [
+        { id: 's1', type: 'Service', parentId: 'ns1', data: { label: 'backend' } },
+      ];
+
+      const name = ensureUniqueResourceName('backend', 'Deployment', 'ns1', nodes);
+      expect(name).toBe('backend');
+    });
+
+    it('allows identical names for the SAME Kind in DIFFERENT Namespaces', () => {
+      const nodes: any[] = [
+        { id: 's1', type: 'Service', parentId: 'ns1', data: { label: 'backend' } },
+      ];
+
+      const name = ensureUniqueResourceName('backend', 'Service', 'ns2', nodes);
+      expect(name).toBe('backend');
+    });
   });
 
   it('handles applyAutoImageLogic and syncWorkloadMetadata edge cases', () => {

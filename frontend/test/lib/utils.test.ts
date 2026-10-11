@@ -12,11 +12,27 @@ describe('utils', () => {
   });
 
   describe('sanitizeSlug', () => {
-    it('sanitizes input string into a clean slug', () => {
+    it('sanitizes input string into a clean slug according to RFC 1123', () => {
       expect(sanitizeSlug('Hello World!!')).toBe('hello-world');
-      expect(sanitizeSlug('   my___test--app   ')).toBe('my___test--app');
+      expect(sanitizeSlug('MyPod')).toBe('mypod');
+      expect(sanitizeSlug('my_service')).toBe('my-service');
+      expect(sanitizeSlug('-pod-a')).toBe('pod-a');
+      expect(sanitizeSlug('pod-')).toBe('pod');
+      expect(sanitizeSlug('   my___test--app   ')).toBe('my-test-app');
       expect(sanitizeSlug('Pod Name @ 123')).toBe('pod-name-123');
       expect(sanitizeSlug('!@#$%')).toBe('');
+    });
+
+    it('enforces maximum length of 63 characters without trailing hyphen', () => {
+      const longInput = 'a'.repeat(70);
+      const result = sanitizeSlug(longInput);
+      expect(result).toHaveLength(63);
+      expect(result).toBe('a'.repeat(63));
+
+      const longWithTrailingDashAt63 = 'a'.repeat(62) + '_b_c_d_e';
+      const result2 = sanitizeSlug(longWithTrailingDashAt63);
+      expect(result2.length).toBeLessThanOrEqual(63);
+      expect(result2.endsWith('-')).toBe(false);
     });
   });
 
