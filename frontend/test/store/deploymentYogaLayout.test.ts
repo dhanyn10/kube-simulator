@@ -150,6 +150,54 @@ describe('deploymentYogaLayout', () => {
     expect(gap23).toBe(20);
   });
 
+  it('dynamically expands pod height when footer attached components grow without clipping margin to pod below', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 2, label: 'app' },
+    };
+
+    const pod1NoAttached: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, roles: [] },
+    };
+
+    const pod2: Node = {
+      id: 'pod2',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+
+    const initialLayout = calculateDeploymentLayoutWithYoga(deployment, [pod1NoAttached, pod2], yoga);
+    const p1InitialH = initialLayout.laidOutPods[0].height || 0;
+    const p2InitialY = initialLayout.laidOutPods[1].position.y;
+
+    // Add multiple attached roles to pod 1 footer
+    const pod1WithAttached: Node = {
+      ...pod1NoAttached,
+      data: {
+        ...pod1NoAttached.data,
+        roles: [{ id: 'r1', name: 'role-1' }, { id: 'r2', name: 'role-2' }],
+      },
+    };
+
+    const updatedLayout = calculateDeploymentLayoutWithYoga(deployment, [pod1WithAttached, pod2], yoga);
+    const p1ExpandedH = updatedLayout.laidOutPods[0].height || 0;
+    const p2ExpandedY = updatedLayout.laidOutPods[1].position.y;
+
+    expect(p1ExpandedH).toBeGreaterThan(p1InitialH);
+    expect(p2ExpandedY).toBeGreaterThan(p2InitialY);
+
+    const gapAfterFooterExpansion = p2ExpandedY - (updatedLayout.laidOutPods[0].position.y + p1ExpandedH);
+    expect(gapAfterFooterExpansion).toBe(20);
+  });
+
   it('handles fallback layout calculation when yoga instance is null', () => {
     const deployment: Node = {
       id: 'dep1',

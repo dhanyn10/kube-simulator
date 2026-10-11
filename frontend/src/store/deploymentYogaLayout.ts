@@ -44,6 +44,7 @@ export const getYogaInstanceSync = (): YogaEngine | null => {
  * Calculates internal sub-tree layout for Deployment node and its child Pods using Yoga Flexbox Layout Engine.
  * Builds Yoga tree hierarchy (Deployment Container -> Pods -> Pod Content -> Footer) with column flex direction,
  * computing precise coordinates and auto-collapsing empty gaps when container image content is toggled.
+ * Uses flexible auto-height (`setHeightAuto`) and dynamic minimum height (`setMinHeight`) instead of rigid fixed height.
  * Standardizes margin-bottom spacing between adjacent pods with a uniform value.
  *
  * @param deployment - Parent Deployment canvas node.
@@ -145,12 +146,12 @@ export const calculateDeploymentLayoutWithYoga = (
     const baseHeight = calculatePodBaseHeight(podData, podWidth, visibleBadges, isMegaPod);
     const contentHeight = calculatePodContentHeight(podData, podWidth);
     const attachedHeight = calculatePodAttachedHeight(podData);
-    const totalPodHeight = baseHeight + contentHeight + attachedHeight;
 
     const podYogaNode = yoga.Node.create();
     podYogaNode.setFlexDirection(yoga.FLEX_DIRECTION_COLUMN);
     podYogaNode.setWidth(podWidth);
-    podYogaNode.setHeight(totalPodHeight);
+    podYogaNode.setHeightAuto();
+    podYogaNode.setMinHeight(minSize.height);
 
     const podSpacing = getPodSpacing(isMegaPod);
     const isLastPod = idx === pods.length - 1;
@@ -159,18 +160,18 @@ export const calculateDeploymentLayoutWithYoga = (
     // Sub-tree child nodes (Pod Base, Pod Content/Image, Pod Attached Footer)
     const baseYogaNode = yoga.Node.create();
     baseYogaNode.setWidth(podWidth);
-    baseYogaNode.setHeight(baseHeight);
+    baseYogaNode.setMinHeight(baseHeight);
     podYogaNode.insertChild(baseYogaNode, 0);
 
     const contentYogaNode = yoga.Node.create();
     contentYogaNode.setWidth(podWidth);
-    contentYogaNode.setHeight(contentHeight);
+    contentYogaNode.setMinHeight(contentHeight);
     podYogaNode.insertChild(contentYogaNode, 1);
 
     if (attachedHeight > 0) {
       const attachedYogaNode = yoga.Node.create();
       attachedYogaNode.setWidth(podWidth);
-      attachedYogaNode.setHeight(attachedHeight);
+      attachedYogaNode.setMinHeight(attachedHeight);
       podYogaNode.insertChild(attachedYogaNode, 2);
     }
 

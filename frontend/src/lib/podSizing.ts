@@ -37,8 +37,15 @@ export const calculatePodContentHeight = (data: Partial<K8sNodeData>, width: num
 };
 
 export const calculatePodAttachedHeight = (data: Partial<K8sNodeData>) => {
-  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0);
-  return hasAttached ? 28 : 0;
+  const rolesCount = data.roles?.length ?? 0;
+  const configMapsCount = data.configMaps?.length ?? 0;
+  const secretsCount = data.secrets?.length ?? 0;
+  const hpasCount = data.hpas?.length ?? 0;
+  const resourceLimitsCount = data.resourceLimits?.length ?? 0;
+  const totalAttached = rolesCount + configMapsCount + secretsCount + hpasCount + resourceLimitsCount;
+  if (totalAttached === 0) return 0;
+  const rows = Math.max(1, Math.ceil(totalAttached / 3));
+  return rows * 28;
 };
 
 export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, badges: string[], isMegaPod: boolean) => {
