@@ -18,7 +18,7 @@ describe('nodeBadgeHelpers', () => {
     });
   });
 
-  it('evaluates runtime, webserver, and image visibility correctly for Pods', () => {
+  it('evaluates runtime and webserver visibility correctly for Pods while excluding redundant image badge', () => {
     const podData = {
       type: 'Pod',
       runtime: 'nodejs',
@@ -30,7 +30,7 @@ describe('nodeBadgeHelpers', () => {
     const result = getPodBadgeVisibility(podData);
     expect(result.showRuntime).toBe(true);
     expect(result.showWebserver).toBe(true);
-    expect(result.showImage).toBe(true);
+    expect(result.showImage).toBe(false);
     expect(result.hasAnyBadge).toBe(true);
   });
 });
