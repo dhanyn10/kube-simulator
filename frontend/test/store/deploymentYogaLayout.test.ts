@@ -5,10 +5,10 @@ import {
   getYogaEngine,
   getYogaInstanceSync
 } from '@/store/deploymentYogaLayout';
-import type { Yoga } from 'yoga-layout';
+import type { YogaEngine } from '@/store/deploymentYogaLayout';
 
 describe('deploymentYogaLayout', () => {
-  let yoga: Yoga;
+  let yoga: YogaEngine;
 
   beforeAll(async () => {
     yoga = await getYogaEngine();
@@ -36,7 +36,7 @@ describe('deploymentYogaLayout', () => {
       type: 'Pod',
       parentId: 'dep1',
       position: { x: 0, y: 0 },
-      data: { replicas: 1, image: '' },
+      data: { replicas: 1, image: 'nginx:latest' },
     };
 
     const layoutWithPod = calculateDeploymentLayoutWithYoga(deployment, [pod1], yoga);
@@ -124,6 +124,30 @@ describe('deploymentYogaLayout', () => {
     const layoutAfterRemove = calculateDeploymentLayoutWithYoga(deployment, [], yoga);
     expect(layoutAfterRemove.laidOutPods).toHaveLength(0);
     expect(layoutAfterRemove.height).toBeLessThan(layoutWithPod.height);
+  });
+
+  it('ensures uniform margin bottom spacing between adjacent pods', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 3, label: 'multi-pod' },
+    };
+
+    const pod1: Node = { id: 'p1', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { replicas: 1 } };
+    const pod2: Node = { id: 'p2', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { replicas: 1 } };
+    const pod3: Node = { id: 'p3', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { replicas: 1 } };
+
+    const result = calculateDeploymentLayoutWithYoga(deployment, [pod1, pod2, pod3], yoga);
+    const p1 = result.laidOutPods[0];
+    const p2 = result.laidOutPods[1];
+    const p3 = result.laidOutPods[2];
+
+    const gap12 = p2.position.y - (p1.position.y + (p1.height || 0));
+    const gap23 = p3.position.y - (p2.position.y + (p2.height || 0));
+
+    expect(gap12).toBe(20);
+    expect(gap23).toBe(20);
   });
 
   it('handles fallback layout calculation when yoga instance is null', () => {

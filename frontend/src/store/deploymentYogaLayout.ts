@@ -44,6 +44,7 @@ export const getYogaInstanceSync = (): YogaEngine | null => {
  * Calculates internal sub-tree layout for Deployment node and its child Pods using Yoga Flexbox Layout Engine.
  * Builds Yoga tree hierarchy (Deployment Container -> Pods -> Pod Content -> Footer) with column flex direction,
  * computing precise coordinates and auto-collapsing empty gaps when container image content is toggled.
+ * Standardizes margin-bottom spacing between adjacent pods with a uniform value.
  *
  * @param deployment - Parent Deployment canvas node.
  * @param pods - Array of child Pod canvas nodes.
@@ -83,7 +84,7 @@ export const calculateDeploymentLayoutWithYoga = (
   // Fallback calculation if Yoga engine is not yet available synchronously
   if (!yoga) {
     let currentY = paddingY;
-    const laidOutPods = pods.map(pod => {
+    const laidOutPods = pods.map((pod, idx) => {
       const podData = (pod.data as unknown as K8sNodeData) || ({} as K8sNodeData);
       const minSize = getPodMinimumSize(podData);
       const podW = podData.isManuallyResized
@@ -93,7 +94,8 @@ export const calculateDeploymentLayoutWithYoga = (
       const podH = minSize.height;
 
       const pos = { x: paddingX, y: currentY };
-      const spacing = getPodSpacing(isMegaPod);
+      const isLastPod = idx === pods.length - 1;
+      const spacing = isLastPod ? 0 : getPodSpacing(isMegaPod);
       currentY += podH + spacing;
 
       return {
@@ -151,7 +153,8 @@ export const calculateDeploymentLayoutWithYoga = (
     podYogaNode.setHeight(totalPodHeight);
 
     const podSpacing = getPodSpacing(isMegaPod);
-    podYogaNode.setMargin(yoga.EDGE_BOTTOM, podSpacing);
+    const isLastPod = idx === pods.length - 1;
+    podYogaNode.setMargin(yoga.EDGE_BOTTOM, isLastPod ? 0 : podSpacing);
 
     // Sub-tree child nodes (Pod Base, Pod Content/Image, Pod Attached Footer)
     const baseYogaNode = yoga.Node.create();
