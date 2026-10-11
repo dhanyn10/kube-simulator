@@ -362,6 +362,45 @@ const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) 
   return sortNodes(nodes);
 };
 
+/**
+ * Calculates initial card size based on resource node type.
+ */
+const getInitialCardSize = (type: K8sResourceType, initialData: K8sNodeData): { width: number; height: number } => {
+  if (type === 'Namespace') {
+    return { width: 600, height: 400 };
+  }
+  if (type === 'Deployment' || type === 'ReplicaSet') {
+    return { width: 320, height: 160 };
+  }
+  return calculateCardLayoutWithYoga({ type, data: initialData });
+};
+
+/**
+ * Computes updated dimension properties for a node after data change.
+ */
+const computeNodeDimensions = (
+  target: Node,
+  updatedData: K8sNodeData
+): Partial<Node> => {
+  const isContainerOrNamespace = target.type === 'Namespace' || target.type === 'Deployment' || target.type === 'ReplicaSet';
+
+  if (!isContainerOrNamespace) {
+    const cardLayout = calculateCardLayoutWithYoga({
+      type: target.type,
+      width: target.width,
+      height: target.height,
+      data: updatedData,
+    });
+    return {
+      width: cardLayout.width,
+      height: cardLayout.height,
+      style: { ...target.style, width: cardLayout.width, height: cardLayout.height },
+    };
+  }
+
+  return {};
+};
+
 // -- ACTION IMPLEMENTATIONS --
 
 /**
@@ -391,11 +430,7 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
     initialData.baseName = uniqueLabel;
   }
 
-  const cardSize = type === 'Namespace'
-    ? { width: 600, height: 400 }
-    : (type === 'Deployment' || type === 'ReplicaSet'
-      ? { width: 320, height: 160 }
-      : calculateCardLayoutWithYoga({ type, data: initialData }));
+  const cardSize = getInitialCardSize(type, initialData);
 
   const newNode: Node = {
     id, type, position: finalPos, parentId: targetParentId,
@@ -563,20 +598,12 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   updatedData = sanitizeAndUpdateServiceSelector(target, newData, updatedData, nodes);
   updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
-  const cardLayout = target.type !== 'Namespace' && target.type !== 'Deployment' && target.type !== 'ReplicaSet'
-    ? calculateCardLayoutWithYoga({ type: target.type, width: target.width, height: target.height, data: updatedData })
-    : null;
+  const dimProps = computeNodeDimensions(target, updatedData);
 
   const updatedNode: Node = {
     ...target,
     data: updatedData,
-    ...(cardLayout ? {
-      width: cardLayout.width,
-      height: cardLayout.height,
-      style: { ...target.style, width: cardLayout.width, height: cardLayout.height }
-    } : (target.type !== 'Deployment' && target.type !== 'Namespace' ? {
-      width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
-    } : {}))
+    ...dimProps
   };
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
