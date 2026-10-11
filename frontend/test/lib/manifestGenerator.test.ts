@@ -262,7 +262,7 @@ describe('manifestGenerator test suite', () => {
     const yamlOutput = generateYamlClientSide(nodes, []);
     expect(yamlOutput).toContain('kind: Pod');
     // Name should be sanitized and sliced to 63 chars
-    expect(yamlOutput).toContain('name: complex-label-');
+    expect(yamlOutput).toContain('name: complex-label-a');
   });
 
   it('covers service selector resolution via outgoing edges and nodePort disabling via yamlSettings', () => {

@@ -93,6 +93,7 @@ export const ResourceLimitModal: React.FC<ResourceLimitModalProps> = ({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. app-resource-limit"
+            maxLength={63}
             className={cn(
               "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-purple-500/50 transition-all",
               colorMode === 'dark'

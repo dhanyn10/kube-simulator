@@ -50,18 +50,22 @@ export const sanitizeSlug = (input: string): string => {
   const lowerInput = input.toLowerCase();
   for (const ch of lowerInput) {
     const code = ch.codePointAt(0);
-    const isValid = code !== undefined && ((code >= 97 && code <= 122) || (code >= 48 && code <= 57) || code === 95 || code === 45);
+    const isAlphaNum = code !== undefined && ((code >= 97 && code <= 122) || (code >= 48 && code <= 57));
 
-    if (isValid) {
+    if (isAlphaNum) {
       result += ch;
-      lastWasDash = ch === '-';
+      lastWasDash = false;
     } else if (!lastWasDash && result.length > 0) {
       result += '-';
       lastWasDash = true;
     }
   }
 
-  return trimDashes(result);
+  let cleaned = trimDashes(result);
+  if (cleaned.length > 63) {
+    cleaned = trimDashes(cleaned.slice(0, 63));
+  }
+  return cleaned;
 };
 
 /**

@@ -12,7 +12,7 @@ func TestSanitizeName(t *testing.T) {
 		expected string
 	}{
 		{"My Name", "my-name"},
-		{"My_Name@123!", "myname123"},
+		{"My_Name@123!", "my-name-123"},
 		{"-Start-End-", "start-end"},
 		{"Very" + strings.Repeat("Long", 20), "verylonglonglonglonglonglonglonglonglonglonglonglonglonglonglon"}, // Test length limit
 	}

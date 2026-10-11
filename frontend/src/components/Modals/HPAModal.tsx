@@ -89,6 +89,7 @@ export const HPAModal: React.FC<HPAModalProps> = ({
             value={hpaName}
             onChange={(e) => setHpaName(e.target.value)}
             placeholder="e.g. app-hpa"
+            maxLength={63}
             className={cn(
               "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-fuchsia-500/50 transition-all",
               colorMode === 'dark'
