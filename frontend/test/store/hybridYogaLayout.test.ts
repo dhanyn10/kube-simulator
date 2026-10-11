@@ -95,15 +95,34 @@ describe('Hybrid Yoga Layout Engine (Card/Node Layer)', () => {
         roles: [{ id: 'r1', name: 'role' }]
       }
     };
+    const internetNode = { type: 'Internet', data: { label: 'internet' } };
+    const pvcNode = { type: 'PVC', width: 250, height: 150, data: { label: 'pvc-data', isManuallyResized: true } };
 
     const serviceLayout = calculateCardLayoutWithYoga(serviceNode, yoga);
     const ingressLayout = calculateCardLayoutWithYoga(ingressNode, yoga);
     const configMapLayout = calculateCardLayoutWithYoga(configMapNode, yoga);
+    const internetLayout = calculateCardLayoutWithYoga(internetNode, yoga);
+    const pvcLayout = calculateCardLayoutWithYoga(pvcNode, yoga);
 
     expect(serviceLayout.width).toBeGreaterThan(0);
     expect(serviceLayout.height).toBeGreaterThan(0);
     expect(ingressLayout.width).toBeGreaterThan(serviceLayout.width);
     expect(configMapLayout.height).toBeGreaterThan(80);
+    expect(internetLayout.width).toBeGreaterThanOrEqual(140);
+    expect(pvcLayout.width).toBe(250);
+    expect(pvcLayout.height).toBe(150);
+  });
+
+  it('calculates fallback card layout when yoga is null or unavailable', () => {
+    const serviceNode = {
+      type: 'Service',
+      width: 220,
+      height: 120,
+      data: { label: 'fallback-svc', isManuallyResized: true }
+    };
+    const layout = calculateCardLayoutWithYoga(serviceNode, null);
+    expect(layout.width).toBe(220);
+    expect(layout.height).toBe(120);
   });
 
   it('synchronizes attached items across sibling pod cards in the same pod group', () => {
