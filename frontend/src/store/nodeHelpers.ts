@@ -1,5 +1,4 @@
 import { Node } from '@xyflow/react';
-import { K8sNodeData } from '@/types';
 import type { FlowState } from '@/store/types';
 import { 
   getNodeData, 
@@ -7,8 +6,9 @@ import {
   layoutPodsInDeployment, 
   resolveGlobalCollisions
 } from '@/store/helpers';
-import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
+import { getPodMinimumSize } from '@/lib/podSizing';
 import { syncWorkloadMetadata, getInitialData, createNodeHandlers } from '@/store/handlers/nodeUtils';
+import { calculateDeploymentLayoutWithYoga } from './deploymentYogaLayout';
 
 export const attachHandlers = createNodeHandlers;
 
@@ -128,40 +128,8 @@ export const syncDeployment = (
 };
 
 const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
-  const data = deployment.data as K8sNodeData;
-  const isReplicaSet = deployment.type === 'ReplicaSet';
-  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0) ||
-                      laidOut.some(p => ((p.data?.roles?.length ?? 0) > 0 || (p.data?.configMaps?.length ?? 0) > 0 || (p.data?.secrets?.length ?? 0) > 0 || (p.data?.hpas?.length ?? 0) > 0 || (p.data?.resourceLimits?.length ?? 0) > 0));
-  const bottomPadding = hasAttached ? 48 : 40;
-
-  const paddingX = 20;
-  const headerHeight = isReplicaSet ? 30 : 40;
-  const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
-  const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + bottomPadding);
-
-  const maxPodX = Math.max(0, ...laidOut.map(p => {
-    const minSize = getPodMinimumSize(p.data);
-    const podW = Math.max(p.width || 0, p.measured?.width || 0, minSize.width);
-    return (p.position.x || 0) + podW;
-  }));
-  const maxPodY = Math.max(0, ...laidOut.map(p => {
-    const minSize = getPodMinimumSize(p.data);
-    const podH = Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height);
-    return (p.position.y || 0) + podH;
-  }));
-  
-  let depW = maxPodX + paddingX;
-  let depH = maxPodY + bottomPadding;
-
-  if (data.isManuallyResized) {
-      depW = Math.max(depW, deployment.width || minWidth);
-      depH = Math.max(depH, deployment.height || minHeight);
-  } else {
-      depW = Math.max(minWidth, depW);
-      depH = Math.max(minHeight, depH);
-  }
-
-  return { width: depW, height: depH };
+  const result = calculateDeploymentLayoutWithYoga(deployment, laidOut);
+  return { width: result.width, height: result.height };
 };
 
 const computeChildrenBounds = (children: Node[], container: Node, padding: number) => {
