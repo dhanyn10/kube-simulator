@@ -94,7 +94,17 @@ const updatePodNode = (
   params: PodNodeParams
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
-  const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
+  const podDataForSizing = {
+    ...existingPod.data,
+    ...commonData,
+    replicas,
+    displaySettings: {
+      ...existingPod.data?.displaySettings,
+      ...commonData?.displaySettings,
+      image: true
+    }
+  };
+  const minSize = getPodMinimumSize(podDataForSizing);
   const isResized = Boolean(existingPod.data?.isManuallyResized);
   const width = isResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
@@ -133,7 +143,15 @@ const createPodNode = (
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
-  const minSize = getPodMinimumSize({ ...commonData, replicas });
+  const podDataForSizing = {
+    ...commonData,
+    replicas,
+    displaySettings: {
+      ...commonData?.displaySettings,
+      image: true
+    }
+  };
+  const minSize = getPodMinimumSize(podDataForSizing);
   return {
     id,
     type: 'Pod',
@@ -321,14 +339,17 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
     );
     state = nextState;
 
+    const isResized = Boolean(pod.data?.isManuallyResized);
     return {
       ...pod,
       width: podW,
+      height: podH,
       style: {
         ...pod.style,
         width: podW,
         minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minHeight),
       },
+      measured: isResized ? pod.measured : { width: podW, height: podH },
       position: pos,
     };
   });
