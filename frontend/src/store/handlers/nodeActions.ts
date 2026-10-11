@@ -9,6 +9,7 @@ import {
   resolveGlobalCollisions
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { calculateCardLayoutWithYoga } from '@/store/deploymentYogaLayout';
 import {
   getInitialData,
   sanitizeResourceLimits,
@@ -336,12 +337,20 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
   const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 };
 
+  const initialData = getInitialData(type, id, get);
+  const cardSize = type === 'Namespace'
+    ? { width: 600, height: 400 }
+    : (type === 'Deployment' || type === 'ReplicaSet'
+      ? { width: 320, height: 160 }
+      : calculateCardLayoutWithYoga({ type, data: initialData }));
+
   const newNode: Node = {
     id, type, position: finalPos, parentId: targetParentId,
     extent: targetParentId ? 'parent' : undefined,
-    data: getInitialData(type, id, get),
-    ...(type === 'Deployment' ? { width: 320, height: 160, style: { width: 320, height: 160 } } : {}),
-    ...(type === 'Namespace' ? { width: 600, height: 400, style: { width: 600, height: 400 } } : {}),
+    data: initialData,
+    width: cardSize.width,
+    height: cardSize.height,
+    style: { width: cardSize.width, height: cardSize.height }
   };
 
   const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
@@ -486,12 +495,20 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   updatedData = sanitizeAndUpdateServiceSelector(target, newData, updatedData, nodes);
   updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
+  const cardLayout = target.type !== 'Namespace' && target.type !== 'Deployment' && target.type !== 'ReplicaSet'
+    ? calculateCardLayoutWithYoga({ type: target.type, width: target.width, height: target.height, data: updatedData })
+    : null;
+
   const updatedNode: Node = {
     ...target,
     data: updatedData,
-    ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
+    ...(cardLayout ? {
+      width: cardLayout.width,
+      height: cardLayout.height,
+      style: { ...target.style, width: cardLayout.width, height: cardLayout.height }
+    } : (target.type !== 'Deployment' && target.type !== 'Namespace' ? {
       width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
-    } : {})
+    } : {}))
   };
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
