@@ -148,19 +148,22 @@ const buildPodYogaSubTree = (
   return podYogaNode;
 };
 
+export interface FallbackLayoutConfig {
+  pods: Node[];
+  paddingX: number;
+  paddingY: number;
+  bottomPadding: number;
+  minHeight: number;
+  deploymentWidth: number;
+  data: K8sNodeData;
+  deployment: Node;
+}
+
 /**
  * Fallback layout calculation when Yoga engine instance is not available synchronously.
  */
-const calculateFallbackLayout = (
-  pods: Node[],
-  paddingX: number,
-  paddingY: number,
-  bottomPadding: number,
-  minHeight: number,
-  deploymentWidth: number,
-  data: K8sNodeData,
-  deployment: Node
-) => {
+const calculateFallbackLayout = (config: FallbackLayoutConfig) => {
+  const { pods, paddingX, paddingY, bottomPadding, minHeight, deploymentWidth, data, deployment } = config;
   let currentY = paddingY;
   const laidOutPods = pods.map((pod, idx) => {
     const podData = (pod.data as unknown as K8sNodeData) || ({} as K8sNodeData);
@@ -232,7 +235,16 @@ export const calculateDeploymentLayoutWithYoga = (
   }
 
   if (!yoga) {
-    return calculateFallbackLayout(pods, paddingX, paddingY, bottomPadding, minHeight, deploymentWidth, data, deployment);
+    return calculateFallbackLayout({
+      pods,
+      paddingX,
+      paddingY,
+      bottomPadding,
+      minHeight,
+      deploymentWidth,
+      data,
+      deployment,
+    });
   }
 
   const rootNode = yoga.Node.create();
