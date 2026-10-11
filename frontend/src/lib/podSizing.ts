@@ -19,8 +19,8 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
 
 export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || ((data.replicas || 1) > 1 && !data.parentId));
-  let height = 72;
-  if (showDashedProgress) height += isMegaPod ? 120 : 14;
+  let height = 80;
+  if (showDashedProgress) height += isMegaPod ? 120 : 16;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit || data.cpuRequest || data.memoryRequest)) height += 38;
   if (data.displaySettings?.restartPolicy !== false && !!data.restartPolicy) height += 24;
   if (badges.length > 0) height += 20;
@@ -45,7 +45,7 @@ export const calculatePodAttachedHeight = (data: Partial<K8sNodeData>) => {
   const totalAttached = rolesCount + configMapsCount + secretsCount + hpasCount + resourceLimitsCount;
   if (totalAttached === 0) return 0;
   const rows = Math.max(1, Math.ceil(totalAttached / 3));
-  return rows * 28;
+  return rows * 32;
 };
 
 export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, badges: string[], isMegaPod: boolean) => {

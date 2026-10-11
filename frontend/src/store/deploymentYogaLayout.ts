@@ -5,6 +5,7 @@ import {
   getPodMinimumSize,
   calculatePodBaseHeight,
   calculatePodContentHeight,
+  calculatePodAttachedHeight,
   POD_MIN_DIMENSIONS
 } from '@/lib/podSizing';
 import { getPodSpacing } from './layoutHelpers';
@@ -61,13 +62,18 @@ export const calculateDeploymentLayoutWithYoga = (
   const data = (deployment.data as unknown as K8sNodeData) || ({} as K8sNodeData);
   const isReplicaSet = deployment.type === 'ReplicaSet';
 
-  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0) ||
-                      pods.some(p => {
-                        const pd = (p.data as unknown as K8sNodeData) || ({} as K8sNodeData);
-                        return ((pd.roles?.length ?? 0) > 0 || (pd.configMaps?.length ?? 0) > 0 || (pd.secrets?.length ?? 0) > 0 || (pd.hpas?.length ?? 0) > 0 || (pd.resourceLimits?.length ?? 0) > 0);
-                      });
+  const hasDeploymentAttached = Boolean(
+    (data.roles?.length ?? 0) > 0 ||
+    (data.configMaps?.length ?? 0) > 0 ||
+    (data.secrets?.length ?? 0) > 0 ||
+    (data.hpas?.length ?? 0) > 0 ||
+    (data.resourceLimits?.length ?? 0) > 0
+  );
 
-  const bottomPadding = hasAttached ? 48 : 40;
+  const deploymentAttachedCount = (data.roles?.length ?? 0) + (data.configMaps?.length ?? 0) + (data.secrets?.length ?? 0) + (data.hpas?.length ?? 0) + (data.resourceLimits?.length ?? 0);
+  const deploymentAttachedRows = hasDeploymentAttached ? Math.max(1, Math.ceil(deploymentAttachedCount / 3)) : 0;
+  const bottomPadding = 40 + (hasDeploymentAttached ? deploymentAttachedRows * 36 : 0);
+
   const paddingX = 24;
   const paddingY = isReplicaSet ? 30 : 48;
 
@@ -147,6 +153,7 @@ export const calculateDeploymentLayoutWithYoga = (
 
     const baseHeight = calculatePodBaseHeight(podData, podWidth, visibleBadges, isMegaPod);
     const contentHeight = calculatePodContentHeight(podData, podWidth);
+    const attachedHeight = calculatePodAttachedHeight(podData);
 
     const podYogaNode = yoga.Node.create();
     podYogaNode.setFlexDirection(yoga.FLEX_DIRECTION_COLUMN);
@@ -184,13 +191,14 @@ export const calculateDeploymentLayoutWithYoga = (
       attachedContainerNode.setFlexWrap(yoga.WRAP_WRAP);
       attachedContainerNode.setWidth(podWidth);
       attachedContainerNode.setGap(yoga.GUTTER_ALL, 6);
-      attachedContainerNode.setMargin(yoga.EDGE_TOP, 6);
+      attachedContainerNode.setMargin(yoga.EDGE_TOP, 8);
+      attachedContainerNode.setMinHeight(attachedHeight);
 
       let badgeIndex = 0;
       const createItemBadgeNode = () => {
         const itemNode = yoga.Node.create();
-        itemNode.setWidth(24);
-        itemNode.setHeight(24);
+        itemNode.setWidth(28);
+        itemNode.setHeight(28);
         return itemNode;
       };
 

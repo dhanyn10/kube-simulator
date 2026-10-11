@@ -123,13 +123,10 @@ export const DeploymentNode = memo((props: NodeProps) => {
         </div>
       )}
 
-      <div className="flex flex-col items-center justify-end flex-1 pb-1 mt-auto pointer-events-auto">
-        <div className={cn(
-          "pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 mb-1",
-          colorMode === 'dark' ? "text-slate-700" : "text-slate-400"
-        )}>
+      <div className="pointer-events-none text-[9px] uppercase tracking-[0.2em] font-black text-center italic opacity-40 mb-1 mt-auto shrink-0 pb-1">
+        <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>
           Workload Zone
-        </div>
+        </span>
       </div>
 
       <AttachedResourcesFooter data={data} />
