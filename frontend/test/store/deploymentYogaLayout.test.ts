@@ -1,0 +1,173 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { Node } from '@xyflow/react';
+import {
+  calculateDeploymentLayoutWithYoga,
+  getYogaEngine,
+  getYogaInstanceSync
+} from '@/store/deploymentYogaLayout';
+import type { Yoga } from 'yoga-layout';
+
+describe('deploymentYogaLayout', () => {
+  let yoga: Yoga;
+
+  beforeAll(async () => {
+    yoga = await getYogaEngine();
+  });
+
+  it('initializes and returns the cached Yoga engine instance synchronously and asynchronously', async () => {
+    const engine = await getYogaEngine();
+    expect(engine).toBeDefined();
+    expect(getYogaInstanceSync()).toBe(engine);
+  });
+
+  it('scenario 1: Pod inserted into Deployment -> Deployment height increases', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 0, label: 'test-dep' },
+    };
+
+    const emptyLayout = calculateDeploymentLayoutWithYoga(deployment, [], yoga);
+    const baseHeight = emptyLayout.height;
+
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, image: '' },
+    };
+
+    const layoutWithPod = calculateDeploymentLayoutWithYoga(deployment, [pod1], yoga);
+
+    expect(layoutWithPod.laidOutPods).toHaveLength(1);
+    expect(layoutWithPod.height).toBeGreaterThan(baseHeight);
+  });
+
+  it('scenario 2 & 3: Toggle Show Content -> Deployment height expands & elements below shift down; Toggle Hide Content -> Deployment height collapses BACK with zero empty gap', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 2, label: 'app' },
+    };
+
+    const pod1Hidden: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, image: 'nginx:latest', displaySettings: { image: false } },
+    };
+
+    const pod2: Node = {
+      id: 'pod2',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, image: 'redis:alpine' },
+    };
+
+    // 1. Initial layout with Pod 1 image HIDDEN
+    const layoutHidden = calculateDeploymentLayoutWithYoga(deployment, [pod1Hidden, pod2], yoga);
+    const pod2YInitial = layoutHidden.laidOutPods[1].position.y;
+    const initialHeight = layoutHidden.height;
+
+    // 2. Toggle SHOW Content on Pod 1
+    const pod1Shown: Node = {
+      ...pod1Hidden,
+      data: {
+        ...pod1Hidden.data,
+        displaySettings: { image: true },
+      },
+    };
+
+    const layoutShown = calculateDeploymentLayoutWithYoga(deployment, [pod1Shown, pod2], yoga);
+    const pod2YExpanded = layoutShown.laidOutPods[1].position.y;
+    const expandedHeight = layoutShown.height;
+
+    // Verify Show Content expands height and pushes Pod 2 down
+    expect(expandedHeight).toBeGreaterThan(initialHeight);
+    expect(pod2YExpanded).toBeGreaterThan(pod2YInitial);
+
+    // 3. Toggle HIDE Content back on Pod 1
+    const layoutHiddenAgain = calculateDeploymentLayoutWithYoga(deployment, [pod1Hidden, pod2], yoga);
+    const pod2YCollapsed = layoutHiddenAgain.laidOutPods[1].position.y;
+    const collapsedHeight = layoutHiddenAgain.height;
+
+    // Verify Hide Content shrinks height back to exact initial height with zero remaining gap
+    expect(collapsedHeight).toBe(initialHeight);
+    expect(pod2YCollapsed).toBe(pod2YInitial);
+  });
+
+  it('scenario 4: Pod removed -> Deployment height returns to base size', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, label: 'app' },
+    };
+
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, image: 'nginx:latest' },
+    };
+
+    const layoutWithPod = calculateDeploymentLayoutWithYoga(deployment, [pod1], yoga);
+    expect(layoutWithPod.laidOutPods).toHaveLength(1);
+
+    // Remove pod
+    const layoutAfterRemove = calculateDeploymentLayoutWithYoga(deployment, [], yoga);
+    expect(layoutAfterRemove.laidOutPods).toHaveLength(0);
+    expect(layoutAfterRemove.height).toBeLessThan(layoutWithPod.height);
+  });
+
+  it('handles fallback layout calculation when yoga instance is null', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, label: 'fallback-dep' },
+    };
+
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, image: 'nginx:latest' },
+    };
+
+    const result = calculateDeploymentLayoutWithYoga(deployment, [pod1], null);
+    expect(result.laidOutPods).toHaveLength(1);
+    expect(result.width).toBeGreaterThan(0);
+    expect(result.height).toBeGreaterThan(0);
+  });
+
+  it('handles ReplicaSet container type and manually resized deployment bounds', () => {
+    const rsNode: Node = {
+      id: 'rs1',
+      type: 'ReplicaSet',
+      width: 500,
+      height: 400,
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, isManuallyResized: true },
+    };
+
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'rs1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+
+    const result = calculateDeploymentLayoutWithYoga(rsNode, [pod1], yoga);
+    expect(result.width).toBeGreaterThanOrEqual(500);
+    expect(result.height).toBeGreaterThanOrEqual(400);
+  });
+});

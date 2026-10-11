@@ -17,7 +17,7 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
   return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding));
 };
 
-export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, badges: string[], isMegaPod: boolean) => {
+export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
   const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || ((data.replicas || 1) > 1 && !data.parentId));
   let height = 72;
   if (showDashedProgress) height += isMegaPod ? 120 : 14;
@@ -25,16 +25,27 @@ export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, ba
   if (data.displaySettings?.restartPolicy !== false && !!data.restartPolicy) height += 24;
   if (badges.length > 0) height += 20;
 
-  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0);
-  if (hasAttached) height += 28;
-
-  const showImage = Boolean(data.displaySettings?.image !== false && data.image);
-  if (showImage) {
-    const charsPerLine = Math.max(10, Math.floor((width - 24) / 5.5));
-    height += Math.ceil(String(data.image).length / charsPerLine) * 12 + 8;
-  }
   const baseHeight = isMegaPod ? POD_MIN_DIMENSIONS.height * 2 : POD_MIN_DIMENSIONS.height;
   return Math.max(baseHeight, Math.ceil(height));
+};
+
+export const calculatePodContentHeight = (data: Partial<K8sNodeData>, width: number) => {
+  const showImage = Boolean(data.displaySettings?.image !== false && data.image);
+  if (!showImage) return 0;
+  const charsPerLine = Math.max(10, Math.floor((width - 24) / 5.5));
+  return Math.ceil(String(data.image).length / charsPerLine) * 12 + 8;
+};
+
+export const calculatePodAttachedHeight = (data: Partial<K8sNodeData>) => {
+  const hasAttached = ((data.roles?.length ?? 0) > 0 || (data.configMaps?.length ?? 0) > 0 || (data.secrets?.length ?? 0) > 0 || (data.hpas?.length ?? 0) > 0 || (data.resourceLimits?.length ?? 0) > 0);
+  return hasAttached ? 28 : 0;
+};
+
+export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, badges: string[], isMegaPod: boolean) => {
+  const baseHeight = calculatePodBaseHeight(data, width, badges, isMegaPod);
+  const contentHeight = calculatePodContentHeight(data, width);
+  const attachedHeight = calculatePodAttachedHeight(data);
+  return baseHeight + contentHeight + attachedHeight;
 };
 
 export const getPodMinimumSize = (data: Partial<K8sNodeData> = {}) => {

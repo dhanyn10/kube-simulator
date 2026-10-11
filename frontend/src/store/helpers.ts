@@ -1,8 +1,9 @@
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
-import { getPodSpacing, getReplicaThresholds } from './layoutHelpers';
+import { getReplicaThresholds } from './layoutHelpers';
 import { getPodMinimumSize } from '@/lib/podSizing';
 import { generateRandomHash, formatPodName } from '@/lib/utils';
+import { calculateDeploymentLayoutWithYoga } from './deploymentYogaLayout';
 
 export const getNodeData = (node: Node): K8sNodeData => {
   return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
@@ -223,111 +224,10 @@ export const syncPodsInDeployment = (
   });
 };
 
-interface PodLayoutState {
-  currentX: number;
-  currentY: number;
-  rowMaxHeight: number;
-  prevPodSpacing: number;
-}
-
-const getPodDimensions = (pod: Node) => {
-  const minSize = getPodMinimumSize(pod.data);
-  const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
-  const podH = Math.max(
-    pod.height || 0,
-    pod.measured?.height || 0,
-    Number((pod.style as any)?.minHeight) || 0,
-    minSize.height
-  );
-  return { podW, podH, minHeight: minSize.height };
-};
-
-const getUpdatedLayoutPosition = (
-  idx: number,
-  paddingX: number,
-  deployableWidth: number,
-  podW: number,
-  podH: number,
-  mySpacing: number,
-  state: PodLayoutState
-): { pos: { x: number; y: number }; nextState: PodLayoutState } => {
-  let { currentX, currentY, rowMaxHeight, prevPodSpacing } = state;
-
-  // Apply horizontal spacing adjustment if we're continuing on the same row
-  if (idx > 0 && currentX > paddingX) {
-    const gapRequired = Math.max(prevPodSpacing, mySpacing);
-    if (gapRequired > prevPodSpacing) {
-      currentX += (gapRequired - prevPodSpacing);
-    }
-  }
-
-  // Wrap to the next row if the current pod exceeds deployment width limits
-  const isExceedingWidth = currentX + podW > deployableWidth + paddingX;
-  if (isExceedingWidth && currentX > paddingX) {
-    currentX = paddingX;
-    currentY += rowMaxHeight + Math.max(prevPodSpacing, mySpacing);
-    rowMaxHeight = 0;
-  }
-
-  rowMaxHeight = Math.max(rowMaxHeight, podH);
-  const pos = { x: currentX, y: currentY };
-
-  // Advance layout cursor for the next pod
-  currentX += podW + mySpacing;
-
-  return {
-    pos,
-    nextState: {
-      currentX,
-      currentY,
-      rowMaxHeight,
-      prevPodSpacing: mySpacing,
-    },
-  };
-};
-
-// Helper function to layout pods within a deployment
+// Helper function to layout pods within a deployment using Yoga Flexbox Layout Engine
 export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] => {
-  const paddingX = 24;
-  const paddingY = 48; // Account for deployment header
-  const deploymentWidth = deployment.width || deployment.measured?.width || 320;
-  const maxPodWidth = Math.max(0, ...pods.map(p => getPodDimensions(p).podW));
-  const deployableWidth = Math.max(maxPodWidth, deploymentWidth - (2 * paddingX));
-
-  let state: PodLayoutState = {
-    currentX: paddingX,
-    currentY: paddingY,
-    rowMaxHeight: 0,
-    prevPodSpacing: 20,
-  };
-
-  return pods.map((pod, idx) => {
-    const isMegaPod = (pod.data?.replicas || 0) >= 100 || (pod.data?.parentReplicas || 0) >= 100;
-    const mySpacing = getPodSpacing(isMegaPod);
-    const { podW, podH, minHeight } = getPodDimensions(pod);
-
-    const { pos, nextState } = getUpdatedLayoutPosition(
-      idx,
-      paddingX,
-      deployableWidth,
-      podW,
-      podH,
-      mySpacing,
-      state
-    );
-    state = nextState;
-
-    return {
-      ...pod,
-      width: podW,
-      style: {
-        ...pod.style,
-        width: podW,
-        minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minHeight),
-      },
-      position: pos,
-    };
-  });
+  const { laidOutPods } = calculateDeploymentLayoutWithYoga(deployment, pods);
+  return laidOutPods;
 };
 
 

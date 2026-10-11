@@ -70,7 +70,8 @@ const applyPodResize = (nodes: Node[], resizedNode: Node) => {
       width: resizedNode.width,
       height: undefined,
       style: { ...n.style, width: resizedNode.width, minHeight },
-      measured: undefined
+      measured: undefined,
+      data: { ...n.data, isManuallyResized: true }
     };
   });
 

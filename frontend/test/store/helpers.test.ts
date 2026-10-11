@@ -154,14 +154,14 @@ describe('store helpers', () => {
     expect(laidOut[1].position.y).toBeGreaterThan(laidOut[0].position.y);
   });
 
-  it('layoutPodsInDeployment should handle horizontal spacing adjustment', () => {
+  it('layoutPodsInDeployment should position child pods vertically in column flex direction', () => {
     const deployment = { id: 'd1', width: 1000, data: {} } as any;
     const pods = [
       { id: 'p1', data: { replicas: 1 }, width: 100, height: 100, measured: { width: 100, height: 100 } } as any,
       { id: 'p2', data: { replicas: 100 }, width: 100, height: 100, measured: { width: 100, height: 100 } } as any,
     ];
     const laidOut = layoutPodsInDeployment(deployment, pods);
-    expect(laidOut[1].position.x).toBeGreaterThan(144);
+    expect(laidOut[1].position.y).toBeGreaterThan(laidOut[0].position.y);
   });
 
   it('resolveGlobalCollisions should move overlapping nodes', () => {
