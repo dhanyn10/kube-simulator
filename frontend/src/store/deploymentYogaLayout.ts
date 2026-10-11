@@ -1,8 +1,30 @@
-import Yoga from 'yoga-layout';
+import { loadYoga, type Yoga } from 'yoga-layout/load';
 import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { getPodSpacing } from './layoutHelpers';
 import { getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
+
+let cachedYoga: Yoga | null = null;
+let yogaLoadingPromise: Promise<Yoga> | null = null;
+
+/**
+ * Retrieves or initializes the cached Yoga engine instance.
+ *
+ * @returns Promise resolving to the initialized Yoga instance.
+ */
+export const getYogaEngine = (): Promise<Yoga> => {
+  if (cachedYoga) return Promise.resolve(cachedYoga);
+  if (!yogaLoadingPromise) {
+    yogaLoadingPromise = loadYoga().then((instance) => {
+      cachedYoga = instance;
+      return instance;
+    });
+  }
+  return yogaLoadingPromise;
+};
+
+// Start pre-warming the Yoga engine singleton in the background
+void getYogaEngine();
 
 /**
  * Calculates base pod height excluding container image content height.
@@ -85,9 +107,9 @@ export interface DeploymentYogaLayoutResult {
 export const calculateDeploymentLayoutWithYoga = (
   deployment: Node,
   pods: Node[],
-  customYoga?: typeof Yoga | null
+  customYoga?: Yoga | null
 ): DeploymentYogaLayoutResult => {
-  const YogaEngine = customYoga || Yoga;
+  const YogaEngine = customYoga !== undefined ? customYoga : cachedYoga;
   const data = deployment.data as K8sNodeData;
   const isReplicaSet = deployment.type === 'ReplicaSet';
 
