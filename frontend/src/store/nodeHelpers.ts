@@ -140,12 +140,14 @@ const calculateDeploymentDimensions = (deployment: Node, laidOut: Node[]) => {
   const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + headerHeight + bottomPadding);
 
   const maxPodX = Math.max(0, ...laidOut.map(p => {
-    const minSize = getPodMinimumSize(p.data);
+    const podDataForMinSize = { ...p.data, displaySettings: { ...p.data?.displaySettings, image: true } };
+    const minSize = getPodMinimumSize(podDataForMinSize);
     const podW = Math.max(p.width || 0, p.measured?.width || 0, minSize.width);
     return (p.position.x || 0) + podW;
   }));
   const maxPodY = Math.max(0, ...laidOut.map(p => {
-    const minSize = getPodMinimumSize(p.data);
+    const podDataForMinSize = { ...p.data, displaySettings: { ...p.data?.displaySettings, image: true } };
+    const minSize = getPodMinimumSize(podDataForMinSize);
     const podH = Math.max(p.height || 0, p.measured?.height || 0, Number((p.style as any)?.minHeight) || 0, minSize.height);
     return (p.position.y || 0) + podH;
   }));
@@ -232,7 +234,10 @@ export const syncContainerSize = (containerId: string | undefined, currentNodes:
 };
 
 const getChildMinSize = (child: Node) => {
-    if (child.type === 'Pod') return getPodMinimumSize(child.data);
+    if (child.type === 'Pod') {
+      const podDataForMinSize = { ...child.data, displaySettings: { ...child.data?.displaySettings, image: true } };
+      return getPodMinimumSize(podDataForMinSize);
+    }
     if (['Deployment', 'Namespace', 'ReplicaSet'].includes(child.type || '')) {
         return { width: child.width || 320, height: child.height || 160 };
     }

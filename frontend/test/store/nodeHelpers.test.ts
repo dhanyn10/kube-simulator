@@ -208,6 +208,100 @@ describe('nodeHelpers', () => {
       const { updatedDeployment: dep1000 } = syncDeployment(deployment, [deployment], 1200, get);
       expect(dep1000.data.replicas).toBe(1000);
     });
+
+    it('maintains constant deployment dimensions when toggling show/hide container image on child pod, and shrinks deployment when pod is deleted', () => {
+      const get = () => useFlowStore.getState();
+
+      const deploymentNode = {
+        id: 'd1',
+        type: 'Deployment',
+        position: { x: 100, y: 100 },
+        data: { label: 'my-app', replicas: 0 }
+      } as any;
+
+      useFlowStore.setState({ nodes: [deploymentNode], edges: [] });
+
+      const { updatedDeployment: depWithPod, laidOut: laidOutPods } = syncDeployment(deploymentNode, [deploymentNode], 1, get);
+      const initialDepWidth = depWithPod.width;
+      const initialDepHeight = depWithPod.height;
+
+      expect(initialDepHeight).toBeGreaterThan(0);
+      expect(laidOutPods).toHaveLength(1);
+
+      const childPod = laidOutPods[0];
+      const podWithHiddenImage = {
+        ...childPod,
+        data: {
+          ...childPod.data,
+          displaySettings: { ...childPod.data?.displaySettings, image: false }
+        }
+      };
+
+      const { updatedDeployment: depWithHiddenImage } = syncDeployment(depWithPod, [depWithPod, podWithHiddenImage], 0, get);
+
+      expect(depWithHiddenImage.width).toBe(initialDepWidth);
+      expect(depWithHiddenImage.height).toBe(initialDepHeight);
+
+      const podWithShownImage = {
+        ...childPod,
+        data: {
+          ...childPod.data,
+          displaySettings: { ...childPod.data?.displaySettings, image: true }
+        }
+      };
+
+      const { updatedDeployment: depWithShownImage } = syncDeployment(depWithPod, [depWithPod, podWithShownImage], 0, get);
+
+      expect(depWithShownImage.width).toBe(initialDepWidth);
+      expect(depWithShownImage.height).toBe(initialDepHeight);
+
+      const { updatedDeployment: emptyDep, laidOut: emptyPods } = syncDeployment(depWithPod, [depWithPod], -1, get);
+
+      expect(emptyPods).toHaveLength(0);
+      expect(emptyDep.height).toBeLessThan(initialDepHeight);
+    });
+
+    it('integration test: store updateNodeData toggle image and deleteNodes updates deployment dimensions correctly', () => {
+      const store = useFlowStore.getState();
+
+      store.addNode('Deployment', { x: 100, y: 100 });
+      let currentNodes = useFlowStore.getState().nodes;
+      const depNode = currentNodes.find(n => n.type === 'Deployment')!;
+
+      store.addNode('Pod', { x: 120, y: 140 }, depNode.id);
+      currentNodes = useFlowStore.getState().nodes;
+
+      const depWithPod = currentNodes.find(n => n.id === depNode.id)!;
+      const childPod = currentNodes.find(n => n.parentId === depNode.id && n.type === 'Pod')!;
+
+      const depHeightWithPod = depWithPod.height;
+      expect(depHeightWithPod).toBeGreaterThan(0);
+
+      store.updateNodeData(childPod.id, {
+        displaySettings: { ...childPod.data.displaySettings, image: false }
+      });
+
+      currentNodes = useFlowStore.getState().nodes;
+      const depAfterHideImage = currentNodes.find(n => n.id === depNode.id)!;
+
+      expect(depAfterHideImage.height).toBe(depHeightWithPod);
+
+      store.updateNodeData(childPod.id, {
+        displaySettings: { ...childPod.data.displaySettings, image: true }
+      });
+
+      currentNodes = useFlowStore.getState().nodes;
+      const depAfterShowImage = currentNodes.find(n => n.id === depNode.id)!;
+
+      expect(depAfterShowImage.height).toBe(depHeightWithPod);
+
+      store.deleteNodes([childPod]);
+
+      currentNodes = useFlowStore.getState().nodes;
+      const depAfterPodDeleted = currentNodes.find(n => n.id === depNode.id)!;
+
+      expect(depAfterPodDeleted.height).toBeLessThan(depHeightWithPod);
+    });
   });
 
   describe('syncContainerSize', () => {
