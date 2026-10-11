@@ -15,7 +15,8 @@ import {
   sanitizeResourceLimits,
   applyAutoImageLogic,
   createNodeHandlers,
-  syncWorkloadMetadata
+  syncWorkloadMetadata,
+  ensureUniqueResourceName
 } from './nodeUtils';
 import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
 import { formatPodName, safeRandom } from '@/lib/utils';
@@ -384,6 +385,12 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 };
 
   const initialData = getInitialData(type, id, get);
+  const uniqueLabel = ensureUniqueResourceName(initialData.label, type, targetParentId, currentNodes);
+  initialData.label = uniqueLabel;
+  if (type === 'Pod' || type === 'Deployment' || type === 'ReplicaSet') {
+    initialData.baseName = uniqueLabel;
+  }
+
   const cardSize = type === 'Namespace'
     ? { width: 600, height: 400 }
     : (type === 'Deployment' || type === 'ReplicaSet'
@@ -535,6 +542,21 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   sanitizedData = applyAutoImageLogic(targetData, sanitizedData);
   if (newData.image) {
     sanitizedData.isAutoImage = false;
+  }
+
+  if (newData.label !== undefined || newData.baseName !== undefined) {
+    const rawNewName = newData.label || newData.baseName || targetData.label || targetData.baseName;
+    const uniqueName = ensureUniqueResourceName(
+      rawNewName,
+      target.type || '',
+      target.parentId,
+      nodes,
+      target.id
+    );
+    sanitizedData.label = uniqueName;
+    if (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet') {
+      sanitizedData.baseName = uniqueName;
+    }
   }
 
   let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
