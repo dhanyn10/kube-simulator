@@ -98,7 +98,6 @@ const updatePodNode = (
     ...existingPod.data,
     ...commonData,
     replicas,
-    displaySettings: { ...commonData?.displaySettings, image: true }
   };
   const minSize = getPodMinimumSize(podDataForMinSize);
   const width = existingPod.data?.isManuallyResized
@@ -141,7 +140,6 @@ const createPodNode = (
   const podDataForMinSize = {
     ...commonData,
     replicas,
-    displaySettings: { ...commonData?.displaySettings, image: true }
   };
   const minSize = getPodMinimumSize(podDataForMinSize);
   return {
@@ -242,11 +240,7 @@ interface PodLayoutState {
 }
 
 const getPodDimensions = (pod: Node) => {
-  const podDataForMinSize = {
-    ...pod.data,
-    displaySettings: { ...pod.data?.displaySettings, image: true }
-  };
-  const minSize = getPodMinimumSize(podDataForMinSize);
+  const minSize = getPodMinimumSize(pod.data);
   const podW = Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width);
   const podH = Math.max(
     pod.height || 0,
