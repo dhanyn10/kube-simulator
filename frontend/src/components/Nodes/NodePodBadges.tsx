@@ -5,7 +5,7 @@ interface NodePodBadgesProps {
 }
 
 export const NodePodBadges = ({ data }: NodePodBadgesProps) => {
-  const { showRuntime, showWebserver, showImage, hasAnyBadge } = getPodBadgeVisibility(data);
+  const { showRuntime, showWebserver, hasAnyBadge } = getPodBadgeVisibility(data);
 
   if (!hasAnyBadge) return null;
 
@@ -19,11 +19,6 @@ export const NodePodBadges = ({ data }: NodePodBadgesProps) => {
       {showWebserver && (
         <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-amber-500/10 text-amber-400 rounded border border-amber-500/20 uppercase font-bold whitespace-nowrap">
           {data.webserver}
-        </span>
-      )}
-      {showImage && (
-        <span className="min-w-0 max-w-full truncate text-[7px] px-1 bg-violet-500/10 text-violet-400 rounded border border-violet-500/20 font-mono whitespace-nowrap" title={data.image}>
-          {data.image}
         </span>
       )}
     </div>

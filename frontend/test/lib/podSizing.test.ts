@@ -20,14 +20,6 @@ describe('podSizing utils', () => {
     it('increases width for badges', () => {
       const data = { label: 'test' };
       const w1 = calculatePodWidth(data, []);
-      // badges: ['nginx', 'php']
-      // badgeWidth = (5*5 + 14) + (3*5 + 14) + 4 = 39 + 29 + 4 = 72
-      // baseWidth = 168
-      // labelWidth = 4*7 + 16 = 44
-      // horizontalPadding = 24
-      // badgeWidth + 24 = 96
-      // Still smaller than baseWidth (168)
-
       const longBadges = ['very-long-badge-name', 'another-long-one'];
       const w2 = calculatePodWidth(data, longBadges);
       expect(w2).toBeGreaterThan(w1);
@@ -69,17 +61,17 @@ describe('podSizing utils', () => {
     });
 
     it('increases height for resource limits', () => {
-      const data1 = { type: 'Pod' as any };
-      const data2 = { type: 'Pod' as any, cpuLimit: '100m', memoryLimit: '128Mi' };
+      const data1 = { type: 'Pod' as any, displaySettings: { restartPolicy: false } };
+      const data2 = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, cpuLimit: '100m', memoryLimit: '128Mi' };
       const h1 = calculatePodHeight(data1, 168, [], false);
       const h2 = calculatePodHeight(data2, 168, [], false);
       expect(h2).toBeGreaterThan(h1);
     });
 
     it('increases height for restart policy and attached resources', () => {
-      const base = { type: 'Pod' as any };
-      const withRestart = { type: 'Pod' as any, restartPolicy: 'Always' as const };
-      const withAttached = { type: 'Pod' as any, resourceLimits: [{ id: 'rl-1', cpuLimit: '1000m' }] };
+      const base = { type: 'Pod' as any, displaySettings: { restartPolicy: false } };
+      const withRestart = { type: 'Pod' as any, displaySettings: { restartPolicy: true }, restartPolicy: 'Always' as const };
+      const withAttached = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, resourceLimits: [{ id: 'rl-1', cpuLimit: '1000m' }] };
 
       const hBase = calculatePodHeight(base, 168, [], false);
       const hRestart = calculatePodHeight(withRestart, 168, [], false);
@@ -105,7 +97,7 @@ describe('podSizing utils', () => {
         parentReplicas: 2,
         replicas: 1,
         cpuLimit: '100m',
-        displaySettings: { resources: false },
+        displaySettings: { resources: false, restartPolicy: false },
       };
       const h = calculatePodHeight(childPodSmallReplicas, 168, [], false);
       expect(h).toBe(POD_MIN_DIMENSIONS.height);
@@ -118,6 +110,7 @@ describe('podSizing utils', () => {
         parentId: 'dep-2',
         replicas: 3,
         parentReplicas: 1,
+        displaySettings: { restartPolicy: false },
       };
       const h1 = calculatePodHeight(childPodWithParent, 168, [], false);
       expect(h1).toBe(POD_MIN_DIMENSIONS.height);
@@ -126,6 +119,7 @@ describe('podSizing utils', () => {
       const podMemoryOnly = {
         type: 'Pod' as any,
         memoryLimit: '256Mi',
+        displaySettings: { restartPolicy: false },
       };
       const h2 = calculatePodHeight(podMemoryOnly, 168, [], false);
       expect(h2).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
@@ -155,7 +149,6 @@ describe('podSizing utils', () => {
       expect(sizeWithNone.width).toBeGreaterThan(0);
       expect(sizeWithNone.height).toBeGreaterThan(0);
 
-      // Explicit false displaySettings for runtime/webserver and falsy runtime/webserver values
       const sizeDisabledBadges = getPodMinimumSize({
         label: 'app-disabled',
         runtime: 'go',

@@ -43,6 +43,109 @@ export const getYogaInstanceSync = (): YogaEngine | null => {
 };
 
 /**
+ * Calculates intrinsic layout dimensions for standalone card nodes (Service, Ingress, PVC, ConfigMap, Secret, Role, HPA, ResourceLimit, Internet, Pod)
+ * using Yoga flexbox engine.
+ *
+ * @param node - The React Flow node or node data object.
+ * @param yogaSync - Optional pre-loaded Yoga Layout engine instance.
+ * @returns Computed width and height for the card node.
+ */
+export const calculateCardLayoutWithYoga = (
+  node: { type?: string; width?: number; height?: number; data?: any },
+  yogaSync?: YogaEngine | null
+): { width: number; height: number } => {
+  const yoga = yogaSync === null ? null : (yogaSync || cachedYogaInstance);
+  const data: K8sNodeData = (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
+  const nodeType = node.type || data.type || '';
+
+  if (nodeType === 'Pod') {
+    const minSize = getPodMinimumSize(data);
+    let width = data.isManuallyResized ? Math.max(node.width || 0, minSize.width) : minSize.width;
+    let height = data.isManuallyResized ? Math.max(node.height || 0, minSize.height) : minSize.height;
+    return { width, height };
+  }
+
+  // Base fallback min dimensions by node type
+  let baseMinWidth = 168;
+  let baseMinHeight = 80;
+
+  if (nodeType === 'Service') {
+    baseMinWidth = 180;
+    baseMinHeight = 88;
+  } else if (nodeType === 'Ingress') {
+    baseMinWidth = 180;
+    baseMinHeight = 96;
+  } else if (nodeType === 'PVC') {
+    baseMinWidth = 168;
+    baseMinHeight = 88;
+  } else if (nodeType === 'HPA' || nodeType === 'ResourceLimit') {
+    baseMinWidth = 168;
+    baseMinHeight = 84;
+  } else if (['ConfigMap', 'Secret', 'Role'].includes(nodeType)) {
+    baseMinWidth = 168;
+    baseMinHeight = 80;
+  } else if (nodeType === 'Internet') {
+    baseMinWidth = 140;
+    baseMinHeight = 70;
+  }
+
+  // Evaluate attached items
+  const attachedHeight = calculatePodAttachedHeight(data);
+  const textLabelLength = String(data.label || '').length;
+  const computedLabelWidth = textLabelLength * 7 + 36;
+  const computedWidth = Math.max(baseMinWidth, computedLabelWidth);
+  const computedHeight = baseMinHeight + attachedHeight;
+
+  if (!yoga) {
+    const width = data.isManuallyResized ? Math.max(node.width || 0, computedWidth) : computedWidth;
+    const height = data.isManuallyResized ? Math.max(node.height || 0, computedHeight) : computedHeight;
+    return { width, height };
+  }
+
+  // Build Yoga Root flexbox node for Card
+  const rootNode = yoga.Node.create();
+  rootNode.setFlexDirection(yoga.FLEX_DIRECTION_COLUMN);
+  rootNode.setPadding(yoga.EDGE_ALL, 12);
+  rootNode.setWidth(computedWidth);
+
+  // Header sub-node
+  const headerNode = yoga.Node.create();
+  headerNode.setWidth(computedWidth - 24);
+  headerNode.setMinHeight(24);
+  rootNode.insertChild(headerNode, 0);
+
+  // Body content sub-node
+  const bodyNode = yoga.Node.create();
+  bodyNode.setWidth(computedWidth - 24);
+  bodyNode.setMinHeight(baseMinHeight - 48);
+  rootNode.insertChild(bodyNode, 1);
+
+  // Attached resources footer sub-node (if present)
+  if (attachedHeight > 0) {
+    const attachedNode = buildAttachedContainerYogaNode(yoga, data, computedWidth - 24);
+    if (attachedNode) {
+      rootNode.insertChild(attachedNode, 2);
+    }
+  }
+
+  rootNode.calculateLayout(computedWidth, undefined, yoga.DIRECTION_LTR);
+
+  let finalWidth = rootNode.getComputedWidth();
+  let finalHeight = rootNode.getComputedHeight();
+  rootNode.freeRecursive();
+
+  if (data.isManuallyResized) {
+    finalWidth = Math.max(node.width || 0, finalWidth);
+    finalHeight = Math.max(node.height || 0, finalHeight);
+  }
+
+  return {
+    width: Math.ceil(finalWidth),
+    height: Math.ceil(finalHeight),
+  };
+};
+
+/**
  * Calculates bottom padding for Deployment container based on attached resource badges.
  */
 const calculateBottomPadding = (data: K8sNodeData): number => {

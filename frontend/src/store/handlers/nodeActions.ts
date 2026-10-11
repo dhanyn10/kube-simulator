@@ -9,6 +9,7 @@ import {
   resolveGlobalCollisions
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
+import { calculateCardLayoutWithYoga } from '@/store/deploymentYogaLayout';
 import {
   getInitialData,
   sanitizeResourceLimits,
@@ -111,6 +112,51 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
 };
 
 /**
+ * Synchronizes attached items (roles, configMaps, secrets, hpas, resourceLimits) across all matching Pod cards sharing the same group / parent deployment / baseName.
+ *
+ * @param updatedNode Target pod node being updated
+ * @param updatedData Merged node data payload
+ * @param newData Patch data containing changed fields
+ * @param nodes Current array of canvas nodes
+ * @returns Array of canvas nodes with synchronized attached items on sibling pods
+ */
+const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, newData: Partial<K8sNodeData>, nodes: Node[]): Node[] => {
+  const hasAttachedChanges =
+    newData.roles !== undefined ||
+    newData.configMaps !== undefined ||
+    newData.secrets !== undefined ||
+    newData.hpas !== undefined ||
+    newData.resourceLimits !== undefined;
+
+  if (!hasAttachedChanges) return nodes;
+
+  const targetBaseName = updatedData.baseName || updatedData.label;
+  const targetPodHash = updatedData.podHash;
+
+  return nodes.map((n) => {
+    if (n.type !== 'Pod' || n.id === updatedNode.id) return n;
+    const nData = n.data as K8sNodeData;
+    const isSameParent = Boolean(updatedNode.parentId && n.parentId === updatedNode.parentId);
+    const isSameGroup = Boolean(targetPodHash && nData.podHash === targetPodHash && (nData.baseName || nData.label) === targetBaseName);
+
+    if (isSameParent || isSameGroup) {
+      return {
+        ...n,
+        data: {
+          ...nData,
+          ...(newData.roles !== undefined ? { roles: newData.roles } : {}),
+          ...(newData.configMaps !== undefined ? { configMaps: newData.configMaps } : {}),
+          ...(newData.secrets !== undefined ? { secrets: newData.secrets } : {}),
+          ...(newData.hpas !== undefined ? { hpas: newData.hpas } : {}),
+          ...(newData.resourceLimits !== undefined ? { resourceLimits: newData.resourceLimits } : {}),
+        }
+      };
+    }
+    return n;
+  });
+};
+
+/**
  * Dispatches node-specific synchronization logic after a node data update.
  *
  * @param nodeId Target node ID
@@ -125,14 +171,15 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
 const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, target: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
   if (updatedNode.type === 'Pod') {
-    const parent = nodes.find(n => n.id === updatedNode.parentId);
+    nextNodes = syncPodAttachedItemsGroup(updatedNode, updatedData, newData, nextNodes);
+    const parent = nextNodes.find(n => n.id === updatedNode.parentId);
     const isStandaloneContext = !updatedNode.parentId || parent?.type === 'Namespace';
 
     if (isStandaloneContext && (updatedData.replicas || 0) > 1) {
-      return handleReplicaSetTransform(nodeId, updatedNode, updatedData, nodes, get);
+      return handleReplicaSetTransform(nodeId, updatedNode, updatedData, nextNodes, get);
     }
     if (updatedNode.parentId) {
-      const parent = nodes.find(n => n.id === updatedNode.parentId);
+      const parent = nextNodes.find(n => n.id === updatedNode.parentId);
       if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
         return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
       }
@@ -336,12 +383,20 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
   const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 };
 
+  const initialData = getInitialData(type, id, get);
+  const cardSize = type === 'Namespace'
+    ? { width: 600, height: 400 }
+    : (type === 'Deployment' || type === 'ReplicaSet'
+      ? { width: 320, height: 160 }
+      : calculateCardLayoutWithYoga({ type, data: initialData }));
+
   const newNode: Node = {
     id, type, position: finalPos, parentId: targetParentId,
     extent: targetParentId ? 'parent' : undefined,
-    data: getInitialData(type, id, get),
-    ...(type === 'Deployment' ? { width: 320, height: 160, style: { width: 320, height: 160 } } : {}),
-    ...(type === 'Namespace' ? { width: 600, height: 400, style: { width: 600, height: 400 } } : {}),
+    data: initialData,
+    width: cardSize.width,
+    height: cardSize.height,
+    style: { width: cardSize.width, height: cardSize.height }
   };
 
   const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
@@ -486,12 +541,20 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   updatedData = sanitizeAndUpdateServiceSelector(target, newData, updatedData, nodes);
   updatedData = { ...updatedData, ...syncWorkloadMetadata(target.type || '', updatedData) } as K8sNodeData;
 
+  const cardLayout = target.type !== 'Namespace' && target.type !== 'Deployment' && target.type !== 'ReplicaSet'
+    ? calculateCardLayoutWithYoga({ type: target.type, width: target.width, height: target.height, data: updatedData })
+    : null;
+
   const updatedNode: Node = {
     ...target,
     data: updatedData,
-    ...(target.type !== 'Deployment' && target.type !== 'Namespace' ? {
+    ...(cardLayout ? {
+      width: cardLayout.width,
+      height: cardLayout.height,
+      style: { ...target.style, width: cardLayout.width, height: cardLayout.height }
+    } : (target.type !== 'Deployment' && target.type !== 'Namespace' ? {
       width: undefined, height: undefined, style: { ...target.style, width: undefined, height: undefined }
-    } : {})
+    } : {}))
   };
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
