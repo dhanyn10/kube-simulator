@@ -5,7 +5,6 @@ import {
   getPodMinimumSize,
   calculatePodBaseHeight,
   calculatePodContentHeight,
-  calculatePodAttachedHeight,
   POD_MIN_DIMENSIONS
 } from '@/lib/podSizing';
 import { getPodSpacing } from './layoutHelpers';
@@ -42,10 +41,10 @@ export const getYogaInstanceSync = (): YogaEngine | null => {
 
 /**
  * Calculates internal sub-tree layout for Deployment node and its child Pods using Yoga Flexbox Layout Engine.
- * Builds Yoga tree hierarchy (Deployment Container -> Pods -> Pod Content -> Footer) with column flex direction,
- * computing precise coordinates and auto-collapsing empty gaps when container image content is toggled.
- * Uses flexible auto-height (`setHeightAuto`) and dynamic minimum height (`setMinHeight`) instead of rigid fixed height.
- * Standardizes margin-bottom spacing between adjacent pods with a uniform value.
+ * Builds Yoga tree hierarchy (Deployment Container -> Pods -> Pod Content -> Attached Items Footer) with column flex direction,
+ * computing precise coordinates and auto-collapsing empty gaps when container image content or attached items change.
+ * Models each attached item (ConfigMap, Secret, Role, HPA, ResourceLimit) as an individual Yoga child node using DOM principles.
+ * Removes rigid fixed height constraints so Pods scale dynamically with minHeight while preserving uniform inter-pod margins.
  *
  * @param deployment - Parent Deployment canvas node.
  * @param pods - Array of child Pod canvas nodes.
@@ -99,12 +98,15 @@ export const calculateDeploymentLayoutWithYoga = (
       const spacing = isLastPod ? 0 : getPodSpacing(isMegaPod);
       currentY += podH + spacing;
 
+      const cleanStyle = { ...pod.style };
+      delete (cleanStyle as any).height;
+
       return {
         ...pod,
         width: podW,
         height: podH,
         style: {
-          ...pod.style,
+          ...cleanStyle,
           width: podW,
           minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minSize.height),
         },
@@ -145,7 +147,6 @@ export const calculateDeploymentLayoutWithYoga = (
 
     const baseHeight = calculatePodBaseHeight(podData, podWidth, visibleBadges, isMegaPod);
     const contentHeight = calculatePodContentHeight(podData, podWidth);
-    const attachedHeight = calculatePodAttachedHeight(podData);
 
     const podYogaNode = yoga.Node.create();
     podYogaNode.setFlexDirection(yoga.FLEX_DIRECTION_COLUMN);
@@ -157,22 +158,59 @@ export const calculateDeploymentLayoutWithYoga = (
     const isLastPod = idx === pods.length - 1;
     podYogaNode.setMargin(yoga.EDGE_BOTTOM, isLastPod ? 0 : podSpacing);
 
-    // Sub-tree child nodes (Pod Base, Pod Content/Image, Pod Attached Footer)
+    // Sub-tree child node 1: Pod Base (Header, status, badges, restart policy)
     const baseYogaNode = yoga.Node.create();
     baseYogaNode.setWidth(podWidth);
     baseYogaNode.setMinHeight(baseHeight);
     podYogaNode.insertChild(baseYogaNode, 0);
 
+    // Sub-tree child node 2: Pod Content (Container Image)
     const contentYogaNode = yoga.Node.create();
     contentYogaNode.setWidth(podWidth);
     contentYogaNode.setMinHeight(contentHeight);
     podYogaNode.insertChild(contentYogaNode, 1);
 
-    if (attachedHeight > 0) {
-      const attachedYogaNode = yoga.Node.create();
-      attachedYogaNode.setWidth(podWidth);
-      attachedYogaNode.setMinHeight(attachedHeight);
-      podYogaNode.insertChild(attachedYogaNode, 2);
+    // Sub-tree child node 3: Dynamic Attached Resources Footer (Roles, ConfigMaps, Secrets, ResourceLimits, HPAs)
+    const roles = podData.roles || [];
+    const configMaps = podData.configMaps || [];
+    const secrets = podData.secrets || [];
+    const resourceLimits = podData.resourceLimits || [];
+    const hpas = podData.hpas || [];
+    const totalAttached = roles.length + configMaps.length + secrets.length + resourceLimits.length + hpas.length;
+
+    if (totalAttached > 0) {
+      const attachedContainerNode = yoga.Node.create();
+      attachedContainerNode.setFlexDirection(yoga.FLEX_DIRECTION_ROW);
+      attachedContainerNode.setFlexWrap(yoga.WRAP_WRAP);
+      attachedContainerNode.setWidth(podWidth);
+      attachedContainerNode.setGap(yoga.GUTTER_ALL, 6);
+      attachedContainerNode.setMargin(yoga.EDGE_TOP, 6);
+
+      let badgeIndex = 0;
+      const createItemBadgeNode = () => {
+        const itemNode = yoga.Node.create();
+        itemNode.setWidth(24);
+        itemNode.setHeight(24);
+        return itemNode;
+      };
+
+      for (let i = 0; i < roles.length; i++) {
+        attachedContainerNode.insertChild(createItemBadgeNode(), badgeIndex++);
+      }
+      for (let i = 0; i < configMaps.length; i++) {
+        attachedContainerNode.insertChild(createItemBadgeNode(), badgeIndex++);
+      }
+      for (let i = 0; i < secrets.length; i++) {
+        attachedContainerNode.insertChild(createItemBadgeNode(), badgeIndex++);
+      }
+      for (let i = 0; i < resourceLimits.length; i++) {
+        attachedContainerNode.insertChild(createItemBadgeNode(), badgeIndex++);
+      }
+      for (let i = 0; i < hpas.length; i++) {
+        attachedContainerNode.insertChild(createItemBadgeNode(), badgeIndex++);
+      }
+
+      podYogaNode.insertChild(attachedContainerNode, 2);
     }
 
     rootNode.insertChild(podYogaNode, idx);
@@ -189,12 +227,15 @@ export const calculateDeploymentLayoutWithYoga = (
 
     const minSize = getPodMinimumSize((pod.data as unknown as K8sNodeData) || {});
 
+    const cleanStyle = { ...pod.style };
+    delete (cleanStyle as any).height;
+
     return {
       ...pod,
       width: computedW,
       height: computedH,
       style: {
-        ...pod.style,
+        ...cleanStyle,
         width: computedW,
         minHeight: Math.max(Number((pod.style as any)?.minHeight) || 0, minSize.height),
       },

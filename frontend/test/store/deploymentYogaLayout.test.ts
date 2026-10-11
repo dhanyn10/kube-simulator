@@ -198,6 +198,43 @@ describe('deploymentYogaLayout', () => {
     expect(gapAfterFooterExpansion).toBe(20);
   });
 
+  it('models individual attached item badges (ConfigMap, Secret, Role, HPA, ResourceLimit) as dynamic Yoga child nodes', () => {
+    const deployment: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 2, label: 'cm-app' },
+    };
+
+    const pod1WithCM: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 1,
+        configMaps: [{ id: 'cm1', name: 'app-config' }, { id: 'cm2', name: 'db-config' }],
+        secrets: [{ id: 'sec1', name: 'app-secret' }],
+      },
+    };
+
+    const pod2: Node = {
+      id: 'pod2',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+
+    const layout = calculateDeploymentLayoutWithYoga(deployment, [pod1WithCM, pod2], yoga);
+    const p1 = layout.laidOutPods[0];
+    const p2 = layout.laidOutPods[1];
+
+    expect(p1.style?.height).toBeUndefined(); // Verify rigid style.height is removed
+    expect(p1.height).toBeGreaterThan(92);
+    expect(p2.position.y - (p1.position.y + (p1.height || 0))).toBe(20);
+  });
+
   it('handles fallback layout calculation when yoga instance is null', () => {
     const deployment: Node = {
       id: 'dep1',
