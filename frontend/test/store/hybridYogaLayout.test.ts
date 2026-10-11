@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateCardLayoutWithYoga, calculateDeploymentLayoutWithYoga, getYogaEngine } from '@/store/deploymentYogaLayout';
 import { Node } from '@xyflow/react';
+import { useFlowStore } from '@/store/useFlowStore';
 
 describe('Hybrid Yoga Layout Engine (Card/Node Layer)', () => {
   it('calculates dynamic card dimensions based on content without fixed height hardcoding', async () => {
@@ -103,5 +104,27 @@ describe('Hybrid Yoga Layout Engine (Card/Node Layer)', () => {
     expect(serviceLayout.height).toBeGreaterThan(0);
     expect(ingressLayout.width).toBeGreaterThan(serviceLayout.width);
     expect(configMapLayout.height).toBeGreaterThan(80);
+  });
+
+  it('synchronizes attached items across sibling pod cards in the same pod group', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'pod-1', type: 'Pod', parentId: 'dept-1', position: { x: 0, y: 0 }, data: { baseName: 'web-pod', podHash: 'a1b2c', configMaps: [] } },
+        { id: 'pod-2', type: 'Pod', parentId: 'dept-1', position: { x: 0, y: 200 }, data: { baseName: 'web-pod', podHash: 'a1b2c', configMaps: [] } }
+      ]
+    });
+
+    const attachedCmItem = { id: 'cm-1', name: 'app-config-map' };
+
+    useFlowStore.getState().updateNodeData('pod-1', {
+      configMaps: [attachedCmItem]
+    });
+
+    const updatedNodes = useFlowStore.getState().nodes;
+    const pod1Data = updatedNodes.find((n) => n.id === 'pod-1')?.data;
+    const pod2Data = updatedNodes.find((n) => n.id === 'pod-2')?.data;
+
+    expect(pod1Data?.configMaps).toEqual([attachedCmItem]);
+    expect(pod2Data?.configMaps).toEqual([attachedCmItem]);
   });
 });

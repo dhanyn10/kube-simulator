@@ -112,6 +112,51 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
 };
 
 /**
+ * Synchronizes attached items (roles, configMaps, secrets, hpas, resourceLimits) across all matching Pod cards sharing the same group / parent deployment / baseName.
+ *
+ * @param updatedNode Target pod node being updated
+ * @param updatedData Merged node data payload
+ * @param newData Patch data containing changed fields
+ * @param nodes Current array of canvas nodes
+ * @returns Array of canvas nodes with synchronized attached items on sibling pods
+ */
+const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, newData: Partial<K8sNodeData>, nodes: Node[]): Node[] => {
+  const hasAttachedChanges =
+    newData.roles !== undefined ||
+    newData.configMaps !== undefined ||
+    newData.secrets !== undefined ||
+    newData.hpas !== undefined ||
+    newData.resourceLimits !== undefined;
+
+  if (!hasAttachedChanges) return nodes;
+
+  const targetBaseName = updatedData.baseName || updatedData.label;
+  const targetPodHash = updatedData.podHash;
+
+  return nodes.map((n) => {
+    if (n.type !== 'Pod' || n.id === updatedNode.id) return n;
+    const nData = n.data as K8sNodeData;
+    const isSameParent = Boolean(updatedNode.parentId && n.parentId === updatedNode.parentId);
+    const isSameGroup = Boolean(targetPodHash && nData.podHash === targetPodHash && (nData.baseName || nData.label) === targetBaseName);
+
+    if (isSameParent || isSameGroup) {
+      return {
+        ...n,
+        data: {
+          ...nData,
+          ...(newData.roles !== undefined ? { roles: newData.roles } : {}),
+          ...(newData.configMaps !== undefined ? { configMaps: newData.configMaps } : {}),
+          ...(newData.secrets !== undefined ? { secrets: newData.secrets } : {}),
+          ...(newData.hpas !== undefined ? { hpas: newData.hpas } : {}),
+          ...(newData.resourceLimits !== undefined ? { resourceLimits: newData.resourceLimits } : {}),
+        }
+      };
+    }
+    return n;
+  });
+};
+
+/**
  * Dispatches node-specific synchronization logic after a node data update.
  *
  * @param nodeId Target node ID
@@ -126,14 +171,15 @@ const handleContainerSync = (updatedNode: Node, nodes: Node[], get: () => FlowSt
 const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNodeData, target: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   let nextNodes = nodes.map((n: Node) => n.id === nodeId ? updatedNode : n);
   if (updatedNode.type === 'Pod') {
-    const parent = nodes.find(n => n.id === updatedNode.parentId);
+    nextNodes = syncPodAttachedItemsGroup(updatedNode, updatedData, newData, nextNodes);
+    const parent = nextNodes.find(n => n.id === updatedNode.parentId);
     const isStandaloneContext = !updatedNode.parentId || parent?.type === 'Namespace';
 
     if (isStandaloneContext && (updatedData.replicas || 0) > 1) {
-      return handleReplicaSetTransform(nodeId, updatedNode, updatedData, nodes, get);
+      return handleReplicaSetTransform(nodeId, updatedNode, updatedData, nextNodes, get);
     }
     if (updatedNode.parentId) {
-      const parent = nodes.find(n => n.id === updatedNode.parentId);
+      const parent = nextNodes.find(n => n.id === updatedNode.parentId);
       if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
         return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
       }
