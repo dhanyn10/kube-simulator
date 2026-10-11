@@ -10,7 +10,8 @@ export const PodNode = memo((props: NodeProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
 
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
-  const showRestart = Boolean(data.displaySettings?.restartPolicy !== false && data.restartPolicy);
+  const showRestart = Boolean(data.displaySettings?.restartPolicy !== false);
+  const restartPolicy = data.restartPolicy || 'Always';
   const showResources = Boolean(data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit));
 
   return (
@@ -27,7 +28,7 @@ export const PodNode = memo((props: NodeProps) => {
         {showRestart && (
           <div className="flex justify-between items-center text-[9px] font-mono">
             <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>restart:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{data.restartPolicy}</span>
+            <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{restartPolicy}</span>
           </div>
         )}
         {showResources && (
