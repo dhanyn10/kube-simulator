@@ -181,8 +181,9 @@ describe('useCanvasHandlers hook', () => {
     // Edge click when isAutofocusEnabled is false
     mockFitBounds.mockClear();
     useFlowStore.setState({ isAutofocusEnabled: false });
+    const { result: noAutofocusResult } = renderHook(() => useCanvasHandlers());
     act(() => {
-      result.current.onEdgeClick(mockEvent, edge);
+      noAutofocusResult.current.onEdgeClick(mockEvent, edge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
 

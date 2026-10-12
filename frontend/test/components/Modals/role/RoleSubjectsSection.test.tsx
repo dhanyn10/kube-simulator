@@ -141,7 +141,7 @@ describe('RoleSubjectsSection', () => {
       <RoleSubjectsSection
         {...defaultProps}
         colorMode="dark"
-        iamUsers={[]}
+        iamUsers={dummyUsers}
         assignedUsers={['nonexistent-user']}
       />
     );
