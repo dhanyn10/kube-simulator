@@ -31,4 +31,20 @@ describe('Scenarios', () => {
       expect(Array.isArray(scenario.data.edges)).toBe(true);
     });
   });
+
+  it('should not contain legacy runtime or webserver fields and should specify images on workloads', () => {
+    scenarios.forEach(scenario => {
+      scenario.data.nodes.forEach(node => {
+        const nodeType = node.type || node.data?.type;
+        const data = node.data || {};
+
+        if (['Pod', 'Deployment', 'ReplicaSet'].includes(nodeType)) {
+          expect(data.runtime).toBeUndefined();
+          expect(data.webserver).toBeUndefined();
+          expect(typeof data.image).toBe('string');
+          expect(data.image.trim().length).toBeGreaterThan(0);
+        }
+      });
+    });
+  });
 });

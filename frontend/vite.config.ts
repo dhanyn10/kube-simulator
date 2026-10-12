@@ -29,6 +29,17 @@ export default defineConfig(() => {
         'tailwind-merge',
       ],
     },
+    build: {
+      target: 'es2022',
+      chunkSizeWarningLimit: 1600,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', '@xyflow/react', 'framer-motion', 'lucide-react', 'zustand'],
+          },
+        },
+      },
+    },
     server: {
       strictPort: true,
       warmup: {

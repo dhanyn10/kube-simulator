@@ -137,8 +137,8 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
   return nodes.map((n) => {
     if (n.type !== 'Pod' || n.id === updatedNode.id) return n;
     const nData = n.data as K8sNodeData;
-    const isSameParent = Boolean(updatedNode.parentId && n.parentId === updatedNode.parentId);
-    const isSameGroup = Boolean(targetPodHash && nData.podHash === targetPodHash && (nData.baseName || nData.label) === targetBaseName);
+    const isSameParent = Boolean(updatedNode?.parentId && n.parentId === updatedNode.parentId);
+    const isSameGroup = Boolean(targetPodHash && nData?.podHash === targetPodHash && (nData?.baseName || nData?.label) === targetBaseName);
 
     if (isSameParent || isSameGroup) {
       return {
@@ -203,7 +203,7 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
 const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowState) => {
   let nextNodes = currentNodes;
   if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
-  if (node.type === 'Pod' && node.parentId) {
+  if (node?.type === 'Pod' && node?.parentId) {
     const parent = nextNodes.find(n => n.id === node.parentId);
     if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
       const nodeData = getNodeData(node);
@@ -242,17 +242,17 @@ const syncEdgesFromFormSelection = (
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
       if (!target || !['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
-      if (target.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
+      if (target?.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
       if (!effectiveSelector) return false;
-      const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+      const tLabel = (target?.data?.label as string) || (target?.data?.baseName as string);
       return tLabel === effectiveSelector;
     });
 
     if (effectiveSelector) {
       const matchingTargets = nodes.filter((n) => {
-        if (n.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
-        if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n.type || '')) return false;
-        if (n.type === 'Pod' && (n.parentId || n.data?.parentId)) return false;
+        if (n?.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
+        if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n?.type || '')) return false;
+        if (n?.type === 'Pod' && (n?.parentId || n?.data?.parentId)) return false;
         const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
         return tLabel === effectiveSelector;
       });
@@ -275,19 +275,19 @@ const syncEdgesFromFormSelection = (
 
 
   // Ingress form backendServiceName update
-  if (targetNode.type === 'Ingress' && newData.backendServiceName !== undefined) {
+  if (targetNode?.type === 'Ingress' && newData?.backendServiceName !== undefined) {
     const newBackend = newData.backendServiceName;
     // Remove existing outgoing edges from this Ingress to non-matching Services
     nextEdges = nextEdges.filter((e) => {
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
-      if (!target || target.type !== 'Service') return true;
-      return target.data?.label === newBackend;
+      if (!target || target?.type !== 'Service') return true;
+      return target?.data?.label === newBackend;
     });
 
     if (newBackend) {
       const matchingServices = nodes.filter(
-        (n) => n.type === 'Service' && n.data?.label === newBackend
+        (n) => n?.type === 'Service' && n?.data?.label === newBackend
       );
 
       matchingServices.forEach((s) => {
@@ -320,7 +320,7 @@ const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[])
   if (!oldLabel) return nodes;
 
   return nodes.map((n) => {
-    if (n.type === 'Service' && n.data?.selector === oldLabel) {
+    if (n?.type === 'Service' && n?.data?.selector === oldLabel) {
       return {
         ...n,
         data: {
@@ -329,7 +329,7 @@ const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[])
         }
       };
     }
-    if (n.type === 'Ingress' && n.data?.backendServiceName === oldLabel) {
+    if (n?.type === 'Ingress' && n?.data?.backendServiceName === oldLabel) {
       return {
         ...n,
         data: {
@@ -351,7 +351,7 @@ const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[])
  * @returns Sorted array of canvas nodes
  */
 const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) => {
-  if (newNode.parentId && newNode.type === 'Pod') {
+  if (newNode?.parentId && newNode?.type === 'Pod') {
     const parent = nodes.find(n => n.id === newNode.parentId);
     if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
       const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, 1, get, newNode);
@@ -504,10 +504,10 @@ const sanitizeAndUpdateServiceSelector = (
   updatedData: K8sNodeData,
   nodes: Node[]
 ): K8sNodeData => {
-  if (target.type === 'Service' && newData.serviceType && newData.serviceType !== 'LoadBalancer') {
+  if (target?.type === 'Service' && newData?.serviceType && newData?.serviceType !== 'LoadBalancer') {
     const currentSelector = updatedData.selector;
     if (currentSelector) {
-      const isIngressTarget = nodes.some((n) => n.type === 'Ingress' && (n.data?.label === currentSelector || n.id === currentSelector));
+      const isIngressTarget = nodes.some((n) => n?.type === 'Ingress' && (n?.data?.label === currentSelector || n?.id === currentSelector));
       if (isIngressTarget) {
         return { ...updatedData, selector: '' };
       }
