@@ -197,5 +197,7 @@ describe('RoleSubjectsSection', () => {
     );
 
     expect(screen.getByPlaceholderText('Add user...')).toBeInTheDocument();
+    expect(screen.getByText('dev-alice')).toBeInTheDocument();
+    expect(screen.getByText('(Full Access)')).toBeInTheDocument();
   });
 });

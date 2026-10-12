@@ -202,4 +202,19 @@ describe('ServiceNode', () => {
     );
     expect(screen.getByText('app: ---')).toBeDefined();
   });
+
+  it('covers standalone Pod matching by node ID fallback when label and baseName are missing', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'pod-id-only', type: 'Pod', data: {} }
+      ] as any
+    });
+
+    render(
+      <ReactFlowProvider>
+        <ServiceNode id="s-podid" type="Service" data={{ selector: 'pod-id-only' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: pod-id-only')).toBeDefined();
+  });
 });

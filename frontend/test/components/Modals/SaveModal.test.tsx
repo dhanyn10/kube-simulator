@@ -243,6 +243,10 @@ describe('SaveModal', () => {
 
     expect(itemRow).toHaveClass('bg-blue-100/80');
 
+    // Verify light mode context menu options styling
+    const changeThemeBtn = screen.getByText('Change Theme').closest('button');
+    expect(changeThemeBtn).toHaveClass('hover:bg-slate-100');
+
     act(() => {
       fireEvent.click(screen.getByText('Exit'));
     });

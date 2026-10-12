@@ -264,6 +264,25 @@ describe('DeploymentNode', () => {
     expect(screen.getByText('Default Dep')).toBeDefined();
   });
 
+  it('shows HPA warning when memoryRequest is present without cpuRequest', () => {
+    const hpaNode = { id: 'hpa1', type: 'HPA', data: {} };
+    const depNode = { id: 'd1', type: 'Deployment', data: { label: 'Partial Req Dep', memoryRequest: '256Mi' } };
+    const edge = { id: 'e1', source: 'hpa1', target: 'd1' };
+
+    useFlowStore.setState({
+      nodes: [hpaNode, depNode] as any,
+      edges: [edge] as any
+    });
+
+    render(
+      <ReactFlowProvider>
+        <DeploymentNode id="d1" type="Deployment" data={depNode.data} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('HPA ACTIVE: REQUESTS REQUIRED')).toBeDefined();
+  });
+
   it('handles edge targeting deployment with missing source node in checkShowHPAWarning', () => {
     const orphanEdge = { id: 'e-orphan', source: 'non-existent-hpa', target: 'd1' };
     useFlowStore.setState({ edges: [orphanEdge] as any, nodes: [] });

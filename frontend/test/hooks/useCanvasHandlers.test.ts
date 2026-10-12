@@ -81,14 +81,25 @@ describe('useCanvasHandlers hook', () => {
     expect(paneEvent.preventDefault).toHaveBeenCalled();
     expect(result.current.contextMenu).toEqual({ x: 200, y: 300 });
 
-    // Window click closes context menu
+    // Window contextmenu closes context menu
+    act(() => {
+      window.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    });
+    expect(result.current.contextMenu).toBeNull();
+
+    // Re-open context menu and test window click closing context menu
+    act(() => {
+      result.current.onPaneContextMenu(paneEvent);
+    });
+    expect(result.current.contextMenu).toEqual({ x: 200, y: 300 });
+
     act(() => {
       window.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(result.current.contextMenu).toBeNull();
   });
 
-  it('handles onNodeClick with autofocus enabled when container element is missing vs present', () => {
+  it('handles onNodeClick with autofocus enabled when container element is missing vs present, and autofocus disabled', () => {
     const onNodeClickStore = vi.fn();
     const node: Node = {
       id: 'n1',
@@ -97,6 +108,22 @@ describe('useCanvasHandlers hook', () => {
       height: 100,
       data: {},
     };
+
+    useFlowStore.setState({
+      nodes: [node],
+      onNodeClick: onNodeClickStore,
+      isAutofocusEnabled: false,
+    });
+
+    const { result: disabledResult } = renderHook(() => useCanvasHandlers());
+
+    const mockEventDisabled = {} as any;
+    act(() => {
+      disabledResult.current.onNodeClick(mockEventDisabled, node);
+    });
+
+    expect(onNodeClickStore).toHaveBeenCalledWith(mockEventDisabled, node);
+    expect(mockSetCenter).not.toHaveBeenCalled();
 
     useFlowStore.setState({
       nodes: [node],

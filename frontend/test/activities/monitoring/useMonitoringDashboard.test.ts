@@ -189,7 +189,7 @@ describe('useMonitoringDashboardHandler', () => {
     expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
   });
 
-  it('handles runtime object present without EventsOn method', () => {
+  it('handles runtime object present without EventsOn method and broadcast message with unknown type', () => {
     (globalThis as any).runtime = {}; // runtime exists, but EventsOn is undefined
 
     let onMessageCallback: ((event: any) => void) | null = null;
@@ -202,6 +202,11 @@ describe('useMonitoringDashboardHandler', () => {
     vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
 
     renderHook(() => useMonitoringDashboardHandler());
+
+    act(() => {
+      onMessageCallback?.({ data: { type: 'UNKNOWN_EVENT_TYPE' } });
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
 
     act(() => {
       onMessageCallback?.({ data: { type: 'DETACHED_OPEN' } });

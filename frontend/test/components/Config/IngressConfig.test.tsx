@@ -153,6 +153,13 @@ describe('IngressConfig', () => {
     const unselectedOptBtn = screen.getByText('api-service').closest('button');
     expect(unselectedOptBtn).toHaveClass('hover:bg-slate-100');
 
+    // Click inside dropdown element should not close dropdown
+    const dropdownContainer = dropdownBtn.closest('div');
+    if (dropdownContainer) {
+      fireEvent.mouseDown(dropdownContainer);
+      expect(screen.getByText('api-service')).toBeInTheDocument();
+    }
+
     // Click outside closes dropdown
     fireEvent.mouseDown(document.body);
     expect(screen.queryByText('api-service')).toBeNull();

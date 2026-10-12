@@ -48,8 +48,8 @@ describe('CustomEdge', () => {
     expect(screen.getByTestId('base-edge')).toBeDefined();
   });
 
-  it('shows action buttons when selected and updates background styling based on colorMode', () => {
-    useFlowStore.setState({ colorMode: 'dark' });
+  it('shows action buttons when selected and updates background styling based on colorMode and configuringEdgeId', () => {
+    useFlowStore.setState({ colorMode: 'dark', configuringEdgeId: 'e1' });
     const { rerender } = render(
       <svg>
         <CustomEdge {...defaultProps} selected={true} />
@@ -59,8 +59,9 @@ describe('CustomEdge', () => {
     expect(screen.getByTitle('Remove')).toBeDefined();
     const panelDark = screen.getByTestId('edge-settings-panel-e1');
     expect(panelDark.getAttribute('class')).toContain('bg-slate-900');
+    expect(screen.getByTitle('Settings').getAttribute('class')).toContain('bg-blue-900');
 
-    useFlowStore.setState({ colorMode: 'light' });
+    useFlowStore.setState({ colorMode: 'light', configuringEdgeId: 'e1' });
     rerender(
       <svg>
         <CustomEdge {...defaultProps} selected={true} />
@@ -68,6 +69,7 @@ describe('CustomEdge', () => {
     );
     const panelLight = screen.getByTestId('edge-settings-panel-e1');
     expect(panelLight.getAttribute('class')).toContain('bg-white');
+    expect(screen.getByTitle('Settings').getAttribute('class')).toContain('bg-blue-100');
   });
 
   it('renders animated directional arrows on hover', () => {

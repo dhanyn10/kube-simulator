@@ -423,6 +423,12 @@ describe('useRoleModal hook', () => {
       result.current.setIsUserDropdownOpen(true);
     });
 
+    // Inside click event (should not close dropdown)
+    act(() => {
+      dropdownEl.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(result.current.isUserDropdownOpen).toBe(true);
+
     // Outside click event
     act(() => {
       document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
