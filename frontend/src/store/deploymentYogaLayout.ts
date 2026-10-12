@@ -14,13 +14,11 @@ export type YogaEngine = Awaited<ReturnType<typeof loadYoga>>;
 
 let cachedYogaInstance: YogaEngine | null = null;
 
-void loadYoga()
-  .then((instance) => {
-    cachedYogaInstance = instance;
-  })
-  .catch(() => {
-    cachedYogaInstance = null;
-  });
+try {
+  cachedYogaInstance = await loadYoga();
+} catch {
+  cachedYogaInstance = null;
+}
 
 /**
  * Returns the currently cached Yoga Layout engine instance.
