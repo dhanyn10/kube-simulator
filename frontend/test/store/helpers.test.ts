@@ -290,4 +290,50 @@ describe('store helpers', () => {
     const resolvedPg = resolveGlobalCollisions([pgParent, pgChild1, pgChild2]);
     expect(resolvedPg.find(n => n.id === 'p1')?.position.x).toBe(0);
   });
+
+  it('covers selectValue with null values, getAbsPos position fallback, and scaling up pod replicaSuffixes', () => {
+    // 1. getAbsPos with node lacking position property
+    const nodeNoPosition = { id: 'nopos', data: {} } as Node;
+    expect(getAbsPos('nopos', [nodeNoPosition])).toEqual({ x: 0, y: 0 });
+
+    // 2. syncPodsInDeployment when template has null image and deployment has null image -> fallback undefined
+    const depNullImage = { id: 'd-null', type: 'Deployment', data: { replicas: 1, label: 'app', image: null } } as any;
+    const templNullImage = { data: { image: null } } as any;
+    const podsNull = syncPodsInDeployment(depNullImage, [], templNullImage);
+    expect(podsNull[0].data.image).toBeUndefined();
+
+    // 3. syncPodsInDeployment when scaling up pod where existingPod has partial replicaSuffixes array
+    const existingPodPartialSuffixes = {
+      id: 'p1',
+      parentId: 'd1',
+      type: 'Pod',
+      data: {
+        baseName: 'app',
+        podHash: 'h1',
+        replicaSuffix: 's1',
+        replicaSuffixes: ['s1'], // length 1
+      }
+    } as any;
+    const depScaleUp = { id: 'd1', type: 'Deployment', data: { replicas: 2, label: 'app' } } as any;
+    const scaledPods = syncPodsInDeployment(depScaleUp, [existingPodPartialSuffixes]);
+    expect(scaledPods).toHaveLength(2);
+    expect(scaledPods[0].data.replicaSuffix).toBe('s1');
+    expect(scaledPods[1].data.replicaSuffix).toBeDefined();
+
+    // 4. updatePodNode when isManuallyResized is true but existingPod.width is undefined and measured.width is set
+    const podResizedMeasuredWidth = {
+      id: 'p-resized',
+      parentId: 'd1',
+      type: 'Pod',
+      measured: { width: 350, height: 250 },
+      data: {
+        isManuallyResized: true,
+        baseName: 'app',
+        podHash: 'h1',
+        replicaSuffix: 's1',
+      }
+    } as any;
+    const syncedResized = syncPodsInDeployment(depScaleUp, [podResizedMeasuredWidth]);
+    expect(syncedResized[0].width).toBe(350);
+  });
 });

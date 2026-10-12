@@ -85,5 +85,19 @@ describe('terminalCommandTreeHelpers', () => {
     expect(result[0].id).toBe('p1');
     expect(result[0].children).toHaveLength(1);
     expect(result[0].children![0].id).toBe('c1');
+
+    // 3. Parent node matches term, but children do not match term (filteredChildren.length === 0)
+    const matchingParentUnrelatedChildren = [
+      {
+        id: 'p2',
+        name: 'matching-parent-name',
+        description: 'parent match',
+        children: [{ id: 'c2', name: 'unrelated-child', description: 'no match' }]
+      }
+    ];
+
+    const parentResult = filterCommandTree(matchingParentUnrelatedChildren, 'matching-parent');
+    expect(parentResult).toHaveLength(1);
+    expect(parentResult[0].id).toBe('p2');
   });
 });
