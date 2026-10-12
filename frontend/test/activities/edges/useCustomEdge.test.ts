@@ -300,4 +300,15 @@ describe('useCustomEdge & edge helpers', () => {
     });
     expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('target-fallback-id'));
   });
+
+  it('covers checkNodeUnready with node lacking data property, and getTargetLoggableNode with ReplicaSet unready node', () => {
+    // 1. checkNodeUnready with node lacking data property
+    const nodeNoData = { type: 'Pod' };
+    expect(checkNodeUnready(nodeNoData, [])).toBe(true);
+
+    // 2. getTargetLoggableNode with ReplicaSet unready node
+    const rsUnreadyNode = { id: 'rs-unready', type: 'ReplicaSet', data: { status: 'pending' } };
+    const loggableRS = getTargetLoggableNode('rs-unready', true, [rsUnreadyNode], [], []);
+    expect(loggableRS?.id).toBe('rs-unready');
+  });
 });
