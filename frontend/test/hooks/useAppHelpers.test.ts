@@ -379,6 +379,22 @@ describe('useAppHelpers', () => {
       expect(updatedNodes[0].data.hpas).toEqual([hpa1Updated]);
     });
 
+    it('covers HPA defaults when minReplicas, maxReplicas, or targetCPUUtilizationPercentage are falsy', () => {
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      act(() => {
+        result.current.setHpaModalTargetNode({ id: 'node-1', label: 'Test Node' });
+      });
+
+      const hpaFalsy = { id: 'hpa-falsy', name: 'falsy-hpa' } as any;
+      act(() => {
+        result.current.handleHpaSave(hpaFalsy);
+      });
+
+      const updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.hpas).toEqual([hpaFalsy]);
+    });
+
     it('handleResourceLimitSave returns early or attaches new/updated ResourceLimit', () => {
       const { result } = renderHook(() => useAttachmentHandlers());
 

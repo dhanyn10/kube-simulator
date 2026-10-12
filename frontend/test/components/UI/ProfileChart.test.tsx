@@ -83,6 +83,18 @@ describe('ProfileChart', () => {
       expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
     });
 
+    it('handles MiniCurvePreview without currentMinuteIndex or currentHourIndex (fallback minuteIdx 0)', () => {
+      render(
+        <MiniCurvePreview
+          profile={dummyProfile}
+          isApplied={true}
+          isRed={false}
+        />
+      );
+
+      expect(screen.getByTestId('mini-active-traffic-dot')).toBeInTheDocument();
+    });
+
     it('renders mini curve preview with sub-hourly interval granularity', () => {
       const subHourlyProfile: InternetProfileItem = {
         ...dummyProfile,
@@ -317,6 +329,33 @@ describe('ProfileChart', () => {
 
         fireEvent.pointerUp(targetCircles[0], { pointerId: 1 });
       }
+    });
+
+    it('covers zoomScale <= 100 100% width style, currentHourIndex fallback in InteractiveTrafficChart, and pointer up when not dragging', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="dark"
+          isApplied={true}
+          currentHourIndex={3}
+          isRed={true}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      const chartSvg = container.querySelector('svg[viewBox="0 0 680 280"]')!;
+      expect(chartSvg).toBeInTheDocument();
+
+      // Pointer up when draggingHour is null
+      fireEvent.pointerUp(chartSvg, { pointerId: 1 });
+
+      // Pointer move when draggingHour is null (should not call onUpdatePoint)
+      fireEvent.pointerMove(chartSvg, { clientX: 100, clientY: 100 });
+      expect(onUpdatePoint).not.toHaveBeenCalled();
     });
   });
 });

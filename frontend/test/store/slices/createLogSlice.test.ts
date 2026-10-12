@@ -237,4 +237,26 @@ describe('createLogSlice', () => {
     slice.addLog('info', 'non-important info');
     expect(storeState.isLogToastVisible).toBe(false);
   });
+
+  it('covers environments where localStorage/sessionStorage are not objects or not supported', () => {
+    const origLocalStorage = globalThis.localStorage;
+    const origSessionStorage = globalThis.sessionStorage;
+
+    try {
+      // @ts-ignore
+      delete globalThis.localStorage;
+      // @ts-ignore
+      delete globalThis.sessionStorage;
+
+      const sliceNoStorage = createLogSlice(setStore as any, getStore as any, {} as any);
+      expect(sliceNoStorage.logs).toEqual([]);
+
+      storeState = { logs: [] };
+      sliceNoStorage.addLog('info', 'No storage message');
+      expect(storeState.logs).toHaveLength(1);
+    } finally {
+      globalThis.localStorage = origLocalStorage;
+      globalThis.sessionStorage = origSessionStorage;
+    }
+  });
 });

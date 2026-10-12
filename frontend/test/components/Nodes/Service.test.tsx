@@ -178,4 +178,28 @@ describe('ServiceNode', () => {
     );
     expect(screen.getByText('app: ---')).toBeDefined();
   });
+
+  it('covers Deployment and ReplicaSet fallback matching via node ID when label/baseName are missing', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'dep-nolabel', type: 'Deployment', data: {} },
+        { id: 'pod-dataparent', type: 'Pod', data: { parentId: 'dep-nolabel' } },
+      ] as any
+    });
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <ServiceNode id="s-idmatch" type="Service" data={{ selector: 'dep-nolabel' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: dep-nolabel')).toBeDefined();
+
+    // Standalone pod with data.parentId set
+    rerender(
+      <ReactFlowProvider>
+        <ServiceNode id="s-dataparentpod" type="Service" data={{ selector: 'pod-dataparent' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ---')).toBeDefined();
+  });
 });

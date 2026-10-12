@@ -244,5 +244,49 @@ describe('terminalConfigCommands', () => {
 
       delete (globalThis as any).go;
     });
+
+    it('covers deriveVerbAndResource for ingresses, roles, rolebindings, configmaps, secrets, pvcs, hpas, and apply/set/rollout commands', () => {
+      expect(deriveVerbAndResource('kubectl get ingresses')).toEqual({ verb: 'get', resource: 'ingresses' });
+      expect(deriveVerbAndResource('kubectl get roles')).toEqual({ verb: 'get', resource: 'roles' });
+      expect(deriveVerbAndResource('kubectl get rolebindings')).toEqual({ verb: 'get', resource: 'roles' });
+      expect(deriveVerbAndResource('kubectl get configmaps')).toEqual({ verb: 'get', resource: 'configmaps' });
+      expect(deriveVerbAndResource('kubectl get secrets')).toEqual({ verb: 'get', resource: 'secrets' });
+      expect(deriveVerbAndResource('kubectl get pvcs')).toEqual({ verb: 'get', resource: 'pvcs' });
+      expect(deriveVerbAndResource('kubectl get hpas')).toEqual({ verb: 'get', resource: 'hpas' });
+      expect(deriveVerbAndResource('kubectl get unknownres')).toEqual({ verb: 'get', resource: 'unknownres' });
+      expect(deriveVerbAndResource('kubectl set image deployment/web app=nginx')).toEqual({ verb: 'update', resource: 'deployments' });
+      expect(deriveVerbAndResource('kubectl rollout status deploy/web')).toEqual({ verb: 'update', resource: 'deployments' });
+    });
+
+    it('covers checkRbacPermission verb wildcard, resource wildcard, and kubernetes-admin identity', () => {
+      storeState.activeIdentity = 'kubernetes-admin';
+      expect(checkRbacPermission(mockCtx, 'delete', 'secrets')).toBe(true);
+
+      // Wildcard verb and resource matching in custom role
+      storeState.activeIdentity = 'wildcard_user';
+      storeState.iamUsers.push({ id: 'u-wild', username: 'wildcard_user', accessType: 'Managed Access', policies: [] });
+
+      const wildcardRoleCtx: any = {
+        ...mockCtx,
+        nodes: [
+          {
+            id: 'n-wild',
+            type: 'Pod',
+            data: {
+              roles: [
+                {
+                  name: 'all-access',
+                  assignedUsers: ['wildcard_user'],
+                  rules: [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }],
+                },
+              ],
+            },
+          },
+        ],
+        getStoreState: () => ({ activeIdentity: 'wildcard_user', iamUsers: storeState.iamUsers }),
+      };
+
+      expect(checkRbacPermission(wildcardRoleCtx, 'delete', 'deployments')).toBe(true);
+    });
   });
 });

@@ -96,4 +96,24 @@ describe('ResourceSettingsList', () => {
     const request1GiBtn = screen.getAllByText('1 Gi')[1].closest('button');
     expect(request1GiBtn).toHaveProperty('disabled', true);
   });
+
+  it('covers handleSelect when selecting a limit higher or equal to current request without clamping', () => {
+    render(
+      <ResourceSettingsList
+        data={{ cpuRequest: '500m', cpuLimit: '500m', memoryRequest: '256Mi', memoryLimit: '256Mi' }}
+        colorMode="dark"
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    // Click 1 Core for CPU Limit (option value is '1')
+    const limit1CoreBtn = screen.getAllByText('1 Core')[0];
+    fireEvent.click(limit1CoreBtn);
+    expect(mockPerformUpdate).toHaveBeenCalledWith({ cpuLimit: '1' });
+
+    // Click 512 Mi for Memory Limit
+    const limit512MiBtn = screen.getAllByText('512 Mi')[0];
+    fireEvent.click(limit512MiBtn);
+    expect(mockPerformUpdate).toHaveBeenCalledWith({ memoryLimit: '512Mi' });
+  });
 });

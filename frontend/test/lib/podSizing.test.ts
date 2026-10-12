@@ -50,6 +50,14 @@ describe('podSizing utils', () => {
       };
       const widthHidden = calculatePodWidth(dataImageHidden, []);
       expect(widthHidden).toBe(POD_MIN_DIMENSIONS.width);
+
+      const dataImageExplicitlyFalse = {
+        label: 'hidden-img-2',
+        image: '',
+        displaySettings: { image: true },
+      };
+      const widthNoImage = calculatePodWidth(dataImageExplicitlyFalse, []);
+      expect(widthNoImage).toBe(POD_MIN_DIMENSIONS.width);
     });
   });
 

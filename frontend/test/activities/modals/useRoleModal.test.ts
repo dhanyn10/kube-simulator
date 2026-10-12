@@ -347,6 +347,12 @@ describe('useRoleModal hook', () => {
       result.current.toggleUserAssignment('admin');
     });
     expect(result.current.assignedUsers).toContain('admin');
+
+    // Toggling user not found in iamUsers adds them to assignedUsers
+    act(() => {
+      result.current.toggleUserAssignment('unknown-user');
+    });
+    expect(result.current.assignedUsers).toContain('unknown-user');
   });
 
   it('handles user search query filtering by username, accessType, or policy, and handles saving role with empty rules', () => {

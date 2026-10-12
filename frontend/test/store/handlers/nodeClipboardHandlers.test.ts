@@ -248,16 +248,40 @@ describe('clipboardHandlers', () => {
     // 6. Selected pod points to non-existent targetId or targetNode is missing
     updateSpy.mockClear();
     const orphanPod: Node = { id: 'orphan-pod', type: 'Pod', parentId: 'missing-dep', selected: true, position: { x: 0, y: 0 }, data: { label: 'my-app' } };
-    const fakeController: Node = { id: 'missing-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
-    // If targetNode is removed from nodes list before lookup
     useFlowStore.setState({
       nodes: [orphanPod] as any, // missing-dep is missing
       clipboard: { nodes: [clipboardPod], edges: [] },
       updateNodeData: updateSpy,
     });
-    // orphanPod.parentId is 'missing-dep', parent is undefined -> targetId = orphanPod.id ('orphan-pod'), targetNode found.
     useFlowStore.getState().pasteNodes();
     expect(updateSpy).toHaveBeenCalledWith('orphan-pod', { replicas: 2 });
+
+    // 7. targetNode is undefined when parent is found on first find but targetId is missing on second find
+    updateSpy.mockClear();
+    const customPod: Node = { id: 'c-pod', parentId: 'c-dep', selected: true, type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'my-app' } };
+    const customDep: Node = { id: 'c-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: {} };
+    let findCount = 0;
+    const customNodesList = [customPod, customDep];
+    const proxyNodes = new Proxy(customNodesList, {
+      get(target, prop) {
+        if (prop === 'find') {
+          return (predicate: any) => {
+            findCount++;
+            if (findCount === 3) return undefined; // third find call returns undefined for targetNode
+            return target.find(predicate);
+          };
+        }
+        return (target as any)[prop];
+      }
+    });
+
+    useFlowStore.setState({
+      nodes: proxyNodes as any,
+      clipboard: { nodes: [clipboardPod], edges: [] },
+      updateNodeData: updateSpy,
+    });
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('pasteNodes handles pasting Pod without data object', () => {

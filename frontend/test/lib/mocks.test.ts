@@ -22,6 +22,21 @@ describe("initWailsMocks", () => {
     expect((window as any).runtime).toBeUndefined();
   });
 
+  it("does nothing if globalThis is undefined or go is defined on globalThis", () => {
+    const origGo = (globalThis as any).go;
+    try {
+      (globalThis as any).go = { main: {} };
+      initWailsMocks();
+      expect((globalThis as any).runtime).toBeUndefined();
+    } finally {
+      if (origGo) {
+        (globalThis as any).go = origGo;
+      } else {
+        delete (globalThis as any).go;
+      }
+    }
+  });
+
   it("initializes runtime and go mocks when window.go is not defined", async () => {
     initWailsMocks();
 

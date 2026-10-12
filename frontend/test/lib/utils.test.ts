@@ -209,5 +209,17 @@ describe('utils', () => {
         const result = await generateYaml([], []);
         expect(result).toBe("");
       });
+
+      it('handles null/undefined response and backend error throwing with fallback to client-side', async () => {
+        (globalThis as any).go = {
+          main: { App: { GenerateYaml: vi.fn().mockResolvedValue(null) } }
+        };
+        expect(await generateYaml([], [])).toBe("");
+
+        (globalThis as any).go = {
+          main: { App: { GenerateYaml: vi.fn().mockRejectedValue(new Error('Backend error')) } }
+        };
+        expect(await generateYaml([], [])).toBe("");
+      });
   });
 });

@@ -150,4 +150,15 @@ describe('connections constants', () => {
     // Cleanup
     (VALID_CONNECTIONS as any).Ingress = ['Service'];
   });
+
+  it('covers checkServiceSourceRules when NodePort Service connects to Ingress or Service without LoadBalancer type', () => {
+    // Temporarily allow Service -> Service
+    (VALID_CONNECTIONS as any).Service = ['Deployment', 'Pod', 'ReplicaSet', 'Service', 'Ingress'];
+
+    // NodePort Service connecting to Ingress
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'NodePort' }, {})).toBeNull();
+
+    // ClusterIP Service connecting to Service returns null
+    expect(getConnectionError('Service', 'Service', { serviceType: 'ClusterIP' }, { serviceType: 'ClusterIP' })).toBeNull();
+  });
 });

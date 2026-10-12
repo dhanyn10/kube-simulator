@@ -185,4 +185,30 @@ describe('WorkloadConfig', () => {
     fireEvent.click(neverBtn);
     expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'Never' });
   });
+
+  it('covers Pod node with empty/undefined image and restartPolicy fallbacks', () => {
+    const emptyPodNode = {
+      id: 'p-empty',
+      type: 'Pod',
+      data: {
+        label: 'Empty Pod',
+        image: undefined,
+        restartPolicy: undefined,
+        displaySettings: { image: true, restartPolicy: true },
+      }
+    };
+    useFlowStore.setState({ nodes: [emptyPodNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={emptyPodNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Container Image')).toBeDefined();
+    expect(screen.getByText('Restart Policy')).toBeDefined();
+  });
 });

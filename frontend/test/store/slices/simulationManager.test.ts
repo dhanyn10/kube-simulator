@@ -265,5 +265,24 @@ describe('simulationManager', () => {
 
       expect(validateHpaTargets(nodes, edges)).toBe(false);
     });
+
+    it('checkEmergencyStop evaluates standalone pods matching active workloads', () => {
+      const workloads: Node[] = [{ id: 'pod-standalone-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'standalone-app' } }];
+      const nodes: Node[] = [
+        { id: 'pod-standalone-1', type: 'Pod', parentId: undefined, position: { x: 0, y: 0 }, data: { status: 'pending' } },
+      ];
+      const metrics = { 'pod-standalone-1': [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
+
+      const result = checkEmergencyStop({
+        ticks: 5,
+        workloads,
+        nodes,
+        metrics,
+        set: vi.fn(),
+        simulationInterval: { current: null }
+      });
+
+      expect(result).toBe(false);
+    });
   });
 });

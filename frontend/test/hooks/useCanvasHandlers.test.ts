@@ -178,6 +178,15 @@ describe('useCanvasHandlers hook', () => {
     });
     expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
 
+    // Edge click when isAutofocusEnabled is false
+    mockFitBounds.mockClear();
+    useFlowStore.setState({ isAutofocusEnabled: false });
+    const { result: noAutofocusResult } = renderHook(() => useCanvasHandlers());
+    act(() => {
+      noAutofocusResult.current.onEdgeClick(mockEvent, edge);
+    });
+    expect(mockFitBounds).not.toHaveBeenCalled();
+
     // Edge click with missing source/target nodes
     mockFitBounds.mockClear();
     const brokenEdge: Edge = { id: 'e-broken', source: 'n-missing-1', target: 'n-missing-2' };
