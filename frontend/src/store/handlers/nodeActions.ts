@@ -48,7 +48,19 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
     id: groupId, type: 'ReplicaSet', position: { x: podPos.x - 20, y: podPos.y - 40 },
     data: { ...updatedData, label: updatedData.label, ...createNodeHandlers(groupId, get) }
   };
-  const tempPod = { ...updatedNode, parentId: groupId, position: { x: 20, y: 40 } };
+  const tempPod = {
+    ...updatedNode,
+    parentId: groupId,
+    position: { x: 20, y: 40 },
+    data: {
+      ...updatedNode.data,
+      roles: undefined,
+      configMaps: undefined,
+      secrets: undefined,
+      hpas: undefined,
+      resourceLimits: undefined,
+    }
+  };
   const { updatedDeployment, laidOut } = syncDeployment(newGroup, [tempPod], 0, get, tempPod);
   return sortNodes([...nodes.filter(n => n.id !== nodeId), updatedDeployment, ...laidOut]);
 };
@@ -138,6 +150,43 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
     newData.resourceLimits !== undefined;
 
   if (!hasAttachedChanges) return nodes;
+
+  const parentId = updatedNode.parentId;
+  const parent = parentId ? nodes.find(n => n.id === parentId) : null;
+  const isInsideController = parent && (parent.type === 'ReplicaSet' || parent.type === 'Deployment');
+
+  if (updatedNode.type === 'Pod' && isInsideController) {
+    return nodes.map((n) => {
+      const nData = n.data as K8sNodeData;
+      if (n.id === parentId) {
+        return {
+          ...n,
+          data: {
+            ...nData,
+            ...(newData.roles !== undefined ? { roles: newData.roles } : {}),
+            ...(newData.configMaps !== undefined ? { configMaps: newData.configMaps } : {}),
+            ...(newData.secrets !== undefined ? { secrets: newData.secrets } : {}),
+            ...(newData.hpas !== undefined ? { hpas: newData.hpas } : {}),
+            ...(newData.resourceLimits !== undefined ? { resourceLimits: newData.resourceLimits } : {}),
+          }
+        };
+      }
+      if (n.parentId === parentId || n.id === updatedNode.id) {
+        return {
+          ...n,
+          data: {
+            ...nData,
+            ...(newData.roles !== undefined ? { roles: undefined } : {}),
+            ...(newData.configMaps !== undefined ? { configMaps: undefined } : {}),
+            ...(newData.secrets !== undefined ? { secrets: undefined } : {}),
+            ...(newData.hpas !== undefined ? { hpas: undefined } : {}),
+            ...(newData.resourceLimits !== undefined ? { resourceLimits: undefined } : {}),
+          }
+        };
+      }
+      return n;
+    });
+  }
 
   const targetBaseName = updatedData.baseName || updatedData.label;
   const targetPodHash = updatedData.podHash;

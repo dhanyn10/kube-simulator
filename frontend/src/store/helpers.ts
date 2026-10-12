@@ -74,11 +74,11 @@ const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: 
     cpuRequest: selectValue(t?.cpuRequest, d.cpuRequest),
     memoryRequest: selectValue(t?.memoryRequest, d.memoryRequest),
     displaySettings,
-    roles: selectValue(t?.roles, d.roles),
-    configMaps: selectValue(t?.configMaps, d.configMaps),
-    secrets: selectValue(t?.secrets, d.secrets),
-    hpas: selectValue(t?.hpas, d.hpas),
-    resourceLimits: selectValue(t?.resourceLimits, d.resourceLimits),
+    roles: undefined,
+    configMaps: undefined,
+    secrets: undefined,
+    hpas: undefined,
+    resourceLimits: undefined,
   };
 };
 

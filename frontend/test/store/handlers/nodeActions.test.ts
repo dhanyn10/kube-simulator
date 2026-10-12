@@ -148,7 +148,7 @@ describe('nodeActions', () => {
     expect(state.nodes.find(n => n.id === 'rs1')?.data.replicas).toBe(3);
   });
 
-  it('adding ConfigMap on ReplicaSet with replicas = 3 does not reset replicas to 1 and renders across all child Pod cards', () => {
+  it('adding ConfigMap on Pod inside ReplicaSet moves ConfigMap to ReplicaSet and removes it from individual child Pods', () => {
     const cm = { id: 'cm-1', name: 'my-config', data: { env: 'prod' } };
     const rs = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, data: { label: 'my-rs', replicas: 3, type: 'ReplicaSet' } };
     const pod1 = { id: 'p1', type: 'Pod', parentId: 'rs1', position: { x: 20, y: 40 }, data: { label: 'my-rs-pod1', replicas: 3, type: 'Pod' } };
@@ -162,15 +162,16 @@ describe('nodeActions', () => {
     const state = useFlowStore.getState();
     const rsNode = state.nodes.find(n => n.id === 'rs1');
     expect(rsNode?.data.replicas).toBe(3);
+    expect(rsNode?.data.configMaps).toEqual([cm]);
 
     const childPods = state.nodes.filter(n => n.parentId === 'rs1' && n.type === 'Pod');
     expect(childPods.length).toBeGreaterThanOrEqual(2);
     childPods.forEach((podNode) => {
-      expect(podNode.data.configMaps).toEqual([cm]);
+      expect(podNode.data.configMaps).toBeUndefined();
     });
   });
 
-  it('scaling standalone Pod from 1 to 2 auto-promotes to ReplicaSet and migrates attached ConfigMap', () => {
+  it('scaling standalone Pod from 1 to 2 auto-promotes to ReplicaSet, moves ConfigMap to ReplicaSet, and removes it from child Pods', () => {
     const cm = { id: 'cm-1', name: 'my-config', data: { env: 'prod' } };
     const standalonePod = {
       id: 'p1',
@@ -188,11 +189,12 @@ describe('nodeActions', () => {
     const rsNode = state.nodes.find(n => n.type === 'ReplicaSet');
     expect(rsNode).toBeDefined();
     expect(rsNode?.data.replicas).toBe(2);
+    expect(rsNode?.data.configMaps).toEqual([cm]);
 
     const childPods = state.nodes.filter(n => n.parentId === rsNode?.id && n.type === 'Pod');
     expect(childPods.length).toBe(2);
     childPods.forEach((podNode) => {
-      expect(podNode.data.configMaps).toEqual([cm]);
+      expect(podNode.data.configMaps).toBeUndefined();
     });
   });
 
