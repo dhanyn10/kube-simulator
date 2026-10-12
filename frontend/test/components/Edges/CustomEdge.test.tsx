@@ -265,4 +265,13 @@ describe('CustomEdge', () => {
     expect(state.terminalActiveTab).toBe('logs');
     expect(state.terminalSelectedResourceId).toBe('n3');
   });
+
+  it('covers getSettingsButtonClass in configuring vs non-configuring for dark and light modes', async () => {
+    const { getSettingsButtonClass } = await import('@/components/Edges/CustomEdge');
+
+    expect(getSettingsButtonClass(true, true)).toContain('bg-blue-900');
+    expect(getSettingsButtonClass(true, false)).toContain('bg-blue-100');
+    expect(getSettingsButtonClass(false, true)).toContain('hover:bg-slate-800');
+    expect(getSettingsButtonClass(false, false)).toContain('hover:bg-slate-100');
+  });
 });

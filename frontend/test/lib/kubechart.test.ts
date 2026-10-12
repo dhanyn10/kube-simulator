@@ -355,4 +355,29 @@ describe('kubechart library', () => {
     expect(ticks[0].label).toBe('2.0k');
     expect(ticks[4].label).toBe('0');
   });
+
+  it('covers resolvePadding fallback defaults and computeChartLayout with custom minVal/maxVal and fallback daily profile', () => {
+    // 1. resolvePadding with empty object/null/undefined
+    expect(resolvePadding({})).toEqual({ padLeft: 0, padRight: 0, padTop: 0, padBottom: 0 });
+    expect(resolvePadding(undefined as any)).toEqual({ padLeft: 0, padRight: 0, padTop: 0, padBottom: 0 });
+
+    // 2. computeChartLayout with daily profile and explicit minVal/maxVal
+    const dailyProfileItem: any = {
+      name: 'Daily Profile',
+      daily: { '00:00': 300, '12:00': 800 }
+    };
+    const layout = computeChartLayout(dailyProfileItem, {
+      width: 200,
+      height: 100,
+      minVal: 50,
+      maxVal: 2000
+    });
+
+    expect(layout.minVal).toBe(50);
+    expect(layout.maxVal).toBe(2000);
+
+    // 3. convertProfileToTimeSeries with empty profile.hourly/daily (fallback {})
+    const emptyTs = convertProfileToTimeSeries({ name: 'Empty' } as any, 60);
+    expect(emptyTs).toHaveLength(25);
+  });
 });

@@ -388,4 +388,18 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).not.toContain('name: no-res-pod\n          resources:');
     expect(yamlOutput).not.toContain('name: empty-res-pod\n          resources:');
   });
+
+  it('covers sanitizeName with empty string, Ingress serviceName property, and Service/Pod missing labels', () => {
+    const nodes = [
+      { id: 'ing1', type: 'Ingress', data: { label: 'Ingress 1', serviceName: 'custom-svc-name', servicePort: '9090' } },
+      { id: 'svc1', type: 'Service', data: { label: 'service-1', serviceType: 'ClusterIP' } },
+      { id: 'pod1', type: 'Pod', data: { label: 'pod-1' } }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('name: custom-svc-name');
+    expect(yamlOutput).toContain('number: 9090');
+    expect(yamlOutput).toContain('name: service-1');
+    expect(yamlOutput).toContain('name: pod-1');
+  });
 });

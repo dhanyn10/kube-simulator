@@ -122,4 +122,17 @@ describe('TerminalCommandTreeModal', () => {
 
     expect(useFlowStore.getState().isTerminalCommandTreeModalOpen).toBe(false);
   });
+
+  it('handles window event dispatching and keyboard events on non-children items', async () => {
+    useFlowStore.setState({ isTerminalCommandTreeModalOpen: true });
+    render(<TerminalCommandTreeModal />);
+
+    // Click on leaf command
+    const podsBtn = screen.getByText('pods');
+    await act(async () => {
+      fireEvent.click(podsBtn);
+    });
+
+    expect(useFlowStore.getState().isTerminalCommandTreeModalOpen).toBe(false);
+  });
 });

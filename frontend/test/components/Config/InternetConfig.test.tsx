@@ -425,4 +425,62 @@ describe('InternetConfig', () => {
       />
     );
   });
+
+  it('covers ReadOnlyProfileChart hover with isRed = false on non-current hour', async () => {
+    useFlowStore.setState({ isSimulating: false });
+
+    const greenProfileNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        currentMinuteIndex: 60, // 01:00
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Green Profile',
+          hourly: { '00:00': 100, '01:00': 200, '02:00': 300 }
+        }
+      }
+    };
+
+    const { container } = render(
+      <InternetConfig
+        selectedNode={greenProfileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    const chartSvg = container.querySelector('svg[viewBox="0 0 240 80"]')!;
+    vi.spyOn(chartSvg, 'getBoundingClientRect').mockReturnValue({
+      width: 240,
+      height: 80,
+      top: 0,
+      left: 0,
+      bottom: 80,
+      right: 240,
+      x: 0,
+      y: 0,
+      toJSON: () => {}
+    });
+
+    const overlayRect = screen.getByTestId('readonly-chart-canvas-overlay');
+    vi.spyOn(overlayRect, 'getBoundingClientRect').mockReturnValue({
+      width: 224,
+      height: 64,
+      top: 8,
+      left: 8,
+      bottom: 72,
+      right: 232,
+      x: 8,
+      y: 8,
+      toJSON: () => {}
+    });
+
+    // Hover at hour 0 (different hour than 01:00) with isRed = false
+    await act(async () => {
+      fireEvent.pointerMove(overlayRect, { clientX: 8, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+  });
 });

@@ -226,4 +226,18 @@ describe('NodeConfig', () => {
     useFlowStore.setState({ nodes: [orphanPod as any] });
     render(<NodeConfig selectedNode={orphanPod} />);
   });
+
+  it('covers attached resource section when resourceLimits exist on node data', () => {
+    const resLimitNode = {
+      id: 'node-res-limit',
+      type: 'Deployment',
+      data: {
+        label: 'res-limit-dep',
+        resourceLimits: [{ id: 'rl1', name: 'my-limit' }],
+      },
+    };
+
+    render(<NodeConfig selectedNode={resLimitNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+  });
 });
