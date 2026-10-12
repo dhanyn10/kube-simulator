@@ -106,6 +106,11 @@ describe('NodeUI', () => {
 
       fireEvent.keyDown(labelBtn, { key: ' ' });
       expect(mockSetIsEditing).toHaveBeenCalledWith(true);
+
+      // Keydown other than Enter or Space should not trigger setIsEditing
+      mockSetIsEditing.mockClear();
+      fireEvent.keyDown(labelBtn, { key: 'Escape' });
+      expect(mockSetIsEditing).not.toHaveBeenCalled();
     });
 
     it('renders input when editing', () => {

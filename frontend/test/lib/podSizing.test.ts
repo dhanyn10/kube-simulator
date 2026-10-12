@@ -152,6 +152,28 @@ describe('podSizing utils', () => {
       const h2 = calculatePodHeight(podMemoryOnly, 168, [], false);
       expect(h2).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
     });
+
+    it('covers cpuRequest and memoryRequest without limits, and standalone pod with replicas > 1 for dashed progress', () => {
+      const base = { type: 'Pod' as any, displaySettings: { restartPolicy: false } };
+      const podCpuReq = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, cpuRequest: '250m' };
+      const podMemReq = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, memoryRequest: '512Mi' };
+
+      const hBase = calculatePodHeight(base, 168, [], false);
+      const hCpu = calculatePodHeight(podCpuReq, 168, [], false);
+      const hMem = calculatePodHeight(podMemReq, 168, [], false);
+
+      expect(hCpu).toBeGreaterThan(hBase);
+      expect(hMem).toBeGreaterThan(hBase);
+
+      const standaloneMultiReplica = {
+        type: 'Pod' as any,
+        replicas: 2,
+        parentId: undefined,
+        displaySettings: { restartPolicy: false },
+      };
+      const hDashed = calculatePodHeight(standaloneMultiReplica, 168, [], false);
+      expect(hDashed).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
+    });
   });
 
   describe('getPodMinimumSize', () => {

@@ -122,13 +122,19 @@ describe('useMenuBarState', () => {
     let aboutItem = helpMenu?.items.find((i) => i.label === 'About');
     let reportIssueItem = helpMenu?.items.find((i) => i.label === 'Report Issue');
 
+    // Test Terminal Commands click
+    resourceMenu = result.current.menuItems.find((m) => m.label === 'Resource');
+    const termCmdsItem = resourceMenu?.items.find((i) => i.label === 'Terminal Commands');
+
     act(() => {
       tourItem?.onClick?.();
       aboutItem?.onClick?.();
       reportIssueItem?.onClick?.();
+      termCmdsItem?.onClick?.();
     });
     expect(defaultProps.onOpenAbout).toHaveBeenCalled();
     expect(browserOpenSpy).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
+    expect(useFlowStore.getState().isTerminalCommandTreeModalOpen).toBe(true);
 
     // Test outside click to close active menu
     (result.current.menuRef as any).current = document.createElement('div');
@@ -291,7 +297,38 @@ describe('useMenuBarState', () => {
     expect((globalThis as any).go.main.App.UpdateProject).toHaveBeenCalledWith(2, expect.any(String));
   });
 
-  it('handles simulatedUpdateInfo override and background update error catch', async () => {
+  it('handles partial App object without CheckForUpdates and simulatedUpdateInfo override', async () => {
+    // 1. Partial App object without CheckForUpdates
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+          },
+        },
+      },
+    };
+
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    const { result: partialAppResult } = renderHook(() => useMenuBarState(defaultProps));
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(partialAppResult.current.effectiveUpdateInfo).toBeNull();
+
+    // 2. Background update check error catch with rejected promise
     (globalThis as any).window = {
       go: {
         main: {
@@ -305,17 +342,6 @@ describe('useMenuBarState', () => {
     useFlowStore.setState({
       simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: 'https://example.com' },
     });
-
-    const defaultProps = {
-      onExportYaml: vi.fn(),
-      onImportFile: vi.fn(),
-      onSave: vi.fn(),
-      onSaveAs: vi.fn(),
-      onOpenProjects: vi.fn(),
-      onOpenScenarios: vi.fn(),
-      onOpenAbout: vi.fn(),
-      onOpenSettings: vi.fn(),
-    };
 
     const { result } = renderHook(() => useMenuBarState(defaultProps));
 

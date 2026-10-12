@@ -336,4 +336,51 @@ describe('store helpers', () => {
     const syncedResized = syncPodsInDeployment(depScaleUp, [podResizedMeasuredWidth]);
     expect(syncedResized[0].width).toBe(350);
   });
+
+  it('covers fallback baseName = pod, missing podHash on deployment & existing pods, updatePodNode height & missing measured, and selectValue fallbacks', () => {
+    // 1. Fallback baseName = 'pod' when deployment label and template label are empty
+    const depEmptyLabel = { id: 'd-empty', type: 'Deployment', data: { replicas: 1, label: '' } } as any;
+    const templEmptyLabel = { data: { label: '' } } as any;
+    const syncedEmpty = syncPodsInDeployment(depEmptyLabel, [], templEmptyLabel);
+    expect(syncedEmpty[0].data.baseName).toBe('pod');
+
+    // 2. Deployment and currentPods both missing podHash -> generates group podHash
+    const depNoHash = { id: 'd-nohash', type: 'Deployment', data: { replicas: 1, label: 'test' } } as any;
+    const existingPodNoHash = { id: 'p-nohash', parentId: 'd-nohash', type: 'Pod', data: {} } as any;
+    const syncedNoHash = syncPodsInDeployment(depNoHash, [existingPodNoHash]);
+    expect(syncedNoHash[0].data.podHash).toHaveLength(5);
+
+    // 3. Replica index > 0 without existing replicaSuffixes -> calls generateRandomHash(5)
+    const depMultiRep = { id: 'd-multi', type: 'Deployment', data: { replicas: 2, label: 'test' } } as any;
+    const existingPodNoSuffixes = {
+      id: 'p-nosuff',
+      parentId: 'd-multi',
+      type: 'Pod',
+      data: {
+        podHash: 'h1234',
+        replicaSuffix: 's1234',
+        // no replicaSuffixes array provided
+      }
+    } as any;
+    const syncedMulti = syncPodsInDeployment(depMultiRep, [existingPodNoSuffixes]);
+    expect(syncedMulti).toHaveLength(2);
+    expect(syncedMulti[1].data.replicaSuffix).toHaveLength(5);
+
+    // 4. updatePodNode when existingPod.height is set and measured is undefined
+    const existingPodWithHeightNoMeasured = {
+      id: 'p-height',
+      parentId: 'd-multi',
+      type: 'Pod',
+      height: 280,
+      data: {
+        baseName: 'test',
+        podHash: 'h1234',
+        replicaSuffix: 's1234',
+      }
+    } as any;
+    const syncedHeight = syncPodsInDeployment(depMultiRep, [existingPodWithHeightNoMeasured]);
+    expect(syncedHeight[0].height).toBe(280);
+    expect(syncedHeight[0].measured).toBeDefined();
+    expect(syncedHeight[0].measured.height).toBeGreaterThan(0);
+  });
 });
