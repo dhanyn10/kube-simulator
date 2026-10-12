@@ -75,6 +75,26 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
  * @param get Store state getter
  * @returns Reconciled array of canvas nodes
  */
+const extractParentAttachedResources = (parentData: K8sNodeData): Partial<K8sNodeData> => {
+  return {
+    ...(parentData.roles ? { roles: parentData.roles } : {}),
+    ...(parentData.configMaps ? { configMaps: parentData.configMaps } : {}),
+    ...(parentData.secrets ? { secrets: parentData.secrets } : {}),
+    ...(parentData.hpas ? { hpas: parentData.hpas } : {}),
+    ...(parentData.resourceLimits ? { resourceLimits: parentData.resourceLimits } : {}),
+  };
+};
+
+const buildAttachedPatch = (newData: Partial<K8sNodeData>, value: any): Partial<K8sNodeData> => {
+  return {
+    ...(newData.roles !== undefined ? { roles: value } : {}),
+    ...(newData.configMaps !== undefined ? { configMaps: value } : {}),
+    ...(newData.secrets !== undefined ? { secrets: value } : {}),
+    ...(newData.hpas !== undefined ? { hpas: value } : {}),
+    ...(newData.resourceLimits !== undefined ? { resourceLimits: value } : {}),
+  };
+};
+
 const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
@@ -98,11 +118,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
         label: cleanBase,
         replicas: 1,
         parentReplicas: 1,
-        ...(parent.data?.roles ? { roles: parent.data.roles } : {}),
-        ...(parent.data?.configMaps ? { configMaps: parent.data.configMaps } : {}),
-        ...(parent.data?.secrets ? { secrets: parent.data.secrets } : {}),
-        ...(parent.data?.hpas ? { hpas: parent.data.hpas } : {}),
-        ...(parent.data?.resourceLimits ? { resourceLimits: parent.data.resourceLimits } : {}),
+        ...extractParentAttachedResources(parent.data as K8sNodeData),
       }
     };
     return sortNodes([...others, updatedPodWithCleanLabel]);
@@ -159,30 +175,10 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
     return nodes.map((n) => {
       const nData = n.data as K8sNodeData;
       if (n.id === parentId) {
-        return {
-          ...n,
-          data: {
-            ...nData,
-            ...(newData.roles !== undefined ? { roles: newData.roles } : {}),
-            ...(newData.configMaps !== undefined ? { configMaps: newData.configMaps } : {}),
-            ...(newData.secrets !== undefined ? { secrets: newData.secrets } : {}),
-            ...(newData.hpas !== undefined ? { hpas: newData.hpas } : {}),
-            ...(newData.resourceLimits !== undefined ? { resourceLimits: newData.resourceLimits } : {}),
-          }
-        };
+        return { ...n, data: { ...nData, ...buildAttachedPatch(newData, newData.roles ?? newData.configMaps ?? newData.secrets ?? newData.hpas ?? newData.resourceLimits) } };
       }
       if (n.parentId === parentId || n.id === updatedNode.id) {
-        return {
-          ...n,
-          data: {
-            ...nData,
-            ...(newData.roles !== undefined ? { roles: undefined } : {}),
-            ...(newData.configMaps !== undefined ? { configMaps: undefined } : {}),
-            ...(newData.secrets !== undefined ? { secrets: undefined } : {}),
-            ...(newData.hpas !== undefined ? { hpas: undefined } : {}),
-            ...(newData.resourceLimits !== undefined ? { resourceLimits: undefined } : {}),
-          }
-        };
+        return { ...n, data: { ...nData, ...buildAttachedPatch(newData, undefined) } };
       }
       return n;
     });
@@ -199,17 +195,7 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
     const isSameGroup = Boolean(targetPodHash && nData?.podHash === targetPodHash && (nData?.baseName || nData?.label) === targetBaseName);
 
     if ((n.type === 'Pod' && (isSameParent || isSameGroup)) || isTargetParent) {
-      return {
-        ...n,
-        data: {
-          ...nData,
-          ...(newData.roles !== undefined ? { roles: newData.roles } : {}),
-          ...(newData.configMaps !== undefined ? { configMaps: newData.configMaps } : {}),
-          ...(newData.secrets !== undefined ? { secrets: newData.secrets } : {}),
-          ...(newData.hpas !== undefined ? { hpas: newData.hpas } : {}),
-          ...(newData.resourceLimits !== undefined ? { resourceLimits: newData.resourceLimits } : {}),
-        }
-      };
+      return { ...n, data: { ...nData, ...buildAttachedPatch(newData, newData.roles ?? newData.configMaps ?? newData.secrets ?? newData.hpas ?? newData.resourceLimits) } };
     }
     return n;
   });
