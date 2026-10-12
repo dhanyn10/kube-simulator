@@ -74,6 +74,11 @@ const getCommonPodData = (deployment: Node, currentPods: Node[], dataTemplate?: 
     cpuRequest: selectValue(t?.cpuRequest, d.cpuRequest),
     memoryRequest: selectValue(t?.memoryRequest, d.memoryRequest),
     displaySettings,
+    roles: undefined,
+    configMaps: undefined,
+    secrets: undefined,
+    hpas: undefined,
+    resourceLimits: undefined,
   };
 };
 

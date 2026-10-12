@@ -48,7 +48,19 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
     id: groupId, type: 'ReplicaSet', position: { x: podPos.x - 20, y: podPos.y - 40 },
     data: { ...updatedData, label: updatedData.label, ...createNodeHandlers(groupId, get) }
   };
-  const tempPod = { ...updatedNode, parentId: groupId, position: { x: 20, y: 40 } };
+  const tempPod = {
+    ...updatedNode,
+    parentId: groupId,
+    position: { x: 20, y: 40 },
+    data: {
+      ...updatedNode.data,
+      roles: undefined,
+      configMaps: undefined,
+      secrets: undefined,
+      hpas: undefined,
+      resourceLimits: undefined,
+    }
+  };
   const { updatedDeployment, laidOut } = syncDeployment(newGroup, [tempPod], 0, get, tempPod);
   return sortNodes([...nodes.filter(n => n.id !== nodeId), updatedDeployment, ...laidOut]);
 };
@@ -63,13 +75,35 @@ const handleReplicaSetTransform = (nodeId: string, updatedNode: Node, updatedDat
  * @param get Store state getter
  * @returns Reconciled array of canvas nodes
  */
+const extractParentAttachedResources = (parentData: K8sNodeData): Partial<K8sNodeData> => {
+  return {
+    ...(parentData.roles ? { roles: parentData.roles } : {}),
+    ...(parentData.configMaps ? { configMaps: parentData.configMaps } : {}),
+    ...(parentData.secrets ? { secrets: parentData.secrets } : {}),
+    ...(parentData.hpas ? { hpas: parentData.hpas } : {}),
+    ...(parentData.resourceLimits ? { resourceLimits: parentData.resourceLimits } : {}),
+  };
+};
+
+const buildAttachedPatch = (newData: Partial<K8sNodeData>, value: any): Partial<K8sNodeData> => {
+  return {
+    ...(newData.roles !== undefined ? { roles: value } : {}),
+    ...(newData.configMaps !== undefined ? { configMaps: value } : {}),
+    ...(newData.secrets !== undefined ? { secrets: value } : {}),
+    ...(newData.hpas !== undefined ? { hpas: value } : {}),
+    ...(newData.resourceLimits !== undefined ? { resourceLimits: value } : {}),
+  };
+};
+
 const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
 
   const targetData = target.data as K8sNodeData;
 
-  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data?.replicas) || 0) === 1) {
+  const effectiveReplicas = newData.replicas !== undefined ? newData.replicas : Number(parent.data?.replicas || 0);
+
+  if (parent.type === 'ReplicaSet' && effectiveReplicas <= 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
     const baseName = updatedNode.data?.baseName || updatedNode.data?.label || 'pod';
@@ -82,7 +116,9 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
       data: {
         ...updatedNode.data,
         label: cleanBase,
+        replicas: 1,
         parentReplicas: 1,
+        ...extractParentAttachedResources(parent.data as K8sNodeData),
       }
     };
     return sortNodes([...others, updatedPodWithCleanLabel]);
@@ -131,27 +167,35 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
 
   if (!hasAttachedChanges) return nodes;
 
+  const parentId = updatedNode.parentId;
+  const parent = parentId ? nodes.find(n => n.id === parentId) : null;
+  const isInsideController = parent && (parent.type === 'ReplicaSet' || parent.type === 'Deployment');
+
+  if (updatedNode.type === 'Pod' && isInsideController) {
+    return nodes.map((n) => {
+      const nData = n.data as K8sNodeData;
+      if (n.id === parentId) {
+        return { ...n, data: { ...nData, ...buildAttachedPatch(newData, newData.roles ?? newData.configMaps ?? newData.secrets ?? newData.hpas ?? newData.resourceLimits) } };
+      }
+      if (n.parentId === parentId || n.id === updatedNode.id) {
+        return { ...n, data: { ...nData, ...buildAttachedPatch(newData, undefined) } };
+      }
+      return n;
+    });
+  }
+
   const targetBaseName = updatedData.baseName || updatedData.label;
   const targetPodHash = updatedData.podHash;
 
   return nodes.map((n) => {
-    if (n.type !== 'Pod' || n.id === updatedNode.id) return n;
+    if (n.id === updatedNode.id) return n;
     const nData = n.data as K8sNodeData;
     const isSameParent = Boolean(updatedNode?.parentId && n.parentId === updatedNode.parentId);
+    const isTargetParent = Boolean(updatedNode?.parentId && n.id === updatedNode.parentId);
     const isSameGroup = Boolean(targetPodHash && nData?.podHash === targetPodHash && (nData?.baseName || nData?.label) === targetBaseName);
 
-    if (isSameParent || isSameGroup) {
-      return {
-        ...n,
-        data: {
-          ...nData,
-          ...(newData.roles !== undefined ? { roles: newData.roles } : {}),
-          ...(newData.configMaps !== undefined ? { configMaps: newData.configMaps } : {}),
-          ...(newData.secrets !== undefined ? { secrets: newData.secrets } : {}),
-          ...(newData.hpas !== undefined ? { hpas: newData.hpas } : {}),
-          ...(newData.resourceLimits !== undefined ? { resourceLimits: newData.resourceLimits } : {}),
-        }
-      };
+    if ((n.type === 'Pod' && (isSameParent || isSameGroup)) || isTargetParent) {
+      return { ...n, data: { ...nData, ...buildAttachedPatch(newData, newData.roles ?? newData.configMaps ?? newData.secrets ?? newData.hpas ?? newData.resourceLimits) } };
     }
     return n;
   });
@@ -187,6 +231,7 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
     }
   }
   if (updatedNode.type === 'Deployment' || updatedNode.type === 'ReplicaSet') {
+    nextNodes = syncPodAttachedItemsGroup(updatedNode, updatedData, newData, nextNodes);
     return handleContainerSync(updatedNode, nextNodes, get);
   }
   return nextNodes;
