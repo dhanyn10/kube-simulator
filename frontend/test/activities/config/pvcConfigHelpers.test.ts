@@ -52,6 +52,22 @@ describe('pvcConfigHelpers test suite', () => {
     expect(total).toBe(2); // Only dep-1 replicas counted
   });
 
+  it('covers calculatePvcConnectedReplicas fallback when replicas is NaN or less than 1', () => {
+    const pvcId = 'pvc-1';
+    const nodes: Node[] = [
+      { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
+      { id: 'dep-nan', type: 'Deployment', data: { replicas: 'invalid-nan' }, position: { x: 0, y: 0 } },
+      { id: 'rs-zero', type: 'ReplicaSet', data: { replicas: 0 }, position: { x: 0, y: 0 } },
+    ];
+    const edges: Edge[] = [
+      { id: 'e1', source: 'dep-nan', target: 'pvc-1' },
+      { id: 'e2', source: 'rs-zero', target: 'pvc-1' },
+    ];
+
+    const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
+    expect(total).toBe(2); // 1 from dep-nan fallback + 1 from rs-zero fallback
+  });
+
   it('evaluatePvcRealtimeStatus evaluates Multi-Attach Error vs Bound vs Pending correctly', () => {
     const pvcNode: Node = {
       id: 'pvc-1',

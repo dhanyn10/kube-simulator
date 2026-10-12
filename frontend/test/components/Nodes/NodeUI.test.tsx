@@ -52,6 +52,18 @@ describe('NodeUI', () => {
       expect(deleteNodesSpy).toHaveBeenCalledWith([testNode]);
     });
 
+    it('handles delete button click when onDelete is omitted and node is not found in store', () => {
+      const deleteNodesSpy = vi.spyOn(useFlowStore.getState(), 'deleteNodes');
+      useFlowStore.setState({ nodes: [] });
+
+      render(<NodeActionButtons id="missing-node-id" colorMode="light" />);
+
+      const buttons = screen.getAllByRole('button');
+      fireEvent.click(buttons[1]); // Delete button
+
+      expect(deleteNodesSpy).not.toHaveBeenCalled();
+    });
+
     it('hides settings button if hideSettings is true', () => {
       render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" hideSettings={true} />);
       const buttons = screen.getAllByRole('button');

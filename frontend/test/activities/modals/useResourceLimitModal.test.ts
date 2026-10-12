@@ -45,6 +45,35 @@ describe('useResourceLimitModal', () => {
     expect(result.current.memoryLimit).toBe('1024Mi');
   });
 
+  it('covers fallback defaults when initialResourceLimit contains falsy properties', () => {
+    const emptyPropLimit = {
+      id: 'rl-empty-props',
+      name: 'empty-props-limit',
+      cpuRequest: '',
+      cpuLimit: '',
+      memoryRequest: '',
+      memoryLimit: '',
+    };
+
+    const { result } = renderHook(() =>
+      useResourceLimitModal(true, 'dep-1', emptyPropLimit, mockOnSave, mockOnClose)
+    );
+
+    expect(result.current.name).toBe('empty-props-limit');
+    expect(result.current.cpuRequest).toBe('500m');
+    expect(result.current.cpuLimit).toBe('1000m');
+    expect(result.current.memoryRequest).toBe('256Mi');
+    expect(result.current.memoryLimit).toBe('512Mi');
+  });
+
+  it('does not re-initialize state when isOpen is false', () => {
+    const { result } = renderHook(() =>
+      useResourceLimitModal(false, 'dep-1', null, mockOnSave, mockOnClose)
+    );
+
+    expect(result.current.name).toBe('');
+  });
+
   it('handles CPU limit change and auto-clamps CPU request if limit is set lower than request', () => {
     const { result } = renderHook(() =>
       useResourceLimitModal(true, 'dep-1', null, mockOnSave, mockOnClose)

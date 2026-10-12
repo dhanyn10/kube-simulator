@@ -296,6 +296,23 @@ describe('useInternetProfileModal', () => {
     expect(result.current.viewMode).toBe('grid');
   });
 
+  it('covers handleSetDetailProfileObj setter action', () => {
+    const { result } = renderHook(() =>
+      useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+    );
+
+    const newObj: InternetProfileItem = {
+      name: 'Set Profile Obj',
+      hourly: { '00:00': 1500 }
+    };
+
+    act(() => {
+      result.current.handleSetDetailProfileObj(newObj);
+    });
+
+    expect(result.current.detailProfile).toEqual(newObj);
+  });
+
   it('handles custom profile workflow with graph randomization and saving empty/valid profile names', async () => {
     const { result } = renderHook(() =>
       useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)

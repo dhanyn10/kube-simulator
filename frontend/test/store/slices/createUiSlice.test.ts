@@ -971,4 +971,25 @@ describe('createUiSlice', () => {
     stopSimulation();
     vi.useRealTimers();
   });
+
+  it('covers minimapPosition setter, setResourceLimitModalTargetNode, and minimap_position setting loading', async () => {
+    const { setMinimapPosition, setResourceLimitModalTargetNode, loadSettingsJson } = useFlowStore.getState();
+
+    setMinimapPosition('bottom-left');
+    expect(useFlowStore.getState().minimapPosition).toBe('bottom-left');
+    expect((globalThis as any).go.main.App.SaveSetting).toHaveBeenCalledWith('minimap_position', 'bottom-left');
+
+    setResourceLimitModalTargetNode({ id: 'rl-1', label: 'RL 1' });
+    expect(useFlowStore.getState().resourceLimitModalTargetNode).toEqual({ id: 'rl-1', label: 'RL 1' });
+
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'minimap_position') return Promise.resolve('top-right');
+      return Promise.resolve('');
+    });
+
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+
+    expect(useFlowStore.getState().minimapPosition).toBe('top-right');
+  });
 });
