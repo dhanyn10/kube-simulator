@@ -192,7 +192,7 @@ describe('nodeActions', () => {
     expect(rsNode?.data.configMaps).toEqual([cm]);
 
     const childPods = state.nodes.filter(n => n.parentId === rsNode?.id && n.type === 'Pod');
-    expect(childPods.length).toBe(2);
+    expect(childPods).toHaveLength(2);
     childPods.forEach((podNode) => {
       expect(podNode.data.configMaps).toBeUndefined();
     });
