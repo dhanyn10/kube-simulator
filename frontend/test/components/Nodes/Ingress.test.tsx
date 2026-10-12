@@ -144,4 +144,21 @@ describe('IngressNode', () => {
     );
     expect(screen.queryByText('Backend Service')).toBeNull();
   });
+
+  it('filters Service nodes with undefined serviceType in data fallback', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc-no-type', type: 'Service', data: { label: 'default-clusterip-svc' } },
+      ] as any,
+    });
+
+    render(
+      <ReactFlowProvider>
+        <IngressNode id="i1" type="Ingress" data={{ backendServiceName: 'default-clusterip-svc' }} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('default-clusterip-svc')).toBeInTheDocument();
+  });
 });

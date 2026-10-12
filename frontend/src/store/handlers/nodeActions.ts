@@ -101,7 +101,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
 
   const targetData = target.data as K8sNodeData;
 
-  const effectiveReplicas = newData.replicas !== undefined ? newData.replicas : Number(parent.data?.replicas || 0);
+  const effectiveReplicas = newData.replicas ?? Number(parent.data?.replicas || 0);
 
   if (parent.type === 'ReplicaSet' && effectiveReplicas <= 1) {
     const groupPos = getAbsPos(parent.id, nodes);

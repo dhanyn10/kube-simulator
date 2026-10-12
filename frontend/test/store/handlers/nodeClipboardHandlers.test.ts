@@ -339,6 +339,21 @@ describe('clipboardHandlers', () => {
     expect(updateSpy).toHaveBeenCalledWith('p-sel', { replicas: 2 });
   });
 
+  it('tryIncrementPodReplicas matches pods when both have undefined labels and different IDs', () => {
+    const updateSpy = vi.fn();
+    const clipPodNoLabel: Node = { id: 'clip-nolabel-1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    const selPodNoLabel: Node = { id: 'sel-nolabel-2', type: 'Pod', selected: true, position: { x: 0, y: 0 }, data: {} };
+
+    useFlowStore.setState({
+      nodes: [selPodNoLabel],
+      clipboard: { nodes: [clipPodNoLabel], edges: [] },
+      updateNodeData: updateSpy,
+    });
+
+    useFlowStore.getState().pasteNodes();
+    expect(updateSpy).toHaveBeenCalledWith('sel-nolabel-2', { replicas: 2 });
+  });
+
   it('tryIncrementPodReplicas returns false when clipboard has no pod or selected node is not a pod', () => {
     const updateSpy = vi.fn();
     const clipSvc: Node = { id: 'clip-svc', type: 'Service', position: { x: 0, y: 0 }, data: {} };

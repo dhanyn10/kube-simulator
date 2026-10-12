@@ -263,4 +263,23 @@ describe('DeploymentNode', () => {
 
     expect(screen.getByText('Default Dep')).toBeDefined();
   });
+
+  it('handles edge targeting deployment with missing source node in checkShowHPAWarning', () => {
+    const orphanEdge = { id: 'e-orphan', source: 'non-existent-hpa', target: 'd1' };
+    useFlowStore.setState({ edges: [orphanEdge] as any, nodes: [] });
+
+    const props = {
+      id: 'd1',
+      type: 'Deployment',
+      data: { label: 'Orphan Dep' }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <DeploymentNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.queryByText('HPA ACTIVE: REQUESTS REQUIRED')).toBeNull();
+  });
 });

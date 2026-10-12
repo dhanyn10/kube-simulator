@@ -135,6 +135,18 @@ describe('IAMUserDetailView', () => {
     expect(screen.getAllByText('developer1').length).toBeGreaterThan(0);
   });
 
+  it('renders empty rolebindings banner in light mode when attachedRoles is empty', () => {
+    render(
+      <IAMUserDetailView
+        {...defaultProps}
+        isDark={false}
+        attachedRoles={[]}
+      />
+    );
+
+    expect(screen.getByText('No specific RoleBindings assigned on the canvas.')).toBeInTheDocument();
+  });
+
   it('handles undefined user policies and attached roles without nodeType or with empty string nodeType', () => {
     const userWithoutPolicies: KubeIAMUser = {
       ...dummyUser,

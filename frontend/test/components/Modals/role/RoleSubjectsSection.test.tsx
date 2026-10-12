@@ -151,11 +151,14 @@ describe('RoleSubjectsSection', () => {
     expect(screen.getByText('dev-bob')).toBeInTheDocument();
     expect(screen.getByText('missing-user')).toBeInTheDocument();
 
-    // Click remove button on dev-bob chip to trigger onToggleAssignment
+    // Click remove button on dev-bob chip to trigger onToggleAssignment and verify stopPropagation
     const buttons = screen.getAllByRole('button');
     const removeBtn = buttons.find((b) => b.querySelector('svg.lucide-x') || b.firstElementChild?.classList.contains('lucide-x'));
     if (removeBtn) {
-      fireEvent.click(removeBtn);
+      const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+      const stopSpy = vi.spyOn(clickEvent, 'stopPropagation');
+      fireEvent(removeBtn, clickEvent);
+      expect(stopSpy).toHaveBeenCalled();
       expect(onToggleAssignment).toHaveBeenCalled();
     }
   });

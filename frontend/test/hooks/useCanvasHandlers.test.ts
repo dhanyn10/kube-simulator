@@ -80,6 +80,12 @@ describe('useCanvasHandlers hook', () => {
 
     expect(paneEvent.preventDefault).toHaveBeenCalled();
     expect(result.current.contextMenu).toEqual({ x: 200, y: 300 });
+
+    // Window click closes context menu
+    act(() => {
+      window.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(result.current.contextMenu).toBeNull();
   });
 
   it('handles onNodeClick with autofocus enabled when container element is missing vs present', () => {
@@ -185,6 +191,14 @@ describe('useCanvasHandlers hook', () => {
     const partialEdge: Edge = { id: 'e-partial', source: 'n1', target: 'n-missing-target' };
     act(() => {
       result.current.onEdgeClick(mockEvent, partialEdge);
+    });
+    expect(mockFitBounds).not.toHaveBeenCalled();
+
+    // Edge click where sourceNode is missing but targetNode exists
+    mockFitBounds.mockClear();
+    const missingSourceEdge: Edge = { id: 'e-missing-source', source: 'n-missing-source', target: 'n2' };
+    act(() => {
+      result.current.onEdgeClick(mockEvent, missingSourceEdge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
   });
