@@ -63,6 +63,10 @@ describe('terminalCommandTreeHelpers', () => {
     const result = filterCommandTree(customNodes, 'no-cmd');
     expect(result).toHaveLength(1);
     expect(result[0].command).toBeUndefined();
+
+    // Leaf without command in COMMAND_TREE_DATA or getLeafs
+    const logsChild = COMMAND_TREE_DATA.find((n) => n.id === 'kubectl')?.children?.find((c) => c.id === 'kubectl-logs')?.children?.[0];
+    expect(logsChild?.command).toBe('kubectl logs ');
   });
 
   it('handles whitespace search strings and child node matches', () => {

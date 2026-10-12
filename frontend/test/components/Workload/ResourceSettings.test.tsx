@@ -116,4 +116,20 @@ describe('ResourceSettingsList', () => {
     fireEvent.click(limit512MiBtn);
     expect(mockPerformUpdate).toHaveBeenCalledWith({ memoryLimit: '512Mi' });
   });
+
+  it('handles getDisabledOption when cpuLimit and memoryLimit are undefined', () => {
+    render(
+      <ResourceSettingsList
+        data={{ cpuRequest: '100m', memoryRequest: '128Mi' }}
+        colorMode="light"
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    const request2CoresBtn = screen.getAllByText('2 Cores')[1].closest('button');
+    expect(request2CoresBtn).not.toHaveProperty('disabled', true);
+
+    const request1GiBtn = screen.getAllByText('1 Gi')[1].closest('button');
+    expect(request1GiBtn).not.toHaveProperty('disabled', true);
+  });
 });
