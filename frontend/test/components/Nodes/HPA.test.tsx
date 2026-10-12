@@ -281,4 +281,28 @@ describe('HPANode', () => {
     expect(screen.getByText('min:')).toBeDefined();
     expect(screen.getAllByTestId('progress-bar')).toHaveLength(3);
   });
+
+  it('shows warning when connected edge targets a non-Deployment node like a Pod or Service', () => {
+    const podTarget = { id: 'p1', type: 'Pod', data: { label: 'My Pod' } };
+    const edgeToPod = { id: 'e-pod', source: 'h1', target: 'p1' };
+
+    useFlowStore.setState({
+      nodes: [podTarget],
+      edges: [edgeToPod]
+    } as any);
+
+    const props = {
+      id: 'h1',
+      type: 'HPA',
+      data: { label: 'My HPA' }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <HPANode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+  });
 });

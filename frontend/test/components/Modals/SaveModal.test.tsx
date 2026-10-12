@@ -334,6 +334,26 @@ describe('SaveModal', () => {
     });
   });
 
+  it('handles Change Theme button click in light mode context menu', async () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(<SaveModal {...defaultProps} />);
+
+    const header = screen.getByText('Save Architecture & Recent Files');
+    act(() => {
+      fireEvent.contextMenu(header);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Change Theme')).toBeInTheDocument();
+    });
+
+    act(() => {
+      fireEvent.click(screen.getByText('Change Theme'));
+    });
+
+    expect(useFlowStore.getState().colorMode).toBe('dark');
+  });
+
   it('handles Save As button click', () => {
     render(<SaveModal {...defaultProps} />);
 

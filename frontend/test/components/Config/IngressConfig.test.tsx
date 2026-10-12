@@ -219,4 +219,63 @@ describe('IngressConfig', () => {
       expect(toggleYaml).toHaveBeenCalledWith('backendService');
     }
   });
+
+  it('covers selectedNode.data.parentId fallback and Service node with empty string parentId', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc-empty-parent', type: 'Service', parentId: '', data: { label: 'empty-parent-svc', serviceType: 'ClusterIP' } },
+        { id: 'svc-ns-data', type: 'Service', parentId: 'ns-data-id', data: { label: 'data-parent-svc', serviceType: 'ClusterIP' } }
+      ]
+    });
+
+    // Node without parentId property, but data.parentId = 'ns-data-id'
+    const nodeWithDataParent = {
+      id: 'ing-data-parent',
+      type: 'Ingress',
+      data: {
+        parentId: 'ns-data-id',
+        label: 'Data Parent Ingress',
+        backendServiceName: 'data-parent-svc',
+        displaySettings: { backendService: true }
+      }
+    };
+
+    const { rerender } = render(
+      <IngressConfig
+        selectedNode={nodeWithDataParent}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const dropdownBtn = screen.getByRole('button', { name: /data-parent-svc/i });
+    fireEvent.click(dropdownBtn);
+
+    expect(screen.getAllByText('data-parent-svc').length).toBeGreaterThan(0);
+    expect(screen.queryByText('empty-parent-svc')).toBeNull();
+
+    // Node without parentId or data.parentId -> selects services with !parentId or parentId === ''
+    const standaloneIngress = {
+      id: 'ing-standalone',
+      type: 'Ingress',
+      data: {
+        label: 'Standalone Ingress',
+        backendServiceName: 'empty-parent-svc',
+        displaySettings: { backendService: true }
+      }
+    };
+
+    rerender(
+      <IngressConfig
+        selectedNode={standaloneIngress}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getAllByText('empty-parent-svc').length).toBeGreaterThan(0);
+  });
 });
