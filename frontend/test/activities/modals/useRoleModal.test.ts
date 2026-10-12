@@ -196,6 +196,10 @@ describe('useRoleModal helpers', () => {
       const nsParentPod: Node = { id: 'pod-ns', parentId: 'ns-1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
       const nsParentNode: Node = { id: 'ns-1', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
       expect(isUserAvailableForRole(devUser, nsParentPod, [])).toBe(true);
+
+      // Rule with undefined resources on unmapped target node
+      const undefinedResourceRule = [{ apiGroups: [''], resources: undefined as any, verbs: ['get'] }];
+      expect(isUserAvailableForRole(devUser, svcTargetNode, undefinedResourceRule)).toBe(false);
     });
   });
 });

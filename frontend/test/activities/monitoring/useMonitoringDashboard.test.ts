@@ -181,4 +181,26 @@ describe('useMonitoringDashboardHandler', () => {
     });
     expect(useFlowStore.getState().isMonitoringDetached).toBe(false);
   });
+
+  it('handles runtime object present without EventsOn method', () => {
+    (globalThis as any).runtime = {}; // runtime exists, but EventsOn is undefined
+
+    let onMessageCallback: ((event: any) => void) | null = null;
+    class MockBroadcastChannel {
+      set onmessage(cb: any) {
+        onMessageCallback = cb;
+      }
+      close() {}
+    }
+    vi.stubGlobal('BroadcastChannel', MockBroadcastChannel);
+
+    renderHook(() => useMonitoringDashboardHandler());
+
+    act(() => {
+      onMessageCallback?.({ data: { type: 'DETACHED_OPEN' } });
+    });
+    expect(useFlowStore.getState().isMonitoringDetached).toBe(true);
+
+    delete (globalThis as any).runtime;
+  });
 });

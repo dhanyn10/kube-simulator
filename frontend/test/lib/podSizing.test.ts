@@ -81,6 +81,26 @@ describe('podSizing utils', () => {
       expect(hAttached).toBeGreaterThan(hBase);
     });
 
+    it('increases height proportionally when total attached items exceeds 3', () => {
+      const base = { type: 'Pod' as any, displaySettings: { restartPolicy: false } };
+      const with1Attached = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, resourceLimits: [{ id: 'rl-1' }] };
+      const with4Attached = {
+        type: 'Pod' as any,
+        displaySettings: { restartPolicy: false },
+        roles: [{ id: 'r1' }],
+        configMaps: [{ id: 'cm1' }],
+        secrets: [{ id: 's1' }],
+        hpas: [{ id: 'h1' }],
+      };
+
+      const hBase = calculatePodHeight(base, 168, [], false);
+      const h1Attached = calculatePodHeight(with1Attached, 168, [], false);
+      const h4Attached = calculatePodHeight(with4Attached, 168, [], false);
+
+      expect(h1Attached).toBe(hBase + 36);
+      expect(h4Attached).toBe(hBase + 72);
+    });
+
     it('increases height for dashed progress, badges, and image display', () => {
       const dataWithDashed = { type: 'Pod' as any, parentReplicas: 5, image: 'nginx:latest' };
       const height = calculatePodHeight(dataWithDashed, 168, ['runtime-go'], false);

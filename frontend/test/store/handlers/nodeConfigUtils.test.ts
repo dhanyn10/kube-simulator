@@ -86,6 +86,9 @@ describe('configUtils', () => {
 
       const nextDataSingle = { status: 'ready', isAutoNamed: true, webserver: 'nginx', runtime: 'none' };
       expect(getAutoNameUpdate(nextDataSingle)).toEqual({ label: 'nginx' });
+
+      const nextDataRuntimeOnly = { status: 'ready', isAutoNamed: true, webserver: 'none', runtime: 'python' };
+      expect(getAutoNameUpdate(nextDataRuntimeOnly)).toEqual({ label: 'python' });
     });
 
     it('returns empty object if not auto-named', () => {
