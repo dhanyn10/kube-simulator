@@ -69,7 +69,9 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
 
   const targetData = target.data as K8sNodeData;
 
-  if (parent.type === 'ReplicaSet' && (Number(updatedNode.data?.replicas) || 0) === 1) {
+  const effectiveReplicas = newData.replicas !== undefined ? newData.replicas : Number(parent.data?.replicas || 0);
+
+  if (parent.type === 'ReplicaSet' && effectiveReplicas <= 1) {
     const groupPos = getAbsPos(parent.id, nodes);
     const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
     const baseName = updatedNode.data?.baseName || updatedNode.data?.label || 'pod';
@@ -82,7 +84,13 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
       data: {
         ...updatedNode.data,
         label: cleanBase,
+        replicas: 1,
         parentReplicas: 1,
+        ...(parent.data?.roles ? { roles: parent.data.roles } : {}),
+        ...(parent.data?.configMaps ? { configMaps: parent.data.configMaps } : {}),
+        ...(parent.data?.secrets ? { secrets: parent.data.secrets } : {}),
+        ...(parent.data?.hpas ? { hpas: parent.data.hpas } : {}),
+        ...(parent.data?.resourceLimits ? { resourceLimits: parent.data.resourceLimits } : {}),
       }
     };
     return sortNodes([...others, updatedPodWithCleanLabel]);
@@ -135,12 +143,13 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
   const targetPodHash = updatedData.podHash;
 
   return nodes.map((n) => {
-    if (n.type !== 'Pod' || n.id === updatedNode.id) return n;
+    if (n.id === updatedNode.id) return n;
     const nData = n.data as K8sNodeData;
     const isSameParent = Boolean(updatedNode?.parentId && n.parentId === updatedNode.parentId);
+    const isTargetParent = Boolean(updatedNode?.parentId && n.id === updatedNode.parentId);
     const isSameGroup = Boolean(targetPodHash && nData?.podHash === targetPodHash && (nData?.baseName || nData?.label) === targetBaseName);
 
-    if (isSameParent || isSameGroup) {
+    if ((n.type === 'Pod' && (isSameParent || isSameGroup)) || isTargetParent) {
       return {
         ...n,
         data: {
@@ -187,6 +196,7 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
     }
   }
   if (updatedNode.type === 'Deployment' || updatedNode.type === 'ReplicaSet') {
+    nextNodes = syncPodAttachedItemsGroup(updatedNode, updatedData, newData, nextNodes);
     return handleContainerSync(updatedNode, nextNodes, get);
   }
   return nextNodes;

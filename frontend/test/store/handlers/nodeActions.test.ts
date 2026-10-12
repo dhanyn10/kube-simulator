@@ -148,6 +148,54 @@ describe('nodeActions', () => {
     expect(state.nodes.find(n => n.id === 'rs1')?.data.replicas).toBe(3);
   });
 
+  it('adding ConfigMap on ReplicaSet with replicas = 3 does not reset replicas to 1 and renders across all child Pod cards', () => {
+    const cm = { id: 'cm-1', name: 'my-config', data: { env: 'prod' } };
+    const rs = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, data: { label: 'my-rs', replicas: 3, type: 'ReplicaSet' } };
+    const pod1 = { id: 'p1', type: 'Pod', parentId: 'rs1', position: { x: 20, y: 40 }, data: { label: 'my-rs-pod1', replicas: 3, type: 'Pod' } };
+    const pod2 = { id: 'p2', type: 'Pod', parentId: 'rs1', position: { x: 20, y: 100 }, data: { label: 'my-rs-pod2', replicas: 3, type: 'Pod' } };
+
+    useFlowStore.setState({ nodes: [rs, pod1, pod2] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { configMaps: [cm] });
+
+    const state = useFlowStore.getState();
+    const rsNode = state.nodes.find(n => n.id === 'rs1');
+    expect(rsNode?.data.replicas).toBe(3);
+
+    const childPods = state.nodes.filter(n => n.parentId === 'rs1' && n.type === 'Pod');
+    expect(childPods.length).toBeGreaterThanOrEqual(2);
+    childPods.forEach((podNode) => {
+      expect(podNode.data.configMaps).toEqual([cm]);
+    });
+  });
+
+  it('scaling standalone Pod from 1 to 2 auto-promotes to ReplicaSet and migrates attached ConfigMap', () => {
+    const cm = { id: 'cm-1', name: 'my-config', data: { env: 'prod' } };
+    const standalonePod = {
+      id: 'p1',
+      type: 'Pod',
+      position: { x: 100, y: 100 },
+      data: { label: 'app-pod', replicas: 1, type: 'Pod', configMaps: [cm] },
+    };
+
+    useFlowStore.setState({ nodes: [standalonePod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData('p1', { replicas: 2 });
+
+    const state = useFlowStore.getState();
+    const rsNode = state.nodes.find(n => n.type === 'ReplicaSet');
+    expect(rsNode).toBeDefined();
+    expect(rsNode?.data.replicas).toBe(2);
+
+    const childPods = state.nodes.filter(n => n.parentId === rsNode?.id && n.type === 'Pod');
+    expect(childPods.length).toBe(2);
+    childPods.forEach((podNode) => {
+      expect(podNode.data.configMaps).toEqual([cm]);
+    });
+  });
+
   it('updateNodeData reverts ReplicaSet back to standalone Pod when replicas scaled down to 1', () => {
     const rs = { id: 'rs1', type: 'ReplicaSet', position: { x: 100, y: 100 }, data: { replicas: 3, type: 'ReplicaSet' } };
     const pod1 = { id: 'p1', type: 'Pod', parentId: 'rs1', position: { x: 20, y: 40 }, data: { replicas: 3, type: 'Pod' } };
