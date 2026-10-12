@@ -136,6 +136,18 @@ describe('RoleSubjectsSection', () => {
     }
   });
 
+  it('covers AssignedUserChip in dark vs light mode for missing user in iamUsers list', () => {
+    render(
+      <RoleSubjectsSection
+        {...defaultProps}
+        colorMode="dark"
+        iamUsers={[]}
+        assignedUsers={['nonexistent-user']}
+      />
+    );
+    expect(screen.getByText('nonexistent-user')).toBeInTheDocument();
+  });
+
   it('covers AssignedUserChip for user missing from iamUsers array and non-full-access user in dark mode', () => {
     const onToggleAssignment = vi.fn();
     render(

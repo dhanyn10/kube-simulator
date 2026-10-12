@@ -85,6 +85,13 @@ describe('useMonitoringDashboardHandler', () => {
   it('handles window detach opening new popup window', () => {
     const openSpy = vi.spyOn(globalThis, 'open').mockImplementation(() => null);
 
+    // Mock globalThis.screen dimensions if undefined
+    Object.defineProperty(globalThis, 'screen', {
+      value: { width: 1920, height: 1080 },
+      writable: true,
+      configurable: true,
+    });
+
     const { result } = renderHook(() => useMonitoringDashboardHandler());
 
     act(() => {

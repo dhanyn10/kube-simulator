@@ -180,7 +180,7 @@ describe('useMenuBarState', () => {
     });
   });
 
-  it('handles update check returning updateAvailable false or null sysInfo version', async () => {
+  it('handles update check returning updateAvailable false or null sysInfo version or custom releaseUrl', async () => {
     (globalThis as any).window = {
       go: {
         main: {
@@ -210,6 +210,29 @@ describe('useMenuBarState', () => {
     });
 
     expect(result.current.effectiveUpdateInfo).toBeNull();
+
+    // Check with custom releaseUrl from update check
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '2.0.0', releaseUrl: 'https://custom-release-url.com' }),
+          },
+        },
+      },
+    };
+
+    const { result: customUrlResult } = renderHook(() => useMenuBarState(defaultProps));
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(customUrlResult.current.effectiveUpdateInfo).toEqual({
+      version: '2.0.0',
+      releaseUrl: 'https://custom-release-url.com',
+    });
   });
 
   it('handles Resource Save for new/unsaved project (onOpenProjects fallback) and UpdateProject returning false', async () => {
