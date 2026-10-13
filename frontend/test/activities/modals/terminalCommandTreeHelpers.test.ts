@@ -104,4 +104,14 @@ describe('terminalCommandTreeHelpers', () => {
     expect(parentResult).toHaveLength(1);
     expect(parentResult[0].id).toBe('p2');
   });
+
+  it('covers node description match when command property is absent', () => {
+    const nodeNoCommand = [
+      { id: 'node-desc-only', name: 'desc-only', description: 'special description match' }
+    ];
+
+    const result = filterCommandTree(nodeNoCommand, 'special description');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('node-desc-only');
+  });
 });

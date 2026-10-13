@@ -301,4 +301,39 @@ describe('DeploymentNode', () => {
 
     expect(screen.queryByText('HPA ACTIVE: REQUESTS REQUIRED')).toBeNull();
   });
+
+  it('covers roleDragClass when role item is dragged over hovered vs non-hovered deployment card', () => {
+    useFlowStore.setState({
+      draggingSidebarItem: 'Role',
+      colorMode: 'dark',
+    });
+
+    const hoveredDep = {
+      id: 'd-hovered-role',
+      type: 'Deployment',
+      data: { label: 'Hovered Role Dep', isHovered: true }
+    };
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <DeploymentNode id="d-hovered-role" type="Deployment" data={hoveredDep.data} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Hovered Role Dep')).toBeDefined();
+
+    const nonHoveredDep = {
+      id: 'd-nonhovered-role',
+      type: 'Deployment',
+      data: { label: 'NonHovered Role Dep', isHovered: false }
+    };
+
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode id="d-nonhovered-role" type="Deployment" data={nonHoveredDep.data} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('NonHovered Role Dep')).toBeDefined();
+  });
 });

@@ -83,12 +83,23 @@ describe('ConfigUI uncovered conditions', () => {
     expect(onChange).toHaveBeenCalledWith(25);
 
     // NumberStepper decrement and increment buttons click
-    const buttons = screen.getAllByRole('button');
+    let buttons = screen.getAllByRole('button');
     fireEvent.click(buttons[0]); // decrement
     expect(onChange).toHaveBeenCalledWith(4);
 
     fireEvent.click(buttons[1]); // increment
     expect(onChange).toHaveBeenCalledWith(6);
+
+    // Boundary limits testing: value <= min and value >= max
+    rerender(<NumberStepper value={1} onChange={onChange} colorMode="light" min={1} max={100} />);
+    buttons = screen.getAllByRole('button');
+    expect(buttons[0]).toBeDisabled();
+    expect(buttons[1]).not.toBeDisabled();
+
+    rerender(<NumberStepper value={100} onChange={onChange} colorMode="light" min={1} max={100} />);
+    buttons = screen.getAllByRole('button');
+    expect(buttons[0]).not.toBeDisabled();
+    expect(buttons[1]).toBeDisabled();
 
     rerender(<NumberStepper value={5} onChange={onChange} colorMode="dark" min={1} max={100} />);
     expect(input.className).toContain('bg-slate-900/50');
