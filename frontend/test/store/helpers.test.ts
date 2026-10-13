@@ -417,4 +417,44 @@ describe('store helpers', () => {
     const resolvedOrphans = resolveGlobalCollisions([orphanChild1, orphanChild2]);
     expect(resolvedOrphans[0].position.x).not.toBe(0);
   });
+
+  it('covers uncovered conditions in store helpers: getCommonPodData displaySettings fallback, selectValue templateVal fallback, negative overlap direction, and isAllowed namespace exclusions', () => {
+    // 1. getCommonPodData fallback to currentPods[0].data.displaySettings when deployment.data.displaySettings and dataTemplate are undefined
+    const depNoDisplay = { id: 'd-nodisp', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
+    const podWithDisplay = {
+      id: 'p-disp',
+      parentId: 'd-nodisp',
+      type: 'Pod',
+      data: { displaySettings: { customSetting: true } }
+    } as any;
+    const syncedWithChildDisplay = syncPodsInDeployment(depNoDisplay, [podWithDisplay]);
+    expect(syncedWithChildDisplay[0].data.displaySettings).toEqual({ customSetting: true });
+
+    // 2. selectValue when templateVal is undefined and deployVal is set (e.g. cpuLimit defined on deployment, templatePod lacks cpuLimit)
+    const depWithCpu = { id: 'd-cpu', type: 'Deployment', data: { replicas: 1, label: 'app', cpuLimit: '500m' } } as any;
+    const podNoCpu = { id: 'p-nocpu', parentId: 'd-cpu', type: 'Pod', data: { cpuLimit: undefined } } as any;
+    const syncedWithDepCpu = syncPodsInDeployment(depWithCpu, [podNoCpu]);
+    expect(syncedWithDepCpu[0].data.cpuLimit).toBe('500m');
+
+    // 3. Negative directional overlap collisions (dx < 0 and dy < 0) where node B is to the left/above node A
+    const negNodesX = [
+      { id: 'nA', position: { x: 100, y: 0 }, width: 100, height: 100, data: {} } as any,
+      { id: 'nB', position: { x: 50, y: 0 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedNegX = resolveGlobalCollisions(negNodesX);
+    expect(resolvedNegX[0].position.x).toBeGreaterThan(100);
+    expect(resolvedNegX[1].position.x).toBeLessThan(50);
+
+    const negNodesY = [
+      { id: 'nA', position: { x: 0, y: 100 }, width: 100, height: 100, data: {} } as any,
+      { id: 'nB', position: { x: 0, y: 50 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedNegY = resolveGlobalCollisions(negNodesY);
+    expect(resolvedNegY[0].position.y).toBeGreaterThan(100);
+    expect(resolvedNegY[1].position.y).toBeLessThan(50);
+
+    // 4. isAllowed for Namespace with unsupported child types
+    expect(isAllowed('Namespace', 'Secret')).toBe(false);
+    expect(isAllowed('Namespace', 'ConfigMap')).toBe(false);
+  });
 });

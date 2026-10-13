@@ -356,4 +356,69 @@ describe('useCanvasHandlers hook', () => {
     expect(result.current.isYamlOpen).toBe(true);
     expect(result.current.yamlContent).toBe('apiVersion: v1\nkind: Pod');
   });
+
+  it('covers uncovered conditions in useCanvasHandlers: computeAutofocusZoom lower bound clamping and onNodeClick dimension fallbacks when measured is an empty object', () => {
+    // 1. computeAutofocusZoom with huge node dimensions (e.g. 5000x5000) to trigger Math.max(0.5, ...) lower bound zoom clamping
+    const hugeNode: Node = {
+      id: 'n-huge',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      width: 5000,
+      height: 5000,
+      measured: { width: 5000, height: 5000 },
+      data: {},
+    };
+
+    const rendererEl = document.createElement('div');
+    rendererEl.className = 'react-flow__renderer';
+    Object.defineProperty(rendererEl, 'getBoundingClientRect', {
+      value: () => ({ width: 800, height: 600 }),
+    });
+    document.body.appendChild(rendererEl);
+
+    useFlowStore.setState({
+      nodes: [hugeNode],
+      onNodeClick: vi.fn(),
+      isAutofocusEnabled: true,
+      activeIdentity: 'system:admin',
+      iamUsers: [],
+    });
+
+    const { result } = renderHook(() => useCanvasHandlers());
+
+    act(() => {
+      result.current.onNodeClick({} as any, hugeNode);
+    });
+
+    // Zoom clamped to minimum 0.5
+    expect(mockSetCenter).toHaveBeenCalledWith(2500, 2500, expect.objectContaining({ zoom: 0.5 }));
+
+    document.body.removeChild(rendererEl);
+
+    // 2. onNodeClick when node.measured is an empty object ({}) and node.width / node.height are undefined -> triggers ?? 150 and ?? 100 fallbacks
+    mockSetCenter.mockClear();
+    const nodeEmptyMeasured: Node = {
+      id: 'n-empty-measured',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      measured: {} as any,
+      width: undefined,
+      height: undefined,
+      data: {},
+    };
+
+    useFlowStore.setState({
+      nodes: [nodeEmptyMeasured],
+      isAutofocusEnabled: true,
+    });
+
+    const { result: emptyMeasuredResult } = renderHook(() => useCanvasHandlers());
+
+    act(() => {
+      emptyMeasuredResult.current.onNodeClick({} as any, nodeEmptyMeasured);
+    });
+
+    // Uses 150 / 2 = 75 and 100 / 2 = 50 for center
+    expect(mockSetCenter).toHaveBeenCalledWith(75, 50, expect.objectContaining({ duration: 800 }));
+  });
 });
