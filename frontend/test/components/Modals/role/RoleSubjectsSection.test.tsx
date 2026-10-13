@@ -200,4 +200,17 @@ describe('RoleSubjectsSection', () => {
     expect(screen.getByText('dev-alice')).toBeInTheDocument();
     expect(screen.getByText('(Full Access)')).toBeInTheDocument();
   });
+
+  it('renders dropdown menu in light mode when isUserDropdownOpen is true', () => {
+    const props = {
+      ...defaultProps,
+      colorMode: 'light',
+      iamUsers: dummyUsers,
+      isUserDropdownOpen: true,
+      filteredAvailableUsers: dummyUsers,
+    };
+
+    render(<RoleSubjectsSection {...props} />);
+    expect(screen.getAllByText('dev-alice').length).toBeGreaterThan(0);
+  });
 });

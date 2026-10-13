@@ -16,6 +16,7 @@ export const useMonitoringDashboardHandler = () => {
 
   const [position, setPosition] = useState({ x: 400, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const dashboardRef = useRef<HTMLDivElement>(null);
 
@@ -66,14 +67,21 @@ export const useMonitoringDashboardHandler = () => {
   };
 
   useEffect(() => {
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
+
+  useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDraggingRef.current) return;
       setPosition({
         x: e.clientX - dragStart.current.x,
         y: e.clientY - dragStart.current.y
       });
     };
-    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      setIsDragging(false);
+    };
 
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
@@ -86,6 +94,7 @@ export const useMonitoringDashboardHandler = () => {
   }, [isDragging]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    isDraggingRef.current = true;
     setIsDragging(true);
     dragStart.current = {
       x: e.clientX - position.x,

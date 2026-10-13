@@ -132,4 +132,22 @@ describe('ResourceSettingsList', () => {
     const request1GiBtn = screen.getAllByText('1 Gi')[1].closest('button');
     expect(request1GiBtn).not.toHaveProperty('disabled', true);
   });
+
+  it('covers handleSelect when selecting cpuRequest or memoryRequest', () => {
+    render(
+      <ResourceSettingsList
+        data={{ cpuLimit: '2000m', cpuRequest: '100m', memoryLimit: '1024Mi', memoryRequest: '128Mi' }}
+        colorMode="dark"
+        performUpdate={mockPerformUpdate}
+      />
+    );
+
+    const req500mBtn = screen.getAllByText('500m')[1];
+    fireEvent.click(req500mBtn);
+    expect(mockPerformUpdate).toHaveBeenCalledWith({ cpuRequest: '500m' });
+
+    const req256MiBtn = screen.getAllByText('256 Mi')[1];
+    fireEvent.click(req256MiBtn);
+    expect(mockPerformUpdate).toHaveBeenCalledWith({ memoryRequest: '256Mi' });
+  });
 });

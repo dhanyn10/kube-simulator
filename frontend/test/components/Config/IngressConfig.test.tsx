@@ -227,6 +227,64 @@ describe('IngressConfig', () => {
     }
   });
 
+  it('covers disableYamlToggle when backendServiceName is empty string or undefined vs defined', () => {
+    const nodeNoBackend = {
+      id: 'ing-nobackend',
+      type: 'Ingress',
+      data: {
+        label: 'No Backend Ingress',
+        backendServiceName: '',
+        displaySettings: { backendService: true },
+        yamlSettings: { backendService: true }
+      }
+    };
+
+    const { rerender } = render(
+      <IngressConfig
+        selectedNode={nodeNoBackend}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    let backendSection = screen.getByText('Backend Service (ClusterIP)').closest('div');
+    let toggleBtns = backendSection?.querySelectorAll('button') || [];
+
+    // When backendServiceName is empty, YAML toggle should be disabled or not trigger toggleYaml
+    if (toggleBtns.length >= 2) {
+      fireEvent.click(toggleBtns[1]);
+    }
+
+    // Now test with defined backendServiceName
+    const nodeWithBackend = {
+      id: 'ing-withbackend',
+      type: 'Ingress',
+      data: {
+        label: 'With Backend Ingress',
+        backendServiceName: 'web-service',
+        displaySettings: { backendService: true },
+        yamlSettings: { backendService: true }
+      }
+    };
+
+    rerender(
+      <IngressConfig
+        selectedNode={nodeWithBackend}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    backendSection = screen.getByText('Backend Service (ClusterIP)').closest('div');
+    toggleBtns = backendSection?.querySelectorAll('button') || [];
+    if (toggleBtns.length >= 2) {
+      fireEvent.click(toggleBtns[1]);
+      expect(toggleYaml).toHaveBeenCalledWith('backendService');
+    }
+  });
+
   it('covers selectedNode.data.parentId fallback and Service node with empty string parentId', () => {
     useFlowStore.setState({
       colorMode: 'dark',

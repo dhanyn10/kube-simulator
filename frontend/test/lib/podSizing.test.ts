@@ -129,6 +129,36 @@ describe('podSizing utils', () => {
       };
       const h = calculatePodHeight(childPodSmallReplicas, 168, [], false);
       expect(h).toBe(POD_MIN_DIMENSIONS.height);
+
+      // Standalone pod without parentId and replicas = 0 -> data.replicas || 1 evaluates 1, 1 > 1 is false
+      const standaloneSingleReplica = {
+        type: 'Pod' as any,
+        parentId: undefined,
+        replicas: 0,
+        displaySettings: { restartPolicy: false },
+      };
+      const hSingle = calculatePodHeight(standaloneSingleReplica, 168, [], false);
+      expect(hSingle).toBe(POD_MIN_DIMENSIONS.height);
+
+      // Standalone pod without parentId and replicas = undefined -> data.replicas || 1 evaluates 1
+      const standaloneUndefinedReplicas = {
+        type: 'Pod' as any,
+        parentId: undefined,
+        replicas: undefined,
+        displaySettings: { restartPolicy: false },
+      };
+      const hUndef = calculatePodHeight(standaloneUndefinedReplicas, 168, [], false);
+      expect(hUndef).toBe(POD_MIN_DIMENSIONS.height);
+
+      // Non-Pod type (e.g. Deployment or undefined) -> data.type === 'Pod' evaluates to false
+      const nonPodData = {
+        type: 'Deployment' as any,
+        replicas: 5,
+        parentId: undefined,
+        displaySettings: { restartPolicy: false },
+      };
+      const hNonPod = calculatePodHeight(nonPodData, 168, [], false);
+      expect(hNonPod).toBe(POD_MIN_DIMENSIONS.height);
     });
 
     it('covers replicas > 1 with parentId defined, and memoryLimit without cpuLimit', () => {

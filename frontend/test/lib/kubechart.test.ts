@@ -297,6 +297,12 @@ describe('kubechart library', () => {
       padTop: 15,
       padBottom: 20
     });
+    expect(resolvePadding(10, [20])).toEqual({
+      padLeft: 10,
+      padRight: 20,
+      padTop: 0,
+      padBottom: 0
+    });
     expect(resolvePadding(5, [10, 15, 20])).toEqual({
       padLeft: 5,
       padRight: 10,
