@@ -276,4 +276,25 @@ describe('CustomEdge', () => {
     expect(getSettingsButtonClass(false, true)).toContain('hover:bg-slate-800');
     expect(getSettingsButtonClass(false, false)).toContain('hover:bg-slate-100');
   });
+
+  it('covers alert tooltip styling branch in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const props = {
+      ...defaultProps,
+      data: { validationError: 'Light mode connection error' },
+    };
+
+    render(
+      <svg>
+        <CustomEdge {...props} />
+      </svg>
+    );
+
+    const badge = screen.getByTestId('edge-alert-badge');
+    expect(badge).toBeDefined();
+
+    const tooltip = screen.getByText('Light mode connection error');
+    expect(tooltip.getAttribute('class')).toContain('bg-white');
+  });
 });

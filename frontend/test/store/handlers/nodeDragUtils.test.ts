@@ -151,6 +151,12 @@ describe('dragUtils', () => {
     const res = calculateOverlap(bareNode, { x: 0, y: 0 }, depContainer, [depContainer]);
     expect(res.intersects).toBe(true);
 
+    // Node using measured width/height without top-level width/height
+    const measuredNode = { id: 'p-measured', measured: { width: 120, height: 60 } } as any;
+    const measuredNonDep = { id: 'c-measured', type: 'Namespace', measured: { width: 500, height: 300 } } as any;
+    const resMeasured = calculateOverlap(measuredNode, { x: 0, y: 0 }, measuredNonDep, [measuredNonDep]);
+    expect(resMeasured.intersects).toBe(true);
+
     // 2. handlePodMoveToDeployment with oldParentId pointing to non-Deployment/non-ReplicaSet parent
     const pod = { id: 'p1', type: 'Pod', parentId: 'ns1', data: {} } as any;
     const oldParentNs = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 } } as any;
