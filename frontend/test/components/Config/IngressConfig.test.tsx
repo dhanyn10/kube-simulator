@@ -343,4 +343,41 @@ describe('IngressConfig', () => {
 
     expect(screen.getAllByText('empty-parent-svc').length).toBeGreaterThan(0);
   });
+
+  it('covers fallback when service label is empty string and backend service is not valid', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc-no-label', type: 'Service', data: { label: '', serviceType: 'ClusterIP' } }
+      ]
+    });
+
+    const ingressNode = {
+      id: 'ing-invalid-backend',
+      type: 'Ingress',
+      data: {
+        label: 'Ingress Invalid Backend',
+        backendServiceName: 'non-existent-service',
+        displaySettings: { backendService: true }
+      }
+    };
+
+    render(
+      <IngressConfig
+        selectedNode={ingressNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    // Displays '---' when currentBackend is not valid in availableServiceNames
+    expect(screen.getByText('---')).toBeDefined();
+
+    // Click dropdown button to verify service id is used as fallback label
+    const dropdownBtn = screen.getByRole('button', { name: /---/i });
+    fireEvent.click(dropdownBtn);
+
+    expect(screen.getByText('svc-no-label')).toBeDefined();
+  });
 });

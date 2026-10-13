@@ -246,4 +246,30 @@ describe('podSizing utils', () => {
       expect(sizeFalsyValues.width).toBeGreaterThan(0);
     });
   });
+
+  it('covers uncovered conditions in podSizing: image width clamping, isMegaPod base height boost, and small width content height calculation', () => {
+    // 1. Image string length lower bound clamping (148) with short string ('a') and upper bound clamping (320) with long string ('a'.repeat(100))
+    const shortImageWidth = calculatePodWidth({ image: 'a', displaySettings: { image: true } }, []);
+    expect(shortImageWidth).toBe(172); // 148 + 24 = 172
+
+    const longImageWidth = calculatePodWidth({ image: 'a'.repeat(100), displaySettings: { image: true } }, []);
+    expect(longImageWidth).toBe(344); // 320 + 24 = 344
+
+    // 2. calculatePodBaseHeight when showDashedProgress is true and isMegaPod is true (adds 120 instead of 16 to height)
+    const megaDashedPod = {
+      type: 'Pod' as any,
+      parentReplicas: 100,
+      displaySettings: { restartPolicy: false },
+    };
+    const heightMegaDashed = calculatePodHeight(megaDashedPod, 336, [], true);
+    expect(heightMegaDashed).toBe(200); // 80 + 120 = 200
+
+    // 3. calculatePodContentHeight with width < 24 (e.g. width = 10) to test Math.max(10, Math.floor((width - 24) / 5.5)) lower bound
+    const narrowPodWithImage = {
+      image: 'nginx:latest',
+      displaySettings: { image: true },
+    };
+    const sizeNarrow = getPodMinimumSize(narrowPodWithImage);
+    expect(sizeNarrow.height).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
+  });
 });

@@ -382,4 +382,88 @@ describe('useMenuBarState', () => {
     });
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(true);
   });
+
+  it('covers uncovered conditions in useMenuBarState: isMounted state during async update check, errorCount with fatal log level, and successful Resource Save alert', async () => {
+    // 1. Unmount component while checkForUpdatesBg promise is in flight (isMounted evaluates to false)
+    let resolveSystemInfo: (val: any) => void = () => {};
+    const systemInfoPromise = new Promise((resolve) => {
+      resolveSystemInfo = resolve;
+    });
+
+    const appMock = {
+      GetSystemInfo: vi.fn().mockImplementation(() => systemInfoPromise),
+      CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '3.0.0' }),
+      UpdateProject: vi.fn().mockResolvedValue(true),
+    };
+    (globalThis as any).go = { main: { App: appMock } };
+    (globalThis as any).window = {
+      go: { main: { App: appMock } },
+    };
+
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    const { result, unmount } = renderHook(() => useMenuBarState(defaultProps));
+
+    // Unmount before system info resolves
+    unmount();
+
+    await act(async () => {
+      resolveSystemInfo({ version: '1.0.0' });
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    // 2. Test errorCount including logs with level === 'fatal'
+    useFlowStore.setState({
+      logs: [
+        { id: '1', level: 'info', message: 'info log', timestamp: '12:00' },
+        { id: '2', level: 'error', message: 'error log', timestamp: '12:01' },
+        { id: '3', level: 'fatal', message: 'fatal log', timestamp: '12:02' },
+      ] as any,
+    });
+
+    const { result: logHook } = renderHook(() => useMenuBarState(defaultProps));
+    expect(logHook.current.errorCount).toBe(2);
+
+    // 3. Test Resource Save click when UpdateProject returns true to verify alert and lastSavedSnapshot update
+    const alertMock = vi.fn();
+    globalThis.alert = alertMock;
+    window.alert = alertMock;
+
+    useFlowStore.setState({
+      nodes: [{ id: 'n1', type: 'Pod', data: {} } as any],
+      edges: [],
+      currentProject: { id: 10, name: 'Active Project' },
+    });
+
+    const updateProjectMock = vi.fn().mockResolvedValue(true);
+    (globalThis as any).go = {
+      main: {
+        App: {
+          UpdateProject: updateProjectMock,
+        },
+      },
+    };
+
+    const { result: saveHook } = renderHook(() => useMenuBarState(defaultProps));
+    const resourceMenu = saveHook.current.menuItems.find((m) => m.label === 'Resource');
+    const saveItem = resourceMenu?.items.find((i) => i.label === 'Save');
+
+    await act(async () => {
+      saveItem?.onClick?.();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(updateProjectMock).toHaveBeenCalledWith(10, expect.any(String));
+    expect(useFlowStore.getState().lastSavedSnapshot).toBe(JSON.stringify({ nodes: [{ id: 'n1', type: 'Pod', data: {} }], edges: [] }));
+    expect(alertMock).toHaveBeenCalledWith('Resource architecture saved successfully!');
+  });
 });
