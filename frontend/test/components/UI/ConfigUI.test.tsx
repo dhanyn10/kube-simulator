@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import {
+  VisibilityToggle,
   YamlToggle,
   ConfigInput,
   ConfigSection,
@@ -99,5 +100,15 @@ describe('ConfigUI uncovered conditions', () => {
     const range = screen.getByRole('slider');
     fireEvent.change(range, { target: { value: '75' } });
     expect(onChange).toHaveBeenCalledWith(75);
+  });
+
+  it('covers VisibilityToggle button click', () => {
+    const onToggle = vi.fn();
+    const { rerender } = render(<VisibilityToggle isVisible={true} onToggle={onToggle} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(onToggle).toHaveBeenCalled();
+
+    rerender(<VisibilityToggle isVisible={false} onToggle={onToggle} />);
+    expect(screen.getByRole('button').className).toContain('text-slate-500');
   });
 });

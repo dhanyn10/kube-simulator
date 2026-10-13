@@ -168,4 +168,27 @@ describe('useResourceLimitModal', () => {
     });
     expect(mockOnClose).toHaveBeenCalled();
   });
+
+  it('handles limit changes higher than request without clamping and saves new resource limit item when initialResourceLimit is null', () => {
+    const { result } = renderHook(() =>
+      useResourceLimitModal(true, 'dep-1', null, mockOnSave, mockOnClose)
+    );
+
+    act(() => {
+      result.current.setCpuLimit('2000m');
+      result.current.setMemoryLimit('1024Mi');
+    });
+
+    expect(result.current.cpuLimit).toBe('2000m');
+    expect(result.current.memoryLimit).toBe('1024Mi');
+
+    act(() => {
+      result.current.handleSave();
+    });
+
+    expect(mockOnSave).toHaveBeenCalledWith(expect.objectContaining({
+      cpuLimit: '2000m',
+      memoryLimit: '1024Mi',
+    }));
+  });
 });

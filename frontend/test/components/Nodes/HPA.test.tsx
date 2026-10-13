@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { HPANode } from '@/components/Nodes/HPA';
 import { useFlowStore } from '@/store';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -304,5 +305,34 @@ describe('HPANode', () => {
     );
 
     expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+  });
+
+  it('handles edge targeting a Service node', () => {
+    const svcTarget = { id: 'svc1', type: 'Service', data: { label: 'My Service' } };
+    const edgeToSvc = { id: 'e-svc', source: 'h1', target: 'svc1' };
+
+    useFlowStore.setState({
+      nodes: [svcTarget],
+      edges: [edgeToSvc]
+    } as any);
+
+    render(
+      <ReactFlowProvider>
+        <HPANode id="h1" type="HPA" data={{ label: 'My HPA' }} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText(/Missing Resource Requests on Target/)).toBeDefined();
+  });
+
+  it('renders min and max replicas labels in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(
+      <ReactFlowProvider>
+        <HPANode id="h1" type="HPA" data={{ label: 'Light HPA' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('min:')).toHaveClass('text-slate-400');
+    expect(screen.getByText('max:')).toHaveClass('text-slate-400');
   });
 });
