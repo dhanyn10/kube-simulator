@@ -248,6 +248,17 @@ describe('useCanvasHandlers hook', () => {
       data: {},
     };
 
+    // Node with measured object present but width undefined, having explicit node.width
+    const nodeWithWidthOnly: Node = {
+      id: 'n-widthonly',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      width: 250,
+      height: 120,
+      measured: {} as any,
+      data: {},
+    };
+
     // Container with 0 rect width/height (fallbacks 1024/768)
     const zeroRectEl = document.createElement('div');
     zeroRectEl.className = 'react-flow__renderer';
@@ -272,6 +283,15 @@ describe('useCanvasHandlers hook', () => {
     });
 
     expect(mockSetCenter).toHaveBeenCalledWith(75, 50, expect.objectContaining({ duration: 800 }));
+
+    // Test nodeWithWidthOnly to cover node.width ?? 150 fallback
+    mockSetCenter.mockClear();
+    useFlowStore.setState({ nodes: [nodeWithWidthOnly] });
+    act(() => {
+      result.current.onNodeClick(mockEvent, nodeWithWidthOnly);
+    });
+    expect(mockSetCenter).toHaveBeenCalledWith(125, 60, expect.objectContaining({ duration: 800 }));
+
     document.body.removeChild(zeroRectEl);
 
     // 2. Forbidden node access skips autofocus

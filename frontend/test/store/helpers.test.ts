@@ -382,5 +382,39 @@ describe('store helpers', () => {
     expect(syncedHeight[0].height).toBe(280);
     expect(syncedHeight[0].measured).toBeDefined();
     expect(syncedHeight[0].measured.height).toBeGreaterThan(0);
+
+    // 5. updatePodNode when isManuallyResized is true but existingPod.width and height are missing/0, but measured has dimensions
+    const existingPodZeroWidth = {
+      id: 'p-zerowidth',
+      parentId: 'd-multi',
+      type: 'Pod',
+      width: 0,
+      height: 0,
+      measured: { width: 400, height: 300 },
+      data: {
+        isManuallyResized: true,
+        baseName: 'test',
+        podHash: 'h1234',
+        replicaSuffix: 's1234',
+      }
+    } as any;
+    const syncedZero = syncPodsInDeployment(depMultiRep, [existingPodZeroWidth]);
+    expect(syncedZero[0].width).toBe(400);
+  });
+
+  it('covers sortNodes with untyped nodes and resolveGlobalCollisions with orphaned parentId', () => {
+    // 1. sortNodes with nodes lacking type property
+    const untypedNodes = [
+      { id: 'u1' } as Node,
+      { id: 'u2' } as Node,
+    ];
+    const sortedUntyped = sortNodes(untypedNodes);
+    expect(sortedUntyped).toHaveLength(2);
+
+    // 2. resolveGlobalCollisions where node has parentId pointing to non-existent parent
+    const orphanChild1 = { id: 'oc1', parentId: 'missing-parent', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} } as any;
+    const orphanChild2 = { id: 'oc2', parentId: 'missing-parent', position: { x: 10, y: 10 }, width: 100, height: 100, data: {} } as any;
+    const resolvedOrphans = resolveGlobalCollisions([orphanChild1, orphanChild2]);
+    expect(resolvedOrphans[0].position.x).not.toBe(0);
   });
 });

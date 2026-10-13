@@ -86,19 +86,20 @@ describe('useMenuBarState', () => {
     });
     expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
 
-    let monitoringItem = viewMenu?.items.find((i) => i.label.includes('Monitoring'));
+    let simulationItem = viewMenu?.items.find((i) => i.label === 'Simulation');
     let componentsItem = viewMenu?.items.find((i) => i.label === 'Components');
     let autofocusItem = viewMenu?.items.find((i) => i.label === 'Autofocus');
     let logsItem = viewMenu?.items.find((i) => i.label === 'Logs');
     let terminalItem = viewMenu?.items.find((i) => i.label === 'Terminal');
 
     act(() => {
-      monitoringItem?.onClick?.();
+      simulationItem?.onClick?.();
       componentsItem?.onClick?.();
       autofocusItem?.onClick?.();
       logsItem?.onClick?.();
       terminalItem?.onClick?.();
     });
+    expect(useFlowStore.getState().isMonitoringOpen).toBe(true);
     expect(useFlowStore.getState().isLogModalOpen).toBe(true);
     expect(useFlowStore.getState().isTerminalOpen).toBe(true);
 
@@ -108,9 +109,9 @@ describe('useMenuBarState', () => {
     });
     rerender();
     viewMenu = result.current.menuItems.find((m) => m.label === 'View');
-    monitoringItem = viewMenu?.items.find((i) => i.label.includes('Monitoring'));
+    simulationItem = viewMenu?.items.find((i) => i.label.includes('Simulation'));
     act(() => {
-      monitoringItem?.onClick?.();
+      simulationItem?.onClick?.();
     });
 
     // Test Help menu items (Take a Tour, About, Report Issue)

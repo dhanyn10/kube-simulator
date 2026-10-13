@@ -45,7 +45,9 @@ describe('ServiceNode', () => {
     expect(screen.getByText('port:')).toHaveClass('text-slate-500');
     expect(screen.getByText('targetPort:')).toHaveClass('text-slate-500');
     expect(screen.getByText('Selector')).toBeDefined();
-    expect(screen.getByText('app: ---')).toBeDefined();
+    const selectorEl = screen.getByText('app: ---');
+    expect(selectorEl).toBeDefined();
+    expect(selectorEl.style.color).toBe('');
   });
 
   it('renders correctly in light mode with light mode slate classes', () => {
@@ -92,7 +94,9 @@ describe('ServiceNode', () => {
     expect(screen.getByText('9090')).toBeDefined();
     expect(screen.getByText('nodePort:')).toBeDefined();
     expect(screen.getByText('30080')).toBeDefined();
-    expect(screen.getByText('app: my-app')).toBeDefined();
+    const validSelectorEl = screen.getByText('app: my-app');
+    expect(validSelectorEl).toBeDefined();
+    expect(validSelectorEl.style.color).toBe('var(--color-mat-amber)');
   });
 
   it('respects displaySettings', () => {
@@ -216,5 +220,72 @@ describe('ServiceNode', () => {
       </ReactFlowProvider>
     );
     expect(screen.getByText('app: pod-id-only')).toBeDefined();
+  });
+
+  it('covers LoadBalancer service type targeting Deployment when Ingress node is also present on canvas', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ing1', type: 'Ingress', data: { label: 'other-ingress' } },
+        { id: 'dep1', type: 'Deployment', data: { label: 'target-dep' } },
+      ] as any
+    });
+
+    render(
+      <ReactFlowProvider>
+        <ServiceNode id="s-lb-dep" type="Service" data={{ serviceType: 'LoadBalancer', selector: 'target-dep' }} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('app: target-dep')).toBeDefined();
+  });
+
+  it('covers explicit displaySettings.selector = true with invalid vs valid selector', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'dep1', type: 'Deployment', data: { label: 'valid-app' } }
+      ] as any
+    });
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <ServiceNode
+          id="s-explicit-sel"
+          type="Service"
+          data={{
+            selector: 'invalid-app',
+            displaySettings: { selector: true }
+          }}
+        />
+      </ReactFlowProvider>
+    );
+
+    const invalidEl = screen.getByText('app: ---');
+    expect(invalidEl.style.color).toBe('');
+
+    rerender(
+      <ReactFlowProvider>
+        <ServiceNode
+          id="s-explicit-sel"
+          type="Service"
+          data={{
+            selector: 'valid-app',
+            displaySettings: { selector: true }
+          }}
+        />
+      </ReactFlowProvider>
+    );
+
+    const validEl = screen.getByText('app: valid-app');
+    expect(validEl.style.color).toBe('var(--color-mat-amber)');
+  });
+
+  it('renders nodePort in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(
+      <ReactFlowProvider>
+        <ServiceNode id="s-np-light" type="Service" data={{ serviceType: 'NodePort', nodePort: 30080 }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('nodePort:')).toHaveClass('text-slate-400');
   });
 });
