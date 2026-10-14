@@ -40,7 +40,7 @@ func NewProjectManager() *ProjectManager {
 }
 
 // Init initializes the local SQLite database at ~/.kube-simulator/app_data.db and performs auto-migrations.
-func (p *ProjectManager) Init() error {
+func (manager *ProjectManager) Init() error {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		return err
@@ -58,16 +58,16 @@ func (p *ProjectManager) Init() error {
 		return err
 	}
 
-	p.db = db
+	manager.db = db
 
 	// Auto Migration (Like Laravel migrations)
-	return p.db.AutoMigrate(&Project{}, &Setting{})
+	return manager.db.AutoMigrate(&Project{}, &Setting{})
 }
 
 // Close safely closes the underlying GORM SQLite connection if open.
-func (p *ProjectManager) Close() {
-	if p.db != nil {
-		sqlDB, _ := p.db.DB()
+func (manager *ProjectManager) Close() {
+	if manager.db != nil {
+		sqlDB, _ := manager.db.DB()
 		if sqlDB != nil {
 			sqlDB.Close()
 		}
@@ -106,15 +106,15 @@ func writePhysicalAutosaveFile(key, content string) {
 }
 
 // SaveProject inserts a new Project record into SQLite and writes the corresponding physical project file.
-func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
-	if p.db == nil {
+func (manager *ProjectManager) SaveProject(name, content string) (int64, error) {
+	if manager.db == nil {
 		return 0, gorm.ErrInvalidDB
 	}
 	project := Project{
 		Name:    name,
 		Content: content,
 	}
-	result := p.db.Create(&project)
+	result := manager.db.Create(&project)
 	if result.Error == nil {
 		writePhysicalProjectFile(project.ID, content)
 	}
@@ -122,11 +122,11 @@ func (p *ProjectManager) SaveProject(name, content string) (int64, error) {
 }
 
 // UpdateProject updates the content and timestamp of an existing project record and writes the updated physical file.
-func (p *ProjectManager) UpdateProject(id int64, content string) error {
-	if p.db == nil {
+func (manager *ProjectManager) UpdateProject(id int64, content string) error {
+	if manager.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	err := p.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
+	err := manager.db.Model(&Project{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"content":    content,
 		"updated_at": time.Now().Unix(),
 	}).Error
@@ -137,22 +137,22 @@ func (p *ProjectManager) UpdateProject(id int64, content string) error {
 }
 
 // GetProjects retrieves all stored projects ordered by updated_at descending.
-func (p *ProjectManager) GetProjects() ([]Project, error) {
-	if p.db == nil {
+func (manager *ProjectManager) GetProjects() ([]Project, error) {
+	if manager.db == nil {
 		return nil, gorm.ErrInvalidDB
 	}
 	var projects []Project
-	result := p.db.Order("updated_at desc").Find(&projects)
+	result := manager.db.Order("updated_at desc").Find(&projects)
 	return projects, result.Error
 }
 
 // LoadProject retrieves a single project by its primary key ID.
-func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
-	if p.db == nil {
+func (manager *ProjectManager) LoadProject(id int64) (*Project, error) {
+	if manager.db == nil {
 		return nil, gorm.ErrInvalidDB
 	}
 	var project Project
-	result := p.db.First(&project, id)
+	result := manager.db.First(&project, id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -160,11 +160,11 @@ func (p *ProjectManager) LoadProject(id int64) (*Project, error) {
 }
 
 // DeleteProject removes a project record from SQLite and deletes its corresponding physical file.
-func (p *ProjectManager) DeleteProject(id int64) error {
-	if p.db == nil {
+func (manager *ProjectManager) DeleteProject(id int64) error {
+	if manager.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	err := p.db.Delete(&Project{}, id).Error
+	err := manager.db.Delete(&Project{}, id).Error
 	if err == nil {
 		userHome, errHome := os.UserHomeDir()
 		if errHome == nil {
@@ -176,12 +176,12 @@ func (p *ProjectManager) DeleteProject(id int64) error {
 }
 
 // SaveSetting stores or updates a key-value setting in SQLite and triggers physical autosave syncing when applicable.
-func (p *ProjectManager) SaveSetting(key, value string) error {
-	if p.db == nil {
+func (manager *ProjectManager) SaveSetting(key, value string) error {
+	if manager.db == nil {
 		return gorm.ErrInvalidDB
 	}
 	setting := Setting{Key: key, Value: value}
-	err := p.db.Save(&setting).Error
+	err := manager.db.Save(&setting).Error
 	if err == nil {
 		writePhysicalAutosaveFile(key, value)
 	}
@@ -189,12 +189,12 @@ func (p *ProjectManager) SaveSetting(key, value string) error {
 }
 
 // GetSetting retrieves the setting value corresponding to the specified key from SQLite.
-func (p *ProjectManager) GetSetting(key string) (string, error) {
-	if p.db == nil {
+func (manager *ProjectManager) GetSetting(key string) (string, error) {
+	if manager.db == nil {
 		return "", gorm.ErrInvalidDB
 	}
 	var setting Setting
-	result := p.db.First(&setting, "key = ?", key)
+	result := manager.db.First(&setting, "key = ?", key)
 	if result.Error != nil {
 		return "", result.Error
 	}

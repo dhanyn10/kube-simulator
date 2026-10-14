@@ -38,26 +38,26 @@ func isCorruptFile(path string) bool {
 		return false
 	}
 
-	f, err := os.Open(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return true
 	}
-	defer f.Close()
+	defer file.Close()
 
-	sz := info.Size()
+	fileSize := info.Size()
 	readLen := int64(64)
-	if sz < readLen {
-		readLen = sz
+	if fileSize < readLen {
+		readLen = fileSize
 	}
 
 	buf := make([]byte, readLen)
-	_, err = f.ReadAt(buf, sz-readLen)
+	_, err = file.ReadAt(buf, fileSize-readLen)
 	if err != nil {
 		return true
 	}
 
-	for _, b := range buf {
-		if b != 0 {
+	for _, byteVal := range buf {
+		if byteVal != 0 {
 			return false
 		}
 	}
@@ -89,22 +89,22 @@ func isCorruptBadgerDir(dbPath string) bool {
 // openBadger attempts to open a Badger DB instance while safely recovering from potential initialization panics.
 func openBadger(opts badger.Options) (db *badger.DB, err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("badger open panicked: %v", r)
+		if recoveredErr := recover(); recoveredErr != nil {
+			err = fmt.Errorf("badger open panicked: %v", recoveredErr)
 		}
 	}()
 	return badger.Open(opts)
 }
 
 // Init initializes the history database directory in ~/.kube-simulator/history_db and opens the Badger database instance.
-func (h *HistoryManager) Init() error {
+func (historyMgr *HistoryManager) Init() error {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
 	dbPath := filepath.Join(userHome, ".kube-simulator", "history_db")
-	fi, statErr := os.Stat(dbPath)
-	if statErr == nil && !fi.IsDir() {
+	fileInfo, statErr := os.Stat(dbPath)
+	if statErr == nil && !fileInfo.IsDir() {
 		return fmt.Errorf("%s is a file, not a directory", dbPath)
 	}
 	os.MkdirAll(dbPath, os.ModePerm)
@@ -127,28 +127,28 @@ func (h *HistoryManager) Init() error {
 			return err
 		}
 	}
-	h.db = db
+	historyMgr.db = db
 	return nil
 }
 
 // Close gracefully closes the underlying Badger database instance if open.
-func (h *HistoryManager) Close() {
-	if h.db != nil {
-		h.db.Close()
+func (historyMgr *HistoryManager) Close() {
+	if historyMgr.db != nil {
+		historyMgr.db.Close()
 	}
 }
 
 // Push records a new state snapshot into the history database and updates the current and maximum history indices.
-func (h *HistoryManager) Push(state string) {
-	if h.db == nil {
+func (historyMgr *HistoryManager) Push(state string) {
+	if historyMgr.db == nil {
 		return
 	}
 
-	h.currentIndex++
-	h.maxIndex = h.currentIndex
+	historyMgr.currentIndex++
+	historyMgr.maxIndex = historyMgr.currentIndex
 
-	err := h.db.Update(func(txn *badger.Txn) error {
-		key := []byte(fmt.Sprintf("hist:%d", h.currentIndex))
+	err := historyMgr.db.Update(func(txn *badger.Txn) error {
+		key := []byte(fmt.Sprintf("hist:%d", historyMgr.currentIndex))
 		return txn.Set(key, []byte(state))
 	})
 
@@ -158,36 +158,36 @@ func (h *HistoryManager) Push(state string) {
 }
 
 // Undo moves one step back in the history stack and returns the previous state string.
-func (h *HistoryManager) Undo() string {
-	if h.db == nil || h.currentIndex <= 0 {
+func (historyMgr *HistoryManager) Undo() string {
+	if historyMgr.db == nil || historyMgr.currentIndex <= 0 {
 		return ""
 	}
 
-	h.currentIndex--
-	return h.JumpTo(h.currentIndex)
+	historyMgr.currentIndex--
+	return historyMgr.JumpTo(historyMgr.currentIndex)
 }
 
 // Redo moves one step forward in the history stack and returns the next state string.
-func (h *HistoryManager) Redo() string {
-	if h.db == nil || h.currentIndex >= h.maxIndex {
+func (historyMgr *HistoryManager) Redo() string {
+	if historyMgr.db == nil || historyMgr.currentIndex >= historyMgr.maxIndex {
 		return ""
 	}
 
-	h.currentIndex++
-	return h.JumpTo(h.currentIndex)
+	historyMgr.currentIndex++
+	return historyMgr.JumpTo(historyMgr.currentIndex)
 }
 
 // JumpTo retrieves and returns the canvas state string recorded at the specified history index.
-func (h *HistoryManager) JumpTo(index int) string {
-	if h.db == nil || index < 0 || index > h.maxIndex {
+func (historyMgr *HistoryManager) JumpTo(index int) string {
+	if historyMgr.db == nil || index < 0 || index > historyMgr.maxIndex {
 		return ""
 	}
 
-	h.currentIndex = index
+	historyMgr.currentIndex = index
 	var state string
 
-	err := h.db.View(func(txn *badger.Txn) error {
-		key := []byte(fmt.Sprintf("hist:%d", h.currentIndex))
+	err := historyMgr.db.View(func(txn *badger.Txn) error {
+		key := []byte(fmt.Sprintf("hist:%d", historyMgr.currentIndex))
 		item, err := txn.Get(key)
 		if err != nil {
 			return err
@@ -206,16 +206,16 @@ func (h *HistoryManager) JumpTo(index int) string {
 }
 
 // GetCurrentIndex returns the current active position index in the history stack.
-func (h *HistoryManager) GetCurrentIndex() int {
-	return h.currentIndex
+func (historyMgr *HistoryManager) GetCurrentIndex() int {
+	return historyMgr.currentIndex
 }
 
 // GetMaxIndex returns the maximum recorded index in the history stack.
-func (h *HistoryManager) GetMaxIndex() int {
-	return h.maxIndex
+func (historyMgr *HistoryManager) GetMaxIndex() int {
+	return historyMgr.maxIndex
 }
 
 // GetDB returns a reference to the internal Badger database instance.
-func (h *HistoryManager) GetDB() *badger.DB {
-	return h.db
+func (historyMgr *HistoryManager) GetDB() *badger.DB {
+	return historyMgr.db
 }

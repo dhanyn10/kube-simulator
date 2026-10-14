@@ -9,54 +9,54 @@ import { SimulationContext, updateNodeData } from './simulationTypes';
  */
 export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationContext) => {
   const currentState = ctx.get();
-  const latestNode = currentState?.nodes?.find(n => n.id === podId);
-  const pData = latestNode?.data as K8sNodeData | undefined;
+  const latestNode = currentState?.nodes?.find(node => node.id === podId);
+  const podData = latestNode?.data as K8sNodeData | undefined;
 
-  if (pData?.restartPolicy === 'Never') {
+  if (podData?.restartPolicy === 'Never') {
     try {
       currentState?.addLog?.(
         'error',
-        `[Kubelet] Pod "${pData.label || podId}" crashed! Automatic restart disabled (restartPolicy: Never). Pod remains down.`,
+        `[Kubelet] Pod "${podData.label || podId}" crashed! Automatic restart disabled (restartPolicy: Never). Pod remains down.`,
         'Simulation'
       );
-    } catch (e) {
-      logger.error('[Simulation Recovery] Failed to add log', e);
+    } catch (error) {
+      logger.error('[Simulation Recovery] Failed to add log', error);
     }
     return;
   }
 
   const speed = currentState?.simulationSpeed || 1;
   const delayMs = Math.round(3000 / Math.max(1, speed));
-  const policy = pData?.restartPolicy || 'Always';
+  const policy = podData?.restartPolicy || 'Always';
 
   try {
     currentState?.addLog?.(
       'warning',
-      `[Kubelet] Pod "${pData?.label || podId}" crashed! Restarting container (restartPolicy: ${policy})...`,
+      `[Kubelet] Pod "${podData?.label || podId}" crashed! Restarting container (restartPolicy: ${policy})...`,
       'Simulation'
     );
-  } catch (e) {
-    logger.error('[Simulation Recovery] Failed to add log', e);
+  } catch (error) {
+    logger.error('[Simulation Recovery] Failed to add log', error);
   }
 
   setTimeout(() => {
     const latestState = ctx.get();
-    const nodeToRecover = latestState.nodes.find(n => n.id === podId);
+    const nodeToRecover = latestState.nodes.find(node => node.id === podId);
     if (nodeToRecover?.data.status !== 'crashing') return;
 
-    const currentPData = nodeToRecover.data as K8sNodeData;
-    const isReadyConfigured = Boolean(currentPData.image);
+    const currentPodData = nodeToRecover.data as K8sNodeData;
+    const isReadyConfigured = Boolean(currentPodData.image);
     const nextStatus = isReadyConfigured ? 'ready' : 'pending';
 
     latestState.updateNodeData?.(podId, { status: nextStatus, simulatedFailureCM: undefined });
     try {
       latestState.addLog?.(
         'info',
-        `[Kubelet] Pod "${currentPData.label || podId}" container restarted successfully. Status: ${nextStatus}.`,
+        `[Kubelet] Pod "${currentPodData.label || podId}" container restarted successfully. Status: ${nextStatus}.`,
         'Simulation'
       );
-    } catch (e) {
-      logger.error('[Simulation Recovery] Failed to add log', e);
+    } catch (error) {
+      logger.error('[Simulation Recovery] Failed to add log', error);
     }
   }, delayMs);
 };

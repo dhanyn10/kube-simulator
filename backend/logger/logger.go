@@ -52,12 +52,12 @@ func appendToLogFile(line string) {
 	if path == "" {
 		return
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	logFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return
 	}
-	defer f.Close()
-	_, _ = f.WriteString(line + "\n")
+	defer logFile.Close()
+	_, _ = logFile.WriteString(line + "\n")
 }
 
 // AppendCategorizedLog writes a log entry into a category-specific log file (app-*, history-*, report-*)
@@ -99,10 +99,10 @@ func AppendCategorizedLog(category, level, message string) {
 		jsonLine := string(jsonEntry) + "\n"
 
 		targetPath := filepath.Join(dir, filename)
-		f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		catFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err == nil {
-			_, _ = f.WriteString(jsonLine)
-			f.Close()
+			_, _ = catFile.WriteString(jsonLine)
+			catFile.Close()
 		}
 
 		path := logFilePath
@@ -113,10 +113,10 @@ func AppendCategorizedLog(category, level, message string) {
 			}
 			path = filepath.Join(configDir, appDirName, "app_logs.jsonl")
 		}
-		af, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		appFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err == nil {
-			_, _ = af.WriteString(jsonLine)
-			af.Close()
+			_, _ = appFile.WriteString(jsonLine)
+			appFile.Close()
 		}
 	}
 }
@@ -187,7 +187,7 @@ type WailsWriter struct {
 	Level string
 }
 
-func (w *WailsWriter) Write(p []byte) (n int, err error) {
-	emit(w.Level, "%s", string(p))
-	return len(p), nil
+func (w *WailsWriter) Write(data []byte) (bytesWritten int, err error) {
+	emit(w.Level, "%s", string(data))
+	return len(data), nil
 }

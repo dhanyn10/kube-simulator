@@ -17,24 +17,24 @@ const parseConfigKeyValuePair = (
   key: string | undefined,
   val: string | undefined,
   cmName: string,
-  acc: { hasSimulatedFailure: boolean; failingCmName: string; cmPort: number | null; maxConnections: number | null; logLevel: string }
+  settings: { hasSimulatedFailure: boolean; failingCmName: string; cmPort: number | null; maxConnections: number | null; logLevel: string }
 ) => {
-  const k = key?.trim().toUpperCase();
-  const v = val?.trim();
-  if (!k || !v) return;
+  const keyUpper = key?.trim().toUpperCase();
+  const valueTrimmed = val?.trim();
+  if (!keyUpper || !valueTrimmed) return;
 
-  if ((k === 'CHAOS_MODE' && v.toLowerCase() === 'enabled') || (k === 'SIMULATE_FAILURE' && v.toLowerCase() === 'true')) {
-    acc.hasSimulatedFailure = true;
-    acc.failingCmName = cmName;
+  if ((keyUpper === 'CHAOS_MODE' && valueTrimmed.toLowerCase() === 'enabled') || (keyUpper === 'SIMULATE_FAILURE' && valueTrimmed.toLowerCase() === 'true')) {
+    settings.hasSimulatedFailure = true;
+    settings.failingCmName = cmName;
   }
-  if (k === 'PORT' && !Number.isNaN(Number(v))) {
-    acc.cmPort = Number(v);
+  if (keyUpper === 'PORT' && !Number.isNaN(Number(valueTrimmed))) {
+    settings.cmPort = Number(valueTrimmed);
   }
-  if (k === 'MAX_CONNECTIONS' && !Number.isNaN(Number(v))) {
-    acc.maxConnections = Number(v);
+  if (keyUpper === 'MAX_CONNECTIONS' && !Number.isNaN(Number(valueTrimmed))) {
+    settings.maxConnections = Number(valueTrimmed);
   }
-  if (k === 'LOG_LEVEL') {
-    acc.logLevel = v.toUpperCase();
+  if (keyUpper === 'LOG_LEVEL') {
+    settings.logLevel = valueTrimmed.toUpperCase();
   }
 };
 
@@ -42,16 +42,16 @@ const parseConfigKeyValuePair = (
  * Parses ConfigMap entries for simulation parameter overrides like CHAOS_MODE, PORT, MAX_CONNECTIONS, and LOG_LEVEL.
  */
 export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
-  const acc = { hasSimulatedFailure: false, failingCmName: '', cmPort: null as number | null, maxConnections: null as number | null, logLevel: 'INFO' };
+  const settings = { hasSimulatedFailure: false, failingCmName: '', cmPort: null as number | null, maxConnections: null as number | null, logLevel: 'INFO' };
 
   for (const cm of configMaps) {
     if (!cm.configData) continue;
     for (const kv of cm.configData) {
-      parseConfigKeyValuePair(kv.key, kv.value, cm.name, acc);
+      parseConfigKeyValuePair(kv.key, kv.value, cm.name, settings);
     }
   }
 
-  return acc;
+  return settings;
 };
 
 const applyPodSimulatedFailure = (
@@ -65,8 +65,8 @@ const applyPodSimulatedFailure = (
   }
   try {
     ctx.get()?.addLog?.('warning', `[ConfigMap Chaos] CHAOS_MODE enabled in ConfigMap "${failingCmName}". Pod "${pod.data.label || pod.id}" set to CrashLoopBackOff!`, 'Simulation');
-  } catch (e) {
-    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  } catch (error) {
+    logger.error('[ConfigMap Simulation] Failed to add log', error);
   }
   return true;
 };
@@ -85,23 +85,23 @@ const applySimulatedFailures = (
   return hasChanges;
 };
 
-const isPodReadyConfigured = (pData: K8sNodeData): boolean => {
-  return Boolean(pData.image);
+const isPodReadyConfigured = (podData: K8sNodeData): boolean => {
+  return Boolean(podData.image);
 };
 
 const recoverSinglePod = (pod: Node, ctx: SimulationContext): boolean => {
   if (pod.data.status !== 'crashing' || !pod.data.simulatedFailureCM) {
     return false;
   }
-  const pData = pod.data as K8sNodeData;
-  const nextStatus = isPodReadyConfigured(pData) ? 'ready' : 'pending';
+  const podData = pod.data as K8sNodeData;
+  const nextStatus = isPodReadyConfigured(podData) ? 'ready' : 'pending';
   if (!updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureCM: undefined })) {
     return false;
   }
   try {
     ctx.get()?.addLog?.('info', `[ConfigMap Recovered] CHAOS_MODE disabled. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
-  } catch (e) {
-    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  } catch (error) {
+    logger.error('[ConfigMap Simulation] Failed to add log', error);
   }
   return true;
 };
@@ -152,8 +152,8 @@ const logPortMismatchError = (
       `[ConfigMap Port Mismatch] Connection Refused (HTTP 502): Service "${sData.label || sourceNodeId}" (port ${srvTargetPort}) -> Pod "${podLabel || podId}" (listening on PORT ${cmPort})`,
       'Simulation'
     );
-  } catch (e) {
-    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  } catch (error) {
+    logger.error('[ConfigMap Simulation] Failed to add log', error);
   }
 };
 
@@ -235,8 +235,8 @@ export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: s
     const podLabel = dep.data?.label || dep.id;
     const { type, message } = getLogMessageForLevel(logLevel, podLabel);
     ctx.get()?.addLog?.(type, message, 'App');
-  } catch (e) {
-    logger.error('[ConfigMap Simulation] Failed to add log', e);
+  } catch (error) {
+    logger.error('[ConfigMap Simulation] Failed to add log', error);
   }
 };
 
@@ -244,8 +244,8 @@ export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: s
  * Evaluates attached ConfigMap settings during runtime simulation.
  */
 export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number } => {
-  const dData = dep.data as K8sNodeData;
-  const configMaps = dData.configMaps || [];
+  const deploymentData = dep.data as K8sNodeData;
+  const configMaps = deploymentData.configMaps || [];
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
 
   const { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel } = parseConfigMapSettings(configMaps);
@@ -281,8 +281,8 @@ const handleTrafficThrottling = (
   if (ctx.ticks % 2 === 0) {
     try {
       ctx.get()?.addLog?.('warning', `[ConfigMap Capacity Limit] HTTP 503 Service Unavailable: ${droppedCount} requests/sec dropped on "${dep.data?.label || dep.id}" (MAX_CONNECTIONS=${limit})`, 'Simulation');
-    } catch (e) {
-      logger.error('[ConfigMap Simulation] Failed to add log', e);
+    } catch (error) {
+      logger.error('[ConfigMap Simulation] Failed to add log', error);
     }
   }
   return limit;

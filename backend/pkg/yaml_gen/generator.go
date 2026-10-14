@@ -41,9 +41,9 @@ func Generate(nodesJson, edgesJson string) string {
 	for i := range nodes {
 		ctx.nodeMap[nodes[i].ID] = &nodes[i]
 	}
-	for _, e := range edges {
-		ctx.sourceEdgeMap[e.Source] = append(ctx.sourceEdgeMap[e.Source], e)
-		ctx.targetEdgeMap[e.Target] = append(ctx.targetEdgeMap[e.Target], e)
+	for _, edge := range edges {
+		ctx.sourceEdgeMap[edge.Source] = append(ctx.sourceEdgeMap[edge.Source], edge)
+		ctx.targetEdgeMap[edge.Target] = append(ctx.targetEdgeMap[edge.Target], edge)
 	}
 
 	var manifests []interface{}
@@ -95,26 +95,26 @@ func generateNodeObject(node k8s.FrontendNode, ctx *GenContext) interface{} {
 
 // sanitizeName formats node labels into valid DNS-1123 compliant Kubernetes resource names.
 func sanitizeName(label string) string {
-	res := strings.ReplaceAll(strings.ToLower(label), "_", "-")
-	res = strings.ReplaceAll(res, " ", "-")
+	sanitizedResult := strings.ReplaceAll(strings.ToLower(label), "_", "-")
+	sanitizedResult = strings.ReplaceAll(sanitizedResult, " ", "-")
 	// Kubernetes DNS-1123: only alphanumeric and '-'
-	f := func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			return r
+	sanitizeRune := func(charRune rune) rune {
+		if (charRune >= 'a' && charRune <= 'z') || (charRune >= '0' && charRune <= '9') || charRune == '-' {
+			return charRune
 		}
 		return '-'
 	}
-	res = strings.Map(f, res)
-	for strings.Contains(res, "--") {
-		res = strings.ReplaceAll(res, "--", "-")
+	sanitizedResult = strings.Map(sanitizeRune, sanitizedResult)
+	for strings.Contains(sanitizedResult, "--") {
+		sanitizedResult = strings.ReplaceAll(sanitizedResult, "--", "-")
 	}
 	// Ensure it starts and ends with alphanumeric
-	res = strings.Trim(res, "-")
-	if len(res) > 63 {
-		res = res[:63]
-		res = strings.TrimRight(res, "-")
+	sanitizedResult = strings.Trim(sanitizedResult, "-")
+	if len(sanitizedResult) > 63 {
+		sanitizedResult = sanitizedResult[:63]
+		sanitizedResult = strings.TrimRight(sanitizedResult, "-")
 	}
-	return res
+	return sanitizedResult
 }
 
 

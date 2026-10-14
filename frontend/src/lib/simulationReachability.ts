@@ -22,9 +22,9 @@ export const hasValidServiceSelectorTarget = (serviceNode: Node, nodes: Node[]):
   if (!selector || typeof selector !== 'string' || selector.trim() === '') {
     return false;
   }
-  return nodes.some(n =>
-    (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
-    isServiceSelectorMatching(serviceNode, n)
+  return nodes.some(node =>
+    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet') &&
+    isServiceSelectorMatching(serviceNode, node)
   );
 };
 
@@ -33,52 +33,52 @@ export const hasValidServiceSelectorTarget = (serviceNode: Node, nodes: Node[]):
  */
 export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap?: Map<string, Edge[]>): boolean => {
   const outgoing = edgeMap?.get(ingressNode.id) || [];
-  for (const e of outgoing) {
-    const target = nodes.find(n => n.id === e.target);
+  for (const edge of outgoing) {
+    const target = nodes.find(node => node.id === edge.target);
     if (target?.type === 'Service' && (target?.data?.serviceType || 'ClusterIP') === 'ClusterIP') {
       return true;
     }
   }
   const backendName = ingressNode.data?.backendServiceName || ingressNode.data?.serviceName;
   if (backendName) {
-    return nodes.some(n =>
-      n.type === 'Service' &&
-      (n.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-      (n.data?.label === backendName || n.data?.selector === backendName)
+    return nodes.some(node =>
+      node.type === 'Service' &&
+      (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+      (node.data?.label === backendName || node.data?.selector === backendName)
     );
   }
   return false;
 };
 
 const isServiceValidForProcessing = (
-  currNode: Node,
-  currId: string,
+  currentNode: Node,
+  currentId: string,
   nodes: Node[] | undefined,
   edgeMap: Map<string, Edge[]>
 ): boolean => {
-  if (currNode.type !== 'Service') return true;
-  const sType = currNode.data?.serviceType || 'ClusterIP';
-  if (sType === 'NodePort') return true;
+  if (currentNode.type !== 'Service') return true;
+  const serviceType = currentNode.data?.serviceType || 'ClusterIP';
+  if (serviceType === 'NodePort') return true;
 
-  const hasWorkloadTarget = hasValidServiceSelectorTarget(currNode, nodes || []);
-  const outgoing = edgeMap.get(currId) || [];
-  const hasIngressTarget = outgoing.some(e => {
-    const t = nodes?.find(n => n.id === e.target);
-    return t?.type === 'Ingress';
+  const hasWorkloadTarget = hasValidServiceSelectorTarget(currentNode, nodes || []);
+  const outgoing = edgeMap.get(currentId) || [];
+  const hasIngressTarget = outgoing.some(edge => {
+    const targetNode = nodes?.find(node => node.id === edge.target);
+    return targetNode?.type === 'Ingress';
   });
 
   return hasWorkloadTarget || hasIngressTarget;
 };
 
 const enqueueDynamicServiceTargets = (
-  currNode: Node,
+  currentNode: Node,
   nodes: Node[] | undefined,
   queue: string[]
 ) => {
-  if (currNode.type !== 'Service' || !nodes) return;
-  const selectorTargets = nodes.filter(n =>
-    (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
-    isServiceSelectorMatching(currNode, n)
+  if (currentNode.type !== 'Service' || !nodes) return;
+  const selectorTargets = nodes.filter(node =>
+    (node.type === 'Pod' || node.type === 'Deployment' || node.type === 'ReplicaSet') &&
+    isServiceSelectorMatching(currentNode, node)
   );
   for (const target of selectorTargets) {
     queue.push(String(target.id));
@@ -86,54 +86,54 @@ const enqueueDynamicServiceTargets = (
 };
 
 const enqueueDynamicIngressTargets = (
-  currNode: Node,
+  currentNode: Node,
   nodes: Node[] | undefined,
   queue: string[]
 ) => {
-  if (currNode.type !== 'Ingress' || !nodes) return;
-  const backendName = currNode.data?.backendServiceName || currNode.data?.serviceName;
+  if (currentNode.type !== 'Ingress' || !nodes) return;
+  const backendName = currentNode.data?.backendServiceName || currentNode.data?.serviceName;
   if (!backendName) return;
 
-  const backendServices = nodes.filter(n =>
-    n.type === 'Service' &&
-    (n.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-    n.data?.label === backendName
+  const backendServices = nodes.filter(node =>
+    node.type === 'Service' &&
+    (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+    node.data?.label === backendName
   );
-  for (const svc of backendServices) {
-    queue.push(String(svc.id));
+  for (const service of backendServices) {
+    queue.push(String(service.id));
   }
 };
 
 const processOutgoingEdges = (
-  currId: string,
+  currentId: string,
   edgeMap: Map<string, Edge[]>,
   activeEdgesSet: Set<string>,
   queue: string[],
   nodes?: Node[]
 ) => {
-  const currNode = nodes?.find(n => n.id === currId);
+  const currentNode = nodes?.find(node => node.id === currentId);
 
-  if (currNode) {
-    if (!isServiceValidForProcessing(currNode, currId, nodes, edgeMap)) {
+  if (currentNode) {
+    if (!isServiceValidForProcessing(currentNode, currentId, nodes, edgeMap)) {
       return;
     }
-    if (currNode.type === 'Ingress' && !hasValidIngressBackend(currNode, nodes || [], edgeMap)) {
+    if (currentNode.type === 'Ingress' && !hasValidIngressBackend(currentNode, nodes || [], edgeMap)) {
       return;
     }
   }
 
-  const outgoing = edgeMap.get(currId);
+  const outgoing = edgeMap.get(currentId);
   if (outgoing) {
-    for (const e of outgoing) {
-      if (activeEdgesSet.has(String(e.id)) && !e.data?.validationError) {
-        queue.push(String(e.target));
+    for (const edge of outgoing) {
+      if (activeEdgesSet.has(String(edge.id)) && !edge.data?.validationError) {
+        queue.push(String(edge.target));
       }
     }
   }
 
-  if (currNode) {
-    enqueueDynamicServiceTargets(currNode, nodes, queue);
-    enqueueDynamicIngressTargets(currNode, nodes, queue);
+  if (currentNode) {
+    enqueueDynamicServiceTargets(currentNode, nodes, queue);
+    enqueueDynamicIngressTargets(currentNode, nodes, queue);
   }
 };
 
@@ -147,17 +147,17 @@ export const calculateReachability = (
   allNodes?: Node[]
 ): Set<string> => {
   const reachableNodes = new Set<string>();
-  const queue = startNodes.map(n => n.id);
+  const queue = startNodes.map(node => node.id);
   const activeEdgesSet = activeSimulationEdges instanceof Set
     ? activeSimulationEdges
     : new Set(activeSimulationEdges);
 
   while (queue.length > 0) {
-    const currId = queue.shift()!;
-    if (reachableNodes.has(currId)) continue;
-    reachableNodes.add(currId);
+    const currentId = queue.shift()!;
+    if (reachableNodes.has(currentId)) continue;
+    reachableNodes.add(currentId);
 
-    processOutgoingEdges(currId, edgeMap, activeEdgesSet, queue, allNodes);
+    processOutgoingEdges(currentId, edgeMap, activeEdgesSet, queue, allNodes);
   }
   return reachableNodes;
 };
@@ -168,13 +168,13 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
   if (isWorkload && node.data?.status !== 'ready') return true;
 
   if (node?.type === 'Service') {
-    const sType = node?.data?.serviceType || 'ClusterIP';
+    const serviceType = node?.data?.serviceType || 'ClusterIP';
     const outgoing = nodes.filter(n =>
       (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') &&
       isServiceSelectorMatching(node, n)
     );
     const hasIngressTarget = nodes.some(n => n.type === 'Ingress');
-    if (outgoing.length === 0 && !hasIngressTarget && sType !== 'NodePort') {
+    if (outgoing.length === 0 && !hasIngressTarget && serviceType !== 'NodePort') {
       return true;
     }
   }
@@ -187,7 +187,7 @@ const checkNodeUnreadyInternal = (node: Node | undefined, nodes: Node[]): boolea
 
   if (node?.type === 'Deployment') {
     const childPods = nodes.filter((n) => (String(n.parentId) === String(node.id) || String(n.data?.parentId) === String(node.id)) && n.type === 'Pod');
-    if (childPods.some((p) => p.data?.status !== 'ready')) return true;
+    if (childPods.some((pod) => pod.data?.status !== 'ready')) return true;
   }
   return false;
 };
@@ -213,8 +213,8 @@ const hasUnreadyDownstreamPath = (
       return true;
     }
 
-    const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(e =>
-      activeEdgesSet.size === 0 || activeEdgesSet.has(String(e.id))
+    const downstreamEdges = (ctx.edgeMap?.get(currentId) || []).filter(edge =>
+      activeEdgesSet.size === 0 || activeEdgesSet.has(String(edge.id))
     );
 
     for (const downEdge of downstreamEdges) {

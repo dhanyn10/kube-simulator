@@ -22,8 +22,8 @@ const getInternetNodeTraffic = (
 
   if (!canReachWorkload(reachableNodes, depId, children)) return 0;
 
-  const nData = node.data as K8sNodeData;
-  return nData.currentTraffic || 0;
+  const nodeData = node.data as K8sNodeData;
+  return nodeData.currentTraffic || 0;
 };
 
 /**
@@ -49,15 +49,15 @@ interface ProfileMinutePoint {
 
 const parseProfileMinutePoints = (hourly: Record<string, number>): ProfileMinutePoint[] => {
   const points = Object.keys(hourly)
-    .map((k) => {
-      const [h, m] = k.split(':').map(Number);
-      return { minute: (h || 0) * 60 + (m || 0), val: Number(hourly[k]) };
+    .map((key) => {
+      const [hour, minute] = key.split(':').map(Number);
+      return { minute: (hour || 0) * 60 + (minute || 0), val: Number(hourly[key]) };
     })
-    .sort((a, b) => a.minute - b.minute);
+    .sort((pointA, pointB) => pointA.minute - pointB.minute);
 
-  if (points.length > 0 && !points.some((k) => k.minute === 1440)) {
-    const min0 = points.find((k) => k.minute === 0) || points[0];
-    points.push({ minute: 1440, val: min0.val });
+  if (points.length > 0 && !points.some((point) => point.minute === 1440)) {
+    const firstPoint = points.find((point) => point.minute === 0) || points[0];
+    points.push({ minute: 1440, val: firstPoint.val });
   }
   return points;
 };
@@ -88,9 +88,9 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
   const safeMinute = ((Math.floor(minuteIndex) % 1440) + 1440) % 1440;
 
   const hourly = profile.hourly || profile.daily || {};
-  const hh = String(Math.floor(safeMinute / 60)).padStart(2, '0');
-  const mm = String(safeMinute % 60).padStart(2, '0');
-  const exactKey = `${hh}:${mm}`;
+  const hourString = String(Math.floor(safeMinute / 60)).padStart(2, '0');
+  const minuteString = String(safeMinute % 60).padStart(2, '0');
+  const exactKey = `${hourString}:${minuteString}`;
 
   if (hourly[exactKey] !== undefined) {
     return hourly[exactKey];
@@ -112,33 +112,33 @@ export const getInterpolatedProfileTraffic = (profile: any, minuteIndex: number)
  * Smoothly adjusts current internet traffic towards target traffic setting.
  */
 export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) => {
-  const iData = internet.data as K8sNodeData;
-  let targetTraffic = iData.traffic ?? 1000;
+  const internetData = internet.data as K8sNodeData;
+  let targetTraffic = internetData.traffic ?? 1000;
 
   const state = ctx.get?.();
   const speed = state?.simulationSpeed || 1;
 
   // Track profileTicks to advance traffic cycle index only when connection is healthy
   const isRed = isInternetConnectionRed(internet, ctx);
-  const prevProfileTicks = iData.profileTicks ?? 0;
+  const prevProfileTicks = internetData.profileTicks ?? 0;
   const currentProfileTicks = isRed ? prevProfileTicks : (prevProfileTicks + 1);
 
   // Minute-level resolution across 1440 minutes in a 24-hour cycle
-  const prevMinuteIndex = iData.currentMinuteIndex ?? ((iData.currentHourIndex ?? 0) * 60);
+  const prevMinuteIndex = internetData.currentMinuteIndex ?? ((internetData.currentHourIndex ?? 0) * 60);
   const currentMinuteIndex = isRed ? prevMinuteIndex : ((prevMinuteIndex + 1) % 1440);
   const currentHourIndex = Math.floor(currentMinuteIndex / 60);
 
-  if (iData.connectionProfile) {
-    targetTraffic = getInterpolatedProfileTraffic(iData.connectionProfile, currentMinuteIndex);
+  if (internetData.connectionProfile) {
+    targetTraffic = getInterpolatedProfileTraffic(internetData.connectionProfile, currentMinuteIndex);
   }
 
-  const currentTraffic = iData.currentTraffic ?? 0;
+  const currentTraffic = internetData.currentTraffic ?? 0;
   let nextTraffic = currentTraffic;
 
   // Hold traffic at 0 during container initialization startup delay (ticks 1..3) or when connection is red
   if (ctx.ticks <= 3 || isRed) {
     nextTraffic = 0;
-  } else if (iData.connectionProfile) {
+  } else if (internetData.connectionProfile) {
     nextTraffic = targetTraffic;
   } else {
     const step = 1000 * speed;
@@ -152,9 +152,9 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
   let hasChanges = false;
   if (
     nextTraffic !== currentTraffic ||
-    iData.currentHourIndex !== currentHourIndex ||
-    iData.currentMinuteIndex !== currentMinuteIndex ||
-    iData.profileTicks !== currentProfileTicks
+    internetData.currentHourIndex !== currentHourIndex ||
+    internetData.currentMinuteIndex !== currentMinuteIndex ||
+    internetData.profileTicks !== currentProfileTicks
   ) {
     hasChanges = updateNodeData(ctx, internet.id, {
       currentTraffic: nextTraffic,
@@ -170,10 +170,10 @@ export const updateInternetTraffic = (internet: Node, ctx: SimulationContext) =>
  * Computes CPU and Memory usage metrics and throttle/OOM flags for a workload node based on traffic load.
  */
 export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx: SimulationContext) => {
-  const dData = dep.data as K8sNodeData;
-  const replicas = (dData.replicas as number) || 1;
-  const cpuLimitMilli = parseCPU(dData.cpuLimit);
-  const memLimitMiB = parseMemory(dData.memoryLimit);
+  const deploymentData = dep.data as K8sNodeData;
+  const replicas = (deploymentData.replicas as number) || 1;
+  const cpuLimitMilli = parseCPU(deploymentData.cpuLimit);
+  const memLimitMiB = parseMemory(deploymentData.memoryLimit);
 
   const noise = () => (safeRandom() * 20 - 10);
   const cpuValue = Math.max(10, Math.min(((incomingTraffic / 1000) * 200 / replicas) + 50 + noise(), cpuLimitMilli));
@@ -241,12 +241,12 @@ const resolveDirectHpaConfig = (depData: K8sNodeData) => {
 const resolveConnectedHpaConfig = (depId: string, ctx: SimulationContext) => {
   const connectedHPA = findConnectedHPA(depId, ctx);
   if (connectedHPA) {
-    const hData = connectedHPA.data as K8sNodeData;
+    const hpaData = connectedHPA.data as K8sNodeData;
     return {
       config: {
-        minReplicas: hData.minReplicas || 1,
-        maxReplicas: hData.maxReplicas || 10,
-        targetCPU: hData.targetCPU || 50,
+        minReplicas: hpaData.minReplicas || 1,
+        maxReplicas: hpaData.maxReplicas || 10,
+        targetCPU: hpaData.targetCPU || 50,
       },
       connectedHPA,
     };
@@ -280,11 +280,11 @@ const resolveHpaConfig = (dep: Node, ctx: SimulationContext): { config: { minRep
 };
 
 const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext): boolean => {
-  const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(n => n.id === dep.id);
+  const nodeIndex = ctx.nodeIndexMap?.get(dep.id) ?? ctx.updatedNodes.findIndex(node => node.id === dep.id);
   if (nodeIndex === -1) return false;
 
   const { updatedDeployment, laidOut } = syncDeployment(ctx.updatedNodes[nodeIndex], ctx.updatedNodes, diff, ctx.get);
-  const filteredNodes = ctx.updatedNodes.filter(n => n.id !== dep.id && n.parentId !== dep.id);
+  const filteredNodes = ctx.updatedNodes.filter(node => node.id !== dep.id && node.parentId !== dep.id);
   ctx.updatedNodes.length = 0;
   ctx.updatedNodes.push(...filteredNodes, updatedDeployment, ...laidOut);
   ctx.nodeIndexMap?.clear();
@@ -295,13 +295,13 @@ const scaleDeploymentReplicas = (dep: Node, diff: number, ctx: SimulationContext
  * Evaluates connected HPA parameters and automatically scales workload replicas based on CPU load.
  */
 export const handleHpaScaling = (dep: Node, cpuPercent: number, ctx: SimulationContext): boolean => {
-  const depData = dep.data as K8sNodeData;
+  const deploymentData = dep.data as K8sNodeData;
   const { config: hpaConfig, connectedHPA } = resolveHpaConfig(dep, ctx);
 
   if (!hpaConfig) return false;
 
   let hasChanges = false;
-  const replicas = depData.replicas || 1;
+  const replicas = deploymentData.replicas || 1;
   const desiredReplicas = calculateDesiredReplicas(replicas, cpuPercent, hpaConfig as any);
 
   if (desiredReplicas !== replicas) {

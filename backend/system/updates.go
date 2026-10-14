@@ -60,9 +60,9 @@ func fetchReleases() ([]GitHubRelease, error) {
 
 // findLatestRelease locates the first non-draft release in the provided release list.
 func findLatestRelease(releases []GitHubRelease) (GitHubRelease, bool) {
-	for _, r := range releases {
-		if !r.Draft {
-			return r, true
+	for _, release := range releases {
+		if !release.Draft {
+			return release, true
 		}
 	}
 	return GitHubRelease{}, false
@@ -94,20 +94,20 @@ func CheckForUpdates(currentVersion string) (*UpdateInfo, error) {
 }
 
 // compareNumericVersions compares two slice arrays of numeric version segment strings.
-func compareNumericVersions(lVer, cVer []string) (int, bool) {
-	for i := 0; i < len(lVer) || i < len(cVer); i++ {
-		lv, cv := 0, 0
-		if i < len(lVer) {
-			lv, _ = strconv.Atoi(lVer[i])
+func compareNumericVersions(latestVersionParts, currentVersionParts []string) (int, bool) {
+	for partIndex := 0; partIndex < len(latestVersionParts) || partIndex < len(currentVersionParts); partIndex++ {
+		latestVal, currentVal := 0, 0
+		if partIndex < len(latestVersionParts) {
+			latestVal, _ = strconv.Atoi(latestVersionParts[partIndex])
 		}
-		if i < len(cVer) {
-			cv, _ = strconv.Atoi(cVer[i])
+		if partIndex < len(currentVersionParts) {
+			currentVal, _ = strconv.Atoi(currentVersionParts[partIndex])
 		}
 
-		if lv > cv {
+		if latestVal > currentVal {
 			return 1, true
 		}
-		if lv < cv {
+		if latestVal < currentVal {
 			return -1, true
 		}
 	}
@@ -120,21 +120,21 @@ func isNewer(latest, current string) bool {
 		return latest != ""
 	}
 
-	lParts := strings.Split(latest, "-")
-	cParts := strings.Split(current, "-")
+	latestParts := strings.Split(latest, "-")
+	currentParts := strings.Split(current, "-")
 
-	if res, ok := compareNumericVersions(strings.Split(lParts[0], "."), strings.Split(cParts[0], ".")); ok {
-		return res > 0
+	if compResult, hasDifference := compareNumericVersions(strings.Split(latestParts[0], "."), strings.Split(currentParts[0], ".")); hasDifference {
+		return compResult > 0
 	}
 
 	// If numeric segments are equal, a release without a suffix is newer than one with a suffix
-	if len(lParts) != len(cParts) {
-		return len(lParts) < len(cParts)
+	if len(latestParts) != len(currentParts) {
+		return len(latestParts) < len(currentParts)
 	}
 
 	// If both have suffixes, compare them lexicographically
-	if len(lParts) > 1 && len(cParts) > 1 {
-		return lParts[1] > cParts[1]
+	if len(latestParts) > 1 && len(currentParts) > 1 {
+		return latestParts[1] > currentParts[1]
 	}
 
 	return false

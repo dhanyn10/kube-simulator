@@ -118,30 +118,30 @@ func extractConfigData(data k8s.K8sNodeData) map[string]string {
 // generateConfigMap constructs a Kubernetes ConfigMap resource object.
 func generateConfigMap(data k8s.K8sNodeData, name, namespace string) interface{} {
 	configData := extractConfigData(data)
-	cm := k8s.ConfigMap{
+	configMap := k8s.ConfigMap{
 		ApiVersion: "v1",
 		Kind:       "ConfigMap",
 		Metadata:   k8s.ObjectMeta{Name: name, Namespace: namespace},
 	}
 	if len(configData) > 0 {
-		cm.Data = configData
+		configMap.Data = configData
 	}
-	return cm
+	return configMap
 }
 
 // generateSecret constructs a Kubernetes Secret resource object.
 func generateSecret(data k8s.K8sNodeData, name, namespace string) interface{} {
 	secretData := extractConfigData(data)
-	s := k8s.Secret{
+	secret := k8s.Secret{
 		ApiVersion: "v1",
 		Kind:       "Secret",
 		Metadata:   k8s.ObjectMeta{Name: name, Namespace: namespace},
 		Type:       "Opaque",
 	}
 	if len(secretData) > 0 {
-		s.StringData = secretData
+		secret.StringData = secretData
 	}
-	return s
+	return secret
 }
 
 // generatePVC constructs a Kubernetes PersistentVolumeClaim resource object.
@@ -190,9 +190,9 @@ func generatePVC(data k8s.K8sNodeData, name, namespace string) interface{} {
 // getPodDataAndIDs retrieves child pod data and IDs when generating workload pod templates.
 func getPodDataAndIDs(data k8s.K8sNodeData, ctx *GenContext) (k8s.K8sNodeData, []string) {
 	targetIDs := []string{data.ID}
-	for _, n := range ctx.nodes {
-		if n.ParentID == data.ID && n.Type == "Pod" {
-			return n.Data, append(targetIDs, n.ID)
+	for _, node := range ctx.nodes {
+		if node.ParentID == data.ID && node.Type == "Pod" {
+			return node.Data, append(targetIDs, node.ID)
 		}
 	}
 	return data, targetIDs
@@ -306,8 +306,8 @@ func generateReplicaSet(data k8s.K8sNodeData, name, namespace string, ctx *GenCo
 
 // findTargetWorkload identifies the target Deployment or Pod node connected to a Service.
 func findTargetWorkload(serviceID string, ctx *GenContext) *k8s.FrontendNode {
-	for _, e := range ctx.sourceEdgeMap[serviceID] {
-		target := ctx.nodeMap[e.Target]
+	for _, edge := range ctx.sourceEdgeMap[serviceID] {
+		target := ctx.nodeMap[edge.Target]
 		if target != nil && (target.Type == "Deployment" || target.Type == "Pod") {
 			return target
 		}
@@ -400,8 +400,8 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 
 // findTargetService identifies the target Service node connected to an Ingress.
 func findTargetService(ingressID string, ctx *GenContext) *k8s.FrontendNode {
-	for _, e := range ctx.sourceEdgeMap[ingressID] {
-		target := ctx.nodeMap[e.Target]
+	for _, edge := range ctx.sourceEdgeMap[ingressID] {
+		target := ctx.nodeMap[edge.Target]
 		if target != nil && target.Type == "Service" {
 			return target
 		}
@@ -478,8 +478,8 @@ func generateIngress(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 
 // findTargetDeployment identifies the target Deployment node connected to an HPA.
 func findTargetDeployment(hpaID string, ctx *GenContext) *k8s.FrontendNode {
-	for _, e := range ctx.sourceEdgeMap[hpaID] {
-		target := ctx.nodeMap[e.Target]
+	for _, edge := range ctx.sourceEdgeMap[hpaID] {
+		target := ctx.nodeMap[edge.Target]
 		if target != nil && target.Type == "Deployment" {
 			return target
 		}
