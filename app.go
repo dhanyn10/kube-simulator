@@ -5,10 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,6 +15,7 @@ import (
 	"build-wails/backend/db"
 	"build-wails/backend/explorer"
 	"build-wails/backend/logger"
+	"build-wails/backend/pkg/dockerhub"
 	"build-wails/backend/pkg/yaml_gen"
 	"build-wails/backend/system"
 
@@ -40,14 +38,16 @@ const (
 type App struct {
 	history         *db.HistoryManager
 	projects        *db.ProjectManager
+	dockerHub       *dockerhub.Client
 	initialFilePath string
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{
-		history:  db.NewHistoryManager(),
-		projects: db.NewProjectManager(),
+		history:   db.NewHistoryManager(),
+		projects:  db.NewProjectManager(),
+		dockerHub: dockerhub.NewClient(),
 	}
 }
 
@@ -716,59 +716,15 @@ func (a *App) GenerateYaml(nodesJson, edgesJson string) string {
 }
 
 func (a *App) FetchDockerHubPopular() string {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://hub.docker.com/v2/repositories/library/?page_size=20")
-	if err != nil {
-		logger.Error("Failed to fetch popular Docker Hub repositories: %v", err)
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Failed to read popular Docker Hub response body: %v", err)
-		return ""
-	}
-	return string(body)
+	return a.dockerHub.FetchPopular()
 }
 
 func (a *App) FetchDockerHubTags(imageName string) string {
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	path := imageName
-	if !strings.Contains(imageName, "/") {
-		path = "library/" + imageName
-	}
-
-	targetURL := fmt.Sprintf("https://hub.docker.com/v2/repositories/%s/tags/?page_size=20", path)
-	resp, err := client.Get(targetURL)
-	if err != nil {
-		logger.Error("Failed to fetch Docker Hub tags for %s: %v", imageName, err)
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Failed to read Docker Hub tags response body: %v", err)
-		return ""
-	}
-	return string(body)
+	return a.dockerHub.FetchTags(imageName)
 }
 
 func (a *App) SearchDockerHub(query string) string {
-	client := &http.Client{Timeout: 10 * time.Second}
-	targetURL := fmt.Sprintf("https://hub.docker.com/v2/search/repositories/?query=%s&page_size=20", url.QueryEscape(query))
-	resp, err := client.Get(targetURL)
-	if err != nil {
-		logger.Error("Failed to search Docker Hub: %v", err)
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("Failed to read search Docker Hub response body: %v", err)
-		return ""
-	}
-	return string(body)
+	return a.dockerHub.Search(query)
 }
 
 func (a *App) CheckForUpdates(currentVersion string) *system.UpdateInfo {

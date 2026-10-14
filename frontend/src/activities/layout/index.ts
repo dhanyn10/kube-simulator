@@ -5,3 +5,4 @@ export * from './canvasBgHelpers';
 export * from './rightSidebarHelpers';
 export * from './useRightSidebar';
 export * from './useCanvasMiniMap';
+export * from './useModalOverlayState';

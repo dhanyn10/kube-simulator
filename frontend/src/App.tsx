@@ -53,7 +53,7 @@ import { useThemeSync } from './hooks/useThemeSync';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useAppInit, useAttachmentHandlers } from './hooks/useAppHelpers';
 import { useCanvasNodes } from './activities/nodes';
-import { getFinalCanvasBgColor } from './activities/layout';
+import { getFinalCanvasBgColor, isAnyModalOverlayOpen } from './activities/layout';
 import { useGlobalContextMenu } from './activities/ui';
 
 const nodeTypes = {
@@ -242,23 +242,25 @@ export default function App() {
             onDragLeave={onDragLeave}
             onNodesDelete={deleteNodes}
             deleteKeyCode={
-              isFileBackstageOpen ||
-              isProjectOpen ||
-              isScenarioOpen ||
-              isAboutDialogOpen ||
-              isSettingsOpen ||
-              isSaveModalOpen ||
-              isYamlOpen ||
-              roleModalTargetNode !== null ||
-              configMapModalTargetNode !== null ||
-              secretModalTargetNode !== null ||
-              hpaModalTargetNode !== null ||
-              resourceLimitModalTargetNode !== null ||
-              isTerminalOpen ||
-              isMonitoringDashboardOpen ||
-              isLogModalOpen ||
-              isKubeIamWizardOpen ||
-              isTerminalCommandTreeModalOpen
+              isAnyModalOverlayOpen({
+                isFileBackstageOpen,
+                isProjectOpen,
+                isScenarioOpen,
+                isAboutDialogOpen,
+                isSettingsOpen,
+                isSaveModalOpen,
+                isYamlOpen,
+                roleModalTargetNode,
+                configMapModalTargetNode,
+                secretModalTargetNode,
+                hpaModalTargetNode,
+                resourceLimitModalTargetNode,
+                isTerminalOpen,
+                isMonitoringDashboardOpen,
+                isLogModalOpen,
+                isKubeIamWizardOpen,
+                isTerminalCommandTreeModalOpen,
+              })
                 ? null
                 : ['Backspace', 'Delete']
             }
