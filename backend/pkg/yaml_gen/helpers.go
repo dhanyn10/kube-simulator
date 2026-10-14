@@ -9,9 +9,9 @@ import (
 func getEnvFromConnections(targetIDs []string, ctx *GenContext) []k8s.EnvVar {
 	var env []k8s.EnvVar
 
-	for _, id := range targetIDs {
-		for _, e := range ctx.targetEdgeMap[id] {
-			sourceNode := ctx.nodeMap[e.Source]
+	for _, targetID := range targetIDs {
+		for _, edge := range ctx.targetEdgeMap[targetID] {
+			sourceNode := ctx.nodeMap[edge.Source]
 			env = append(env, getEnvFromNode(sourceNode)...)
 		}
 	}
@@ -63,22 +63,22 @@ func getVolumeConfig(sourceIDs []string, ctx *GenContext) ([]k8s.Volume, []k8s.V
 	var volumeMounts []k8s.VolumeMount
 
 	pvcEdges := []k8s.FrontendEdge{}
-	for _, id := range sourceIDs {
-		for _, e := range ctx.sourceEdgeMap[id] {
-			targetNode := ctx.nodeMap[e.Target]
+	for _, sourceID := range sourceIDs {
+		for _, edge := range ctx.sourceEdgeMap[sourceID] {
+			targetNode := ctx.nodeMap[edge.Target]
 			if targetNode != nil && targetNode.Type == "PVC" {
-				pvcEdges = append(pvcEdges, e)
+				pvcEdges = append(pvcEdges, edge)
 			}
 		}
 	}
 
-	for i, e := range pvcEdges {
-		pvcNode := ctx.nodeMap[e.Target]
+	for index, edge := range pvcEdges {
+		pvcNode := ctx.nodeMap[edge.Target]
 		pvcName := "pvc-storage"
 		if pvcNode != nil && pvcNode.Data.Label != "" {
 			pvcName = sanitizeName(pvcNode.Data.Label)
 		}
-		volName := fmt.Sprintf("vol-%d", i)
+		volName := fmt.Sprintf("vol-%d", index)
 		volumes = append(volumes, k8s.Volume{
 			Name: volName,
 			PersistentVolumeClaim: &k8s.PersistentVolumeClaimVolumeSource{
@@ -87,7 +87,7 @@ func getVolumeConfig(sourceIDs []string, ctx *GenContext) ([]k8s.Volume, []k8s.V
 		})
 		volumeMounts = append(volumeMounts, k8s.VolumeMount{
 			Name:      volName,
-			MountPath: fmt.Sprintf("/data-%d", i),
+			MountPath: fmt.Sprintf("/data-%d", index),
 		})
 	}
 
@@ -99,22 +99,22 @@ func createResourceMap(cpu, memory string) map[string]string {
 	if cpu == "" && memory == "" {
 		return nil
 	}
-	res := make(map[string]string)
+	resourceMap := make(map[string]string)
 	if cpu != "" {
-		res["cpu"] = cpu
+		resourceMap["cpu"] = cpu
 	}
 	if memory != "" {
-		res["memory"] = memory
+		resourceMap["memory"] = memory
 	}
-	return res
+	return resourceMap
 }
 
 // isConnectedToResourceLimit checks if any edge in the provided list connects to a ResourceLimit node.
 func isConnectedToResourceLimit(edges []k8s.FrontendEdge, nodeMap map[string]*k8s.FrontendNode, isTarget bool) bool {
-	for _, e := range edges {
-		nodeID := e.Source
+	for _, edge := range edges {
+		nodeID := edge.Source
 		if isTarget {
-			nodeID = e.Target
+			nodeID = edge.Target
 		}
 		if node, ok := nodeMap[nodeID]; ok && node != nil && node.Type == "ResourceLimit" {
 			return true

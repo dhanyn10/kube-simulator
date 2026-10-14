@@ -93,11 +93,11 @@ export const cleanProjectName = (projectName: string): string => {
  * @returns Object containing absolute `{ x, y }` coordinates relative to the canvas origin.
  */
 export const getAbsPos = (nodeId: string, currentNodes: any[]): { x: number, y: number } => {
-  const n = currentNodes.find(i => i.id === nodeId);
-  if (!n?.position) return { x: 0, y: 0 };
-  if (!n.parentId) return n.position;
-  const pAbs = getAbsPos(n.parentId, currentNodes);
-  return { x: n.position.x + pAbs.x, y: n.position.y + pAbs.y };
+  const targetNode = currentNodes.find(node => node.id === nodeId);
+  if (!targetNode?.position) return { x: 0, y: 0 };
+  if (!targetNode.parentId) return targetNode.position;
+  const parentAbsPos = getAbsPos(targetNode.parentId, currentNodes);
+  return { x: targetNode.position.x + parentAbsPos.x, y: targetNode.position.y + parentAbsPos.y };
 };
 
 /**
@@ -113,8 +113,8 @@ export const safeRandom = (): number => {
     globalThis.crypto.getRandomValues(array);
     return array[0] / (0xffffffff + 1);
   }
-  const t = performance.now() * 1000;
-  return (t % 1000) / 1000;
+  const nowMicroseconds = performance.now() * 1000;
+  return (nowMicroseconds % 1000) / 1000;
 };
 
 /**
@@ -138,9 +138,9 @@ export const randomId = (prefix: string = ''): string => {
 export const generateRandomHash = (length = 5): string => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
-  for (let i = 0; i < length; i++) {
-    const idx = Math.floor(safeRandom() * chars.length);
-    result += chars[idx];
+  for (let index = 0; index < length; index++) {
+    const charIndex = Math.floor(safeRandom() * chars.length);
+    result += chars[charIndex];
   }
   return result;
 };
@@ -269,8 +269,8 @@ export async function generateYaml(nodes: any[], edges: any[]): Promise<string> 
           return jsonStr;
         }
       }
-    } catch (e) {
-      logger.error('Failed to parse objects for YAML generation from backend, falling back to client-side:', e);
+    } catch (error) {
+      logger.error('Failed to parse objects for YAML generation from backend, falling back to client-side:', error);
     }
   }
   return generateYamlClientSide(nodes, edges);

@@ -7,16 +7,9 @@ import { useFlowStore } from '@/store';
 import { QuickConnectArrows } from './QuickConnectArrows';
 import { useNodeRename, useNodeResize } from '@/hooks/useNodeEditor';
 import { useNodeStyles } from '@/hooks/useNodeStyles';
+import { checkShowHPAWarning } from '@/activities/nodes';
 import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
-
-const checkShowHPAWarning = (nodeId: string, data: K8sNodeData, edges: any[], nodes: any[]): boolean => {
-  const hasRequests = Boolean(data.cpuRequest && data.memoryRequest);
-  if (hasRequests) return false;
-  const hasAttachedHpa = Array.isArray(data.hpas) && data.hpas.length > 0;
-  const hasConnectedHpa = edges.some((e) => e.target === nodeId && nodes.find((n) => n.id === e.source)?.type === 'HPA');
-  return hasAttachedHpa || hasConnectedHpa;
-};
 
 const getRoleDragClass = (isRoleDragging: boolean, nodeType: string, isHovered?: boolean): string => {
   if (!isRoleDragging) return '';

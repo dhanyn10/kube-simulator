@@ -23,16 +23,16 @@ export interface SimulationContext {
  * Updates data properties of a node in the active simulation context.
  */
 export const updateNodeData = (ctx: SimulationContext, id: string, newData: any) => {
-  let idx = ctx.nodeIndexMap?.get(id);
-  if (idx === undefined) {
-    idx = ctx.updatedNodes.findIndex(un => un.id === id);
-    if (idx !== -1) ctx.nodeIndexMap?.set(id, idx);
+  let nodeIndex = ctx.nodeIndexMap?.get(id);
+  if (nodeIndex === undefined) {
+    nodeIndex = ctx.updatedNodes.findIndex(updatedNode => updatedNode.id === id);
+    if (nodeIndex !== -1) ctx.nodeIndexMap?.set(id, nodeIndex);
   }
 
-  if (idx !== undefined && idx !== -1) {
-    ctx.updatedNodes[idx] = {
-      ...ctx.updatedNodes[idx],
-      data: { ...ctx.updatedNodes[idx].data, ...newData }
+  if (nodeIndex !== undefined && nodeIndex !== -1) {
+    ctx.updatedNodes[nodeIndex] = {
+      ...ctx.updatedNodes[nodeIndex],
+      data: { ...ctx.updatedNodes[nodeIndex].data, ...newData }
     };
     return true;
   }

@@ -1,38 +1,9 @@
 import { useMemo } from 'react';
 import { useFlowStore } from '@/store';
-import { K8sNodeData } from '@/types';
-import { parseCPU, parseMemory, formatCPU, formatMemory, cn } from '@/lib/utils';
+import { formatCPU, formatMemory, cn } from '@/lib/utils';
+import { calculateResourceTotals } from '@/activities/monitoring';
 import { MultiProgressBar } from './MultiProgressBar';
 import { Cpu, Database, AlertCircle } from 'lucide-react';
-
-const calculateResourceTotals = (nodes: any[]) => {
-  return nodes.reduce((acc, node) => {
-    if (!['Deployment', 'Pod', 'ReplicaSet'].includes(node.type || '')) return acc;
-
-    const data = node.data as K8sNodeData;
-    const replicas = data.replicas || 1;
-
-    if (node.parentId) {
-      const parent = nodes.find((n) => n.id === node.parentId);
-      if (['Deployment', 'ReplicaSet'].includes(parent?.type ?? '')) {
-        return acc;
-      }
-    }
-
-    const cpuReq = parseCPU(data.cpuRequest || '0');
-    const memReq = parseMemory(data.memoryRequest || '0');
-    const cpuLim = data.cpuLimit ? parseCPU(data.cpuLimit) : cpuReq;
-    const memLim = data.memoryLimit ? parseMemory(data.memoryLimit) : memReq;
-
-    return {
-      cpuReq: acc.cpuReq + cpuReq * replicas,
-      memReq: acc.memReq + memReq * replicas,
-      cpuLim: acc.cpuLim + cpuLim * replicas,
-      memLim: acc.memLim + memLim * replicas,
-      hasMissingLimits: acc.hasMissingLimits || (!data.cpuLimit || !data.memoryLimit),
-    };
-  }, { cpuReq: 0, memReq: 0, cpuLim: 0, memLim: 0, hasMissingLimits: false });
-};
 
 export const ResourceBudget = () => {
   const nodes = useFlowStore((state) => state.nodes);

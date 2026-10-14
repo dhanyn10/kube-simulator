@@ -6,18 +6,18 @@ import { SimulationContext, updateNodeData } from './simulationTypes';
 
 const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
-  const workloadIds = [dep.id, ...childPods.map(p => p.id)];
+  const workloadIds = [dep.id, ...childPods.map(pod => pod.id)];
   const connectedPVCs: Node[] = [];
 
-  for (const wId of workloadIds) {
-    const outgoing = ctx.edgeMap?.get(wId) || [];
-    const incoming = ctx.targetEdgeMap?.get(wId) || [];
+  for (const workloadId of workloadIds) {
+    const outgoing = ctx.edgeMap?.get(workloadId) || [];
+    const incoming = ctx.targetEdgeMap?.get(workloadId) || [];
     const allEdges = [...outgoing, ...incoming];
 
     for (const edge of allEdges) {
-      const otherId = edge.source === wId ? edge.target : edge.source;
-      const targetNode = ctx.nodeMap?.get(String(otherId)) || ctx.nodes.find(n => n.id === String(otherId));
-      if (targetNode?.type === 'PVC' && !connectedPVCs.some(p => p.id === targetNode.id)) {
+      const otherId = edge.source === workloadId ? edge.target : edge.source;
+      const targetNode = ctx.nodeMap?.get(String(otherId)) || ctx.nodes.find(node => node.id === String(otherId));
+      if (targetNode?.type === 'PVC' && !connectedPVCs.some(pvc => pvc.id === targetNode.id)) {
         connectedPVCs.push(targetNode);
       }
     }
@@ -27,15 +27,15 @@ const findConnectedPVCs = (dep: Node, ctx: SimulationContext): Node[] => {
 };
 
 const calculateWorkloadReplicaCount = (
-  wNode: Node,
+  workloadNode: Node,
   connectedWorkloadIds: Set<string>
 ): number => {
-  if (wNode.type === 'Deployment' || wNode.type === 'ReplicaSet') {
-    const rep = Number(wNode.data?.replicas);
-    return Number.isNaN(rep) || rep < 1 ? 1 : rep;
+  if (workloadNode.type === 'Deployment' || workloadNode.type === 'ReplicaSet') {
+    const replicas = Number(workloadNode.data?.replicas);
+    return Number.isNaN(replicas) || replicas < 1 ? 1 : replicas;
   }
-  if (wNode.type === 'Pod') {
-    const parentId = String(wNode.parentId || wNode.data?.parentId || '');
+  if (workloadNode.type === 'Pod') {
+    const parentId = String(workloadNode.parentId || workloadNode.data?.parentId || '');
     if (!parentId || !connectedWorkloadIds.has(parentId)) {
       return 1;
     }
@@ -64,10 +64,10 @@ export const countConnectedPvcReplicas = (
   }
 
   let totalReplicas = 0;
-  for (const wId of connectedWorkloadIds) {
-    const wNode = ctx.nodeMap?.get(wId) || ctx.updatedNodes.find(n => n.id === wId) || ctx.nodes.find(n => n.id === wId);
-    if (wNode) {
-      totalReplicas += calculateWorkloadReplicaCount(wNode, connectedWorkloadIds);
+  for (const workloadId of connectedWorkloadIds) {
+    const workloadNode = ctx.nodeMap?.get(workloadId) || ctx.updatedNodes.find(node => node.id === workloadId) || ctx.nodes.find(node => node.id === workloadId);
+    if (workloadNode) {
+      totalReplicas += calculateWorkloadReplicaCount(workloadNode, connectedWorkloadIds);
     }
   }
 
@@ -90,8 +90,8 @@ const handlePvcMultiAttachError = (
     }
     try {
       ctx.get()?.addLog?.('error', `[PVC Multi-Attach Error] ${errorMsg}. Workload pods set to Pending!`, 'Simulation');
-    } catch (e) {
-      logger.error('[PVC Simulation] Failed to add log', e);
+    } catch (error) {
+      logger.error('[PVC Simulation] Failed to add log', error);
     }
   }
 
@@ -131,8 +131,8 @@ const resolvePvcMultiAttachError = (
     }
     try {
       ctx.get()?.addLog?.('info', `[PVC Multi-Attach Resolved] Multi-Attach conflict resolved for volume "${pvc.data?.label || pvc.id}".`, 'Simulation');
-    } catch (e) {
-      logger.error('[PVC Simulation] Failed to add log', e);
+    } catch (error) {
+      logger.error('[PVC Simulation] Failed to add log', error);
     }
   }
   return hasChanges;
@@ -160,7 +160,7 @@ const evaluateSingleConnectedPvc = (
     hasChanges = true;
   }
 
-  const currentPvcNode = ctx.updatedNodes.find(n => n.id === pvc.id) || pvc;
+  const currentPvcNode = ctx.updatedNodes.find(node => node.id === pvc.id) || pvc;
   if (currentPvcNode.data?.pvcStatus !== 'Bound') {
     const unboundResult = handleUnboundPvcs([currentPvcNode], childPods, ctx);
     if (unboundResult.hasChanges) hasChanges = true;
@@ -186,9 +186,9 @@ export const checkPvcReadiness = (dep: Node, ctx: SimulationContext): { hasChang
   let isBlocked = false;
 
   for (const pvc of connectedPVCs) {
-    const res = evaluateSingleConnectedPvc(pvc, childPods, ctx);
-    if (res.hasChanges) hasChanges = true;
-    if (res.isBlocked) isBlocked = true;
+    const result = evaluateSingleConnectedPvc(pvc, childPods, ctx);
+    if (result.hasChanges) hasChanges = true;
+    if (result.isBlocked) isBlocked = true;
   }
 
   if (!isBlocked) {
@@ -226,9 +226,9 @@ export const handleUnboundPvcs = (connectedPVCs: Node[], childPods: Node[], ctx:
 export const handleBoundPvcs = (childPods: Node[], ctx: SimulationContext) => {
   let hasChanges = false;
   childPods.forEach(pod => {
-    const pData = pod.data as K8sNodeData;
-    const isReadyStatus = Boolean(pData.image);
-    if (pData.status === 'pending' && isReadyStatus) {
+    const podData = pod.data as K8sNodeData;
+    const isReadyStatus = Boolean(podData.image);
+    if (podData.status === 'pending' && isReadyStatus) {
       if (updateNodeData(ctx, pod.id, { status: 'ready' })) hasChanges = true;
     }
   });

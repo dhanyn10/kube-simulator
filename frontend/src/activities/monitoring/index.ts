@@ -3,3 +3,4 @@
  */
 
 export * from './useMonitoringDashboard';
+export * from './resourceBudgetHelpers';
