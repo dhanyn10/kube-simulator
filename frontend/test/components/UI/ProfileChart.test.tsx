@@ -357,5 +357,75 @@ describe('ProfileChart', () => {
       fireEvent.pointerMove(chartSvg, { clientX: 100, clientY: 100 });
       expect(onUpdatePoint).not.toHaveBeenCalled();
     });
+
+    it('covers InteractiveTrafficChart when onUpdateProfile is undefined during interval change and drag', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const subHourlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:10': 120,
+          '01:00': 200,
+        }
+      };
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={subHourlyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          // onUpdateProfile is omitted/undefined
+        />
+      );
+
+      // 1. Pointer down on circle when onUpdateProfile is undefined (should not crash)
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 0) {
+        fireEvent.pointerDown(targetCircles[0], { clientX: 100, clientY: 120, pointerId: 1 });
+      }
+
+      // 2. Resample confirm when onUpdateProfile is undefined (should not crash)
+      const intervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      fireEvent.change(intervalSelect, { target: { value: '60' } });
+
+      const confirmBtn = screen.getByTestId('confirm-resample-btn');
+      fireEvent.click(confirmBtn);
+
+      expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
+    });
+
+    it('covers InteractiveTrafficChart interval change on hourly profile without sub-hourly keys', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+      const onUpdateProfile = vi.fn();
+
+      const hourlyOnlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '01:00': 200,
+        },
+      };
+
+      render(
+        <InteractiveTrafficChart
+          profile={hourlyOnlyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      const intervalSelect = screen.getByRole('combobox') as HTMLSelectElement;
+      // Change to 30m on hourly-only profile (hasSubHourlyKeys is false) -> directly hydrates sub-hourly keys
+      fireEvent.change(intervalSelect, { target: { value: '30' } });
+      expect(onUpdateProfile).toHaveBeenCalled();
+    });
   });
 });

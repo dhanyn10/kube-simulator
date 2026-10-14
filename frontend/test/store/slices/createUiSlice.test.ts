@@ -992,4 +992,51 @@ describe('createUiSlice', () => {
 
     expect(useFlowStore.getState().minimapPosition).toBe('top-right');
   });
+
+  it('covers fallbackToLegacySettings when sidebar or rightSidebar setting is empty or false', async () => {
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'app_settings_json') return Promise.resolve('');
+      if (key === 'isSidebarVisible') return Promise.resolve('');
+      if (key === 'isRightSidebarVisible') return Promise.resolve('false');
+      return Promise.resolve('');
+    });
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(false);
+  });
+
+  it('covers startSimulationInternal when isPaused is true and internet node is missing', () => {
+    useFlowStore.setState({
+      isPaused: true,
+      nodes: [
+        { id: 'custom-start-1', type: 'CustomType', data: {} }
+      ] as any,
+      edges: []
+    });
+
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation(['custom-start-1']);
+
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+    expect(useFlowStore.getState().isPaused).toBe(false);
+  });
+
+  it('covers buildInitialTerminalLogs fallback for missing label and image', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: {} },
+        { id: 'p-no-label', type: 'Pod', data: {} }
+      ] as any,
+      edges: []
+    });
+
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    const logs = useFlowStore.getState().terminalLogs['p-no-label'] || [];
+    expect(logs.some(l => l.includes('nginx:latest'))).toBe(true);
+  });
 });

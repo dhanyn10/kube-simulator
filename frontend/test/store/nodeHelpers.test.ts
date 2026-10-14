@@ -277,5 +277,27 @@ describe('nodeHelpers', () => {
       expect(updatedNs.width).toBeGreaterThan(200);
       expect(updatedNs.position.x).toBe(0); // shiftX == 0
     });
+
+    it('covers getChildMinSize for generic non-workload child node types like Service or ConfigMap', () => {
+      const nsContainer = { id: 'ns2', type: 'Namespace', position: { x: 0, y: 0 }, width: 50, height: 50 } as any;
+      const svcChild = { id: 'svc1', type: 'Service', parentId: 'ns2', position: { x: 10, y: 10 } } as any;
+
+      const nextNodes = syncContainerSize('ns2', [nsContainer, svcChild]);
+      const updatedNs = nextNodes.find(n => n.id === 'ns2');
+      // Service child fallback size is 160x80 -> container expands to at least 160+padding
+      expect(updatedNs.width).toBeGreaterThanOrEqual(160);
+    });
+
+    it('covers hydrateNodes secret migration when parentId is present on secret but target node is missing in preparedNodes', () => {
+      const orphanSecretWithParent = {
+        id: 's-missing-parent',
+        type: 'Secret',
+        parentId: 'non-existent-parent-id',
+        data: { configData: [{ key: 'K', value: 'V' }] },
+      };
+
+      const hydrated = hydrateNodes([orphanSecretWithParent], () => useFlowStore.getState());
+      expect(hydrated).toHaveLength(1);
+    });
   });
 });

@@ -246,4 +246,76 @@ describe('pvcConfigHelpers test suite', () => {
     const noPvcRes = syncPvcRealtimeState([depNode], edges);
     expect(noPvcRes.nodes).toEqual([depNode]);
   });
+
+  it('covers calculatePvcConnectedReplicas with child pod whose parent deployment is NOT connected to PVC', () => {
+    const pvcId = 'pvc-1';
+    const nodes: Node[] = [
+      { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
+      { id: 'dep-not-connected', type: 'Deployment', data: { replicas: 3 }, position: { x: 0, y: 0 } },
+      { id: 'pod-child-direct', type: 'Pod', data: { parentId: 'dep-not-connected' }, position: { x: 0, y: 0 } },
+    ];
+    // Edge directly connects pod-child-direct to PVC, but dep-not-connected is NOT connected
+    const edges: Edge[] = [
+      { id: 'e1', source: 'pod-child-direct', target: 'pvc-1' },
+    ];
+
+    const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
+    expect(total).toBe(1);
+  });
+
+  it('covers evaluatePvcRealtimeStatus fallback when pvcStatus is missing', () => {
+    const pvcNodeNoStatus: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce' }, // pvcStatus undefined
+      position: { x: 0, y: 0 },
+    };
+
+    expect(evaluatePvcRealtimeStatus(pvcNodeNoStatus, [pvcNodeNoStatus], [])).toBe('Pending');
+  });
+
+  it('covers updatePvcEdges when edge is unrelated to target PVC', () => {
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const unrelatedEdge: Edge = {
+      id: 'e-unrelated',
+      source: 'dep-1',
+      target: 'pod-1',
+    };
+
+    const res = handlePvcRwoAccessMode(pvcNode, [pvcNode], [unrelatedEdge]);
+    expect(res.edges[0]).toEqual(unrelatedEdge);
+  });
+
+  it('covers updateConnectedPodStatuses when pod is connected via parentId and transition logic', () => {
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const podConnectedViaParent: Node = {
+      id: 'pod-parent-conn',
+      type: 'Pod',
+      parentId: 'dep-1',
+      data: { status: 'pending', image: 'nginx:alpine' },
+      position: { x: 0, y: 0 },
+    };
+    const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1' }];
+
+    // Pod connected via parentId when replicas = 1 should transition from pending to ready
+    const res = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode, podConnectedViaParent], edges);
+    const updatedPod = res.nodes.find(n => n.id === 'pod-parent-conn');
+    expect(updatedPod?.data?.status).toBe('ready');
+  });
 });
