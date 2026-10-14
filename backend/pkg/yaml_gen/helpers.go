@@ -120,7 +120,7 @@ func isConnectedToResourceLimit(edges []k8s.FrontendEdge, nodeMap map[string]*k8
 			return true
 		}
 	}
-	return false
+	return false;
 }
 
 // checkConnectedResourceLimit determines whether any of the target node IDs connect to a ResourceLimit node in the canvas graph.
