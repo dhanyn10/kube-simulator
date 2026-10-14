@@ -30,6 +30,7 @@ yarn-error.log*
 
 # Test coverage
 /coverage
+coverage.out
 coverage-backend.out
 report-backend.json
 coverage_output.txt

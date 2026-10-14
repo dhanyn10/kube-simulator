@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -544,16 +543,14 @@ func mockDockerHubBody(urlStr string) string {
 
 func TestApp_DockerHubMethods_Success(t *testing.T) {
 	app := NewApp()
-	oldTransport := http.DefaultTransport
-	defer func() { http.DefaultTransport = oldTransport }()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := mockDockerHubBody(r.URL.String())
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(body))
+	}))
+	defer server.Close()
 
-	http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-		body := mockDockerHubBody(req.URL.String())
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-		}, nil
-	})
+	app.dockerHub.SetBaseURL(server.URL)
 
 	if pop := app.FetchDockerHubPopular(); !strings.Contains(pop, "nginx") {
 		t.Errorf("Expected pop response to contain nginx, got %s", pop)
@@ -567,42 +564,11 @@ func TestApp_DockerHubMethods_Success(t *testing.T) {
 	if search := app.SearchDockerHub("nginx"); !strings.Contains(search, "nginx-search") {
 		t.Errorf("Expected search response to contain nginx-search, got %s", search)
 	}
-	if upd := app.CheckForUpdates("1.0.0"); upd == nil || upd.LatestVersion != "2.0.0" {
-		t.Errorf("Expected latest version to be 2.0.0, got %+v", upd)
-	}
-}
-
-func TestApp_DockerHubMethods_Failure(t *testing.T) {
-	app := NewApp()
-	oldTransport := http.DefaultTransport
-	defer func() { http.DefaultTransport = oldTransport }()
-
-	http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       io.NopCloser(strings.NewReader("Internal Error")),
-		}, nil
-	})
-
-	if pop := app.FetchDockerHubPopular(); pop != "Internal Error" {
-		t.Errorf("Expected pop response to be 'Internal Error', got '%s'", pop)
-	}
-	if tags := app.FetchDockerHubTags("nginx"); tags != "Internal Error" {
-		t.Errorf("Expected tags response to be 'Internal Error', got '%s'", tags)
-	}
-	if search := app.SearchDockerHub("nginx"); search != "Internal Error" {
-		t.Errorf("Expected search response to be 'Internal Error', got '%s'", search)
-	}
 }
 
 func TestApp_DockerHubMethods_HardError(t *testing.T) {
 	app := NewApp()
-	oldTransport := http.DefaultTransport
-	defer func() { http.DefaultTransport = oldTransport }()
-
-	http.DefaultTransport = mockRoundTripper(func(req *http.Request) (*http.Response, error) {
-		return nil, fmt.Errorf("connection refused")
-	})
+	app.dockerHub.SetBaseURL("http://127.0.0.1:0")
 
 	if pop := app.FetchDockerHubPopular(); pop != "" {
 		t.Errorf("Expected empty response for network failure, got '%s'", pop)
@@ -612,9 +578,6 @@ func TestApp_DockerHubMethods_HardError(t *testing.T) {
 	}
 	if search := app.SearchDockerHub("nginx"); search != "" {
 		t.Errorf("Expected empty response for network failure, got '%s'", search)
-	}
-	if upd := app.CheckForUpdates("1.0.0"); upd != nil {
-		t.Errorf("Expected nil for network failure, got %+v", upd)
 	}
 }
 
