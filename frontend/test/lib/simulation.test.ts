@@ -1026,5 +1026,68 @@ describe('simulation test suite', () => {
       const edgeToMissing = { id: 'e-missing', source: 'ing-missing', target: 'non-existent' } as Edge;
       expect(hasValidIngressBackend(ingWithMissingTarget, [], new Map([['ing-missing', [edgeToMissing]]]))).toBe(false);
     });
+
+    it('covers all remaining simulationReachability uncovered conditions (node undefined check, deployment childPod data.parentId, activeEdgesSet empty, visited cycle)', () => {
+      const internet = createNode('i1', 'Internet');
+
+      // 1. checkNodeUnreadyInternal when node is undefined in hasUnreadyDownstreamPath
+      const edgeToUndefined = { id: 'e-undef', source: 'i1', target: 'ghost-node' } as Edge;
+      const ctxGhost = getMockCtx({
+        nodes: [internet],
+        activeSimulationEdges: ['e-undef'],
+        edgeMap: new Map([['i1', [edgeToUndefined]]]),
+        nodeMap: new Map([['i1', internet]])
+      });
+      expect(isInternetConnectionRed(internet, ctxGhost)).toBe(true);
+
+      // 2. Deployment child pod via data.parentId unready check
+      const depNode = createNode('dep-data-parent', 'Deployment', { status: 'ready' });
+      const childPodDataParent = {
+        id: 'pod-dp',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: { parentId: 'dep-data-parent', status: 'pending' }
+      } as Node;
+      const edgeDep = { id: 'e-dep', source: 'i1', target: 'dep-data-parent' } as Edge;
+
+      const ctxDataParent = getMockCtx({
+        nodes: [internet, depNode, childPodDataParent],
+        activeSimulationEdges: ['e-dep'],
+        edgeMap: new Map([['i1', [edgeDep]]]),
+        nodeMap: new Map([['i1', internet], ['dep-data-parent', depNode], ['pod-dp', childPodDataParent]])
+      });
+      expect(isInternetConnectionRed(internet, ctxDataParent)).toBe(true);
+
+      // 3. activeEdgesSet size === 0 in hasUnreadyDownstreamPath permits downstream edge traversal
+      const podReady = createNode('pod1', 'Pod', { status: 'ready' });
+      const pod2Unready = createNode('pod2', 'Pod', { status: 'pending' });
+      const edgePod1Pod2 = { id: 'e-p1-p2', source: 'pod1', target: 'pod2' } as Edge;
+
+      const ctxEmptyActiveSet = getMockCtx({
+        nodes: [internet, podReady, pod2Unready],
+        activeSimulationEdges: [], // empty activeSimulationEdges
+        edgeMap: new Map([['i1', [{ id: 'e-int', source: 'i1', target: 'pod1' } as Edge]], ['pod1', [edgePod1Pod2]]]),
+        nodeMap: new Map([['i1', internet], ['pod1', podReady], ['pod2', pod2Unready]])
+      });
+      expect(isInternetConnectionRed(internet, ctxEmptyActiveSet)).toBe(true);
+
+      // 4. Downstream path cycle / visited set in hasUnreadyDownstreamPath
+      const nodeA = createNode('nodeA', 'Pod', { status: 'ready' });
+      const edgeCycle = { id: 'e-cycle', source: 'nodeA', target: 'nodeA' } as Edge;
+      const ctxCycle = getMockCtx({
+        nodes: [internet, nodeA],
+        activeSimulationEdges: ['e-int-a', 'e-cycle'],
+        edgeMap: new Map([['i1', [{ id: 'e-int-a', source: 'i1', target: 'nodeA' } as Edge]], ['nodeA', [edgeCycle]]]),
+        nodeMap: new Map([['i1', internet], ['nodeA', nodeA]])
+      });
+      expect(isInternetConnectionRed(internet, ctxCycle)).toBe(false);
+
+      // 5. isInternetConnectionRed when edgeMap is missing or returns undefined
+      const ctxNoEdgeMap = getMockCtx({
+        nodes: [internet],
+        edgeMap: undefined as any
+      });
+      expect(isInternetConnectionRed(internet, ctxNoEdgeMap)).toBe(true);
+    });
   });
 });

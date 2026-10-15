@@ -459,5 +459,138 @@ describe('terminalCommands', () => {
       handleAdminCommands('try version current', mockCtx);
       expect(activityLogs.some(l => l.includes('Current assumed version'))).toBe(true);
     });
+
+    it('covers all remaining terminalCommands uncovered conditions', () => {
+      // 1. getResourceGroup via handleApplyCommand for HPA, ReplicaSet, Ingress, Pod
+      mockCtx.nodes = [
+        { id: 'hpa-node', type: 'HPA', data: { label: 'my-hpa' } },
+        { id: 'rs-node', type: 'ReplicaSet', data: { label: 'my-rs' } },
+        { id: 'ing-node', type: 'Ingress', data: { label: 'my-ing' } },
+        { id: 'pod-node-unlabelled', type: 'Pod', data: {} } // n.data.label is missing -> falls back to n.id
+      ] as any;
+      activityLogs = [];
+      handleApplyCommand('kubectl apply -f manifest.yaml', mockCtx);
+      expect(activityLogs.some(l => l.includes('hpa.autoscaling/my-hpa created'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('replicaset.apps/my-rs created'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('ingress.networking.k8s.io/my-ing created'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('pod/pod-node-unlabelled created'))).toBe(true);
+
+      // 2. Secret matching by s.id, missing s.type (Opaque fallback), and missing n.data.label (n.id fallback)
+      mockCtx.nodes = [
+        {
+          id: 'unlabelled-sec-owner',
+          type: 'Pod',
+          data: {
+            secrets: [{ id: 'sec-id-123', name: 'Secret-By-ID', secretData: [{ key: 'KEY' }] }] // missing type
+          }
+        }
+      ] as any;
+      activityLogs = [];
+      handleDescribeSecretCommand('kubectl describe secret sec-id-123', mockCtx);
+      expect(activityLogs.some(l => l.includes('Name:         Secret-By-ID'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('Type:         Opaque'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('Attached To:  unlabelled-sec-owner'))).toBe(true);
+
+      // Secret data entry with missing value (0 bytes fallback)
+      mockCtx.nodes = [
+        {
+          id: 'owner1',
+          type: 'Pod',
+          data: { secrets: [{ id: 'sec-null-val', name: 'sec-null-val', secretData: [{ key: 'EMPTY_KEY', value: null }] }] }
+        }
+      ] as any;
+      activityLogs = [];
+      handleDescribeSecretCommand('kubectl describe secret sec-null-val', mockCtx);
+      expect(activityLogs.some(l => l.includes('EMPTY_KEY: 0 bytes'))).toBe(true);
+
+      // 3. ConfigMap matching by cm.id and missing n.data.label (n.id fallback)
+      mockCtx.nodes = [
+        {
+          id: 'unlabelled-cm-owner',
+          type: 'Pod',
+          data: {
+            configMaps: [{ id: 'cm-id-456', name: 'CM-By-ID', configData: [{ key: 'PORT', value: '8080' }] }]
+          }
+        }
+      ] as any;
+      activityLogs = [];
+      handleDescribeConfigMapCommand('kubectl describe cm cm-id-456', mockCtx);
+      expect(activityLogs.some(l => l.includes('Name:         CM-By-ID'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('Attached To:  unlabelled-cm-owner'))).toBe(true);
+
+      // 4. compareVersions semver parsing edge cases (non-numeric parts, default version fallbacks)
+      storeState.isAdminAuthenticated = true;
+      storeState.simulatedCurrentVersion = undefined; // falls back to '0.4.0'
+      activityLogs = [];
+      handleAdminCommands('try version update', mockCtx); // targetVersion falls back to '0.5.0'
+      expect(activityLogs.some(l => l.includes('Simulated New Version v0.5.0 Available'))).toBe(true);
+
+      // processVersionCurrentCmd clearing updateInfo when latestVersion <= targetVersion
+      storeState.simulatedUpdateInfo = { latestVersion: '0.5.0', releaseUrl: 'http://test' };
+      handleAdminCommands('try version current 0.6.0', mockCtx);
+      expect(storeState.simulatedUpdateInfo).toBeNull();
+
+      // 5. Admin command keywords: try clear, try update clear, admin logout
+      storeState.isAdminAuthenticated = true;
+      handleAdminCommands('try clear', mockCtx);
+      expect(storeState.simulatedCurrentVersion).toBeNull();
+
+      storeState.isAdminAuthenticated = true;
+      handleAdminCommands('try update clear', mockCtx);
+      expect(storeState.simulatedCurrentVersion).toBeNull();
+
+      storeState.isAdminAuthenticated = true;
+      handleAdminCommands('admin logout', mockCtx);
+      expect(storeState.isAdminAuthenticated).toBe(false);
+
+      // 6. Admin mode active: help command vs non-help commands
+      storeState.isAdminAuthenticated = true;
+      expect(handleAdminCommands('help', mockCtx)).toBe(false);
+
+      activityLogs = [];
+      expect(handleAdminCommands('kubectl get pods', mockCtx)).toBe(true);
+      expect(activityLogs.some(l => l.includes('You are currently in Admin Mode'))).toBe(true);
+
+      // 7. handleDescribeRoleDetails with assignedUsers.length === 0 in rolebinding describe
+      mockCtx.nodes = [
+        {
+          id: 'unassigned-role-owner',
+          type: 'Pod',
+          data: {
+            roles: [{ id: 'r-unassigned', name: 'unassigned-role', assignedUsers: [] }]
+          }
+        }
+      ] as any;
+      activityLogs = [];
+      handleDescribeRoleCommand('kubectl describe rolebinding unassigned-role-binding', mockCtx);
+      expect(activityLogs.some(l => l.includes('<none>'))).toBe(true);
+
+      // Rolebindings describe all with zero assignedUsers
+      activityLogs = [];
+      handleDescribeRoleCommand('kubectl describe rolebindings', mockCtx);
+      expect(activityLogs.some(l => l.includes('ServiceAccount/default'))).toBe(true);
+
+      // 8. handleDescribeDeploymentCommand default fallbacks (replicas = 1, image = 'nginx:latest')
+      mockCtx.nodes = [
+        { id: 'dep-no-data', type: 'Deployment', data: {} }
+      ] as any;
+      activityLogs = [];
+      handleDescribeDeploymentCommand('kubectl describe deploy', mockCtx);
+      expect(activityLogs.some(l => l.includes('1 desired | 1 updated | 1 total'))).toBe(true);
+
+      activityLogs = [];
+      handleDescribeDeploymentCommand('kubectl describe deploy dep-no-data', mockCtx);
+      expect(activityLogs.some(l => l.includes('nginx:latest'))).toBe(true);
+
+      // 9. handleGetAllCommand with service missing port (falls back to 80) and attached HPA
+      mockCtx.nodes = [
+        { id: 'svc-no-port', type: 'Service', data: { label: 'no-port-svc' } },
+        { id: 'owner-hpa', type: 'Deployment', data: { label: 'owner-dep', hpas: [{ name: 'att-hpa', minReplicas: 1, maxReplicas: 5 }] } }
+      ] as any;
+      activityLogs = [];
+      handleGetAllCommand('kubectl get all', mockCtx);
+      expect(activityLogs.some(l => l.includes('80/TCP'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('att-hpa'))).toBe(true);
+    });
   });
 });
