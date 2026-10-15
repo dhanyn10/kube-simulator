@@ -91,6 +91,8 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   return (
     <div className="relative w-full h-12 my-1">
       <svg
+        role="img"
+        aria-label={`${profile.name} mini traffic profile preview`}
         viewBox={`0 0 ${width} ${height}`}
         className="w-full h-full overflow-visible cursor-pointer select-none"
       >
@@ -445,6 +447,8 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
       <div className="w-full overflow-x-auto overflow-y-hidden pb-2 custom-scrollbar">
       <svg
         ref={svgRef}
+        role="img"
+        aria-label={`${profile.name} interactive traffic profile chart`}
         viewBox={`0 0 ${width} ${height}`}
         style={{
           width: zoomScale > 100 ? `${width}px` : '100%',

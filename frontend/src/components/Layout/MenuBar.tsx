@@ -73,6 +73,7 @@ export const MenuBar = ({
       <div className="flex items-center gap-1">
         <svg
           data-testid="app-title"
+          aria-hidden="true"
           viewBox="0 0 512 512"
           className="w-4 h-4 mx-1 fill-current"
         >

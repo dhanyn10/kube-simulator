@@ -41,7 +41,12 @@ export const LineChart = ({
           <div className="border-t border-slate-500 w-full" />
           <div className="border-t border-slate-500 w-full" />
         </div>
-        <svg viewBox="0 0 200 100" className="w-full h-full preserve-3d pointer-events-none" preserveAspectRatio="none">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 200 100"
+          className="w-full h-full preserve-3d pointer-events-none"
+          preserveAspectRatio="none"
+        >
           {/* Limit Line */}
           <line
             x1="0" y1="0" x2="200" y2="0"

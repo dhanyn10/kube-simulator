@@ -140,6 +140,8 @@ const ReadOnlyProfileChart = ({
 
       <div className="relative w-full h-16">
         <svg
+          role="img"
+          aria-label="Data traffic profile chart"
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-full overflow-visible cursor-pointer select-none"
         >
