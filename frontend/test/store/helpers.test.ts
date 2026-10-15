@@ -456,5 +456,47 @@ describe('store helpers', () => {
     // 4. isAllowed for Namespace with unsupported child types
     expect(isAllowed('Namespace', 'Secret')).toBe(false);
     expect(isAllowed('Namespace', 'ConfigMap')).toBe(false);
+
+    // 5. updatePodNode when isManuallyResized is true and existingPod has width/height undefined or 0
+    const podResizedNoWidth = {
+      id: 'p-nowidth',
+      parentId: 'd-cpu',
+      type: 'Pod',
+      width: undefined,
+      height: undefined,
+      measured: { width: 320, height: 220 },
+      data: { isManuallyResized: true, replicas: 1, label: 'app' }
+    } as any;
+    const depResized = { id: 'd-cpu', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
+    const syncedResizedWidth = syncPodsInDeployment(depResized, [podResizedNoWidth]);
+    expect(syncedResizedWidth[0].width).toBe(320);
+
+    // 6. applyOverlapResolution when nodeB.id === fixedNodeId (both x-axis and y-axis)
+    const fixedNodeBListX = [
+      { id: 'freeA', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} } as any,
+      { id: 'fixedB', position: { x: 10, y: 0 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedFixedBX = resolveGlobalCollisions(fixedNodeBListX, 'fixedB');
+    expect(resolvedFixedBX[1].position.x).toBe(10);
+
+    const fixedNodeBListY = [
+      { id: 'freeA', position: { x: 0, y: 0 }, width: 100, height: 100, data: {} } as any,
+      { id: 'fixedB', position: { x: 0, y: 10 }, width: 100, height: 100, data: {} } as any,
+    ];
+    const resolvedFixedBY = resolveGlobalCollisions(fixedNodeBListY, 'fixedB');
+    expect(resolvedFixedBY[1].position.y).toBe(10);
+
+    // 7. updatePodNode when isManuallyResized is true and existingPod has width and height set
+    const podResizedWithWidthHeight = {
+      id: 'p-withwh',
+      parentId: 'd-cpu',
+      type: 'Pod',
+      width: 250,
+      height: 180,
+      measured: { width: 250, height: 180 },
+      data: { isManuallyResized: true, replicas: 1, label: 'app' }
+    } as any;
+    const syncedResizedWH = syncPodsInDeployment(depResized, [podResizedWithWidthHeight]);
+    expect(syncedResizedWH[0].width).toBe(250);
   });
 });

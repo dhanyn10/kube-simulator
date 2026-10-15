@@ -6,6 +6,8 @@ import { useFlowStore } from '@/store';
 describe('useMenuBarState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (globalThis as any).BrowserOpenURL = vi.fn();
+    (window as any).BrowserOpenURL = vi.fn();
     useFlowStore.setState({
       colorMode: 'dark',
       nodes: [],
@@ -117,6 +119,7 @@ describe('useMenuBarState', () => {
     // Test Help menu items (Take a Tour, About, Report Issue)
     const browserOpenSpy = vi.fn();
     (globalThis as any).BrowserOpenURL = browserOpenSpy;
+    (window as any).BrowserOpenURL = browserOpenSpy;
 
     let helpMenu = result.current.menuItems.find((m) => m.label === 'Help');
     let tourItem = helpMenu?.items.find((i) => i.label === 'Take a Tour');
@@ -465,5 +468,28 @@ describe('useMenuBarState', () => {
     expect(updateProjectMock).toHaveBeenCalledWith(10, expect.any(String));
     expect(useFlowStore.getState().lastSavedSnapshot).toBe(JSON.stringify({ nodes: [{ id: 'n1', type: 'Pod', data: {} }], edges: [] }));
     expect(alertMock).toHaveBeenCalledWith('Resource architecture saved successfully!');
+  });
+
+  it('triggers Report Issue onClick directly to cover BrowserOpenURL call', () => {
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    const { result } = renderHook(() => useMenuBarState(defaultProps));
+    const helpMenu = result.current.menuItems.find((m) => m.label === 'Help');
+    const reportIssueItem = helpMenu?.items.find((i) => i.label === 'Report Issue');
+
+    act(() => {
+      reportIssueItem?.onClick?.();
+    });
+
+    expect((globalThis as any).BrowserOpenURL).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
   });
 });
