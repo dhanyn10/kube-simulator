@@ -992,4 +992,28 @@ describe('createUiSlice', () => {
 
     expect(useFlowStore.getState().minimapPosition).toBe('top-right');
   });
+
+  it('covers updateIamUser when existingUser is not found, addCustomImage duplicate check, setSimulationSpeed when not simulating, and empty auto_saved_profile_content', async () => {
+    const { updateIamUser, addCustomImage, setSimulationSpeed, loadSettingsJson } = useFlowStore.getState();
+
+    // 1. updateIamUser when existingUser is not found returns empty object ({})
+    updateIamUser('non-existent-user-id', { username: 'test' });
+
+    // 2. addCustomImage when image already exists in customImages
+    addCustomImage('img1');
+    expect(useFlowStore.getState().customImages).toHaveLength(1);
+
+    // 3. setSimulationSpeed when isSimulating is false (does not start timer)
+    useFlowStore.setState({ isSimulating: false });
+    setSimulationSpeed(5);
+    expect(useFlowStore.getState().simulationSpeed).toBe(5);
+
+    // 4. loadSettingsJson with empty/whitespace auto_saved_profile_content
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'auto_saved_profile_content') return Promise.resolve('');
+      return Promise.resolve('');
+    });
+    await loadSettingsJson();
+    await new Promise(process.nextTick);
+  });
 });

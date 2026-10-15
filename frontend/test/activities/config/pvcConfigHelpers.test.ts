@@ -246,4 +246,46 @@ describe('pvcConfigHelpers test suite', () => {
     const noPvcRes = syncPvcRealtimeState([depNode], edges);
     expect(noPvcRes.nodes).toEqual([depNode]);
   });
+
+  it('covers connected Pod with parentId pointing to unconnected parent, pvcStatus undefined fallback in evaluatePvcRealtimeStatus, and clearing Multi-Attach Error edge error', () => {
+    // 1. calculatePvcConnectedReplicas with connected Pod having parentId pointing to an unconnected parent
+    const pvcId = 'pvc-1';
+    const nodes: Node[] = [
+      { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
+      { id: 'pod-with-unconnected-parent', type: 'Pod', data: { parentId: 'dep-not-connected' }, position: { x: 0, y: 0 } },
+    ];
+    const edges: Edge[] = [
+      { id: 'e1', source: 'pvc-1', target: 'pod-with-unconnected-parent' },
+    ];
+
+    const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
+    expect(total).toBe(1);
+
+    // 2. evaluatePvcRealtimeStatus fallback when pvcStatus is undefined and connectedReplicas == 0
+    const pvcNodeNoStatus: Node = { id: 'pvc-nostatus', type: 'PVC', data: { pvcStatus: undefined }, position: { x: 0, y: 0 } };
+    expect(evaluatePvcRealtimeStatus(pvcNodeNoStatus, [pvcNodeNoStatus], [])).toBe('Pending');
+
+    // 3. updatePvcEdges clearing Multi-Attach Error edge error when conflict is resolved
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Multi-Attach Error' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode1: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 1 },
+      position: { x: 0, y: 0 },
+    };
+    const edgeWithMultiAttachErr: Edge = {
+      id: 'e1',
+      source: 'dep-1',
+      target: 'pvc-1',
+      data: { validationError: 'Multi-Attach Error: Volume "pvc-1"' },
+    };
+
+    const resResolved = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode1], [edgeWithMultiAttachErr]);
+    expect(resResolved.edges[0].data?.validationError).toBeUndefined();
+  });
 });
