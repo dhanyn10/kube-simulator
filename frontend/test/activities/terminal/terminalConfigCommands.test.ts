@@ -342,5 +342,20 @@ describe('terminalConfigCommands', () => {
       // Mismatched resource ('services' vs 'pods')
       expect(checkRbacPermission(mismatchedRoleCtx, 'get', 'services')).toBe(false);
     });
+
+    it('covers NetworkingAdminPolicy, StorageAdminPolicy, and ContainerDeveloperPolicy allowed resources in checkIamPolicy', () => {
+      // Dev user creating pods
+      storeState.activeIdentity = 'budi'; // Has ContainerDeveloperPolicy
+      expect(checkRbacPermission(mockCtx, 'create', 'pods')).toBe(true);
+      expect(checkRbacPermission(mockCtx, 'create', 'deployments')).toBe(true);
+
+      // Net user creating ingresses
+      storeState.activeIdentity = 'net_user'; // Has NetworkingAdminPolicy
+      expect(checkRbacPermission(mockCtx, 'create', 'ingresses')).toBe(true);
+
+      // Storage user creating pvcs
+      storeState.activeIdentity = 'storage_user'; // Has StorageAdminPolicy
+      expect(checkRbacPermission(mockCtx, 'create', 'pvcs')).toBe(true);
+    });
   });
 });
