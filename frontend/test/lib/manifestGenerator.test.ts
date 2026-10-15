@@ -32,6 +32,27 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('name: scoped-pod');
   });
 
+  it('generates StatefulSet YAML manifest when workloadType is StatefulSet', () => {
+    const nodes = [
+      {
+        id: 'pod1',
+        type: 'Pod',
+        data: {
+          label: 'Stateful Redis',
+          replicas: 3,
+          workloadType: 'StatefulSet',
+          image: 'redis:alpine',
+        },
+      },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    expect(yamlOutput).toContain('kind: StatefulSet');
+    expect(yamlOutput).toContain('name: stateful-redis');
+    expect(yamlOutput).toContain('serviceName: stateful-redis');
+    expect(yamlOutput).toContain('replicas: 3');
+  });
+
   it('generates Pod and Deployment YAML manifests correctly with custom ports and restart policies', () => {
     const nodes = [
       {

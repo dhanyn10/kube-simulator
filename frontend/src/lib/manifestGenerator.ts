@@ -140,6 +140,23 @@ const buildPodOrDeploymentManifest = (
   const replicas = Number(node.data.replicas || 1);
   const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap);
 
+  if (node.data?.workloadType === 'StatefulSet') {
+    return {
+      apiVersion: 'apps/v1',
+      kind: 'StatefulSet',
+      metadata,
+      spec: {
+        serviceName: name,
+        replicas,
+        selector: { matchLabels: { app: name } },
+        template: {
+          metadata: { labels: { app: name } },
+          spec: podSpec,
+        },
+      },
+    };
+  }
+
   if (node.type === 'Deployment' || replicas > 1) {
     return {
       apiVersion: 'apps/v1',

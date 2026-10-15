@@ -1,5 +1,5 @@
 import { useFlowStore } from '@/store';
-import { Box, Layers, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Box, Layers, RotateCcw, Server } from 'lucide-react';
 import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
@@ -24,9 +24,22 @@ export const WorkloadConfig = ({
   toggleYaml
 }: WorkloadConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const { replicaValue, updateReplicas } = useWorkloadConfigHandler(selectedNode);
+  const { replicaValue, updateReplicas, pvcInfo } = useWorkloadConfigHandler(selectedNode);
 
   const data = selectedNode.data;
+
+  const WORKLOAD_TYPES = [
+    {
+      id: 'Deployment',
+      label: 'Stateless (Deployment)',
+      desc: 'Independently scalable pods with no fixed identity or per-replica volumes.'
+    },
+    {
+      id: 'StatefulSet',
+      label: 'Stateful (StatefulSet)',
+      desc: 'Ordered pod identity (pod-0, pod-1) & dedicated persistent storage per replica.'
+    }
+  ] as const;
 
   const RESTART_POLICIES = [
     { id: 'Always', label: 'Always' },
@@ -36,6 +49,37 @@ export const WorkloadConfig = ({
 
   return (
     <div className="space-y-4">
+      {/* Workload Type Selector */}
+      <ConfigSection title="Workload Type" icon={Server}>
+        <SelectorGroup
+          options={WORKLOAD_TYPES}
+          currentValue={data.workloadType || 'Deployment'}
+          onSelect={(val) => performUpdate({ workloadType: val })}
+          colorMode={colorMode}
+          layout="column"
+        />
+      </ConfigSection>
+
+      {/* StatefulSet Recommendation Callout Banner */}
+      {pvcInfo.isMultiReplicaRwoPvc && (data.workloadType || 'Deployment') !== 'StatefulSet' && (
+        <div className="p-2.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-300 text-[9px] space-y-1">
+          <div className="font-bold flex items-center gap-1">
+            <AlertTriangle size={12} className="text-amber-400 shrink-0" />
+            <span>Stateful Workload Recommendation</span>
+          </div>
+          <p className="leading-snug text-amber-200/90">
+            Connected to ReadWriteOnce volume &quot;{pvcInfo.connectedPvcName}&quot; with {replicaValue} replicas. Deployments cause Multi-Attach errors because multiple pods cannot mount the same RWO volume simultaneously.
+          </p>
+          <button
+            type="button"
+            onClick={() => performUpdate({ workloadType: 'StatefulSet' })}
+            className="mt-1 px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition-colors text-[8px] flex items-center gap-1"
+          >
+            Switch to StatefulSet Mode
+          </button>
+        </div>
+      )}
+
       {/* Replicas Configuration */}
       <ConfigSection title="Replicas" icon={Layers}>
         <NumberStepper

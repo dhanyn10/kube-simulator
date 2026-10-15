@@ -3,6 +3,7 @@
  */
 
 import { useFlowStore } from '@/store';
+import { checkWorkloadConnectedPvc } from './workloadConfigHelpers';
 
 /**
  * Calculates the total replicas for a given node,
@@ -42,9 +43,11 @@ export const getUpdateReplicasTargetId = (selectedNode: any, nodes: any[]): stri
 
 export const useWorkloadConfigHandler = (selectedNode: any) => {
   const nodes = useFlowStore((state) => state.nodes);
+  const edges = useFlowStore((state) => state.edges);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
 
   const replicaValue = getReplicaValue(selectedNode, nodes);
+  const pvcInfo = checkWorkloadConnectedPvc(selectedNode, nodes, edges, replicaValue);
 
   const updateReplicas = (replicas: number) => {
     const targetId = getUpdateReplicasTargetId(selectedNode, nodes);
@@ -54,5 +57,6 @@ export const useWorkloadConfigHandler = (selectedNode: any) => {
   return {
     replicaValue,
     updateReplicas,
+    pvcInfo,
   };
 };

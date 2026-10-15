@@ -93,6 +93,7 @@ export interface K8sNodeData {
   [key: string]: any;
   label: string;
   type: K8sResourceType;
+  workloadType?: 'Deployment' | 'StatefulSet';
   replicas?: number;
   image?: string;
   serviceType?: 'ClusterIP' | 'NodePort' | 'LoadBalancer';

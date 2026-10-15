@@ -53,8 +53,37 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	}
 }
 
+// generateStatefulSet constructs a Kubernetes StatefulSet resource object.
+func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	replicas := 1
+	if data.Replicas != nil {
+		replicas = *data.Replicas
+	}
+
+	return k8s.StatefulSet{
+		ApiVersion: appsApiVersion,
+		Kind:       "StatefulSet",
+		Metadata: k8s.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: k8s.StatefulSetSpec{
+			ServiceName: name,
+			Replicas:    replicas,
+			Selector: k8s.LabelSelector{
+				MatchLabels: map[string]string{"app": name},
+			},
+			Template: buildPodTemplateSpec(data, name, ctx),
+		},
+	}
+}
+
 // generatePodOrDeployment generates a Deployment object if replicas > 1 or a standalone Pod if replicas <= 1.
 func generatePodOrDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	if data.WorkloadType == "StatefulSet" {
+		return generateStatefulSet(data, name, namespace, ctx)
+	}
+
 	podSpec := createPodSpec(data, ctx)
 	replicas := 1
 	if data.Replicas != nil {
@@ -251,6 +280,10 @@ func buildPodTemplateSpec(data k8s.K8sNodeData, name string, ctx *GenContext) k8
 
 // generateDeployment constructs a Kubernetes Deployment resource object.
 func generateDeployment(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	if data.WorkloadType == "StatefulSet" {
+		return generateStatefulSet(data, name, namespace, ctx)
+	}
+
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas

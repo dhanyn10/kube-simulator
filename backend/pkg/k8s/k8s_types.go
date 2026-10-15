@@ -115,6 +115,20 @@ type Deployment struct {
 	Spec       DeploymentSpec `yaml:"spec" json:"spec"`
 }
 
+type StatefulSetSpec struct {
+	ServiceName string        `yaml:"serviceName" json:"serviceName"`
+	Replicas    int           `yaml:"replicas" json:"replicas"`
+	Selector    LabelSelector `yaml:"selector" json:"selector"`
+	Template    PodTemplate   `yaml:"template" json:"template"`
+}
+
+type StatefulSet struct {
+	ApiVersion string          `yaml:"apiVersion" json:"apiVersion"`
+	Kind       string          `yaml:"kind" json:"kind"`
+	Metadata   ObjectMeta      `yaml:"metadata" json:"metadata"`
+	Spec       StatefulSetSpec `yaml:"spec" json:"spec"`
+}
+
 type ServicePort struct {
 	Protocol   string `yaml:"protocol" json:"protocol"`
 	Port       int    `yaml:"port" json:"port"`

@@ -23,6 +23,7 @@ func NewResourceGeneratorFactory() *ResourceGeneratorFactory {
 	factory.Register("Namespace", &NamespaceGenerator{})
 	factory.Register("Pod", &PodGenerator{})
 	factory.Register("Deployment", &DeploymentGenerator{})
+	factory.Register("StatefulSet", &StatefulSetGenerator{})
 	factory.Register("ReplicaSet", &ReplicaSetGenerator{})
 	factory.Register("Service", &ServiceGenerator{})
 	factory.Register("Ingress", &IngressGenerator{})
@@ -71,6 +72,13 @@ type DeploymentGenerator struct{}
 
 func (g *DeploymentGenerator) Generate(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	return generateDeployment(data, name, namespace, ctx)
+}
+
+// StatefulSetGenerator handles generating Kubernetes StatefulSet resources.
+type StatefulSetGenerator struct{}
+
+func (g *StatefulSetGenerator) Generate(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	return generateStatefulSet(data, name, namespace, ctx)
 }
 
 // ReplicaSetGenerator handles generating Kubernetes ReplicaSet resources.

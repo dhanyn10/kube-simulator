@@ -36,6 +36,28 @@ describe('pvcConfigHelpers test suite', () => {
     expect(total).toBe(4); // 3 from dep-1 + 1 from pod-1
   });
 
+  it('does not trigger Multi-Attach error when connected Deployment is configured as StatefulSet', () => {
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const ssNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 3, workloadType: 'StatefulSet' },
+      position: { x: 0, y: 0 },
+    };
+    const edges: Edge[] = [{ id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} }];
+
+    const total = calculatePvcConnectedReplicas('pvc-1', [pvcNode, ssNode], edges);
+    expect(total).toBe(1);
+
+    const status = evaluatePvcRealtimeStatus(pvcNode, [pvcNode, ssNode], edges);
+    expect(status).toBe('Bound');
+  });
+
   it('does not double-count child pods if parent Deployment is already connected', () => {
     const pvcId = 'pvc-1';
     const nodes: Node[] = [

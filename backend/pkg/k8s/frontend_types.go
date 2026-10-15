@@ -37,6 +37,7 @@ type K8sNodeData struct {
 	ID              string                 `json:"id"`
 	Label           string                 `json:"label"`
 	Type            K8sResourceType        `json:"type"`
+	WorkloadType    string                 `json:"workloadType,omitempty"`
 	Replicas        *int                   `json:"replicas,omitempty"`
 	Image           string                 `json:"image,omitempty"`
 	ServiceType     string                 `json:"serviceType,omitempty"`

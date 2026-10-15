@@ -89,6 +89,14 @@ func TestGeneratePodInNamespace(t *testing.T) {
 	}
 }
 
+func TestGenerateStatefulSet(t *testing.T) {
+	nodesJson := `[{"id":"p1","type":"Pod","data":{"label":"My Stateful Pod","replicas":3,"workloadType":"StatefulSet","image":"redis:alpine"}}]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "StatefulSet") || !strings.Contains(result, "my-stateful-pod") || !strings.Contains(result, "redis:alpine") {
+		t.Errorf("Generate failed for StatefulSet: %s", result)
+	}
+}
+
 func TestGenerateDeployment(t *testing.T) {
 	replicas := 3
 	nodesJson := `[{"id":"d1","type":"Deployment","data":{"label":"My Dep","image":"nginx","replicas":3}}]`

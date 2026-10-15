@@ -30,6 +30,9 @@ const calculateWorkloadReplicaCount = (
   workloadNode: Node,
   connectedWorkloadIds: Set<string>
 ): number => {
+  if (workloadNode.data?.workloadType === 'StatefulSet') {
+    return 1;
+  }
   if (workloadNode.type === 'Deployment' || workloadNode.type === 'ReplicaSet') {
     const replicas = Number(workloadNode.data?.replicas);
     return Number.isNaN(replicas) || replicas < 1 ? 1 : replicas;
