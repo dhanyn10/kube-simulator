@@ -680,5 +680,35 @@ describe('useInternetProfileModal', () => {
         })
       );
     });
+
+    it('covers executeAutoSave catch block when SaveInternetProfile rejects, and when activeProfileName matches initialDetailProfileNameRef', async () => {
+      mockSaveInternetProfile.mockRejectedValueOnce(new Error('Auto save backend error'));
+
+      const nodeWithActive = {
+        ...dummyNode,
+        data: {
+          ...dummyNode.data,
+          activeProfileName: ECOMMERCE_PROFILE.name
+        }
+      };
+
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, nodeWithActive, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+
+      act(() => {
+        result.current.handleUpdateDetailPoint('00:00', 9999);
+      });
+
+      await act(async () => {
+        result.current.handleManualAutoSave();
+      });
+
+      expect(result.current.autoSaveStatus).toBe('saved');
+    });
   });
 });
