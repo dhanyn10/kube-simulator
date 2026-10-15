@@ -186,15 +186,16 @@ describe('WorkloadConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'Never' });
   });
 
-  it('covers Pod node with empty/undefined image and restartPolicy fallbacks', () => {
+  it('covers Pod node with empty/undefined image and restartPolicy fallbacks, disabling YAML toggle when restartPolicy is falsy', () => {
     const emptyPodNode = {
       id: 'p-empty',
       type: 'Pod',
       data: {
         label: 'Empty Pod',
         image: undefined,
-        restartPolicy: undefined,
+        restartPolicy: '',
         displaySettings: { image: true, restartPolicy: true },
+        yamlSettings: { image: false, restartPolicy: false }
       }
     };
     useFlowStore.setState({ nodes: [emptyPodNode] as any });

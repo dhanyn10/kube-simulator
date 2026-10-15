@@ -240,4 +240,33 @@ describe('NodeConfig', () => {
     render(<NodeConfig selectedNode={resLimitNode} />);
     expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
+
+  it('covers ReplicaSet node type and View Logs button click for ReplicaSet', () => {
+    const setTerminalOpen = vi.fn();
+    const setTerminalActiveTab = vi.fn();
+    const setTerminalSelectedResourceId = vi.fn();
+
+    useFlowStore.setState({
+      setTerminalOpen,
+      setTerminalActiveTab,
+      setTerminalSelectedResourceId,
+    });
+
+    const replicaSetNode = {
+      id: 'rs-1',
+      type: 'ReplicaSet',
+      data: { label: 'my-rs', status: 'ready', image: 'nginx:latest' },
+    };
+
+    render(<NodeConfig selectedNode={replicaSetNode} />);
+
+    expect(screen.getByText('View Logs (kubectl logs)')).toBeDefined();
+
+    const logsBtn = screen.getByText('View Logs (kubectl logs)');
+    fireEvent.click(logsBtn);
+
+    expect(setTerminalSelectedResourceId).toHaveBeenCalledWith('rs-1');
+    expect(setTerminalActiveTab).toHaveBeenCalledWith('logs');
+    expect(setTerminalOpen).toHaveBeenCalledWith(true);
+  });
 });
