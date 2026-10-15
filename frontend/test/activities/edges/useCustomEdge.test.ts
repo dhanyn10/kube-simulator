@@ -311,4 +311,113 @@ describe('useCustomEdge & edge helpers', () => {
     const loggableRS = getTargetLoggableNode('rs-unready', true, [rsUnreadyNode], [], []);
     expect(loggableRS?.id).toBe('rs-unready');
   });
+
+  it('covers cycle handling, targetNode null fallback in getTargetLoggableNode, and unreadyNode type/label fallbacks in onAlertClick', () => {
+    // 1. checkDownstreamErrorState & findDownstreamUnreadyNode with cycle in graph
+    const cyclicNodes = [
+      { id: 'c1', type: 'Service' },
+      { id: 'c2', type: 'Service' },
+    ];
+    const cyclicEdges = [
+      { id: 'e1', source: 'c1', target: 'c2' },
+      { id: 'e2', source: 'c2', target: 'c1' },
+    ];
+    expect(checkDownstreamErrorState(true, null, 'c1', cyclicNodes, cyclicEdges, ['e1', 'e2'])).toBe(false);
+    expect(findDownstreamUnreadyNode('c1', cyclicNodes, cyclicEdges, ['e1', 'e2'])?.id).toBe('c1');
+
+    // 2. getTargetLoggableNode when targetNode is null / not found in nodes
+    expect(getTargetLoggableNode('missing-id', false, [], [], [])).toBeNull();
+
+    // 3. getTargetLoggableNode fallback to targetNode when unreadyNode is not a workload
+    const svcTarget = { id: 's-target', type: 'Service' };
+    expect(getTargetLoggableNode('s-target', true, [svcTarget], [], [])).toBeNull();
+
+    // 4. useCustomEdge onAlertClick label fallbacks (sourceNode/targetNode without labels, unreadyNode without label/id)
+    const addActivityLog = vi.fn();
+    const mockEvent = { stopPropagation: vi.fn() } as any;
+
+    useFlowStore.setState({
+      activeSimulationEdges: ['e-fallback'],
+      nodes: [
+        { id: 'src-nolabel', type: 'Service', data: {} },
+        { id: 'tgt-nolabel', type: 'Service', data: {} },
+      ] as any,
+      edges: [{ id: 'e-fallback', source: 'src-nolabel', target: 'tgt-nolabel' }] as any,
+      addActivityLog,
+    });
+
+    const { result } = renderHook(() =>
+      useCustomEdge({
+        id: 'e-fallback',
+        source: 'src-nolabel',
+        target: 'tgt-nolabel',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: { validationError: 'Validation error' },
+      })
+    );
+
+    act(() => {
+      result.current.onAlertClick(mockEvent);
+    });
+    expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('[Connection Alert] src-nolabel -> tgt-nolabel: Validation error'));
+
+    // Test isTargetError fallback when unreadyNode has type Pod with status pending but no label
+    addActivityLog.mockClear();
+    const unreadyPodNoLabel = { id: 'pod-nolabel', type: 'Pod', data: { status: 'pending' } };
+    useFlowStore.setState({
+      activeSimulationEdges: ['e-unready-pod'],
+      nodes: [
+        { id: 'src-2', type: 'Service', data: {} },
+        unreadyPodNoLabel,
+      ] as any,
+      edges: [{ id: 'e-unready-pod', source: 'src-2', target: 'pod-nolabel' }] as any,
+      addActivityLog,
+    });
+
+    const { result: resUnreadyPod } = renderHook(() =>
+      useCustomEdge({
+        id: 'e-unready-pod',
+        source: 'src-2',
+        target: 'pod-nolabel',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    act(() => {
+      resUnreadyPod.current.onAlertClick(mockEvent);
+    });
+    expect(addActivityLog).toHaveBeenCalledWith(expect.stringContaining('Downstream workload pod/pod-nolabel is not in ready state.'));
+
+    // Test fallback when unreadyNode has no type (e.g. untyped target fallback)
+    addActivityLog.mockClear();
+    const untypedTarget = { id: 'untyped-target' };
+    const unreadyChild = { id: 'child-pod', type: 'Pod', data: { status: 'pending' } };
+    useFlowStore.setState({
+      activeSimulationEdges: ['e-untyped-1', 'e-untyped-2'],
+      nodes: [
+        { id: 'src-3', type: 'Service', data: {} },
+        untypedTarget,
+        unreadyChild,
+      ] as any,
+      edges: [
+        { id: 'e-untyped-1', source: 'src-3', target: 'untyped-target' },
+        { id: 'e-untyped-2', source: 'untyped-target', target: 'child-pod' },
+      ] as any,
+      addActivityLog,
+    });
+
+    // Test findDownstreamUnreadyNode fallback when targetId node has no type
+    expect(findDownstreamUnreadyNode('non-existent-target', [], [], [])).toBeNull();
+  });
 });

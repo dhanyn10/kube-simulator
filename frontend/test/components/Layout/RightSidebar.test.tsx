@@ -188,4 +188,21 @@ describe('RightSidebar', () => {
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
     expect(setRightSidebarVisibleSpy).toHaveBeenCalledWith(false);
   });
+
+  it('covers terminal open height class and CanvasWidgetsPanel / SettingsPanel light mode styling', () => {
+    // 1. isTerminalOpen = true applies h-[calc(100vh-2.5rem-16rem)]
+    useFlowStore.setState({ isTerminalOpen: true, colorMode: 'light' });
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+    const sidebarContainer = document.getElementById('right-sidebar')!;
+    expect(sidebarContainer?.className).toContain('h-[calc(100vh-2.5rem-16rem)]');
+
+    // 2. Light mode rendering for CanvasWidgetsPanel
+    expect(screen.getByText('Hardware Budget')).toBeDefined();
+
+    // 3. Light mode rendering for SettingsPanel
+    const settingsTab = screen.getByRole('button', { name: /Settings/i });
+    fireEvent.click(settingsTab);
+    expect(screen.getAllByText('Settings').length).toBeGreaterThan(0);
+  });
 });

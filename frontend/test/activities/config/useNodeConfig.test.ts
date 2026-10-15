@@ -391,5 +391,116 @@ describe('useNodeConfig', () => {
 
       expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', { label: 'newapp' });
     });
+
+    it('covers podHash / podBaseName fallbacks and standalone pod updatePodBaseName / randomizePodHash', () => {
+      // 1. Pod node without podHash or baseName, with label containing podHash suffix
+      const podWithHashInLabel = {
+        id: 'p-standalone-1',
+        type: 'Pod',
+        data: { label: 'mybase-abc12-xyz34', podHash: 'abc12', replicaSuffix: 'xyz34' },
+      };
+      useFlowStore.setState({
+        nodes: [podWithHashInLabel] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result: res1 } = renderHook(() => useNodeConfigHandler(podWithHashInLabel));
+      expect(res1.current.podBaseName).toBe('mybase');
+      expect(res1.current.podHash).toBe('abc12');
+
+      // 2. Pod node with podHash in label ending with -podHash
+      const podHashOnlyInLabel = {
+        id: 'p-standalone-2',
+        type: 'Pod',
+        data: { label: 'mybase-abc12', podHash: 'abc12' },
+      };
+      const { result: res2 } = renderHook(() => useNodeConfigHandler(podHashOnlyInLabel));
+      expect(res2.current.podBaseName).toBe('mybase');
+
+      // 3. Pod node without hyphen or label or baseName (defaults podBaseName to 'pod' or label)
+      const podNoHyphen = {
+        id: 'p-standalone-3',
+        type: 'Pod',
+        data: { label: '' },
+      };
+      const { result: res3 } = renderHook(() => useNodeConfigHandler(podNoHyphen));
+      expect(res3.current.podBaseName).toBe('pod');
+      expect(res3.current.podHash).toBeDefined();
+
+      // 4. Standalone pod updatePodBaseName (no parent deployment)
+      const standalonePod = {
+        id: 'p-standalone-4',
+        type: 'Pod',
+        data: { baseName: 'oldbase', podHash: 'hash1', replicaSuffix: 'suf1', label: 'oldbase-hash1-suf1' },
+      };
+      const { result: res4 } = renderHook(() => useNodeConfigHandler(standalonePod));
+      act(() => {
+        res4.current.updatePodBaseName('newbase');
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('p-standalone-4', {
+        baseName: 'newbase',
+        label: 'newbase-hash1-suf1',
+        podHash: 'hash1',
+      });
+
+      // 5. Standalone pod randomizePodHash (no parent deployment)
+      mockUpdateNodeData.mockClear();
+      act(() => {
+        res4.current.randomizePodHash();
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('p-standalone-4', expect.objectContaining({
+        baseName: 'oldbase',
+      }));
+    });
+
+    it('covers ReplicaSet deploymentNode in updatePodBaseName and randomizePodHash, and empty slug fallback to "pod"', () => {
+      // 1. ReplicaSet node as selectedNode in updatePodBaseName and randomizePodHash
+      const replicaSetNode = {
+        id: 'rs-1',
+        type: 'ReplicaSet',
+        data: { label: 'myrs', replicas: 1 },
+      };
+      const mockSetNodes = vi.fn();
+
+      useFlowStore.setState({
+        nodes: [replicaSetNode] as any,
+        updateNodeData: mockUpdateNodeData,
+        setNodes: mockSetNodes,
+      });
+
+      const { result: resRs } = renderHook(() => useNodeConfigHandler(replicaSetNode));
+
+      act(() => {
+        resRs.current.updatePodBaseName('newrs');
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('rs-1', { label: 'newrs' });
+
+      act(() => {
+        resRs.current.randomizePodHash();
+      });
+      expect(mockSetNodes).toHaveBeenCalled();
+
+      // 2. Empty/invalid slug input falls back to 'pod'
+      mockUpdateNodeData.mockClear();
+      const standalonePod = {
+        id: 'p-empty-slug',
+        type: 'Pod',
+        data: { baseName: 'pod', podHash: 'h1', label: 'pod-h1' },
+      };
+      useFlowStore.setState({
+        nodes: [standalonePod] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result: resEmpty } = renderHook(() => useNodeConfigHandler(standalonePod));
+      act(() => {
+        resEmpty.current.updatePodBaseName('!@#$%^');
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('p-empty-slug', {
+        baseName: 'pod',
+        label: 'pod-h1',
+        podHash: 'h1',
+      });
+    });
   });
 });

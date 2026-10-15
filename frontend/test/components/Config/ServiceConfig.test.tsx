@@ -322,4 +322,33 @@ describe('ServiceConfig', () => {
     const nonSelectedOptionBtn = screen.getByText('backend-pod').closest('button');
     expect(nonSelectedOptionBtn).toHaveClass('hover:bg-slate-100');
   });
+
+  it('covers selectedNamespaceId fallback when parentId is missing but stored in data.parentId, and optionsMap label fallbacks', () => {
+    // 1. selectedNode has parentId in data.parentId
+    useFlowStore.setState({
+      nodes: [
+        { id: 'dep-ns-data', type: 'Deployment', parentId: 'ns-data', data: { label: 'ns-data-app' } },
+        { id: 'dep-no-label', type: 'Deployment', parentId: 'ns-data', data: { label: 'dep-no-label' } }
+      ] as any
+    });
+
+    const dataNsProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-data-ns',
+        data: {
+          parentId: 'ns-data',
+          serviceType: 'ClusterIP',
+          selector: 'ns-data-app'
+        }
+      }
+    };
+
+    render(<ServiceConfig {...dataNsProps} />);
+
+    const selectorDropdownBtn = screen.getByRole('button', { name: /ns-data-app/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    expect(screen.getByText('dep-no-label')).toBeInTheDocument();
+  });
 });

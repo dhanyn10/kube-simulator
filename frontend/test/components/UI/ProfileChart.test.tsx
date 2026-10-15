@@ -357,5 +357,51 @@ describe('ProfileChart', () => {
       fireEvent.pointerMove(chartSvg, { clientX: 100, clientY: 100 });
       expect(onUpdatePoint).not.toHaveBeenCalled();
     });
+
+    it('covers interval change without onUpdateProfile callback and non-60m interval dropdown changes', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const { unmount } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      const selectEl = screen.getByRole('combobox') as HTMLSelectElement;
+      // Change to 30 min interval without passing onUpdateProfile prop
+      fireEvent.change(selectEl, { target: { value: '30' } });
+      expect(selectEl.value).toBe('30');
+      unmount();
+
+      // Test with profile that already has intermediate 30m key '00:30'
+      const profileWith30mKey: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:30': 150,
+          '01:00': 200,
+        },
+      };
+
+      render(
+        <InteractiveTrafficChart
+          profile={profileWith30mKey}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      const selectEl2 = screen.getByRole('combobox') as HTMLSelectElement;
+      // Changing to 30 should not prompt warning overlay since keys exist
+      fireEvent.change(selectEl2, { target: { value: '30' } });
+      expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
+    });
   });
 });

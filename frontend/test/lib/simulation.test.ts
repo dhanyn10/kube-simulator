@@ -1004,5 +1004,27 @@ describe('simulation test suite', () => {
       });
       expect(isInternetConnectionRed(internet, ctxDownErr)).toBe(true);
     });
+
+    it('covers simulationReachability helper functions: enqueueDynamicIngressTargets with serviceName, and isServiceValidForProcessing with empty nodes or targetNode null', () => {
+      // 1. Ingress with serviceName fallback in enqueueDynamicIngressTargets and calculateReachability
+      const ingWithServiceName = createNode('ing-svc-name', 'Ingress', { serviceName: 'backend-app' });
+      const targetBackendSvc = createNode('backend-app-node', 'Service', { label: 'backend-app', serviceType: 'ClusterIP' });
+
+      const reachSet = calculateReachability([ingWithServiceName], new Map(), [], [ingWithServiceName, targetBackendSvc]);
+      expect(reachSet.has('backend-app-node')).toBe(true);
+
+      // 2. isServiceValidForProcessing when nodes is undefined
+      const cipSvc = createNode('s-cip', 'Service', { serviceType: 'ClusterIP', selector: 'app-web' });
+      const edgeToSvc = { id: 'e-svc', source: 's-cip', target: 'other-node' } as Edge;
+      const edgeMapSvc = new Map([['s-cip', [edgeToSvc]]]);
+
+      const reachSetNoNodes = calculateReachability([cipSvc], edgeMapSvc, ['e-svc'], undefined);
+      expect(reachSetNoNodes.has('s-cip')).toBe(true);
+
+      // 3. hasValidIngressBackend when target is undefined or not Service
+      const ingWithMissingTarget = createNode('ing-missing', 'Ingress', {});
+      const edgeToMissing = { id: 'e-missing', source: 'ing-missing', target: 'non-existent' } as Edge;
+      expect(hasValidIngressBackend(ingWithMissingTarget, [], new Map([['ing-missing', [edgeToMissing]]]))).toBe(false);
+    });
   });
 });

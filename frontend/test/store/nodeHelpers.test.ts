@@ -277,5 +277,15 @@ describe('nodeHelpers', () => {
       expect(updatedNs.width).toBeGreaterThan(200);
       expect(updatedNs.position.x).toBe(0); // shiftX == 0
     });
+
+    it('covers getChildMinSize with untyped child and positive padding position branches in syncContainerSize', () => {
+      const container = { id: 'c1', type: 'Namespace', position: { x: 0, y: 0 }, width: 100, height: 100 } as any;
+      // Untyped child with position x >= 20 and y >= 20 (padding / 2)
+      const untypedChild = { id: 'u1', parentId: 'c1', position: { x: 50, y: 50 } } as any;
+
+      const nextNodes = syncContainerSize('c1', [container, untypedChild]);
+      const updatedContainer = nextNodes.find(n => n.id === 'c1');
+      expect(updatedContainer.width).toBeGreaterThan(100);
+    });
   });
 });
