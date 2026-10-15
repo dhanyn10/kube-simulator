@@ -369,4 +369,29 @@ describe('SaveModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
     expect(defaultProps.onSaveAs).toHaveBeenCalled();
   });
+
+  it('handles Delete Document button click from context menu and covers DeleteProject rejection branch', async () => {
+    ((globalThis as any).go.main.App.DeleteProject as any).mockResolvedValueOnce(true);
+
+    render(<SaveModal {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Web Architecture')).toBeInTheDocument();
+    });
+
+    const projectRow = screen.getByText('Web Architecture').closest('tr')!;
+    act(() => {
+      fireEvent.contextMenu(projectRow);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Delete Document')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Delete Document'));
+    });
+
+    expect((globalThis as any).go.main.App.DeleteProject).toHaveBeenCalledWith(1);
+  });
 });

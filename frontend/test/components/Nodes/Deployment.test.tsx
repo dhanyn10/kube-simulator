@@ -115,6 +115,39 @@ describe('DeploymentNode', () => {
     expect(screen.getByText('HPA ACTIVE: REQUESTS REQUIRED')).toBeDefined();
   });
 
+  it('covers getRoleDragClass with non-compatible node type during role drag and unselected borderClass in dark vs light mode', () => {
+    useFlowStore.setState({
+      draggingSidebarItem: 'Role',
+      colorMode: 'dark'
+    });
+
+    // Incompatible node type during role drag
+    const incompatProps = {
+      id: 'd-incompat',
+      type: 'Internet', // Non-compatible node type
+      selected: false,
+      data: { label: 'Incompat Node', isHovered: true }
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <DeploymentNode {...incompatProps} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Incompat Node')).toBeDefined();
+
+    // Rerender selected = false in light mode to cover light mode unselected border class
+    useFlowStore.setState({ colorMode: 'light', draggingSidebarItem: null });
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode id="d-light" type="Deployment" selected={false} data={{ label: 'Light Unselected' }} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Light Unselected')).toBeDefined();
+  });
+
   it('hides HPA warning when requests are present', () => {
     const hpaNode = { id: 'hpa1', type: 'HPA', data: {} };
     const depNode = { id: 'd1', type: 'Deployment', data: { label: 'My Dep', cpuRequest: '100m', memoryRequest: '128Mi' } };
@@ -150,16 +183,7 @@ describe('DeploymentNode', () => {
       edges: [edge, edge2] as any
     });
 
-    const props = {
-      id: 'd1',
-      type: 'Deployment',
-      data: {
-        label: 'My Dep',
-        hpas: [{ id: 'h1', name: 'autoscale' }],
-        configMaps: [{ id: 'c1', name: 'my-cm' }],
-        secrets: [{ id: 's1', name: 'my-sec' }],
-      }
-    } as any;
+    const props = { id: 'd1', type: 'Deployment', data: { label: 'My Dep', hpas: [{ id: 'h1', name: 'autoscale' }], configMaps: [{ id: 'c1', name: 'my-cm' }], secrets: [{ id: 's1', name: 'my-sec' }] } } as any;
 
     render(
       <ReactFlowProvider>

@@ -144,7 +144,10 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     <div className={cn(containerClasses, transitionClasses, "transition-[border-color,background-color,box-shadow] duration-200 relative")}>
       <ForbiddenOverlay nodeType={data.type || title} data={data} />
       {isAutocompleteHovered && (
-        <svg className="traffic-line absolute inset-0 w-full h-full pointer-events-none z-30 overflow-visible">
+        <svg
+          aria-hidden="true"
+          className="traffic-line absolute inset-0 w-full h-full pointer-events-none z-30 overflow-visible"
+        >
           <rect
             x="0" y="0"
             width="100%"

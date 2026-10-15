@@ -17,42 +17,12 @@ describe('terminalConfigCommands', () => {
     storeState = {
       activeIdentity: 'system:admin',
       iamUsers: [
-        {
-          id: 'u-1',
-          username: 'budi',
-          accessType: 'Managed Access',
-          policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }],
-        },
-        {
-          id: 'u-2',
-          username: 'siti',
-          accessType: 'Managed Access',
-          policies: [{ name: 'ReadOnlyAccess', type: 'Default', description: 'Read only' }],
-        },
-        {
-          id: 'u-3',
-          username: 'admin_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'AdministratorAccess', type: 'Default', description: 'Admin' }],
-        },
-        {
-          id: 'u-4',
-          username: 'power_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'PowerUserAccess', type: 'Default', description: 'Power user' }],
-        },
-        {
-          id: 'u-5',
-          username: 'net_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'NetworkingAdminPolicy', type: 'Default', description: 'Networking' }],
-        },
-        {
-          id: 'u-6',
-          username: 'storage_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'StorageAdminPolicy', type: 'Default', description: 'Storage' }],
-        },
+        { id: 'u-1', username: 'budi', accessType: 'Managed Access', policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }] },
+        { id: 'u-2', username: 'siti', accessType: 'Managed Access', policies: [{ name: 'ReadOnlyAccess', type: 'Default', description: 'Read only' }] },
+        { id: 'u-3', username: 'admin_user', accessType: 'Managed Access', policies: [{ name: 'AdministratorAccess', type: 'Default', description: 'Admin' }] },
+        { id: 'u-4', username: 'power_user', accessType: 'Managed Access', policies: [{ name: 'PowerUserAccess', type: 'Default', description: 'Power user' }] },
+        { id: 'u-5', username: 'net_user', accessType: 'Managed Access', policies: [{ name: 'NetworkingAdminPolicy', type: 'Default', description: 'Networking' }] },
+        { id: 'u-6', username: 'storage_user', accessType: 'Managed Access', policies: [{ name: 'StorageAdminPolicy', type: 'Default', description: 'Storage' }] },
       ],
     };
 
@@ -341,6 +311,21 @@ describe('terminalConfigCommands', () => {
       expect(checkRbacPermission(mismatchedRoleCtx, 'delete', 'pods')).toBe(false);
       // Mismatched resource ('services' vs 'pods')
       expect(checkRbacPermission(mismatchedRoleCtx, 'get', 'services')).toBe(false);
+    });
+
+    it('covers NetworkingAdminPolicy, StorageAdminPolicy, and ContainerDeveloperPolicy allowed resources in checkIamPolicy', () => {
+      // Dev user creating pods
+      storeState.activeIdentity = 'budi'; // Has ContainerDeveloperPolicy
+      expect(checkRbacPermission(mockCtx, 'create', 'pods')).toBe(true);
+      expect(checkRbacPermission(mockCtx, 'create', 'deployments')).toBe(true);
+
+      // Net user creating ingresses
+      storeState.activeIdentity = 'net_user'; // Has NetworkingAdminPolicy
+      expect(checkRbacPermission(mockCtx, 'create', 'ingresses')).toBe(true);
+
+      // Storage user creating pvcs
+      storeState.activeIdentity = 'storage_user'; // Has StorageAdminPolicy
+      expect(checkRbacPermission(mockCtx, 'create', 'pvcs')).toBe(true);
     });
   });
 });
