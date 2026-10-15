@@ -248,9 +248,12 @@ describe('podSizing utils', () => {
   });
 
   it('covers uncovered conditions in podSizing: image width clamping, isMegaPod base height boost, and small width content height calculation', () => {
-    // 1. Image string length lower bound clamping (148) with short string ('a') and upper bound clamping (320) with long string ('a'.repeat(100))
+    // 1. Image string length lower bound clamping (148) with short string ('a'), middle width ('a'.repeat(30)), and upper bound clamping (320) with long string ('a'.repeat(100))
     const shortImageWidth = calculatePodWidth({ image: 'a', displaySettings: { image: true } }, []);
     expect(shortImageWidth).toBe(172); // 148 + 24 = 172
+
+    const midImageWidth = calculatePodWidth({ image: 'a'.repeat(30), displaySettings: { image: true } }, []);
+    expect(midImageWidth).toBe(205); // Math.ceil(181 + 24) = 205
 
     const longImageWidth = calculatePodWidth({ image: 'a'.repeat(100), displaySettings: { image: true } }, []);
     expect(longImageWidth).toBe(344); // 320 + 24 = 344

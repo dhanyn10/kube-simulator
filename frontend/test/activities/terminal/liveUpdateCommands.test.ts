@@ -74,7 +74,37 @@ describe('liveUpdateCommands', () => {
 
     dispatchLiveCommand('kubectl get pods');
 
+    // Flush microtasks so the .catch(() => {}) callback executes
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(mockWriteLog).toHaveBeenCalledWith('kubeconsole', 'info', expect.stringContaining('$ kubectl get pods'));
+  });
+
+  it('returns early when isDispatchingLiveCommand is true to prevent recursive dispatch loops', () => {
+    const originalAddLog = useFlowStore.getState().addActivityLog;
+
+    // Inside addActivityLog, invoke dispatchLiveCommand again to trigger reentrance
+    useFlowStore.setState({
+      addActivityLog: (msg: string) => {
+        originalAddLog(msg);
+        dispatchLiveCommand('kubectl get pods nested');
+      },
+    });
+
+    dispatchLiveCommand('kubectl get pods parent');
+
+    const state = useFlowStore.getState();
+    expect(state.activityLogs.some((line) => line.includes('kubectl get pods parent'))).toBe(true);
+    expect(state.activityLogs.some((line) => line.includes('kubectl get pods nested'))).toBe(false);
+  });
+
+  it('handles globalThis.go present without WriteLog method gracefully', () => {
+    (globalThis as any).go = { main: { App: {} } };
+
+    dispatchLiveCommand('kubectl get pods');
+
+    const state = useFlowStore.getState();
+    expect(state.activityLogs.some((line) => line.includes('kubectl get pods'))).toBe(true);
   });
 
   it('emitLiveScaleCommand dispatches scale command with previous replica count logged correctly', () => {

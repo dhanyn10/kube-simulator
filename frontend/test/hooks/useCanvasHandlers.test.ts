@@ -420,5 +420,38 @@ describe('useCanvasHandlers hook', () => {
 
     // Uses 150 / 2 = 75 and 100 / 2 = 50 for center
     expect(mockSetCenter).toHaveBeenCalledWith(75, 50, expect.objectContaining({ duration: 800 }));
+
+    // 3. computeAutofocusZoom with medium node dimensions (e.g. 800x600) for unclamped zoom (between 0.5 and 1.5)
+    mockSetCenter.mockClear();
+    const mediumNode: Node = {
+      id: 'n-medium',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      width: 800,
+      height: 600,
+      measured: { width: 800, height: 600 },
+      data: {},
+    };
+
+    const mediumRendererEl = document.createElement('div');
+    mediumRendererEl.className = 'react-flow__renderer';
+    Object.defineProperty(mediumRendererEl, 'getBoundingClientRect', {
+      value: () => ({ width: 1000, height: 800 }),
+    });
+    document.body.appendChild(mediumRendererEl);
+
+    useFlowStore.setState({
+      nodes: [mediumNode],
+      isAutofocusEnabled: true,
+    });
+
+    const { result: mediumResult } = renderHook(() => useCanvasHandlers());
+
+    act(() => {
+      mediumResult.current.onNodeClick({} as any, mediumNode);
+    });
+
+    expect(mockSetCenter).toHaveBeenCalledWith(400, 300, expect.objectContaining({ duration: 800 }));
+    document.body.removeChild(mediumRendererEl);
   });
 });

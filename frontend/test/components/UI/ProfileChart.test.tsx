@@ -403,5 +403,48 @@ describe('ProfileChart', () => {
       fireEvent.change(selectEl2, { target: { value: '30' } });
       expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
     });
+
+    it('covers InteractiveTrafficChart resample confirm without onUpdateProfile, pointer down on < 60m interval without onUpdateProfile, and isRed active simulation state', () => {
+      useFlowStore.setState({ isSimulating: true });
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const subHourlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '00:10': 120,
+          '01:00': 200,
+        },
+      };
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={subHourlyProfile}
+          colorMode="dark"
+          isApplied={true}
+          currentMinuteIndex={0}
+          isRed={true}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      expect(screen.getByTestId('interactive-active-traffic-dot')).toBeInTheDocument();
+
+      // Pointer down on first circle when intervalMinutes < 60 without onUpdateProfile prop
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 0) {
+        fireEvent.pointerDown(targetCircles[0], { clientX: 100, clientY: 120, pointerId: 1 });
+      }
+
+      // Switch to 60m to trigger resample warning overlay and click confirm without onUpdateProfile
+      const selectEl = screen.getByRole('combobox') as HTMLSelectElement;
+      fireEvent.change(selectEl, { target: { value: '60' } });
+
+      const confirmBtn = screen.getByTestId('confirm-resample-btn');
+      fireEvent.click(confirmBtn);
+      expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
+    });
   });
 });

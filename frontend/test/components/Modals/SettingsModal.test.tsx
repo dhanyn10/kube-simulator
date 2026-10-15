@@ -125,4 +125,18 @@ describe('SettingsModal', () => {
     fireEvent.click(resetBtn);
     expect(useFlowStore.getState().canvasBgColor).toBe('default');
   });
+
+  it('renders correctly in light mode with light mode styling and calls onClose when closed', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const handleClose = vi.fn();
+
+    render(<SettingsModal isOpen={true} onClose={handleClose} />);
+
+    expect(screen.getByText('Application Settings')).toBeDefined();
+    expect(screen.getByText('View & Layout Toggles')).toBeDefined();
+
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    fireEvent.click(closeBtn);
+    expect(handleClose).toHaveBeenCalled();
+  });
 });

@@ -141,6 +141,24 @@ describe('KubeIAMModal component', () => {
     expect(screen.getAllByText('Set Permissions').length).toBeGreaterThan(0);
   });
 
+  it('covers disabled policy row clicks in Step 2 when AdministratorAccess is selected', () => {
+    render(<KubeIAMModal />);
+
+    // Start wizard
+    fireEvent.click(screen.getByRole('button', { name: /Create User/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. dev-cluster-admin'), {
+      target: { value: 'disabled-row-test' },
+    });
+    fireEvent.click(screen.getByText('Next'));
+
+    // In Step 2, AdministratorAccess is selected by default so ContainerDeveloperPolicy row is disabled
+    const devRow = screen.getByText('ContainerDeveloperPolicy').closest('tr')!;
+    fireEvent.click(devRow);
+
+    // Should remain 1 selected (AdministratorAccess)
+    expect(screen.getByText('Permissions Policies (1 selected)')).toBeInTheDocument();
+  });
+
   it('handles policy search, toggles, empty policy validation, and light mode in Step 2', () => {
     useFlowStore.setState({ colorMode: 'light' });
     render(<KubeIAMModal />);
@@ -315,6 +333,8 @@ describe('KubeIAMModal component', () => {
 
     // Step 3 shows Review & Update and Update User button
     expect(screen.getAllByText('Review & Update').length).toBeGreaterThan(0);
+    expect(screen.getByText('Review updated specifications before saving changes to the Kube IAM user.')).toBeInTheDocument();
+    expect(screen.getAllByText('Cancel Editing').length).toBeGreaterThan(0);
 
     // Click Update User button in Step 3
     fireEvent.click(screen.getByRole('button', { name: /Update User/i }));
