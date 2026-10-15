@@ -476,15 +476,7 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('pod/pod-node-unlabelled created'))).toBe(true);
 
       // 2. Secret matching by s.id, missing s.type (Opaque fallback), and missing n.data.label (n.id fallback)
-      mockCtx.nodes = [
-        {
-          id: 'unlabelled-sec-owner',
-          type: 'Pod',
-          data: {
-            secrets: [{ id: 'sec-id-123', name: 'Secret-By-ID', secretData: [{ key: 'KEY' }] }] // missing type
-          }
-        }
-      ] as any;
+      mockCtx.nodes = [{ id: 'unlabelled-sec-owner', type: 'Pod', data: { secrets: [{ id: 'sec-id-123', name: 'Secret-By-ID', secretData: [{ key: 'KEY' }] }] } }] as any;
       activityLogs = [];
       handleDescribeSecretCommand('kubectl describe secret sec-id-123', mockCtx);
       expect(activityLogs.some(l => l.includes('Name:         Secret-By-ID'))).toBe(true);
@@ -492,27 +484,13 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('Attached To:  unlabelled-sec-owner'))).toBe(true);
 
       // Secret data entry with missing value (0 bytes fallback)
-      mockCtx.nodes = [
-        {
-          id: 'owner1',
-          type: 'Pod',
-          data: { secrets: [{ id: 'sec-null-val', name: 'sec-null-val', secretData: [{ key: 'EMPTY_KEY', value: null }] }] }
-        }
-      ] as any;
+      mockCtx.nodes = [{ id: 'owner1', type: 'Pod', data: { secrets: [{ id: 'sec-null-val', name: 'sec-null-val', secretData: [{ key: 'EMPTY_KEY', value: null }] }] } }] as any;
       activityLogs = [];
       handleDescribeSecretCommand('kubectl describe secret sec-null-val', mockCtx);
       expect(activityLogs.some(l => l.includes('EMPTY_KEY: 0 bytes'))).toBe(true);
 
       // 3. ConfigMap matching by cm.id and missing n.data.label (n.id fallback)
-      mockCtx.nodes = [
-        {
-          id: 'unlabelled-cm-owner',
-          type: 'Pod',
-          data: {
-            configMaps: [{ id: 'cm-id-456', name: 'CM-By-ID', configData: [{ key: 'PORT', value: '8080' }] }]
-          }
-        }
-      ] as any;
+      mockCtx.nodes = [{ id: 'unlabelled-cm-owner', type: 'Pod', data: { configMaps: [{ id: 'cm-id-456', name: 'CM-By-ID', configData: [{ key: 'PORT', value: '8080' }] }] } }] as any;
       activityLogs = [];
       handleDescribeConfigMapCommand('kubectl describe cm cm-id-456', mockCtx);
       expect(activityLogs.some(l => l.includes('Name:         CM-By-ID'))).toBe(true);
@@ -552,15 +530,7 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('You are currently in Admin Mode'))).toBe(true);
 
       // 7. handleDescribeRoleDetails with assignedUsers.length === 0 in rolebinding describe
-      mockCtx.nodes = [
-        {
-          id: 'unassigned-role-owner',
-          type: 'Pod',
-          data: {
-            roles: [{ id: 'r-unassigned', name: 'unassigned-role', assignedUsers: [] }]
-          }
-        }
-      ] as any;
+      mockCtx.nodes = [{ id: 'unassigned-role-owner', type: 'Pod', data: { roles: [{ id: 'r-unassigned', name: 'unassigned-role', assignedUsers: [] }] } }] as any;
       activityLogs = [];
       handleDescribeRoleCommand('kubectl describe rolebinding unassigned-role-binding', mockCtx);
       expect(activityLogs.some(l => l.includes('<none>'))).toBe(true);

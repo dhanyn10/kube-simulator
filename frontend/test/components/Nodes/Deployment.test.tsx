@@ -183,16 +183,7 @@ describe('DeploymentNode', () => {
       edges: [edge, edge2] as any
     });
 
-    const props = {
-      id: 'd1',
-      type: 'Deployment',
-      data: {
-        label: 'My Dep',
-        hpas: [{ id: 'h1', name: 'autoscale' }],
-        configMaps: [{ id: 'c1', name: 'my-cm' }],
-        secrets: [{ id: 's1', name: 'my-sec' }],
-      }
-    } as any;
+    const props = { id: 'd1', type: 'Deployment', data: { label: 'My Dep', hpas: [{ id: 'h1', name: 'autoscale' }], configMaps: [{ id: 'c1', name: 'my-cm' }], secrets: [{ id: 's1', name: 'my-sec' }] } } as any;
 
     render(
       <ReactFlowProvider>

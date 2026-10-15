@@ -17,42 +17,12 @@ describe('terminalConfigCommands', () => {
     storeState = {
       activeIdentity: 'system:admin',
       iamUsers: [
-        {
-          id: 'u-1',
-          username: 'budi',
-          accessType: 'Managed Access',
-          policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }],
-        },
-        {
-          id: 'u-2',
-          username: 'siti',
-          accessType: 'Managed Access',
-          policies: [{ name: 'ReadOnlyAccess', type: 'Default', description: 'Read only' }],
-        },
-        {
-          id: 'u-3',
-          username: 'admin_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'AdministratorAccess', type: 'Default', description: 'Admin' }],
-        },
-        {
-          id: 'u-4',
-          username: 'power_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'PowerUserAccess', type: 'Default', description: 'Power user' }],
-        },
-        {
-          id: 'u-5',
-          username: 'net_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'NetworkingAdminPolicy', type: 'Default', description: 'Networking' }],
-        },
-        {
-          id: 'u-6',
-          username: 'storage_user',
-          accessType: 'Managed Access',
-          policies: [{ name: 'StorageAdminPolicy', type: 'Default', description: 'Storage' }],
-        },
+        { id: 'u-1', username: 'budi', accessType: 'Managed Access', policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }] },
+        { id: 'u-2', username: 'siti', accessType: 'Managed Access', policies: [{ name: 'ReadOnlyAccess', type: 'Default', description: 'Read only' }] },
+        { id: 'u-3', username: 'admin_user', accessType: 'Managed Access', policies: [{ name: 'AdministratorAccess', type: 'Default', description: 'Admin' }] },
+        { id: 'u-4', username: 'power_user', accessType: 'Managed Access', policies: [{ name: 'PowerUserAccess', type: 'Default', description: 'Power user' }] },
+        { id: 'u-5', username: 'net_user', accessType: 'Managed Access', policies: [{ name: 'NetworkingAdminPolicy', type: 'Default', description: 'Networking' }] },
+        { id: 'u-6', username: 'storage_user', accessType: 'Managed Access', policies: [{ name: 'StorageAdminPolicy', type: 'Default', description: 'Storage' }] },
       ],
     };
 
