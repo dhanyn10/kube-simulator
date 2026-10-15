@@ -29,16 +29,8 @@ export const WorkloadConfig = ({
   const data = selectedNode.data;
 
   const WORKLOAD_TYPES = [
-    {
-      id: 'Deployment',
-      label: 'Stateless (Deployment)',
-      desc: 'Independently scalable pods with no fixed identity or per-replica volumes.'
-    },
-    {
-      id: 'StatefulSet',
-      label: 'Stateful (StatefulSet)',
-      desc: 'Ordered pod identity (pod-0, pod-1) & dedicated persistent storage per replica.'
-    }
+    { id: 'Deployment', label: 'Deployment' },
+    { id: 'StatefulSet', label: 'StatefulSet' }
   ] as const;
 
   const RESTART_POLICIES = [
@@ -56,7 +48,6 @@ export const WorkloadConfig = ({
           currentValue={data.workloadType || 'Deployment'}
           onSelect={(val) => performUpdate({ workloadType: val })}
           colorMode={colorMode}
-          layout="column"
         />
       </ConfigSection>
 
