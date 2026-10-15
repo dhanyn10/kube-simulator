@@ -89,4 +89,29 @@ describe('TerminalCommandForm', () => {
     fireEvent.click(checkbox);
     expect(defaultProps.onToggleAutoscroll).toHaveBeenCalledWith(false);
   });
+
+  it('clears hovered autocomplete pod name on mouseLeave and handles onHoverIndex', () => {
+    const setHoveredAutocompletePodNameSpy = vi.spyOn(
+      useFlowStore.getState(),
+      'setHoveredAutocompletePodName'
+    );
+    const onHoverIndex = vi.fn();
+
+    render(
+      <TerminalCommandForm
+        {...defaultProps}
+        isDropdownOpen={true}
+        onHoverIndex={onHoverIndex}
+      />
+    );
+
+    const popup = screen.getByTestId('terminal-autocomplete-popup');
+    fireEvent.mouseLeave(popup);
+
+    expect(setHoveredAutocompletePodNameSpy).toHaveBeenCalledWith(null);
+
+    const suggestionItem = screen.getByText('kubectl get pods');
+    fireEvent.mouseEnter(suggestionItem.closest('div')!);
+    expect(onHoverIndex).toHaveBeenCalledWith(0);
+  });
 });
