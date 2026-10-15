@@ -161,4 +161,24 @@ describe('connections constants', () => {
     // ClusterIP Service connecting to Service returns null
     expect(getConnectionError('Service', 'Service', { serviceType: 'ClusterIP' }, { serviceType: 'ClusterIP' })).toBeNull();
   });
+
+  it('covers checkInternetRules when targetType is not Service, checkIngressTargetRules when sourceType is LoadBalancer/NodePort or Workload, checkIngressSourceRules when targetType is ClusterIP Service, and checkServiceTargetRules when tType is not LoadBalancer', () => {
+    // 1. checkInternetRules when targetType !== 'Service' (safely temporarily modify and restore VALID_CONNECTIONS.Internet)
+    const originalInternet = VALID_CONNECTIONS.Internet;
+    (VALID_CONNECTIONS as any).Internet = ['Service', 'Pod'];
+    expect(getConnectionError('Internet', 'Pod')).toBeNull();
+    (VALID_CONNECTIONS as any).Internet = originalInternet;
+
+    // 2. checkIngressTargetRules when sourceType is Service with LoadBalancer or NodePort, or Workload type (ReplicaSet)
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'LoadBalancer' })).toBeNull();
+    expect(getConnectionError('Service', 'Ingress', { serviceType: 'NodePort' })).toBeNull();
+    expect(getConnectionError('ReplicaSet', 'Ingress')).toBeNull();
+
+    // 3. checkIngressSourceRules when targetType is Service with targetData.serviceType as ClusterIP
+    expect(getConnectionError('Ingress', 'Service', {}, { serviceType: 'ClusterIP' })).toBeNull();
+
+    // 4. checkServiceTargetRules when targetData.serviceType !== 'LoadBalancer' (e.g. ClusterIP or NodePort)
+    expect(getConnectionError('Pod', 'Service', {}, { serviceType: 'ClusterIP' })).toBeNull();
+    expect(getConnectionError('Pod', 'Service', {}, { serviceType: 'NodePort' })).toBeNull();
+  });
 });

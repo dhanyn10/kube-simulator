@@ -288,5 +288,59 @@ describe('terminalConfigCommands', () => {
 
       expect(checkRbacPermission(wildcardRoleCtx, 'delete', 'deployments')).toBe(true);
     });
+
+    it('covers checkIamPolicy non-matching policy branches, default activeIdentity fallback, and rule verb/resource non-matches', () => {
+      // 1. checkIamPolicy for non-matching policy/verb/resource
+      storeState.iamUsers.push({
+        id: 'u-dev-only',
+        username: 'dev_user',
+        accessType: 'Managed Access',
+        policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }],
+      });
+      storeState.activeIdentity = 'dev_user';
+
+      // ContainerDeveloperPolicy allows pods/deployments/replicasets/configmaps/secrets, but NOT services/pvcs on delete
+      expect(checkRbacPermission(mockCtx, 'delete', 'services')).toBe(false);
+      expect(checkRbacPermission(mockCtx, 'delete', 'pvcs')).toBe(false);
+
+      // 2. Default fallback for activeIdentity when activeIdentity is undefined or null in store
+      storeState.activeIdentity = undefined;
+      expect(checkRbacPermission(mockCtx, 'get', 'pods')).toBe(true);
+
+      // 3. evaluateRbacForCommand fallback when activeIdentity is empty/undefined
+      storeState.activeIdentity = undefined;
+      expect(evaluateRbacForCommand('kubectl get pods', mockCtx)).toBe(true);
+
+      // 4. Role rule evaluation when verb or resource does not match
+      const mismatchedRoleCtx: any = {
+        ...mockCtx,
+        nodes: [
+          {
+            id: 'n-mismatch',
+            type: 'Pod',
+            data: {
+              roles: [
+                {
+                  name: 'specific-role',
+                  assignedUsers: ['user_mismatch'],
+                  rules: [{ resources: ['pods'], verbs: ['get'] }],
+                },
+              ],
+            },
+          },
+        ],
+        getStoreState: () => ({
+          activeIdentity: 'user_mismatch',
+          iamUsers: [
+            { id: 'u-mismatch', username: 'user_mismatch', accessType: 'Managed Access', policies: [] },
+          ],
+        }),
+      };
+
+      // Mismatched verb ('delete' vs 'get')
+      expect(checkRbacPermission(mismatchedRoleCtx, 'delete', 'pods')).toBe(false);
+      // Mismatched resource ('services' vs 'pods')
+      expect(checkRbacPermission(mismatchedRoleCtx, 'get', 'services')).toBe(false);
+    });
   });
 });

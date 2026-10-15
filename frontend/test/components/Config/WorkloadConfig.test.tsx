@@ -211,4 +211,39 @@ describe('WorkloadConfig', () => {
     expect(screen.getByText('Container Image')).toBeDefined();
     expect(screen.getByText('Restart Policy')).toBeDefined();
   });
+
+  it('handles selecting custom image in ImageDropdown triggering performUpdate with status ready', () => {
+    const selectedNode = {
+      id: 'p-clear',
+      type: 'Pod',
+      data: {
+        label: 'Pod Custom Test',
+        image: 'nginx:latest',
+        displaySettings: { image: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    // Open image dropdown
+    const dropdownTrigger = screen.getByText('nginx:latest');
+    fireEvent.click(dropdownTrigger);
+
+    // Search and select an option or use custom search input
+    const searchInput = screen.getByPlaceholderText('Search or type custom image...');
+    fireEvent.change(searchInput, { target: { value: 'my-custom-image' } });
+
+    const useCustomBtn = screen.getByRole('button', { name: /Use custom image:/i });
+    fireEvent.click(useCustomBtn);
+
+    expect(performUpdate).toHaveBeenCalledWith({ image: 'my-custom-image', status: 'ready' });
+  });
 });
