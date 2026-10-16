@@ -16,6 +16,7 @@ describe('useMenuBarState', () => {
       isYamlModalOpen: false,
       isSettingsModalOpen: false,
       isTerminalCommandTreeModalOpen: false,
+      simulatedUpdateInfo: null,
       loadScenario: vi.fn(),
     });
   });
@@ -491,5 +492,79 @@ describe('useMenuBarState', () => {
     });
 
     expect((globalThis as any).BrowserOpenURL).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
+  });
+
+  it('covers window.go missing, app without CheckForUpdates, update without latestVersion, and default releaseUrl fallback', async () => {
+    const defaultProps = {
+      onExportYaml: vi.fn(),
+      onImportFile: vi.fn(),
+      onSave: vi.fn(),
+      onSaveAs: vi.fn(),
+      onOpenProjects: vi.fn(),
+      onOpenScenarios: vi.fn(),
+      onOpenAbout: vi.fn(),
+      onOpenSettings: vi.fn(),
+    };
+
+    // 1. window.go is undefined
+    (globalThis as any).window = {};
+    const { result: noGoResult } = renderHook(() => useMenuBarState(defaultProps));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    expect(noGoResult.current.effectiveUpdateInfo).toBeNull();
+
+    // 2. App object exists with GetSystemInfo but missing CheckForUpdates
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+          },
+        },
+      },
+    };
+    const { result: noCheckUpdatesResult } = renderHook(() => useMenuBarState(defaultProps));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    expect(noCheckUpdatesResult.current.effectiveUpdateInfo).toBeNull();
+
+    // 3. CheckForUpdates returns updateAvailable: true but latestVersion is empty/undefined
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '' }),
+          },
+        },
+      },
+    };
+    const { result: noVersionResult } = renderHook(() => useMenuBarState(defaultProps));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    expect(noVersionResult.current.effectiveUpdateInfo).toBeNull();
+
+    // 4. CheckForUpdates returns updateAvailable: true, latestVersion: '2.0.0', but releaseUrl is undefined -> falls back to default URL
+    (globalThis as any).window = {
+      go: {
+        main: {
+          App: {
+            GetSystemInfo: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+            CheckForUpdates: vi.fn().mockResolvedValue({ updateAvailable: true, latestVersion: '2.0.0', releaseUrl: undefined }),
+          },
+        },
+      },
+    };
+    const { result: defaultUrlResult } = renderHook(() => useMenuBarState(defaultProps));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+    expect(defaultUrlResult.current.effectiveUpdateInfo).toEqual({
+      version: '2.0.0',
+      releaseUrl: 'https://github.com/dhanyn10/kube-simulator/releases',
+    });
   });
 });

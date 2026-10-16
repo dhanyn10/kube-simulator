@@ -499,4 +499,45 @@ describe('store helpers', () => {
     const syncedResizedWH = syncPodsInDeployment(depResized, [podResizedWithWidthHeight]);
     expect(syncedResizedWH[0].width).toBe(250);
   });
+
+  it('covers replicaSuffix fallback ternary conditions and getCommonPodData missing displaySettings', () => {
+    // 1. syncPodsInDeployment when existingPod has no replicaSuffixes array, but has replicaSuffix ('suff1') and forceRandomize is false
+    const existingPodWithSingleSuffix = {
+      id: 'p-singlesuff',
+      parentId: 'd1',
+      type: 'Pod',
+      data: {
+        baseName: 'app',
+        podHash: 'h1234',
+        replicaSuffix: 'suff1',
+        // no replicaSuffixes array
+      }
+    } as any;
+    const dep1 = { id: 'd1', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
+    const syncedSingle = syncPodsInDeployment(dep1, [existingPodWithSingleSuffix], undefined, false);
+    expect(syncedSingle[0].data.replicaSuffix).toBe('suff1');
+
+    // 2. syncPodsInDeployment when existingPod has no replicaSuffixes array and no replicaSuffix
+    const existingPodNoSuffixAtAll = {
+      id: 'p-nosuffatall',
+      parentId: 'd1',
+      type: 'Pod',
+      data: {
+        baseName: 'app',
+        podHash: 'h1234',
+        // no replicaSuffix, no replicaSuffixes
+      }
+    } as any;
+    const syncedNoSuffAtAll = syncPodsInDeployment(dep1, [existingPodNoSuffixAtAll], undefined, false);
+    expect(syncedNoSuffAtAll[0].data.replicaSuffix).toHaveLength(5);
+
+    // 3. syncPodsInDeployment when existingPod has no replicaSuffixes array, has replicaSuffix ('suff1'), but forceRandomize is true
+    const syncedRandomizedSingle = syncPodsInDeployment(dep1, [existingPodWithSingleSuffix], undefined, true);
+    expect(syncedRandomizedSingle[0].data.replicaSuffix).not.toBe('suff1');
+
+    // 4. getCommonPodData when dataTemplate, deployment.data.displaySettings, and currentPods[0] are all missing displaySettings
+    const depNoSettings = { id: 'd-nosett', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
+    const syncedNoSettings = syncPodsInDeployment(depNoSettings, []);
+    expect(syncedNoSettings[0].data.displaySettings).toBeUndefined();
+  });
 });

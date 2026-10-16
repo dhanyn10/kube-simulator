@@ -454,4 +454,81 @@ describe('useCanvasHandlers hook', () => {
     expect(mockSetCenter).toHaveBeenCalledWith(400, 300, expect.objectContaining({ duration: 800 }));
     document.body.removeChild(mediumRendererEl);
   });
+
+  it('covers scaleY < scaleX zoom calculation and edge click with explicit node.width/height fallback', () => {
+    // 1. computeAutofocusZoom where scaleY is smaller than scaleX
+    const tallNode: Node = {
+      id: 'n-tall',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      width: 100,
+      height: 400,
+      measured: { width: 100, height: 400 },
+      data: {},
+    };
+
+    const containerEl = document.createElement('div');
+    containerEl.className = 'react-flow__renderer';
+    Object.defineProperty(containerEl, 'getBoundingClientRect', {
+      value: () => ({ width: 1000, height: 500 }),
+    });
+    document.body.appendChild(containerEl);
+
+    useFlowStore.setState({
+      nodes: [tallNode],
+      onNodeClick: vi.fn(),
+      isAutofocusEnabled: true,
+      activeIdentity: 'system:admin',
+      iamUsers: [],
+    });
+
+    const { result } = renderHook(() => useCanvasHandlers());
+
+    act(() => {
+      result.current.onNodeClick({} as any, tallNode);
+    });
+
+    // scaleY = 500 * 0.84 / 400 = 1.05
+    expect(mockSetCenter).toHaveBeenCalledWith(50, 200, expect.objectContaining({ zoom: 1.05 }));
+    document.body.removeChild(containerEl);
+
+    // 2. onEdgeClick where source and target have measured: {} (undefined width/height) but explicit node.width and node.height
+    const srcWithWidthHeight: Node = {
+      id: 's-wh',
+      position: { x: 0, y: 0 },
+      width: 120,
+      height: 80,
+      measured: {} as any,
+      data: {},
+    };
+    const tgtWithWidthHeight: Node = {
+      id: 't-wh',
+      position: { x: 200, y: 200 },
+      width: 160,
+      height: 90,
+      measured: {} as any,
+      data: {},
+    };
+    const edgeWH: Edge = { id: 'e-wh', source: 's-wh', target: 't-wh' };
+
+    useFlowStore.setState({
+      nodes: [srcWithWidthHeight, tgtWithWidthHeight],
+      edges: [edgeWH],
+      isAutofocusEnabled: true,
+      isRightSidebarVisible: false,
+      setConfiguringEdgeId: vi.fn(),
+    });
+
+    const { result: edgeResult } = renderHook(() => useCanvasHandlers());
+
+    act(() => {
+      edgeResult.current.onEdgeClick({} as any, edgeWH);
+    });
+
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+    expect(mockFitBounds).toHaveBeenCalledWith(
+      { x: 0, y: 0, width: 360, height: 290 },
+      { padding: 0.2, duration: 800 }
+    );
+  });
 });
