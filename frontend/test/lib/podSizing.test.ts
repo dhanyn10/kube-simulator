@@ -275,4 +275,56 @@ describe('podSizing utils', () => {
     const sizeNarrow = getPodMinimumSize(narrowPodWithImage);
     expect(sizeNarrow.height).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
   });
+
+  it('covers showDashedProgress and individual resource settings condition branches', () => {
+    // 1. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas > 1, parentId defined -> evaluates false
+    const podWithParentAndMultiReplicas = {
+      type: 'Pod' as const,
+      parentReplicas: 2,
+      replicas: 2,
+      parentId: 'dep-123',
+      displaySettings: { restartPolicy: false },
+    };
+    const hParentMulti = calculatePodHeight(podWithParentAndMultiReplicas, 168, [], false);
+    expect(hParentMulti).toBe(POD_MIN_DIMENSIONS.height);
+
+    // 2. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas > 1, parentId undefined -> evaluates true
+    const standaloneMulti = {
+      type: 'Pod' as const,
+      parentReplicas: 2,
+      replicas: 2,
+      parentId: undefined,
+      displaySettings: { restartPolicy: false },
+    };
+    const hStandaloneMulti = calculatePodHeight(standaloneMulti, 168, [], false);
+    expect(hStandaloneMulti).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
+
+    // 3. Each individual resource limit/request field evaluated when others are absent
+    const basePod = { type: 'Pod' as const, displaySettings: { restartPolicy: false } };
+    const hBase = calculatePodHeight(basePod, 168, [], false);
+
+    const hCpuLimit = calculatePodHeight({ ...basePod, cpuLimit: '500m' }, 168, [], false);
+    const hMemLimit = calculatePodHeight({ ...basePod, memoryLimit: '512Mi' }, 168, [], false);
+    const hCpuReq = calculatePodHeight({ ...basePod, cpuRequest: '250m' }, 168, [], false);
+    const hMemReq = calculatePodHeight({ ...basePod, memoryRequest: '256Mi' }, 168, [], false);
+
+    expect(hCpuLimit).toBe(118);
+    expect(hMemLimit).toBe(118);
+    expect(hCpuReq).toBe(118);
+    expect(hMemReq).toBe(118);
+
+    // 4. getPodMinimumSize badge display toggles for runtime and webserver
+    const podWithWebserverOnly = getPodMinimumSize({
+      webserver: 'nginx',
+      displaySettings: { webserver: true, runtime: false },
+    });
+    expect(podWithWebserverOnly.width).toBeGreaterThan(0);
+
+    const podWithNoneBadges = getPodMinimumSize({
+      runtime: 'none',
+      webserver: 'none',
+      displaySettings: { webserver: true, runtime: true },
+    });
+    expect(podWithNoneBadges.width).toBeGreaterThan(0);
+  });
 });

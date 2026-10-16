@@ -166,4 +166,25 @@ describe('dragUtils', () => {
     const resMove = handlePodMoveToDeployment('d1', targetDep, pod, [pod, oldParentNs, targetDep], 'ns1', getDummy, pod);
     expect(resMove).toHaveLength(3);
   });
+
+  it('covers unmeasured container empty measured object fallbacks and non-Pod targetParentId children retention in handlePodMoveToDeployment', () => {
+    // 1. Container with measured: {} (measured width/height undefined) for Deployment vs non-Deployment
+    const bareNode = { id: 'p1', width: 100, height: 100 } as any;
+    const depEmptyMeasured = { id: 'd1', type: 'Deployment', measured: {} as any, position: { x: 0, y: 0 } } as any;
+    const resDep = calculateOverlap(bareNode, { x: 0, y: 0 }, depEmptyMeasured, [depEmptyMeasured]);
+    expect(resDep.intersects).toBe(true);
+
+    const nonDepEmptyMeasured = { id: 'c1', type: 'Namespace', measured: {} as any, position: { x: 0, y: 0 } } as any;
+    const resNonDep = calculateOverlap(bareNode, { x: 0, y: 0 }, nonDepEmptyMeasured, [nonDepEmptyMeasured]);
+    expect(resNonDep.intersects).toBe(true);
+
+    // 2. handlePodMoveToDeployment with non-Pod child node inside targetParentId (e.g. Service or Role)
+    const pod = { id: 'p1', type: 'Pod', data: {} } as any;
+    const targetDep = { id: 'd1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} } as any;
+    const nonPodChild = { id: 'role1', type: 'Role', parentId: 'd1', data: {} } as any;
+    const getDummy = () => ({}) as any;
+
+    const res = handlePodMoveToDeployment('d1', targetDep, pod, [pod, targetDep, nonPodChild], undefined, getDummy, pod);
+    expect(res.some(n => n.id === 'role1')).toBe(true);
+  });
 });

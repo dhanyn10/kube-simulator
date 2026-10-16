@@ -297,4 +297,21 @@ describe('CustomEdge', () => {
     const tooltip = screen.getByText('Light mode connection error');
     expect(tooltip.getAttribute('class')).toContain('bg-white');
   });
+
+  it('covers unselected strokeWidth calculation and non-simulating traffic-line omission', () => {
+    const props = {
+      ...defaultProps,
+      selected: false,
+      data: { width: 4 },
+    };
+
+    render(
+      <svg>
+        <CustomEdge {...props} />
+      </svg>
+    );
+
+    const edge = screen.getByTestId('base-edge');
+    expect(edge.getAttribute('class')).toBe('');
+  });
 });
