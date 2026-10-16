@@ -9,8 +9,6 @@ export const PodNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
 
-  const showWorkloadType = Boolean(data.displaySettings?.workloadType);
-  const workloadType = data.workloadType || 'Deployment';
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
   const showRestart = Boolean(data.displaySettings?.restartPolicy !== false);
   const restartPolicy = data.restartPolicy || 'Always';
@@ -19,12 +17,6 @@ export const PodNode = memo((props: NodeProps) => {
   return (
     <BaseNode {...props} data={data} title="Pod" icon={Box} color="cyan" id={props.id} type={props.type}>
       <div className="space-y-1 mt-1">
-        {showWorkloadType && (
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className={colorMode === 'dark' ? "text-slate-500" : "text-slate-400"}>kind:</span>
-            <span className="font-bold" style={{ color: 'var(--color-mat-cyan)' }}>{workloadType}</span>
-          </div>
-        )}
         {showImage && (
           <div className="flex justify-between items-center text-[9px] font-mono gap-1">
             <span className={colorMode === 'dark' ? "text-slate-500 shrink-0" : "text-slate-400 shrink-0"}>image:</span>
