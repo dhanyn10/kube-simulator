@@ -34,6 +34,36 @@ func TestResourceGenerators_HPAMetrics(t *testing.T) {
 	})
 }
 
+func TestResourceGenerators_StatefulSet(t *testing.T) {
+	t.Run("Generate StatefulSet", func(t *testing.T) {
+		rep := 3
+		data := k8s.K8sNodeData{
+			Replicas:     &rep,
+			WorkloadType: "StatefulSet",
+			Image:        "redis:alpine",
+		}
+		res := generatePodOrDeployment(data, "redis-ss", "default", &GenContext{})
+		ss, ok := res.(k8s.StatefulSet)
+		if !ok || ss.Kind != "StatefulSet" || ss.Spec.Replicas != 3 {
+			t.Errorf("Expected StatefulSet with 3 replicas, got %v", res)
+		}
+	})
+
+	t.Run("generateDeployment with WorkloadType StatefulSet", func(t *testing.T) {
+		rep := 2
+		data := k8s.K8sNodeData{
+			Replicas:     &rep,
+			WorkloadType: "StatefulSet",
+			Image:        "postgres:15",
+		}
+		res := generateDeployment(data, "pg-db", "prod", &GenContext{})
+		ss, ok := res.(k8s.StatefulSet)
+		if !ok || ss.Kind != "StatefulSet" || ss.Spec.Replicas != 2 || ss.Spec.ServiceName != "pg-db" {
+			t.Errorf("Expected StatefulSet from generateDeployment, got %v", res)
+		}
+	})
+}
+
 func TestResourceGenerators_DisabledFields(t *testing.T) {
 	t.Run("PVC Disabled Fields", func(t *testing.T) {
 		data := k8s.K8sNodeData{

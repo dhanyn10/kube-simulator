@@ -28,7 +28,9 @@ export const calculatePvcConnectedReplicas = (
     const node = nodes.find((n) => n.id === id);
     if (!node) return;
 
-    if (node.type === 'Deployment' || node.type === 'ReplicaSet') {
+    if (node.data?.workloadType === 'StatefulSet') {
+      totalReplicas += 1;
+    } else if (node.type === 'Deployment' || node.type === 'ReplicaSet') {
       const rep = Number(node.data?.replicas);
       totalReplicas += Number.isNaN(rep) || rep < 1 ? 1 : rep;
     } else if (node.type === 'Pod') {

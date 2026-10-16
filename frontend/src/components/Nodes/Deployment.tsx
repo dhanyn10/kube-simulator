@@ -13,7 +13,7 @@ import { ForbiddenOverlay } from './ForbiddenOverlay';
 
 const getRoleDragClass = (isRoleDragging: boolean, nodeType: string, isHovered?: boolean): string => {
   if (!isRoleDragging) return '';
-  const isCompatible = ['Pod', 'Deployment', 'Service', 'Namespace', 'Ingress', 'HPA', 'PVC'].includes(nodeType);
+  const isCompatible = ['Pod', 'Deployment', 'StatefulSet', 'Service', 'Namespace', 'Ingress', 'HPA', 'PVC'].includes(nodeType);
   if (!isCompatible) return 'role-drag-outside-ns';
   return isHovered ? 'role-drag-inside-ns' : '';
 };
@@ -62,7 +62,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
       data.isDetaching && "border-solid border-red-500 bg-red-500/20 ring-8 ring-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.4)]",
       roleDragClass
     )}>
-      <ForbiddenOverlay nodeType="Deployment" data={data} />
+      <ForbiddenOverlay nodeType={props.type || 'Deployment'} data={data} />
       <QuickConnectArrows nodeId={props.id} color="violet" />
       <NodeResizer
         minWidth={218}
@@ -79,7 +79,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
           "text-[9px] px-2 py-0.5 rounded-sm font-bold tracking-tighter text-white uppercase shadow-sm",
           badgeColor
         )}>
-          DEPLOYMENT
+          {props.type === 'StatefulSet' || data.workloadType === 'StatefulSet' ? 'STATEFULSET' : 'DEPLOYMENT'}
         </span>
 
         {NodeRenameInput({

@@ -63,7 +63,7 @@ export const hydrateNodes = (nodes: any[], get: () => FlowState): any[] => {
     };
   });
 
-  const workloads = nextNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet');
+  const workloads = nextNodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet');
   workloads.forEach(dept => {
     const { updatedDeployment, laidOut } = syncDeployment(dept, nextNodes, 0, get);
     nextNodes = nextNodes.filter(n => n.parentId !== dept.id || n.type !== 'Pod');
@@ -199,7 +199,7 @@ export const syncContainerSize = (containerId: string | undefined, currentNodes:
 
 const getChildMinSize = (child: Node) => {
     if (child.type === 'Pod') return getPodMinimumSize(child.data);
-    if (['Deployment', 'Namespace', 'ReplicaSet'].includes(child.type || '')) {
+    if (['Deployment', 'StatefulSet', 'Namespace', 'ReplicaSet'].includes(child.type || '')) {
         return { width: child.width || 320, height: child.height || 160 };
     }
     return { width: 160, height: 80 };

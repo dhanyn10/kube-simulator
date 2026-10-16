@@ -32,11 +32,12 @@ const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
   ConfigMap: 'configmaps',
   Secret: 'secrets',
   ReplicaSet: 'replicasets',
+  StatefulSet: 'statefulsets',
 };
 
 const getDerivedResourcesForNode = (cn: Node, nodes: Node[], derivedResourcesSet: Set<string>) => {
-  if (cn.type === 'Deployment') {
-    derivedResourcesSet.add('deployments');
+  if (cn.type === 'Deployment' || cn.type === 'StatefulSet') {
+    derivedResourcesSet.add(cn.type === 'StatefulSet' ? 'statefulsets' : 'deployments');
     const childPods = nodes.filter((p) => p.parentId === cn.id);
     if (childPods.length > 0 || ((cn.data?.replicas as number) || 0) > 0) {
       derivedResourcesSet.add('pods');
@@ -219,7 +220,7 @@ const rerouteRoleConnection = (
   nodes: Node[]
 ): Node | undefined => {
   if (podNode?.type === 'Pod' && podNode.parentId) {
-    return nodes.find((n) => n.id === podNode.parentId && n.type === 'Deployment');
+    return nodes.find((n) => n.id === podNode.parentId && (n.type === 'Deployment' || n.type === 'StatefulSet'));
   }
   return undefined;
 };
@@ -230,7 +231,7 @@ const rerouteChildPodConnection = (
 ): Node | undefined => {
   if (podNode?.type === 'Pod' && (podNode.parentId || podNode.data?.parentId)) {
     const parentId = String(podNode.parentId || podNode.data?.parentId);
-    return nodes.find((n) => n.id === parentId && (n.type === 'Deployment' || n.type === 'ReplicaSet'));
+    return nodes.find((n) => n.id === parentId && (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet'));
   }
   return undefined;
 };
@@ -243,8 +244,8 @@ const checkHpaPrerequisite = (
   addLog: (level: string, message: string, component: string) => void
 ): boolean => {
   const isHpaConnection =
-    (sourceNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(targetNode?.type || '')) ||
-    (targetNode?.type === 'HPA' && ['Deployment', 'Pod', 'ReplicaSet'].includes(sourceNode?.type || ''));
+    (sourceNode?.type === 'HPA' && ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet'].includes(targetNode?.type || '')) ||
+    (targetNode?.type === 'HPA' && ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet'].includes(sourceNode?.type || ''));
 
   if (!isHpaConnection) return true;
 

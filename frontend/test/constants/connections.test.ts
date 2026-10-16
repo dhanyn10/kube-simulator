@@ -13,7 +13,9 @@ describe('connections constants', () => {
     expect(getConnectionError('Service', 'Deployment', { serviceType: 'LoadBalancer' })).toBeNull();
     expect(getConnectionError('Pod', 'Ingress')).toBeNull();
     expect(getConnectionError('Deployment', 'Ingress')).toBeNull();
+    expect(getConnectionError('StatefulSet', 'Ingress')).toBeNull();
     expect(getConnectionError('Deployment', 'PVC')).toBeNull();
+    expect(getConnectionError('StatefulSet', 'PVC')).toBeNull();
     expect(getConnectionError('Pod', 'Service')).toBeNull();
   });
 

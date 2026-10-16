@@ -60,6 +60,7 @@ const nodeTypes = {
   Pod: PodNode,
   Service: ServiceNode,
   Deployment: DeploymentNode,
+  StatefulSet: DeploymentNode,
   Internet: InternetNode,
   Namespace: NamespaceNode,
   Ingress: IngressNode,

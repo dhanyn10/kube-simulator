@@ -89,6 +89,30 @@ func TestGeneratePodInNamespace(t *testing.T) {
 	}
 }
 
+func TestGenerateStatefulSet(t *testing.T) {
+	nodesJson := `[{"id":"p1","type":"Pod","data":{"label":"My Stateful Pod","replicas":3,"workloadType":"StatefulSet","image":"redis:alpine"}}]`
+	result := Generate(nodesJson, "[]")
+	if !strings.Contains(result, "StatefulSet") || !strings.Contains(result, "my-stateful-pod") || !strings.Contains(result, "redis:alpine") {
+		t.Errorf("Generate failed for StatefulSet: %s", result)
+	}
+}
+
+func TestGenerateStatefulSet_WithConnections(t *testing.T) {
+	nodesJson := `[
+		{"id":"ss1","type":"Deployment","data":{"label":"My Stateful App","replicas":3,"workloadType":"StatefulSet","port":8080,"restartPolicy":"OnFailure"}},
+		{"id":"pvc1","type":"PVC","data":{"label":"Data Vol","storageCapacity":"20Gi"}},
+		{"id":"cm1","type":"ConfigMap","data":{"label":"App Config","configData":[{"key":"ENV_KEY","value":"ENV_VAL"}]}}
+	]`
+	edgesJson := `[
+		{"id":"e1","source":"ss1","target":"pvc1"},
+		{"id":"e2","source":"cm1","target":"ss1"}
+	]`
+	result := Generate(nodesJson, edgesJson)
+	if !strings.Contains(result, "StatefulSet") || !strings.Contains(result, "data-vol") || !strings.Contains(result, "ENV_KEY") || !strings.Contains(result, "8080") {
+		t.Errorf("Generate failed for StatefulSet with connections: %s", result)
+	}
+}
+
 func TestGenerateDeployment(t *testing.T) {
 	replicas := 3
 	nodesJson := `[{"id":"d1","type":"Deployment","data":{"label":"My Dep","image":"nginx","replicas":3}}]`

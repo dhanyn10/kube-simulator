@@ -102,6 +102,104 @@ describe('WorkloadConfig', () => {
     expect(updateNodeData).toHaveBeenCalledWith('d1', { replicas: 5 });
   });
 
+  it('renders Workload Type selector for StatefulSet type node and defaults to StatefulSet', () => {
+    const selectedNode = {
+      id: 'ss1',
+      type: 'StatefulSet',
+      data: {
+        label: 'My StatefulSet',
+        replicas: 3
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Workload Type')).toBeDefined();
+    const deployBtn = screen.getByRole('button', { name: 'Deployment' });
+    fireEvent.click(deployBtn);
+
+    expect(performUpdate).toHaveBeenCalledWith({ workloadType: 'Deployment' });
+  });
+
+  it('renders Workload Type selector for Deployment and allows switching workloadType', () => {
+    const selectedNode = {
+      id: 'd1',
+      type: 'Deployment',
+      data: {
+        label: 'My Dep',
+        replicas: 2,
+        workloadType: 'Deployment',
+        displaySettings: { workloadType: true },
+        yamlSettings: { workloadType: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Workload Type')).toBeDefined();
+    const statefulBtn = screen.getByRole('button', { name: 'StatefulSet' });
+    fireEvent.click(statefulBtn);
+
+    expect(performUpdate).toHaveBeenCalledWith({ workloadType: 'StatefulSet' });
+
+    // Trigger toggle buttons on Workload Type section
+    const wtHeader = screen.getByText('Workload Type').closest('div');
+    const wtButtons = wtHeader?.querySelectorAll('button') || [];
+    wtButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('workloadType');
+    expect(toggleYaml).toHaveBeenCalledWith('workloadType');
+  });
+
+  it('renders StatefulSet recommendation banner when connected to RWO PVC with replicas > 1', () => {
+    const pvcNode = {
+      id: 'pvc1',
+      type: 'PVC',
+      data: { label: 'data-vol', accessMode: 'ReadWriteOnce' }
+    };
+    const depNode = {
+      id: 'd1',
+      type: 'Deployment',
+      data: { label: 'My Dep', replicas: 3, workloadType: 'Deployment' }
+    };
+    const edge = { id: 'e1', source: 'd1', target: 'pvc1' };
+
+    useFlowStore.setState({
+      nodes: [pvcNode, depNode] as any,
+      edges: [edge] as any
+    });
+
+    render(
+      <WorkloadConfig
+        selectedNode={depNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Stateful Workload Recommendation')).toBeDefined();
+    const switchBtn = screen.getByRole('button', { name: 'Switch to StatefulSet Mode' });
+    fireEvent.click(switchBtn);
+
+    expect(performUpdate).toHaveBeenCalledWith({ workloadType: 'StatefulSet' });
+  });
+
   it('handles replica updates for Pod in Deployment', () => {
     const updateNodeData = vi.fn();
     const parentDep = { id: 'd1', type: 'Deployment', position: {x:0, y:0}, data: { label: 'dep-a' } };

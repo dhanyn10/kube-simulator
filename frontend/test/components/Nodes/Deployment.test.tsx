@@ -17,6 +17,36 @@ describe('DeploymentNode', () => {
     useFlowStore.setState({ colorMode: 'dark', edges: [], nodes: [], draggingSidebarItem: null });
   });
 
+  it('renders STATEFULSET badge when props.type is StatefulSet or data.workloadType is StatefulSet', () => {
+    const propsStateful = {
+      id: 'ss1',
+      type: 'StatefulSet',
+      data: { label: 'My StatefulSet', replicas: 2 }
+    } as any;
+
+    const { rerender } = render(
+      <ReactFlowProvider>
+        <DeploymentNode {...propsStateful} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('STATEFULSET')).toBeDefined();
+
+    const propsDepStateful = {
+      id: 'd1',
+      type: 'Deployment',
+      data: { label: 'Stateful Dep', replicas: 2, workloadType: 'StatefulSet' }
+    } as any;
+
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode {...propsDepStateful} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('STATEFULSET')).toBeDefined();
+  });
+
   it('renders correctly with default data', () => {
     const props = {
       id: 'd1',
