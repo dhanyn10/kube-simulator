@@ -14,7 +14,7 @@ func (m *mockCustomGenerator) Generate(data k8s.K8sNodeData, name, namespace str
 func TestResourceGeneratorFactory(t *testing.T) {
 	t.Run("DefaultFactory registered types", func(t *testing.T) {
 		expectedTypes := []string{
-			"Namespace", "Pod", "Deployment", "ReplicaSet",
+			"Namespace", "Pod", "Deployment", "StatefulSet", "ReplicaSet",
 			"Service", "Ingress", "HPA", "PVC", "ConfigMap", "Secret",
 		}
 
@@ -23,6 +23,20 @@ func TestResourceGeneratorFactory(t *testing.T) {
 			if !ok || gen == nil {
 				t.Errorf("Expected generator for node type %s to be registered", nodeType)
 			}
+		}
+	})
+
+	t.Run("StatefulSetGenerator Direct Execution", func(t *testing.T) {
+		gen, ok := DefaultFactory.GetGenerator("StatefulSet")
+		if !ok || gen == nil {
+			t.Fatalf("Expected StatefulSet generator")
+		}
+		rep := 2
+		data := k8s.K8sNodeData{Replicas: &rep, Image: "redis:alpine"}
+		res := gen.Generate(data, "my-ss", "prod", &GenContext{})
+		ss, ok := res.(k8s.StatefulSet)
+		if !ok || ss.Kind != "StatefulSet" || ss.Spec.Replicas != 2 || ss.Spec.ServiceName != "my-ss" {
+			t.Errorf("StatefulSetGenerator failed, got %v", res)
 		}
 	})
 
