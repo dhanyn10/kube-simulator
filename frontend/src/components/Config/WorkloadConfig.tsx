@@ -42,7 +42,15 @@ export const WorkloadConfig = ({
   return (
     <div className="space-y-4">
       {/* Workload Type Selector */}
-      <ConfigSection title="Workload Type" icon={Server}>
+      <ConfigSection
+        title="Workload Type"
+        icon={Server}
+        isVisible={data.displaySettings?.workloadType}
+        onToggle={() => toggleVisibility('workloadType')}
+        isYamlEnabled={data.yamlSettings?.workloadType}
+        onYamlToggle={() => toggleYaml('workloadType')}
+        disableYamlToggle={Boolean(data.workloadType) === false}
+      >
         <SelectorGroup
           options={WORKLOAD_TYPES}
           currentValue={data.workloadType || 'Deployment'}

@@ -130,18 +130,20 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
         replicas: 1,
         image: '',
         restartPolicy: 'Always',
+        workloadType: 'Deployment',
         status: 'pending',
-        displaySettings: { image: true, resources: false, restartPolicy: true },
-        yamlSettings: { image: true, resources: true, restartPolicy: true }
+        displaySettings: { image: true, resources: false, restartPolicy: true, workloadType: true },
+        yamlSettings: { image: true, resources: true, restartPolicy: true, workloadType: true }
       };
     case 'Deployment':
       return {
         ...base,
         replicas: 0,
         image: '',
+        workloadType: 'Deployment',
         status: 'pending',
-        displaySettings: { image: true, resources: false },
-        yamlSettings: { image: true, resources: true }
+        displaySettings: { image: true, resources: false, workloadType: true },
+        yamlSettings: { image: true, resources: true, workloadType: true }
       };
     case 'Ingress':
       return {
