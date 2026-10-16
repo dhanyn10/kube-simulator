@@ -97,7 +97,7 @@ export const UTILITY_COMMANDS: SuggestionItem[] = createSuggestionMap([
 ]);
 
 export const getDeploymentNames = (nodes: Node[]): string[] => {
-  return nodes.filter(n => n.type === 'Deployment').map(d => String(d.data?.label ?? d.id));
+  return nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet').map(d => String(d.data?.label ?? d.id));
 };
 
 /**

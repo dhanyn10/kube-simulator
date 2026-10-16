@@ -192,6 +192,18 @@ describe('useWorkloadConfig', () => {
       const resRwx = checkWorkloadConnectedPvc(depNode, [pvcRwx, depNode], [edgeSource], 3);
       expect(resRwx.isMultiReplicaRwoPvc).toBe(false);
     });
+
+    it('covers child Pod with parentId connected to PVC and PVC with falsy label fallback', () => {
+      const pvcNoLabel = { id: 'pvc-nolabel', type: 'PVC', data: { accessMode: 'ReadWriteOnce' } } as any;
+      const parentDep = { id: 'dep-parent', type: 'Deployment', data: { label: 'parent-dep' } } as any;
+      const childPod = { id: 'pod-child', type: 'Pod', data: { parentId: 'dep-parent' } } as any;
+      const edge = { id: 'e1', source: 'dep-parent', target: 'pvc-nolabel' } as any;
+
+      const res = checkWorkloadConnectedPvc(childPod, [pvcNoLabel, parentDep, childPod], [edge], 2);
+      expect(res.isConnectedToPvc).toBe(true);
+      expect(res.isMultiReplicaRwoPvc).toBe(true);
+      expect(res.connectedPvcName).toBe('pvc-nolabel');
+    });
   });
 
   describe('useWorkloadConfigHandler', () => {

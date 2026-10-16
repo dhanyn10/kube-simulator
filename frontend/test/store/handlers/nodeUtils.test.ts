@@ -138,6 +138,11 @@ describe('nodeUtils', () => {
     expect(depData.type).toBe('Deployment');
     expect(depData.replicas).toBe(0);
 
+    const ssData = getInitialData('StatefulSet', 'ss1', get as any);
+    expect(ssData.type).toBe('StatefulSet');
+    expect(ssData.workloadType).toBe('StatefulSet');
+    expect(ssData.replicas).toBe(0);
+
     const ingData = getInitialData('Ingress', 'i1', get as any);
     expect(ingData.type).toBe('Ingress');
     expect(ingData.ingressHost).toBe('example.local');
@@ -236,6 +241,9 @@ describe('nodeUtils', () => {
     // syncWorkloadMetadata for ReplicaSet with image
     const customWorkload = syncWorkloadMetadata('ReplicaSet', { image: 'custom:2.0' } as any);
     expect(customWorkload.status).toBe('ready');
+
+    const customStatefulSet = syncWorkloadMetadata('StatefulSet', { image: 'postgres:alpine' } as any);
+    expect(customStatefulSet.status).toBe('ready');
 
     // syncWorkloadMetadata with empty image
     const pendingWorkload = syncWorkloadMetadata('Deployment', { image: '' } as any);

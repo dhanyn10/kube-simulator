@@ -7,11 +7,12 @@ import { K8sResourceType } from '@/types';
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
   Internet: ['Service'],
   Ingress: ['Service'],
-  Service: ['Deployment', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
+  Service: ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
   Deployment: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
+  StatefulSet: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
   Pod: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
   ReplicaSet: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
-  HPA: ['Deployment', 'ReplicaSet'],
+  HPA: ['Deployment', 'StatefulSet', 'ReplicaSet'],
   PVC: [],
   ConfigMap: [],
   Secret: [],
@@ -50,7 +51,7 @@ const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string,
       ? null
       : `${sType} Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.`;
   }
-  if (sourceType === 'Pod' || sourceType === 'Deployment' || sourceType === 'ReplicaSet') {
+  if (sourceType === 'Pod' || sourceType === 'Deployment' || sourceType === 'StatefulSet' || sourceType === 'ReplicaSet') {
     return null;
   }
   return `${sourceType} cannot be connected to Ingress. Only Services or Workloads can connect to Ingress.`;
@@ -84,7 +85,7 @@ const checkIngressSourceRules = (targetType: string, targetData?: Record<string,
  */
 const checkServiceTargetRules = (sourceType: string, targetData?: Record<string, any>): string | null => {
   const tType = targetData?.serviceType || 'ClusterIP';
-  if (tType === 'LoadBalancer' && sourceType !== 'Internet' && sourceType !== 'Service' && sourceType !== 'Pod' && sourceType !== 'Deployment') {
+  if (tType === 'LoadBalancer' && sourceType !== 'Internet' && sourceType !== 'Service' && sourceType !== 'Pod' && sourceType !== 'Deployment' && sourceType !== 'StatefulSet') {
     return `${sourceType} cannot be connected to LoadBalancer Service.`;
   }
   return null;
@@ -118,7 +119,7 @@ const checkServiceSourceRules = (
   targetData?: Record<string, any>
 ): string | null => {
   const sType = sourceData?.serviceType || 'ClusterIP';
-  if (targetType === 'Pod' || targetType === 'Deployment' || targetType === 'ReplicaSet') {
+  if (targetType === 'Pod' || targetType === 'Deployment' || targetType === 'StatefulSet' || targetType === 'ReplicaSet') {
     return null;
   }
   if (sType === 'LoadBalancer') {

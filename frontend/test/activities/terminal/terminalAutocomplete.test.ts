@@ -85,7 +85,10 @@ describe('terminalAutocomplete', () => {
     expect(pods).toContain('api-pod-x8k2p-bbbbb');
     expect(pods).toContain('single-pod');
 
-    expect(getDeploymentNames(mockNodes)).toEqual(['web-dep']);
+    expect(getDeploymentNames([
+      ...mockNodes,
+      { id: 'ss-1', type: 'StatefulSet', data: { label: 'db-ss' } } as any
+    ])).toEqual(['web-dep', 'db-ss']);
     expect(getRoleNames(mockNodes)).toEqual(['web-role']);
     expect(getRoleBindingNames(mockNodes)).toEqual(['web-role-binding']);
     expect(getConfigMapNames(mockNodes)).toEqual(['web-cm']);
