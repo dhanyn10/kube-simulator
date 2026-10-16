@@ -131,7 +131,7 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
     { type: 'IAM', icon: UserCheck, label: 'Kube IAM', desc: 'IAM User Management' },
     { type: 'Pod', icon: Box, label: 'Pod', desc: 'Atomic unit of K8s' },
     { type: 'Service', icon: Network, label: 'Service', desc: 'Network endpoint' },
-    { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Stateless Pod Controller' },
+    { type: 'Deployment', icon: Layers, label: 'Deployment', desc: 'Pod controller' },
     { type: 'StatefulSet', icon: Database, label: 'StatefulSet', desc: 'Stateful Pod Controller' },
     { type: 'Namespace', icon: Anchor, label: 'Namespace', desc: 'Virtual cluster' },
     { type: 'Internet', icon: Globe, label: 'Internet', desc: 'External Component' },
