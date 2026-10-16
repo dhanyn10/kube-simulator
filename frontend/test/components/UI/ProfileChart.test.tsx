@@ -446,5 +446,48 @@ describe('ProfileChart', () => {
       fireEvent.click(confirmBtn);
       expect(screen.queryByTestId('interval-resample-warning-overlay')).not.toBeInTheDocument();
     });
+
+    it('covers zoomScale > 100 explicit pixel width styling and 10m interval key linear interpolation hydration loop', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+      const onUpdateProfile = vi.fn();
+
+      // Profile with only 00:00 and 01:00 keys
+      const hourlyProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {
+          '00:00': 100,
+          '01:00': 300,
+        },
+      };
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={hourlyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      // 1. Zoom slider to 200% -> zoomScale > 100 triggers pixel width styling
+      const zoomSlider = screen.getByRole('slider');
+      fireEvent.change(zoomSlider, { target: { value: '200' } });
+
+      const chartSvg = container.querySelector('svg[viewBox="0 0 1360 280"]');
+      expect(chartSvg).toBeInTheDocument();
+      expect(chartSvg?.getAttribute('style')).toContain('width: 1360px');
+
+      // 2. Select 10m interval -> triggers 10m interval key interpolation hydration loop
+      const selectEl = screen.getByRole('combobox') as HTMLSelectElement;
+      fireEvent.change(selectEl, { target: { value: '10' } });
+
+      expect(onUpdateProfile).toHaveBeenCalled();
+      const hydratedHourly = onUpdateProfile.mock.calls[0][0].hourly;
+      expect(hydratedHourly['00:10']).toBeDefined();
+      expect(hydratedHourly['00:30']).toBeDefined();
+    });
   });
 });

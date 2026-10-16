@@ -502,5 +502,58 @@ describe('useNodeConfig', () => {
         podHash: 'h1',
       });
     });
+
+    it('covers child Pod calling updatePodBaseName and randomizePodHash which resolves parent Deployment by parentId', () => {
+      const mockSetNodes = vi.fn();
+      const parentDep = {
+        id: 'dep-child-test',
+        type: 'Deployment',
+        data: { label: 'olddepname', replicas: 1 },
+      };
+      const childPod = {
+        id: 'pod-child-test',
+        type: 'Pod',
+        parentId: 'dep-child-test',
+        data: { baseName: 'olddepname', podHash: 'h1234', replicaSuffix: 's1234', label: 'olddepname-h1234-s1234' },
+      };
+
+      useFlowStore.setState({
+        nodes: [parentDep, childPod] as any,
+        updateNodeData: mockUpdateNodeData,
+        setNodes: mockSetNodes,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(childPod));
+
+      // 1. Child pod updatePodBaseName resolves parent deployment
+      act(() => {
+        result.current.updatePodBaseName('newdepname');
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-child-test', { label: 'newdepname' });
+
+      // 2. Child pod randomizePodHash resolves parent deployment
+      act(() => {
+        result.current.randomizePodHash();
+      });
+      expect(mockSetNodes).toHaveBeenCalled();
+    });
+
+    it('covers podHash and podBaseName fallback when node data has no label or baseName or podHash', () => {
+      const bareNode = {
+        id: 'p-bare',
+        type: 'Pod',
+        data: {}, // no label, no baseName, no podHash
+      };
+
+      useFlowStore.setState({
+        nodes: [bareNode] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(bareNode));
+
+      expect(result.current.podBaseName).toBe('pod');
+      expect(result.current.podHash).toHaveLength(5);
+    });
   });
 });
