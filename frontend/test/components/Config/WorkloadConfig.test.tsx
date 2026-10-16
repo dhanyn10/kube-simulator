@@ -345,4 +345,60 @@ describe('WorkloadConfig', () => {
 
     expect(performUpdate).toHaveBeenCalledWith({ image: 'my-custom-image', status: 'ready' });
   });
+
+  it('covers disableYamlToggle when workloadType is undefined and suppresses StatefulSet recommendation banner when workloadType is StatefulSet', () => {
+    // 1. Deployment without explicit workloadType -> disableYamlToggle = true
+    const depWithoutWorkloadType = {
+      id: 'd-no-wt',
+      type: 'Deployment',
+      data: {
+        label: 'My Dep No WT',
+        replicas: 2,
+        workloadType: undefined,
+        displaySettings: { workloadType: true },
+        yamlSettings: { workloadType: true }
+      }
+    };
+    useFlowStore.setState({ nodes: [depWithoutWorkloadType] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={depWithoutWorkloadType}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Workload Type')).toBeDefined();
+
+    // 2. Connected to RWO PVC with replicas > 1, but workloadType is already StatefulSet -> banner suppressed
+    const pvcNode = {
+      id: 'pvc1',
+      type: 'PVC',
+      data: { label: 'data-vol', accessMode: 'ReadWriteOnce' }
+    };
+    const statefulDepNode = {
+      id: 'd-ss',
+      type: 'Deployment',
+      data: { label: 'My Dep SS', replicas: 3, workloadType: 'StatefulSet' }
+    };
+    const edge = { id: 'e1', source: 'd-ss', target: 'pvc1' };
+
+    useFlowStore.setState({
+      nodes: [pvcNode, statefulDepNode] as any,
+      edges: [edge] as any
+    });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={statefulDepNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByText('Stateful Workload Recommendation')).toBeNull();
+  });
 });

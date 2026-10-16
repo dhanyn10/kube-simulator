@@ -420,4 +420,53 @@ describe('useCustomEdge & edge helpers', () => {
     // Test findDownstreamUnreadyNode fallback when targetId node has no type
     expect(findDownstreamUnreadyNode('non-existent-target', [], [], [])).toBeNull();
   });
+
+  it('covers getTargetLoggableNode with Deployment targetNode and unreadyNode null fallback in onAlertClick', () => {
+    // 1. getTargetLoggableNode with Deployment targetNode when unreadyNode is a Service
+    const svcUnready = { id: 'svc1', type: 'Service' };
+    const depTarget = { id: 'dep1', type: 'Deployment', data: { status: 'ready' } };
+    const loggableDep = getTargetLoggableNode('dep1', true, [svcUnready, depTarget], [], []);
+    expect(loggableDep?.id).toBe('dep1');
+
+    // 2. onAlertClick when isTargetError is true and unreadyNode is an untyped target node
+    const addActivityLog = vi.fn();
+    const mockEvent = { stopPropagation: vi.fn() } as any;
+
+    const unreadyUntypedTarget = { id: 'tgt-untyped', parentId: undefined };
+    useFlowStore.setState({
+      activeSimulationEdges: ['e-svc', 'e-untyped'],
+      nodes: [
+        { id: 'src-svc', type: 'Service' },
+        { id: 'tgt-svc', type: 'Service' },
+        { id: 'pod-unready', type: 'Pod', data: { status: 'pending' } },
+      ] as any,
+      edges: [
+        { id: 'e-svc', source: 'src-svc', target: 'tgt-svc' },
+        { id: 'e-untyped', source: 'tgt-svc', target: 'pod-unready' },
+      ] as any,
+      addActivityLog,
+    });
+
+    const { result } = renderHook(() =>
+      useCustomEdge({
+        id: 'e-svc',
+        source: 'src-svc',
+        target: 'tgt-svc',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    act(() => {
+      result.current.onAlertClick(mockEvent);
+    });
+    expect(addActivityLog).toHaveBeenCalledWith(
+      expect.stringContaining('is not in ready state')
+    );
+  });
 });
