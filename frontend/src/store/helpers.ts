@@ -10,8 +10,8 @@ export const getNodeData = (node: Node): K8sNodeData => {
 };
 
 export const isAllowed = (parentType: string, childType: string): boolean => {
-  if (parentType === 'Deployment') return childType === 'Pod';
-  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType);
+  if (parentType === 'Deployment' || parentType === 'StatefulSet') return childType === 'Pod';
+  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'StatefulSet', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType);
   return false;
 };
 
@@ -28,6 +28,7 @@ export const sortNodes = (nodes: Node[]): Node[] => {
   const priority: Record<string, number> = {
     Namespace: 0,
     Deployment: 1,
+    StatefulSet: 1,
     ReplicaSet: 1,
     Pod: 2,
     Service: 3,
@@ -245,7 +246,7 @@ const getEffectiveSize = (node: Node) => {
     };
   }
   const getDefaultSize = (type: string | undefined) => {
-    if (type === 'Deployment') return { w: 320, h: 160 };
+    if (type === 'Deployment' || type === 'StatefulSet') return { w: 320, h: 160 };
     if (type === 'Namespace') return { w: 600, h: 400 };
     return { w: 160, h: 80 };
   };
@@ -362,7 +363,7 @@ const performCollisionIteration = (nextNodes: Node[], padding: number, fixedNode
   for (const [parentId, siblingIds] of groups.entries()) {
     const parentNode = parentId ? nextNodes.find(n => n.id === parentId) : null;
     // Skip containers that manage their own internal layout (Pods in Deployments)
-    if (parentNode?.type === 'Deployment' || parentNode?.type === 'ReplicaSet' || parentNode?.type === 'PodGroup') continue;
+    if (parentNode?.type === 'Deployment' || parentNode?.type === 'StatefulSet' || parentNode?.type === 'ReplicaSet' || parentNode?.type === 'PodGroup') continue;
 
     if (resolveCollisionsInGroup(siblingIds, nextNodes, padding, fixedNodeId)) {
       anyCollision = true;

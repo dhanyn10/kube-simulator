@@ -1,4 +1,4 @@
-export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'ResourceLimit' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
+export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'StatefulSet' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'ResourceLimit' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
 
 export interface KubeIAMPolicy {
   name: string;

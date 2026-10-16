@@ -44,6 +44,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     switch (selectedNode.type) {
       case 'Pod':
       case 'Deployment':
+      case 'StatefulSet':
         return <WorkloadConfig {...props} />;
       case 'Service':
         return <ServiceConfig {...props} />;
@@ -65,14 +66,14 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
     }
   };
 
-  const isWorkload = selectedNode.type === 'Pod' || selectedNode.type === 'Deployment' || selectedNode.type === 'ReplicaSet';
+  const isWorkload = selectedNode.type === 'Pod' || selectedNode.type === 'Deployment' || selectedNode.type === 'StatefulSet' || selectedNode.type === 'ReplicaSet';
   const isConfiguredWorkload = isWorkload
     ? data.status === 'ready' && !!data.image
     : true;
 
   const isReady = isConfiguredWorkload && (
     data.status === 'ready' ||
-    ['Deployment', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret', 'Role'].includes(selectedNode.type)
+    ['Deployment', 'StatefulSet', 'Service', 'Ingress', 'HPA', 'Internet', 'Namespace', 'PVC', 'ConfigMap', 'Secret', 'Role'].includes(selectedNode.type)
   );
 
   return (
@@ -166,7 +167,7 @@ export const NodeConfig = ({ selectedNode }: NodeConfigProps) => {
         </div>
       )}
 
-      {['Pod', 'Deployment', 'ReplicaSet'].includes(selectedNode.type) && (
+      {['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(selectedNode.type) && (
         <button
           type="button"
           onClick={() => {

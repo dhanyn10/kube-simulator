@@ -42,22 +42,24 @@ export const WorkloadConfig = ({
   return (
     <div className="space-y-4">
       {/* Workload Type Selector */}
-      <ConfigSection
-        title="Workload Type"
-        icon={Server}
-        isVisible={data.displaySettings?.workloadType}
-        onToggle={() => toggleVisibility('workloadType')}
-        isYamlEnabled={data.yamlSettings?.workloadType}
-        onYamlToggle={() => toggleYaml('workloadType')}
-        disableYamlToggle={Boolean(data.workloadType) === false}
-      >
-        <SelectorGroup
-          options={WORKLOAD_TYPES}
-          currentValue={data.workloadType || 'Deployment'}
-          onSelect={(val) => performUpdate({ workloadType: val })}
-          colorMode={colorMode}
-        />
-      </ConfigSection>
+      {(selectedNode.type === 'Deployment' || selectedNode.type === 'StatefulSet') && (
+        <ConfigSection
+          title="Workload Type"
+          icon={Server}
+          isVisible={data.displaySettings?.workloadType}
+          onToggle={() => toggleVisibility('workloadType')}
+          isYamlEnabled={data.yamlSettings?.workloadType}
+          onYamlToggle={() => toggleYaml('workloadType')}
+          disableYamlToggle={Boolean(data.workloadType) === false}
+        >
+          <SelectorGroup
+            options={WORKLOAD_TYPES}
+            currentValue={data.workloadType || (selectedNode.type === 'StatefulSet' ? 'StatefulSet' : 'Deployment')}
+            onSelect={(val) => performUpdate({ workloadType: val })}
+            colorMode={colorMode}
+          />
+        </ConfigSection>
+      )}
 
       {/* StatefulSet Recommendation Callout Banner */}
       {pvcInfo.isMultiReplicaRwoPvc && (data.workloadType || 'Deployment') !== 'StatefulSet' && (

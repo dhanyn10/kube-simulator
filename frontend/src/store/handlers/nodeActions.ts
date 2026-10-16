@@ -398,7 +398,7 @@ const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[])
 const handleAdditionSync = (newNode: Node, nodes: Node[], get: () => FlowState) => {
   if (newNode?.parentId && newNode?.type === 'Pod') {
     const parent = nodes.find(n => n.id === newNode.parentId);
-    if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
+    if (parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet') {
       const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, 1, get, newNode);
       const others = nodes.filter(n => (n.parentId !== newNode.parentId || n.type !== 'Pod') && n.id !== newNode.id);
       return sortNodes([...others.map(n => n.id === newNode.parentId ? updatedDeployment : n), ...laidOut]);
@@ -414,7 +414,7 @@ const getInitialCardSize = (type: K8sResourceType, initialData: K8sNodeData): { 
   if (type === 'Namespace') {
     return { width: 600, height: 400 };
   }
-  if (type === 'Deployment' || type === 'ReplicaSet') {
+  if (type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet') {
     return { width: 320, height: 160 };
   }
   return calculateCardLayoutWithYoga({ type, data: initialData });
@@ -427,7 +427,7 @@ const computeNodeDimensions = (
   target: Node,
   updatedData: K8sNodeData
 ): Partial<Node> => {
-  const isContainerOrNamespace = target.type === 'Namespace' || target.type === 'Deployment' || target.type === 'ReplicaSet';
+  const isContainerOrNamespace = target.type === 'Namespace' || target.type === 'Deployment' || target.type === 'StatefulSet' || target.type === 'ReplicaSet';
 
   if (!isContainerOrNamespace) {
     const cardLayout = calculateCardLayoutWithYoga({
@@ -471,7 +471,7 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   const initialData = getInitialData(type, id, get);
   const uniqueLabel = ensureUniqueResourceName(initialData.label, type, targetParentId, currentNodes);
   initialData.label = uniqueLabel;
-  if (type === 'Pod' || type === 'Deployment' || type === 'ReplicaSet') {
+  if (type === 'Pod' || type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet') {
     initialData.baseName = uniqueLabel;
   }
 
@@ -530,7 +530,7 @@ const deleteNodesImpl = (set: (state: Partial<FlowState>) => void, get: () => Fl
   let nextNodes = nodes.filter((n: Node) => !deleteIds.has(n.id));
   nodesToDelete.forEach(node => {
     nextNodes = processNodeDeletion(node, nextNodes, get);
-    if (['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(node.type || '')) {
+    if (['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service'].includes(node.type || '')) {
       const oldLabel = (node.data?.label as string) || (node.data?.baseName as string) || node.id;
       nextNodes = invalidateTargetReferences(oldLabel, nextNodes);
     }
@@ -655,7 +655,7 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
 
   const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
   if (
-    ['Deployment', 'Pod', 'ReplicaSet', 'Service'].includes(target.type || '') &&
+    ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service'].includes(target.type || '') &&
     newData.label !== undefined &&
     prevLabel &&
     newLabel !== prevLabel
@@ -704,7 +704,7 @@ export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () =>
       return;
     }
     set({
-      activeDeploymentId: node.type === 'Deployment' ? node.id : null,
+      activeDeploymentId: (node.type === 'Deployment' || node.type === 'StatefulSet') ? node.id : null,
       configuringNodeId: node.id,
       configuringEdgeId: null
     });

@@ -4,16 +4,17 @@ package k8s
 type K8sResourceType string
 
 const (
-	TypePod        K8sResourceType = "Pod"
-	TypeService    K8sResourceType = "Service"
-	TypeDeployment K8sResourceType = "Deployment"
-	TypeNamespace  K8sResourceType = "Namespace"
-	TypeInternet   K8sResourceType = "Internet"
-	TypeIngress    K8sResourceType = "Ingress"
-	TypeHPA        K8sResourceType = "HPA"
-	TypePVC        K8sResourceType = "PVC"
-	TypeConfigMap  K8sResourceType = "ConfigMap"
-	TypeSecret     K8sResourceType = "Secret"
+	TypePod         K8sResourceType = "Pod"
+	TypeService     K8sResourceType = "Service"
+	TypeDeployment  K8sResourceType = "Deployment"
+	TypeStatefulSet K8sResourceType = "StatefulSet"
+	TypeNamespace   K8sResourceType = "Namespace"
+	TypeInternet    K8sResourceType = "Internet"
+	TypeIngress     K8sResourceType = "Ingress"
+	TypeHPA         K8sResourceType = "HPA"
+	TypePVC         K8sResourceType = "PVC"
+	TypeConfigMap   K8sResourceType = "ConfigMap"
+	TypeSecret      K8sResourceType = "Secret"
 )
 
 // ConfigDataItem represents a single key-value data pair stored inside a ConfigMap or Secret.

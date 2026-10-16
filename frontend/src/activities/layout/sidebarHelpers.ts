@@ -5,6 +5,7 @@ import { useFlowStore } from '@/store';
 /** Color and border style mapping per Kubernetes resource type in sidebar cards. */
 export const ITEM_STYLES: Record<string, { border: string; text: string }> = {
   Deployment: { border: 'border-l-violet-500 hover:border-violet-500', text: 'text-violet-400' },
+  StatefulSet: { border: 'border-l-indigo-500 hover:border-indigo-500', text: 'text-indigo-400' },
   Pod: { border: 'border-l-cyan-500 hover:border-cyan-500', text: 'text-cyan-400' },
   Service: { border: 'border-l-amber-500 hover:border-amber-500', text: 'text-amber-400' },
   Ingress: { border: 'border-l-rose-500 hover:border-rose-500', text: 'text-rose-400' },
@@ -29,7 +30,7 @@ export interface SidebarSectionDef {
 /** Predefined category sections displayed in the left sidebar accordion. */
 export const SIDEBAR_SECTIONS: SidebarSectionDef[] = [
   { id: 'useful-resources', title: 'Useful Resources', filter: (type: string) => type === 'IAM' },
-  { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'Pod' },
+  { id: 'workloads', title: 'Workloads', filter: (type: string) => type === 'Deployment' || type === 'StatefulSet' || type === 'Pod' },
   { id: 'networking', title: 'Networking', filter: (type: string) => type === 'Service' || type === 'Namespace' || type === 'Ingress' },
   { id: 'security', title: 'Security & Access', filter: (type: string) => type === 'Role' },
   { id: 'configuration', title: 'Configuration', filter: (type: string) => type === 'ConfigMap' || type === 'Secret' },

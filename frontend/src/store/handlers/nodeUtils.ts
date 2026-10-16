@@ -136,11 +136,12 @@ export const getInitialData = (type: K8sResourceType, id: string, get: () => Flo
         yamlSettings: { image: true, resources: true, restartPolicy: true, workloadType: true }
       };
     case 'Deployment':
+    case 'StatefulSet':
       return {
         ...base,
         replicas: 0,
         image: '',
-        workloadType: 'Deployment',
+        workloadType: type === 'StatefulSet' ? 'StatefulSet' : 'Deployment',
         status: 'pending',
         displaySettings: { image: true, resources: false, workloadType: true },
         yamlSettings: { image: true, resources: true, workloadType: true }
@@ -260,7 +261,7 @@ export const applyAutoImageLogic = (targetData: K8sNodeData, data: Partial<K8sNo
  * @returns Updated workload node data patch
  */
 export const syncWorkloadMetadata = (type: string, data: Partial<K8sNodeData>): Partial<K8sNodeData> => {
-  if (!['Pod', 'Deployment', 'ReplicaSet'].includes(type)) return data;
+  if (!['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(type)) return data;
 
   const nextData = { ...data };
   if (data.image) {
