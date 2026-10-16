@@ -102,6 +102,33 @@ describe('WorkloadConfig', () => {
     expect(updateNodeData).toHaveBeenCalledWith('d1', { replicas: 5 });
   });
 
+  it('renders Workload Type selector for StatefulSet type node and defaults to StatefulSet', () => {
+    const selectedNode = {
+      id: 'ss1',
+      type: 'StatefulSet',
+      data: {
+        label: 'My StatefulSet',
+        replicas: 3
+      }
+    };
+    useFlowStore.setState({ nodes: [selectedNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Workload Type')).toBeDefined();
+    const deployBtn = screen.getByRole('button', { name: 'Deployment' });
+    fireEvent.click(deployBtn);
+
+    expect(performUpdate).toHaveBeenCalledWith({ workloadType: 'Deployment' });
+  });
+
   it('renders Workload Type selector for Deployment and allows switching workloadType', () => {
     const selectedNode = {
       id: 'd1',
