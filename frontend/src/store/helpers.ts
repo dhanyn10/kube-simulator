@@ -189,22 +189,29 @@ export const syncPodsInDeployment = (
   const commonData = getCommonPodData(deployment, currentPods, dataTemplate);
 
   const baseName = (data.label as string) || commonData.label || 'pod';
+  const isStatefulSet = deployment.type === 'StatefulSet' || data.workloadType === 'StatefulSet';
 
-  // Step 1: Generate or preserve a single 5-character group podHash for the deployment (e.g. "k98z")
-  const groupPodHash = forceRandomize
-    ? generateRandomHash(5)
-    : ((data.podHash as string) || (currentPods[0]?.data?.podHash as string) || generateRandomHash(5));
+  // Step 1: Generate or preserve a single 5-character group podHash for Deployment or empty for StatefulSet
+  const groupPodHash = isStatefulSet
+    ? ''
+    : (forceRandomize
+        ? generateRandomHash(5)
+        : ((data.podHash as string) || (currentPods[0]?.data?.podHash as string) || generateRandomHash(5)));
 
   data.podHash = groupPodHash;
 
-  // Step 2: Iterate over target pod replica groups and assign unique per-pod replica suffixes
+  // Step 2: Iterate over target pod replica groups and assign unique per-pod replica suffixes or ordinal indices
+  let currentOrdinal = 0;
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
 
     const existingSuffixes = (existingPod?.data?.replicaSuffixes as string[]) || [];
     const replicaSuffixes: string[] = [];
     for (let i = 0; i < replicas; i++) {
-      if (!forceRandomize && existingSuffixes[i]) {
+      if (isStatefulSet) {
+        replicaSuffixes.push(String(currentOrdinal));
+        currentOrdinal++;
+      } else if (!forceRandomize && existingSuffixes[i]) {
         replicaSuffixes.push(existingSuffixes[i]);
       } else {
         replicaSuffixes.push(i === 0 && existingPod?.data?.replicaSuffix && !forceRandomize ? (existingPod.data.replicaSuffix as string) : generateRandomHash(5));
@@ -212,7 +219,10 @@ export const syncPodsInDeployment = (
     }
 
     const replicaSuffix = replicaSuffixes[0];
-    const podName = formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
+    const podName = isStatefulSet
+      ? `${baseName}-${replicaSuffix}`
+      : formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
+
     const params: PodNodeParams = {
       replicas,
       totalReplicas,
@@ -224,9 +234,14 @@ export const syncPodsInDeployment = (
       replicaSuffixes,
     };
 
+    const podDataWithWorkloadType = {
+      ...commonData,
+      workloadType: isStatefulSet ? 'StatefulSet' : 'Deployment'
+    };
+
     return existingPod 
-      ? updatePodNode(existingPod, commonData, params)
-      : createPodNode(commonData, params);
+      ? updatePodNode(existingPod, podDataWithWorkloadType, params)
+      : createPodNode(podDataWithWorkloadType, params);
   });
 };
 

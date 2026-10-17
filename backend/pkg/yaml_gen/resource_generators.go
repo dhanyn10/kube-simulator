@@ -1,6 +1,8 @@
 package yaml_gen
 
 import (
+	"fmt"
+
 	"build-wails/backend/pkg/k8s"
 )
 
@@ -60,6 +62,87 @@ func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenC
 		replicas = *data.Replicas
 	}
 
+	_, targetIDs := getPodDataAndIDs(data, ctx)
+
+	var pvcEdges []k8s.FrontendEdge
+	for _, sourceID := range targetIDs {
+		for _, edge := range ctx.sourceEdgeMap[sourceID] {
+			targetNode := ctx.nodeMap[edge.Target]
+			if targetNode != nil && targetNode.Type == "PVC" {
+				pvcEdges = append(pvcEdges, edge)
+			}
+		}
+	}
+
+	var volumeClaimTemplates []k8s.PVC
+	var vctVolumeMounts []k8s.VolumeMount
+
+	for index, edge := range pvcEdges {
+		pvcNode := ctx.nodeMap[edge.Target]
+		pvcName := "data"
+		accessMode := "ReadWriteOnce"
+		storageCapacity := "1Gi"
+		storageClass := "standard"
+		if pvcNode != nil {
+			if pvcNode.Data.Label != "" {
+				pvcName = sanitizeName(pvcNode.Data.Label)
+			}
+			if pvcNode.Data.AccessMode != "" {
+				accessMode = pvcNode.Data.AccessMode
+			}
+			if pvcNode.Data.StorageCapacity != "" {
+				storageCapacity = pvcNode.Data.StorageCapacity
+			}
+			if pvcNode.Data.StorageClass != "" {
+				storageClass = pvcNode.Data.StorageClass
+			}
+		}
+
+		volName := pvcName
+		vctVolumeMounts = append(vctVolumeMounts, k8s.VolumeMount{
+			Name:      volName,
+			MountPath: fmt.Sprintf("/data-%d", index),
+		})
+
+		vct := k8s.PVC{
+			ApiVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+			Metadata: k8s.ObjectMeta{
+				Name: volName,
+			},
+			Spec: k8s.PVCSpec{
+				AccessModes: []string{accessMode},
+				Resources: k8s.ResourceRequirements{
+					Requests: map[string]string{
+						"storage": storageCapacity,
+					},
+				},
+				StorageClassName: storageClass,
+			},
+		}
+		volumeClaimTemplates = append(volumeClaimTemplates, vct)
+	}
+
+	svcName := name
+	for _, edge := range ctx.targetEdgeMap[data.ID] {
+		sourceNode := ctx.nodeMap[edge.Source]
+		if sourceNode != nil && sourceNode.Type == "Service" {
+			svcName = sanitizeName(sourceNode.Data.Label)
+			break
+		}
+	}
+	if svcName == "" {
+		svcName = name
+	}
+
+	podTemplate := buildPodTemplateSpec(data, name, ctx)
+	if len(volumeClaimTemplates) > 0 {
+		podTemplate.Spec.Volumes = nil
+		if len(podTemplate.Spec.Containers) > 0 {
+			podTemplate.Spec.Containers[0].VolumeMounts = vctVolumeMounts
+		}
+	}
+
 	return k8s.StatefulSet{
 		ApiVersion: appsApiVersion,
 		Kind:       "StatefulSet",
@@ -68,12 +151,11 @@ func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenC
 			Namespace: namespace,
 		},
 		Spec: k8s.StatefulSetSpec{
-			ServiceName: name,
-			Replicas:    replicas,
-			Selector: k8s.LabelSelector{
-				MatchLabels: map[string]string{"app": name},
-			},
-			Template: buildPodTemplateSpec(data, name, ctx),
+			ServiceName:          svcName,
+			Replicas:             replicas,
+			Selector:             k8s.LabelSelector{MatchLabels: map[string]string{"app": name}},
+			Template:             podTemplate,
+			VolumeClaimTemplates: volumeClaimTemplates,
 		},
 	}
 }
@@ -421,7 +503,12 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 	}
 
 	if val, ok := data.YamlSettings["serviceType"]; !ok || val {
-		svc.Spec.Type = serviceType
+		if serviceType == "Headless" {
+			svc.Spec.Type = "ClusterIP"
+			svc.Spec.ClusterIP = "None"
+		} else {
+			svc.Spec.Type = serviceType
+		}
 	}
 
 	if val, ok := data.YamlSettings["selector"]; !ok || val {

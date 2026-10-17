@@ -115,8 +115,9 @@ export const getPodNames = (nodes: Node[]): string[] => {
     if (data?.replicaSuffixes && Array.isArray(data.replicaSuffixes) && data.replicaSuffixes.length > 1) {
       const baseName = data.baseName || 'pod';
       const podHash = data.podHash || '';
+      const isStatefulSet = data.workloadType === 'StatefulSet' || data.type === 'StatefulSet';
       data.replicaSuffixes.forEach((suf: string) => {
-        podNames.push(formatPodName(baseName, podHash, suf));
+        podNames.push(isStatefulSet ? `${baseName}-${suf}` : formatPodName(baseName, podHash, suf));
       });
     } else {
       podNames.push(String(data?.label ?? p.id));
