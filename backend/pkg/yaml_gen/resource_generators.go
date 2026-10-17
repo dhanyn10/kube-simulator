@@ -55,15 +55,52 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	}
 }
 
-// generateStatefulSet constructs a Kubernetes StatefulSet resource object.
-func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
-	replicas := 1
-	if data.Replicas != nil {
-		replicas = *data.Replicas
+// createVolumeClaimTemplate constructs a single PVC volume claim template and volume mount.
+func createVolumeClaimTemplate(pvcNode *k8s.FrontendNode, index int) (k8s.PVC, k8s.VolumeMount) {
+	pvcName := "data"
+	accessMode := "ReadWriteOnce"
+	storageCapacity := "1Gi"
+	storageClass := "standard"
+
+	if pvcNode != nil {
+		if pvcNode.Data.Label != "" {
+			pvcName = sanitizeName(pvcNode.Data.Label)
+		}
+		if pvcNode.Data.AccessMode != "" {
+			accessMode = pvcNode.Data.AccessMode
+		}
+		if pvcNode.Data.StorageCapacity != "" {
+			storageCapacity = pvcNode.Data.StorageCapacity
+		}
+		if pvcNode.Data.StorageClass != "" {
+			storageClass = pvcNode.Data.StorageClass
+		}
 	}
 
-	_, targetIDs := getPodDataAndIDs(data, ctx)
+	volName := pvcName
+	volMount := k8s.VolumeMount{
+		Name:      volName,
+		MountPath: fmt.Sprintf("/data-%d", index),
+	}
 
+	vct := k8s.PVC{
+		ApiVersion: "v1",
+		Kind:       "PersistentVolumeClaim",
+		Metadata:   k8s.ObjectMeta{Name: volName},
+		Spec: k8s.PVCSpec{
+			AccessModes: []string{accessMode},
+			Resources: k8s.ResourceRequirements{
+				Requests: map[string]string{"storage": storageCapacity},
+			},
+			StorageClassName: storageClass,
+		},
+	}
+
+	return vct, volMount
+}
+
+// buildStatefulSetVolumeClaims builds VolumeClaimTemplates and VolumeMounts for connected PVCs.
+func buildStatefulSetVolumeClaims(targetIDs []string, ctx *GenContext) ([]k8s.PVC, []k8s.VolumeMount) {
 	var pvcEdges []k8s.FrontendEdge
 	for _, sourceID := range targetIDs {
 		for _, edge := range ctx.sourceEdgeMap[sourceID] {
@@ -79,61 +116,35 @@ func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenC
 
 	for index, edge := range pvcEdges {
 		pvcNode := ctx.nodeMap[edge.Target]
-		pvcName := "data"
-		accessMode := "ReadWriteOnce"
-		storageCapacity := "1Gi"
-		storageClass := "standard"
-		if pvcNode != nil {
-			if pvcNode.Data.Label != "" {
-				pvcName = sanitizeName(pvcNode.Data.Label)
-			}
-			if pvcNode.Data.AccessMode != "" {
-				accessMode = pvcNode.Data.AccessMode
-			}
-			if pvcNode.Data.StorageCapacity != "" {
-				storageCapacity = pvcNode.Data.StorageCapacity
-			}
-			if pvcNode.Data.StorageClass != "" {
-				storageClass = pvcNode.Data.StorageClass
-			}
-		}
-
-		volName := pvcName
-		vctVolumeMounts = append(vctVolumeMounts, k8s.VolumeMount{
-			Name:      volName,
-			MountPath: fmt.Sprintf("/data-%d", index),
-		})
-
-		vct := k8s.PVC{
-			ApiVersion: "v1",
-			Kind:       "PersistentVolumeClaim",
-			Metadata: k8s.ObjectMeta{
-				Name: volName,
-			},
-			Spec: k8s.PVCSpec{
-				AccessModes: []string{accessMode},
-				Resources: k8s.ResourceRequirements{
-					Requests: map[string]string{
-						"storage": storageCapacity,
-					},
-				},
-				StorageClassName: storageClass,
-			},
-		}
+		vct, volMount := createVolumeClaimTemplate(pvcNode, index)
 		volumeClaimTemplates = append(volumeClaimTemplates, vct)
+		vctVolumeMounts = append(vctVolumeMounts, volMount)
 	}
 
-	svcName := name
-	for _, edge := range ctx.targetEdgeMap[data.ID] {
+	return volumeClaimTemplates, vctVolumeMounts
+}
+
+// findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
+func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
+	for _, edge := range ctx.targetEdgeMap[nodeID] {
 		sourceNode := ctx.nodeMap[edge.Source]
 		if sourceNode != nil && sourceNode.Type == "Service" {
-			svcName = sanitizeName(sourceNode.Data.Label)
-			break
+			return sanitizeName(sourceNode.Data.Label)
 		}
 	}
-	if svcName == "" {
-		svcName = name
+	return fallbackName
+}
+
+// generateStatefulSet constructs a Kubernetes StatefulSet resource object.
+func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
+	replicas := 1
+	if data.Replicas != nil {
+		replicas = *data.Replicas
 	}
+
+	_, targetIDs := getPodDataAndIDs(data, ctx)
+	volumeClaimTemplates, vctVolumeMounts := buildStatefulSetVolumeClaims(targetIDs, ctx)
+	svcName := findStatefulSetServiceName(data.ID, name, ctx)
 
 	podTemplate := buildPodTemplateSpec(data, name, ctx)
 	if len(volumeClaimTemplates) > 0 {

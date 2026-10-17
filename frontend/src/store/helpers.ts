@@ -192,11 +192,15 @@ export const syncPodsInDeployment = (
   const isStatefulSet = deployment.type === 'StatefulSet' || data.workloadType === 'StatefulSet';
 
   // Step 1: Generate or preserve a single 5-character group podHash for Deployment or empty for StatefulSet
-  const groupPodHash = isStatefulSet
-    ? ''
-    : (forceRandomize
-        ? generateRandomHash(5)
-        : ((data.podHash as string) || (currentPods[0]?.data?.podHash as string) || generateRandomHash(5)));
+  let groupPodHash = '';
+  if (!isStatefulSet) {
+    if (forceRandomize) {
+      groupPodHash = generateRandomHash(5);
+    } else {
+      const existingHash = (data.podHash as string) || (currentPods[0]?.data?.podHash as string);
+      groupPodHash = existingHash || generateRandomHash(5);
+    }
+  }
 
   data.podHash = groupPodHash;
 
@@ -214,7 +218,9 @@ export const syncPodsInDeployment = (
       } else if (!forceRandomize && existingSuffixes[i]) {
         replicaSuffixes.push(existingSuffixes[i]);
       } else {
-        replicaSuffixes.push(i === 0 && existingPod?.data?.replicaSuffix && !forceRandomize ? (existingPod.data.replicaSuffix as string) : generateRandomHash(5));
+        const canReuseSingleSuffix = i === 0 && Boolean(existingPod?.data?.replicaSuffix) && !forceRandomize;
+        const initialSuffix = canReuseSingleSuffix ? (existingPod.data.replicaSuffix as string) : generateRandomHash(5);
+        replicaSuffixes.push(initialSuffix);
       }
     }
 
