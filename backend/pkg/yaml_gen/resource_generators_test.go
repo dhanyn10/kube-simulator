@@ -62,6 +62,66 @@ func TestResourceGenerators_StatefulSet(t *testing.T) {
 			t.Errorf("Expected StatefulSet from generateDeployment, got %v", res)
 		}
 	})
+
+	t.Run("Generate StatefulSet with volumeClaimTemplates and Headless Service", func(t *testing.T) {
+		rep := 3
+		ssData := k8s.K8sNodeData{
+			ID:           "ss1",
+			Replicas:     &rep,
+			WorkloadType: "StatefulSet",
+			Label:        "redis-ss",
+		}
+		pvcNode := &k8s.FrontendNode{
+			ID:   "pvc1",
+			Type: "PVC",
+			Data: k8s.K8sNodeData{Label: "data-vol", AccessMode: "ReadWriteOnce", StorageCapacity: "10Gi", StorageClass: "fast-ssd"},
+		}
+		svcNode := &k8s.FrontendNode{
+			ID:   "svc1",
+			Type: "Service",
+			Data: k8s.K8sNodeData{Label: "redis-headless", ServiceType: "Headless"},
+		}
+
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"ss1":  {ID: "ss1", Type: "StatefulSet", Data: ssData},
+				"pvc1": pvcNode,
+				"svc1": svcNode,
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{
+				"ss1": {{Source: "ss1", Target: "pvc1"}},
+			},
+			targetEdgeMap: map[string][]k8s.FrontendEdge{
+				"ss1": {{Source: "svc1", Target: "ss1"}},
+			},
+		}
+
+		resSS := generateStatefulSet(ssData, "redis-ss", "default", ctx)
+		ss, ok := resSS.(k8s.StatefulSet)
+		if !ok {
+			t.Fatalf("Expected StatefulSet, got %v", resSS)
+		}
+		if ss.Spec.ServiceName != "redis-headless" {
+			t.Errorf("Expected ServiceName 'redis-headless', got %s", ss.Spec.ServiceName)
+		}
+		if len(ss.Spec.VolumeClaimTemplates) != 1 {
+			t.Errorf("Expected 1 volumeClaimTemplate, got %d", len(ss.Spec.VolumeClaimTemplates))
+		} else {
+			vct := ss.Spec.VolumeClaimTemplates[0]
+			if vct.Metadata.Name != "data-vol" || vct.Spec.StorageClassName != "fast-ssd" {
+				t.Errorf("Unexpected VCT: %v", vct)
+			}
+		}
+
+		resSvc := generateService(svcNode.Data, "redis-headless", "default", ctx)
+		svc, ok := resSvc.(k8s.Service)
+		if !ok {
+			t.Fatalf("Expected Service, got %v", resSvc)
+		}
+		if svc.Spec.Type != "ClusterIP" || svc.Spec.ClusterIP != "None" {
+			t.Errorf("Expected ClusterIP: None for Headless service, got Type=%s, ClusterIP=%s", svc.Spec.Type, svc.Spec.ClusterIP)
+		}
+	})
 }
 
 func TestResourceGenerators_DisabledFields(t *testing.T) {
