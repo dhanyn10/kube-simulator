@@ -34,33 +34,89 @@ func TestResourceGenerators_HPAMetrics(t *testing.T) {
 	})
 }
 
+func assertStatefulSetSpec(t *testing.T, res interface{}, expectedReplicas int, expectedSvcName string) {
+	t.Helper()
+	ss, ok := res.(k8s.StatefulSet)
+	if !ok || ss.Kind != "StatefulSet" || ss.Spec.Replicas != expectedReplicas {
+		t.Fatalf("Expected StatefulSet with %d replicas, got %v", expectedReplicas, res)
+	}
+	if expectedSvcName != "" && ss.Spec.ServiceName != expectedSvcName {
+		t.Errorf("Expected ServiceName %s, got %s", expectedSvcName, ss.Spec.ServiceName)
+	}
+}
+
+func assertStatefulSetVCT(t *testing.T, ss k8s.StatefulSet, expectedName, expectedStorageClass string) {
+	t.Helper()
+	if len(ss.Spec.VolumeClaimTemplates) != 1 {
+		t.Fatalf("Expected 1 volumeClaimTemplate, got %d", len(ss.Spec.VolumeClaimTemplates))
+	}
+	vct := ss.Spec.VolumeClaimTemplates[0]
+	if vct.Metadata.Name != expectedName || vct.Spec.StorageClassName != expectedStorageClass {
+		t.Errorf("Unexpected VCT: %v", vct)
+	}
+}
+
+func assertHeadlessService(t *testing.T, res interface{}) {
+	t.Helper()
+	svc, ok := res.(k8s.Service)
+	if !ok {
+		t.Fatalf("Expected Service, got %v", res)
+	}
+	if svc.Spec.Type != "ClusterIP" || svc.Spec.ClusterIP != "None" {
+		t.Errorf("Expected ClusterIP: None for Headless service, got Type=%s, ClusterIP=%s", svc.Spec.Type, svc.Spec.ClusterIP)
+	}
+}
+
 func TestResourceGenerators_StatefulSet(t *testing.T) {
 	t.Run("Generate StatefulSet", func(t *testing.T) {
 		rep := 3
-		data := k8s.K8sNodeData{
-			Replicas:     &rep,
-			WorkloadType: "StatefulSet",
-			Image:        "redis:alpine",
-		}
+		data := k8s.K8sNodeData{Replicas: &rep, WorkloadType: "StatefulSet", Image: "redis:alpine"}
 		res := generatePodOrDeployment(data, "redis-ss", "default", &GenContext{})
-		ss, ok := res.(k8s.StatefulSet)
-		if !ok || ss.Kind != "StatefulSet" || ss.Spec.Replicas != 3 {
-			t.Errorf("Expected StatefulSet with 3 replicas, got %v", res)
-		}
+		assertStatefulSetSpec(t, res, 3, "")
 	})
 
 	t.Run("generateDeployment with WorkloadType StatefulSet", func(t *testing.T) {
 		rep := 2
-		data := k8s.K8sNodeData{
-			Replicas:     &rep,
-			WorkloadType: "StatefulSet",
-			Image:        "postgres:15",
-		}
+		data := k8s.K8sNodeData{Replicas: &rep, WorkloadType: "StatefulSet", Image: "postgres:15"}
 		res := generateDeployment(data, "pg-db", "prod", &GenContext{})
-		ss, ok := res.(k8s.StatefulSet)
-		if !ok || ss.Kind != "StatefulSet" || ss.Spec.Replicas != 2 || ss.Spec.ServiceName != "pg-db" {
-			t.Errorf("Expected StatefulSet from generateDeployment, got %v", res)
+		assertStatefulSetSpec(t, res, 2, "pg-db")
+	})
+
+	t.Run("Generate StatefulSet with volumeClaimTemplates and Headless Service", func(t *testing.T) {
+		rep := 3
+		ssData := k8s.K8sNodeData{ID: "ss1", Replicas: &rep, WorkloadType: "StatefulSet", Label: "redis-ss"}
+		pvcNode := &k8s.FrontendNode{
+			ID:   "pvc1",
+			Type: "PVC",
+			Data: k8s.K8sNodeData{Label: "data-vol", AccessMode: "ReadWriteOnce", StorageCapacity: "10Gi", StorageClass: "fast-ssd"},
 		}
+		svcNode := &k8s.FrontendNode{
+			ID:   "svc1",
+			Type: "Service",
+			Data: k8s.K8sNodeData{Label: "redis-headless", ServiceType: "Headless"},
+		}
+
+		ctx := &GenContext{
+			nodeMap: map[string]*k8s.FrontendNode{
+				"ss1":  {ID: "ss1", Type: "StatefulSet", Data: ssData},
+				"pvc1": pvcNode,
+				"svc1": svcNode,
+			},
+			sourceEdgeMap: map[string][]k8s.FrontendEdge{
+				"ss1": {{Source: "ss1", Target: "pvc1"}},
+			},
+			targetEdgeMap: map[string][]k8s.FrontendEdge{
+				"ss1": {{Source: "svc1", Target: "ss1"}},
+			},
+		}
+
+		resSS := generateStatefulSet(ssData, "redis-ss", "default", ctx)
+		assertStatefulSetSpec(t, resSS, 3, "redis-headless")
+		ss := resSS.(k8s.StatefulSet)
+		assertStatefulSetVCT(t, ss, "data-vol", "fast-ssd")
+
+		resSvc := generateService(svcNode.Data, "redis-headless", "default", ctx)
+		assertHeadlessService(t, resSvc)
 	})
 }
 

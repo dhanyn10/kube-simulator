@@ -116,10 +116,11 @@ type Deployment struct {
 }
 
 type StatefulSetSpec struct {
-	ServiceName string        `yaml:"serviceName" json:"serviceName"`
-	Replicas    int           `yaml:"replicas" json:"replicas"`
-	Selector    LabelSelector `yaml:"selector" json:"selector"`
-	Template    PodTemplate   `yaml:"template" json:"template"`
+	ServiceName          string        `yaml:"serviceName" json:"serviceName"`
+	Replicas             int           `yaml:"replicas" json:"replicas"`
+	Selector             LabelSelector `yaml:"selector" json:"selector"`
+	Template             PodTemplate   `yaml:"template" json:"template"`
+	VolumeClaimTemplates []PVC         `yaml:"volumeClaimTemplates,omitempty" json:"volumeClaimTemplates,omitempty"`
 }
 
 type StatefulSet struct {
@@ -137,9 +138,10 @@ type ServicePort struct {
 }
 
 type ServiceSpec struct {
-	Type     string            `yaml:"type,omitempty" json:"type,omitempty"`
-	Selector map[string]string `yaml:"selector,omitempty" json:"selector,omitempty"`
-	Ports    []ServicePort     `yaml:"ports" json:"ports"`
+	Type      string            `yaml:"type,omitempty" json:"type,omitempty"`
+	ClusterIP string            `yaml:"clusterIP,omitempty" json:"clusterIP,omitempty"`
+	Selector  map[string]string `yaml:"selector,omitempty" json:"selector,omitempty"`
+	Ports     []ServicePort     `yaml:"ports" json:"ports"`
 }
 
 type Service struct {

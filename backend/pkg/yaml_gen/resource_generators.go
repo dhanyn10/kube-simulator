@@ -1,6 +1,8 @@
 package yaml_gen
 
 import (
+	"fmt"
+
 	"build-wails/backend/pkg/k8s"
 )
 
@@ -53,11 +55,103 @@ func createPodSpec(data k8s.K8sNodeData, ctx *GenContext) k8s.PodSpec {
 	}
 }
 
+// createVolumeClaimTemplate constructs a single PVC volume claim template and volume mount.
+func createVolumeClaimTemplate(pvcNode *k8s.FrontendNode, index int) (k8s.PVC, k8s.VolumeMount) {
+	pvcName := "data"
+	accessMode := "ReadWriteOnce"
+	storageCapacity := "1Gi"
+	storageClass := "standard"
+
+	if pvcNode != nil {
+		if pvcNode.Data.Label != "" {
+			pvcName = sanitizeName(pvcNode.Data.Label)
+		}
+		if pvcNode.Data.AccessMode != "" {
+			accessMode = pvcNode.Data.AccessMode
+		}
+		if pvcNode.Data.StorageCapacity != "" {
+			storageCapacity = pvcNode.Data.StorageCapacity
+		}
+		if pvcNode.Data.StorageClass != "" {
+			storageClass = pvcNode.Data.StorageClass
+		}
+	}
+
+	volName := pvcName
+	volMount := k8s.VolumeMount{
+		Name:      volName,
+		MountPath: fmt.Sprintf("/data-%d", index),
+	}
+
+	vct := k8s.PVC{
+		ApiVersion: "v1",
+		Kind:       "PersistentVolumeClaim",
+		Metadata:   k8s.ObjectMeta{Name: volName},
+		Spec: k8s.PVCSpec{
+			AccessModes: []string{accessMode},
+			Resources: k8s.ResourceRequirements{
+				Requests: map[string]string{"storage": storageCapacity},
+			},
+			StorageClassName: storageClass,
+		},
+	}
+
+	return vct, volMount
+}
+
+// buildStatefulSetVolumeClaims builds VolumeClaimTemplates and VolumeMounts for connected PVCs.
+func buildStatefulSetVolumeClaims(targetIDs []string, ctx *GenContext) ([]k8s.PVC, []k8s.VolumeMount) {
+	var pvcEdges []k8s.FrontendEdge
+	for _, sourceID := range targetIDs {
+		for _, edge := range ctx.sourceEdgeMap[sourceID] {
+			targetNode := ctx.nodeMap[edge.Target]
+			if targetNode != nil && targetNode.Type == "PVC" {
+				pvcEdges = append(pvcEdges, edge)
+			}
+		}
+	}
+
+	var volumeClaimTemplates []k8s.PVC
+	var vctVolumeMounts []k8s.VolumeMount
+
+	for index, edge := range pvcEdges {
+		pvcNode := ctx.nodeMap[edge.Target]
+		vct, volMount := createVolumeClaimTemplate(pvcNode, index)
+		volumeClaimTemplates = append(volumeClaimTemplates, vct)
+		vctVolumeMounts = append(vctVolumeMounts, volMount)
+	}
+
+	return volumeClaimTemplates, vctVolumeMounts
+}
+
+// findStatefulSetServiceName identifies connected Service name for a StatefulSet or falls back to name.
+func findStatefulSetServiceName(nodeID, fallbackName string, ctx *GenContext) string {
+	for _, edge := range ctx.targetEdgeMap[nodeID] {
+		sourceNode := ctx.nodeMap[edge.Source]
+		if sourceNode != nil && sourceNode.Type == "Service" {
+			return sanitizeName(sourceNode.Data.Label)
+		}
+	}
+	return fallbackName
+}
+
 // generateStatefulSet constructs a Kubernetes StatefulSet resource object.
 func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenContext) interface{} {
 	replicas := 1
 	if data.Replicas != nil {
 		replicas = *data.Replicas
+	}
+
+	_, targetIDs := getPodDataAndIDs(data, ctx)
+	volumeClaimTemplates, vctVolumeMounts := buildStatefulSetVolumeClaims(targetIDs, ctx)
+	svcName := findStatefulSetServiceName(data.ID, name, ctx)
+
+	podTemplate := buildPodTemplateSpec(data, name, ctx)
+	if len(volumeClaimTemplates) > 0 {
+		podTemplate.Spec.Volumes = nil
+		if len(podTemplate.Spec.Containers) > 0 {
+			podTemplate.Spec.Containers[0].VolumeMounts = vctVolumeMounts
+		}
 	}
 
 	return k8s.StatefulSet{
@@ -68,12 +162,11 @@ func generateStatefulSet(data k8s.K8sNodeData, name, namespace string, ctx *GenC
 			Namespace: namespace,
 		},
 		Spec: k8s.StatefulSetSpec{
-			ServiceName: name,
-			Replicas:    replicas,
-			Selector: k8s.LabelSelector{
-				MatchLabels: map[string]string{"app": name},
-			},
-			Template: buildPodTemplateSpec(data, name, ctx),
+			ServiceName:          svcName,
+			Replicas:             replicas,
+			Selector:             k8s.LabelSelector{MatchLabels: map[string]string{"app": name}},
+			Template:             podTemplate,
+			VolumeClaimTemplates: volumeClaimTemplates,
 		},
 	}
 }
@@ -421,7 +514,12 @@ func generateService(data k8s.K8sNodeData, name, namespace string, ctx *GenConte
 	}
 
 	if val, ok := data.YamlSettings["serviceType"]; !ok || val {
-		svc.Spec.Type = serviceType
+		if serviceType == "Headless" {
+			svc.Spec.Type = "ClusterIP"
+			svc.Spec.ClusterIP = "None"
+		} else {
+			svc.Spec.Type = serviceType
+		}
 	}
 
 	if val, ok := data.YamlSettings["selector"]; !ok || val {
