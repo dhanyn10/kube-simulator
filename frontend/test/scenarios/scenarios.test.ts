@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { scenarios } from '@/scenarios';
 
 describe('Scenarios', () => {
@@ -47,4 +47,28 @@ describe('Scenarios', () => {
       });
     });
   });
+
+  it('handles pvc scenarios where difficulty is missing and level is used', async () => {
+    vi.resetModules();
+    vi.doMock('@/scenarios/pvc-scenarios.json', () => ({
+      default: [
+        {
+          id: 'pvc-fallback-level',
+          name: 'Fallback Level PVC',
+          level: 'Intermediate',
+          description: 'Testing level fallback without difficulty',
+          data: { nodes: [], edges: [] }
+        }
+      ]
+    }));
+
+    const { scenarios: reloadedScenarios } = await import('@/scenarios');
+    const matched = reloadedScenarios.find(s => s.id === 'pvc-fallback-level');
+    expect(matched).toBeDefined();
+    expect(matched?.level).toBe('Intermediate');
+    expect(matched?.data.nodes).toEqual([]);
+
+    vi.doUnmock('@/scenarios/pvc-scenarios.json');
+  });
 });
+

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useCanvasNodes } from '@/activities/nodes/useCanvasNodes';
 import { useFlowStore } from '@/store';
 import { Node } from '@xyflow/react';
@@ -31,10 +31,25 @@ describe('useCanvasNodes hook', () => {
     expect(secNodeForbidden?.draggable).toBe(false);
 
     // Switch to system:admin: all nodes allowed
-    useFlowStore.setState({ activeIdentity: 'system:admin' });
+    act(() => {
+      useFlowStore.setState({ activeIdentity: 'system:admin' });
+    });
     rerender();
 
     const secNodeAdmin = result.current.find((n) => n.id === 'sec-1');
     expect(secNodeAdmin?.draggable).toBe(true);
+  });
+
+  it('handles undefined iamUsers gracefully with fallback to empty array', () => {
+    act(() => {
+      useFlowStore.setState({
+        activeIdentity: 'dev-user',
+        iamUsers: undefined as any,
+      });
+    });
+
+    const { result } = renderHook(() => useCanvasNodes());
+    const podNode = result.current.find((n) => n.id === 'pod-1');
+    expect(podNode).toBeDefined();
   });
 });

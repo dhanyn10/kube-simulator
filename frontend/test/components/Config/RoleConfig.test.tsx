@@ -81,4 +81,33 @@ describe('RoleConfig', () => {
 
     expect(screen.getByText('No RBAC rules defined. Click "Add Rule" to start.')).toBeInTheDocument();
   });
+
+  it('handles data without rules property fallback gracefully', () => {
+    render(<RoleConfig data={{ label: 'no-rules-role', type: 'Role' } as any} nodeId="r1" />);
+
+    expect(screen.getByText('No RBAC rules defined. Click "Add Rule" to start.')).toBeInTheDocument();
+  });
+
+  it('renders rule cards in light mode with empty verbs fallback in ruleKey', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const lightRoleData = {
+      label: 'light-role',
+      type: 'Role' as const,
+      rules: [
+        {
+          apiGroups: ['apps'],
+          resources: ['services'],
+          verbs: [], // tests empty verbs fallback 'none'
+        },
+      ],
+    };
+
+    render(<RoleConfig data={lightRoleData} nodeId="r1" />);
+
+    expect(screen.getByText('Rule #1')).toBeInTheDocument();
+    expect(screen.getByText('Target Resources:')).toHaveClass('text-slate-600');
+    expect(screen.getByText('Allowed Verbs:')).toHaveClass('text-slate-600');
+  });
 });
+
