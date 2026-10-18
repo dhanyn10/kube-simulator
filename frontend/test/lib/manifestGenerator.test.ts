@@ -474,4 +474,150 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('name: service-1');
     expect(yamlOutput).toContain('name: pod-1');
   });
+
+  it('covers remaining uncovered branches in manifestGenerator', () => {
+    // 1. Multiple edges with identical source and target to cover buildEdgeMaps else branches
+    const edgeSharingNodes = [
+      { id: 'pod-src', type: 'Pod', data: { label: 'pod-source' } },
+      { id: 'pvc-tgt', type: 'PVC', data: { label: 'pvc-target' } },
+    ];
+    const duplicateEdges = [
+      { id: 'e1', source: 'pod-src', target: 'pvc-tgt' },
+      { id: 'e2', source: 'pod-src', target: 'pvc-tgt' },
+    ];
+    expect(generateYamlClientSide(edgeSharingNodes, duplicateEdges)).toContain('name: pod-source');
+
+    // 2. Namespace with empty label (covers getNamespace fallback and sanitizeName empty check)
+    const nsWithEmptyLabel = [
+      { id: 'ns-empty', type: 'Namespace', data: { label: '' } },
+      { id: 'pod-scoped', type: 'Pod', parentId: 'ns-empty', data: { label: 'scoped-pod' } },
+    ];
+    expect(generateYamlClientSide(nsWithEmptyLabel, [])).toContain('name: scoped-pod');
+
+    // 3. StatefulSet with bare PVC defaults, edge to non-PVC, incoming from non-Service, and incoming from Service without label
+    const statefulSetNodes = [
+      {
+        id: 'ss-bare',
+        type: 'StatefulSet',
+        data: {
+          label: 'ss-bare-app',
+          workloadType: 'StatefulSet',
+          // replicas undefined -> 1
+        },
+      },
+      {
+        id: 'pvc-bare-1',
+        type: 'PVC',
+        data: {
+          // label undefined -> 'data'
+          // accessMode undefined -> 'ReadWriteOnce'
+          // storageClass undefined -> 'standard'
+          // storageCapacity undefined -> '1Gi'
+        },
+      },
+      {
+        id: 'pvc-no-storageclass',
+        type: 'PVC',
+        data: {
+          label: 'pvc-no-sc',
+          yamlSettings: { storageClass: false }, // storageClassName becomes undefined
+        },
+      },
+      {
+        id: 'cm-extra',
+        type: 'ConfigMap',
+        data: { label: 'cm-extra' },
+      },
+      {
+        id: 'svc-no-label',
+        type: 'Service',
+        data: {}, // label undefined -> fallback to name
+      },
+      {
+        id: 'pod-sender',
+        type: 'Pod',
+        data: { label: 'sender-pod' },
+      },
+    ];
+
+    const ssEdges = [
+      { id: 'e-ss-pvc1', source: 'ss-bare', target: 'pvc-bare-1' },
+      { id: 'e-ss-pvc2', source: 'ss-bare', target: 'pvc-no-storageclass' },
+      { id: 'e-ss-cm', source: 'ss-bare', target: 'cm-extra' }, // target is not PVC
+      { id: 'e-pod-ss', source: 'pod-sender', target: 'ss-bare' }, // source is not Service
+      { id: 'e-svc-ss', source: 'svc-no-label', target: 'ss-bare' }, // source is Service without label
+    ];
+
+    const ssYaml = generateYamlClientSide(statefulSetNodes, ssEdges);
+    expect(ssYaml).toContain('kind: StatefulSet');
+    expect(ssYaml).toContain('storageClassName: standard');
+    expect(ssYaml).toContain('storage: 1Gi');
+    expect(ssYaml).toContain('ReadWriteOnce');
+
+    // 4. Service with selector pointing to target workload without label
+    const svcNodes = [
+      { id: 'svc-select', type: 'Service', data: { label: 'my-service' } },
+      { id: 'pod-target-no-label', type: 'Pod', data: {} },
+    ];
+    const svcEdges = [{ id: 'e-svc-select', source: 'svc-select', target: 'pod-target-no-label' }];
+    const svcYaml = generateYamlClientSide(svcNodes, svcEdges);
+    expect(svcYaml).toContain('app: my-service');
+
+    // 5. Ingress outgoing edge to non-Service node, and to Service without port/label
+    const ingressNodes = [
+      { id: 'ing-edge-test', type: 'Ingress', data: { label: 'my-ing' } },
+      { id: 'pod-not-svc', type: 'Pod', data: { label: 'not-svc' } },
+      { id: 'svc-bare-tgt', type: 'Service', data: {} },
+    ];
+    const ingressEdges = [
+      { id: 'e-ing-pod', source: 'ing-edge-test', target: 'pod-not-svc' },
+      { id: 'e-ing-svc', source: 'ing-edge-test', target: 'svc-bare-tgt' },
+    ];
+    const ingYaml = generateYamlClientSide(ingressNodes, ingressEdges);
+    expect(ingYaml).toContain('kind: Ingress');
+    expect(ingYaml).toContain('number: 80');
+
+    // 6. Secret configData with empty key and undefined value
+    const secretNodes = [
+      {
+        id: 'sec-edge-cases',
+        type: 'Secret',
+        data: {
+          label: 'secret-edges',
+          configData: [
+            { key: '', value: 'empty-key-ignored' },
+            { key: 'EMPTY_VAL_KEY', value: undefined },
+          ],
+        },
+      },
+    ];
+    const secYaml = generateYamlClientSide(secretNodes, []);
+    expect(secYaml).toContain('EMPTY_VAL_KEY: \'\'');
+    expect(secYaml).not.toContain('empty-key-ignored');
+
+    // 7. PVC with bare defaults and with yamlSettings.storageClass: false
+    const pvcTestNodes = [
+      {
+        id: 'pvc-default-values',
+        type: 'PVC',
+        data: {
+          label: 'pvc-default-values',
+          // accessMode, storageClass, storageCapacity are undefined
+        },
+      },
+      {
+        id: 'pvc-disabled-sc',
+        type: 'PVC',
+        data: {
+          label: 'pvc-disabled-sc',
+          yamlSettings: { storageClass: false },
+        },
+      },
+    ];
+    const pvcYaml = generateYamlClientSide(pvcTestNodes, []);
+    expect(pvcYaml).toContain('ReadWriteOnce');
+    expect(pvcYaml).toContain('storage: 1Gi');
+    expect(pvcYaml).toContain('storageClassName: standard');
+    expect(pvcYaml).not.toContain('storageClassName: false');
+  });
 });

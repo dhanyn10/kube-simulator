@@ -205,4 +205,19 @@ describe('RightSidebar', () => {
     fireEvent.click(settingsTab);
     expect(screen.getAllByText('Settings').length).toBeGreaterThan(0);
   });
+
+  it('covers light mode rendering for canvas dropdown menu and selected element settings panel', () => {
+    useFlowStore.setState({ colorMode: 'light', configuringNodeId: 'node-1' });
+
+    render(<RightSidebar onExportYaml={vi.fn()} />);
+
+    // 1. SettingsPanel in light mode with selected node
+    expect(screen.getByTestId('node-config')).toBeDefined();
+
+    // 2. Switch to Canvas tab and open dropdown in light mode
+    fireEvent.click(screen.getByRole('button', { name: /Canvas/i }));
+    fireEvent.click(screen.getByTestId('canvas-dropdown-toggle'));
+
+    expect(screen.getByTestId('open-yaml-inspector')).toBeDefined();
+  });
 });
