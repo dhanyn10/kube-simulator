@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pauseSimulation, stopSimulation, checkEmergencyStop, broadcastMetrics, validateHpaTargets, getMetricsChannel } from '@/store/slices/simulationManager';
+import { pauseSimulation, stopSimulation, checkEmergencyStop, broadcastMetrics, validateHpaTargets, getMetricsChannel, setMetricsChannel } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete (globalThis as any).runtime;
+    delete (window as any).runtime;
   });
 
   describe('validateHpaTargets', () => {
@@ -72,7 +72,7 @@ describe('simulationManager', () => {
 
   describe('pauseSimulation', () => {
     it('pauses simulation and clears interval', () => {
-      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+      const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
       const intervalRef = { current: setTimeout(() => {}, 1000) as any };
       const setFn = vi.fn();
 
@@ -152,7 +152,7 @@ describe('simulationManager', () => {
     it('returns true and stops simulation after grace period of consecutive unready ticks', () => {
       const set = vi.fn();
       const mockEmit = vi.fn();
-      (globalThis as any).runtime = { EventsEmit: mockEmit };
+      (window as any).runtime = { EventsEmit: mockEmit };
 
       const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
       const nodes = [
@@ -203,21 +203,97 @@ describe('simulationManager', () => {
       expect(result).toBe(true);
       expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
     });
+
+    it('posts DETACHED_CLOSED message when metricsChannel is active during emergency stop', () => {
+      const channel = getMetricsChannel();
+      const postMessageSpy = vi.spyOn(channel!, 'postMessage');
+      const set = vi.fn();
+      const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
+      const nodes = [
+        { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
+      ];
+      const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
+      const interval = { current: null };
+
+      for (let i = 0; i < 40; i++) {
+        checkEmergencyStop({
+          ticks: 5 + i,
+          workloads,
+          nodes,
+          metrics,
+          set,
+          simulationInterval: interval
+        });
+      }
+
+      expect(postMessageSpy).toHaveBeenCalledWith({ type: 'DETACHED_CLOSED' });
+    });
+
+    it('handles emergency stop when metricsChannel is null', () => {
+      const originalChannel = getMetricsChannel();
+      setMetricsChannel(null);
+      try {
+        const set = vi.fn();
+        const workloads = [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node];
+        const nodes = [
+          { id: 'p1', type: 'Pod', parentId: 'd1', data: { status: 'pending' }, position: { x: 0, y: 0 } } as unknown as Node
+        ];
+        const metrics = { 'd1': [{ cpuValue: 100, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
+        const interval = { current: null };
+
+        let result = false;
+        for (let i = 0; i < 40; i++) {
+          result = checkEmergencyStop({
+            ticks: 5 + i,
+            workloads,
+            nodes,
+            metrics,
+            set,
+            simulationInterval: interval
+          });
+        }
+
+        expect(result).toBe(true);
+        expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
+      } finally {
+        setMetricsChannel(originalChannel);
+      }
+    });
   });
 
   describe('broadcastMetrics', () => {
     it('calls runtime and channel', () => {
-      globalThis.go = { main: { App: {} } } as any;
+      (window as any).go = { main: { App: {} } } as any;
       const mockEmit = vi.fn();
-      (globalThis as any).runtime = { EventsEmit: mockEmit };
+      (window as any).runtime = { EventsEmit: mockEmit };
 
       broadcastMetrics({ 'd1': [] }, [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node]);
       expect(mockEmit).toHaveBeenCalledWith('metrics-update', expect.any(String));
     });
 
+    it('handles broadcastMetrics when metricsChannel is null', () => {
+      const originalChannel = getMetricsChannel();
+      setMetricsChannel(null);
+      try {
+        expect(() => {
+          broadcastMetrics({ 'd1': [] }, [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node]);
+        }).not.toThrow();
+      } finally {
+        setMetricsChannel(originalChannel);
+      }
+    });
+
+    it('calls channel postMessage when metricsChannel is present', () => {
+      const channel = getMetricsChannel();
+      const postMessageSpy = vi.spyOn(channel!, 'postMessage');
+
+      broadcastMetrics({ 'd1': [] }, [{ id: 'd1', data: { label: 'web' }, position: { x: 0, y: 0 } } as unknown as Node]);
+      expect(postMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'METRICS_UPDATE' }));
+    });
+
     it('handles workload without replicas property falling back to 1', () => {
       const mockEmit = vi.fn();
-      (globalThis as any).runtime = { EventsEmit: mockEmit };
+      (window as any).runtime = { EventsEmit: mockEmit };
 
       const workloadNoReplicas = { id: 'd-noreps', data: { label: 'noreps' }, position: { x: 0, y: 0 } } as unknown as Node;
       broadcastMetrics({ 'd-noreps': [] }, [workloadNoReplicas]);

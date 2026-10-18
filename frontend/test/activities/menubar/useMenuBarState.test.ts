@@ -163,6 +163,27 @@ describe('useMenuBarState', () => {
     });
     expect(result.current.activeMenu).toBe('File');
 
+    // Test click inside menuRef does NOT close activeMenu (covers else branch of line 101)
+    const menuEl = document.createElement('div');
+    const innerBtn = document.createElement('button');
+    menuEl.appendChild(innerBtn);
+    document.body.appendChild(menuEl);
+    (result.current.menuRef as any).current = menuEl;
+
+    act(() => {
+      result.current.setActiveMenu('File');
+    });
+    expect(result.current.activeMenu).toBe('File');
+
+    act(() => {
+      innerBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(result.current.activeMenu).toBe('File');
+
+    // Clean up DOM
+    document.body.removeChild(menuEl);
+
+    // Test outside click to close active menu
     act(() => {
       const event = new MouseEvent('mousedown', { bubbles: true });
       document.dispatchEvent(event);
