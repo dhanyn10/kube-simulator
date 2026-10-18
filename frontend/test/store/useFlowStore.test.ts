@@ -28,6 +28,7 @@ describe('useFlowStore', () => {
   it('formatAutosaveKey generates correctly formatted timestamp string and getCurrentSessionAutosaveKey caches key', () => {
     const d = new Date(2026, 8, 10, 12, 0, 8); // Sep 10, 2026 12:00:08
     expect(formatAutosaveKey(d)).toBe('autosave-10092026120008');
+    expect(formatAutosaveKey()).toMatch(/^autosave-\d+/);
 
     const key1 = getCurrentSessionAutosaveKey();
     const key2 = getCurrentSessionAutosaveKey();
@@ -37,14 +38,25 @@ describe('useFlowStore', () => {
 
   it('initializes with default values and executes initial history timeout capture', async () => {
     vi.useFakeTimers();
-    const mockPush = vi.fn();
+    vi.resetModules();
+    const mockPush = vi.fn().mockResolvedValue(true);
     (globalThis as any).go = { main: { App: { PushHistory: mockPush } } };
+
+    const freshModule = await import('@/store/useFlowStore');
 
     // Advance fake timers to trigger module top-level setTimeout
     vi.advanceTimersByTime(600);
+    expect(mockPush).toHaveBeenCalled();
+
+    // Also test when go backend is absent on initial capture
+    vi.resetModules();
+    delete (globalThis as any).go;
+    await import('@/store/useFlowStore');
+    vi.advanceTimersByTime(600);
+
     vi.useRealTimers();
 
-    const state = useFlowStore.getState();
+    const state = freshModule.useFlowStore.getState();
     expect(state.lastActionId).toBe('init');
     expect(state.nodes).toEqual([]);
   });
@@ -170,5 +182,78 @@ describe('useFlowStore', () => {
   it('can select state using the hook selector wrapper via renderHook', () => {
     const { result } = renderHook(() => useFlowStore((state) => state.lastActionId));
     expect(result.current).toBeDefined();
+  });
+
+  it('handles beforeunload event and executes autosave', () => {
+    const saveSettingSpy = vi.fn();
+    (globalThis as any).go = { main: { App: { SaveSetting: saveSettingSpy } } };
+
+    globalThis.dispatchEvent(new Event('beforeunload'));
+    expect(saveSettingSpy).toHaveBeenCalled();
+  });
+
+  it('skips autosave when isAutosaveEnabled is false', () => {
+    const saveSettingSpy = vi.fn();
+    (globalThis as any).go = { main: { App: { SaveSetting: saveSettingSpy } } };
+
+    useFlowStore.setState({
+      isAutosaveEnabled: false,
+      lastActionId: 'action-disabled-autosave',
+    });
+
+    expect(saveSettingSpy).not.toHaveBeenCalled();
+    useFlowStore.setState({ isAutosaveEnabled: true });
+  });
+
+  it('skips recording history when lastActionId does not change', () => {
+    const pushSpy = (globalThis as any).go.main.App.PushHistory;
+    pushSpy.mockClear();
+
+    useFlowStore.setState({ isTerminalOpen: true });
+    expect(pushSpy).not.toHaveBeenCalled();
+  });
+
+  it('handles missing fetchHistoryLogs or missing SaveSetting / UpdateProject', async () => {
+    // Missing SaveSetting on App
+    (globalThis as any).go = {
+      main: {
+        App: {
+          PushHistory: vi.fn().mockResolvedValue(true),
+        }
+      }
+    };
+
+    useFlowStore.setState({
+      fetchHistoryLogs: undefined as any,
+      currentProject: { id: 99, name: 'Project without UpdateProject' },
+      lastActionId: 'action-no-savesetting-or-updateproject',
+    });
+
+    await new Promise(process.nextTick);
+    expect(useFlowStore.getState().lastActionId).toBe('action-no-savesetting-or-updateproject');
+  });
+
+  it('generates session autosave key on first executeAutosave when key was initially null', async () => {
+    vi.useFakeTimers();
+    vi.resetModules();
+
+    const saveSettingSpy = vi.fn();
+    (globalThis as any).go = {
+      main: {
+        App: {
+          SaveSetting: saveSettingSpy,
+          PushHistory: vi.fn().mockResolvedValue(true),
+        }
+      }
+    };
+
+    const fresh = await import('@/store/useFlowStore');
+    fresh.useFlowStore.setState({
+      isAutosaveEnabled: true,
+      lastActionId: 'action-first-autosave-null-key',
+    });
+
+    expect(saveSettingSpy).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
