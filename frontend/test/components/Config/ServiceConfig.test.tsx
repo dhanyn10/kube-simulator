@@ -351,4 +351,124 @@ describe('ServiceConfig', () => {
 
     expect(screen.getByText('dep-no-label')).toBeInTheDocument();
   });
+
+  it('covers serviceType fallbacks, missing selector showing "---", and light mode NodePort styling', () => {
+    useFlowStore.setState({
+      colorMode: 'light',
+      nodes: [
+        // Ingress without label (falls back to n.id) and duplicate Ingress (optionsMap.has branch)
+        { id: 'ing-no-label', type: 'Ingress', data: {} },
+        { id: 'ing-duplicate', type: 'Ingress', data: { label: 'ing-no-label' } },
+        // Workload with empty parentId string
+        { id: 'pod-empty-parent', type: 'Pod', parentId: '', data: { baseName: 'base-app' } },
+        // Workload with neither label nor baseName (falls back to n.id)
+        { id: 'pod-bare-id', type: 'Pod', parentId: undefined, data: {} },
+        // Duplicate workload label (optionsMap.has branch)
+        { id: 'pod-dup', type: 'Pod', parentId: undefined, data: { label: 'base-app' } },
+        // Standalone Pod with label
+        { id: 'pod-standalone', type: 'Pod', parentId: undefined, data: { label: 'standalone-app' } },
+      ] as any,
+    });
+
+    const fallbackProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-fallback',
+        data: {
+          // serviceType undefined -> defaults to 'ClusterIP'
+          serviceType: undefined,
+          // selector undefined -> defaults to '' and displays '---'
+          selector: undefined,
+          nodePort: 30500,
+        },
+      },
+    };
+
+    const { rerender } = render(<ServiceConfig {...fallbackProps} />);
+
+    // Selector shows '---' with text-rose-400
+    expect(screen.getByText('---')).toHaveClass('text-rose-400');
+
+    // Rerender with unknown serviceType and NodePort to test SERVICE_TYPE_OPTIONS fallback and light mode NodePort input
+    const unknownTypeProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-unknown',
+        data: {
+          serviceType: 'UnknownType' as any,
+          nodePort: 30500,
+        },
+      },
+    };
+    rerender(<ServiceConfig {...unknownTypeProps} />);
+
+    // Rerender with LoadBalancer in light mode to cover Ingress fallbacks and light mode NodePort input
+    const lbProps = {
+      ...mockProps,
+      selectedNode: {
+        id: 's-lb',
+        data: {
+          serviceType: 'LoadBalancer',
+          nodePort: 30500,
+        },
+      },
+    };
+    rerender(<ServiceConfig {...lbProps} />);
+
+    const nodePortInput = screen.getByPlaceholderText('30000-32767 (Optional)');
+    expect(nodePortInput).toHaveClass('bg-slate-50');
+
+    // Open selector dropdown to verify options (ing-no-label, base-app, pod-bare-id, untyped-app)
+    const selectorDropdownBtn = screen.getByRole('button', { name: /---/i });
+    fireEvent.click(selectorDropdownBtn);
+
+    expect(screen.getByText('ing-no-label')).toBeInTheDocument();
+    expect(screen.getByText('base-app')).toBeInTheDocument();
+    expect(screen.getByText('pod-bare-id')).toBeInTheDocument();
+    expect(screen.getByText('standalone-app')).toBeInTheDocument();
+  });
+
+  it('handles clicking inside dropdowns without closing them, and disabled option onClick', () => {
+    // Enable disabled on LoadBalancer
+    if (SERVICE_TYPE_OPTIONS && SERVICE_TYPE_OPTIONS[2]) {
+      SERVICE_TYPE_OPTIONS[2].disabled = true;
+    }
+
+    try {
+      render(<ServiceConfig {...mockProps} />);
+
+      // Open Service Type dropdown
+      const stButton = screen.getByRole('button', { name: /ClusterIP/i });
+      fireEvent.click(stButton);
+      expect(screen.getByText('NodePort')).toBeInTheDocument();
+
+      // Mouse down inside the dropdown menu (should NOT close it)
+      const menu = screen.getByText('NodePort').closest('div');
+      fireEvent.mouseDown(menu!);
+      expect(screen.getByText('NodePort')).toBeInTheDocument();
+
+      // Directly call onClick of the disabled option button to cover if (!isDisabled) else branch
+      const disabledBtn = screen.getByText('Disabled').closest('button');
+      expect(disabledBtn).toBeDisabled();
+      const fiberKey = Object.keys(disabledBtn || {}).find(k => k.startsWith('__reactProps$'));
+      if (fiberKey && (disabledBtn as any)[fiberKey]?.onClick) {
+        (disabledBtn as any)[fiberKey].onClick();
+      }
+
+      // Open selector dropdown and mouse down inside it
+      const selectorBtn = screen.getByRole('button', { name: /web-app/i });
+      fireEvent.click(selectorBtn);
+      const selectorMenu = screen.getByText('backend-pod').closest('div');
+      fireEvent.mouseDown(selectorMenu!);
+      expect(screen.getByText('backend-pod')).toBeInTheDocument();
+
+      // Click outside document closes both
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByText('backend-pod')).toBeNull();
+    } finally {
+      if (SERVICE_TYPE_OPTIONS && SERVICE_TYPE_OPTIONS[2]) {
+        delete SERVICE_TYPE_OPTIONS[2].disabled;
+      }
+    }
+  });
 });

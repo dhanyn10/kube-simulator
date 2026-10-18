@@ -204,6 +204,37 @@ describe('useWorkloadConfig', () => {
       expect(res.isMultiReplicaRwoPvc).toBe(true);
       expect(res.connectedPvcName).toBe('pvc-nolabel');
     });
+
+    it('covers non-PVC edges on source/target and default ReadWriteOnce fallback when accessMode is undefined', () => {
+      const depNode = { id: 'd1', type: 'Deployment', data: { label: 'web' } } as any;
+      const svcNode = { id: 's1', type: 'Service', data: { label: 'svc' } } as any;
+      const ingNode = { id: 'i1', type: 'Ingress', data: { label: 'ing' } } as any;
+      // PVC without accessMode (falls back to 'ReadWriteOnce')
+      const pvcNoAccessMode = { id: 'pvc-default-mode', type: 'PVC', data: { label: 'pvc-vol' } } as any;
+
+      // e1: depNode -> svcNode (source matches workload, but target is Service, not PVC -> line 39 false branch)
+      const edgeToSvc = { id: 'e1', source: 'd1', target: 's1' } as any;
+      // e2: ingNode -> depNode (target matches workload, but source is Ingress, not PVC -> line 42 false branch)
+      const edgeFromIng = { id: 'e2', source: 'i1', target: 'd1' } as any;
+      // e3: ghost-node -> depNode (sourceNode is undefined -> line 42 false branch)
+      const edgeGhost = { id: 'e3', source: 'non-existent', target: 'd1' } as any;
+      // e4: depNode -> pvc-default-mode
+      const edgeToPvc = { id: 'e4', source: 'd1', target: 'pvc-default-mode' } as any;
+      // e5: unrelated edge where neither source nor target is in targetIds -> line 40 false branch
+      const edgeUnrelated = { id: 'e5', source: 'other-a', target: 'other-b' } as any;
+
+      const res = checkWorkloadConnectedPvc(
+        depNode,
+        [depNode, svcNode, ingNode, pvcNoAccessMode],
+        [edgeToSvc, edgeFromIng, edgeGhost, edgeToPvc, edgeUnrelated],
+        2
+      );
+
+      expect(res.isConnectedToPvc).toBe(true);
+      expect(res.connectedPvcAccessMode).toBe('ReadWriteOnce');
+      expect(res.isMultiReplicaRwoPvc).toBe(true);
+      expect(res.connectedPvcName).toBe('pvc-vol');
+    });
   });
 
   describe('useWorkloadConfigHandler', () => {

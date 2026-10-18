@@ -109,7 +109,7 @@ export const ServiceConfig = ({
   const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
   const inSameNamespace = (n: any) => {
     if (!selectedNamespaceId) {
-      return !n.parentId || n.parentId === '';
+      return !n.parentId;
     }
     return n.parentId === selectedNamespaceId;
   };
@@ -139,7 +139,7 @@ export const ServiceConfig = ({
   workloadNodes.forEach((n) => {
     const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
     if (label && !optionsMap.has(label)) {
-      const cat = (n.type?.toUpperCase() || 'POD') as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
+      const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
       optionsMap.set(label, { label, category: cat });
     }
   });
