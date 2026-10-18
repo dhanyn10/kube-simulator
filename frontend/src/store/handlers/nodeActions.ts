@@ -645,8 +645,13 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
 
   const dimProps = computeNodeDimensions(target, updatedData);
 
+  const updatedType = (newData.workloadType && (target.type === 'Deployment' || target.type === 'StatefulSet'))
+    ? (newData.workloadType as K8sResourceType)
+    : target.type;
+
   const updatedNode: Node = {
     ...target,
+    type: updatedType,
     data: updatedData,
     ...dimProps
   };

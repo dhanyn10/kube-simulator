@@ -62,6 +62,23 @@ describe('store helpers', () => {
     expect(updatedPods[0].id).toBe(pods[0].id);
   });
 
+  it('syncPodsInDeployment generates sequential ordinal pod names (-0, -1, -2) for StatefulSet workloads', () => {
+    const statefulSet = { id: 'ss1', type: 'StatefulSet', data: { replicas: 3, label: 'redis-db' } } as any;
+    const pods = syncPodsInDeployment(statefulSet, []);
+
+    expect(pods).toHaveLength(3);
+    expect(pods[0].data.label).toBe('redis-db-0');
+    expect(pods[1].data.label).toBe('redis-db-1');
+    expect(pods[2].data.label).toBe('redis-db-2');
+
+    expect(pods[0].data.replicaSuffix).toBe('0');
+    expect(pods[1].data.replicaSuffix).toBe('1');
+    expect(pods[2].data.replicaSuffix).toBe('2');
+
+    expect(pods[0].data.podHash).toBe('');
+    expect(pods[0].data.workloadType).toBe('StatefulSet');
+  });
+
   it('syncPodsInDeployment adheres strictly to data model: baseName, podHash, replicaSuffix and label formula', () => {
     const deployment = { id: 'd1', type: 'Deployment', data: { replicas: 2, label: 'myapp' } } as any;
     const pods = syncPodsInDeployment(deployment, []);

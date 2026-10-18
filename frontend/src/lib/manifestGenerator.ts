@@ -129,7 +129,7 @@ const createPodSpec = (
   return spec;
 };
 
-const buildPodOrDeploymentManifest = (
+const buildStatefulSetManifest = (
   node: any,
   metadata: any,
   name: string,
@@ -140,22 +140,87 @@ const buildPodOrDeploymentManifest = (
   const replicas = Number(node.data.replicas || 1);
   const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap);
 
-  if (node.data?.workloadType === 'StatefulSet') {
-    return {
-      apiVersion: 'apps/v1',
-      kind: 'StatefulSet',
-      metadata,
-      spec: {
-        serviceName: name,
-        replicas,
-        selector: { matchLabels: { app: name } },
-        template: {
-          metadata: { labels: { app: name } },
-          spec: podSpec,
+  const outgoing = sourceEdgeMap.get(node.id) || [];
+  const pvcNodes: any[] = [];
+  outgoing.forEach((e) => {
+    const target = nodeMap.get(e.target);
+    if (target?.type === 'PVC') {
+      pvcNodes.push(target);
+    }
+  });
+
+  let volumeClaimTemplates: any[] | undefined;
+  if (pvcNodes.length > 0) {
+    const vctVolumeMounts: any[] = [];
+    volumeClaimTemplates = pvcNodes.map((pvcNode, index) => {
+      const pvcName = sanitizeName(pvcNode.data?.label || 'data');
+      vctVolumeMounts.push({
+        name: pvcName,
+        mountPath: `/data-${index}`,
+      });
+      return {
+        apiVersion: 'v1',
+        kind: 'PersistentVolumeClaim',
+        metadata: { name: pvcName },
+        spec: {
+          accessModes: [pvcNode.data?.accessMode || 'ReadWriteOnce'],
+          storageClassName:
+            pvcNode.data?.yamlSettings?.storageClass !== false
+              ? pvcNode.data?.storageClass || 'standard'
+              : undefined,
+          resources: { requests: { storage: pvcNode.data?.storageCapacity || '1Gi' } },
         },
-      },
-    };
+      };
+    });
+
+    podSpec.volumes = undefined;
+    if (podSpec.containers && podSpec.containers.length > 0) {
+      podSpec.containers[0].volumeMounts = vctVolumeMounts;
+    }
   }
+
+  let serviceName = name;
+  const incoming = targetEdgeMap.get(node.id) || [];
+  for (const e of incoming) {
+    const src = nodeMap.get(e.source);
+    if (src?.type === 'Service') {
+      serviceName = sanitizeName(src.data?.label || name);
+      break;
+    }
+  }
+
+  return {
+    apiVersion: 'apps/v1',
+    kind: 'StatefulSet',
+    metadata,
+    spec: {
+      serviceName,
+      replicas,
+      selector: { matchLabels: { app: name } },
+      template: {
+        metadata: { labels: { app: name } },
+        spec: podSpec,
+      },
+      volumeClaimTemplates,
+    },
+  };
+};
+
+const buildPodOrDeploymentManifest = (
+  node: any,
+  metadata: any,
+  name: string,
+  targetEdgeMap: Map<string, any[]>,
+  sourceEdgeMap: Map<string, any[]>,
+  nodeMap: Map<string, any>
+) => {
+  const replicas = Number(node.data.replicas || 1);
+
+  if (node.type === 'StatefulSet' || node.data?.workloadType === 'StatefulSet') {
+    return buildStatefulSetManifest(node, metadata, name, targetEdgeMap, sourceEdgeMap, nodeMap);
+  }
+
+  const podSpec = createPodSpec(node.data, node.id, targetEdgeMap, sourceEdgeMap, nodeMap);
 
   if (node.type === 'Deployment' || replicas > 1) {
     return {
@@ -229,12 +294,21 @@ const buildServiceManifest = (
 
   const selectorLabel = determineServiceSelector(node, name, nodeMap, sourceEdgeMap);
 
+  let specType: string | undefined = serviceType;
+  let clusterIP: string | undefined;
+
+  if (serviceType === 'Headless') {
+    specType = 'ClusterIP';
+    clusterIP = 'None';
+  }
+
   return {
     apiVersion: 'v1',
     kind: 'Service',
     metadata,
     spec: {
-      type: node.data.yamlSettings?.serviceType !== false ? serviceType : undefined,
+      type: node.data.yamlSettings?.serviceType !== false ? specType : undefined,
+      clusterIP,
       ports: [portObject],
       selector:
         node.data.yamlSettings?.selector !== false
@@ -375,6 +449,7 @@ const buildNodeManifest = (
   switch (node.type) {
     case 'Pod':
     case 'Deployment':
+    case 'StatefulSet':
       return buildPodOrDeploymentManifest(
         node,
         metadata,

@@ -119,6 +119,30 @@ describe('useBaseNode activity helpers and hook', () => {
       expect(formatDisplayLabel({ label: 'my-pod', podHash: 'abc12' } as K8sNodeData, 'my-pod', true)).toBe('my-pod-abc12-*****');
       expect(formatDisplayLabel({ label: 'my-pod' } as K8sNodeData, 'my-pod', true)).toBe('my-pod-*****');
     });
+
+    it('masks stacked pod label for StatefulSet as podBaseName-*', () => {
+      expect(formatDisplayLabel({ label: 'redis-0', workloadType: 'StatefulSet' } as K8sNodeData, 'redis', true)).toBe('redis-*');
+      expect(formatDisplayLabel({ label: 'redis-0', type: 'StatefulSet' } as K8sNodeData, 'redis', true)).toBe('redis-*');
+    });
+
+    it('evaluates autocomplete hover for StatefulSet pod with ordinal indices', () => {
+      const ssData: K8sNodeData = {
+        type: 'Pod',
+        workloadType: 'StatefulSet',
+        baseName: 'redis',
+        replicaSuffixes: ['0', '1', '2'],
+        label: 'redis-0',
+      };
+
+      const match0 = evaluateAutocompleteHover('node-1', ssData, 'redis-0');
+      expect(match0).toEqual({ isAutocompleteHovered: true, hoveredPodIndex: 0 });
+
+      const match1 = evaluateAutocompleteHover('node-1', ssData, 'redis-1');
+      expect(match1).toEqual({ isAutocompleteHovered: true, hoveredPodIndex: 1 });
+
+      const match2 = evaluateAutocompleteHover('node-1', ssData, 'redis-2');
+      expect(match2).toEqual({ isAutocompleteHovered: true, hoveredPodIndex: 2 });
+    });
   });
 
   describe('useBaseNodeHandler hook', () => {

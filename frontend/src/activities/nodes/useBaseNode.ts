@@ -54,10 +54,14 @@ export const evaluateAutocompleteHover = (
     return { isAutocompleteHovered: true, hoveredPodIndex: 0 };
   }
 
-  if (data.type === 'Pod' && data.podHash && hoveredName.includes(`-${data.podHash}`)) {
+  const isStatefulSet = data.workloadType === 'StatefulSet' || data.type === 'StatefulSet';
+
+  if (data.type === 'Pod' && (data.podHash || isStatefulSet)) {
     if (Array.isArray(data.replicaSuffixes) && data.replicaSuffixes.length > 0) {
       const idx = data.replicaSuffixes.findIndex((suf: string) =>
-        hoveredName.endsWith(`-${suf}`) || hoveredName.includes(`-${data.podHash}-${suf}`)
+        hoveredName === `${data.baseName || 'pod'}-${suf}` ||
+        hoveredName.endsWith(`-${suf}`) ||
+        (data.podHash && hoveredName.includes(`-${data.podHash}-${suf}`))
       );
       if (idx !== -1) {
         return { isAutocompleteHovered: true, hoveredPodIndex: idx };
@@ -65,7 +69,7 @@ export const evaluateAutocompleteHover = (
     } else if (
       data.replicaSuffix &&
       (hoveredName.endsWith(`-${data.replicaSuffix}`) ||
-       hoveredName.includes(`-${data.podHash}-${data.replicaSuffix}`))
+       (data.podHash && hoveredName.includes(`-${data.podHash}-${data.replicaSuffix}`)))
     ) {
       return { isAutocompleteHovered: true, hoveredPodIndex: 0 };
     }
@@ -84,6 +88,9 @@ export const evaluateAutocompleteHover = (
  */
 export const formatDisplayLabel = (data: K8sNodeData, podBaseName: string, isStackedPod: boolean): string => {
   if (!isStackedPod) return data.label;
+  if (data.workloadType === 'StatefulSet' || data.type === 'StatefulSet') {
+    return `${podBaseName}-*`;
+  }
   return data.podHash ? `${podBaseName}-${data.podHash}-*****` : `${podBaseName}-*****`;
 };
 

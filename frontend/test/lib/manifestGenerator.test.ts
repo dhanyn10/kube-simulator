@@ -53,6 +53,57 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('replicas: 3');
   });
 
+  it('generates StatefulSet with volumeClaimTemplates and Headless Service correctly', () => {
+    const nodes = [
+      {
+        id: 'ss1',
+        type: 'StatefulSet',
+        data: {
+          label: 'Db StatefulSet',
+          replicas: 3,
+          workloadType: 'StatefulSet',
+          image: 'postgres:15-alpine',
+        },
+      },
+      {
+        id: 'pvc1',
+        type: 'PVC',
+        data: {
+          label: 'Data Storage',
+          accessMode: 'ReadWriteOnce',
+          storageClass: 'fast-ssd',
+          storageCapacity: '20Gi',
+        },
+      },
+      {
+        id: 'svc1',
+        type: 'Service',
+        data: {
+          label: 'Db Headless',
+          serviceType: 'Headless',
+          port: 5432,
+        },
+      },
+    ];
+
+    const edges = [
+      { id: 'e1', source: 'ss1', target: 'pvc1' },
+      { id: 'e2', source: 'svc1', target: 'ss1' },
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    expect(yamlOutput).toContain('kind: StatefulSet');
+    expect(yamlOutput).toContain('name: db-statefulset');
+    expect(yamlOutput).toContain('serviceName: db-headless');
+    expect(yamlOutput).toContain('volumeClaimTemplates:');
+    expect(yamlOutput).toContain('name: data-storage');
+    expect(yamlOutput).toContain('storageClassName: fast-ssd');
+    expect(yamlOutput).toContain('storage: 20Gi');
+
+    expect(yamlOutput).toContain('kind: Service');
+    expect(yamlOutput).toContain('clusterIP: None');
+  });
+
   it('generates Pod and Deployment YAML manifests correctly with custom ports and restart policies', () => {
     const nodes = [
       {
