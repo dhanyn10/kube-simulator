@@ -120,12 +120,18 @@ describe('createUiSlice', () => {
     expect(useFlowStore.getState().systemResources).toEqual(resources);
   });
 
-  it('toggles simulation and handles validation failure', () => {
-    const { startSimulation, stopSimulation } = useFlowStore.getState();
+  it('toggles simulation and handles pause and validation failure', () => {
+    const { startSimulation, pauseSimulation, stopSimulation } = useFlowStore.getState();
 
     // Start simulation with no internet nodes (should return early)
     startSimulation();
     expect(useFlowStore.getState().isSimulating).toBe(false);
+
+    // Test pauseSimulation when simulating
+    useFlowStore.setState({ isSimulating: true, isPaused: false });
+    pauseSimulation();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+    expect(useFlowStore.getState().isPaused).toBe(true);
 
     // Test validation failure (HPA with no limits)
     useFlowStore.setState({
