@@ -220,4 +220,22 @@ describe('liveUpdateCommands', () => {
     expect(state.activityLogs.some((line) => line.includes('kubectl expose deployment/web-dep --name=api-svc-svc'))).toBe(true);
     expect(state.activityLogs.some((line) => line.includes('kubectl delete service api-svc-svc'))).toBe(true);
   });
+
+  it('covers getStoreState and setStoreState in CommandContext when executing pod deletion', () => {
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-1',
+          type: 'Pod',
+          position: { x: 0, y: 0 },
+          data: { label: 'my-pod', status: 'ready' },
+        },
+      ],
+    });
+
+    dispatchLiveCommand('kubectl delete pod my-pod');
+
+    const state = useFlowStore.getState();
+    expect(state.nodes.some((n) => n.data?.label === 'my-pod')).toBe(false);
+  });
 });

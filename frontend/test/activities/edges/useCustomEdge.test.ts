@@ -469,4 +469,47 @@ describe('useCustomEdge & edge helpers', () => {
       expect.stringContaining('is not in ready state')
     );
   });
+
+  it('covers getStrokeColor returning globalEdgeColor when no errors exist, and getTargetLoggableNode line 106 targetNode fallback', () => {
+    // 1. Line 157: getStrokeColor returns globalEdgeColor when validationError and isTargetError are both false
+    useFlowStore.setState({
+      activeSimulationEdges: [],
+      nodes: [
+        { id: 'n1', type: 'Pod', data: { status: 'ready' } },
+        { id: 'n2', type: 'Pod', data: { status: 'ready' } },
+      ],
+      edges: [{ id: 'e1', source: 'n1', target: 'n2' }],
+      globalEdgeColor: '#123456',
+      globalEdgeErrorColor: '#ff0000',
+    });
+
+    const { result } = renderHook(() =>
+      useCustomEdge({
+        id: 'e1',
+        source: 'n1',
+        target: 'n2',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    expect(result.current.getStrokeColor()).toBe('#123456');
+
+    // 2. Line 106: getTargetLoggableNode where isTargetError is true, unreadyNode is a Service (non-workload), and targetNode is a Pod
+    const podTarget = { id: 'pod-target', type: 'Pod', data: { status: 'ready' } };
+    const svcUnready = { id: 'svc-unready', type: 'Service' };
+    const loggableNode = getTargetLoggableNode(
+      'pod-target',
+      true,
+      [podTarget, svcUnready],
+      [{ id: 'e2', source: 'pod-target', target: 'svc-unready' }],
+      ['e2']
+    );
+    expect(loggableNode?.id).toBe('pod-target');
+  });
 });
