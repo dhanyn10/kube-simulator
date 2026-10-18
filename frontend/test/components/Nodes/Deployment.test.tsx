@@ -269,6 +269,23 @@ describe('DeploymentNode', () => {
       </ReactFlowProvider>
     );
     expect(screen.getByText('Incompat Dep')).toBeDefined();
+
+    // Test selected = true in dark mode to cover dark mode border-violet-500 class
+    useFlowStore.setState({ colorMode: 'dark', draggingSidebarItem: null });
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode id="d-dark-selected" type="Deployment" selected={true} data={{ label: 'Dark Selected Dep' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('Dark Selected Dep')).toBeDefined();
+
+    // Test props.type is undefined to cover props.type || 'Deployment' fallback in ForbiddenOverlay and getRoleDragClass
+    rerender(
+      <ReactFlowProvider>
+        <DeploymentNode id="d-no-type" selected={false} data={{ label: 'No Type Dep' }} />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('No Type Dep')).toBeDefined();
   });
 
   it('covers getBadgeColor for isHovered vs isDetaching vs default, and partial cpuRequest without memoryRequest', () => {

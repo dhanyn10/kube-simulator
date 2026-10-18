@@ -195,6 +195,101 @@ describe('useAppHelpers', () => {
 
       expect(setSystemResources).not.toHaveBeenCalled();
     });
+
+    it('covers edge color fallback branches when both or one color is empty', async () => {
+      const loadSettingsJson = vi.fn();
+      const setGlobalEdgeColors = vi.fn();
+      const setSystemResources = vi.fn();
+      const setIsAboutDialogOpen = vi.fn();
+
+      // Case 1: Both colors are empty string -> if (color !== '' || errorColor !== '') is false
+      let mockGetSetting = vi.fn().mockResolvedValue('');
+      (globalThis as any).go = { main: { App: { GetSetting: mockGetSetting } } };
+      (globalThis as any).window = {};
+
+      const { rerender } = renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(setGlobalEdgeColors).not.toHaveBeenCalled();
+
+      // Case 2: color is empty, errorColor is provided -> color fallback 'var(--color-mat-indigo)'
+      mockGetSetting = vi.fn((key: string) => {
+        if (key === 'globalEdgeErrorColor') return Promise.resolve('custom-red');
+        return Promise.resolve('');
+      });
+      (globalThis as any).go = { main: { App: { GetSetting: mockGetSetting } } };
+
+      renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(setGlobalEdgeColors).toHaveBeenCalledWith('var(--color-mat-indigo)', 'custom-red');
+
+      // Case 3: color is provided, errorColor is empty -> errorColor fallback 'var(--color-mat-red)'
+      setGlobalEdgeColors.mockClear();
+      mockGetSetting = vi.fn((key: string) => {
+        if (key === 'globalEdgeColor') return Promise.resolve('custom-blue');
+        return Promise.resolve('');
+      });
+      (globalThis as any).go = { main: { App: { GetSetting: mockGetSetting } } };
+
+      renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(setGlobalEdgeColors).toHaveBeenCalledWith('custom-blue', 'var(--color-mat-red)');
+    });
+
+    it('handles GetSystemResources undefined or resolving to null', async () => {
+      const loadSettingsJson = vi.fn();
+      const setGlobalEdgeColors = vi.fn();
+      const setSystemResources = vi.fn();
+      const setIsAboutDialogOpen = vi.fn();
+
+      // 1. GetSystemResources resolves to null
+      vi.mocked(GetSystemResources).mockResolvedValue(null as any);
+      (globalThis as any).window = {
+        go: { main: { App: { GetSystemResources } } },
+      };
+
+      renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(setSystemResources).not.toHaveBeenCalled();
+
+      // 2. window.go.main.App.GetSystemResources is undefined
+      delete (globalThis as any).window.go.main.App.GetSystemResources;
+      renderHook(() =>
+        useAppInit(false, loadSettingsJson, setGlobalEdgeColors, setSystemResources, setIsAboutDialogOpen)
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(setSystemResources).not.toHaveBeenCalled();
+    });
   });
 
   describe('useAttachmentHandlers', () => {
@@ -455,6 +550,84 @@ describe('useAppHelpers', () => {
 
       updatedNodes = useFlowStore.getState().nodes;
       expect(updatedNodes[0].data.resourceLimits).toEqual([resItem, newResItem]);
+    });
+
+    it('handles saving role, configMap, and resourceLimit when target node has undefined collections', () => {
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'node-clean',
+            type: 'Deployment',
+            position: { x: 0, y: 0 },
+            data: {
+              label: 'Clean Node',
+              // roles, configMaps, resourceLimits are undefined
+            },
+          },
+        ],
+      });
+
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      // 1. handleRoleSave with undefined target.data.roles
+      act(() => {
+        result.current.setRoleModalTargetNode({ id: 'node-clean', label: 'Clean Node' });
+      });
+      const newRole: K8sRoleItem = { id: 'r-fresh', name: 'fresh-role', rules: [] };
+      act(() => {
+        result.current.handleRoleSave(newRole);
+      });
+      let updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.roles).toEqual([newRole]);
+
+      // 2. handleConfigMapSave with undefined target.data.configMaps
+      act(() => {
+        useFlowStore.setState({
+          nodes: [
+            {
+              id: 'node-clean',
+              type: 'Deployment',
+              position: { x: 0, y: 0 },
+              data: { label: 'Clean Node' },
+            },
+          ],
+        });
+        result.current.setConfigMapModalTargetNode({ id: 'node-clean', label: 'Clean Node' });
+      });
+      const newCM: K8sConfigMapItem = { id: 'cm-fresh', name: 'fresh-cm', configData: [] };
+      act(() => {
+        result.current.handleConfigMapSave(newCM);
+      });
+      updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.configMaps).toEqual([newCM]);
+
+      // 3. handleResourceLimitSave with undefined target.data.resourceLimits
+      act(() => {
+        useFlowStore.setState({
+          nodes: [
+            {
+              id: 'node-clean',
+              type: 'Deployment',
+              position: { x: 0, y: 0 },
+              data: { label: 'Clean Node' },
+            },
+          ],
+        });
+        result.current.setResourceLimitModalTargetNode({ id: 'node-clean', label: 'Clean Node' });
+      });
+      const newLimit: K8sResourceLimitItem = {
+        id: 'limit-fresh',
+        name: 'fresh-limit',
+        cpuRequest: '100m',
+        cpuLimit: '200m',
+        memoryRequest: '128Mi',
+        memoryLimit: '256Mi',
+      };
+      act(() => {
+        result.current.handleResourceLimitSave(newLimit);
+      });
+      updatedNodes = useFlowStore.getState().nodes;
+      expect(updatedNodes[0].data.resourceLimits).toEqual([newLimit]);
     });
   });
 });
