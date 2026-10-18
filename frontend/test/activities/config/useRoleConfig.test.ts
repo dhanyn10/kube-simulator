@@ -245,5 +245,207 @@ describe('useRoleConfig', () => {
         ],
       });
     });
+
+    it('handleDisconnectResource ignores edges unrelated to nodeId or missing otherNode', () => {
+      const rules: K8sRoleRule[] = [
+        { apiGroups: ['apps'], resources: ['pods'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+      const podNode: Node = { id: 'pod-1', type: 'Pod', position: { x: 100, y: 0 }, data: {} };
+      const svcNode: Node = { id: 'svc-1', type: 'Service', position: { x: 200, y: 0 }, data: {} };
+      // e_unrelated: neither source nor target is role-1
+      const edgeUnrelated: Edge = { id: 'e-unrelated', source: 'svc-1', target: 'pod-1' };
+      // e_dangling: source is role-1 but target does not exist in nodes
+      const edgeDangling: Edge = { id: 'e-dangling', source: 'role-1', target: 'ghost-target' };
+
+      useFlowStore.setState({
+        nodes: [roleNode, podNode, svcNode] as any,
+        edges: [edgeUnrelated, edgeDangling] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rules));
+
+      act(() => {
+        result.current.handleDisconnectResource('pods');
+      });
+
+      // No matching connected edge found
+      expect(setEdgesSpy).not.toHaveBeenCalled();
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
+        rules: [{ apiGroups: ['apps'], resources: [], verbs: ['get'] }],
+      });
+    });
+
+    it('handleDisconnectResource with res === "pods" handles otherNode as Deployment vs unrelated type', () => {
+      const rules: K8sRoleRule[] = [
+        { apiGroups: ['apps'], resources: ['pods'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+      const depNode: Node = { id: 'dep-1', type: 'Deployment', position: { x: 100, y: 0 }, data: {} };
+      const svcNode: Node = { id: 'svc-1', type: 'Service', position: { x: 200, y: 0 }, data: {} };
+      const edgeDep: Edge = { id: 'e-dep', source: 'role-1', target: 'dep-1' };
+      const edgeSvc: Edge = { id: 'e-svc', source: 'role-1', target: 'svc-1' };
+
+      useFlowStore.setState({
+        nodes: [roleNode, depNode, svcNode] as any,
+        edges: [edgeDep, edgeSvc] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rules));
+
+      act(() => {
+        result.current.handleDisconnectResource('pods');
+      });
+
+      // edgeDep should be disconnected (Deployment counts for pods), edgeSvc remains
+      expect(setEdgesSpy).toHaveBeenCalledWith([edgeSvc]);
+    });
+
+    it('handleDisconnectResource with res === "deployments" handles otherNode with non-Deployment type', () => {
+      const rules: K8sRoleRule[] = [
+        { apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+      const podNode: Node = { id: 'pod-1', type: 'Pod', position: { x: 100, y: 0 }, data: {} };
+      const edgePod: Edge = { id: 'e-pod', source: 'role-1', target: 'pod-1' };
+
+      useFlowStore.setState({
+        nodes: [roleNode, podNode] as any,
+        edges: [edgePod] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rules));
+
+      act(() => {
+        result.current.handleDisconnectResource('deployments');
+      });
+
+      // Pod is not Deployment, so no edge removed
+      expect(setEdgesSpy).not.toHaveBeenCalled();
+    });
+
+    it('handleDisconnectResource with other resource handles mismatch and unknown resource', () => {
+      const rules: K8sRoleRule[] = [
+        { apiGroups: [''], resources: ['secrets', 'custom'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+      const svcNode: Node = { id: 'svc-1', type: 'Service', position: { x: 100, y: 0 }, data: {} };
+      const edgeSvc: Edge = { id: 'e-svc', source: 'role-1', target: 'svc-1' };
+
+      useFlowStore.setState({
+        nodes: [roleNode, svcNode] as any,
+        edges: [edgeSvc] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rules));
+
+      // 1. secrets kind is Secret, but otherNode is Service (mismatch)
+      act(() => {
+        result.current.handleDisconnectResource('secrets');
+      });
+      expect(setEdgesSpy).not.toHaveBeenCalled();
+
+      // 2. custom is not in RESOURCE_TYPE_MAP (k8sKind is undefined)
+      act(() => {
+        result.current.handleDisconnectResource('custom');
+      });
+      expect(setEdgesSpy).not.toHaveBeenCalled();
+    });
+
+    it('handleDisconnectResource handles rule without resources property in both branches', () => {
+      const rulesWithoutResources: any[] = [
+        { apiGroups: ['apps'], verbs: ['get'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      const setEdgesSpy = vi.fn();
+
+      // Branch 1: connected edges exist
+      const roleNode: Node = { id: 'role-1', type: 'Role', position: { x: 0, y: 0 }, data: {} };
+      const podNode: Node = { id: 'pod-1', type: 'Pod', position: { x: 100, y: 0 }, data: {} };
+      const edge: Edge = { id: 'e1', source: 'role-1', target: 'pod-1' };
+
+      useFlowStore.setState({
+        nodes: [roleNode, podNode] as any,
+        edges: [edge] as any,
+        updateNodeData: updateNodeDataSpy,
+        setEdges: setEdgesSpy,
+      });
+
+      const { result: hookWithEdges } = renderHook(() =>
+        useRoleConfigHandler('role-1', rulesWithoutResources)
+      );
+
+      act(() => {
+        hookWithEdges.current.handleDisconnectResource('pods');
+      });
+
+      expect(updateNodeDataSpy).toHaveBeenNthCalledWith(1, 'role-1', {
+        rules: [{ apiGroups: ['apps'], resources: [], verbs: ['get'] }],
+      });
+
+      // Branch 2: no connected edges
+      act(() => {
+        useFlowStore.setState({
+          nodes: [roleNode] as any,
+          edges: [] as any,
+        });
+      });
+
+      const { result: hookWithoutEdges } = renderHook(() =>
+        useRoleConfigHandler('role-1', rulesWithoutResources)
+      );
+
+      act(() => {
+        hookWithoutEdges.current.handleDisconnectResource('pods');
+      });
+
+      expect(updateNodeDataSpy).toHaveBeenNthCalledWith(2, 'role-1', {
+        rules: [{ apiGroups: ['apps'], resources: [], verbs: ['get'] }],
+      });
+    });
+
+    it('handleToggleVerb handles rule without verbs property', () => {
+      const rulesWithoutVerbs: any[] = [
+        { apiGroups: ['apps'], resources: ['pods'] },
+      ];
+      const updateNodeDataSpy = vi.fn();
+      useFlowStore.setState({ updateNodeData: updateNodeDataSpy });
+
+      const { result } = renderHook(() => useRoleConfigHandler('role-1', rulesWithoutVerbs));
+
+      act(() => {
+        result.current.handleToggleVerb(0, 'get');
+      });
+
+      expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
+        rules: [
+          {
+            apiGroups: ['apps'],
+            resources: ['pods'],
+            verbs: ['get'],
+          },
+        ],
+      });
+    });
   });
 });
