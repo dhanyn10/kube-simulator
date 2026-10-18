@@ -105,4 +105,38 @@ describe('PVCNode', () => {
     expect(screen.getByText('Multi-Attach Error')).toBeDefined();
     expect(screen.getByText('RWO')).toBeDefined();
   });
+
+  it('renders in light mode with storageClass correctly', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const props = {
+      id: 'pvc-light',
+      type: 'PVC',
+      data: {
+        label: 'Light PVC',
+        storageCapacity: '10Gi',
+        storageClass: 'standard-light',
+        accessMode: 'ReadWriteOnce',
+        pvcStatus: 'Bound',
+      },
+    } as any;
+
+    const { container } = render(
+      <ReactFlowProvider>
+        <PVCNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    const capacityLabel = screen.getByText('capacity:');
+    expect(capacityLabel.className).toContain('text-slate-400');
+
+    const accessLabel = screen.getByText('access:');
+    expect(accessLabel.className).toContain('text-slate-400');
+
+    const storageClassLabel = screen.getByText('Storage Class');
+    expect(storageClassLabel.className).toContain('text-slate-400');
+
+    const storageClassContainer = container.querySelector('.border-slate-100');
+    expect(storageClassContainer).not.toBeNull();
+  });
 });

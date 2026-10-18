@@ -30,6 +30,7 @@ describe('CustomEdge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useFlowStore.setState({
+      colorMode: 'dark',
       activeSimulationEdges: [],
       configuringEdgeId: null,
       nodes: [],
@@ -275,6 +276,27 @@ describe('CustomEdge', () => {
     expect(getSettingsButtonClass(true, false)).toContain('bg-blue-100');
     expect(getSettingsButtonClass(false, true)).toContain('hover:bg-slate-800');
     expect(getSettingsButtonClass(false, false)).toContain('hover:bg-slate-100');
+  });
+
+  it('covers alert tooltip styling branch in dark mode', () => {
+    useFlowStore.setState({ colorMode: 'dark' });
+
+    const props = {
+      ...defaultProps,
+      data: { validationError: 'Dark mode connection error' },
+    };
+
+    render(
+      <svg>
+        <CustomEdge {...props} />
+      </svg>
+    );
+
+    const badge = screen.getByTestId('edge-alert-badge');
+    expect(badge).toBeDefined();
+
+    const tooltip = screen.getByText('Dark mode connection error');
+    expect(tooltip.getAttribute('class')).toContain('bg-slate-900');
   });
 
   it('covers alert tooltip styling branch in light mode', () => {

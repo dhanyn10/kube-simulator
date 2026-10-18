@@ -93,7 +93,7 @@ export const useInternetProfileModal = (
 
   const fetchProfiles = useCallback(async () => {
     try {
-      const savedProfiles = await window.go?.main?.App?.GetInternetProfiles?.();
+      const savedProfiles = await globalThis.go?.main?.App?.GetInternetProfiles?.();
       if (Array.isArray(savedProfiles) && savedProfiles.length > 0) {
         const normalizedSaved = savedProfiles.map((p) => normalizeProfile(p));
         const merged = [
@@ -221,7 +221,7 @@ export const useInternetProfileModal = (
     lastSavedDetailJsonRef.current = JSON.stringify(currentDetail);
 
     try {
-      await window.go?.main?.App?.SaveInternetProfile?.(
+      await globalThis.go?.main?.App?.SaveInternetProfile?.(
         profileToSave.name,
         JSON.stringify(profileToSave)
       );
@@ -313,7 +313,7 @@ export const useInternetProfileModal = (
     };
 
     try {
-      await window.go?.main?.App?.SaveInternetProfile?.(
+      await globalThis.go?.main?.App?.SaveInternetProfile?.(
         profileToSave.name,
         JSON.stringify(profileToSave)
       );
@@ -336,7 +336,7 @@ export const useInternetProfileModal = (
     };
 
     try {
-      await window.go?.main?.App?.SaveInternetProfile?.(
+      await globalThis.go?.main?.App?.SaveInternetProfile?.(
         newProfile.name,
         JSON.stringify(newProfile)
       );
@@ -354,7 +354,7 @@ export const useInternetProfileModal = (
     if (name === ECOMMERCE_PROFILE.name) return;
 
     try {
-      await window.go?.main?.App?.DeleteInternetProfile?.(name);
+      await globalThis.go?.main?.App?.DeleteInternetProfile?.(name);
     } catch {
       // Fallback
     }

@@ -43,11 +43,11 @@ export function useCanvasHandlers() {
   React.useEffect(() => {
     if (!contextMenu) return;
     const closeMenu = () => setContextMenu(null);
-    window.addEventListener('click', closeMenu);
-    window.addEventListener('contextmenu', closeMenu, true);
+    globalThis.addEventListener('click', closeMenu);
+    globalThis.addEventListener('contextmenu', closeMenu, true);
     return () => {
-      window.removeEventListener('click', closeMenu);
-      window.removeEventListener('contextmenu', closeMenu, true);
+      globalThis.removeEventListener('click', closeMenu);
+      globalThis.removeEventListener('contextmenu', closeMenu, true);
     };
   }, [contextMenu]);
 

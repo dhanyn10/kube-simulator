@@ -22,8 +22,8 @@ export const useAutocompletePortal = (portalId = 'configmap-autocomplete-portal'
   const updateDropdownPos = useCallback((inputElem: HTMLInputElement) => {
     const rect = inputElem.getBoundingClientRect();
     const newPos = {
-      top: rect.bottom + window.scrollY + 4,
-      left: rect.left + window.scrollX,
+      top: rect.bottom + globalThis.scrollY + 4,
+      left: rect.left + globalThis.scrollX,
       width: rect.width,
     };
     setDropdownPos((prev) => {
@@ -72,14 +72,14 @@ export const useAutocompletePortal = (portalId = 'configmap-autocomplete-portal'
       }
     };
 
-    window.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
+    globalThis.addEventListener('mousedown', handleClickOutside);
+    globalThis.addEventListener('scroll', handleScrollOrResize, true);
+    globalThis.addEventListener('resize', handleScrollOrResize);
 
     return () => {
-      window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
+      globalThis.removeEventListener('mousedown', handleClickOutside);
+      globalThis.removeEventListener('scroll', handleScrollOrResize, true);
+      globalThis.removeEventListener('resize', handleScrollOrResize);
     };
   }, [activeDropdown, portalId, updateDropdownPos]);
 

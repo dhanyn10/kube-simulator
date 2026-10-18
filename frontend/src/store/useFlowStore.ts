@@ -96,9 +96,9 @@ const executeAutosave = (state: FlowState) => {
   }
 };
 
-// Window unload handler for final save before app close
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
+// Global unload handler for final save before app close
+if (typeof globalThis !== 'undefined') {
+  globalThis.addEventListener('beforeunload', () => {
     executeAutosave(flowStore.getState());
   });
 }
@@ -152,8 +152,8 @@ export const applyHistoryState = (json: string) => {
   }
 };
 
-if (typeof window !== 'undefined') {
-  (window as any).useFlowStore = flowStore;
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).useFlowStore = flowStore;
 }
 
 export const useFlowStore = Object.assign(

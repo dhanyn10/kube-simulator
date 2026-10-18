@@ -870,5 +870,172 @@ describe('useDropHandler', () => {
         result.current.onDragLeave(nullTargetEvent);
       });
     });
+
+    it('covers all remaining uncovered branches in useDropHandler', () => {
+      // 1. onDragLeave: node with isHovered: false covers line 221 : n branch
+      const setHoveredDeploymentId = vi.fn();
+      const unhoveredNode = { id: 'unhovered', type: 'Deployment', position: { x: 0, y: 0 }, data: { isHovered: false } } as any;
+      const hoveredNode = { id: 'hovered', type: 'Deployment', position: { x: 0, y: 0 }, data: { isHovered: true } } as any;
+      useFlowStore.setState({
+        setHoveredDeploymentId,
+        nodes: [unhoveredNode, hoveredNode]
+      });
+
+      const { result } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const mockLeaveEvent = {
+        currentTarget: { contains: vi.fn().mockReturnValue(false) },
+        relatedTarget: {}
+      } as any;
+
+      act(() => {
+        result.current.onDragLeave(mockLeaveEvent);
+      });
+      expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
+
+      // 2. onDragOver with draggingSidebarItem === 'Role' over empty canvas covers line 117 || null branch
+      useFlowStore.setState({
+        draggingSidebarItem: 'Role',
+        nodes: []
+      });
+      const emptyOverEvent = {
+        preventDefault: vi.fn(),
+        clientX: 999,
+        clientY: 999,
+        dataTransfer: { dropEffect: '' }
+      } as any;
+      act(() => {
+        result.current.onDragOver(emptyOverEvent);
+      });
+      expect(setHoveredDeploymentId).toHaveBeenCalledWith(null);
+
+      // 3. onDrop for ConfigMap, Secret, ResourceLimit, and HPA on node without label (falls back to targetNode.id)
+      const bareNode = {
+        id: 'bare-target',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: 300,
+        height: 150,
+        data: {}
+      } as any;
+
+      useFlowStore.setState({
+        nodes: [bareNode],
+        edges: []
+      });
+
+      const { result: dropHook } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+
+      const dropEvent = (type: string) => ({
+        preventDefault: vi.fn(),
+        clientX: 50,
+        clientY: 50,
+        dataTransfer: { getData: vi.fn().mockReturnValue(type) }
+      } as any);
+
+      // ConfigMap without label
+      act(() => {
+        dropHook.current.onDrop(dropEvent('ConfigMap'));
+      });
+      expect(useFlowStore.getState().configMapModalTargetNode).toEqual({ id: 'bare-target', label: 'bare-target' });
+
+      // Secret without label
+      act(() => {
+        dropHook.current.onDrop(dropEvent('Secret'));
+      });
+      expect(useFlowStore.getState().secretModalTargetNode).toEqual({ id: 'bare-target', label: 'bare-target' });
+
+      // ResourceLimit without label
+      act(() => {
+        dropHook.current.onDrop(dropEvent('ResourceLimit'));
+      });
+      expect(useFlowStore.getState().resourceLimitModalTargetNode).toEqual({ id: 'bare-target', label: 'bare-target' });
+
+      // HPA without label and without limit (logs error with bare-target id)
+      const addLogSpy = vi.fn();
+      useFlowStore.setState({ addLog: addLogSpy });
+      act(() => {
+        dropHook.current.onDrop(dropEvent('HPA'));
+      });
+      expect(addLogSpy).toHaveBeenCalledWith(
+        'error',
+        expect.stringContaining('Cannot attach HPA to bare-target'),
+        'UI'
+      );
+
+      // 4. onDragOver with draggingSidebarItem: 'Role' but targetNode is undefined (covers line 117 targetNode?.id || null)
+      useFlowStore.setState({
+        nodes: [],
+        draggingSidebarItem: 'Role'
+      });
+      const { result: roleEmptyHook } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+      act(() => {
+        roleEmptyHook.current.onDragOver(dropEvent('Role'));
+      });
+      expect(useFlowStore.getState().hoveredDeploymentId).toBeNull();
+
+      // 5. findRoleTargetNode with HPA and candidate without type (covers line 55 n.type || '')
+      // and multiple candidates sorted by area with fallback dimensions (covers lines 61-62 areaB 200 / 100 fallback)
+      const candNoType = {
+        id: 'cand-no-type',
+        type: undefined as any,
+        position: { x: 0, y: 0 },
+        width: 300,
+        height: 200,
+        data: {}
+      } as any;
+      const candDep1 = {
+        id: 'cand-dep-1',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        measured: undefined,
+        data: {}
+      } as any;
+      const candDep2 = {
+        id: 'cand-dep-2',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        measured: undefined,
+        data: {}
+      } as any;
+      useFlowStore.setState({
+        nodes: [candNoType, candDep1, candDep2],
+        draggingSidebarItem: 'HPA'
+      });
+      const { result: hpaHook } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+      act(() => {
+        hpaHook.current.onDragOver(dropEvent('HPA'));
+      });
+
+      // 6. getTargetContainer with candidates having undefined dimensions (covers line 98 (a.width || 0) * (a.height || 0))
+      const nsA = {
+        id: 'ns-a',
+        type: 'Namespace',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        data: {}
+      } as any;
+      const nsB = {
+        id: 'ns-b',
+        type: 'Namespace',
+        position: { x: 0, y: 0 },
+        width: undefined,
+        height: undefined,
+        data: {}
+      } as any;
+      useFlowStore.setState({
+        nodes: [nsA, nsB],
+        draggingSidebarItem: 'Deployment'
+      });
+      const { result: depHook } = renderHook(() => useDropHandler(mockScreenToFlowPosition));
+      act(() => {
+        depHook.current.onDragOver(dropEvent('Deployment'));
+      });
+    });
   });
 });

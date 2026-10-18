@@ -7,7 +7,7 @@
   - Do not use redundant empty object spreads.
   - Specify explicit `type` attributes on `<button>` elements (e.g., `type="button"`).
   - Use cryptographically safe random generator `safeRandom()` from `@/lib/utils` instead of `Math.random()`.
-  - Use `window` instead of `globalThis` in frontend browser code.
+  - Use `globalThis` instead of `window` in frontend browser code.
   - Avoid regexes with backtracking risks; use bounded prefixes and `.slice()`.
   - Simplify regular expressions to reduce runtime and avoid super-linear performance due to backtracking. Ensure optional groups with overlapping character sets use explicit delimiters like '=' or non-capturing bounded groups.
 

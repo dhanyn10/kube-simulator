@@ -81,7 +81,7 @@ export function useContextMenuPosition(
     const adjusted = adjustContextMenuPosition(
       { x, y },
       { width: rect.width, height: rect.height },
-      { innerWidth: window.innerWidth, innerHeight: window.innerHeight },
+      { innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight },
       padding
     );
 

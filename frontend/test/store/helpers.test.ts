@@ -656,6 +656,32 @@ describe('store helpers', () => {
     const resolvedSSColl = resolveGlobalCollisions([ss1NoDim, ss2NoDim]);
     expect(resolvedSSColl[0].position.x).not.toBe(0);
   });
+
+  it('covers fallback dimension branches in updatePodNode and getEffectiveSize when width/height/measured are undefined', () => {
+    // 1. updatePodNode with isManuallyResized true but without width, height, or measured
+    const podNoDims = {
+      id: 'p-nodims',
+      type: 'Pod',
+      parentId: 'd1',
+      // width and height undefined
+      // measured undefined
+      data: {
+        isManuallyResized: true,
+        baseName: 'app',
+        podHash: 'h1',
+        replicaSuffix: 's1',
+      },
+    } as any;
+    const dep = { id: 'd1', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
+    const synced = syncPodsInDeployment(dep, [podNoDims]);
+    expect(synced[0].width).toBeGreaterThan(0);
+
+    // 2. getEffectiveSize in resolveGlobalCollisions for Pod with undefined width and height
+    const podNoDimColl1 = { id: 'pnd1', type: 'Pod', position: { x: 0, y: 0 }, data: {} } as any;
+    const podNoDimColl2 = { id: 'pnd2', type: 'Pod', position: { x: 10, y: 10 }, data: {} } as any;
+    const resolved = resolveGlobalCollisions([podNoDimColl1, podNoDimColl2]);
+    expect(resolved[0].position.x).not.toBe(0);
+  });
 });
 
 

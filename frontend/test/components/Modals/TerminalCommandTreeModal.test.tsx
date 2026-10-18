@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TerminalCommandTreeModal } from '@/components/Modals/TerminalCommandTreeModal';
+import * as modalsActivity from '@/activities/modals';
 import { useFlowStore } from '@/store';
 
 describe('TerminalCommandTreeModal', () => {
@@ -50,7 +51,7 @@ describe('TerminalCommandTreeModal', () => {
     expect(screen.getByText('kubectl')).toBeDefined();
   });
 
-  it('filters command tree when search input changes', () => {
+  it('filters command tree when search input changes and handles clearing filter', () => {
     useFlowStore.setState({ isTerminalCommandTreeModalOpen: true });
     render(<TerminalCommandTreeModal />);
 
@@ -58,6 +59,13 @@ describe('TerminalCommandTreeModal', () => {
     fireEvent.change(searchInput, { target: { value: 'get-contexts' } });
 
     expect(screen.getByText('get-contexts')).toBeDefined();
+
+    // Test clearing search input (value.trim().length > 0 evaluates to false)
+    fireEvent.change(searchInput, { target: { value: '' } });
+    expect(screen.getByText('kubectl')).toBeDefined();
+
+    fireEvent.change(searchInput, { target: { value: '   ' } });
+    expect(screen.getByText('kubectl')).toBeDefined();
   });
 
   it('displays empty state message when no commands match filter', () => {
@@ -95,18 +103,19 @@ describe('TerminalCommandTreeModal', () => {
     render(<TerminalCommandTreeModal />);
 
     const kubectlNodeBtn = screen.getByText('kubectl');
+    // Non-trigger key
+    fireEvent.keyDown(kubectlNodeBtn, { key: 'ArrowDown' });
     fireEvent.keyDown(kubectlNodeBtn, { key: 'Enter' });
     fireEvent.keyDown(kubectlNodeBtn, { key: ' ' });
 
-    const collapseBtns = screen.getAllByRole('button', { name: /Collapse/i });
-    if (collapseBtns.length > 0) {
-      fireEvent.click(collapseBtns[0]);
-    }
+    // Directly click node-level chevron toggle button to collapse and expand
+    const collapseChevron = screen.getByRole('button', { name: 'Collapse kubectl' });
+    fireEvent.click(collapseChevron);
+    expect(screen.getByRole('button', { name: 'Expand kubectl' })).toBeDefined();
 
-    const expandBtns = screen.getAllByRole('button', { name: /Expand/i });
-    if (expandBtns.length > 0) {
-      fireEvent.click(expandBtns[0]);
-    }
+    const expandChevron = screen.getByRole('button', { name: 'Expand kubectl' });
+    fireEvent.click(expandChevron);
+    expect(screen.getByRole('button', { name: 'Collapse kubectl' })).toBeDefined();
   });
 
   it('handles Run button click directly on executable nodes', async () => {
@@ -134,5 +143,16 @@ describe('TerminalCommandTreeModal', () => {
     });
 
     expect(useFlowStore.getState().isTerminalCommandTreeModalOpen).toBe(false);
+  });
+
+  it('handles click on item with neither children nor command', () => {
+    vi.spyOn(modalsActivity, 'filterCommandTree').mockReturnValueOnce([
+      { id: 'custom-no-cmd', name: 'info-only', description: 'Just a label' }
+    ]);
+    useFlowStore.setState({ isTerminalCommandTreeModalOpen: true });
+    render(<TerminalCommandTreeModal />);
+
+    const item = screen.getByText('info-only');
+    expect(() => fireEvent.click(item)).not.toThrow();
   });
 });

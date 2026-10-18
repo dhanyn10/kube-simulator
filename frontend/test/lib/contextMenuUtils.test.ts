@@ -55,6 +55,34 @@ describe('adjustContextMenuPosition', () => {
     expect(result.left).toBe(8);
     expect(result.top).toBe(8);
   });
+
+  it('falls back to window dimensions when viewport is omitted', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true, writable: true });
+
+    const pos = { x: 750, y: 550 };
+    const result = adjustContextMenuPosition(pos, dim); // no viewport passed
+
+    // 750 + 180 = 930 > 800 - 8 -> shifts left: 750 - 180 = 570
+    // 550 + 200 = 750 > 600 - 8 -> shifts top: 550 - 200 = 350
+    expect(result.left).toBe(570);
+    expect(result.top).toBe(350);
+  });
+
+  it('falls back to default 1024x768 when viewport is omitted and window dimensions are 0', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 0, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 0, configurable: true, writable: true });
+
+    const pos = { x: 100, y: 100 };
+    const result = adjustContextMenuPosition(pos, dim);
+
+    expect(result.left).toBe(100);
+    expect(result.top).toBe(100);
+
+    // Restore standard window dimensions
+    Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true, writable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true, writable: true });
+  });
 });
 
 describe('useContextMenuPosition hook', () => {

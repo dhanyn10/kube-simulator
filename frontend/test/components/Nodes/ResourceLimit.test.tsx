@@ -81,4 +81,25 @@ describe('ResourceLimitNode', () => {
     expect(screen.getByText('CPU Req:')).toBeDefined();
     expect(screen.getByText('Mem Req:')).toBeDefined();
   });
+
+  it('applies opacity and pointer-events-none to handles when no workloads exist in store', () => {
+    useFlowStore.setState({ nodes: [] });
+
+    const props = {
+      id: 'rl-no-workload',
+      type: 'ResourceLimit',
+      data: {
+        label: 'no-workload-limit',
+      },
+    } as any;
+
+    const { container } = render(
+      <ReactFlowProvider>
+        <ResourceLimitNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    const handles = container.querySelectorAll('.opacity-20');
+    expect(handles.length).toBe(2);
+  });
 });

@@ -5,14 +5,14 @@ import { K8sNodeData } from '@/types';
 import { validateResourceLimits } from '@/lib/utils';
 
 // Centralize side-effect handlers
-const metricsChannel = typeof globalThis !== 'undefined' ? new BroadcastChannel('monitoring-data') : null;
+let metricsChannel: BroadcastChannel | null = new BroadcastChannel('monitoring-data');
 let consecutiveUnreadyTicks = 0;
 
 /**
  * Retrieves the Wails runtime if available.
  * @returns The Wails runtime or undefined.
  */
-const getRuntime = () => typeof globalThis !== 'undefined' ? (globalThis as any).runtime : undefined;
+const getRuntime = () => (globalThis as any).runtime;
 
 /**
  * Pauses the simulation without resetting metrics or traffic positions.
@@ -147,3 +147,12 @@ export const validateHpaTargets = (nodes: Node[], edges: Edge[]): boolean => {
  * @returns BroadcastChannel | null
  */
 export const getMetricsChannel = () => metricsChannel;
+
+/**
+ * Sets or clears the centralized metrics broadcast channel for testing.
+ * @param channel BroadcastChannel instance or null.
+ */
+export const setMetricsChannel = (channel: BroadcastChannel | null) => {
+  metricsChannel = channel;
+};
+

@@ -60,7 +60,7 @@ const applyPodResize = (nodes: Node[], resizedNode: Node) => {
   const parentDeployment = nodes.find(n => n.id === parentId);
   if (!parentDeployment) return nodes;
 
-  const minHeight = Number((resizedNode.style as any)?.minHeight) || POD_MIN_DIMENSIONS.height;
+  const minHeight = Number((resizedNode.style as any)?.minHeight);
   
   // 1. Sync all sibling pods to the same size
   let nextNodes = nodes.map(n => {

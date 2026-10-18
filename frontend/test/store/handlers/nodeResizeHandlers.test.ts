@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resizeHandlers } from '@/store/handlers/nodeResizeHandlers';
+import * as helpers from '@/store/helpers';
 import { Node } from '@xyflow/react';
 
 describe('resizeHandlers', () => {
@@ -161,5 +162,69 @@ describe('resizeHandlers', () => {
       expect.stringContaining("[Canvas Action] Resized card 'missing-node'"),
       'UI'
     );
+  });
+
+  it('covers calculateMinContainerBounds and syncContainerSizeToBounds fallbacks via layoutPodsInDeployment spy', () => {
+    const layoutSpy = vi.spyOn(helpers, 'layoutPodsInDeployment').mockReturnValue([
+      {
+        id: 'p1',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        width: undefined as any,
+        measured: { width: 150, height: 70 },
+        height: undefined as any,
+        data: {},
+      } as Node,
+      {
+        id: 'p2',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        width: undefined as any,
+        measured: undefined,
+        height: undefined as any,
+        style: { minHeight: '90' },
+        data: {},
+      } as Node,
+      {
+        id: 'p3',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        width: undefined as any,
+        measured: undefined,
+        height: undefined as any,
+        style: undefined,
+        data: {},
+      } as Node,
+    ]);
+
+    const depWithoutSize: Node = {
+      id: 'dep-no-size',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      width: undefined as any,
+      height: undefined as any,
+      data: {},
+    };
+    const childPod: Node = {
+      id: 'p1',
+      type: 'Pod',
+      parentId: 'dep-no-size',
+      position: { x: 0, y: 0 },
+      width: 100,
+      height: 60,
+      data: {},
+    };
+
+    storeState.nodes = [depWithoutSize, childPod];
+
+    const handlers = resizeHandlers(setStore, getStore);
+    // Resize the child pod so depWithoutSize retains width: undefined and height: undefined during applyPodResize
+    handlers.onNodeResize({}, { id: 'p1', width: 120, height: 70 } as Node);
+
+    const updatedDep = storeState.nodes.find((n: Node) => n.id === 'dep-no-size');
+    expect(updatedDep.width).toBeGreaterThanOrEqual(160);
+    expect(updatedDep.height).toBeGreaterThanOrEqual(90);
+
+    layoutSpy.mockRestore();
   });
 });

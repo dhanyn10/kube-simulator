@@ -93,7 +93,7 @@ const createPodSpec = (
   nodeMap: Map<string, any>
 ) => {
   const targetIDs = [nodeID];
-  const containerName = sanitizeName(data.label || 'main');
+  const containerName = sanitizeName(data.label);
   const image = data.yamlSettings?.image !== false && data.image ? data.image : 'nginx:latest';
 
   const resources = getResourceConfig(data, targetIDs, targetEdgeMap, sourceEdgeMap, nodeMap);
@@ -174,9 +174,7 @@ const buildStatefulSetManifest = (
     });
 
     podSpec.volumes = undefined;
-    if (podSpec.containers && podSpec.containers.length > 0) {
-      podSpec.containers[0].volumeMounts = vctVolumeMounts;
-    }
+    podSpec.containers[0].volumeMounts = vctVolumeMounts;
   }
 
   let serviceName = name;
@@ -261,13 +259,11 @@ const determineServiceSelector = (
   if (node.data?.selector) {
     return sanitizeName(node.data.selector);
   }
-  if (sourceEdgeMap) {
-    const outgoing = sourceEdgeMap.get(node.id) || [];
-    for (const e of outgoing) {
-      const target = nodeMap.get(e.target);
-      if (target && (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet')) {
-        return sanitizeName(target.data?.label || name);
-      }
+  const outgoing = sourceEdgeMap.get(node.id) || [];
+  for (const e of outgoing) {
+    const target = nodeMap.get(e.target);
+    if (target && (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet')) {
+      return sanitizeName(target.data?.label || name);
     }
   }
   return sanitizeName(name);

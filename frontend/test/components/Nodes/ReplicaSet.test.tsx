@@ -60,4 +60,10 @@ describe('ReplicaSetNode', () => {
     const { container } = render(<ReplicaSetNode {...defaultProps} selected={true} />);
     expect(container.firstChild).toHaveClass('replicaset-node-selected-dark');
   });
+
+  it('applies selected classes in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const { container } = render(<ReplicaSetNode {...defaultProps} selected={true} />);
+    expect(container.firstChild).toHaveClass('replicaset-node-selected-light');
+  });
 });

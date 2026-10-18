@@ -77,6 +77,12 @@ describe('useNodeConfig', () => {
         type: 'Deployment',
         data: { label: 'web-dep' },
       };
+      const peerPod = {
+        id: 'pod-2',
+        type: 'Pod',
+        parentId: 'dep-1',
+        data: { label: 'web-dep-pod' },
+      };
       const currentPod = {
         id: 'pod-1',
         type: 'Pod',
@@ -85,7 +91,7 @@ describe('useNodeConfig', () => {
       };
 
       useFlowStore.setState({
-        nodes: [parentNode, currentPod] as any,
+        nodes: [parentNode, peerPod, currentPod] as any,
         updateNodeData: mockUpdateNodeData,
       });
 
@@ -97,6 +103,11 @@ describe('useNodeConfig', () => {
         currentPod.data
       );
 
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-2', {
+        label: 'web-dep-pod',
+        cpuLimit: '100m',
+        yamlSettings: { env: true },
+      });
       expect(mockUpdateNodeData).toHaveBeenCalledWith('dep-1', {
         label: 'web-dep-pod',
         cpuLimit: '100m',
@@ -554,6 +565,64 @@ describe('useNodeConfig', () => {
 
       expect(result.current.podBaseName).toBe('pod');
       expect(result.current.podHash).toHaveLength(5);
+    });
+
+    it('handles orphaned child pod where parentId is not found in store for updatePodBaseName and randomizePodHash', () => {
+      const orphanedPod = {
+        id: 'pod-orphan',
+        type: 'Pod',
+        parentId: 'non-existent-dep',
+        data: { baseName: 'mybase', podHash: 'hash1', replicaSuffix: 'suf1', label: 'mybase-hash1-suf1' },
+      };
+
+      useFlowStore.setState({
+        nodes: [orphanedPod] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(orphanedPod));
+
+      // Line 108: updatePodBaseName when parentId does not resolve in state.nodes
+      act(() => {
+        result.current.updatePodBaseName('newbase');
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-orphan', {
+        baseName: 'newbase',
+        label: 'newbase-hash1-suf1',
+        podHash: 'hash1',
+      });
+
+      // Line 128: randomizePodHash when parentId does not resolve in state.nodes
+      mockUpdateNodeData.mockClear();
+      act(() => {
+        result.current.randomizePodHash();
+      });
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-orphan', expect.objectContaining({
+        baseName: 'mybase',
+      }));
+    });
+
+    it('covers sanitizeSlug fallback to "pod" in randomizePodHash for standalone pod', () => {
+      const podWithSpecialCharsBaseName = {
+        id: 'pod-special',
+        type: 'Pod',
+        data: { baseName: '$$$###@@@', podHash: 'h1234', label: '$$$###@@@-h1234' },
+      };
+
+      useFlowStore.setState({
+        nodes: [podWithSpecialCharsBaseName] as any,
+        updateNodeData: mockUpdateNodeData,
+      });
+
+      const { result } = renderHook(() => useNodeConfigHandler(podWithSpecialCharsBaseName));
+
+      act(() => {
+        result.current.randomizePodHash();
+      });
+
+      expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-special', expect.objectContaining({
+        baseName: 'pod',
+      }));
     });
   });
 });

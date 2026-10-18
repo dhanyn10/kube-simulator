@@ -67,8 +67,8 @@ export const TerminalPanel = () => {
         setCommandInput(customEvent.detail);
       }
     };
-    window.addEventListener('terminal-insert-command', handleInsertCommand);
-    return () => window.removeEventListener('terminal-insert-command', handleInsertCommand);
+    globalThis.addEventListener('terminal-insert-command', handleInsertCommand);
+    return () => globalThis.removeEventListener('terminal-insert-command', handleInsertCommand);
   }, [setCommandInput]);
 
   const PAGE_SIZE = 25;
