@@ -156,6 +156,9 @@ describe('mainLogger activity', () => {
     console.error('Normal error');
     console.warn('Normal warn');
     console.log('Normal info');
+    expect(addLogSpy).toHaveBeenCalledWith('error', 'Normal error');
+    expect(addLogSpy).toHaveBeenCalledWith('warn', 'Normal warn');
+    expect(addLogSpy).toHaveBeenCalledWith('info', 'Normal info');
   });
 
   it('initializes main logger with initMainLogger', () => {
@@ -171,25 +174,33 @@ describe('mainLogger activity', () => {
     const freshLogger = await import('@/activities/ui/mainLogger');
 
     // First call: storedOriginal* is null and _originalConsole* is undefined, so it takes console.*
-    freshLogger.setupConsoleOverrides();
+    expect(() => freshLogger.setupConsoleOverrides()).not.toThrow();
 
     // Second call: storedOriginal* is now truthy, so it takes storedOriginal*
-    freshLogger.setupConsoleOverrides();
+    expect(() => freshLogger.setupConsoleOverrides()).not.toThrow();
 
     // When addLog throws with originalError === console.error (false branches in catch and outside catch)
     addLogSpy.mockImplementationOnce(() => { throw new Error('Fail err'); });
     console.error('Test error false branch');
+    expect(addLogSpy).toHaveBeenCalledWith('error', 'Test error false branch');
 
     addLogSpy.mockImplementationOnce(() => { throw new Error('Fail warn'); });
     console.warn('Test warn false branch');
+    expect(addLogSpy).toHaveBeenCalledWith('warn', 'Test warn false branch');
 
     addLogSpy.mockImplementationOnce(() => { throw new Error('Fail log'); });
     console.log('Test log false branch');
+    expect(addLogSpy).toHaveBeenCalledWith('info', 'Test log false branch');
 
     // Without throw, calls console.* when original === console.* (false branches outside catch)
     console.error('Normal error false branch');
+    expect(addLogSpy).toHaveBeenCalledWith('error', 'Normal error false branch');
+
     console.warn('Normal warn false branch');
+    expect(addLogSpy).toHaveBeenCalledWith('warn', 'Normal warn false branch');
+
     console.log('Normal info false branch');
+    expect(addLogSpy).toHaveBeenCalledWith('info', 'Normal info false branch');
   });
 
   it('covers else branches when global methods are set to the current console methods', () => {
@@ -202,18 +213,26 @@ describe('mainLogger activity', () => {
 
     // Normal calls: won't forward to original because originalX === console.x
     console.error('No forward error');
+    expect(addLogSpy).toHaveBeenCalledWith('error', 'No forward error');
+
     console.warn('No forward warn');
+    expect(addLogSpy).toHaveBeenCalledWith('warn', 'No forward warn');
+
     console.log('No forward log');
+    expect(addLogSpy).toHaveBeenCalledWith('info', 'No forward log');
 
     // Throws during addLog: won't call originalError in catch because originalError === console.error
     addLogSpy.mockImplementationOnce(() => { throw new Error('Throw error'); });
     console.error('Catch no forward error');
+    expect(addLogSpy).toHaveBeenCalledWith('error', 'Catch no forward error');
 
     addLogSpy.mockImplementationOnce(() => { throw new Error('Throw warn'); });
     console.warn('Catch no forward warn');
+    expect(addLogSpy).toHaveBeenCalledWith('warn', 'Catch no forward warn');
 
     addLogSpy.mockImplementationOnce(() => { throw new Error('Throw log'); });
     console.log('Catch no forward log');
+    expect(addLogSpy).toHaveBeenCalledWith('info', 'Catch no forward log');
 
     delete (globalThis as any)._originalConsoleError;
     delete (globalThis as any)._originalConsoleWarn;
