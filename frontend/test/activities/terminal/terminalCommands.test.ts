@@ -540,6 +540,16 @@ describe('terminalCommands', () => {
       handleDescribeRoleCommand('kubectl describe rolebindings', mockCtx);
       expect(activityLogs.some(l => l.includes('ServiceAccount/default'))).toBe(true);
 
+      // 7b. Role with assignedUsers in describe role and rolebindings
+      mockCtx.nodes = [{ id: 'assigned-role-owner', type: 'Pod', data: { label: 'pod1', roles: [{ id: 'r-assigned', name: 'assigned-role', assignedUsers: ['alice', 'bob'] }] } }] as any;
+      activityLogs = [];
+      handleDescribeRoleCommand('kubectl describe rolebinding assigned-role-binding', mockCtx);
+      expect(activityLogs.some(l => l.includes('Kind: User, Name: alice'))).toBe(true);
+
+      activityLogs = [];
+      handleDescribeRoleCommand('kubectl describe rolebindings', mockCtx);
+      expect(activityLogs.some(l => l.includes('User/alice'))).toBe(true);
+
       // 8. handleDescribeDeploymentCommand default fallbacks (replicas = 1, image = 'nginx:latest')
       mockCtx.nodes = [
         { id: 'dep-no-data', type: 'Deployment', data: {} }
