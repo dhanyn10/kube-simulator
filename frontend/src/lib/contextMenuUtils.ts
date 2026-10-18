@@ -32,8 +32,8 @@ export function adjustContextMenuPosition(
   viewport?: ViewportInput,
   padding: number = 8
 ): AdjustedPosition {
-  const vWidth = viewport?.innerWidth ?? (window.innerWidth || 1024);
-  const vHeight = viewport?.innerHeight ?? (window.innerHeight || 768);
+  const vWidth = viewport?.innerWidth ?? (globalThis.innerWidth || 1024);
+  const vHeight = viewport?.innerHeight ?? (globalThis.innerHeight || 768);
 
   let left = pos.x;
   let top = pos.y;
@@ -81,7 +81,7 @@ export function useContextMenuPosition(
     const adjusted = adjustContextMenuPosition(
       { x, y },
       { width: rect.width, height: rect.height },
-      { innerWidth: window.innerWidth, innerHeight: window.innerHeight },
+      { innerWidth: globalThis.innerWidth, innerHeight: globalThis.innerHeight },
       padding
     );
 

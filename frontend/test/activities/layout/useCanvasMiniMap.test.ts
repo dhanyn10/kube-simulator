@@ -36,5 +36,33 @@ describe('useCanvasMiniMap hook', () => {
 
     expect(useFlowStore.getState().minimapPosition).toBe('bottom-left');
     expect(mockSaveSetting).toHaveBeenCalledWith('minimap_position', 'bottom-left');
+    delete (globalThis as any).go;
+  });
+
+  it('falls back to default bottom-right when minimapPosition is undefined in store', () => {
+    act(() => {
+      useFlowStore.setState({
+        minimapPosition: undefined,
+      });
+    });
+
+    const { result } = renderHook(() => useCanvasMiniMap());
+    expect(result.current.minimapPosition).toBe('bottom-right');
+  });
+
+  it('safely handles moveToPosition when setMinimapPosition is undefined in store', () => {
+    act(() => {
+      useFlowStore.setState({
+        setMinimapPosition: undefined as any,
+      });
+    });
+
+    const { result } = renderHook(() => useCanvasMiniMap());
+    expect(() => {
+      act(() => {
+        result.current.moveToPosition('top-left');
+      });
+    }).not.toThrow();
   });
 });
+

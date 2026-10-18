@@ -61,7 +61,7 @@ export const TagInput: React.FC<TagInputProps> = ({
       const rect = containerRef.current.getBoundingClientRect();
       const scrollParent = containerRef.current.closest('.custom-scrollbar') || containerRef.current.closest('.overflow-y-auto');
 
-      let spaceBelow = window.innerHeight - rect.bottom;
+      let spaceBelow = globalThis.innerHeight - rect.bottom;
       let spaceAbove = rect.top;
 
       if (scrollParent) {

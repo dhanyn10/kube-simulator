@@ -27,13 +27,13 @@ export const useGlobalContextMenu = () => {
 
     const handleClose = () => setDefaultContextMenu(null);
 
-    window.addEventListener('contextmenu', handleGlobalContextMenu);
-    window.addEventListener('contextmenu', handleClose, true);
-    window.addEventListener('click', handleClose);
+    globalThis.addEventListener('contextmenu', handleGlobalContextMenu);
+    globalThis.addEventListener('contextmenu', handleClose, true);
+    globalThis.addEventListener('click', handleClose);
     return () => {
-      window.removeEventListener('contextmenu', handleGlobalContextMenu);
-      window.removeEventListener('contextmenu', handleClose, true);
-      window.removeEventListener('click', handleClose);
+      globalThis.removeEventListener('contextmenu', handleGlobalContextMenu);
+      globalThis.removeEventListener('contextmenu', handleClose, true);
+      globalThis.removeEventListener('click', handleClose);
     };
   }, []);
 

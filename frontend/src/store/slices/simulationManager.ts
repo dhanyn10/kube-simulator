@@ -12,7 +12,7 @@ let consecutiveUnreadyTicks = 0;
  * Retrieves the Wails runtime if available.
  * @returns The Wails runtime or undefined.
  */
-const getRuntime = () => (window as any).runtime;
+const getRuntime = () => (globalThis as any).runtime;
 
 /**
  * Pauses the simulation without resetting metrics or traffic positions.

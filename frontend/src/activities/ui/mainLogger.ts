@@ -13,9 +13,6 @@ let storedOriginalError: any = null;
  * @returns The original console function if captured, or undefined.
  */
 const getOriginalConsoleMethod = (key: '_originalConsoleLog' | '_originalConsoleWarn' | '_originalConsoleError') => {
-  if (typeof window !== 'undefined' && (window as any)[key]) {
-    return (window as any)[key];
-  }
   if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
     return (globalThis as any)[key];
   }

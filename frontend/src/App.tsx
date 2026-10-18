@@ -85,15 +85,14 @@ const defaultEdgeOptions = {
 
 export default function App() {
   useThemeSync();
-  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const [searchParams] = useState(() => new URLSearchParams(globalThis.location.search));
   const isDetachedMode = searchParams.get('mode') === 'monitoring';
 
   useEffect(() => {
     logger.info('[App] Render mode:', isDetachedMode ? 'monitoring' : 'canvas');
   }, [isDetachedMode]);
 
-  // @ts-ignore
-  if (window !== undefined) window.useFlowStore = useFlowStore;
+  if (typeof globalThis !== 'undefined') (globalThis as any).useFlowStore = useFlowStore;
 
   const nodes = useCanvasNodes();
   const edges = useFlowStore((state) => state.edges);

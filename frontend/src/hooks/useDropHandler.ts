@@ -215,7 +215,7 @@ export function useDropHandler(screenToFlowPosition: (pos: { x: number; y: numbe
 
   const onDragLeave = useCallback(
     (event: React.DragEvent) => {
-      if (event.currentTarget && !event.currentTarget.contains(event.relatedTarget as unknown as Node)) {
+      if (event.currentTarget && !event.currentTarget.contains(event.relatedTarget as unknown as globalThis.Node)) {
         setHoveredDeploymentId(null);
         useFlowStore.setState((state) => ({
           nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),

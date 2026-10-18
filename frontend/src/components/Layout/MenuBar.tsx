@@ -143,8 +143,8 @@ export const MenuBar = ({
           <button
             type="button"
             onClick={() => {
-              if (effectiveUpdateInfo.releaseUrl && typeof window !== 'undefined' && (window as any).runtime?.BrowserOpenURL) {
-                (window as any).runtime.BrowserOpenURL(effectiveUpdateInfo.releaseUrl);
+              if (effectiveUpdateInfo.releaseUrl && typeof globalThis !== 'undefined' && (globalThis as any).runtime?.BrowserOpenURL) {
+                (globalThis as any).runtime.BrowserOpenURL(effectiveUpdateInfo.releaseUrl);
               } else {
                 onOpenAbout();
               }
