@@ -327,5 +327,64 @@ describe('terminalConfigCommands', () => {
       storeState.activeIdentity = 'storage_user'; // Has StorageAdminPolicy
       expect(checkRbacPermission(mockCtx, 'create', 'pvcs')).toBe(true);
     });
+
+    it('covers uncovered conditions in terminalConfigCommands: missing rule resources/verbs, missing role rules, missing iamUsers, forbidden evaluateRbacForCommand, and config command fallbacks', () => {
+      // 1. Missing rule resources, missing rule verbs, and missing role rules in checkCanvasRoles / isRuleMatching
+      const incompleteRoleCtx: any = {
+        ...mockCtx,
+        nodes: [
+          {
+            id: 'n-incomplete',
+            type: 'Pod',
+            data: {
+              roles: [
+                {
+                  name: 'no-rules-role',
+                  assignedUsers: ['user_test'],
+                  // rules is undefined -> covers role.rules || []
+                },
+                {
+                  name: 'empty-rule-role',
+                  assignedUsers: ['user_test'],
+                  rules: [
+                    {
+                      // resources is undefined -> covers rule.resources || []
+                      // verbs is undefined -> covers rule.verbs || []
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+        getStoreState: () => ({
+          activeIdentity: 'user_test',
+          // iamUsers is undefined -> covers store.iamUsers || [] in checkRbacPermission
+          iamUsers: undefined,
+        }),
+      };
+
+      expect(checkRbacPermission(incompleteRoleCtx, 'delete', 'pods')).toBe(false);
+
+      // 2. evaluateRbacForCommand when command is forbidden (allowed is false) -> covers line 174 if (allowed) false branch
+      storeState.activeIdentity = 'siti'; // siti only has ReadOnlyAccess, cannot delete pods
+      const isAllowed = evaluateRbacForCommand('kubectl delete pod web-pod', mockCtx);
+      expect(isAllowed).toBe(false);
+
+      // 3. handleKubectlConfigCommand when activeIdentity is undefined and iamUsers is undefined -> covers lines 265-266 fallbacks
+      const noIdentityCtx: any = {
+        ...mockCtx,
+        getStoreState: () => ({
+          activeIdentity: undefined,
+          iamUsers: undefined,
+        }),
+      };
+      const handled = handleKubectlConfigCommand('kubectl config current-context', noIdentityCtx);
+      expect(handled).toBe(true);
+      expect(activityLogs[activityLogs.length - 1]).toBe('system:admin');
+
+      const handledGetContexts = handleKubectlConfigCommand('kubectl config get-contexts', noIdentityCtx);
+      expect(handledGetContexts).toBe(true);
+    });
   });
 });

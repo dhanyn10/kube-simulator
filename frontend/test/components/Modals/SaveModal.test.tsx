@@ -9,6 +9,25 @@ vi.mock('@/hooks/useFitView', () => ({
   useFitView: () => vi.fn(),
 }));
 
+let customContextMenu: { x: number; y: number; item: any } | null = null;
+
+vi.mock('@/activities/modals/useSaveModal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/activities/modals/useSaveModal')>();
+  return {
+    ...actual,
+    useSaveModal: (params: any) => {
+      const res = actual.useSaveModal(params);
+      if (customContextMenu) {
+        return {
+          ...res,
+          contextMenu: customContextMenu,
+        };
+      }
+      return res;
+    },
+  };
+});
+
 describe('SaveModal', () => {
   const defaultProps = {
     isOpen: true,
@@ -18,6 +37,7 @@ describe('SaveModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    customContextMenu = null;
     useFlowStore.setState({
       colorMode: 'dark',
       nodes: [{ id: 'n1', type: 'Pod', position: { x: 0, y: 0 }, data: {} }],
@@ -393,5 +413,48 @@ describe('SaveModal', () => {
     });
 
     expect((globalThis as any).go.main.App.DeleteProject).toHaveBeenCalledWith(1);
+  });
+
+  it('covers else branches in context menu buttons when targetItem becomes null before handler execution', () => {
+    let currentItem: any = { id: 1, name: 'Web Architecture' };
+    customContextMenu = {
+      x: 100,
+      y: 100,
+      get item() {
+        return currentItem;
+      },
+    };
+
+    // 1. Test Load Profile button when targetItem is falsy
+    const { unmount } = render(<SaveModal {...defaultProps} />);
+    expect(screen.getByText('Load Profile')).toBeInTheDocument();
+    currentItem = null;
+    act(() => {
+      fireEvent.click(screen.getByText('Load Profile'));
+    });
+    expect((globalThis as any).go.main.App.LoadProject).not.toHaveBeenCalled();
+    unmount();
+
+    // 2. Test Open Folder Location button when targetItem is falsy
+    currentItem = { id: 1, name: 'Web Architecture' };
+    const { unmount: unmount2 } = render(<SaveModal {...defaultProps} />);
+    expect(screen.getByText('Open Folder Location')).toBeInTheDocument();
+    currentItem = null;
+    act(() => {
+      fireEvent.click(screen.getByText('Open Folder Location'));
+    });
+    expect((globalThis as any).go.main.App.OpenFileFolder).not.toHaveBeenCalled();
+    unmount2();
+
+    // 3. Test Delete Document button when targetItem is falsy
+    currentItem = { id: 1, name: 'Web Architecture' };
+    const { unmount: unmount3 } = render(<SaveModal {...defaultProps} />);
+    expect(screen.getByText('Delete Document')).toBeInTheDocument();
+    currentItem = null;
+    act(() => {
+      fireEvent.click(screen.getByText('Delete Document'));
+    });
+    expect((globalThis as any).go.main.App.DeleteProject).not.toHaveBeenCalled();
+    unmount3();
   });
 });
