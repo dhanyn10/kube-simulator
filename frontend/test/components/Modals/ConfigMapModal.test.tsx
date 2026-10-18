@@ -96,11 +96,38 @@ describe('ConfigMapModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it('renders in light color mode correctly', () => {
+  it('renders in light color mode correctly with default subtitle and light dropdown options', () => {
     useFlowStore.setState({ colorMode: 'light' });
-    render(<ConfigMapModal {...defaultProps} />);
+    render(<ConfigMapModal {...defaultProps} targetNodeLabel={undefined} />);
 
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
+    expect(screen.getByText('Configure Key-Value Data')).toBeInTheDocument();
+
+    // Add row in light mode
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+
+    const keyInput = screen.getByLabelText('Key');
+    const valInput = screen.getByLabelText('Value');
+    expect(keyInput.className).toContain('text-slate-800');
+    expect(valInput.className).toContain('text-slate-900');
+
+    // Focus key input to open portal in light mode
+    fireEvent.focus(keyInput);
+
+    const portal = document.getElementById('configmap-autocomplete-portal');
+    expect(portal).not.toBeNull();
+    expect(portal?.className).toContain('bg-white');
+
+    const keyOption = screen.getByTestId('key-option-PORT');
+    expect(keyOption.className).toContain('hover:bg-blue-50');
+
+    // Badge text in light mode
+    const badge = keyOption.querySelector('span.uppercase');
+    expect(badge?.className).toContain('bg-slate-100');
+
+    fireEvent.mouseEnter(keyOption);
+    fireEvent.mouseDown(keyOption);
+    expect(keyInput).toHaveValue('PORT');
   });
 
   it('handles focusing value input, selecting value option from portal, hovering portal items, and removing rows', () => {
