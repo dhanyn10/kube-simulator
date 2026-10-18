@@ -80,10 +80,24 @@ describe('terminalAutocomplete', () => {
       },
     ];
 
-    const pods = getPodNames(mockNodes);
+    const ssPodNode: Node = {
+      id: 'ss-pod-stacked',
+      type: 'Pod',
+      data: {
+        baseName: 'db-pod',
+        workloadType: 'StatefulSet',
+        replicaSuffixes: ['0', '1', '2'],
+      },
+      position: { x: 0, y: 0 },
+    };
+
+    const pods = getPodNames([...mockNodes, ssPodNode]);
     expect(pods).toContain('api-pod-x8k2p-aaaaa');
     expect(pods).toContain('api-pod-x8k2p-bbbbb');
     expect(pods).toContain('single-pod');
+    expect(pods).toContain('db-pod-0');
+    expect(pods).toContain('db-pod-1');
+    expect(pods).toContain('db-pod-2');
 
     expect(getDeploymentNames([
       ...mockNodes,
