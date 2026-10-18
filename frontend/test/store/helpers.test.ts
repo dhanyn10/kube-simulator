@@ -557,4 +557,106 @@ describe('store helpers', () => {
     const syncedNoSettings = syncPodsInDeployment(depNoSettings, []);
     expect(syncedNoSettings[0].data.displaySettings).toBeUndefined();
   });
+
+  it('covers uncovered conditions: isAllowed with StatefulSet parent, workloadType StatefulSet fallback, and podHash preservation from existing pod', () => {
+    // 1. isAllowed with parentType === 'StatefulSet'
+    expect(isAllowed('StatefulSet', 'Pod')).toBe(true);
+    expect(isAllowed('StatefulSet', 'Service')).toBe(false);
+
+    // 2. syncPodsInDeployment where deployment.type is 'Deployment' but data.workloadType is 'StatefulSet'
+    const depWorkloadTypeSS = {
+      id: 'd-wt-ss',
+      type: 'Deployment',
+      data: {
+        replicas: 2,
+        label: 'ss-workload',
+        workloadType: 'StatefulSet',
+      },
+    } as any;
+    const syncedSS = syncPodsInDeployment(depWorkloadTypeSS, []);
+    expect(syncedSS).toHaveLength(2);
+    expect(syncedSS[0].data.workloadType).toBe('StatefulSet');
+    expect(syncedSS[0].data.replicaSuffix).toBe('0');
+    expect(syncedSS[1].data.replicaSuffix).toBe('1');
+
+    // 3. syncPodsInDeployment where deployment.data.podHash is missing, but currentPods[0].data.podHash exists
+    const depMissingHash = {
+      id: 'd-nohash',
+      type: 'Deployment',
+      data: { replicas: 1, label: 'app' },
+    } as any;
+    const existingPodWithHash = {
+      id: 'p-prev',
+      parentId: 'd-nohash',
+      type: 'Pod',
+      data: {
+        baseName: 'app',
+        podHash: 'prevh',
+        replicaSuffix: 'prevs',
+        replicaSuffixes: ['prevs'],
+      },
+    } as any;
+    const syncedPreservedHash = syncPodsInDeployment(depMissingHash, [existingPodWithHash], undefined, false);
+    expect(syncedPreservedHash[0].data.podHash).toBe('prevh');
+
+    // 4. resolveGlobalCollisions with StatefulSet parent node to cover parentNode.type === 'StatefulSet' and getDefaultSize('StatefulSet')
+    const ssParent = {
+      id: 'ss-parent',
+      type: 'StatefulSet',
+      position: { x: 0, y: 0 },
+      data: {},
+    } as any;
+    const ssChild1 = {
+      id: 'ssc1',
+      parentId: 'ss-parent',
+      position: { x: 10, y: 10 },
+      width: 100,
+      height: 100,
+      data: {},
+    } as any;
+    const ssChild2 = {
+      id: 'ssc2',
+      parentId: 'ss-parent',
+      position: { x: 20, y: 20 },
+      width: 100,
+      height: 100,
+      data: {},
+    } as any;
+    const resolvedSS = resolveGlobalCollisions([ssParent, ssChild1, ssChild2]);
+    expect(resolvedSS.find((n) => n.id === 'ssc1')?.position.x).toBe(10);
+    expect(resolvedSS.find((n) => n.id === 'ssc2')?.position.x).toBe(20);
+
+    // 5. Pod with both top-level dimensions and measured dimensions in resolveGlobalCollisions and updatePodNode
+    const podBothDims = {
+      id: 'p-both',
+      type: 'Pod',
+      parentId: 'd1',
+      width: 200,
+      height: 100,
+      measured: { width: 250, height: 150 },
+      data: {
+        isManuallyResized: true,
+        baseName: 'app',
+        podHash: 'h1',
+        replicaSuffix: 's1',
+      },
+    } as any;
+    const depBoth = { id: 'd1', type: 'Deployment', data: { replicas: 1, label: 'app' } } as any;
+    const syncedBoth = syncPodsInDeployment(depBoth, [podBothDims]);
+    expect(syncedBoth[0].width).toBe(250);
+
+    const podBothColl1 = { id: 'pbc1', type: 'Pod', position: { x: 0, y: 0 }, width: 200, height: 100, measured: { width: 250, height: 150 }, data: { replicas: 1 } } as any;
+    const podBothColl2 = { id: 'pbc2', type: 'Pod', position: { x: 10, y: 10 }, width: 200, height: 100, measured: { width: 250, height: 150 }, data: { replicas: 1 } } as any;
+    const resolvedBoth = resolveGlobalCollisions([podBothColl1, podBothColl2]);
+    expect(resolvedBoth[0].position.x).not.toBe(0);
+
+    // Collision between two StatefulSets without explicit width/height (uses default 320x160)
+    const ss1NoDim = { id: 'ss1', type: 'StatefulSet', position: { x: 0, y: 0 }, data: {} } as any;
+    const ss2NoDim = { id: 'ss2', type: 'StatefulSet', position: { x: 10, y: 10 }, data: {} } as any;
+    const resolvedSSColl = resolveGlobalCollisions([ss1NoDim, ss2NoDim]);
+    expect(resolvedSSColl[0].position.x).not.toBe(0);
+  });
 });
+
+
+

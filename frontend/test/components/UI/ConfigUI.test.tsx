@@ -47,14 +47,24 @@ describe('ConfigUI uncovered conditions', () => {
     expect(screen.getByText('Child Content')).toBeInTheDocument();
   });
 
-  it('covers ConfigSection with isYamlEnabled=false and icon omitted', () => {
-    // ConfigSection without Icon and with isYamlEnabled=false
-    render(
-      <ConfigSection title="No Icon Section" isYamlEnabled={false} onYamlToggle={vi.fn()}>
-        <div>Child Section</div>
+  it('covers ConfigSection with Icon, onToggle provided, and onYamlToggle omitted', () => {
+    const MockIcon = () => <span data-testid="mock-icon" />;
+    const onToggle = vi.fn();
+    const { rerender } = render(
+      <ConfigSection title="Full Section" icon={MockIcon as any} onToggle={onToggle} onYamlToggle={vi.fn()}>
+        <div>Full Content</div>
       </ConfigSection>
     );
-    expect(screen.getByText('No Icon Section')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-icon')).toBeInTheDocument();
+    expect(screen.getByText('Full Section')).toBeInTheDocument();
+
+    // ConfigSection with onYamlToggle omitted
+    rerender(
+      <ConfigSection title="No Yaml Section">
+        <div>No Yaml Content</div>
+      </ConfigSection>
+    );
+    expect(screen.getByText('No Yaml Section')).toBeInTheDocument();
   });
 
   it('covers AdvancedSection toggle open and colorMode branches', () => {
@@ -77,9 +87,16 @@ describe('ConfigUI uncovered conditions', () => {
     fireEvent.change(input, { target: { value: '' } });
     expect(onChange).toHaveBeenCalledWith(0);
 
-    fireEvent.change(input, { target: { value: 'invalid-nan' } });
+    // Override input.value to non-numeric string 'abc' to bypass jsdom HTMLInputElement[type=number] sanitization
+    // and exercise the !Number.isNaN(val) === false branch on line 151
+    onChange.mockClear();
+    Object.defineProperty(input, 'value', { value: 'abc', configurable: true, writable: true });
+    fireEvent.change(input);
+    expect(onChange).not.toHaveBeenCalled();
 
-    fireEvent.change(input, { target: { value: '25' } });
+    // Reset input property and test valid numeric change
+    Object.defineProperty(input, 'value', { value: '25', configurable: true, writable: true });
+    fireEvent.change(input);
     expect(onChange).toHaveBeenCalledWith(25);
 
     // NumberStepper decrement and increment buttons click

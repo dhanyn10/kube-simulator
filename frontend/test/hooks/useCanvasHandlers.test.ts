@@ -214,11 +214,13 @@ describe('useCanvasHandlers hook', () => {
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
 
-    // Edge click with missing source/target nodes
+    // Edge click with missing source/target nodes when isAutofocusEnabled is true
     mockFitBounds.mockClear();
+    useFlowStore.setState({ isAutofocusEnabled: true, nodes: [sourceNode, targetNode] });
+    const { result: autofocusResult } = renderHook(() => useCanvasHandlers());
     const brokenEdge: Edge = { id: 'e-broken', source: 'n-missing-1', target: 'n-missing-2' };
     act(() => {
-      result.current.onEdgeClick(mockEvent, brokenEdge);
+      autofocusResult.current.onEdgeClick(mockEvent, brokenEdge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
 
@@ -226,7 +228,7 @@ describe('useCanvasHandlers hook', () => {
     mockFitBounds.mockClear();
     const partialEdge: Edge = { id: 'e-partial', source: 'n1', target: 'n-missing-target' };
     act(() => {
-      result.current.onEdgeClick(mockEvent, partialEdge);
+      autofocusResult.current.onEdgeClick(mockEvent, partialEdge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
 
@@ -234,7 +236,7 @@ describe('useCanvasHandlers hook', () => {
     mockFitBounds.mockClear();
     const missingSourceEdge: Edge = { id: 'e-missing-source', source: 'n-missing-source', target: 'n2' };
     act(() => {
-      result.current.onEdgeClick(mockEvent, missingSourceEdge);
+      autofocusResult.current.onEdgeClick(mockEvent, missingSourceEdge);
     });
     expect(mockFitBounds).not.toHaveBeenCalled();
   });

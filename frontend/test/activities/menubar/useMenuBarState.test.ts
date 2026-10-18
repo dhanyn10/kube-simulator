@@ -83,7 +83,21 @@ describe('useMenuBarState', () => {
     });
     expect(useFlowStore.getState().isHistoryViewOpen).toBe(false);
 
-    // Click Utilities when isHistoryViewOpen is false (toggles right sidebar visibility)
+    rerender();
+    viewMenu = result.current.menuItems.find((m) => m.label === 'View');
+    utilitiesItem = viewMenu?.items.find((i) => i.label === 'Utilities');
+
+    // Click Utilities when isHistoryViewOpen is false (toggles right sidebar visibility from false to true)
+    act(() => {
+      utilitiesItem?.onClick?.();
+    });
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+
+    rerender();
+    viewMenu = result.current.menuItems.find((m) => m.label === 'View');
+    utilitiesItem = viewMenu?.items.find((i) => i.label === 'Utilities');
+
+    // Click Utilities again to toggle right sidebar visibility from true to false
     act(() => {
       utilitiesItem?.onClick?.();
     });
