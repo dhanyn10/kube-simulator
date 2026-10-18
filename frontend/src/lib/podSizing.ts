@@ -13,7 +13,7 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
   const labelWidth = String(data.label || '').length * 7 + 16;
   const badgeWidth = badges.length > 0 ? badges.reduce((t, b) => t + b.length * 5 + 14, 0) + (badges.length - 1) * 4 : 0;
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
-  const readableImageWidth = showImage ? Math.min(320, Math.max(148, String(data.image || '').length * 5.5 + 16)) : 0;
+  const readableImageWidth = showImage ? Math.min(320, Math.max(148, String(data.image).length * 5.5 + 16)) : 0;
   return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding));
 };
 

@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   COMMAND_TREE_DATA,
   filterCommandTree,
-  getAllNodeIds
+  getAllNodeIds,
+  makeLeaf
 } from '@/activities/modals/terminalCommandTreeHelpers';
 
 describe('terminalCommandTreeHelpers', () => {
@@ -113,5 +114,25 @@ describe('terminalCommandTreeHelpers', () => {
     const result = filterCommandTree(nodeNoCommand, 'special description');
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('node-desc-only');
+  });
+
+  it('covers makeLeaf with and without command', () => {
+    // 1. Without command (4th element undefined) -> ...(command ? { command } : {}) evaluates {}
+    const leafWithoutCmd = makeLeaf(['test-id-1', 'test-name-1', 'test-desc-1']);
+    expect(leafWithoutCmd).toEqual({
+      id: 'test-id-1',
+      name: 'test-name-1',
+      description: 'test-desc-1',
+    });
+    expect(leafWithoutCmd.command).toBeUndefined();
+
+    // 2. With command (4th element defined) -> evaluates { command }
+    const leafWithCmd = makeLeaf(['test-id-2', 'test-name-2', 'test-desc-2', 'kubectl version']);
+    expect(leafWithCmd).toEqual({
+      id: 'test-id-2',
+      name: 'test-name-2',
+      description: 'test-desc-2',
+      command: 'kubectl version',
+    });
   });
 });

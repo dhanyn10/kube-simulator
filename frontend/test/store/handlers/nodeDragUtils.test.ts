@@ -187,4 +187,27 @@ describe('dragUtils', () => {
     const res = handlePodMoveToDeployment('d1', targetDep, pod, [pod, targetDep, nonPodChild], undefined, getDummy, pod);
     expect(res.some(n => n.id === 'role1')).toBe(true);
   });
+
+  it('covers syncOldParentDeployment retaining non-Pod child when moving a pod out of deployment', () => {
+    const pod = { id: 'p1', type: 'Pod', parentId: 'old-dep', data: { replicas: 1 } } as any;
+    const oldDep = { id: 'old-dep', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 2 } } as any;
+    const nonPodChildOfOldDep = { id: 'svc-child', type: 'Service', parentId: 'old-dep', position: { x: 0, y: 0 }, data: {} } as any;
+    const targetDep = { id: 'new-dep', type: 'Deployment', position: { x: 100, y: 100 }, data: { replicas: 0 } } as any;
+    const getDummy = () => ({}) as any;
+
+    const res = handlePodMoveToDeployment(
+      'new-dep',
+      targetDep,
+      pod,
+      [pod, oldDep, nonPodChildOfOldDep, targetDep],
+      'old-dep',
+      getDummy,
+      pod
+    );
+
+    // Verify non-Pod child of oldDep is preserved
+    expect(res.some(n => n.id === 'svc-child')).toBe(true);
+    const updatedOldDep = res.find(n => n.id === 'old-dep');
+    expect(updatedOldDep?.data.replicas).toBe(1);
+  });
 });

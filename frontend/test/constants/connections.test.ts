@@ -183,4 +183,38 @@ describe('connections constants', () => {
     expect(getConnectionError('Pod', 'Service', {}, { serviceType: 'ClusterIP' })).toBeNull();
     expect(getConnectionError('Pod', 'Service', {}, { serviceType: 'NodePort' })).toBeNull();
   });
+
+  it('covers fallback default serviceType ClusterIP across rules and else branch when LoadBalancer targets non-Ingress non-Service', () => {
+    // 1. checkInternetRules fallback targetData?.serviceType || 'ClusterIP'
+    expect(getConnectionError('Internet', 'Service')).toBe(
+      'Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ClusterIP Service.'
+    );
+    expect(getConnectionError('Internet', 'Service', {}, {})).toBe(
+      'Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ClusterIP Service.'
+    );
+
+    // 2. checkIngressTargetRules fallback sourceData?.serviceType || 'ClusterIP'
+    expect(getConnectionError('Service', 'Ingress')).toBe(
+      'ClusterIP Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.'
+    );
+    expect(getConnectionError('Service', 'Ingress', {})).toBe(
+      'ClusterIP Service cannot be connected to Ingress. Only LoadBalancer or NodePort Services can connect to Ingress.'
+    );
+
+    // 3. checkLoadBalancerTargetService fallback targetData?.serviceType || 'ClusterIP'
+    expect(
+      getConnectionError('Service', 'Service', { serviceType: 'LoadBalancer' })
+    ).toBeNull();
+    expect(
+      getConnectionError('Service', 'Service', { serviceType: 'LoadBalancer' }, {})
+    ).toBeNull();
+
+    // 4. checkServiceSourceRules false branch when targetType is neither Ingress nor Service for LoadBalancer
+    const originalService = VALID_CONNECTIONS.Service;
+    (VALID_CONNECTIONS as any).Service = [...originalService, 'PVC'];
+    expect(
+      getConnectionError('Service', 'PVC', { serviceType: 'LoadBalancer' })
+    ).toBeNull();
+    (VALID_CONNECTIONS as any).Service = originalService;
+  });
 });

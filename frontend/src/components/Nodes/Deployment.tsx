@@ -40,7 +40,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
   const { transitionClasses } = useNodeStyles(props.id);
 
   const showHPAWarning = checkShowHPAWarning(props.id, data, edges, nodes);
-  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA', 'Deployment', data.isHovered);
+  const roleDragClass = getRoleDragClass(draggingSidebarItem === 'Role' || draggingSidebarItem === 'ConfigMap' || draggingSidebarItem === 'HPA', props.type || 'Deployment', data.isHovered);
 
   const { isEditing, setIsEditing, editValue, setEditValue, inputRef, handleRename, onKeyDown } =
     useNodeRename(data.label, data.onRename);

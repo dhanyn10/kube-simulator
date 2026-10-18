@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pauseSimulation, stopSimulation, checkEmergencyStop, broadcastMetrics, validateHpaTargets } from '@/store/slices/simulationManager';
+import { pauseSimulation, stopSimulation, checkEmergencyStop, broadcastMetrics, validateHpaTargets, getMetricsChannel } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
@@ -283,6 +283,72 @@ describe('simulationManager', () => {
       });
 
       expect(result).toBe(false);
+    });
+
+    it('covers all remaining branches in validateHpaTargets, checkEmergencyStop, and getMetricsChannel', () => {
+      // 1. getMetricsChannel returns the channel instance or null
+      expect(getMetricsChannel()).toBeDefined();
+
+      // 2. validateHpaTargets: workload without any attached or connected HPA (hasAttachedHpa || hasConnectedHpa is false)
+      const plainDeployment: Node = {
+        id: 'dep-plain',
+        type: 'Deployment',
+        data: { label: 'plain-app' }, // no limits, no hpa -> should not fail
+        position: { x: 0, y: 0 }
+      };
+      // Also include a child Pod with parentId to cover (n.type === 'Pod' && !n.parentId) false branch
+      const childPod: Node = {
+        id: 'pod-child',
+        type: 'Pod',
+        parentId: 'dep-plain',
+        data: {},
+        position: { x: 0, y: 0 }
+      };
+      // Workload with edge pointing from non-existent node (nodes.find(...)?.type evaluates to undefined)
+      const edgeWithGhostSource: Edge = {
+        id: 'e-ghost',
+        source: 'non-existent-source-id',
+        target: 'dep-plain'
+      };
+      expect(validateHpaTargets([plainDeployment, childPod], [edgeWithGhostSource])).toBe(true);
+
+      // 3. validateHpaTargets: data.hpas is empty array (Array.isArray is true, data.hpas.length > 0 is false)
+      const depEmptyHpas: Node = {
+        id: 'dep-empty-hpas',
+        type: 'Deployment',
+        data: { label: 'empty-hpas', hpas: [] },
+        position: { x: 0, y: 0 }
+      };
+      expect(validateHpaTargets([depEmptyHpas], [])).toBe(true);
+
+      // 4. validateHpaTargets: standalone Pod with HPA connected and valid limits
+      const hpaNode: Node = { id: 'hpa-node', type: 'HPA', data: {}, position: { x: 0, y: 0 } };
+      const standalonePodWithLimits: Node = {
+        id: 'pod-standalone-limits',
+        type: 'Pod',
+        parentId: undefined,
+        data: { cpuLimit: '500m', memoryLimit: '512Mi' },
+        position: { x: 0, y: 0 }
+      };
+      const hpaEdge: Edge = { id: 'e-hpa', source: 'hpa-node', target: 'pod-standalone-limits' };
+      expect(validateHpaTargets([hpaNode, standalonePodWithLimits], [hpaEdge])).toBe(true);
+
+      // 5. checkEmergencyStop: Pod with parentId not matching any activeWorkloads
+      const inactiveWorkloads: Node[] = [{ id: 'w-active', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'active' } }];
+      const mismatchedNodes: Node[] = [
+        { id: 'p-other', type: 'Pod', parentId: 'w-inactive-other', position: { x: 0, y: 0 }, data: { status: 'pending' } },
+        { id: 'p-standalone-other', type: 'Pod', parentId: undefined, position: { x: 0, y: 0 }, data: { status: 'pending' } },
+      ];
+      const activeMetrics = { 'w-active': [{ cpuValue: 10, cpuPercent: 5, memoryValue: 20, memoryPercent: 10, reqsPerSec: 1 }] };
+      const stopResult = checkEmergencyStop({
+        ticks: 10,
+        workloads: inactiveWorkloads,
+        nodes: mismatchedNodes,
+        metrics: activeMetrics,
+        set: vi.fn(),
+        simulationInterval: { current: null }
+      });
+      expect(stopResult).toBe(false);
     });
   });
 });

@@ -401,4 +401,124 @@ describe('WorkloadConfig', () => {
 
     expect(screen.queryByText('Stateful Workload Recommendation')).toBeNull();
   });
+
+  it('covers empty image selection triggering performUpdate with status pending on line 108', () => {
+    useFlowStore.setState({ customImages: [''] });
+    const podNode = {
+      id: 'p-empty-img',
+      type: 'Pod',
+      data: {
+        label: 'Pod Empty Image Test',
+        image: 'nginx:latest',
+        displaySettings: { image: true },
+      },
+    };
+    useFlowStore.setState({ nodes: [podNode] as any });
+
+    render(
+      <WorkloadConfig
+        selectedNode={podNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    // Open dropdown
+    const dropdownTrigger = screen.getByText('nginx:latest');
+    fireEvent.click(dropdownTrigger);
+
+    // Find local custom option with empty string
+    const localSection = screen.getByText('Local & Custom Cache').closest('div');
+    const localBtns = localSection?.querySelectorAll('button') || [];
+    expect(localBtns.length).toBeGreaterThan(0);
+    fireEvent.click(localBtns[0]);
+
+    // Verify val ? 'ready' : 'pending' evaluated to 'pending'
+    expect(performUpdate).toHaveBeenCalledWith({ image: '', status: 'pending' });
+  });
+
+  it('covers multi-replica RWO PVC recommendation banner when workloadType is undefined', () => {
+    const pvcNode = {
+      id: 'pvc-rwo',
+      type: 'PVC',
+      data: { label: 'vol-rwo', accessMode: 'ReadWriteOnce' },
+    };
+    const depNodeNoWT = {
+      id: 'd-rwo',
+      type: 'Deployment',
+      data: { label: 'Dep RWO', replicas: 3 }, // workloadType is undefined
+    };
+    const edge = { id: 'e-rwo', source: 'd-rwo', target: 'pvc-rwo' };
+
+    useFlowStore.setState({
+      nodes: [pvcNode, depNodeNoWT] as any,
+      edges: [edge] as any,
+    });
+
+    render(
+      <WorkloadConfig
+        selectedNode={depNodeNoWT}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    // Banner should be rendered because (data.workloadType || 'Deployment') evaluates to 'Deployment' !== 'StatefulSet'
+    expect(screen.getByText('Stateful Workload Recommendation')).toBeDefined();
+    const switchBtn = screen.getByRole('button', { name: 'Switch to StatefulSet Mode' });
+    fireEvent.click(switchBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ workloadType: 'StatefulSet' });
+  });
+
+  it('covers WorkloadConfig with non-workload node type and OnFailure restart policy', () => {
+    // 1. Non-workload type node (e.g. Service)
+    const svcNode = {
+      id: 'svc1',
+      type: 'Service',
+      data: { label: 'My Svc' },
+    };
+    useFlowStore.setState({ nodes: [svcNode] as any });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={svcNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByText('Workload Type')).toBeNull();
+    expect(screen.queryByText('Container Image')).toBeNull();
+    expect(screen.getByText('Replicas')).toBeDefined();
+
+    // 2. Pod with OnFailure restart policy
+    const podOnFailure = {
+      id: 'p-of',
+      type: 'Pod',
+      data: {
+        label: 'Pod OnFailure',
+        restartPolicy: 'OnFailure',
+        displaySettings: { restartPolicy: true },
+      },
+    };
+    useFlowStore.setState({ nodes: [podOnFailure] as any });
+
+    rerender(
+      <WorkloadConfig
+        selectedNode={podOnFailure}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Restart Policy')).toBeDefined();
+    const onFailureBtn = screen.getByRole('button', { name: 'On Failure' });
+    expect(onFailureBtn).toBeDefined();
+    fireEvent.click(onFailureBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'OnFailure' });
+  });
 });

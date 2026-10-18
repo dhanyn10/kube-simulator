@@ -188,4 +188,34 @@ describe("initWailsMocks", () => {
     await app.CloseWindow();
     expect((window as any)._originalConsoleLog).toHaveBeenCalledWith("Minimize Window");
   });
+
+  it("covers fallback '[]' branches when localStorage keys are empty", async () => {
+    initWailsMocks();
+    const app = (window as any).go.main.App;
+
+    // 1. LoadProject with empty mock_projects
+    localStorage.removeItem("mock_projects");
+    const loaded = await app.LoadProject(123);
+    expect(loaded).toBeUndefined();
+
+    // 2. DeleteProject with empty mock_projects
+    localStorage.removeItem("mock_projects");
+    const deleted = await app.DeleteProject(123);
+    expect(deleted).toBe(true);
+
+    // 3. UpdateProject with empty mock_projects
+    localStorage.removeItem("mock_projects");
+    const updated = await app.UpdateProject(123, "{}");
+    expect(updated).toBe(false);
+
+    // 4. JumpToHistory with empty mock_history
+    localStorage.removeItem("mock_history");
+    const historyItem = await app.JumpToHistory(0);
+    expect(historyItem).toBeUndefined();
+
+    // 5. DeleteInternetProfile with empty mock_internet_profiles
+    localStorage.removeItem("mock_internet_profiles");
+    const profileDeleted = await app.DeleteInternetProfile("non-existent");
+    expect(profileDeleted).toBe(true);
+  });
 });
