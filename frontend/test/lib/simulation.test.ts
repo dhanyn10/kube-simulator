@@ -212,6 +212,10 @@ describe('simulation test suite', () => {
     expect(getInterpolatedProfileTraffic(profile, 15)).toBe(350); // interpolated between 00:10 (500) and 00:20 (200)
     expect(getInterpolatedProfileTraffic(profile, 20)).toBe(200); // exact 20m sub-hourly point
     expect(getInterpolatedProfileTraffic(profile, 60)).toBe(1000);
+
+    // Unpadded hour/minute key '0:0' triggers prev.minute === next.minute on line 104
+    const unpaddedProfile = { hourly: { '0:0': 500 } };
+    expect(getInterpolatedProfileTraffic(unpaddedProfile, 0)).toBe(500);
   });
 
   it('updates internet node traffic with minute-level profile resolution', () => {

@@ -85,7 +85,7 @@ describe('PVCConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ accessMode: 'ReadWriteMany' });
   });
 
-  it('disables RWO and renders English warning message when connected workload has > 1 replicas', () => {
+  it('disables RWO and renders English warning message when connected workload has > 1 replicas in dark and light modes', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'pvc1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
@@ -93,10 +93,11 @@ describe('PVCConfig', () => {
       ] as any,
       edges: [
         { id: 'e1', source: 'dep1', target: 'pvc1' }
-      ] as any
+      ] as any,
+      colorMode: 'dark',
     });
 
-    render(
+    const { rerender } = render(
       <PVCConfig
         selectedNode={selectedNode}
         performUpdate={performUpdate}
@@ -110,6 +111,18 @@ describe('PVCConfig', () => {
 
     expect(screen.getByText('RWO Disabled:')).toBeDefined();
     expect(screen.getByText(/ReadWriteOnce allows maximum 1 replica, but connected workload currently has 3 replicas/)).toBeDefined();
+
+    // Rerender in light mode to cover lines 132-134
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <PVCConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByText('RWO Disabled:')).toBeDefined();
   });
 
   it('handles storage class updates', () => {
@@ -126,5 +139,38 @@ describe('PVCConfig', () => {
     const select = screen.getByDisplayValue('Standard (HDD)');
     fireEvent.change(select, { target: { value: 'ssd' } });
     expect(performUpdate).toHaveBeenCalledWith({ storageClass: 'ssd' });
+  });
+
+  it('triggers toggleVisibility and toggleYaml on Storage Class ConfigSection', () => {
+    const activeSelectedNode = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        displaySettings: { storageClass: true },
+        yamlSettings: { storageClass: true }
+      }
+    };
+
+    const { container } = render(
+      <PVCConfig
+        selectedNode={activeSelectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Advanced Options'));
+
+    const sectionTitle = screen.getByText('Storage Class');
+    const headerDiv = sectionTitle.closest('div.flex');
+    const buttons = headerDiv?.querySelectorAll('button') || [];
+
+    buttons.forEach((btn) => {
+      fireEvent.click(btn);
+    });
+
+    expect(toggleVisibility).toHaveBeenCalledWith('storageClass');
+    expect(toggleYaml).toHaveBeenCalledWith('storageClass');
   });
 });

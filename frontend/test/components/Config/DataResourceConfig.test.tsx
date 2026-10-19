@@ -86,7 +86,7 @@ describe('DataResourceConfig', () => {
     expect(screen.getByText('Belum ada data secret')).toBeDefined();
   });
 
-  it('handles adding new items and toggles', () => {
+  it('handles adding new items and toggles, triggering onToggle and onYamlToggle callbacks on lines 54 and 56', () => {
     const selectedNode = {
       id: 'cm1',
       type: 'ConfigMap',
@@ -98,7 +98,7 @@ describe('DataResourceConfig', () => {
       }
     };
 
-    render(
+    const { container } = render(
       <DataResourceConfig
         selectedNode={selectedNode}
         performUpdate={performUpdate}
@@ -113,5 +113,32 @@ describe('DataResourceConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith(expect.objectContaining({
       configData: [expect.objectContaining({ key: '', value: '' })]
     }));
+
+    // Render with configData having items so YamlToggle is enabled
+    const activeSelectedNode = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        configData: [{ id: '1', key: 'K1', value: 'V1' }],
+      }
+    };
+
+    const { container: containerActive } = render(
+      <DataResourceConfig
+        selectedNode={activeSelectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const eyeBtn = containerActive.querySelector('button[title*="Show/Hide"]') || containerActive.querySelectorAll('button')[0];
+    const yamlBtn = containerActive.querySelector('button[title*="YAML"]') || containerActive.querySelectorAll('button')[1];
+
+    if (eyeBtn) fireEvent.click(eyeBtn);
+    if (yamlBtn) fireEvent.click(yamlBtn);
+
+    expect(toggleVisibility).toHaveBeenCalledWith('data');
+    expect(toggleYaml).toHaveBeenCalledWith('data');
   });
 });
