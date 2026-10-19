@@ -88,7 +88,7 @@ describe('MonitoringDashboard', () => {
     expect(mockEventsOn).toHaveBeenCalledWith('detached-closed', expect.any(Function));
 
     // Simulate BroadcastChannel message DETACHED_OPEN
-    fireEvent(window, new Event('dummy'));
+    fireEvent(globalThis, new Event('dummy'));
     broadcastChannelListener({ type: 'DETACHED_OPEN' });
     expect(setMonitoringDetachedSpy).toHaveBeenCalledWith(true);
     expect(setMonitoringOpenSpy).toHaveBeenCalledWith(false);
@@ -115,6 +115,7 @@ describe('MonitoringDashboard', () => {
     render(<MonitoringDashboard />);
 
     const dragBtn = screen.getByLabelText('Drag to move dashboard');
+    expect(dragBtn).toBeDefined();
 
     // mousemove when not dragging should early return
     fireEvent.mouseMove(document, { clientX: 200, clientY: 200 });
@@ -122,6 +123,10 @@ describe('MonitoringDashboard', () => {
     fireEvent.mouseDown(dragBtn, { clientX: 100, clientY: 100 });
     fireEvent.mouseMove(document, { clientX: 150, clientY: 120 });
     fireEvent.mouseUp(document);
+
+    const dashboard = dragBtn.closest('div[style]');
+    expect(dashboard).not.toBeNull();
+    expect(screen.getByText('System Monitoring')).toBeDefined();
   });
 
   it('handles closing dashboard', () => {

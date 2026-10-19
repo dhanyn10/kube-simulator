@@ -87,7 +87,8 @@ test.describe('ConfigMap and Secret', () => {
       store.addNode('Secret');
     });
 
-    await page.waitForTimeout(500);
+    await expect(page.locator('.react-flow__node-Deployment')).toBeVisible();
+    await expect(page.locator('.react-flow__node-Secret')).toBeVisible();
 
     await page.evaluate(() => {
       const store = (globalThis as any).useFlowStore.getState();
@@ -117,7 +118,10 @@ test.describe('ConfigMap and Secret', () => {
       }
     });
 
-    await page.waitForTimeout(500);
+    await page.waitForFunction(() => {
+      const store = (globalThis as any).useFlowStore?.getState?.();
+      return (store?.edges?.length ?? 0) > 0;
+    });
 
     // Mock GenerateYaml if it's not present
     await page.evaluate(() => {

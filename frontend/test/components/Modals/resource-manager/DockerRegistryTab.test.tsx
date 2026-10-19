@@ -172,6 +172,8 @@ describe('DockerRegistryTab', () => {
       vi.advanceTimersByTime(400);
     });
 
+    expect(mockFetchDockerHubPopular).toHaveBeenCalled();
+
     // Unmount before promise resolves
     unmount();
 
@@ -179,6 +181,8 @@ describe('DockerRegistryTab', () => {
     await act(async () => {
       resolvePromise(JSON.stringify({ results: [{ name: 'post-unmount-img' }] }));
     });
+
+    expect(screen.queryByText('post-unmount-img')).toBeNull();
   });
 
   it('handles unmounting component when API call rejects (!active in catch block)', async () => {
@@ -194,6 +198,8 @@ describe('DockerRegistryTab', () => {
       vi.advanceTimersByTime(400);
     });
 
+    expect(mockFetchDockerHubPopular).toHaveBeenCalled();
+
     // Unmount before promise rejects
     unmount();
 
@@ -201,6 +207,8 @@ describe('DockerRegistryTab', () => {
     await act(async () => {
       rejectPromise(new Error('Unmounted error'));
     });
+
+    expect(screen.queryByText('Docker Hub Registry')).toBeNull();
   });
 
   it('handles clicking on an image card to navigate to TagsView and clicking back to return', async () => {

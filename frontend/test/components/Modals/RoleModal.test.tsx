@@ -305,6 +305,7 @@ describe('RoleModal component', () => {
     );
 
     const verbsInput = screen.getByLabelText('Verbs (Permissions)');
+    expect(verbsInput).toBeInTheDocument();
 
     // Open suggestions by focus
     fireEvent.focus(verbsInput);
@@ -329,9 +330,9 @@ describe('RoleModal component', () => {
 
     // Click remove tag button
     const removeTagBtns = screen.getAllByRole('button').filter(btn => btn.querySelector('svg'));
-    if (removeTagBtns.length > 0) {
-      fireEvent.click(removeTagBtns[0]);
-    }
+    expect(removeTagBtns.length).toBeGreaterThan(0);
+    fireEvent.click(removeTagBtns[0]);
+    expect(screen.getByText('Attach RBAC Role & RoleBinding')).toBeInTheDocument();
   });
 
   it('derives API groups for various resources when resource tags are updated', () => {

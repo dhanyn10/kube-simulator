@@ -58,7 +58,7 @@ test.describe('Error Reporting Feature', () => {
       console.error('Persistence Error');
     });
 
-    await page.waitForTimeout(500);
+    await expect(page.getByTestId('bell-error-badge')).toBeVisible();
     await page.reload();
     await page.waitForSelector('[data-testid="app-title"]');
 
@@ -91,7 +91,9 @@ test.describe('Error Reporting Feature', () => {
     await expect(page.getByTestId('log-selection-count')).toBeVisible();
 
     // Delete selected
-    await page.getByTestId('log-bulk-delete').click({ force: true });
+    const bulkDeleteBtn = page.getByTestId('log-bulk-delete');
+    await expect(bulkDeleteBtn).toBeVisible();
+    await bulkDeleteBtn.click();
     await expect(page.getByTestId('log-selection-count')).not.toBeVisible();
   });
 
@@ -110,7 +112,9 @@ test.describe('Error Reporting Feature', () => {
     await expect(page.getByText('TestError')).toBeVisible();
 
     // Open dropdown
-    await page.getByTestId('log-select-dropdown').click({ force: true });
+    const selectDropdown = page.getByTestId('log-select-dropdown');
+    await expect(selectDropdown).toBeVisible();
+    await selectDropdown.click();
 
     // Select errors
     await page.evaluate(() => {
@@ -130,7 +134,8 @@ test.describe('Error Reporting Feature', () => {
     const pre = page.locator('pre', { hasText: 'EXPAND_ME_' }).first();
     await expect(pre).toHaveClass(/line-clamp-1/);
 
-    await pre.click({ force: true });
+    await expect(pre).toBeVisible();
+    await pre.click();
     await expect(pre).not.toHaveClass(/line-clamp-1/);
   });
 });
