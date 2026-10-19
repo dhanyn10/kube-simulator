@@ -76,7 +76,7 @@ export const createNodeHandlers = (id: string, get: () => FlowState) => ({
       const replicaSuffix = node.data?.replicaSuffix;
       const currentParent = node.parentId ? get().nodes.find(n => n.id === node.parentId) : null;
 
-      if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'ReplicaSet')) {
+      if (currentParent && (currentParent.type === 'Deployment' || currentParent.type === 'StatefulSet' || currentParent.type === 'ReplicaSet')) {
         get().updateNodeData(currentParent.id, { label: cleanBase });
       } else {
         const replicas = node.data?.replicas || 1;

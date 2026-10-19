@@ -1,10 +1,12 @@
+import { POD_SEPARATED_THRESHOLD, POD_MEGA_THRESHOLD } from '@/lib/podReplicaHelpers';
+
 export const getPodSpacing = (_isMegaPod?: boolean) => 20;
 
 export const getReplicaThresholds = (totalReplicas: number) => {
   const targetPodReplicas: number[] = [];
-  if (totalReplicas <= 3) {
+  if (totalReplicas <= POD_SEPARATED_THRESHOLD) {
     for (let i = 0; i < totalReplicas; i++) targetPodReplicas.push(1);
-  } else if (totalReplicas < 100) {
+  } else if (totalReplicas < POD_MEGA_THRESHOLD) {
     let remaining = totalReplicas;
     while (remaining > 0) {
       const count = Math.min(remaining, 10);
@@ -14,7 +16,7 @@ export const getReplicaThresholds = (totalReplicas: number) => {
   } else {
     let remaining = totalReplicas;
     while (remaining > 0) {
-      const count = Math.min(remaining, 100);
+      const count = Math.min(remaining, POD_MEGA_THRESHOLD);
       targetPodReplicas.push(count);
       remaining -= count;
     }

@@ -399,7 +399,7 @@ const runSimulationTick = (params: {
 
   const stopParams = { ticks, workloads, nodes: updatedNodes, metrics: newMetrics, set, simulationInterval: simulationIntervalObj };
   if (!checkEmergencyStop(stopParams)) {
-    broadcastMetrics(newMetrics, updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)));
+    broadcastMetrics(newMetrics, updatedNodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId)));
   }
 };
 
@@ -407,7 +407,7 @@ const runSimulationTick = (params: {
  * Returns group strings based on resource types for yaml activity logs
  */
 const getResourceGroup = (type: string) => {
-  if (type === 'Deployment' || type === 'ReplicaSet') {
+  if (type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet') {
     return '.apps';
   } else if (type === 'Ingress') {
     return '.networking.k8s.io';
@@ -454,7 +454,7 @@ const buildInitialActivity = (nodes: Node[]) => {
 const buildInitialTerminalLogs = (nodes: Node[]) => {
   const initialTerminalLogs: Record<string, string[]> = {};
   nodes.forEach(n => {
-    if (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'ReplicaSet') {
+    if (n.type === 'Pod' || n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') {
       const name = n.data.label || n.id;
       const image = n.data.image || 'nginx:latest';
       initialTerminalLogs[n.id] = [
@@ -496,7 +496,7 @@ const startSimulationInternal = (
           return;
       }
 
-      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId));
+      const workloads = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet' || (n.type === 'Pod' && !n.parentId));
       broadcastMetrics(simulationMetrics, workloads);
 
       const metricsChannel = getMetricsChannel();

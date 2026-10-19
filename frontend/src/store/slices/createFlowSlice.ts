@@ -35,6 +35,8 @@ const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
   StatefulSet: 'statefulsets',
 };
 
+const WORKLOAD_CONTROLLERS = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
+
 const getDerivedResourcesForNode = (cn: Node, nodes: Node[], derivedResourcesSet: Set<string>) => {
   if (cn.type === 'Deployment' || cn.type === 'StatefulSet') {
     derivedResourcesSet.add(cn.type === 'StatefulSet' ? 'statefulsets' : 'deployments');
@@ -312,7 +314,8 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
         if (parentIds.size > 0) {
           parentIds.forEach((parentId) => {
             const parent = containerSyncedNodes.find((n) => n.id === parentId);
-            if (parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet')) {
+            const isController = Boolean(parent && WORKLOAD_CONTROLLERS.has(parent.type));
+            if (isController && parent) {
               const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
               const others = containerSyncedNodes.filter((n) => n.id !== parent.id && n.parentId !== parent.id);
               containerSyncedNodes = [...others, updatedDeployment, ...laidOut];

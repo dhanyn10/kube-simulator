@@ -39,7 +39,7 @@ const getRelationshipStatus = (node: Node, container: Node, intersects: boolean,
  * @returns Object containing `hoveredId` and `detachingId`
  */
 const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nodes: Node[]) => {
-  const containers = nodes.filter(n => n.type === 'Deployment' || n.type === 'Namespace')
+  const containers = nodes.filter(n => n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'Namespace')
     .sort((a, b) => ((a.width || 320) * (a.height || 160)) - ((b.width || 320) * (b.height || 160)));
 
   let hoveredId: string | null = null;
@@ -76,7 +76,7 @@ const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos
   if (!target || !isAllowed(target.type || '', node.type || '')) {
     return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
   }
-  return target.type === 'Deployment' && node.type === 'Pod'
+  return (target.type === 'Deployment' || target.type === 'StatefulSet') && node.type === 'Pod'
     ? handlePodMoveToDeployment(hoveredId, target, node, nextNodes, node.parentId, get, finalNode)
     : handleGenericContainerMove(hoveredId, node, nextNodes, node.parentId, absPos, get);
 };
@@ -93,7 +93,7 @@ const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos
  */
 const applyDetachment = (node: Node, nextNodes: Node[], oldParentId: string, absPos: { x: number, y: number }, get: () => FlowState) => {
   const parent = nextNodes.find(n => n.id === oldParentId);
-  if ((parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
+  if ((parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
     const movingReplicas = getNodeData(node).replicas || 1;
     const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -movingReplicas, get);
     const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
@@ -124,7 +124,7 @@ const applyInternalMove = (node: Node, finalNode: Node, nextNodes: Node[], oldPa
   const parent = nextNodes.find(n => n.id === oldParentId);
   let resultNodes: Node[];
   
-  if ((parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
+  if ((parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet') && node.type === 'Pod') {
     const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, 0, get, finalNode);
     const filtered = nextNodes.filter(n => (n.parentId !== oldParentId || n.type !== 'Pod') && n.id !== node.id);
     resultNodes = [...filtered.map(n => n.id === oldParentId ? updatedDeployment : n), ...laidOut];
@@ -182,7 +182,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
       return;
     }
     set({ draggedNodeId: node.id });
-    if (node.type === 'Deployment') {
+    if (node.type === 'Deployment' || node.type === 'StatefulSet') {
       get().setActiveDeploymentId(node.id);
     } else {
       get().setActiveDeploymentId(null);
@@ -209,7 +209,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     const { hoveredId, detachingId } = findHoveredContainer(node, nodeAbs, nodes);
 
     const nextNodes = nodes.map((n: Node) => {
-      if (n.type === 'Deployment' || n.type === 'Namespace') {
+        if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'Namespace') {
         return { ...n, data: { ...n.data, isHovered: n.id === hoveredId, isDetaching: n.id === detachingId } };
       }
       return n;

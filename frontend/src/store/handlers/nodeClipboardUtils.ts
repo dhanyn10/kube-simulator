@@ -29,7 +29,7 @@ export const findLogicalPodMatch = (pastedPod: Node, nodes: Node[]) => {
  * @param updateNodeData Function to dispatch node data updates
  */
 export const updateReplicaDelta = (target: Node, delta: number, nodes: Node[], updateNodeData: Function) => {
-  const parentId = (target.type === 'Deployment' || target.type === 'ReplicaSet') ? target.id : target.parentId;
+  const parentId = (target.type === 'Deployment' || target.type === 'StatefulSet' || target.type === 'ReplicaSet') ? target.id : target.parentId;
   if (!parentId) return;
 
   const parent = nodes.find(n => n.id === parentId);

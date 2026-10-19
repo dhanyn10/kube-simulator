@@ -22,14 +22,14 @@ const CENTER_OFFSETS: Record<K8sResourceType, { x: number; y: number }> = {
 };
 
 const isChildTypeAllowed = (nodeType: string | undefined, childType: K8sResourceType): boolean => {
-  if (childType === 'Pod') return nodeType === 'Deployment' || nodeType === 'Namespace';
-  if (['Deployment', 'Service', 'Internet', 'Ingress', 'HPA', 'ResourceLimit', 'Role', 'ConfigMap', 'Secret'].includes(childType)) return nodeType === 'Namespace';
+  if (childType === 'Pod') return nodeType === 'Deployment' || nodeType === 'StatefulSet' || nodeType === 'Namespace';
+  if (['Deployment', 'StatefulSet', 'Service', 'Internet', 'Ingress', 'HPA', 'ResourceLimit', 'Role', 'ConfigMap', 'Secret'].includes(childType)) return nodeType === 'Namespace';
   return false;
 };
 
 const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes: Node[]): boolean => {
-  const w = n.width || n.measured?.width || (n.type === 'Deployment' ? 320 : 600);
-  const h = n.height || n.measured?.height || (n.type === 'Deployment' ? 160 : 400);
+  const w = n.width || n.measured?.width || (n.type === 'Deployment' || n.type === 'StatefulSet' ? 320 : 600);
+  const h = n.height || n.measured?.height || (n.type === 'Deployment' || n.type === 'StatefulSet' ? 160 : 400);
 
   let absX = n.position.x;
   let absY = n.position.y;
@@ -42,7 +42,7 @@ const isPositionInsideNode = (position: { x: number; y: number }, n: Node, nodes
   return position.x >= absX && position.x <= absX + w && position.y >= absY && position.y <= absY + h;
 };
 
-const WORKLOAD_ATTACHMENT_TARGETS = new Set(['Deployment', 'ReplicaSet', 'Pod']);
+const WORKLOAD_ATTACHMENT_TARGETS = new Set(['Deployment', 'StatefulSet', 'ReplicaSet', 'Pod']);
 
 const findRoleTargetNode = (
   roleCenter: { x: number; y: number },

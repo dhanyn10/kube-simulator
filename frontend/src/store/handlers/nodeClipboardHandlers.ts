@@ -21,7 +21,7 @@ const tryIncrementPodReplicas = (nodes: Node[], clipboardNodes: Node[], updateNo
   if (!isMatch) return false;
 
   const parent = nodes.find(n => n.id === selectedPod.parentId);
-  const isController = parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet');
+  const isController = parent && (parent.type === 'Deployment' || parent.type === 'StatefulSet' || parent.type === 'ReplicaSet');
   const targetId = isController ? selectedPod.parentId! : selectedPod.id;
   const targetNode = nodes.find(n => n.id === targetId);
 
@@ -52,7 +52,7 @@ export const clipboardHandlers = (set: any, get: () => FlowState) => ({
 
     const nodeIdsToCopy = new Set(selectedNodes.map(n => n.id));
     selectedNodes.forEach(node => {
-      if (node.type === 'Deployment') {
+      if (node.type === 'Deployment' || node.type === 'StatefulSet') {
         nodes.filter(n => n.parentId === node.id).forEach(child => nodeIdsToCopy.add(child.id));
       }
     });

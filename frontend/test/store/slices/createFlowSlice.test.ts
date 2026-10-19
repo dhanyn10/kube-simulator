@@ -431,4 +431,77 @@ describe('createFlowSlice', () => {
     useFlowStore.getState().onConnect({ source: 'p1', target: 'p2' });
     expect(useFlowStore.getState().edges).toHaveLength(1);
   });
+
+  describe('onNodesChange with dimensions changes', () => {
+    it('synchronizes Deployment parent layout on child dimension change', () => {
+      const depNode = { id: 'dep1', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 1, label: 'dep-1' } };
+      const podNode = { id: 'pod1', type: 'Pod', parentId: 'dep1', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [depNode, podNode] as any });
+
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'pod1', type: 'dimensions', dimensions: { width: 200, height: 100 } }]);
+
+      const state = useFlowStore.getState();
+      expect(state.nodes.some(n => n.id === 'dep1')).toBe(true);
+      expect(state.nodes.some(n => n.id === 'pod1')).toBe(true);
+    });
+
+    it('synchronizes StatefulSet parent layout on child dimension change', () => {
+      const ssNode = { id: 'ss1', type: 'StatefulSet', position: { x: 0, y: 0 }, data: { replicas: 1, label: 'ss-1' } };
+      const podNode = { id: 'pod1', type: 'Pod', parentId: 'ss1', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [ssNode, podNode] as any });
+
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'pod1', type: 'dimensions', dimensions: { width: 200, height: 100 } }]);
+
+      const state = useFlowStore.getState();
+      expect(state.nodes.some(n => n.id === 'ss1')).toBe(true);
+      expect(state.nodes.some(n => n.id === 'pod1')).toBe(true);
+    });
+
+    it('synchronizes ReplicaSet parent layout on child dimension change', () => {
+      const rsNode = { id: 'rs1', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: { replicas: 1, label: 'rs-1' } };
+      const podNode = { id: 'pod1', type: 'Pod', parentId: 'rs1', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [rsNode, podNode] as any });
+
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'pod1', type: 'dimensions', dimensions: { width: 200, height: 100 } }]);
+
+      const state = useFlowStore.getState();
+      expect(state.nodes.some(n => n.id === 'rs1')).toBe(true);
+      expect(state.nodes.some(n => n.id === 'pod1')).toBe(true);
+    });
+
+    it('synchronizes non-workload container (e.g. Namespace) on child dimension change', () => {
+      const nsNode = { id: 'ns1', type: 'Namespace', position: { x: 0, y: 0 }, data: { label: 'ns-1' } };
+      const podNode = { id: 'pod1', type: 'Pod', parentId: 'ns1', position: { x: 10, y: 10 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [nsNode, podNode] as any });
+
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'pod1', type: 'dimensions', dimensions: { width: 200, height: 100 } }]);
+
+      const state = useFlowStore.getState();
+      expect(state.nodes.some(n => n.id === 'ns1')).toBe(true);
+    });
+
+    it('handles child node with missing or unknown parentId on dimension change', () => {
+      const podNode = { id: 'pod1', type: 'Pod', parentId: 'missing-parent', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [podNode] as any });
+
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'pod1', type: 'dimensions', dimensions: { width: 200, height: 100 } }]);
+
+      expect(useFlowStore.getState().nodes).toHaveLength(1);
+    });
+
+    it('handles dimension change on standalone node without parentId', () => {
+      const podNode = { id: 'pod1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'pod-1' } };
+      useFlowStore.setState({ nodes: [podNode] as any });
+
+      const { onNodesChange } = useFlowStore.getState();
+      onNodesChange([{ id: 'pod1', type: 'dimensions', dimensions: { width: 200, height: 100 } }]);
+
+      expect(useFlowStore.getState().nodes).toHaveLength(1);
+    });
+  });
 });

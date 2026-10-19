@@ -13,7 +13,7 @@ export const getReplicaValue = (selectedNode: any, nodes: any[]): number => {
   const { data, type, parentId } = selectedNode;
   if (type === 'Pod' && parentId) {
     const parent = nodes.find((n) => n.id === parentId);
-    if (parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet')) {
+    if (parent && (parent.type === 'Deployment' || parent.type === 'StatefulSet' || parent.type === 'ReplicaSet')) {
       return Number(parent.data?.replicas) || 1;
     }
     const getPodBase = (pod: any) => pod.data?.baseName || pod.data?.label?.replace(/(-[a-z0-9]{5}){1,2}$/, '') || pod.data?.label;
@@ -37,7 +37,7 @@ export const getUpdateReplicasTargetId = (selectedNode: any, nodes: any[]): stri
     return selectedNode.id;
   }
   const parent = nodes.find((n) => n.id === selectedNode.parentId);
-  const isController = parent?.type === 'Deployment' || parent?.type === 'ReplicaSet' || parent?.type === 'PodGroup';
+  const isController = parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet' || parent?.type === 'PodGroup';
   return isController ? selectedNode.parentId! : selectedNode.id;
 };
 

@@ -29,6 +29,8 @@ import {
 } from '@/activities/terminal/liveUpdateCommands';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
 
+const WORKLOAD_CONTROLLERS = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
+
 // -- SPECIFIC NODE HANDLERS (To reduce complexity) --
 
 /**
@@ -95,11 +97,9 @@ const buildAttachedPatch = (newData: Partial<K8sNodeData>, value: any): Partial<
   };
 };
 
-const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
+const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
-
-  const targetData = target.data as K8sNodeData;
 
   const effectiveReplicas = newData.replicas ?? Number(parent.data?.replicas || 0);
 
@@ -124,8 +124,10 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
     return sortNodes([...others, updatedPodWithCleanLabel]);
   }
 
-  const replicasChange = ((parent.type === 'Deployment' || parent.type === 'ReplicaSet') && newData.replicas !== undefined)
-    ? (newData.replicas || 0) - (Number(targetData.replicas) || 0) : 0;
+  const parentReplicas = Number(parent.data?.replicas || 0);
+  const isController = Boolean(parent && WORKLOAD_CONTROLLERS.has(parent.type));
+  const replicasChange = (isController && newData.replicas !== undefined)
+    ? (newData.replicas || 0) - parentReplicas : 0;
 
   const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
   const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);
@@ -169,7 +171,7 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
 
   const parentId = updatedNode.parentId;
   const parent = parentId ? nodes.find(n => n.id === parentId) : null;
-  const isInsideController = parent && (parent.type === 'ReplicaSet' || parent.type === 'Deployment');
+  const isInsideController = Boolean(parent && WORKLOAD_CONTROLLERS.has(parent.type));
 
   if (updatedNode.type === 'Pod' && isInsideController) {
     return nodes.map((n) => {
@@ -225,12 +227,12 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
     }
     if (updatedNode.parentId) {
       const parent = nextNodes.find(n => n.id === updatedNode.parentId);
-      if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
+      if (parent && WORKLOAD_CONTROLLERS.has(parent.type)) {
         return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
       }
     }
   }
-  if (updatedNode.type === 'Deployment' || updatedNode.type === 'ReplicaSet') {
+  if (WORKLOAD_CONTROLLERS.has(updatedNode.type)) {
     nextNodes = syncPodAttachedItemsGroup(updatedNode, updatedData, newData, nextNodes);
     return handleContainerSync(updatedNode, nextNodes, get);
   }
@@ -247,10 +249,10 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
  */
 const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowState) => {
   let nextNodes = currentNodes;
-  if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
+  if (node.type === 'Deployment' || node.type === 'StatefulSet') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
   if (node?.type === 'Pod' && node?.parentId) {
     const parent = nextNodes.find(n => n.id === node.parentId);
-    if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
+    if (parent && WORKLOAD_CONTROLLERS.has(parent.type)) {
       const nodeData = getNodeData(node);
       const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(nodeData.replicas || 1), get);
       const others = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');

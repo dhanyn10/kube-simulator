@@ -8,6 +8,7 @@ import { useNodeStyles } from '@/hooks/useNodeStyles';
 import { useNodeRename } from '@/hooks/useNodeEditor';
 import { useNodeStatus, useNodeContainerStyles, getNodeBorderColorHex } from '@/hooks/useNodeStatusStyles';
 import { K8sNodeData } from '@/types';
+import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
 
 /**
  * Extracts base application name for Pod resource cards.
@@ -155,10 +156,14 @@ export const useBaseNodeHandler = ({
       borderColorHex
     });
 
-  const replicas = data.replicas || 1;
-  const parentReplicas = data.parentReplicas || 0;
-  const showDashedProgress = data.type === 'Pod' && (parentReplicas > 3 || (replicas > 1 && !data.parentId));
-  const isStackedPod = data.type === 'Pod' && (parentReplicas > 3 || (replicas > 3 && !data.parentId));
+  const {
+    replicas,
+    parentReplicas,
+    isStackedPod,
+    isStackedCard,
+    isMegaPod,
+    showDashedProgress,
+  } = getPodReplicaInfo(data);
   const displayLabel = formatDisplayLabel(data, podBaseName, isStackedPod);
 
   return {
@@ -180,7 +185,11 @@ export const useBaseNodeHandler = ({
     containerClasses,
     progressEmptyBgClass,
     replicas,
+    parentReplicas,
+    isMegaPod,
     showDashedProgress,
+    isStackedPod,
+    isStackedCard,
     isAutocompleteHovered,
     hoveredPodIndex,
     borderColorHex,

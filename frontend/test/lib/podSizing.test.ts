@@ -35,6 +35,7 @@ describe('podSizing utils', () => {
       expect(widthMegaRep).toBeGreaterThanOrEqual(POD_MIN_DIMENSIONS.width * 2);
 
       const dataMulti = {
+        type: 'Pod' as const,
         label: 'multi-pod',
         replicas: 10,
         image: 'docker.io/library/nginx:1.25.0-alpine-slim',
@@ -58,6 +59,17 @@ describe('podSizing utils', () => {
       };
       const widthNoImage = calculatePodWidth(dataImageExplicitlyFalse, []);
       expect(widthNoImage).toBe(POD_MIN_DIMENSIONS.width);
+    });
+
+    it('covers child pod with parentReplicas > 3 and replicas = 1 where isStackedCard is false', () => {
+      const dataChildSingleReplica = {
+        type: 'Pod' as const,
+        label: 'child-single',
+        parentReplicas: 11,
+        replicas: 1,
+      };
+      const width = calculatePodWidth(dataChildSingleReplica, []);
+      expect(width).toBe(POD_MIN_DIMENSIONS.width);
     });
   });
 
@@ -183,7 +195,7 @@ describe('podSizing utils', () => {
       expect(h2).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
     });
 
-    it('covers cpuRequest and memoryRequest without limits, and standalone pod with replicas > 1 for dashed progress', () => {
+    it('covers cpuRequest and memoryRequest without limits, and standalone pod with replicas > 3 for dashed progress', () => {
       const base = { type: 'Pod' as any, displaySettings: { restartPolicy: false } };
       const podCpuReq = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, cpuRequest: '250m' };
       const podMemReq = { type: 'Pod' as any, displaySettings: { restartPolicy: false }, memoryRequest: '512Mi' };
@@ -195,9 +207,18 @@ describe('podSizing utils', () => {
       expect(hCpu).toBeGreaterThan(hBase);
       expect(hMem).toBeGreaterThan(hBase);
 
-      const standaloneMultiReplica = {
+      const standaloneTwoReplicas = {
         type: 'Pod' as any,
         replicas: 2,
+        parentId: undefined,
+        displaySettings: { restartPolicy: false },
+      };
+      const hTwo = calculatePodHeight(standaloneTwoReplicas, 168, [], false);
+      expect(hTwo).toBe(POD_MIN_DIMENSIONS.height);
+
+      const standaloneMultiReplica = {
+        type: 'Pod' as any,
+        replicas: 4,
         parentId: undefined,
         displaySettings: { restartPolicy: false },
       };
@@ -277,27 +298,38 @@ describe('podSizing utils', () => {
   });
 
   it('covers showDashedProgress and individual resource settings condition branches', () => {
-    // 1. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas > 1, parentId defined -> evaluates false
+    // 1. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas > 3, parentId defined -> evaluates false
     const podWithParentAndMultiReplicas = {
       type: 'Pod' as const,
       parentReplicas: 2,
-      replicas: 2,
+      replicas: 4,
       parentId: 'dep-123',
       displaySettings: { restartPolicy: false },
     };
     const hParentMulti = calculatePodHeight(podWithParentAndMultiReplicas, 168, [], false);
     expect(hParentMulti).toBe(POD_MIN_DIMENSIONS.height);
 
-    // 2. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas > 1, parentId undefined -> evaluates true
+    // 2. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas > 3, parentId undefined -> evaluates true
     const standaloneMulti = {
       type: 'Pod' as const,
       parentReplicas: 2,
-      replicas: 2,
+      replicas: 4,
       parentId: undefined,
       displaySettings: { restartPolicy: false },
     };
     const hStandaloneMulti = calculatePodHeight(standaloneMulti, 168, [], false);
     expect(hStandaloneMulti).toBeGreaterThan(POD_MIN_DIMENSIONS.height);
+
+    // 2b. showDashedProgress: data.type === 'Pod', parentReplicas <= 3, replicas <= 3, parentId undefined -> evaluates false
+    const standaloneLowReplica = {
+      type: 'Pod' as const,
+      parentReplicas: 2,
+      replicas: 3,
+      parentId: undefined,
+      displaySettings: { restartPolicy: false },
+    };
+    const hStandaloneLow = calculatePodHeight(standaloneLowReplica, 168, [], false);
+    expect(hStandaloneLow).toBe(POD_MIN_DIMENSIONS.height);
 
     // 3. Each individual resource limit/request field evaluated when others are absent
     const basePod = { type: 'Pod' as const, displaySettings: { restartPolicy: false } };

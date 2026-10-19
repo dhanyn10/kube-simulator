@@ -136,7 +136,7 @@ export const resizeHandlers = (set: any, get?: () => FlowState) => ({
       
       if (resized.type === 'Pod') {
         nextNodes = applyPodResize(nextNodes, resized);
-      } else if (resized.type === 'Deployment') {
+      } else if (resized.type === 'Deployment' || resized.type === 'StatefulSet') {
         nextNodes = applyDeploymentResize(nextNodes, resized);
       }
 
