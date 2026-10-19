@@ -237,6 +237,32 @@ describe('nodeUtils', () => {
       const name = ensureUniqueResourceName('backend', 'Service', 'ns2', nodes);
       expect(name).toBe('backend');
     });
+
+    it('handles desiredName sanitizing to empty string falling back to type name', () => {
+      const name = ensureUniqueResourceName('$$$###', 'Pod', undefined, []);
+      expect(name).toBe('pod');
+    });
+
+    it('filters out nodes missing type and nodes matching excludeNodeId (by id or parentId)', () => {
+      const nodes: any[] = [
+        { id: 'n-notype', data: { label: 'web' } },
+        { id: 'ex-node', type: 'Pod', data: { label: 'web' } },
+        { id: 'child-node', parentId: 'ex-parent', type: 'Pod', data: { label: 'worker' } },
+        { id: 'empty-data-node', type: 'Pod', data: {} },
+      ];
+
+      // Exclude by n.id
+      const name1 = ensureUniqueResourceName('web', 'Pod', undefined, nodes, 'ex-node');
+      expect(name1).toBe('web');
+
+      // Exclude by n.parentId
+      const name2 = ensureUniqueResourceName('worker', 'Pod', undefined, nodes, 'ex-parent');
+      expect(name2).toBe('worker');
+
+      // Node with empty data (no baseName, no label) falls back to ''
+      const name3 = ensureUniqueResourceName('runner', 'Pod', undefined, nodes);
+      expect(name3).toBe('runner');
+    });
   });
 
   it('handles applyAutoImageLogic and syncWorkloadMetadata edge cases', () => {
@@ -249,6 +275,31 @@ describe('nodeUtils', () => {
     const customResult = applyAutoImageLogic(customImgTarget, { runtime: 'nodejs' });
     expect(customResult).toEqual({ runtime: 'nodejs' });
 
+    // Fallbacks for data.runtime undefined and data.webserver undefined
+    const rtFallbackResult = applyAutoImageLogic(
+      { label: 'pod', runtime: 'go', isAutoImage: true } as any,
+      { webserver: 'nginx' }
+    );
+    expect(rtFallbackResult.image).toBeDefined();
+
+    const noneFallbackResult = applyAutoImageLogic(
+      { label: 'pod', isAutoImage: true } as any,
+      { webserver: 'apache' }
+    );
+    expect(noneFallbackResult.image).toBe('httpd:latest');
+
+    const wsFallbackResult = applyAutoImageLogic(
+      { label: 'pod', webserver: 'apache', isAutoImage: true } as any,
+      { runtime: 'php' }
+    );
+    expect(wsFallbackResult.image).toBe('php:8.2-apache');
+
+    const noneWsFallbackResult = applyAutoImageLogic(
+      { label: 'pod', isAutoImage: true } as any,
+      { runtime: 'nodejs' }
+    );
+    expect(noneWsFallbackResult.image).toBe('node:18-alpine');
+
     // syncWorkloadMetadata for ReplicaSet with image
     const customWorkload = syncWorkloadMetadata('ReplicaSet', { image: 'custom:2.0' } as any);
     expect(customWorkload.status).toBe('ready');
@@ -259,5 +310,9 @@ describe('nodeUtils', () => {
     // syncWorkloadMetadata with empty image
     const pendingWorkload = syncWorkloadMetadata('Deployment', { image: '' } as any);
     expect(pendingWorkload.status).toBe('pending');
+
+    // syncWorkloadMetadata with image undefined (neither image nor empty string)
+    const noImageWorkload = syncWorkloadMetadata('Pod', { label: 'worker' } as any);
+    expect(noImageWorkload.status).toBeUndefined();
   });
 });
