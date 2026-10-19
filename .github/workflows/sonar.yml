@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir -p frontend/dist
           echo "dummy" > frontend/dist/index.html
-          go test ./backend/... . -v -coverprofile=coverage-backend-windows.out -json > report-backend.json
+          go test ./... -v -coverprofile=coverage-backend-windows.out -json > report-backend.json
 
       - name: Upload Windows Backend Coverage Artifact
         uses: actions/upload-artifact@v4
