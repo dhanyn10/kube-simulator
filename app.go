@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	_ "embed"
+	_ "embed" // Required for embedding wails.json via go:embed
 	"encoding/json"
 	"fmt"
 	"log"

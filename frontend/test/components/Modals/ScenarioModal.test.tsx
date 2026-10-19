@@ -70,7 +70,7 @@ describe('ScenarioModal', () => {
     fireEvent.click(screen.getByText('Cancel'));
 
     expect(screen.queryByText('Overwrite Current Canvas?')).toBeNull();
-    expect(useFlowStore.getState().nodes.length).toBe(1);
+    expect(useFlowStore.getState().nodes).toHaveLength(1);
   });
 
   it('renders scenarios with Advanced level badges and handles fallback level styles', () => {
@@ -141,7 +141,7 @@ describe('ScenarioModal', () => {
       fireEvent.click(confirmBtn);
     });
 
-    expect(useFlowStore.getState().nodes.length).toBe(2);
+    expect(useFlowStore.getState().nodes).toHaveLength(2);
 
     scenarios.pop();
   });
@@ -164,7 +164,7 @@ describe('ScenarioModal', () => {
       fireEvent.click(btn!);
     });
 
-    expect(useFlowStore.getState().nodes.length).toBe(0);
+    expect(useFlowStore.getState().nodes).toHaveLength(0);
 
     scenarios.pop();
   });
