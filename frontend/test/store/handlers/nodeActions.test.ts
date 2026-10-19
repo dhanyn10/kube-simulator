@@ -544,4 +544,117 @@ describe('nodeActions', () => {
     const dep4 = useFlowStore.getState().nodes.find(n => n.id === depNode.id)!;
     expect(dep4.data.replicas).toBe(4);
   });
+
+  it('correctly updates StatefulSet parent controller replicas when updateNodeData is called on a child pod', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('StatefulSet', { x: 0, y: 0 });
+    const ssNode = useFlowStore.getState().nodes.find(n => n.type === 'StatefulSet')!;
+
+    // Scale to 3 replicas
+    updateNodeData(ssNode.id, { replicas: 3 });
+    const ss3 = useFlowStore.getState().nodes.find(n => n.id === ssNode.id)!;
+    expect(ss3.data.replicas).toBe(3);
+
+    const childPods = useFlowStore.getState().nodes.filter(n => n.parentId === ssNode.id && n.type === 'Pod');
+    expect(childPods).toHaveLength(3);
+    const child1 = childPods[0];
+
+    // Decrement from 3 to 2 on child pod
+    updateNodeData(child1.id, { replicas: 2 });
+    const ss2 = useFlowStore.getState().nodes.find(n => n.id === ssNode.id)!;
+    expect(ss2.data.replicas).toBe(2);
+
+    // Increment from 2 to 4 on child pod
+    const updatedChild = useFlowStore.getState().nodes.find(n => n.parentId === ssNode.id && n.type === 'Pod')!;
+    updateNodeData(updatedChild.id, { replicas: 4 });
+    const ss4 = useFlowStore.getState().nodes.find(n => n.id === ssNode.id)!;
+    expect(ss4.data.replicas).toBe(4);
+  });
+
+  it('correctly updates ReplicaSet parent controller replicas when updateNodeData is called on a child pod', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('ReplicaSet', { x: 0, y: 0 });
+    const rsNode = useFlowStore.getState().nodes.find(n => n.type === 'ReplicaSet')!;
+
+    // Scale to 3 replicas
+    updateNodeData(rsNode.id, { replicas: 3 });
+    const rs3 = useFlowStore.getState().nodes.find(n => n.id === rsNode.id)!;
+    expect(rs3.data.replicas).toBe(3);
+
+    const childPods = useFlowStore.getState().nodes.filter(n => n.parentId === rsNode.id && n.type === 'Pod');
+    expect(childPods).toHaveLength(3);
+    const child1 = childPods[0];
+
+    // Decrement from 3 to 2 on child pod
+    updateNodeData(child1.id, { replicas: 2 });
+    const rs2 = useFlowStore.getState().nodes.find(n => n.id === rsNode.id)!;
+    expect(rs2.data.replicas).toBe(2);
+
+    // Increment from 2 to 4 on child pod
+    const updatedChild = useFlowStore.getState().nodes.find(n => n.parentId === rsNode.id && n.type === 'Pod')!;
+    updateNodeData(updatedChild.id, { replicas: 4 });
+    const rs4 = useFlowStore.getState().nodes.find(n => n.id === rsNode.id)!;
+    expect(rs4.data.replicas).toBe(4);
+  });
+
+  it('handles child pod updates without replicas (newData.replicas === undefined)', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('Deployment', { x: 0, y: 0 });
+    const depNode = useFlowStore.getState().nodes.find(n => n.type === 'Deployment')!;
+    updateNodeData(depNode.id, { replicas: 2 });
+
+    const childPod = useFlowStore.getState().nodes.find(n => n.parentId === depNode.id && n.type === 'Pod')!;
+    updateNodeData(childPod.id, { image: 'nginx:1.25' });
+
+    const depAfter = useFlowStore.getState().nodes.find(n => n.id === depNode.id)!;
+    expect(depAfter.data.replicas).toBe(2);
+    const updatedChild = useFlowStore.getState().nodes.find(n => n.id === childPod.id)!;
+    expect(updatedChild.data.image).toBe('nginx:1.25');
+  });
+
+  it('handles child pod updates when parent is non-controller (e.g. Namespace)', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('Namespace', { x: 0, y: 0 });
+    const nsNode = useFlowStore.getState().nodes.find(n => n.type === 'Namespace')!;
+
+    addNode('Pod', { x: 50, y: 50 });
+    const podNode = useFlowStore.getState().nodes.find(n => n.type === 'Pod' && !n.parentId)!;
+
+    // Attach pod to namespace
+    useFlowStore.setState({
+      nodes: useFlowStore.getState().nodes.map(n => n.id === podNode.id ? { ...n, parentId: nsNode.id } : n)
+    });
+
+    updateNodeData(podNode.id, { label: 'ns-custom-pod' });
+    const updatedPod = useFlowStore.getState().nodes.find(n => n.id === podNode.id)!;
+    expect(updatedPod.data.label).toBe('ns-custom-pod');
+  });
+
+  it('handles StatefulSet node updates, attached resources synchronization, and deletion', () => {
+    const { addNode, updateNodeData, deleteNodes } = useFlowStore.getState();
+    addNode('StatefulSet', { x: 0, y: 0 });
+    const ssNode = useFlowStore.getState().nodes.find(n => n.type === 'StatefulSet')!;
+
+    // 1. Direct update on StatefulSet container
+    updateNodeData(ssNode.id, { label: 'my-stateful-app', replicas: 2 });
+    const updatedSs = useFlowStore.getState().nodes.find(n => n.id === ssNode.id)!;
+    expect(updatedSs.data.label).toBe('my-stateful-app');
+    expect(updatedSs.data.replicas).toBe(2);
+
+    // 2. Attached resources sync on child pod inside StatefulSet
+    const childPod = useFlowStore.getState().nodes.find(n => n.parentId === ssNode.id && n.type === 'Pod')!;
+    updateNodeData(childPod.id, { roles: ['app-role'] });
+    const ssWithRole = useFlowStore.getState().nodes.find(n => n.id === ssNode.id)!;
+    expect(ssWithRole.data.roles).toEqual(['app-role']);
+
+    // 3. Delete child pod inside StatefulSet
+    deleteNodes([childPod]);
+    const ssAfterPodDelete = useFlowStore.getState().nodes.find(n => n.id === ssNode.id)!;
+    expect(ssAfterPodDelete.data.replicas).toBe(1);
+
+    // 4. Delete StatefulSet container and clean up child pods
+    deleteNodes([ssAfterPodDelete]);
+    expect(useFlowStore.getState().nodes.some(n => n.id === ssNode.id)).toBe(false);
+    expect(useFlowStore.getState().nodes.some(n => n.parentId === ssNode.id)).toBe(false);
+  });
 });
