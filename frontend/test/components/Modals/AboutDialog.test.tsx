@@ -28,7 +28,7 @@ describe('AboutDialog', () => {
       latestVersion: '1.2.3'
     });
 
-    (window as any).go = {
+    (globalThis as any).go = {
       main: {
         App: {
           GetSystemInfo: mockGetSystemInfo,
@@ -50,7 +50,7 @@ describe('AboutDialog', () => {
   });
 
   it('shows update available message', async () => {
-    (window as any).go.main.App.CheckForUpdates.mockResolvedValue({
+    (globalThis as any).go.main.App.CheckForUpdates.mockResolvedValue({
       updateAvailable: true,
       latestVersion: '1.2.4',
       releaseUrl: 'https://github.com/test/release',
@@ -109,29 +109,30 @@ describe('AboutDialog', () => {
   });
 
   it('handles fetch info error', async () => {
-    (window as any).go.main.App.GetSystemInfo.mockRejectedValue(new Error('Fetch failed'));
+    (globalThis as any).go.main.App.GetSystemInfo.mockRejectedValue(new Error('Fetch failed'));
     render(<AboutDialog isOpen={true} onClose={() => {}} />);
-    // Should not crash
+    expect(screen.getByText('Kube Simulator')).toBeDefined();
   });
 
   it('handles copy error', async () => {
     Object.assign(navigator, {
-        clipboard: {
-          writeText: vi.fn().mockRejectedValue(new Error('Copy failed')),
-        },
+      clipboard: {
+        writeText: vi.fn().mockRejectedValue(new Error('Copy failed')),
+      },
     });
 
     render(<AboutDialog isOpen={true} onClose={() => {}} />);
     await waitFor(() => {
-        expect(screen.getByText('Copy to Clipboard')).toBeDefined();
+      expect(screen.getByText('Copy to Clipboard')).toBeDefined();
     });
     fireEvent.click(screen.getByText('Copy to Clipboard'));
-    // Should not crash
+    expect(screen.queryByText('Copied!')).toBeNull();
+    expect(screen.getByText('Copy to Clipboard')).toBeDefined();
   });
 
   it('shows checking for updates state', async () => {
-    (window as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '1.2.3' });
-    (window as any).go.main.App.CheckForUpdates.mockImplementation(() => new Promise(() => {})); // Never resolves
+    (globalThis as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '1.2.3' });
+    (globalThis as any).go.main.App.CheckForUpdates.mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<AboutDialog isOpen={true} onClose={() => {}} />);
 
@@ -140,8 +141,8 @@ describe('AboutDialog', () => {
 
   it('renders failed to check for updates message when updateInfo is null in light mode', async () => {
     useFlowStore.setState({ colorMode: 'light' });
-    (window as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '' });
-    (window as any).go.main.App.CheckForUpdates.mockResolvedValue(null);
+    (globalThis as any).go.main.App.GetSystemInfo.mockResolvedValue({ version: '' });
+    (globalThis as any).go.main.App.CheckForUpdates.mockResolvedValue(null);
 
     await act(async () => {
       render(<AboutDialog isOpen={true} onClose={() => {}} />);
