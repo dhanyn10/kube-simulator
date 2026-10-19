@@ -254,6 +254,42 @@ describe('NodeConfig', () => {
     expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 
+  it('covers attached resource section when only configMaps exist on node data', () => {
+    const cmNode = {
+      id: 'node-cm',
+      type: 'Deployment',
+      data: {
+        label: 'cm-dep',
+        configMaps: [{ id: 'cm1', name: 'my-cm' }],
+      },
+    };
+    render(<NodeConfig selectedNode={cmNode} />);
+  });
+
+  it('covers attached resource section when only secrets exist on node data', () => {
+    const secretNode = {
+      id: 'node-sec',
+      type: 'Deployment',
+      data: {
+        label: 'sec-dep',
+        secrets: [{ id: 's1', name: 'my-sec' }],
+      },
+    };
+    render(<NodeConfig selectedNode={secretNode} />);
+  });
+
+  it('covers attached resource section when only hpas exist on node data', () => {
+    const hpaNode = {
+      id: 'node-hpa',
+      type: 'Deployment',
+      data: {
+        label: 'hpa-dep',
+        hpas: [{ id: 'h1', name: 'my-hpa' }],
+      },
+    };
+    render(<NodeConfig selectedNode={hpaNode} />);
+  });
+
   it('covers ReplicaSet node type and View Logs button click for ReplicaSet', () => {
     const setTerminalOpen = vi.fn();
     const setTerminalActiveTab = vi.fn();
