@@ -217,4 +217,58 @@ describe('simulationReachability', () => {
     const isRed = isInternetConnectionRed(internetNode, ctx);
     expect(isRed).toBe(false);
   });
+
+  it('covers isInternetConnectionRed when Ingress downstream has a valid backend (line 183 false branch)', () => {
+    const internetNode: Node = {
+      id: 'i1',
+      type: 'Internet',
+      data: {},
+      position: { x: 0, y: 0 },
+    };
+    const validIngressNode: Node = {
+      id: 'ing-valid',
+      type: 'Ingress',
+      data: { backendServiceName: 'valid-service' },
+      position: { x: 0, y: 0 },
+    };
+    const svcNode: Node = {
+      id: 'svc-1',
+      type: 'Service',
+      data: { label: 'valid-service', serviceType: 'ClusterIP', selector: 'app=web' },
+      position: { x: 0, y: 0 },
+    };
+    const podNode: Node = {
+      id: 'pod-1',
+      type: 'Pod',
+      data: { label: 'web', selector: 'app=web', status: 'ready' },
+      position: { x: 0, y: 0 },
+    };
+
+    const edgeMap = new Map([
+      ['i1', [{ id: 'e-ing', source: 'i1', target: 'ing-valid' }]],
+      ['ing-valid', [{ id: 'e-svc', source: 'ing-valid', target: 'svc-1' }]],
+      ['svc-1', [{ id: 'e-pod', source: 'svc-1', target: 'pod-1' }]],
+    ]);
+
+    const ctx: SimulationContext = {
+      nodes: [internetNode, validIngressNode, svcNode, podNode],
+      edges: [
+        { id: 'e-ing', source: 'i1', target: 'ing-valid' },
+        { id: 'e-svc', source: 'ing-valid', target: 'svc-1' },
+        { id: 'e-pod', source: 'svc-1', target: 'pod-1' },
+      ],
+      edgeMap,
+      nodeMap: new Map([
+        ['i1', internetNode],
+        ['ing-valid', validIngressNode],
+        ['svc-1', svcNode],
+        ['pod-1', podNode],
+      ]),
+      activeSimulationEdges: ['e-ing', 'e-svc', 'e-pod'],
+      simulationMetrics: {},
+    };
+
+    const isRed = isInternetConnectionRed(internetNode, ctx);
+    expect(isRed).toBe(false);
+  });
 });

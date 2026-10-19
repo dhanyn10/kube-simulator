@@ -1362,4 +1362,16 @@ describe('createUiSlice', () => {
     expect(useFlowStore.getState().draggingSidebarItem).toBeNull();
     expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
   });
+
+  it('covers getRuntime fallback when globalThis is undefined during toggleColorMode', () => {
+    const origGlobalThis = (global as any).globalThis;
+    try {
+      delete (global as any).globalThis;
+      const { toggleColorMode } = useFlowStore.getState();
+      toggleColorMode();
+    } finally {
+      (global as any).globalThis = origGlobalThis;
+    }
+    expect(useFlowStore.getState().colorMode).toBeDefined();
+  });
 });

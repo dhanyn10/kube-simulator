@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Node } from '@xyflow/react';
 import {
   handleAdminCommands,
   handleApplyCommand,
@@ -606,6 +607,241 @@ describe('terminalCommands', () => {
       handleGetAllCommand('kubectl get all', mockCtx);
       expect(activityLogs.some(l => l.includes('80/TCP'))).toBe(true);
       expect(activityLogs.some(l => l.includes('att-hpa'))).toBe(true);
+    });
+  });
+
+  describe('uncovered branches and fallback coverage', () => {
+    it('covers syncDeployment get store callback and self-healing pod onDelete', () => {
+      let savedState: any;
+      storeState.deleteNodes = vi.fn();
+      mockCtx.setStoreState = (state: any) => {
+        savedState = state;
+        Object.assign(storeState, state);
+      };
+      const childPod = { id: 'child-heal', type: 'Pod', parentId: 'deploy-1', data: { label: 'heal-pod' } };
+      mockCtx.nodes.push(childPod as any);
+      storeState.nodes = mockCtx.nodes;
+      handleDeletePodCommand('kubectl delete pod heal-pod', mockCtx);
+      const replacementPod = savedState?.nodes?.find((n: any) => n.parentId === 'deploy-1' && n.type === 'Pod');
+      replacementPod?.data?.onDelete?.();
+      expect(storeState.deleteNodes).toHaveBeenCalled();
+    });
+
+    it('covers handleGetSecretsCommand with non-array secretData and handleDescribeSecretCommand fallbacks', () => {
+      const secretNodeNoData: Node = {
+        id: 'sec-no-data',
+        type: 'Deployment',
+        data: {
+          secrets: [
+            { name: 'no-data-sec', secretData: null as any },
+            { name: 'fallback-type-sec', type: '' as any, secretData: null as any }
+          ]
+        },
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(secretNodeNoData);
+      const getResult = handleGetSecretsCommand('kubectl get secrets', mockCtx);
+      expect(getResult).toBe(true);
+
+      const descResult = handleDescribeSecretCommand('kubectl describe secret fallback-type-sec', mockCtx);
+      expect(descResult).toBe(true);
+      expect(activityLogs.some(l => l.includes('Opaque'))).toBe(true);
+    });
+
+    it('covers handleGetConfigMapsCommand with non-array configData and handleDescribeConfigMapCommand fallbacks', () => {
+      const cmNodeNoData: Node = {
+        id: 'cm-no-data',
+        type: 'Deployment',
+        data: {
+          configMaps: [
+            { name: 'no-data-cm', configData: null as any }
+          ]
+        },
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(cmNodeNoData);
+      const getResult = handleGetConfigMapsCommand('kubectl get cm', mockCtx);
+      expect(getResult).toBe(true);
+
+      const descResult = handleDescribeConfigMapCommand('kubectl describe cm no-data-cm', mockCtx);
+      expect(descResult).toBe(true);
+      expect(activityLogs.some(l => l.includes('cm-no-data'))).toBe(true);
+    });
+
+    it('covers handleAdminCommands try status with updateInfo and fallback version', () => {
+      storeState.isAdminAuthenticated = true;
+      storeState.simulatedCurrentVersion = '';
+      storeState.simulatedUpdateInfo = { latestVersion: '0.5.0' };
+      let result = handleAdminCommands('try status', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('v0.5.0'))).toBe(true);
+
+      // Branch 62[1] at line 305: updateInfo is null
+      storeState.simulatedUpdateInfo = null;
+      result = handleAdminCommands('try status', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('None'))).toBe(true);
+    });
+
+    it('covers handleScaleCommand for ReplicaSet and nodes without label and overridePrevReplicas', () => {
+      const rsNode: Node = {
+        id: 'rs-scale',
+        type: 'ReplicaSet',
+        data: { replicas: undefined },
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(rsNode);
+      // Branch 76[2] at line 378: overridePrevReplicas undefined, replicas undefined -> fallback 0
+      mockCtx.overridePrevReplicas = undefined;
+      let result = handleScaleCommand('kubectl scale rs/rs-scale --replicas=5', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('replicaset.apps/rs-scale scaled'))).toBe(true);
+
+      // Line 384: not found ReplicaSet
+      result = handleScaleCommand('kubectl scale rs/non-existent-rs --replicas=3', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('replicaset "non-existent-rs" not found'))).toBe(true);
+    });
+
+    it('covers handleSetImageCommand with overridePrevImage and missing label and replicas', () => {
+      const depNoLabel: Node = {
+        id: 'dep-no-label',
+        type: 'Deployment',
+        data: {}, // no image -> fallback nginx:latest
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(depNoLabel);
+      // Branch 82[2] at line 403: overridePrevImage undefined, image undefined -> fallback nginx:latest
+      mockCtx.overridePrevImage = undefined;
+      const result = handleSetImageCommand('kubectl set image deployment/dep-no-label app=new-img:2.0', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('deployment.apps/dep-no-label image updated'))).toBe(true);
+    });
+
+    it('covers handleRolloutStatusCommand with missing rolloutStatus and missing label', () => {
+      const depRolling: Node = {
+        id: 'dep-rolling-no-label',
+        type: 'Deployment',
+        data: { isRollingUpdate: true },
+        position: { x: 0, y: 0 }
+      };
+      const depSuccessNoLabel: Node = {
+        id: 'dep-success-no-label',
+        type: 'Deployment',
+        data: { isRollingUpdate: false },
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(depRolling, depSuccessNoLabel);
+      let result = handleRolloutStatusCommand('kubectl rollout status deployment/dep-rolling-no-label', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('Updating replicas...'))).toBe(true);
+
+      result = handleRolloutStatusCommand('kubectl rollout status deployment/dep-success-no-label', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('dep-success-no-label" successfully rolled out'))).toBe(true);
+    });
+
+    it('covers handleRolloutHistoryCommand and handleRolloutUndoCommand fallbacks without label or revisions', () => {
+      const depNoRevs: Node = {
+        id: 'dep-no-revs',
+        type: 'Deployment',
+        data: {},
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(depNoRevs);
+      let result = handleRolloutHistoryCommand('kubectl rollout history deployment/dep-no-revs', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('nginx:latest'))).toBe(true);
+
+      // Branch 99[1] at line 478: rolloutRevisions is undefined -> fallback []
+      result = handleRolloutUndoCommand('kubectl rollout undo deployment/dep-no-revs', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('No previous revision found'))).toBe(true);
+
+      depNoRevs.data = { rolloutRevisions: ['v1', 'v2'] };
+      result = handleRolloutUndoCommand('kubectl rollout undo deployment/dep-no-revs', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('dep-no-revs rolled back to revision 1'))).toBe(true);
+    });
+
+    it('covers handleDeletePodCommand for pod without label', () => {
+      const podNoLabel: Node = { id: 'pod-no-label', type: 'Pod', data: {}, position: { x: 0, y: 0 } };
+      mockCtx.nodes.push(podNoLabel);
+      const result = handleDeletePodCommand('kubectl delete pod pod-no-label', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('pod "pod-no-label" deleted'))).toBe(true);
+    });
+
+    it('covers handleGetAllCommand edge cases with missing labels and empty resource lists', () => {
+      mockCtx.nodes = [
+        { id: 'pod-raw', type: 'Pod', data: { status: 'Running' }, position: { x: 0, y: 0 } },
+        { id: 'ing-raw', type: 'Ingress', data: {}, position: { x: 0, y: 0 } },
+      ];
+      let result = handleGetAllCommand('kubectl get all', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('pod/pod-raw'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('example.local'))).toBe(true);
+
+      mockCtx.nodes = [
+        {
+          id: 'dep-raw',
+          type: 'Deployment',
+          data: {
+            hpas: [{ name: 'attached-hpa' }],
+          },
+          position: { x: 0, y: 0 }
+        },
+        { id: 'svc-raw', type: 'Service', data: {}, position: { x: 0, y: 0 } },
+        { id: 'hpa-raw', type: 'HPA', data: {}, position: { x: 0, y: 0 } },
+      ];
+      result = handleGetAllCommand('kubectl get all', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('deployment.apps/dep-raw'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('service/svc-raw'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('hpa-raw'))).toBe(true);
+    });
+
+    it('covers handleDescribeRoleCommand with assigned users and empty rule properties and describe roles list', () => {
+      const roleNode: Node = {
+        id: 'r-node',
+        type: 'Pod',
+        data: {
+          roles: [
+            {
+              name: 'full-role',
+              assignedUsers: ['alice', 'bob'],
+              rules: [{}]
+            }
+          ]
+        },
+        position: { x: 0, y: 0 }
+      };
+      mockCtx.nodes.push(roleNode);
+      let result = handleDescribeRoleCommand('kubectl describe role full-role', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('alice, bob'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('""'))).toBe(true);
+
+      result = handleDescribeRoleCommand('kubectl describe roles', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('alice, bob'))).toBe(true);
+    });
+
+    it('covers handleDescribeRoleCommand for missing rolebinding and rb aliases', () => {
+      let result = handleDescribeRoleCommand('kubectl describe rolebinding non-existent-rb', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('rolebinding "non-existent-rb" not found'))).toBe(true);
+
+      result = handleDescribeRoleCommand('kubectl describe rb non-existent-rb', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('rolebinding "non-existent-rb" not found'))).toBe(true);
+    });
+
+    it('covers handleDescribeDeploymentCommand when isSimulating is false', () => {
+      mockCtx.isSimulating = false;
+      const result = handleDescribeDeploymentCommand('kubectl describe deployment my-dep', mockCtx);
+      expect(result).toBe(true);
+      expect(activityLogs.some(l => l.includes('0 available'))).toBe(true);
     });
   });
 });
