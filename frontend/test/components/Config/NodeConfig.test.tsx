@@ -238,6 +238,7 @@ describe('NodeConfig', () => {
     const orphanPod = { id: 'pod-orphan', type: 'Pod', parentId: 'non-existent-parent', data: { label: 'orphan' } };
     useFlowStore.setState({ nodes: [orphanPod as any] });
     render(<NodeConfig selectedNode={orphanPod} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 
   it('covers attached resource section when resourceLimits exist on node data', () => {
@@ -264,6 +265,7 @@ describe('NodeConfig', () => {
       },
     };
     render(<NodeConfig selectedNode={cmNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 
   it('covers attached resource section when only secrets exist on node data', () => {
@@ -276,6 +278,7 @@ describe('NodeConfig', () => {
       },
     };
     render(<NodeConfig selectedNode={secretNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 
   it('covers attached resource section when only hpas exist on node data', () => {
@@ -288,6 +291,7 @@ describe('NodeConfig', () => {
       },
     };
     render(<NodeConfig selectedNode={hpaNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 
   it('covers ReplicaSet node type and View Logs button click for ReplicaSet', () => {

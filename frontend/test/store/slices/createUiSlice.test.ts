@@ -1069,6 +1069,9 @@ describe('createUiSlice', () => {
     // Second invocation: simulationIntervalObj.current is null, hits false branch of if (simulationIntervalObj.current)
     tickCallback?.();
 
+    expect(setIntervalSpy).toHaveBeenCalled();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+
     setIntervalSpy.mockRestore();
   });
 
@@ -1090,6 +1093,9 @@ describe('createUiSlice', () => {
     delete (globalThis as any).go.main.App.GetSetting;
     resolveAppSettings!('');
     await new Promise(process.nextTick);
+
+    expect((globalThis as any).go?.main?.App?.GetSetting).toBeUndefined();
+    expect(useFlowStore.getState().isSidebarVisible).toBe(true);
   });
 
   it('covers activity logs and rollout transitions when nodes lack data.label', () => {
@@ -1182,6 +1188,9 @@ describe('createUiSlice', () => {
     vi.advanceTimersByTime(150);
     stopSimulation();
     vi.useRealTimers();
+
+    expect(count).toBeGreaterThan(0);
+    expect(useFlowStore.getState().isSimulating).toBe(false);
   });
 
   it('covers emergency stop triggering when all pods remain unready past grace period', () => {
@@ -1221,6 +1230,9 @@ describe('createUiSlice', () => {
     toggleColorMode();
     startSimulation();
     stopSimulation();
+
+    expect(useFlowStore.getState().colorMode).toBeDefined();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
 
     if (typeof (globalThis as any).BroadcastChannel !== 'undefined') {
       setMetricsChannel(new (globalThis as any).BroadcastChannel('monitoring-data'));
@@ -1285,6 +1297,13 @@ describe('createUiSlice', () => {
     setSidebarVisible(true);
     setRightSidebarVisible(true);
 
+    expect(useFlowStore.getState().minimapPosition).toBe('top-right');
+    expect(useFlowStore.getState().activeIdentity).toBe('admin-user');
+    expect(useFlowStore.getState().globalEdgeColor).toBe('blue');
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('red');
+    expect(useFlowStore.getState().isSidebarVisible).toBe(true);
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+
     (globalThis as any).go = originalGo;
   });
 
@@ -1319,6 +1338,8 @@ describe('createUiSlice', () => {
 
     const { fetchHistoryLogs } = useFlowStore.getState();
     await fetchHistoryLogs();
+
+    expect(useFlowStore.getState().isHistoryLoading).toBe(false);
 
     (globalThis as any).go = originalGo;
   });

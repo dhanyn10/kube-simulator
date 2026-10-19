@@ -271,7 +271,8 @@ describe('useFlowStore', () => {
           return origDescriptor?.value ?? global;
         }
       });
-      await import('@/store/useFlowStore');
+      const mod = await import('@/store/useFlowStore');
+      expect(mod.useFlowStore).toBeDefined();
     } finally {
       if (origDescriptor) {
         Object.defineProperty(global, 'globalThis', origDescriptor);
