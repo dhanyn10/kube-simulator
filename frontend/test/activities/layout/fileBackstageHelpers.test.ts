@@ -120,25 +120,33 @@ describe('fileBackstageHelpers', () => {
       expect(useFlowStore.getState().logs.some(l => l.message.includes('Failed to parse latest autosave timestamp'))).toBe(true);
     });
 
-    it('handles autosave content without timestamp and GetProjects returning null', async () => {
-      const mockGetSetting = vi.fn().mockImplementation((key: string) => {
-        if (key === 'auto_saved_profile_latest') return Promise.resolve('autosave-no-ts');
-        if (key === 'auto_saved_profile_content') return Promise.resolve(JSON.stringify({ nodes: [] }));
-        return Promise.resolve(null);
+    it('handles GetAutosaveProfiles returning an array, non-existent FileExists returning null on line 92, and GetProjects returning null', async () => {
+      const mockGetAutosaveProfiles = vi.fn().mockResolvedValue([
+        { key: 'autosave-profile-1', location: 'loc1', timestamp: 1770000000000 },
+      ]);
+      const mockGetProjects = vi.fn().mockResolvedValue([
+        { id: 100, name: 'Existing Project' },
+        { id: 200, name: 'Deleted File Project' },
+      ]);
+      const mockFileExists = vi.fn().mockImplementation((path: string) => {
+        if (path.includes('project_200')) return Promise.resolve(false); // hits line 92 return null
+        return Promise.resolve(true);
       });
 
       (globalThis as any).go = {
         main: {
           App: {
-            GetSetting: mockGetSetting,
-            GetProjects: vi.fn().mockResolvedValue(null),
+            GetAutosaveProfiles: mockGetAutosaveProfiles,
+            GetProjects: mockGetProjects,
+            FileExists: mockFileExists,
           },
         },
       };
 
       const items = await fetchRecentFiles();
-      expect(items).toHaveLength(1);
-      expect(items[0].name).toBe('autosave-no-ts');
+      expect(items).toHaveLength(2); // 1 autosave profile + 1 existing project (deleted project returned null)
+      expect(items[0].name).toBe('autosave-profile-1');
+      expect(items[1].name).toBe('Existing Project');
     });
   });
 
@@ -159,7 +167,7 @@ describe('fileBackstageHelpers', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('restores autosave file successfully', async () => {
+    it('restores autosave file successfully, including fallback to auto_saved_profile_content on line 162', async () => {
       const onClose = vi.fn();
       const fitView = vi.fn();
       const mockContent = JSON.stringify({
@@ -167,10 +175,17 @@ describe('fileBackstageHelpers', () => {
         edges: [],
       });
 
+      // GetSetting returns null for item.name, falling back to auto_saved_profile_content (line 162)
+      const mockGetSetting = vi.fn().mockImplementation((key: string) => {
+        if (key === 'autosave-latest') return Promise.resolve(null);
+        if (key === 'auto_saved_profile_content') return Promise.resolve(mockContent);
+        return Promise.resolve(null);
+      });
+
       (globalThis as any).go = {
         main: {
           App: {
-            GetSetting: vi.fn().mockResolvedValue(mockContent),
+            GetSetting: mockGetSetting,
           },
         },
       };

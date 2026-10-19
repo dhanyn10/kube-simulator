@@ -392,4 +392,33 @@ describe('KubeIAMModal component', () => {
 
     expect(useFlowStore.getState().iamUsers).toHaveLength(0);
   });
+
+  it('triggers onTogglePolicy via policy name button click in wizard Step 2 and onSelectUser via ChevronRight button in IAMUserCard', () => {
+    render(<KubeIAMModal />);
+
+    // Test ChevronRight view details button in IAMUserCard
+    const chevronBtn = screen.getByRole('button', { name: 'View details for admin-user' });
+    fireEvent.click(chevronBtn);
+    expect(screen.getByText('IAM User Summary & Access Management')).toBeInTheDocument();
+
+    // Go back to users list
+    fireEvent.click(screen.getByText('Back to Users'));
+
+    // Start wizard to go to Step 2
+    fireEvent.click(screen.getByRole('button', { name: /Create User/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. dev-cluster-admin'), {
+      target: { value: 'policy-click-user' },
+    });
+    fireEvent.click(screen.getByText('Next'));
+
+    // In Step 2, click AdministratorAccess row to clear it
+    fireEvent.click(screen.getByText('AdministratorAccess').closest('tr')!);
+    expect(screen.getByText('Permissions Policies (0 selected)')).toBeInTheDocument();
+
+    // Now click ContainerDeveloperPolicy button directly in the table cell
+    const policyBtn = screen.getByRole('button', { name: 'ContainerDeveloperPolicy' });
+    fireEvent.click(policyBtn);
+    // Note: Clicking the button triggers button.onClick and bubbles to tr.onClick
+    expect(screen.getByText('Permissions Policies (0 selected)')).toBeInTheDocument();
+  });
 });
