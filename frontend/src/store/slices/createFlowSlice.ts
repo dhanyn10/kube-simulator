@@ -312,7 +312,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
         if (parentIds.size > 0) {
           parentIds.forEach((parentId) => {
             const parent = containerSyncedNodes.find((n) => n.id === parentId);
-            if (parent && (parent.type === 'Deployment' || parent.type === 'ReplicaSet')) {
+            if (parent && (parent.type === 'Deployment' || parent.type === 'StatefulSet' || parent.type === 'ReplicaSet')) {
               const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
               const others = containerSyncedNodes.filter((n) => n.id !== parent.id && n.parentId !== parent.id);
               containerSyncedNodes = [...others, updatedDeployment, ...laidOut];

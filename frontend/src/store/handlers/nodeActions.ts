@@ -124,7 +124,7 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
     return sortNodes([...others, updatedPodWithCleanLabel]);
   }
 
-  const replicasChange = ((parent.type === 'Deployment' || parent.type === 'ReplicaSet') && newData.replicas !== undefined)
+  const replicasChange = ((parent.type === 'Deployment' || parent.type === 'StatefulSet' || parent.type === 'ReplicaSet') && newData.replicas !== undefined)
     ? (newData.replicas || 0) - (Number(targetData.replicas) || 0) : 0;
 
   const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
@@ -169,7 +169,7 @@ const syncPodAttachedItemsGroup = (updatedNode: Node, updatedData: K8sNodeData, 
 
   const parentId = updatedNode.parentId;
   const parent = parentId ? nodes.find(n => n.id === parentId) : null;
-  const isInsideController = parent && (parent.type === 'ReplicaSet' || parent.type === 'Deployment');
+  const isInsideController = parent && (parent.type === 'ReplicaSet' || parent.type === 'Deployment' || parent.type === 'StatefulSet');
 
   if (updatedNode.type === 'Pod' && isInsideController) {
     return nodes.map((n) => {
@@ -225,12 +225,12 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
     }
     if (updatedNode.parentId) {
       const parent = nextNodes.find(n => n.id === updatedNode.parentId);
-      if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
+    if (parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet') {
         return handlePodParentSync(target, updatedNode, newData, nextNodes, get);
       }
     }
   }
-  if (updatedNode.type === 'Deployment' || updatedNode.type === 'ReplicaSet') {
+  if (updatedNode.type === 'Deployment' || updatedNode.type === 'StatefulSet' || updatedNode.type === 'ReplicaSet') {
     nextNodes = syncPodAttachedItemsGroup(updatedNode, updatedData, newData, nextNodes);
     return handleContainerSync(updatedNode, nextNodes, get);
   }

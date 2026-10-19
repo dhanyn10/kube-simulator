@@ -67,7 +67,7 @@ export const classifyNodes = (currentNodes: Node[]) => {
     const node = currentNodes[i];
     nodeMap.set(node.id, node);
     nodeIndexMap.set(node.id, i);
-    if (node.type === 'Deployment' || node.type === 'ReplicaSet' || (node.type === 'Pod' && !node.parentId)) {
+    if (node.type === 'Deployment' || node.type === 'StatefulSet' || node.type === 'ReplicaSet' || (node.type === 'Pod' && !node.parentId)) {
       workloads.push(node);
     }
     if (node.type === 'Internet') {
@@ -124,7 +124,7 @@ export const simulateAllResourceLogs = (
   metrics: Record<string, any[]>,
   set: (partial: Partial<FlowState> | ((state: FlowState) => Partial<FlowState>)) => void
 ) => {
-  const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'ReplicaSet'].includes(n.type));
+  const loggableNodes = nodes.filter(n => ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet'].includes(n.type));
   if (loggableNodes.length === 0) return;
 
   const newLogEntries: Record<string, string[]> = {};
