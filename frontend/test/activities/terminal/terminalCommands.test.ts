@@ -151,9 +151,12 @@ describe('terminalCommands', () => {
 
   describe('Role & RoleBinding Commands', () => {
     it('handleGetRolesCommand handles rolebindings and roles', () => {
+      // Role with assigned users to cover line 659
+      mockCtx.nodes.push({ id: 'assigned-role-node', type: 'Pod', data: { label: 'pod-assigned', roles: [{ name: 'assigned-role', assignedUsers: ['alice', 'bob'] }] } } as any);
+
       let handled = handleGetRolesCommand('kubectl get rolebindings', mockCtx);
       expect(handled).toBe(true);
-      expect(activityLogs.some(l => l.includes('reader-role-binding'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('User/alice, User/bob'))).toBe(true);
 
       handled = handleGetRolesCommand('kubectl get roles', mockCtx);
       expect(handled).toBe(true);
@@ -322,9 +325,11 @@ describe('terminalCommands', () => {
       expect(handled).toBe(true);
       expect(mockCtx.deleteNodes).toHaveBeenCalledWith([mockCtx.nodes[0]]);
 
-      // Deployment child pod self-healing
-      const childPod = { id: 'child-1', type: 'Pod', parentId: 'deploy-1', data: { label: 'my-dep-pod-1' } };
-      mockCtx.nodes.push(childPod as any);
+      // Deployment child pod self-healing with sibling pod to cover line 536 (!isNew)
+      const childPod1 = { id: 'child-1', type: 'Pod', parentId: 'deploy-1', data: { label: 'my-dep-pod-1' } };
+      const childPod2 = { id: 'child-2', type: 'Pod', parentId: 'deploy-1', data: { label: 'my-dep-pod-2' } };
+      mockCtx.nodes.push(childPod1 as any, childPod2 as any);
+
       handled = handleDeletePodCommand('kubectl delete pod my-dep-pod-1', mockCtx);
       expect(handled).toBe(true);
       expect(activityLogs.some(l => l.includes('[self-healing]'))).toBe(true);
@@ -378,11 +383,18 @@ describe('terminalCommands', () => {
     it('handles admin version simulation commands', () => {
       storeState.isAdminAuthenticated = true;
 
-      // Update to lower or equal version warning
+      // Update to lower version warning (e.g. 0.2 vs 0.4 where compareVersions returns -1)
       handleAdminCommands('try version update 0.2.0', mockCtx);
       expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
 
-      // Update to higher version
+      // Update to equal version warning (e.g. 0.5.0 vs 0.5.0 where compareVersions returns 0)
+      activityLogs = [];
+      storeState.simulatedCurrentVersion = '0.5.0';
+      handleAdminCommands('try version update 0.5.0', mockCtx);
+      expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
+
+      // compareVersions where v1 > v2 (e.g. 0.6.0 vs 0.5.0 returning 1)
+      activityLogs = [];
       handleAdminCommands('try version update 0.6.0', mockCtx);
       expect(storeState.simulatedUpdateInfo?.latestVersion).toBe('0.6.0');
 
@@ -419,6 +431,12 @@ describe('terminalCommands', () => {
       activityLogs = [];
       handleAdminCommands('try unknown-subcommand', mockCtx);
       expect(activityLogs.some(l => l.includes('Unknown command'))).toBe(true);
+
+      // compareVersions return 0 when version strings match exactly
+      activityLogs = [];
+      storeState.simulatedCurrentVersion = 'v1.0.0';
+      handleAdminCommands('try version update v1.0.0', mockCtx);
+      expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
     });
 
     it('blocks try commands when unauthenticated', () => {
@@ -496,8 +514,13 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('Name:         CM-By-ID'))).toBe(true);
       expect(activityLogs.some(l => l.includes('Attached To:  unlabelled-cm-owner'))).toBe(true);
 
-      // 4. compareVersions semver parsing edge cases (non-numeric parts, default version fallbacks)
+      // 4. compareVersions semver parsing edge cases (equal semver returning 0, non-numeric parts, default version fallbacks)
       storeState.isAdminAuthenticated = true;
+      storeState.simulatedCurrentVersion = 'v1.0.0';
+      activityLogs = [];
+      handleAdminCommands('try version update v1.0.0', mockCtx); // compareVersions('1.0.0', '1.0.0') returns 0 -> line 238
+      expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
+
       storeState.simulatedCurrentVersion = undefined; // falls back to '0.4.0'
       activityLogs = [];
       handleAdminCommands('try version update', mockCtx); // targetVersion falls back to '0.5.0'
@@ -528,6 +551,18 @@ describe('terminalCommands', () => {
       activityLogs = [];
       expect(handleAdminCommands('kubectl get pods', mockCtx)).toBe(true);
       expect(activityLogs.some(l => l.includes('You are currently in Admin Mode'))).toBe(true);
+
+      // Admin command dispatch returning false for handleAdminCommands line 361
+      storeState.isAdminAuthenticated = false;
+      storeState.isAwaitingAdminPassword = false;
+      expect(handleAdminCommands('kubectl get pods', mockCtx)).toBe(false);
+
+      // handleAdminCommands line 238 compareVersions equal version check
+      storeState.isAdminAuthenticated = true;
+      storeState.simulatedCurrentVersion = '1.0.0';
+      activityLogs = [];
+      handleAdminCommands('try version update 1.0.0', mockCtx);
+      expect(activityLogs.some(l => l.includes('Dev-Mode Warning'))).toBe(true);
 
       // 7. handleDescribeRoleDetails with assignedUsers.length === 0 in rolebinding describe
       mockCtx.nodes = [{ id: 'unassigned-role-owner', type: 'Pod', data: { roles: [{ id: 'r-unassigned', name: 'unassigned-role', assignedUsers: [] }] } }] as any;

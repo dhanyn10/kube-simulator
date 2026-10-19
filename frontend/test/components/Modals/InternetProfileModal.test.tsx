@@ -277,6 +277,83 @@ describe('InternetProfileModal', () => {
     expect(screen.getByText(/Select Connection Simulation Profile/i)).toBeDefined();
   });
 
+  it('covers light mode profile card styling on line 59 and card selection in grid view on line 247', async () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const nodeWithUnselectedProfile = {
+      id: 'node-internet-1',
+      data: {
+        label: 'Internet Connection',
+        activeProfileName: 'Custom Unselected Profile',
+        connectionProfile: { name: 'Custom Unselected Profile', hourly: { '00:00': 100 } }
+      }
+    };
+
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={nodeWithUnselectedProfile}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    // In grid view with light mode, ECOMMERCE_PROFILE card is unselected, hitting line 59
+    const ecommerceTitle = screen.getByText(ECOMMERCE_PROFILE.name);
+    const cardContainer = ecommerceTitle.closest('div');
+    expect(cardContainer).toBeDefined();
+
+    // Clicking Apply button on unselected card triggers handleApplyProfile on line 247
+    const applyBtn = screen.getByRole('button', { name: /Apply Profile|Apply/i });
+    await act(async () => {
+      fireEvent.click(applyBtn);
+    });
+    expect(mockPerformUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      activeProfileName: ECOMMERCE_PROFILE.name,
+    }));
+  });
+
+  it('covers Back to Profiles Gallery button on line 365 and onUpdateProfile callback on line 463 in details/custom view', async () => {
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    // Open details view via Details button
+    const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
+    await act(async () => {
+      fireEvent.click(detailsButtons[0]);
+    });
+
+    // Click Back to Profiles Gallery button on line 365
+    const backBtn = screen.getByRole('button', { name: /Back to Profiles Gallery/i });
+    await act(async () => {
+      fireEvent.click(backBtn);
+    });
+    expect(screen.getByText(/Select Connection Simulation Profile/i)).toBeDefined();
+
+    // Enter custom view and test onUpdateProfile callback on line 463
+    await act(async () => {
+      fireEvent.click(screen.getByText('Add Custom Profile'));
+    });
+
+    // Drag / click on InteractiveTrafficChart canvas overlay to trigger onUpdateProfile on line 463
+    const interactiveChartOverlay = screen.getByTestId('interactive-chart-canvas-overlay');
+    await act(async () => {
+      fireEvent.pointerDown(interactiveChartOverlay, { clientX: 50, clientY: 50 });
+      fireEvent.pointerMove(interactiveChartOverlay, { clientX: 50, clientY: 40 });
+      fireEvent.pointerUp(interactiveChartOverlay);
+    });
+  });
+
   it('allows switching to graphical custom profile creation view, updating points, randomizing graph, saving, and canceling', async () => {
     await act(async () => {
       render(

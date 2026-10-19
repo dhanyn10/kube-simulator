@@ -489,4 +489,47 @@ describe('InternetConfig', () => {
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
   });
+
+  it('covers getHoverDotClass line 37 when hover hour equals currentHourIndex with isRed = false', async () => {
+    useFlowStore.setState({ isSimulating: true });
+
+    const profileNode = {
+      id: 'int1',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        currentHourIndex: 0,
+        currentMinuteIndex: 0,
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Hover Test Profile',
+          hourly: { '00:00': 100, '01:00': 200 }
+        }
+      }
+    };
+
+    const { container } = render(
+      <InternetConfig
+        selectedNode={profileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    const chartSvg = container.querySelector('svg[viewBox="0 0 240 80"]')!;
+    vi.spyOn(chartSvg, 'getBoundingClientRect').mockReturnValue({
+      width: 240, height: 80, top: 0, left: 0, bottom: 80, right: 240, x: 0, y: 0, toJSON: () => {}
+    });
+
+    const overlayRect = screen.getByTestId('readonly-chart-canvas-overlay');
+    vi.spyOn(overlayRect, 'getBoundingClientRect').mockReturnValue({
+      width: 224, height: 64, top: 8, left: 8, bottom: 72, right: 232, x: 8, y: 8, toJSON: () => {}
+    });
+
+    // Hover at clientX = 8 (hour 0, matching currentHourIndex = 0) with isRed = false
+    await act(async () => {
+      fireEvent.pointerMove(overlayRect, { clientX: 8, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+  });
 });
