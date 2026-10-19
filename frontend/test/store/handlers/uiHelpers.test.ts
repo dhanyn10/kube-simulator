@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   applyParsedSettings,
   buildEdgeMaps,
@@ -10,8 +10,13 @@ import {
   renameUserInNodeRoles,
 } from '@/store/handlers/uiHelpers';
 import { Node } from '@xyflow/react';
+import * as utils from '@/lib/utils';
 
 describe('uiHelpers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('applyParsedSettings', () => {
     it('parses valid json settings and invokes set function', () => {
       const set = vi.fn();
@@ -36,6 +41,29 @@ describe('uiHelpers', () => {
         canvasBgColor: '#000000',
         canvasBgOpacity: 0.5,
       });
+    });
+
+    it('applies canvasBgVariant dots when provided', () => {
+      const set = vi.fn();
+      applyParsedSettings(JSON.stringify({ canvasBgVariant: 'dots' }), set);
+      expect(set).toHaveBeenCalledWith({ canvasBgVariant: 'dots' });
+    });
+
+    it('ignores invalid types for settings fields', () => {
+      const set = vi.fn();
+      applyParsedSettings(
+        JSON.stringify({
+          isSidebarVisible: 'not-bool',
+          isRightSidebarVisible: 123,
+          isAutofocusEnabled: null,
+          isMonitoringOpen: undefined,
+          canvasBgVariant: 'unsupported-variant',
+          canvasBgColor: 456,
+          canvasBgOpacity: 'not-number',
+        }),
+        set
+      );
+      expect(set).toHaveBeenCalledWith({});
     });
 
     it('ignores invalid json without throwing error', () => {
@@ -90,6 +118,43 @@ describe('uiHelpers', () => {
       const log = createLogLineForResource(node, { isThrottled: true });
       expect(log).toContain('[WARNING] CPU limit reached for web-pod');
     });
+
+    it('falls back to node.id when node.data.label is undefined', () => {
+      const node: Node = { id: 'fallback-pod-id', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+      const log = createLogLineForResource(node, { isOOM: true });
+      expect(log).toContain('fallback-pod-id');
+    });
+
+    it('generates access log when safeRandom > 0.3 and no OOM/throttling', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.5);
+      const node: Node = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod' } };
+      const log = createLogLineForResource(node, {});
+      expect(log).toContain('GET');
+      expect(log).toContain('200 OK');
+      expect(log).toContain('web-pod');
+    });
+
+    it('returns null when safeRandom <= 0.3', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.2);
+      const node: Node = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod' } };
+      const log = createLogLineForResource(node, {});
+      expect(log).toBeNull();
+    });
+
+    it('returns 503 status code when isOOM evaluates to true on access log generation', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.5);
+      const node: Node = { id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod' } };
+      let calls = 0;
+      const dynamicPoint = {
+        get isOOM() {
+          calls++;
+          return calls > 1;
+        },
+      };
+      const log = createLogLineForResource(node, dynamicPoint);
+      expect(log).toContain('503');
+      expect(log).toContain('web-pod');
+    });
   });
 
   describe('simulateAllResourceLogs', () => {
@@ -107,6 +172,41 @@ describe('uiHelpers', () => {
       simulateAllResourceLogs(nodes, metrics, set);
 
       expect(set).toHaveBeenCalled();
+    });
+
+    it('uses node.parentId as metricKey if present and retains previous terminal logs', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.5);
+      const set = vi.fn((fn: any) => fn({ terminalLogs: { 'child-pod': ['existing log'] } }));
+      const nodes: Node[] = [
+        { id: 'child-pod', parentId: 'parent-dep', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'child' } },
+      ];
+      const metrics = { 'parent-dep': [{ isThrottled: true }] };
+
+      simulateAllResourceLogs(nodes, metrics, set);
+
+      expect(set).toHaveBeenCalled();
+    });
+
+    it('handles missing metrics array without error', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.5);
+      const set = vi.fn((fn: any) => fn({ terminalLogs: {} }));
+      const nodes: Node[] = [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'p1' } }];
+      const metrics = {};
+
+      simulateAllResourceLogs(nodes, metrics, set);
+
+      expect(set).toHaveBeenCalled();
+    });
+
+    it('does not invoke set when all generated log lines are null', () => {
+      vi.spyOn(utils, 'safeRandom').mockReturnValue(0.1);
+      const set = vi.fn();
+      const nodes: Node[] = [{ id: 'p1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'p1' } }];
+      const metrics = { p1: [{}] };
+
+      simulateAllResourceLogs(nodes, metrics, set);
+
+      expect(set).not.toHaveBeenCalled();
     });
   });
 
@@ -137,6 +237,16 @@ describe('uiHelpers', () => {
       expect((cleaned[0].data.roles as any[])[0].assignedUsers).toEqual(['bob']);
     });
 
+    it('purgeUserFromNodes returns node unchanged if data.roles is missing or not an array', () => {
+      const nodes: Node[] = [
+        { id: 'n1', position: { x: 0, y: 0 }, data: {} },
+        { id: 'n2', position: { x: 0, y: 0 }, data: { roles: 'invalid' as any } },
+      ];
+      const cleaned = purgeUserFromNodes(nodes, 'alice');
+      expect(cleaned[0]).toBe(nodes[0]);
+      expect(cleaned[1]).toBe(nodes[1]);
+    });
+
     it('renameUserInNodeRoles updates user name in role assignedUsers', () => {
       const node: Node = {
         id: 'n1',
@@ -148,6 +258,25 @@ describe('uiHelpers', () => {
 
       const updated = renameUserInNodeRoles(node, 'alice', 'charlie');
       expect((updated.data.roles as any[])[0].assignedUsers).toEqual(['charlie', 'bob']);
+    });
+
+    it('renameUserInNodeRoles returns node unchanged if data.roles is missing or not an array', () => {
+      const nodeNoRoles: Node = { id: 'n1', position: { x: 0, y: 0 }, data: {} };
+      const nodeInvalidRoles: Node = { id: 'n2', position: { x: 0, y: 0 }, data: { roles: null as any } };
+      expect(renameUserInNodeRoles(nodeNoRoles, 'alice', 'bob')).toBe(nodeNoRoles);
+      expect(renameUserInNodeRoles(nodeInvalidRoles, 'alice', 'bob')).toBe(nodeInvalidRoles);
+    });
+
+    it('renameUserInNodeRoles handles role without assignedUsers', () => {
+      const node: Node = {
+        id: 'n1',
+        position: { x: 0, y: 0 },
+        data: {
+          roles: [{ name: 'viewer' }],
+        },
+      };
+      const updated = renameUserInNodeRoles(node, 'alice', 'bob');
+      expect((updated.data.roles as any[])[0].assignedUsers).toBeUndefined();
     });
   });
 });

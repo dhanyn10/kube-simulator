@@ -4,6 +4,7 @@ import {
   TerminalCommandFactory,
   createDefaultTerminalCommandFactory,
   ICommandHandler,
+  ConfigCommandHandler,
 } from '@/activities/terminal/commandFactory';
 import { CommandContext } from '@/activities/terminal/terminalCommands';
 
@@ -72,5 +73,20 @@ describe('TerminalCommandFactory', () => {
     const { ctx: getCtx, logs: getLogs } = createMockContext('kubectl get pods');
     expect(factory.execute(getCtx)).toBe(true);
     expect(getLogs.some(l => l.includes('My Pod'))).toBe(true);
+  });
+
+  it('handles empty cmd in ConfigCommandHandler and skips registering falsy handlers', () => {
+    const configHandler = new ConfigCommandHandler();
+    const { ctx } = createMockContext('');
+    (ctx as any).cmd = '';
+    expect(configHandler.handle(ctx)).toBe(false);
+
+    (ctx as any).cmd = undefined;
+    expect(configHandler.handle(ctx)).toBe(false);
+
+    const factory = new TerminalCommandFactory();
+    factory.register(undefined as any);
+    factory.register(null as any);
+    expect(factory.execute(ctx)).toBe(false);
   });
 });
