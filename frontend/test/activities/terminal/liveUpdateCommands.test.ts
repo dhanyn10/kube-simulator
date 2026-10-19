@@ -63,7 +63,8 @@ describe('liveUpdateCommands', () => {
   });
 
   it('dispatchLiveCommand executes WriteLog on Wails app when present and catches errors', async () => {
-    const mockWriteLog = vi.fn().mockRejectedValue(new Error('WriteLog failed'));
+    const mockWriteLog = vi.fn().mockReturnValue(Promise.reject(new Error('WriteLog failed')));
+
     (globalThis as any).go = {
       main: {
         App: {
@@ -74,8 +75,9 @@ describe('liveUpdateCommands', () => {
 
     dispatchLiveCommand('kubectl get pods');
 
-    // Flush microtasks so the .catch(() => {}) callback executes
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Allow microtasks to drain so .catch(() => {}) executes
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(mockWriteLog).toHaveBeenCalledWith('kubeconsole', 'info', expect.stringContaining('$ kubectl get pods'));
   });

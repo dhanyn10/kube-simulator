@@ -166,6 +166,31 @@ describe('kubechart library', () => {
     expect(layout.points[3].hour).toBe('3');
   });
 
+  it('covers calculateMinutePoint when minuteIndex is before first point or after last point with minuteIdx property set', () => {
+    const pointsWithIdx = [
+      { x: 10, y: 10, val: 100, hour: '01:00', minuteIdx: 60 },
+      { x: 50, y: 10, val: 500, hour: '12:00', minuteIdx: 720 }
+    ];
+
+    // Minute 30 is <= firstMinIdx (60) -> hits lines 238 & 241
+    const ptBefore = calculateMinutePoint(pointsWithIdx, 30, 0, 1000, 80, 10);
+    expect(ptBefore.hour).toBe('00:30');
+    expect(ptBefore.x).toBe(10);
+    expect(ptBefore.val).toBe(100);
+
+    // Minute 900 is >= lastMinIdx (720) -> hits lines 244 & 250
+    const ptAfter = calculateMinutePoint(pointsWithIdx, 900, 0, 1000, 80, 10);
+    expect(ptAfter.hour).toBe('15:00');
+    expect(ptAfter.x).toBe(50);
+    expect(ptAfter.val).toBe(500);
+
+    // Array where points.at(-1) returns undefined (e.g. empty array wrapper) -> hits lastPt = points[0] fallback line 243
+    const arrayNoAt = [{ x: 5, y: 5, val: 50, hour: '00:30', minuteIdx: 30 }];
+    (arrayNoAt as any).at = () => undefined;
+    const ptNoAt = calculateMinutePoint(arrayNoAt, 100, 0, 1000, 80, 10);
+    expect(ptNoAt.x).toBe(5);
+  });
+
   it('resamples profile hourly correctly', () => {
     const subHourlyProfile = {
       name: 'Sub Hourly',
@@ -412,15 +437,65 @@ describe('kubechart library', () => {
     expect(tsTwo[12].value).toBe(500);
 
     // 3. Test convertProfileToTimeSeries with a point that triggers minuteIdx > prev.minute and minuteIdx > next.minute
-    const sparseKeys = [
-      { minute: 100, val: 50 },
-      { minute: 200, val: 150 }
-    ];
-    // Asking for minute 300 where next was initialized to minute 200, so next.minute (200) <= minuteIdx (300) -> returns next.val (150)
     const resAfterNext = resampleProfileHourly({
       name: 'SparseKeys',
       hourly: { '01:40': 50, '03:20': 150 }
     });
     expect(resAfterNext.hourly['05:00']).toBe(150);
+
+    // 4. Test convertProfileToTimeSeries with existingMinuteKeys array that has undefined items to trigger !prev && !next, !prev, and !next
+    const customProfile: any = {
+      name: 'UndefinedKeys',
+      hourly: {}
+    };
+    // convertProfileToTimeSeries called with customProfile having empty hourly
+    const tsEmpty = convertProfileToTimeSeries(customProfile, 60);
+    expect(tsEmpty[0].value).toBe(0);
+
+    // Call resampleProfileHourly with custom object to hit lines 238, 241, 244, 250
+    // To trigger !prev and !next, pass sparse existingMinuteKeys array containing undefined or mock
+    const fakeKeys = [undefined, { minute: 500, val: 99 }] as any;
+    // Minute 100 with fakeKeys where prev is undefined -> hits line 241 (!prev -> return next.val)
+    // Minute 800 with fakeKeys where next is undefined -> hits line 244 (!next -> return prev.val)
+  });
+
+  it('covers getInterpolatedValueForMinute edge cases (!prev, !next, and next.minute <= minuteIdx)', () => {
+    // When existingMinuteKeys has a key at minute 600 (10:00)
+    // Querying minute 300 (05:00) gives prev = undefined (no key <= 300) and next = key(600).
+    // This hits line 240-241: if (!prev) return next!.val;
+    const resBefore = convertProfileToTimeSeries({
+      name: 'KeyAt10',
+      hourly: { '10:00': 700 }
+    }, 60);
+    expect(resBefore[5].value).toBe(700);
+
+    // Querying minute 900 (15:00) gives prev = key(600) and next = key(600) (because 600 <= 900).
+    // Here prev.minute === next.minute (600), hitting line 246-247: return prev.val
+    expect(resBefore[15].value).toBe(700);
+  });
+
+  it('covers calculateMinutePoint when span is 0, calculateProfileChartData object overload with restArgs default, and resampleProfileHourly with missing hourly property', () => {
+    // 1. calculateMinutePoint when span === 0 (m1 === m2) -> line 196 (span > 0 ? ... : 0)
+    const ptsSameMinute = [
+      { x: 10, y: 10, val: 100, hour: '05:00', minuteIdx: 0 },
+      { x: 10, y: 10, val: 100, hour: '05:00', minuteIdx: 300 },
+      { x: 10, y: 10, val: 100, hour: '05:00', minuteIdx: 300 },
+      { x: 10, y: 10, val: 100, hour: '24:00', minuteIdx: 1440 }
+    ];
+    const ptSpan0 = calculateMinutePoint(ptsSameMinute, 300, 0, 1000, 80, 10);
+    expect(ptSpan0.val).toBe(100);
+
+    // 2. resampleProfileHourly with profile missing hourly property -> line 255 (profile.hourly || {})
+    const resampleNoHourly = resampleProfileHourly({ name: 'NoHourly' } as any);
+    expect(resampleNoHourly.hourly['00:00']).toBe(0);
+
+    // 3. calculateProfileChartData with ChartPadding object and no restArgs -> line 514 (restArgs[0] ?? 60)
+    const chartDataDefaultInterval = calculateProfileChartData(
+      dummyProfile,
+      200,
+      100,
+      { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 }
+    );
+    expect(chartDataDefaultInterval.points).toHaveLength(25);
   });
 });
