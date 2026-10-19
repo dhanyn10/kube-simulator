@@ -247,10 +247,10 @@ const syncUpdatedNode = (nodeId: string, updatedNode: Node, updatedData: K8sNode
  */
 const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowState) => {
   let nextNodes = currentNodes;
-  if (node.type === 'Deployment') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
+  if (node.type === 'Deployment' || node.type === 'StatefulSet') nextNodes = nextNodes.filter(n => n.parentId !== node.id);
   if (node?.type === 'Pod' && node?.parentId) {
     const parent = nextNodes.find(n => n.id === node.parentId);
-    if (parent?.type === 'Deployment' || parent?.type === 'ReplicaSet') {
+    if (parent?.type === 'Deployment' || parent?.type === 'StatefulSet' || parent?.type === 'ReplicaSet') {
       const nodeData = getNodeData(node);
       const { updatedDeployment, laidOut } = syncDeployment(parent, nextNodes, -(nodeData.replicas || 1), get);
       const others = nextNodes.filter(n => n.parentId !== parent.id || n.type !== 'Pod');

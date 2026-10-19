@@ -18,8 +18,8 @@ export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, node
   const podArea = nodeWidth * nodeHeight;
 
   const contAbs = getAbsPos(container.id, nodes);
-  const contWidth = container.width || container.measured?.width || (container.type === 'Deployment' ? 320 : 600);
-  const contHeight = container.height || container.measured?.height || (container.type === 'Deployment' ? 160 : 400);
+  const contWidth = container.width || container.measured?.width || (container.type === 'Deployment' || container.type === 'StatefulSet' ? 320 : 600);
+  const contHeight = container.height || container.measured?.height || (container.type === 'Deployment' || container.type === 'StatefulSet' ? 160 : 400);
 
   const overlapX = Math.max(0, Math.min(nodeAbs.x + nodeWidth, contAbs.x + contWidth) - Math.max(nodeAbs.x, contAbs.x));
   const overlapY = Math.max(0, Math.min(nodeAbs.y + nodeHeight, contAbs.y + contHeight) - Math.max(nodeAbs.y, contAbs.y));
@@ -42,7 +42,7 @@ export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, node
  */
 const syncOldParentDeployment = (parentId: string, currentNodes: Node[], movingReplicas: number, get: () => FlowState) => {
   const oldParent = currentNodes.find(n => n.id === parentId);
-  if (oldParent?.type === 'Deployment' || oldParent?.type === 'ReplicaSet') {
+  if (oldParent?.type === 'Deployment' || oldParent?.type === 'StatefulSet' || oldParent?.type === 'ReplicaSet') {
     const { updatedDeployment, laidOut } = syncDeployment(oldParent, currentNodes, -movingReplicas, get);
     const result = currentNodes.filter(n => n.parentId !== parentId || n.type !== 'Pod');
     return [...result.map(n => n.id === parentId ? updatedDeployment : n), ...laidOut];
