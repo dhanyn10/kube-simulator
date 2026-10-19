@@ -53,17 +53,17 @@ export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap
 const isServiceValidForProcessing = (
   currentNode: Node,
   currentId: string,
-  nodes: Node[] | undefined,
+  nodes: Node[],
   edgeMap: Map<string, Edge[]>
 ): boolean => {
   if (currentNode.type !== 'Service') return true;
   const serviceType = currentNode.data?.serviceType || 'ClusterIP';
   if (serviceType === 'NodePort') return true;
 
-  const hasWorkloadTarget = hasValidServiceSelectorTarget(currentNode, nodes || []);
+  const hasWorkloadTarget = hasValidServiceSelectorTarget(currentNode, nodes);
   const outgoing = edgeMap.get(currentId) || [];
   const hasIngressTarget = outgoing.some(edge => {
-    const targetNode = nodes?.find(node => node.id === edge.target);
+    const targetNode = nodes.find(node => node.id === edge.target);
     return targetNode?.type === 'Ingress';
   });
 
@@ -113,11 +113,11 @@ const processOutgoingEdges = (
 ) => {
   const currentNode = nodes?.find(node => node.id === currentId);
 
-  if (currentNode) {
+  if (currentNode && nodes) {
     if (!isServiceValidForProcessing(currentNode, currentId, nodes, edgeMap)) {
       return;
     }
-    if (currentNode.type === 'Ingress' && !hasValidIngressBackend(currentNode, nodes || [], edgeMap)) {
+    if (currentNode.type === 'Ingress' && !hasValidIngressBackend(currentNode, nodes, edgeMap)) {
       return;
     }
   }

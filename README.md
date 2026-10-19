@@ -28,7 +28,7 @@ Kube Simulator is a powerful, interactive visual designer for Kubernetes infrast
 
 ### Windows
 1. Go to the [Releases](https://github.com/dhanyn10/kube-simulator/releases) page.
-2. Download the `kube-simulator-installer.exe` for a standard installation or `kube-simulator-portable.exe` for a zero-install experience.
+2. Download `Kube.Simulator-amd64-installer.exe` for a standard installation or `kube-simulator.exe` for a zero-install experience.
 3. Run the application.
 
 ## 🚀 Getting Started
