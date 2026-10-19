@@ -196,6 +196,15 @@ describe('MenuBar', () => {
     expect(defaultProps.onSave).toHaveBeenCalled();
   });
 
+  it('triggers setLogModalOpen(true) when notification bell button is clicked on line 170', async () => {
+    const setLogModalOpen = vi.spyOn(useFlowStore.getState(), 'setLogModalOpen');
+    render(<MenuBar {...defaultProps} />);
+
+    const bellBtn = screen.getByTestId('bell-notification-btn');
+    fireEvent.click(bellBtn);
+    expect(setLogModalOpen).toHaveBeenCalledWith(true);
+  });
+
   it('closes open menu dropdown on click outside', async () => {
     render(<MenuBar {...defaultProps} />);
 

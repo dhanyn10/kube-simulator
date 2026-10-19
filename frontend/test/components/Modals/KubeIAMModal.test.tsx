@@ -98,6 +98,18 @@ describe('KubeIAMModal component', () => {
     expect(screen.getByText('system:admin')).toBeInTheDocument();
   });
 
+  it('allows clicking "Use this profile" button on IAMSystemAdminCard on line 40 when system:admin is inactive', () => {
+    useFlowStore.setState({ activeIdentity: 'dev-user', colorMode: 'dark' });
+
+    render(<KubeIAMModal />);
+
+    const useAdminBtn = screen.getByTestId('use-profile-btn-system-admin');
+    expect(useAdminBtn).toHaveTextContent('Use this profile');
+
+    fireEvent.click(useAdminBtn);
+    expect(useFlowStore.getState().activeIdentity).toBe('system:admin');
+  });
+
   it('deletes user when trash icon button is clicked', () => {
     render(<KubeIAMModal />);
 
