@@ -238,6 +238,7 @@ describe('NodeConfig', () => {
     const orphanPod = { id: 'pod-orphan', type: 'Pod', parentId: 'non-existent-parent', data: { label: 'orphan' } };
     useFlowStore.setState({ nodes: [orphanPod as any] });
     render(<NodeConfig selectedNode={orphanPod} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 
   it('covers attached resource section when resourceLimits exist on node data', () => {
@@ -251,6 +252,45 @@ describe('NodeConfig', () => {
     };
 
     render(<NodeConfig selectedNode={resLimitNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+  });
+
+  it('covers attached resource section when only configMaps exist on node data', () => {
+    const cmNode = {
+      id: 'node-cm',
+      type: 'Deployment',
+      data: {
+        label: 'cm-dep',
+        configMaps: [{ id: 'cm1', name: 'my-cm' }],
+      },
+    };
+    render(<NodeConfig selectedNode={cmNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+  });
+
+  it('covers attached resource section when only secrets exist on node data', () => {
+    const secretNode = {
+      id: 'node-sec',
+      type: 'Deployment',
+      data: {
+        label: 'sec-dep',
+        secrets: [{ id: 's1', name: 'my-sec' }],
+      },
+    };
+    render(<NodeConfig selectedNode={secretNode} />);
+    expect(mockUpdateNodeData).not.toHaveBeenCalled();
+  });
+
+  it('covers attached resource section when only hpas exist on node data', () => {
+    const hpaNode = {
+      id: 'node-hpa',
+      type: 'Deployment',
+      data: {
+        label: 'hpa-dep',
+        hpas: [{ id: 'h1', name: 'my-hpa' }],
+      },
+    };
+    render(<NodeConfig selectedNode={hpaNode} />);
     expect(mockUpdateNodeData).not.toHaveBeenCalled();
   });
 

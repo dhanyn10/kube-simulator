@@ -305,10 +305,11 @@ describe('MenuBar', () => {
     expect((globalThis as any).BrowserOpenURL).toHaveBeenCalledWith('https://github.com/dhanyn10/kube-simulator/issues');
   });
 
-  it('renders in light mode with error count > 99 displaying 99+', async () => {
+  it('renders in light mode with update button and error count > 99 displaying 99+', async () => {
     await act(async () => {
       useFlowStore.setState({
         colorMode: 'light',
+        simulatedUpdateInfo: { latestVersion: '2.0.0', releaseUrl: 'https://example.com' },
         logs: Array.from({ length: 105 }, (_, i) => ({
           id: String(i),
           level: 'error',
@@ -324,6 +325,29 @@ describe('MenuBar', () => {
     const badge = screen.getByTestId('bell-error-badge');
     expect(badge).toHaveTextContent('99+');
     expect(container.firstChild).toHaveClass('bg-slate-50');
+
+    const updateBtn = screen.getByTestId('menubar-update-btn');
+    expect(updateBtn).toHaveClass('hover:bg-blue-700');
+  });
+
+  it('renders bell error badge with count <= 99 displaying exact count', async () => {
+    await act(async () => {
+      useFlowStore.setState({
+        colorMode: 'dark',
+        logs: Array.from({ length: 5 }, (_, i) => ({
+          id: String(i),
+          level: 'error',
+          message: `Error ${i}`,
+          timestamp: '10:00:00',
+          scope: 'System'
+        }))
+      });
+    });
+
+    render(<MenuBar {...defaultProps} />);
+
+    const badge = screen.getByTestId('bell-error-badge');
+    expect(badge).toHaveTextContent('5');
   });
 
   it('handles non-File label in onMenuClick callback without calling onSave', async () => {

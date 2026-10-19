@@ -298,5 +298,44 @@ describe('nodeHelpers', () => {
       const updatedContainer = nextNodes.find(n => n.id === 'c1');
       expect(updatedContainer.width).toBeGreaterThan(100);
     });
+
+    it('covers legacy Secret migration when parentId is missing and when targetNode has no secrets array', () => {
+      const nodes = [
+        // Target deployment without secrets property (covers line 28 targetNode.data.secrets || [])
+        { id: 'd1', type: 'Deployment', data: { label: 'dep-1' } },
+        { id: 's1', type: 'Secret', parentId: 'd1', data: { label: 'sec-1', configData: [{ key: 'K', value: 'V' }] } },
+        // Secret without parentId (covers line 20 parentId ? ... : null fallback)
+        { id: 's-no-parent', type: 'Secret', data: { label: 'orphan', configData: [{ key: 'K2', value: 'V2' }] } },
+      ];
+      const get = () => useFlowStore.getState();
+
+      const hydrated = hydrateNodes(nodes, get);
+      const dep = hydrated.find(n => n.id === 'd1');
+      expect(dep.data.secrets).toHaveLength(1);
+      expect(dep.data.secrets[0].name).toBe('sec-1');
+    });
+
+    it('covers syncContainerSize early return when isSizeChanged is false and getChildMinSize default width/height fallbacks', () => {
+      // Container dimensions match computeChildrenBounds (maxX=320, maxY=164, shiftX=0, shiftY=0)
+      // Line 177: isSizeChanged is false, returns exact currentNodes reference
+      const container = { id: 'c1', type: 'Namespace', position: { x: 0, y: 0 }, width: 320, height: 164 } as any;
+      const child = { id: 'p1', type: 'Pod', parentId: 'c1', position: { x: 20, y: 20 }, width: 100, height: 100 } as any;
+      const nodesList = [container, child];
+
+      const unchanged = syncContainerSize('c1', nodesList);
+      expect(unchanged).toBe(nodesList);
+
+      // Child deployment without width/height inside container -> covers line 203 (child.width || 320, child.height || 160)
+      const container2 = { id: 'c2', type: 'Namespace', position: { x: 0, y: 0 }, width: 100, height: 100 } as any;
+      const depNoDims = { id: 'd-nodims', type: 'Deployment', parentId: 'c2', position: { x: 20, y: 20 } } as any;
+      const res = syncContainerSize('c2', [container2, depNoDims]);
+      const updatedC2 = res.find(n => n.id === 'c2');
+      // Dep defaults to 320x160: 20 + 320 + 40 = 380, height: 20 + 160 + 40 = 220
+      expect(updatedC2.width).toBe(380);
+      expect(updatedC2.height).toBe(220);
+    });
+
+
   });
 });
+

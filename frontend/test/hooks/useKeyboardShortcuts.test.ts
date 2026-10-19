@@ -90,4 +90,25 @@ describe('useKeyboardShortcuts', () => {
     expect(options.onCopy).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });
+
+  it('triggers copy on Meta+C (Command on Mac)', () => {
+    renderHook(() => useKeyboardShortcuts(options));
+    const event = new KeyboardEvent('keydown', {
+      key: 'c',
+      ctrlKey: false,
+      metaKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    globalThis.dispatchEvent(event);
+    expect(options.onCopy).toHaveBeenCalled();
+  });
+
+  it('handles null activeElement safely', () => {
+    const spy = vi.spyOn(document, 'activeElement', 'get').mockReturnValue(null as any);
+    renderHook(() => useKeyboardShortcuts(options));
+    fireKey('c');
+    expect(options.onCopy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });

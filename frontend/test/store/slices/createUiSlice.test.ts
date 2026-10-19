@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFlowStore } from '@/store';
+import { setMetricsChannel } from '@/store/slices/simulationManager';
 
 describe('createUiSlice', () => {
   beforeEach(() => {
@@ -523,6 +524,12 @@ describe('createUiSlice', () => {
 
     setIsAdminAuthenticated(true);
     expect(useFlowStore.getState().isAdminAuthenticated).toBe(true);
+
+    const { setHoveredAutocompletePodName, setTerminalCommandTreeModalOpen } = useFlowStore.getState();
+    setHoveredAutocompletePodName('pod-hover');
+    expect(useFlowStore.getState().hoveredAutocompletePodName).toBe('pod-hover');
+    setTerminalCommandTreeModalOpen(true);
+    expect(useFlowStore.getState().isTerminalCommandTreeModalOpen).toBe(true);
   });
 
   it('handles activeIdentity, updateIamUser, and draggingSidebarItem reset', () => {
@@ -1021,5 +1028,338 @@ describe('createUiSlice', () => {
     });
     await loadSettingsJson();
     await new Promise(process.nextTick);
+  });
+
+  it('covers simulationSpeed fallback to 1 when falsy', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep1' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'd1' }] as any,
+      simulationSpeed: 0 as any,
+    });
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+    expect(useFlowStore.getState().simulationSpeed).toBe(0);
+    stopSimulation();
+  });
+
+  it('covers interval callback when simulation is stopped and simulationIntervalObj is null', () => {
+    let tickCallback: (() => void) | null = null;
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval').mockImplementationOnce(((cb: any) => {
+      tickCallback = cb;
+      return 999 as any;
+    }) as any);
+
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep1' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'd1' }] as any,
+    });
+
+    const { startSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    useFlowStore.setState({ isSimulating: false });
+    // First invocation: simulationIntervalObj.current is 999, clears interval and sets current to null
+    tickCallback?.();
+    // Second invocation: simulationIntervalObj.current is null, hits false branch of if (simulationIntervalObj.current)
+    tickCallback?.();
+
+    expect(setIntervalSpy).toHaveBeenCalled();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+
+    setIntervalSpy.mockRestore();
+  });
+
+  it('covers fallbackToLegacySettings early return when GetSetting is not available', async () => {
+    let resolveAppSettings: (v: string) => void;
+    (globalThis as any).go.main.App.GetSetting = vi.fn().mockImplementation((key) => {
+      if (key === 'app_settings_json') {
+        return new Promise<string>((resolve) => {
+          resolveAppSettings = resolve;
+        });
+      }
+      return Promise.resolve('');
+    });
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    loadSettingsJson();
+
+    // Delete GetSetting before resolving appSettings, so fallbackToLegacySettings sees missing GetSetting
+    delete (globalThis as any).go.main.App.GetSetting;
+    resolveAppSettings!('');
+    await new Promise(process.nextTick);
+
+    expect((globalThis as any).go?.main?.App?.GetSetting).toBeUndefined();
+    expect(useFlowStore.getState().isSidebarVisible).toBe(true);
+  });
+
+  it('covers activity logs and rollout transitions when nodes lack data.label', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        {
+          id: 'dep-nolabel',
+          type: 'Deployment',
+          data: {
+            isRollingUpdate: true,
+            rolloutTargetImage: 'v2',
+            image: 'v1',
+          },
+        },
+        {
+          id: 'pod-nolabel-old',
+          type: 'Pod',
+          parentId: 'dep-nolabel',
+          data: {
+            status: 'ready',
+            image: 'v1',
+          },
+        },
+        {
+          id: 'pod-nolabel-pending',
+          type: 'Pod',
+          data: {
+            status: 'pending',
+            pendingTicks: 1,
+          },
+        },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'dep-nolabel' }] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // Tick 1: logs w.data.label || w.id on tick 1, pod-nolabel-pending transitions to ready, scaling down pod-nolabel-old
+    vi.advanceTimersByTime(150);
+    // Tick 2: logs w.data.label || w.id on tick 2
+    vi.advanceTimersByTime(150);
+    // Tick 3: logs w.data.label || w.id on tick 3
+    vi.advanceTimersByTime(150);
+    // Tick 4: old pod is ready with new image, rollout completes and logs deployment.apps/dep-nolabel successfully rolled out
+    vi.advanceTimersByTime(150);
+
+    const logs = useFlowStore.getState().activityLogs;
+    expect(logs.some((l) => l.includes('dep-nolabel'))).toBe(true);
+    expect(logs.some((l) => l.includes('pod/pod-nolabel-pending status transitioned from Pending to Running'))).toBe(true);
+    expect(logs.some((l) => l.includes('[rollout] Scaling down old replica pod pod-nolabel-old...'))).toBe(true);
+    expect(logs.some((l) => l.includes('deployment.apps/dep-nolabel successfully rolled out'))).toBe(true);
+
+    stopSimulation();
+    vi.useRealTimers();
+  });
+
+  it('covers rollout when old pod is not found in updatedNodes (podIdx === -1)', () => {
+    let count = 0;
+    const dep: any = {
+      id: 'dep-dyn',
+      type: 'Deployment',
+      data: { isRollingUpdate: true, rolloutTargetImage: 'v2', image: 'v1' },
+    };
+    const dynamicPod: any = {
+      type: 'Pod',
+      parentId: 'dep-dyn',
+      data: { status: 'ready', image: 'v1' },
+    };
+    Object.defineProperty(dynamicPod, 'id', {
+      get: () => `pod-id-${count++}`,
+      enumerable: true,
+      configurable: true,
+    });
+
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        dep,
+        dynamicPod,
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'dep-dyn' }] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+    vi.advanceTimersByTime(150);
+    stopSimulation();
+    vi.useRealTimers();
+
+    expect(count).toBeGreaterThan(0);
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+  });
+
+  it('covers emergency stop triggering when all pods remain unready past grace period', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'dep-1', type: 'Deployment', data: { label: 'dep1' } },
+        { id: 'pod-unready', type: 'Pod', parentId: 'dep-1', data: { status: 'CrashLoopBackOff', label: 'crash-pod' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'dep-1' }] as any,
+    });
+
+    vi.useFakeTimers();
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+
+    // 50 ticks (50 * 150ms = 7500ms) to pass the 40 unready ticks threshold for checkEmergencyStop
+    vi.advanceTimersByTime(7500);
+
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+    stopSimulation();
+    vi.useRealTimers();
+  });
+
+  it('covers simulation start and color mode toggle when metricsChannel is null', () => {
+    setMetricsChannel(null);
+
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep1' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'd1' }] as any,
+    });
+
+    const { startSimulation, toggleColorMode, stopSimulation } = useFlowStore.getState();
+    toggleColorMode();
+    startSimulation();
+    stopSimulation();
+
+    expect(useFlowStore.getState().colorMode).toBeDefined();
+    expect(useFlowStore.getState().isSimulating).toBe(false);
+
+    if (typeof (globalThis as any).BroadcastChannel !== 'undefined') {
+      setMetricsChannel(new (globalThis as any).BroadcastChannel('monitoring-data'));
+    }
+  });
+
+  it('covers starting simulation without an Internet node', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'custom-node', type: 'Pod', data: { status: 'ready', label: 'custom-pod' } },
+      ] as any,
+      edges: [],
+    });
+
+    const { startSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation(['custom-node']);
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+    stopSimulation();
+  });
+
+  it('covers resuming paused simulation', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
+        { id: 'd1', type: 'Deployment', data: { label: 'dep1' } },
+      ] as any,
+      edges: [{ id: 'e1', source: 'i1', target: 'd1' }] as any,
+    });
+
+    const { startSimulation, pauseSimulation, stopSimulation } = useFlowStore.getState();
+    startSimulation();
+    pauseSimulation();
+    expect(useFlowStore.getState().isPaused).toBe(true);
+
+    // Resuming while isPaused is true
+    startSimulation();
+    expect(useFlowStore.getState().isSimulating).toBe(true);
+    expect(useFlowStore.getState().isPaused).toBe(false);
+
+    stopSimulation();
+  });
+
+  it('covers settings setters when SaveSetting is not available', () => {
+    const originalGo = (globalThis as any).go;
+    delete (globalThis as any).go;
+
+    const {
+      setMinimapPosition,
+      setActiveIdentity,
+      saveSettingsJson,
+      setGlobalEdgeColors,
+      toggleAutosave,
+      setSidebarVisible,
+      setRightSidebarVisible,
+    } = useFlowStore.getState();
+
+    setMinimapPosition('top-right');
+    setActiveIdentity('admin-user');
+    saveSettingsJson();
+    setGlobalEdgeColors('blue', 'red');
+    toggleAutosave();
+    setSidebarVisible(true);
+    setRightSidebarVisible(true);
+
+    expect(useFlowStore.getState().minimapPosition).toBe('top-right');
+    expect(useFlowStore.getState().activeIdentity).toBe('admin-user');
+    expect(useFlowStore.getState().globalEdgeColor).toBe('blue');
+    expect(useFlowStore.getState().globalEdgeErrorColor).toBe('red');
+    expect(useFlowStore.getState().isSidebarVisible).toBe(true);
+    expect(useFlowStore.getState().isRightSidebarVisible).toBe(true);
+
+    (globalThis as any).go = originalGo;
+  });
+
+  it('covers updateIamUser with multiple users preserving non-target users', () => {
+    useFlowStore.setState({
+      iamUsers: [
+        { id: 'user-1', username: 'alice', createdAt: 1000 } as any,
+        { id: 'user-2', username: 'bob', createdAt: 2000 } as any,
+      ],
+    });
+
+    const { updateIamUser } = useFlowStore.getState();
+    updateIamUser('user-1', { username: 'alice-updated' });
+
+    const users = useFlowStore.getState().iamUsers;
+    expect(users[0].username).toBe('alice-updated');
+    expect(users[1].username).toBe('bob');
+  });
+
+  it('covers fetchHistoryLogs when GetHistoryLogs returns non-array', async () => {
+    useFlowStore.setState({ historyLogs: ['pre-existing'] });
+    (globalThis as any).go.main.App.GetHistoryLogs = vi.fn().mockResolvedValue(null);
+
+    const { fetchHistoryLogs } = useFlowStore.getState();
+    await fetchHistoryLogs();
+    expect(useFlowStore.getState().historyLogs).toEqual(['pre-existing']);
+  });
+
+  it('covers fetchHistoryLogs when GetHistoryLogs is missing', async () => {
+    const originalGo = (globalThis as any).go;
+    delete (globalThis as any).go;
+
+    const { fetchHistoryLogs } = useFlowStore.getState();
+    await fetchHistoryLogs();
+
+    expect(useFlowStore.getState().isHistoryLoading).toBe(false);
+
+    (globalThis as any).go = originalGo;
+  });
+
+  it('covers setDraggingSidebarItem with non-null item and with null resetting hovered nodes', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: 'n1', type: 'Pod', data: { isHovered: true } },
+        { id: 'n2', type: 'Pod', data: { isHovered: false } },
+        { id: 'n3', type: 'Pod', data: {} },
+      ] as any,
+    });
+
+    const { setDraggingSidebarItem } = useFlowStore.getState();
+
+    setDraggingSidebarItem('Deployment');
+    expect(useFlowStore.getState().draggingSidebarItem).toBe('Deployment');
+
+    setDraggingSidebarItem(null);
+    expect(useFlowStore.getState().draggingSidebarItem).toBeNull();
+    expect(useFlowStore.getState().nodes[0].data.isHovered).toBe(false);
   });
 });
