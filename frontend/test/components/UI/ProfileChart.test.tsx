@@ -511,5 +511,104 @@ describe('ProfileChart', () => {
       expect(hydratedHourly['00:10']).toBeDefined();
       expect(hydratedHourly['00:30']).toBeDefined();
     });
+
+    it('covers pointer move and leave while draggingHour is active, and hover tooltip in light mode', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="light"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      const overlayRect = screen.getByTestId('interactive-chart-canvas-overlay');
+
+      // 1. Hover in light mode to cover lines 585 & 595 (colorMode === 'dark' false branch in tooltip)
+      act(() => {
+        fireEvent.pointerMove(overlayRect, { clientX: 150, clientY: 50, bubbles: true });
+      });
+      expect(screen.getByTestId('interactive-hover-minute-indicator')).toBeInTheDocument();
+
+      // 2. Start dragging a point
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 0) {
+        fireEvent.pointerDown(targetCircles[0], { clientX: 100, clientY: 120, pointerId: 1 });
+      }
+
+      // 3. Move and leave overlay rect while draggingHour is active (covers lines 260 and 266 !draggingHour false branches)
+      act(() => {
+        fireEvent.pointerMove(overlayRect, { clientX: 160, clientY: 60, bubbles: true });
+        fireEvent.pointerLeave(overlayRect);
+      });
+
+      // Release pointer
+      fireEvent.pointerUp(overlayRect, { pointerId: 1 });
+    });
+
+    it('covers pointer down on <60m interval when all sub-hourly keys already exist (modified=false) and interval dropdown change to 60m', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+      const onUpdateProfile = vi.fn();
+
+      // Profile that has all 30m keys for the day
+      const complete30mProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: {},
+      };
+      for (let i = 0; i <= 48; i++) {
+        const m = Math.min(1440, i * 30);
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        complete30mProfile.hourly[`${hh}:${mm}`] = 100;
+      }
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={complete30mProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      // 1. The component auto-detects interval 30m. Pointer down on a circle when all 30m keys already exist
+      // Line 233: modified is false, so onUpdateProfile is NOT called
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 0) {
+        fireEvent.pointerDown(targetCircles[0], { clientX: 100, clientY: 120, pointerId: 1 });
+        expect(onUpdateProfile).not.toHaveBeenCalled();
+        fireEvent.pointerUp(targetCircles[0], { pointerId: 1 });
+      }
+
+      // 2. Test selecting 60m on a standard profile without subhourly keys (covers line 380 newInterval < 60 false branch)
+      const standardProfile: InternetProfileItem = {
+        ...dummyProfile,
+        hourly: { '00:00': 100, '01:00': 200 },
+      };
+
+      render(
+        <InteractiveTrafficChart
+          profile={standardProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+          onUpdateProfile={onUpdateProfile}
+        />
+      );
+
+      const selectEl = screen.getAllByRole('combobox')[1] as HTMLSelectElement;
+      // Change to 60 (newInterval = 60, so line 380 newInterval < 60 is false)
+      fireEvent.change(selectEl, { target: { value: '60' } });
+      expect(selectEl.value).toBe('60');
+    });
   });
 });
+

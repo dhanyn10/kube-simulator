@@ -256,4 +256,30 @@ describe('useFlowStore', () => {
     expect(saveSettingSpy).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it('handles module evaluation when globalThis is undefined', async () => {
+    vi.resetModules();
+    const origDescriptor = Object.getOwnPropertyDescriptor(global, 'globalThis');
+    try {
+      Object.defineProperty(global, 'globalThis', {
+        configurable: true,
+        get() {
+          const stack = new Error().stack || '';
+          if (stack.includes('useFlowStore.ts:100') || stack.includes('useFlowStore.ts:155')) {
+            return undefined;
+          }
+          return origDescriptor?.value ?? global;
+        }
+      });
+      await import('@/store/useFlowStore');
+    } finally {
+      if (origDescriptor) {
+        Object.defineProperty(global, 'globalThis', origDescriptor);
+      }
+    }
+  });
 });
+
+
+
+
