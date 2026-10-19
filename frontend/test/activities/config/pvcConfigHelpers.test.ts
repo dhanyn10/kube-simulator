@@ -339,4 +339,59 @@ describe('pvcConfigHelpers test suite', () => {
     const updatedUnrelatedEdge = res.edges.find((e) => e.id === 'e2');
     expect(updatedUnrelatedEdge?.data?.validationError).toBe('Keep me');
   });
+
+  it('covers line 29 in calculatePvcConnectedReplicas when connected node is not found in nodes list', () => {
+    const pvcId = 'pvc-1';
+    const nodes: Node[] = [
+      { id: 'pvc-1', type: 'PVC', data: {}, position: { x: 0, y: 0 } },
+    ];
+    const edges: Edge[] = [
+      { id: 'e1', source: 'pvc-1', target: 'missing-node-id' },
+    ];
+
+    const total = calculatePvcConnectedReplicas(pvcId, nodes, edges);
+    expect(total).toBe(0);
+  });
+
+  it('covers line 100 in getConnectedWorkloadIds when PVC node is the edge source', () => {
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const podNode: Node = {
+      id: 'pod-1',
+      type: 'Pod',
+      data: { status: 'pending', image: 'nginx:latest' },
+      position: { x: 0, y: 0 },
+    };
+    // PVC is source, pod is target
+    const edge: Edge = { id: 'e1', source: 'pvc-1', target: 'pod-1', data: {} };
+
+    const res = handlePvcRwoAccessMode(pvcNode, [pvcNode, podNode], [edge]);
+    const updatedPod = res.nodes.find((n) => n.id === 'pod-1');
+    expect(updatedPod?.data?.status).toBe('ready');
+  });
+
+  it('covers line 208 in handlePvcRwoAccessMode fallback to ReadWriteOnce when accessMode is omitted', () => {
+    const pvcNodeNoAccessMode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { pvcStatus: 'Pending' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 2 },
+      position: { x: 0, y: 0 },
+    };
+    const edge: Edge = { id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} };
+
+    const res = handlePvcRwoAccessMode(pvcNodeNoAccessMode, [pvcNodeNoAccessMode, depNode], [edge]);
+    const updatedPvc = res.nodes.find((n) => n.id === 'pvc-1');
+    expect(updatedPvc?.data?.pvcStatus).toBe('Multi-Attach Error');
+  });
 });
+

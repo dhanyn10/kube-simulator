@@ -738,5 +738,111 @@ describe('useInternetProfileModal', () => {
       // SaveInternetProfile should NOT have been called because timer was cleared
       expect(mockSaveInternetProfile).not.toHaveBeenCalled();
     });
+
+    it('does not reset viewMode when rerendered with isOpen true and changed selectedNode', () => {
+      const { result, rerender } = renderHook(
+        ({ node }) => useInternetProfileModal(true, node, mockPerformUpdate, mockOnClose),
+        { initialProps: { node: dummyNode } }
+      );
+
+      act(() => {
+        result.current.setViewMode('custom');
+      });
+      expect(result.current.viewMode).toBe('custom');
+
+      // Re-render with new node reference while isOpen remains true
+      act(() => {
+        rerender({
+          node: {
+            ...dummyNode,
+            data: { ...dummyNode.data, activeProfileName: 'UpdatedNode' }
+          }
+        });
+      });
+
+      // viewMode should NOT have been reset to 'grid' because prevIsOpenRef.current was true
+      expect(result.current.viewMode).toBe('custom');
+    });
+
+    it('clears autoSaveTimerRef and savedStatusTimerRef when modal closes (isOpen becomes false)', async () => {
+      const { result, rerender } = renderHook(
+        ({ isOpen }) => useInternetProfileModal(isOpen, dummyNode, mockPerformUpdate, mockOnClose),
+        { initialProps: { isOpen: true } }
+      );
+
+      // 1. Trigger autoSaveTimer by opening details and modifying a point
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+      act(() => {
+        result.current.handleUpdateDetailPoint('00:00', 3300);
+      });
+
+      // Now autoSaveTimerRef.current is active. Close the modal:
+      act(() => {
+        rerender({ isOpen: false });
+      });
+      expect(result.current.autoSaveStatus).toBe('idle');
+
+      // 2. Re-open modal and trigger auto-save so savedStatusTimerRef.current is active
+      act(() => {
+        rerender({ isOpen: true });
+      });
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+      await act(async () => {
+        result.current.handleManualAutoSave();
+      });
+      expect(result.current.autoSaveStatus).toBe('saved');
+
+      // Now savedStatusTimerRef.current is active. Close the modal:
+      act(() => {
+        rerender({ isOpen: false });
+      });
+      expect(result.current.autoSaveStatus).toBe('idle');
+    });
+
+    it('covers executeAutoSave clearing previous savedStatusTimerRef on rapid subsequent saves and fallback to 1000 for missing hourly 00:00', async () => {
+      const activeNodeNoHourlyZero = {
+        ...dummyNode,
+        data: {
+          ...dummyNode.data,
+          activeProfileName: 'ProfileNoHourlyZero'
+        }
+      };
+
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, activeNodeNoHourlyZero, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleSetDetailProfileObj({
+          name: 'ProfileNoHourlyZero',
+          hourly: { '01:00': 2000 }
+        });
+      });
+
+      // First auto-save: triggers traffic fallback to 1000 and sets savedStatusTimerRef
+      await act(async () => {
+        result.current.handleManualAutoSave();
+      });
+
+      expect(mockPerformUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          activeProfileName: 'ProfileNoHourlyZero',
+          traffic: 1000
+        })
+      );
+      expect(result.current.autoSaveStatus).toBe('saved');
+
+      // Second auto-save while savedStatusTimerRef is still running: triggers line 252 clearTimeout
+      await act(async () => {
+        result.current.handleManualAutoSave();
+      });
+
+      expect(result.current.autoSaveStatus).toBe('saved');
+    });
   });
 });
+

@@ -155,4 +155,35 @@ describe('TerminalCommandTreeModal', () => {
     const item = screen.getByText('info-only');
     expect(() => fireEvent.click(item)).not.toThrow();
   });
+
+  it('safely handles command dispatch when globalThis is undefined', () => {
+    let timeoutCb: (() => void) | null = null;
+    vi.spyOn(globalThis, 'setTimeout').mockImplementationOnce(((cb: any) => {
+      timeoutCb = cb;
+      return 123 as any;
+    }) as any);
+
+    useFlowStore.setState({ isTerminalCommandTreeModalOpen: true });
+    render(<TerminalCommandTreeModal />);
+
+    const podsNode = screen.getByText('pods');
+    fireEvent.click(podsNode);
+
+    expect(timeoutCb).toBeDefined();
+
+    const origGlobalThis = (global as any).globalThis;
+    let didThrow = false;
+    try {
+      (global as any).globalThis = undefined;
+      timeoutCb!();
+    } catch {
+      didThrow = true;
+    } finally {
+      (global as any).globalThis = origGlobalThis;
+    }
+    expect(didThrow).toBe(false);
+  });
 });
+
+
+
