@@ -39,6 +39,88 @@ func setupIntegrationEnvironment(t *testing.T) (*App, string, func()) {
 	return app, tmpDir, cleanup
 }
 
+func verifySavedProject(t *testing.T, app *App, tmpDir string, projID int64, sampleCanvas string) {
+	expectedPhysicalFile := filepath.Join(tmpDir, ".kube-simulator", "projects", fmt.Sprintf("project_%d.infra", projID))
+	fileBytes, err := os.ReadFile(expectedPhysicalFile)
+	if err != nil {
+		t.Fatalf("Physical project file was not written to disk: %v", err)
+	}
+	if string(fileBytes) != sampleCanvas {
+		t.Errorf("Physical file content mismatch: expected %s, got %s", sampleCanvas, string(fileBytes))
+	}
+
+	loaded := app.LoadProject(projID)
+	if loaded == nil {
+		t.Fatal("Loaded project is nil")
+	}
+	if loaded.Name != "Production Architecture" || loaded.Content != sampleCanvas {
+		t.Fatalf("Loaded project does not match saved data: %+v", loaded)
+	}
+}
+
+func verifyUpdatedProject(t *testing.T, app *App, tmpDir string, projID int64, updatedCanvas string) {
+	time.Sleep(10 * time.Millisecond)
+	if !app.UpdateProject(projID, updatedCanvas) {
+		t.Fatal("Failed to update project")
+	}
+
+	updatedLoaded := app.LoadProject(projID)
+	if updatedLoaded == nil || updatedLoaded.Content != updatedCanvas {
+		t.Fatalf("Updated project content mismatch: %+v", updatedLoaded)
+	}
+
+	expectedPhysicalFile := filepath.Join(tmpDir, ".kube-simulator", "projects", fmt.Sprintf("project_%d.infra", projID))
+	updatedFileBytes, err := os.ReadFile(expectedPhysicalFile)
+	if err != nil || string(updatedFileBytes) != updatedCanvas {
+		t.Fatalf("Physical file did not reflect update: %v, content=%s", err, string(updatedFileBytes))
+	}
+
+	projects := app.GetProjects()
+	if len(projects) != 1 || projects[0].ID != projID {
+		t.Fatalf("Expected exactly 1 project in list, got %+v", projects)
+	}
+}
+
+func verifyExportImportBundle(t *testing.T, app *App, tmpDir string, updatedCanvas string) {
+	exportPath := filepath.Join(tmpDir, "exported-arch.infra")
+	exportCtx := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, exportPath)
+	appCtx = exportCtx
+	defer func() { appCtx = nil }()
+
+	if !app.ExportProjectFile("Production Architecture", updatedCanvas, "kind: Pod\n---") {
+		t.Fatal("ExportProjectFile failed")
+	}
+
+	bundleBytes, err := os.ReadFile(exportPath)
+	if err != nil {
+		t.Fatalf("Failed to read exported bundle: %v", err)
+	}
+	var bundleData map[string]string
+	if err := json.Unmarshal(bundleBytes, &bundleData); err != nil {
+		t.Fatalf("Exported bundle is not valid JSON: %v", err)
+	}
+	if bundleData["name"] != "Production Architecture" || bundleData["canvas"] != updatedCanvas {
+		t.Errorf("Exported bundle content mismatch: %+v", bundleData)
+	}
+
+	importedStr := app.ImportProjectFile()
+	if importedStr != string(bundleBytes) {
+		t.Errorf("ImportProjectFile output does not match exported file")
+	}
+}
+
+func verifyDeletedProject(t *testing.T, app *App, projID int64) {
+	if !app.DeleteProject(projID) {
+		t.Fatal("DeleteProject returned false")
+	}
+	if app.LoadProject(projID) != nil {
+		t.Error("Expected project to be nil after deletion")
+	}
+	if len(app.GetProjects()) != 0 {
+		t.Errorf("Expected 0 projects after deletion, got %d", len(app.GetProjects()))
+	}
+}
+
 func TestIntegration_ProjectLifecycleAndPersistence(t *testing.T) {
 	app, tmpDir, cleanup := setupIntegrationEnvironment(t)
 	defer cleanup()
@@ -52,84 +134,17 @@ func TestIntegration_ProjectLifecycleAndPersistence(t *testing.T) {
 		t.Fatalf("Expected positive project ID, got %d", projID)
 	}
 
-	// Step 2: Verify physical project file was created
-	expectedPhysicalFile := filepath.Join(tmpDir, ".kube-simulator", "projects", fmt.Sprintf("project_%d.infra", projID))
-	fileBytes, err := os.ReadFile(expectedPhysicalFile)
-	if err != nil {
-		t.Fatalf("Physical project file was not written to disk: %v", err)
-	}
-	if string(fileBytes) != sampleCanvas {
-		t.Errorf("Physical file content mismatch: expected %s, got %s", sampleCanvas, string(fileBytes))
-	}
+	// Step 2 & 3: Verify physical file and SQLite load
+	verifySavedProject(t, app, tmpDir, projID, sampleCanvas)
 
-	// Step 3: Load project from SQLite
-	loaded := app.LoadProject(projID)
-	if loaded == nil || loaded.Name != "Production Architecture" || loaded.Content != sampleCanvas {
-		t.Fatalf("Loaded project does not match saved data: %+v", loaded)
-	}
+	// Step 4, 5 & 6: Update project and verify persistence
+	verifyUpdatedProject(t, app, tmpDir, projID, updatedCanvas)
 
-	// Step 4: Update project
-	time.Sleep(10 * time.Millisecond)
-	if !app.UpdateProject(projID, updatedCanvas) {
-		t.Fatal("Failed to update project")
-	}
+	// Step 7, 8 & 9: Export and import bundle
+	verifyExportImportBundle(t, app, tmpDir, updatedCanvas)
 
-	updatedLoaded := app.LoadProject(projID)
-	if updatedLoaded == nil || updatedLoaded.Content != updatedCanvas {
-		t.Fatalf("Updated project content mismatch: %+v", updatedLoaded)
-	}
-
-	// Step 5: Verify physical project file was updated
-	updatedFileBytes, err := os.ReadFile(expectedPhysicalFile)
-	if err != nil || string(updatedFileBytes) != updatedCanvas {
-		t.Fatalf("Physical file did not reflect update: %v, content=%s", err, string(updatedFileBytes))
-	}
-
-	// Step 6: Verify Project List
-	projects := app.GetProjects()
-	if len(projects) != 1 || projects[0].ID != projID {
-		t.Fatalf("Expected exactly 1 project in list, got %+v", projects)
-	}
-
-	// Step 7: Export to .infra bundle file
-	exportPath := filepath.Join(tmpDir, "exported-arch.infra")
-	exportCtx := context.WithValue(context.WithValue(context.Background(), isTestKey, true), testFilePathKey, exportPath)
-	appCtx = exportCtx
-	defer func() { appCtx = nil }()
-
-	if !app.ExportProjectFile("Production Architecture", updatedCanvas, "kind: Pod\n---") {
-		t.Fatal("ExportProjectFile failed")
-	}
-
-	// Step 8: Read and validate exported bundle
-	bundleBytes, err := os.ReadFile(exportPath)
-	if err != nil {
-		t.Fatalf("Failed to read exported bundle: %v", err)
-	}
-	var bundleData map[string]string
-	if err := json.Unmarshal(bundleBytes, &bundleData); err != nil {
-		t.Fatalf("Exported bundle is not valid JSON: %v", err)
-	}
-	if bundleData["name"] != "Production Architecture" || bundleData["canvas"] != updatedCanvas {
-		t.Errorf("Exported bundle content mismatch: %+v", bundleData)
-	}
-
-	// Step 9: Import bundle
-	importedStr := app.ImportProjectFile()
-	if importedStr != string(bundleBytes) {
-		t.Errorf("ImportProjectFile output does not match exported file")
-	}
-
-	// Step 10: Delete project
-	if !app.DeleteProject(projID) {
-		t.Fatal("DeleteProject returned false")
-	}
-	if app.LoadProject(projID) != nil {
-		t.Error("Expected project to be nil after deletion")
-	}
-	if len(app.GetProjects()) != 0 {
-		t.Errorf("Expected 0 projects after deletion, got %d", len(app.GetProjects()))
-	}
+	// Step 10: Delete project and verify cleanup
+	verifyDeletedProject(t, app, projID)
 }
 
 func TestIntegration_UndoRedoBranchingHistory(t *testing.T) {
@@ -361,8 +376,7 @@ func TestIntegration_FullArchitectureYamlPipeline(t *testing.T) {
 	verifyGeneratedManifests(t, manifestByKind)
 }
 
-func verifyGeneratedManifests(t *testing.T, manifests map[string]map[string]interface{}) {
-	// 1. Verify Ingress
+func verifyIngressManifest(t *testing.T, manifests map[string]map[string]interface{}) {
 	ing, ok := manifests["Ingress"]
 	if !ok {
 		t.Fatal("Ingress manifest missing")
@@ -376,8 +390,9 @@ func verifyGeneratedManifests(t *testing.T, manifests map[string]map[string]inte
 	if rule0["host"] != "api.example.com" {
 		t.Errorf("Ingress host mismatch, got %v", rule0["host"])
 	}
+}
 
-	// 2. Verify Deployment
+func verifyDeploymentManifest(t *testing.T, manifests map[string]map[string]interface{}) {
 	dep, ok := manifests["Deployment"]
 	if !ok {
 		t.Fatal("Deployment manifest missing")
@@ -386,8 +401,9 @@ func verifyGeneratedManifests(t *testing.T, manifests map[string]map[string]inte
 	if replicas, ok := depSpec["replicas"].(float64); !ok || int(replicas) != 3 {
 		t.Errorf("Deployment replicas mismatch: %v", depSpec["replicas"])
 	}
+}
 
-	// 3. Verify HPA
+func verifyHPAManifest(t *testing.T, manifests map[string]map[string]interface{}) {
 	hpa, ok := manifests["HorizontalPodAutoscaler"]
 	if !ok {
 		t.Fatal("HorizontalPodAutoscaler manifest missing")
@@ -397,8 +413,9 @@ func verifyGeneratedManifests(t *testing.T, manifests map[string]map[string]inte
 	if targetRef["kind"] != "Deployment" || targetRef["name"] != "api-deployment" {
 		t.Errorf("HPA scaleTargetRef mismatch: %+v", targetRef)
 	}
+}
 
-	// 4. Verify PVC
+func verifyPVCManifest(t *testing.T, manifests map[string]map[string]interface{}) {
 	pvc, ok := manifests["PersistentVolumeClaim"]
 	if !ok {
 		t.Fatal("PersistentVolumeClaim manifest missing")
@@ -411,6 +428,36 @@ func verifyGeneratedManifests(t *testing.T, manifests map[string]map[string]inte
 	}
 }
 
+func verifyGeneratedManifests(t *testing.T, manifests map[string]map[string]interface{}) {
+	verifyIngressManifest(t, manifests)
+	verifyDeploymentManifest(t, manifests)
+	verifyHPAManifest(t, manifests)
+	verifyPVCManifest(t, manifests)
+}
+
+func runConcurrentWorker(t *testing.T, app *App, workerID int) {
+	key := fmt.Sprintf("setting-%d", workerID)
+	val := fmt.Sprintf("val-%d", workerID)
+	if !app.SaveSetting(key, val) {
+		t.Errorf("Worker %d failed to save setting", workerID)
+	}
+	if app.GetSetting(key) != val {
+		t.Errorf("Worker %d setting mismatch", workerID)
+	}
+
+	projName := fmt.Sprintf("Concurrent Project %d", workerID)
+	id := app.SaveProject(projName, fmt.Sprintf(`{"id": %d}`, workerID))
+	if id <= 0 {
+		t.Errorf("Worker %d failed to save project", workerID)
+	}
+	loaded := app.LoadProject(id)
+	if loaded == nil || loaded.Name != projName {
+		t.Errorf("Worker %d loaded project mismatch", workerID)
+	}
+
+	app.PushHistory(fmt.Sprintf(`{"actionName": "Action-%d", "timestamp": %d}`, workerID, time.Now().UnixNano()))
+}
+
 func TestIntegration_ConcurrentOperationsUnderLoad(t *testing.T) {
 	app, _, cleanup := setupIntegrationEnvironment(t)
 	defer cleanup()
@@ -418,43 +465,18 @@ func TestIntegration_ConcurrentOperationsUnderLoad(t *testing.T) {
 	const workerCount = 10
 	var wg sync.WaitGroup
 
-	// Concurrently save settings, projects, and push history
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-
-			// Save and read setting
-			key := fmt.Sprintf("setting-%d", workerID)
-			val := fmt.Sprintf("val-%d", workerID)
-			if !app.SaveSetting(key, val) {
-				t.Errorf("Worker %d failed to save setting", workerID)
-			}
-			if app.GetSetting(key) != val {
-				t.Errorf("Worker %d setting mismatch", workerID)
-			}
-
-			// Save and load project
-			projName := fmt.Sprintf("Concurrent Project %d", workerID)
-			id := app.SaveProject(projName, fmt.Sprintf(`{"id": %d}`, workerID))
-			if id <= 0 {
-				t.Errorf("Worker %d failed to save project", workerID)
-			}
-			loaded := app.LoadProject(id)
-			if loaded == nil || loaded.Name != projName {
-				t.Errorf("Worker %d loaded project mismatch", workerID)
-			}
-
-			// Push history
-			app.PushHistory(fmt.Sprintf(`{"actionName": "Action-%d", "timestamp": %d}`, workerID, time.Now().UnixNano()))
+			runConcurrentWorker(t, app, workerID)
 		}(i)
 	}
 
 	wg.Wait()
 
-	projects := app.GetProjects()
-	if len(projects) != workerCount {
-		t.Errorf("Expected %d projects after concurrent writes, got %d", workerCount, len(projects))
+	if len(app.GetProjects()) != workerCount {
+		t.Errorf("Expected %d projects after concurrent writes, got %d", workerCount, len(app.GetProjects()))
 	}
 
 	historyLogs := app.GetHistoryLogs()
