@@ -58,6 +58,10 @@ describe('SettingsModal', () => {
     expect(screen.getByText('Canvas Customization')).toBeDefined();
     expect(screen.getByText('Dots')).toBeDefined();
     expect(screen.getByText('Lines')).toBeDefined();
+
+    // Click 'View' tab button back to trigger setActiveTab('view')
+    fireEvent.click(viewTabBtn);
+    expect(screen.getByText('View & Layout Toggles')).toBeDefined();
   });
 
   it('toggles View properties and updates Zustand store', () => {

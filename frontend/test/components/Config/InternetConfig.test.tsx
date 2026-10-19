@@ -482,5 +482,11 @@ describe('InternetConfig', () => {
       fireEvent.pointerMove(overlayRect, { clientX: 8, clientY: 10 });
     });
     expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+
+    // Hover at hour 1 (same hour as 01:00) with isRed = false to cover line 37 in getHoverDotClass
+    await act(async () => {
+      fireEvent.pointerMove(overlayRect, { clientX: 18, clientY: 10 });
+    });
+    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
   });
 });

@@ -72,6 +72,13 @@ describe('useKeyboardShortcuts', () => {
     expect(options.onUngroup).toHaveBeenCalled();
   });
 
+  it('ignores non-z/non-y keys in handleUndoRedo on line 26 when Ctrl/Cmd is pressed', () => {
+    renderHook(() => useKeyboardShortcuts(options));
+    fireKey('k');
+    expect(options.onUndo).not.toHaveBeenCalled();
+    expect(options.onRedo).not.toHaveBeenCalled();
+  });
+
   it('ignores shortcuts when input is focused', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);

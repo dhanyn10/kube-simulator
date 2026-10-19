@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { hydrateNodes, syncDeployment, syncContainerSize, attachHandlers } from '@/store/nodeHelpers';
+import { hydrateNodes, syncDeployment, syncContainerSize, attachHandlers, calculateDeploymentDimensions } from '@/store/nodeHelpers';
 import { useFlowStore } from '@/store';
 
 describe('nodeHelpers', () => {
@@ -164,6 +164,17 @@ describe('nodeHelpers', () => {
       expect(hydrated.find(n => n.id === 'd-null')).toBeDefined();
       expect(hydrated.find(n => n.id === 'd-role-only')).toBeDefined();
       expect(hydrated.find(n => n.id === 'd-cm-only')).toBeDefined();
+    });
+  });
+
+  describe('calculateDeploymentDimensions', () => {
+    it('calculates width and height for a deployment and its laid out pods using yoga layout', () => {
+      const deployment = { id: 'd1', type: 'Deployment', data: { label: 'dep-1', replicas: 1 } } as any;
+      const pod = { id: 'p1', type: 'Pod', parentId: 'd1', data: { label: 'pod-1' } } as any;
+
+      const dims = calculateDeploymentDimensions(deployment, [pod]);
+      expect(dims.width).toBeGreaterThan(0);
+      expect(dims.height).toBeGreaterThan(0);
     });
   });
 

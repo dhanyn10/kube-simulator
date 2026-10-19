@@ -209,6 +209,17 @@ describe('nodeUtils', () => {
       expect(name).toBe('backend-1');
     });
 
+    it('handles ensureUniqueResourceName loop exhaustion (> 1000 duplicates) to hit line 63 fallback', () => {
+      const nodes: any[] = [];
+      nodes.push({ id: 's0', type: 'Service', parentId: 'ns1', data: { label: 'app' } });
+      for (let i = 1; i < 1000; i++) {
+        nodes.push({ id: `s${i}`, type: 'Service', parentId: 'ns1', data: { label: `app-${i}` } });
+      }
+
+      const name = ensureUniqueResourceName('app', 'Service', 'ns1', nodes);
+      expect(name).toMatch(/^app-[a-z0-9]+$/);
+    });
+
     it('allows identical names for DIFFERENT Kinds in the SAME Namespace', () => {
       const nodes: any[] = [
         { id: 's1', type: 'Service', parentId: 'ns1', data: { label: 'backend' } },

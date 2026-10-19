@@ -56,6 +56,14 @@ describe('SecretModal', () => {
     expect(screen.getByDisplayValue('cert-data')).toBeInTheDocument();
   });
 
+  it('allows changing secret type option', () => {
+    render(<SecretModal {...defaultProps} />);
+
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'kubernetes.io/tls' } });
+    expect(select.value).toBe('kubernetes.io/tls');
+  });
+
   it('allows adding, updating, and removing key-value fields', () => {
     render(<SecretModal {...defaultProps} />);
 

@@ -888,6 +888,13 @@ describe('simulation test suite', () => {
     });
 
     it('hasValidIngressBackend covers outgoing edge to non-ClusterIP, serviceName fallback, selector matching', () => {
+      // Outgoing edge to a ClusterIP service (line 39)
+      const ingCluster = createNode('i-cluster', 'Ingress', {});
+      const clusterIpSvc = createNode('s-cluster', 'Service', { serviceType: 'ClusterIP' });
+      const edgeToCluster = { id: 'e-cluster', source: 'i-cluster', target: 's-cluster' } as Edge;
+      const edgeMapCluster = new Map([['i-cluster', [edgeToCluster]]]);
+      expect(hasValidIngressBackend(ingCluster, [clusterIpSvc], edgeMapCluster)).toBe(true);
+
       const ing = createNode('i1', 'Ingress', { serviceName: 'backend-svc' });
 
       // Outgoing edge to a NodePort service (not ClusterIP) -> falls through to name check
@@ -931,6 +938,12 @@ describe('simulation test suite', () => {
       const targetSvc = createNode('s3', 'Service', { label: 'dynamic-svc', serviceType: 'ClusterIP' });
       const reach3 = calculateReachability([ingDynamic], new Map(), [], [ingDynamic, targetSvc]);
       expect(reach3.has('s3')).toBe(true);
+
+      // Service dynamic target enqueuing via selector matching (line 84)
+      const dynamicSvc = createNode('s-dynamic', 'Service', { serviceType: 'LoadBalancer', selector: 'dynamic-app' });
+      const dynamicPod = createNode('p-dynamic', 'Pod', { label: 'dynamic-app' });
+      const reachDynamic = calculateReachability([dynamicSvc], new Map(), [], [dynamicSvc, dynamicPod]);
+      expect(reachDynamic.has('p-dynamic')).toBe(true);
 
       // Ingress invalid backend fails processOutgoingEdges
       const ingInvalid = createNode('i3', 'Ingress', { backendServiceName: 'non-existent' });

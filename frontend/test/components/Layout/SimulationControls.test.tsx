@@ -182,6 +182,9 @@ describe('SimulationControls', () => {
 
     fireEvent.click(btn10x);
     expect(useFlowStore.getState().simulationSpeed).toBe(10);
+
+    fireEvent.click(btn1x);
+    expect(useFlowStore.getState().simulationSpeed).toBe(1);
   });
 
   it('renders button group dividers in light mode when simulating', () => {

@@ -126,10 +126,16 @@ describe('HPAConfig', () => {
     fireEvent.click(preset80Btns[preset80Btns.length - 1]);
     expect(performUpdate).toHaveBeenCalledWith({ targetMemory: 80 });
 
-    // Test steppers for Min and Max replicas
-    const stepperBtns = screen.getAllByRole('button');
-    // Click stepper buttons to trigger performUpdate
-    stepperBtns.forEach((btn) => fireEvent.click(btn));
+    // Test steppers for Min and Max replicas directly
+    const minContainer = screen.getByText('Min').parentElement;
+    const minPlusBtn = minContainer?.querySelectorAll('button')[1];
+    if (minPlusBtn) fireEvent.click(minPlusBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ minReplicas: 3 });
+
+    const maxContainer = screen.getByText('Max').parentElement;
+    const maxPlusBtn = maxContainer?.querySelectorAll('button')[1];
+    if (maxPlusBtn) fireEvent.click(maxPlusBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ maxReplicas: 6 });
   });
 
   it('handles range input changes and missing data fields', () => {

@@ -71,6 +71,19 @@ describe('NodeConfig', () => {
     }));
   });
 
+  it('updates non-pod node name input using sanitizeSlug on line 136', () => {
+    const serviceNode = { id: 'svc-1', type: 'Service', data: { label: 'my-svc' } };
+    render(<NodeConfig selectedNode={serviceNode} />);
+
+    const input = screen.getByPlaceholderText('node-name') as HTMLInputElement;
+    expect(input.value).toBe('my-svc');
+
+    fireEvent.change(input, { target: { value: 'New Service Name' } });
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('svc-1', {
+      label: 'new-service-name',
+    });
+  });
+
   it('renders Randomize Pod Hash button for Pod nodes and renders read-only suffix input', () => {
     const podNode = { id: 'p1', type: 'Pod', data: { label: 'nginx-x8k2p', podHash: 'x8k2p' } };
     render(<NodeConfig selectedNode={podNode} />);

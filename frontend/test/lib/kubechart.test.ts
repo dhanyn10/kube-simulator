@@ -386,4 +386,41 @@ describe('kubechart library', () => {
     const emptyTs = convertProfileToTimeSeries({ name: 'Empty' } as any, 60);
     expect(emptyTs).toHaveLength(25);
   });
+
+  it('covers getInterpolatedValueForMinute branches in convertProfileToTimeSeries', () => {
+    // 1. Single minute key '12:00' (minute 720)
+    const profileSingleKey = {
+      name: 'Single Key',
+      hourly: {
+        '12:00': 800
+      }
+    };
+    const tsSingle = convertProfileToTimeSeries(profileSingleKey, 60);
+    expect(tsSingle[0].value).toBe(800);
+    expect(tsSingle[23].value).toBe(800);
+
+    // 2. Profile with key at 00:00 and 12:00
+    const profileTwoKeys = {
+      name: 'Two Keys',
+      hourly: {
+        '00:00': 100,
+        '12:00': 500
+      }
+    };
+    const tsTwo = convertProfileToTimeSeries(profileTwoKeys, 60);
+    expect(tsTwo[0].value).toBe(100);
+    expect(tsTwo[12].value).toBe(500);
+
+    // 3. Test convertProfileToTimeSeries with a point that triggers minuteIdx > prev.minute and minuteIdx > next.minute
+    const sparseKeys = [
+      { minute: 100, val: 50 },
+      { minute: 200, val: 150 }
+    ];
+    // Asking for minute 300 where next was initialized to minute 200, so next.minute (200) <= minuteIdx (300) -> returns next.val (150)
+    const resAfterNext = resampleProfileHourly({
+      name: 'SparseKeys',
+      hourly: { '01:40': 50, '03:20': 150 }
+    });
+    expect(resAfterNext.hourly['05:00']).toBe(150);
+  });
 });

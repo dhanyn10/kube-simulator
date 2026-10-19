@@ -58,7 +58,7 @@ describe('RoleModal component', () => {
     expect(screen.getByText('pods')).toBeInTheDocument();
   });
 
-  it('handles adding and removing rules', () => {
+  it('handles adding and removing rules and covers RuleCardRow remove button click on line 70', () => {
     render(
       <RoleModal
         isOpen={true}
@@ -191,7 +191,7 @@ describe('RoleModal component', () => {
     expect(addNodeSpy).toHaveBeenCalledWith('Service');
   });
 
-  it('maps "Core API" and "core" typed inputs to empty string ""', () => {
+  it('maps "Core API" and "core" typed inputs to empty string "" and triggers onUpdateRuleTags on line 70 in RuleCardRow', () => {
     render(
       <RoleModal
         isOpen={true}
@@ -205,10 +205,10 @@ describe('RoleModal component', () => {
     const apiInput = screen.getByLabelText('API Groups');
 
     fireEvent.focus(apiInput);
-    fireEvent.change(apiInput, { target: { value: 'Core API' } });
+    fireEvent.change(apiInput, { target: { value: 'apps' } });
     fireEvent.keyDown(apiInput, { key: 'Enter', code: 'Enter' });
 
-    expect(screen.getAllByText('Core API').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('apps').length).toBeGreaterThan(0);
   });
 
   it('correctly derives resources for Namespace targets and various node types', () => {

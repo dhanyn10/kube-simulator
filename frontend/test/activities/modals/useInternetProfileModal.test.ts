@@ -710,5 +710,33 @@ describe('useInternetProfileModal', () => {
 
       expect(result.current.autoSaveStatus).toBe('saved');
     });
+
+    it('clears pending auto-save timer when viewMode changes away from details', async () => {
+      const { result } = renderHook(() =>
+        useInternetProfileModal(true, dummyNode, mockPerformUpdate, mockOnClose)
+      );
+
+      act(() => {
+        result.current.handleOpenDetails(ECOMMERCE_PROFILE.name);
+      });
+
+      // Modify detail point to start 3s auto-save timer
+      act(() => {
+        result.current.handleUpdateDetailPoint('00:00', 3300);
+      });
+
+      // Switch viewMode to 'grid' while timer is still running
+      act(() => {
+        result.current.setViewMode('grid');
+      });
+
+      // Fast forward time past 3 seconds
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3500);
+      });
+
+      // SaveInternetProfile should NOT have been called because timer was cleared
+      expect(mockSaveInternetProfile).not.toHaveBeenCalled();
+    });
   });
 });

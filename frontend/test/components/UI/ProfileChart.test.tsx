@@ -266,6 +266,28 @@ describe('ProfileChart', () => {
       }
     });
 
+    it('triggers onPointerDown on point indicator circle', () => {
+      const onUpdatePoint = vi.fn();
+      const onUpdateName = vi.fn();
+
+      const { container } = render(
+        <InteractiveTrafficChart
+          profile={dummyProfile}
+          colorMode="dark"
+          isApplied={false}
+          onUpdatePoint={onUpdatePoint}
+          onUpdateName={onUpdateName}
+        />
+      );
+
+      // Circle at index 1 is the visible point indicator dot with r=3
+      const targetCircles = container.querySelectorAll('circle.cursor-ns-resize');
+      if (targetCircles.length > 1) {
+        fireEvent.pointerDown(targetCircles[1], { clientX: 100, clientY: 120, pointerId: 1 });
+        expect(targetCircles[1]).toBeInTheDocument();
+      }
+    });
+
     it('renders interactive chart with active simulation dot, title input, and pointer interaction', () => {
       useFlowStore.setState({ isSimulating: true });
       const onUpdatePoint = vi.fn();

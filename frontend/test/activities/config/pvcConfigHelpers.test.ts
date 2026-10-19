@@ -310,4 +310,33 @@ describe('pvcConfigHelpers test suite', () => {
     const resResolved = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode1], [edgeWithMultiAttachErr]);
     expect(resResolved.edges[0].data?.validationError).toBeUndefined();
   });
+
+  it('covers line 128 in updatePvcEdges when processing an edge not connected to the PVC node', () => {
+    const pvcNode: Node = {
+      id: 'pvc-1',
+      type: 'PVC',
+      data: { accessMode: 'ReadWriteOnce', pvcStatus: 'Bound' },
+      position: { x: 0, y: 0 },
+    };
+    const depNode: Node = {
+      id: 'dep-1',
+      type: 'Deployment',
+      data: { replicas: 3 },
+      position: { x: 0, y: 0 },
+    };
+    const otherNode: Node = {
+      id: 'other-1',
+      type: 'Service',
+      data: {},
+      position: { x: 0, y: 0 },
+    };
+
+    const pvcEdge: Edge = { id: 'e1', source: 'dep-1', target: 'pvc-1', data: {} };
+    const unrelatedEdge: Edge = { id: 'e2', source: 'dep-1', target: 'other-1', data: { validationError: 'Keep me' } };
+
+    const res = handlePvcRwoAccessMode(pvcNode, [pvcNode, depNode, otherNode], [pvcEdge, unrelatedEdge]);
+
+    const updatedUnrelatedEdge = res.edges.find((e) => e.id === 'e2');
+    expect(updatedUnrelatedEdge?.data?.validationError).toBe('Keep me');
+  });
 });
