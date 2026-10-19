@@ -1,4 +1,5 @@
 import { K8sNodeData } from '@/types';
+import { getPodReplicaInfo } from './podReplicaHelpers';
 
 export const POD_MIN_DIMENSIONS = {
   width: 168,
@@ -7,9 +8,9 @@ export const POD_MIN_DIMENSIONS = {
 
 export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) => {
   const horizontalPadding = 24;
-  const isMegaPod = (data.replicas || 0) >= 100 || (data.parentReplicas || 0) >= 100;
+  const { isMegaPod, isStackedCard, replicas } = getPodReplicaInfo(data);
   const baseWidth = isMegaPod ? POD_MIN_DIMENSIONS.width * 2 : POD_MIN_DIMENSIONS.width;
-  const headerContentWidth = 36 + ((data.replicas || 0) > 1 ? String(data.replicas).length * 5 + 18 : 0);
+  const headerContentWidth = 36 + (isStackedCard ? String(replicas).length * 5 + 18 : 0);
   const labelWidth = String(data.label || '').length * 7 + 16;
   const badgeWidth = badges.length > 0 ? badges.reduce((t, b) => t + b.length * 5 + 14, 0) + (badges.length - 1) * 4 : 0;
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
@@ -18,7 +19,7 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
 };
 
 export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
-  const showDashedProgress = data.type === 'Pod' && ((data.parentReplicas || 0) > 3 || ((data.replicas || 1) > 1 && !data.parentId));
+  const { showDashedProgress } = getPodReplicaInfo(data);
   let height = 80;
   if (showDashedProgress) height += isMegaPod ? 120 : 16;
   if (data.displaySettings?.resources !== false && (data.cpuLimit || data.memoryLimit || data.cpuRequest || data.memoryRequest)) height += 38;
@@ -62,7 +63,7 @@ export const getPodMinimumSize = (data: Partial<K8sNodeData> = {}) => {
   if (showRuntime && data.runtime) visibleBadges.push(String(data.runtime));
   if (showWebserver && data.webserver) visibleBadges.push(String(data.webserver));
 
-  const isMegaPod = (data.replicas || 0) >= 100 || (data.parentReplicas || 0) >= 100;
+  const { isMegaPod } = getPodReplicaInfo(data);
   const width = calculatePodWidth(data, visibleBadges);
   const height = calculatePodHeight(data, width, visibleBadges, isMegaPod);
   return { width, height };

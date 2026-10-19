@@ -8,6 +8,7 @@ import {
   calculatePodAttachedHeight,
   POD_MIN_DIMENSIONS
 } from '@/lib/podSizing';
+import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
 import { getPodSpacing } from './layoutHelpers';
 
 export type YogaEngine = Awaited<ReturnType<typeof loadYoga>>;
@@ -230,7 +231,7 @@ const buildPodYogaSubTree = (
   if (showRuntime && podData.runtime) visibleBadges.push(String(podData.runtime));
   if (showWebserver && podData.webserver) visibleBadges.push(String(podData.webserver));
 
-  const isMegaPod = (podData.replicas || 0) >= 100 || (podData.parentReplicas || 0) >= 100;
+  const { isMegaPod } = getPodReplicaInfo(podData);
   const minSize = getPodMinimumSize(podData);
 
   const podWidth = podData.isManuallyResized
@@ -290,7 +291,7 @@ const calculateFallbackLayout = (config: FallbackLayoutConfig) => {
     const podW = podData.isManuallyResized
       ? Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width)
       : minSize.width;
-    const isMegaPod = (podData.replicas || 0) >= 100 || (podData.parentReplicas || 0) >= 100;
+    const isMegaPod = getPodReplicaInfo(podData).isMegaPod;
     const podH = minSize.height;
 
     const pos = { x: paddingX, y: currentY };

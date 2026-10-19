@@ -95,11 +95,9 @@ const buildAttachedPatch = (newData: Partial<K8sNodeData>, value: any): Partial<
   };
 };
 
-const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
+const handlePodParentSync = (_target: Node, updatedNode: Node, newData: Partial<K8sNodeData>, nodes: Node[], get: () => FlowState) => {
   const parent = nodes.find(n => n.id === updatedNode.parentId);
   if (!parent) return nodes;
-
-  const targetData = target.data as K8sNodeData;
 
   const effectiveReplicas = newData.replicas ?? Number(parent.data?.replicas || 0);
 
@@ -124,8 +122,9 @@ const handlePodParentSync = (target: Node, updatedNode: Node, newData: Partial<K
     return sortNodes([...others, updatedPodWithCleanLabel]);
   }
 
+  const parentReplicas = Number(parent.data?.replicas || 0);
   const replicasChange = ((parent.type === 'Deployment' || parent.type === 'StatefulSet' || parent.type === 'ReplicaSet') && newData.replicas !== undefined)
-    ? (newData.replicas || 0) - (Number(targetData.replicas) || 0) : 0;
+    ? (newData.replicas || 0) - parentReplicas : 0;
 
   const { updatedDeployment, laidOut } = syncDeployment(parent, nodes, replicasChange, get, updatedNode);
   const others = nodes.filter(n => n.id !== parent.id && n.parentId !== parent.id);

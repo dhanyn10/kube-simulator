@@ -518,4 +518,30 @@ describe('nodeActions', () => {
     // Verify canvas is now completely empty
     expect(useFlowStore.getState().nodes).toHaveLength(0);
   });
+
+  it('correctly updates parent controller replicas when updateNodeData is called on a child pod', () => {
+    const { addNode, updateNodeData } = useFlowStore.getState();
+    addNode('Deployment', { x: 0, y: 0 });
+    const depNode = useFlowStore.getState().nodes.find(n => n.type === 'Deployment')!;
+
+    // Scale to 3 replicas
+    updateNodeData(depNode.id, { replicas: 3 });
+    const dep3 = useFlowStore.getState().nodes.find(n => n.id === depNode.id)!;
+    expect(dep3.data.replicas).toBe(3);
+
+    const childPods = useFlowStore.getState().nodes.filter(n => n.parentId === depNode.id && n.type === 'Pod');
+    expect(childPods).toHaveLength(3);
+    const child1 = childPods[0];
+
+    // Decrement from 3 to 2 on child pod
+    updateNodeData(child1.id, { replicas: 2 });
+    const dep2 = useFlowStore.getState().nodes.find(n => n.id === depNode.id)!;
+    expect(dep2.data.replicas).toBe(2);
+
+    // Increment from 2 to 4 on child pod
+    const updatedChild = useFlowStore.getState().nodes.find(n => n.parentId === depNode.id && n.type === 'Pod')!;
+    updateNodeData(updatedChild.id, { replicas: 4 });
+    const dep4 = useFlowStore.getState().nodes.find(n => n.id === depNode.id)!;
+    expect(dep4.data.replicas).toBe(4);
+  });
 });

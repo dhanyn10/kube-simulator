@@ -55,14 +55,27 @@ describe('BaseNode', () => {
     expect(onRename).toHaveBeenCalledWith('new-name');
   });
 
-  it('shows replicas badge when > 1 in dark and light modes', () => {
-    const props = {
+  it('shows replicas badge and stacked card only when replicas > 3, and hides them when replicas <= 3', () => {
+    // When replicas <= 3 (e.g. 2 or 3), replica badge and stacked border must NOT be shown
+    const propsLow = {
       ...defaultProps,
-      data: { ...defaultProps.data, replicas: 5 }
+      data: { ...defaultProps.data, replicas: 2 }
     };
     const { rerender } = render(
       <ReactFlowProvider>
-        <BaseNode {...props} />
+        <BaseNode {...propsLow} />
+      </ReactFlowProvider>
+    );
+    expect(screen.queryByText('x2')).toBeNull();
+
+    // When replicas > 3 (e.g. 5), badge and stacked border are rendered in dark and light modes
+    const propsHigh = {
+      ...defaultProps,
+      data: { ...defaultProps.data, replicas: 5 }
+    };
+    rerender(
+      <ReactFlowProvider>
+        <BaseNode {...propsHigh} />
       </ReactFlowProvider>
     );
     expect(screen.getByText('x5')).toBeInTheDocument();
@@ -70,7 +83,7 @@ describe('BaseNode', () => {
     useFlowStore.setState({ colorMode: 'light' });
     rerender(
       <ReactFlowProvider>
-        <BaseNode {...props} />
+        <BaseNode {...propsHigh} />
       </ReactFlowProvider>
     );
     expect(screen.getByText('x5')).toBeInTheDocument();

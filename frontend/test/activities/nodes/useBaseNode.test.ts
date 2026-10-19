@@ -213,7 +213,7 @@ describe('useBaseNode activity helpers and hook', () => {
       expect(res2.current.displayLabel).toBe('pod2');
       expect(res2.current.showDashedProgress).toBe(false);
 
-      // Standalone Pod with replicas = 2
+      // Standalone Pod with replicas = 2 (<= 3 is separated, not stacked)
       const { result: resStandaloneDashed } = renderHook(() =>
         useBaseNodeHandler({
           id: 'podStandalone',
@@ -221,8 +221,21 @@ describe('useBaseNode activity helpers and hook', () => {
           color: 'blue',
         })
       );
-      expect(resStandaloneDashed.current.showDashedProgress).toBe(true);
+      expect(resStandaloneDashed.current.showDashedProgress).toBe(false);
+      expect(resStandaloneDashed.current.isStackedCard).toBe(false);
       expect(resStandaloneDashed.current.displayLabel).toBe('podStandalone');
+
+      // Standalone Pod with replicas = 4 (> 3 is stacked)
+      const { result: resStandaloneStacked } = renderHook(() =>
+        useBaseNodeHandler({
+          id: 'podStandaloneStacked',
+          data: { label: 'podStandaloneStacked', type: 'Pod', replicas: 4 } as K8sNodeData,
+          color: 'blue',
+        })
+      );
+      expect(resStandaloneStacked.current.showDashedProgress).toBe(true);
+      expect(resStandaloneStacked.current.isStackedCard).toBe(true);
+      expect(resStandaloneStacked.current.displayLabel).toBe('podStandaloneStacked-*****');
     });
   });
 });

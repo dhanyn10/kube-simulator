@@ -61,7 +61,7 @@ describe('useWorkloadConfig', () => {
       expect(getReplicaValue(selectedNode, [])).toBe(4);
     });
 
-    it('returns parent.data.replicas or fallback when parent is a Deployment/ReplicaSet controller', () => {
+    it('returns parent.data.replicas or fallback when parent is a Deployment/StatefulSet/ReplicaSet controller', () => {
       const parentDepNoReplicas = {
         id: 'dep1',
         type: 'Deployment',
@@ -73,9 +73,21 @@ describe('useWorkloadConfig', () => {
         parentId: 'dep1',
         data: { replicas: 3 },
       };
+      const parentSs = {
+        id: 'ss1',
+        type: 'StatefulSet',
+        data: { replicas: 5 },
+      };
+      const childPodInSs = {
+        id: 'p2',
+        type: 'Pod',
+        parentId: 'ss1',
+        data: { replicas: 1 },
+      };
 
       // parent.data.replicas is undefined, Number(undefined) || 1 => 1
       expect(getReplicaValue(childPodInDep, [parentDepNoReplicas, childPodInDep])).toBe(1);
+      expect(getReplicaValue(childPodInSs, [parentSs, childPodInSs])).toBe(5);
     });
 
     it('returns data.replicas or fallback when Pod parentId points to a non-controller parent node (e.g. Namespace)', () => {
@@ -131,18 +143,21 @@ describe('useWorkloadConfig', () => {
       expect(getUpdateReplicasTargetId(podWithoutParent, [])).toBe('p1');
     });
 
-    it('returns parentId when parent is a controller (Deployment, ReplicaSet, PodGroup)', () => {
+    it('returns parentId when parent is a controller (Deployment, StatefulSet, ReplicaSet, PodGroup)', () => {
       const podInDep = { id: 'p1', type: 'Pod', parentId: 'd1' };
-      const podInRs = { id: 'p2', type: 'Pod', parentId: 'rs1' };
-      const podInPg = { id: 'p3', type: 'Pod', parentId: 'pg1' };
+      const podInSs = { id: 'p2', type: 'Pod', parentId: 'ss1' };
+      const podInRs = { id: 'p3', type: 'Pod', parentId: 'rs1' };
+      const podInPg = { id: 'p4', type: 'Pod', parentId: 'pg1' };
 
       const nodes = [
         { id: 'd1', type: 'Deployment' },
+        { id: 'ss1', type: 'StatefulSet' },
         { id: 'rs1', type: 'ReplicaSet' },
         { id: 'pg1', type: 'PodGroup' },
       ];
 
       expect(getUpdateReplicasTargetId(podInDep, nodes as any)).toBe('d1');
+      expect(getUpdateReplicasTargetId(podInSs, nodes as any)).toBe('ss1');
       expect(getUpdateReplicasTargetId(podInRs, nodes as any)).toBe('rs1');
       expect(getUpdateReplicasTargetId(podInPg, nodes as any)).toBe('pg1');
     });

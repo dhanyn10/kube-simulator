@@ -9,6 +9,7 @@ import { NodeActionButtons, NodeRenameInput } from './NodeUI';
 import { NodePodBadges } from './NodePodBadges';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
 import { useBaseNodeHandler, getActiveBarClass, getSegmentClass } from '@/activities/nodes';
+import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
 
 /**
  * Sub-component for rendering pod status indicators (dot, pinging, or pending).
@@ -30,13 +31,13 @@ const ReplicaProgress = ({
   replicas,
   parentReplicas,
   showDashedProgress,
-  colorMode,
+  colorMode: _colorMode,
   progressEmptyBgClass,
   isAutocompleteHovered,
   hoveredPodIndex,
   isPending,
   isCrashing,
-  isReady,
+  isReady: _isReady,
 }: {
   id: string;
   replicas: number;
@@ -52,7 +53,7 @@ const ReplicaProgress = ({
 }) => {
   if (!showDashedProgress) return null;
 
-  const isMega = replicas >= 100 || (parentReplicas || 0) >= 100;
+  const isMega = getPodReplicaInfo({ replicas, parentReplicas, type: 'Pod' }).isMegaPod;
 
   const activeBarClass = getActiveBarClass(isCrashing, isPending);
 
@@ -132,6 +133,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
     progressEmptyBgClass,
     replicas,
     showDashedProgress,
+    isStackedCard,
     isAutocompleteHovered,
     hoveredPodIndex,
     borderColorHex,
@@ -161,7 +163,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
           />
         </svg>
       )}
-      {replicas > 1 && (
+      {isStackedCard && (
         <div className={cn("absolute -right-1.5 -top-1.5 w-full h-full border-2 rounded-lg -z-10", colorMode === 'dark' ? "bg-slate-800/50 border-slate-700" : "bg-slate-50 border-slate-300")} />
       )}
 
@@ -180,7 +182,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
             {isCrashing ? 'Crashing' : title || data.type}
           </span>
           <NodeStatusIndicator type={data.type} statusDotColor={statusDotColor} />
-          {replicas > 1 && (
+          {isStackedCard && (
             <span className={cn("text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0", colorMode === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-500 text-white")}>
               x{replicas}
             </span>
