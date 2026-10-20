@@ -1,6 +1,7 @@
 import { K8sConfigMapItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
 import { KeyValueItem } from '@/components/Modals/KeyValueFormSection';
+import rawPredefinedKeys from './configMapPredefinedKeys.json';
 
 export type ConfigRow = KeyValueItem;
 
@@ -17,74 +18,7 @@ export interface KeySuggestion {
   readonly hint: string;
 }
 
-type RawSuggestionTuple = [
-  key: string,
-  hint: string,
-  options: readonly (readonly [value: string, description: string])[]
-];
-
-const RAW_CONFIGMAP_KEYS: readonly RawSuggestionTuple[] = [
-  [
-    'REQUIRE_SECRET',
-    'Enforces that a Secret must be attached for container authentication.',
-    [
-      ['true', 'Enforce Secret requirement (crashes if no Secret attached)'],
-      ['false', 'Optional Secret (standard)'],
-    ],
-  ],
-  [
-    'PORT',
-    'Container listening port. Must match Service targetPort.',
-    [
-      ['80', 'Standard HTTP Port'],
-      ['8080', 'Alt Web Server Port'],
-      ['3000', 'Node.js / React Port'],
-      ['5000', 'Flask / Python Port'],
-      ['8443', 'HTTPS Secure Port'],
-    ],
-  ],
-  [
-    'MAX_CONNECTIONS',
-    'Maximum traffic capacity limit in RPS. Excess traffic gets throttled.',
-    [
-      ['100', '100 RPS (Low Limit - Throttling)'],
-      ['500', '500 RPS (Medium Limit)'],
-      ['1000', '1000 RPS (Standard High Limit)'],
-      ['5000', '5000 RPS (Enterprise Scale)'],
-    ],
-  ],
-  [
-    'LOG_LEVEL',
-    'Controls verbosity level of terminal activity logs.',
-    [
-      ['INFO', 'Standard Activity Logs'],
-      ['DEBUG', 'Verbose Diagnostics'],
-      ['WARN', 'Warning Highlights Only'],
-      ['ERROR', 'Errors Only'],
-    ],
-  ],
-  [
-    'CHAOS_MODE',
-    'Enables or disables simulated pod failures.',
-    [
-      ['disabled', 'Normal Operation'],
-      ['enabled', 'Simulate CrashLoopBackOff'],
-    ],
-  ],
-];
-
-export const PREDEFINED_KEYS: readonly KeySuggestion[] = RAW_CONFIGMAP_KEYS.map(
-  ([key, hint, suggestions]) => ({
-    key,
-    label: key,
-    hint,
-    valueSuggestions: suggestions.map(([v, desc]) => ({
-      value: v,
-      label: v,
-      description: desc,
-    })),
-  })
-);
+export const PREDEFINED_KEYS: readonly KeySuggestion[] = rawPredefinedKeys;
 
 const matchesQuery = (text: string, q: string): boolean => text.toLowerCase().includes(q);
 
