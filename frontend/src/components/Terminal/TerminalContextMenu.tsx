@@ -45,24 +45,9 @@ export const TerminalContextMenu = ({
   }, [onClose]);
 
   const items = [
-    {
-      id: 'auth',
-      label: 'Auth',
-      checked: showAuth,
-      onToggle: onToggleAuth,
-    },
-    {
-      id: 'filter-logs',
-      label: 'Filter logs',
-      checked: showFilterLogs,
-      onToggle: onToggleFilterLogs,
-    },
-    {
-      id: 'export-log-file',
-      label: 'Export log file',
-      checked: showExportLogs,
-      onToggle: onToggleExportLogs,
-    },
+    { id: 'auth', label: 'Auth', checked: showAuth, onToggle: onToggleAuth },
+    { id: 'filter-logs', label: 'Filter logs', checked: showFilterLogs, onToggle: onToggleFilterLogs },
+    { id: 'export-log-file', label: 'Export log file', checked: showExportLogs, onToggle: onToggleExportLogs },
   ];
 
   if (typeof document === 'undefined') return null;
