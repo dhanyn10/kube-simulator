@@ -512,4 +512,47 @@ describe('useCustomEdge & edge helpers', () => {
     );
     expect(loggableNode?.id).toBe('pod-target');
   });
+
+  it('covers line 208 props.target fallback and line 209 resource fallback in onAlertClick', () => {
+    const addActivityLog = vi.fn();
+    const mockEvent = { stopPropagation: vi.fn() } as any;
+
+    const unreadyNoTypeNoId = { id: '', type: '', data: { status: 'error' } };
+    useFlowStore.setState({
+      activeSimulationEdges: ['e1', 'e2'],
+      nodes: [
+        { id: 'src', type: 'Service' },
+        { id: 'tgt', type: 'Service' },
+        unreadyNoTypeNoId,
+      ] as any,
+      edges: [
+        { id: 'e1', source: 'src', target: 'tgt' },
+        { id: 'e2', source: 'tgt', target: '' },
+      ] as any,
+      addActivityLog,
+    });
+
+    const { result } = renderHook(() =>
+      useCustomEdge({
+        id: 'e1',
+        source: 'src',
+        target: 'tgt',
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 10,
+        targetY: 10,
+        sourcePosition: 'right',
+        targetPosition: 'left',
+        data: {},
+      })
+    );
+
+    act(() => {
+      result.current.onAlertClick(mockEvent);
+    });
+
+    expect(addActivityLog).toHaveBeenCalledWith(
+      expect.stringContaining('Downstream workload resource/tgt is not in ready state.')
+    );
+  });
 });

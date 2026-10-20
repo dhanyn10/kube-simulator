@@ -3,7 +3,10 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { InternetProfileModal } from '@/components/Modals/InternetProfileModal';
 import { ECOMMERCE_PROFILE } from '@/activities/modals';
+import { HOURS_OF_DAY } from '@/lib/kubechart';
 import { useFlowStore } from '@/store/useFlowStore';
+import * as kubechart from '@/lib/kubechart';
+
 
 const mockGetInternetProfiles = vi.fn();
 const mockSaveInternetProfile = vi.fn();
@@ -546,5 +549,35 @@ describe('InternetProfileModal', () => {
     await act(async () => {
       fireEvent.change(intervalSelect, { target: { value: '30' } });
     });
+  });
+
+  it('covers minVal >= 1000 formatting on line 239 and maxVal < 1000 formatting on line 240', async () => {
+    mockGetInternetProfiles.mockResolvedValue([
+      {
+        name: 'High Range Profile',
+        hourly: Object.fromEntries(HOURS_OF_DAY.map((h) => [h, 1500]))
+      },
+      {
+        name: 'Low Range Profile',
+        hourly: Object.fromEntries(HOURS_OF_DAY.map((h) => [h, 500]))
+      }
+    ]);
+
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    // High Range Profile has minVal = 1500 >= 1000 -> displays "1.5k" (line 239)
+    expect(screen.getAllByText('1.5k').length).toBeGreaterThan(0);
+
+    // Low Range Profile has maxVal = 500 < 1000 -> displays "500" (line 240)
+    expect(screen.getAllByText('500').length).toBeGreaterThan(0);
   });
 });

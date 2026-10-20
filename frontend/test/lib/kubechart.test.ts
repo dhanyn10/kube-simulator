@@ -483,7 +483,7 @@ describe('kubechart library', () => {
       { x: 10, y: 10, val: 100, hour: '05:00', minuteIdx: 300 },
       { x: 10, y: 10, val: 100, hour: '24:00', minuteIdx: 1440 }
     ];
-    const ptSpan0 = calculateMinutePoint(ptsSameMinute, 300, 0, 1000, 80, 10);
+    const ptSpan0 = calculateMinutePoint([{ x: 10, y: 10, val: 100, hour: '05:00', minuteIdx: 0 }, { x: 10, y: 10, val: 100, hour: '05:00', minuteIdx: 0 }], NaN, 0, 1000, 80, 10);
     expect(ptSpan0.val).toBe(100);
 
     // 2. resampleProfileHourly with profile missing hourly property -> line 255 (profile.hourly || {})
