@@ -882,6 +882,19 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('HOSTNAME=env-pod'))).toBe(true);
       expect(activityLogs.some(l => l.includes('PORT=8080'))).toBe(true);
       expect(activityLogs.some(l => l.includes('DB_PASSWORD=secret123'))).toBe(true);
+
+      // 5. Shell session with bash and exec without subcmd (defaults to env)
+      activityLogs = [];
+      expect(handleExecCommand('kubectl exec -it env-pod -- bash', mockCtx)).toBe(true);
+      expect(activityLogs.some(l => l.includes('Connected to container "app-container" in pod "env-pod"'))).toBe(true);
+
+      activityLogs = [];
+      expect(handleExecCommand('kubectl exec env-pod env', mockCtx)).toBe(true);
+      expect(activityLogs.some(l => l.includes('HOSTNAME=env-pod'))).toBe(true);
+
+      activityLogs = [];
+      expect(handleExecCommand('kubectl exec env-pod', mockCtx)).toBe(true);
+      expect(activityLogs.some(l => l.includes('HOSTNAME=env-pod'))).toBe(true);
     });
 
     it('printNodeEnvironment prints environment variables and handles empty fallback', () => {

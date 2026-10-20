@@ -858,11 +858,14 @@ export const handleExecCommand = (
   cmd: string,
   ctx: CommandContext
 ): boolean => {
-  const match = /^kubectl\s+exec(?:\s+-[a-z]+)?\s+([-a-z0-9]+)(?:\s+--)?(?:\s+(.*))?$/i.exec(cmd.trim());
+  const trimmed = cmd.trim();
+  const match = /^kubectl\s+exec(?:\s+-[a-z]+)?\s+([a-z0-9-]+)/i.exec(trimmed);
   if (!match) return false;
 
   const targetPod = match[1].toLowerCase();
-  const subCmd = (match[2] || 'env').trim().toLowerCase();
+  const rest = trimmed.slice(match[0].length).trim();
+  const unescaped = rest.startsWith('--') ? rest.slice(2).trim() : rest;
+  const subCmd = (unescaped || 'env').toLowerCase();
 
   const foundNode = findNodeByTargetName(ctx.nodes, targetPod, ['Pod', 'Deployment']);
   if (!foundNode) {

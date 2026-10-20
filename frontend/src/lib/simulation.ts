@@ -247,28 +247,30 @@ export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: s
  * Evaluates attached ConfigMap settings during runtime simulation.
  */
 
+const isAuthFailureEntry = (key?: string, value?: string): boolean => {
+  const k = key?.trim().toUpperCase();
+  const v = value?.trim().toLowerCase();
+  const isFailureKey = k === 'SIMULATE_FAILURE' || k === 'INVALID_CREDENTIALS' || k === 'FAIL_AUTH';
+  const isEnabledVal = v === 'true' || v === 'enabled';
+  return isFailureKey && isEnabledVal;
+};
+
+const checkSecretHasAuthFailure = (sec: K8sSecretItem): boolean => {
+  if (!Array.isArray(sec.secretData)) return false;
+  return sec.secretData.some(kv => isAuthFailureEntry(kv.key, kv.value));
+};
+
 /**
  * Parses Secret entries for simulation failures like SIMULATE_FAILURE or INVALID_CREDENTIALS.
  */
 export const parseSecretSimulationSettings = (secrets: K8sSecretItem[]) => {
-  let hasAuthFailure = false;
-  let failingSecretName = '';
-
   for (const sec of secrets) {
-    if (!sec.secretData || !Array.isArray(sec.secretData)) continue;
-    for (const kv of sec.secretData) {
-      const k = kv.key?.trim().toUpperCase();
-      const v = kv.value?.trim().toLowerCase();
-      if ((k === 'SIMULATE_FAILURE' || k === 'INVALID_CREDENTIALS' || k === 'FAIL_AUTH') && (v === 'true' || v === 'enabled')) {
-        hasAuthFailure = true;
-        failingSecretName = sec.name;
-        break;
-      }
+    if (checkSecretHasAuthFailure(sec)) {
+      return { hasAuthFailure: true, failingSecretName: sec.name };
     }
-    if (hasAuthFailure) break;
   }
 
-  return { hasAuthFailure, failingSecretName };
+  return { hasAuthFailure: false, failingSecretName: '' };
 };
 
 const applySecretPodFailure = (
@@ -293,6 +295,21 @@ const applySecretPodFailure = (
   return changed;
 };
 
+const applySecretPodFailures = (
+  childPods: Node[],
+  ctx: SimulationContext,
+  reason: string,
+  logMsg: string
+): boolean => {
+  let hasChanges = false;
+  for (const pod of childPods) {
+    if (applySecretPodFailure(pod, ctx, reason, logMsg)) {
+      hasChanges = true;
+    }
+  }
+  return hasChanges;
+};
+
 const recoverSinglePodFromSecret = (pod: Node, ctx: SimulationContext): boolean => {
   if (pod.data.status !== 'crashing' || !pod.data.simulatedFailureSecret) {
     return false;
@@ -308,6 +325,19 @@ const recoverSinglePodFromSecret = (pod: Node, ctx: SimulationContext): boolean 
     logger.error('[Secret Simulation] Failed to add log', error);
   }
   return true;
+};
+
+const recoverSecretPodFailures = (
+  childPods: Node[],
+  ctx: SimulationContext
+): boolean => {
+  let hasChanges = false;
+  for (const pod of childPods) {
+    if (recoverSinglePodFromSecret(pod, ctx)) {
+      hasChanges = true;
+    }
+  }
+  return hasChanges;
 };
 
 /**
@@ -326,35 +356,19 @@ export const checkSecretSimulationStatus = (
   const { hasAuthFailure, failingSecretName } = parseSecretSimulationSettings(secrets);
 
   if (hasAuthFailure) {
-    let hasChanges = false;
     const msg = `[Secret Auth Failure] Invalid credentials in Secret "${failingSecretName}". Pod "${podLabel}" failed authentication (CrashLoopBackOff)!`;
-    for (const pod of childPods) {
-      if (applySecretPodFailure(pod, ctx, failingSecretName, msg)) {
-        hasChanges = true;
-      }
-    }
+    const hasChanges = applySecretPodFailures(childPods, ctx, failingSecretName, msg);
     return { hasChanges, isBlocked: true };
   }
 
   const mustHaveSecret = isSecretRequired || Boolean(deploymentData.requireSecret);
   if (mustHaveSecret && secrets.length === 0) {
-    let hasChanges = false;
     const msg = `[Secret Required] Workload "${podLabel}" requires an attached Secret for authentication. Pod set to CrashLoopBackOff!`;
-    for (const pod of childPods) {
-      if (applySecretPodFailure(pod, ctx, 'missing_secret', msg)) {
-        hasChanges = true;
-      }
-    }
+    const hasChanges = applySecretPodFailures(childPods, ctx, 'missing_secret', msg);
     return { hasChanges, isBlocked: true };
   }
 
-  let hasChanges = false;
-  for (const pod of childPods) {
-    if (recoverSinglePodFromSecret(pod, ctx)) {
-      hasChanges = true;
-    }
-  }
-
+  const hasChanges = recoverSecretPodFailures(childPods, ctx);
   return { hasChanges, isBlocked: false };
 };
 
