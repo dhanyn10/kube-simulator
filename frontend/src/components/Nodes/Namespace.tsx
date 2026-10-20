@@ -83,7 +83,7 @@ export const NamespaceNode = memo((props: NodeProps) => {
         Isolated Logic Cluster
       </div>
 
-      <AttachedResourcesFooter data={data} />
+      <AttachedResourcesFooter data={data} nodeId={props.id} />
 
       <Handle type="target" position={Position.Top} id="top-t" className="!opacity-0 !pointer-events-none" />
       <Handle type="source" position={Position.Top} id="top-s" className="!opacity-0 !pointer-events-none" />

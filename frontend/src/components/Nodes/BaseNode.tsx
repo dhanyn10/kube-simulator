@@ -208,7 +208,7 @@ export const BaseNode = memo(({ children, data, selected, title, icon: Icon, col
         </div>
         <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-0">{children}</div>
 
-        <AttachedResourcesFooter data={data} />
+        <AttachedResourcesFooter data={data} nodeId={id} />
       </div>
 
       {!isChildPod && (

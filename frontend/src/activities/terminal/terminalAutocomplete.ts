@@ -65,6 +65,7 @@ export const KUBECTL_TOP_COMMANDS: SuggestionItem[] = createSuggestionMap([
   ['kubectl get', 'kubectl get', 'Subcommand', 'Display one or many resources'],
   ['kubectl config', 'kubectl config', 'Subcommand', 'Modify kubeconfig files and user contexts'],
   ['kubectl logs', 'kubectl logs', 'Subcommand', 'Print the logs for a container in a pod'],
+  ['kubectl exec', 'kubectl exec', 'Subcommand', 'Execute a command in a container (e.g. env)'],
   ['kubectl describe', 'kubectl describe', 'Subcommand', 'Show details of a specific resource'],
   ['kubectl scale', 'kubectl scale', 'Subcommand', 'Set a new size for a Deployment'],
   ['kubectl set image', 'kubectl set image', 'Subcommand', 'Update image of a Deployment'],
@@ -182,6 +183,17 @@ export const COMMAND_SPEC_TREE: CommandSpecNode[] = [
         description: 'Print the logs for a container in a pod',
         requiresResourceReason: (nodes) => getPodNames(nodes).length === 0 ? NO_POD_REASON : null,
         subItemsResolver: (nodes) => getPodNames(nodes),
+      },
+      {
+        name: 'exec ',
+        category: 'Subcommand',
+        description: 'Execute command in container (e.g. env)',
+        requiresResourceReason: (nodes) => getPodNames(nodes).length === 0 ? NO_POD_REASON : null,
+        dynamicChildren: (nodes) => getPodNames(nodes).map(n => ({
+          name: `${n} -- env`,
+          category: 'Pod',
+          description: `Print environment variables for ${n}`,
+        })),
       },
       {
         name: 'describe',

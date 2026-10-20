@@ -1,6 +1,6 @@
 import { Node } from '@xyflow/react';
 import { syncDeployment } from '@/store/nodeHelpers';
-import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
+import { extractAttachedResources, findNodeByTargetName, getPodDisplayStatus, printNodeEnvironment, printContainerEnv } from './terminalLogUtils';
 
 export interface CommandContext {
   nodes: Node[];
@@ -835,6 +835,7 @@ export const handleDescribeDeploymentCommand = (
     ctx.addActivityLog(`    Limits:`);
     ctx.addActivityLog(`      cpu:        ${cpu}`);
     ctx.addActivityLog(`      memory:     ${memory}`);
+    printNodeEnvironment(foundNode.data, ctx.addActivityLog);
     ctx.addActivityLog(`Events:`);
     ctx.addActivityLog(`  Type    Reason             Age   From                   Message`);
     ctx.addActivityLog(`  ----    ------             ----  ----                   -------`);
@@ -842,5 +843,42 @@ export const handleDescribeDeploymentCommand = (
   } else {
     ctx.addActivityLog(`Error from server (NotFound): deployment "${targetName}" not found`);
   }
+  return true;
+};
+
+
+/**
+ * Handles 'kubectl exec <pod> -- env' and interactive container shell execution commands.
+ *
+ * @param cmd - Raw input command string.
+ * @param ctx - Command execution context.
+ * @returns True if command was matched and handled; false otherwise.
+ */
+export const handleExecCommand = (
+  cmd: string,
+  ctx: CommandContext
+): boolean => {
+  const trimmed = cmd.trim();
+  const match = /^kubectl\s+exec(?:\s+-[a-z]+)?\s+([a-z0-9-]+)/i.exec(trimmed);
+  if (!match) return false;
+
+  const targetPod = match[1].toLowerCase();
+  const rest = trimmed.slice(match[0].length).trim();
+  const unescaped = rest.startsWith('--') ? rest.slice(2).trim() : rest;
+  const subCmd = (unescaped || 'env').toLowerCase();
+
+  const foundNode = findNodeByTargetName(ctx.nodes, targetPod, ['Pod', 'Deployment']);
+  if (!foundNode) {
+    ctx.addActivityLog(`Error from server (NotFound): pods "${targetPod}" not found`);
+    return true;
+  }
+
+  if (subCmd === 'sh' || subCmd === 'bash') {
+    ctx.addActivityLog(`Connected to container "app-container" in pod "${targetPod}".`);
+    ctx.addActivityLog(`(Simulated shell session. Type "env" to view environment variables or "exit" to disconnect)`);
+    return true;
+  }
+
+  printContainerEnv(foundNode, ctx.addActivityLog);
   return true;
 };

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
 import { K8sConfigMapItem } from '@/types';
 import { cn } from '@/lib/utils';
-import { useConfigMapModal, PREDEFINED_KEYS } from '@/activities/modals';
+import { useConfigMapModal, findActiveKeyInfo } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 
 interface ConfigMapModalProps {
@@ -213,8 +213,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           ) : (
             <div className="border rounded-b-lg divide-y divide-slate-800/60 max-h-[35vh] overflow-y-auto custom-scrollbar">
               {rows.map((row) => {
-                const upperKey = row.key.trim().toUpperCase();
-                const matchedKeyInfo = PREDEFINED_KEYS.find((pk) => pk.key === upperKey);
+
+                const matchedKeyInfo = findActiveKeyInfo(row.key);
 
                 return (
                   <div

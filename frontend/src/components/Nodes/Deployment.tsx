@@ -122,7 +122,7 @@ export const DeploymentNode = memo((props: NodeProps) => {
         </span>
       </div>
 
-      <AttachedResourcesFooter data={data} />
+      <AttachedResourcesFooter data={data} nodeId={props.id} />
 
       <Handle type="target" position={Position.Top} id="top-t" className="!bg-violet-600 !w-2 !h-2 z-[50]" />
       <Handle type="source" position={Position.Bottom} id="bottom-s" className="!bg-violet-600 !w-2 !h-2" />

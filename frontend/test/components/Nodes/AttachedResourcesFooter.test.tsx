@@ -1,9 +1,10 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import '@testing-library/jest-dom';
 import { AttachedResourcesFooter } from '@/components/Nodes/AttachedResourcesFooter';
 import { K8sNodeData } from '@/types';
+import { useFlowStore } from '@/store';
 
 describe('AttachedResourcesFooter', () => {
   it('returns null when no attached resources are present', () => {
@@ -88,6 +89,65 @@ describe('AttachedResourcesFooter', () => {
     };
     render(<AttachedResourcesFooter data={data} />);
     expect(screen.getByTitle('HPA: standalone-hpa')).toBeInTheDocument();
+  });
+
+  it('triggers store modal setters with initialItem when badges are clicked', () => {
+    const cmItem = { id: 'cm-1', name: 'app-config', configData: [{ key: 'PORT', value: '3000' }] };
+    const secItem = { id: 'sec-1', name: 'app-secret', secretData: [{ key: 'DB_PASS', value: 'secret' }] };
+    const roleItem = { id: 'role-1', name: 'app-role', rules: [] };
+    const hpaItem = { id: 'hpa-1', name: 'app-hpa', minReplicas: 1, maxReplicas: 3, targetCPU: 75 };
+    const resLimitItem = { id: 'res-1', name: 'app-limits', cpuLimit: '1000m' };
+
+    const data: K8sNodeData = {
+      label: 'my-workload',
+      configMaps: [cmItem],
+      secrets: [secItem],
+      roles: [roleItem],
+      hpas: [hpaItem],
+      resourceLimits: [resLimitItem],
+    };
+
+    render(<AttachedResourcesFooter data={data} nodeId="node-123" />);
+
+    // Click ConfigMap badge
+    fireEvent.click(screen.getByTitle('ConfigMap: app-config'));
+    expect(useFlowStore.getState().configMapModalTargetNode).toEqual({
+      id: 'node-123',
+      label: 'my-workload',
+      initialItem: cmItem,
+    });
+
+    // Click Secret badge
+    fireEvent.click(screen.getByTitle('Secret: app-secret'));
+    expect(useFlowStore.getState().secretModalTargetNode).toEqual({
+      id: 'node-123',
+      label: 'my-workload',
+      initialItem: secItem,
+    });
+
+    // Click Role badge
+    fireEvent.click(screen.getByTitle('Role: app-role'));
+    expect(useFlowStore.getState().roleModalTargetNode).toEqual({
+      id: 'node-123',
+      label: 'my-workload',
+      initialItem: roleItem,
+    });
+
+    // Click HPA badge
+    fireEvent.click(screen.getByTitle(/HPA: app-hpa/));
+    expect(useFlowStore.getState().hpaModalTargetNode).toEqual({
+      id: 'node-123',
+      label: 'my-workload',
+      initialItem: hpaItem,
+    });
+
+    // Click ResourceLimit badge
+    fireEvent.click(screen.getByTitle(/Resource Limit: app-limits/));
+    expect(useFlowStore.getState().resourceLimitModalTargetNode).toEqual({
+      id: 'node-123',
+      label: 'my-workload',
+      initialItem: resLimitItem,
+    });
   });
 
   it('renders when only resourceLimits are present', () => {

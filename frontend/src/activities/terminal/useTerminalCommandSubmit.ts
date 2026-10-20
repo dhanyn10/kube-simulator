@@ -19,6 +19,7 @@ import {
   handleDescribeConfigMapCommand,
   handleGetSecretsCommand,
   handleDescribeSecretCommand,
+  handleExecCommand,
 } from './terminalCommands';
 import { evaluateRbacForCommand } from './terminalConfigCommands';
 import { createDefaultTerminalCommandFactory } from './commandFactory';
@@ -70,6 +71,7 @@ export const executeKubectlCommand = (
     handleDescribeConfigMapCommand,
     handleGetSecretsCommand,
     handleDescribeSecretCommand,
+  handleExecCommand,
   ];
 
   for (const handler of commandHandlers) {

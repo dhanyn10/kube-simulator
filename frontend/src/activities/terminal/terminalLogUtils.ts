@@ -339,3 +339,81 @@ export const formatLogLineContent = (line: string, colorMode: 'dark' | 'light', 
     })
   );
 };
+
+
+/**
+ * Prints the environment variables injected from attached ConfigMaps and Secrets.
+ *
+ * @param data - K8s node data dictionary.
+ * @param addActivityLog - Function callback to append log lines.
+ */
+export const printNodeEnvironment = (
+  data: any,
+  addActivityLog: (line: string) => void
+) => {
+  const configMaps = Array.isArray(data?.configMaps) ? data.configMaps : [];
+  const secrets = Array.isArray(data?.secrets) ? data.secrets : [];
+
+  const totalVars = configMaps.reduce((acc: number, cm: any) => acc + (cm.configData?.length || 0), 0) +
+                    secrets.reduce((acc: number, sec: any) => acc + (sec.secretData?.length || 0), 0);
+
+  if (totalVars === 0) {
+    addActivityLog(`    Environment:  <none>`);
+    return;
+  }
+
+  addActivityLog(`    Environment:`);
+  configMaps.forEach((cm: any) => {
+    (cm.configData || []).forEach((kv: any) => {
+      addActivityLog(`      ${kv.key}:  <set to the key '${kv.key}' of config map '${cm.name}'>  Optional: false`);
+    });
+  });
+  secrets.forEach((sec: any) => {
+    (sec.secretData || []).forEach((kv: any) => {
+      addActivityLog(`      ${kv.key}:  <set to the key '${kv.key}' in secret '${sec.name}'>  Optional: false`);
+    });
+  });
+};
+
+/**
+ * Prints the container runtime environment variables including system variables and injected ConfigMaps & Secrets.
+ *
+ * @param node - Matched canvas node.
+ * @param addActivityLog - Function callback to append log lines.
+ */
+export const printContainerEnv = (
+  node: Node,
+  addActivityLog: (line: string) => void
+) => {
+  const name = (node.data?.label as string) || node.id;
+  const image = (node.data?.image as string) || 'nginx:latest';
+  const configMaps = Array.isArray(node.data?.configMaps) ? node.data.configMaps : [];
+  const secrets = Array.isArray(node.data?.secrets) ? node.data.secrets : [];
+
+  addActivityLog(`KUBERNETES_SERVICE_PORT=443`);
+  addActivityLog(`KUBERNETES_PORT=tcp://10.96.0.1:443`);
+  addActivityLog(`HOSTNAME=${name}`);
+  addActivityLog(`SHLVL=1`);
+  addActivityLog(`HOME=/root`);
+  addActivityLog(`TERM=xterm`);
+  addActivityLog(`KUBERNETES_PORT_443_TCP_ADDR=10.96.0.1`);
+  addActivityLog(`PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`);
+  addActivityLog(`KUBERNETES_PORT_443_TCP_PORT=443`);
+  addActivityLog(`KUBERNETES_PORT_443_TCP_PROTO=tcp`);
+  addActivityLog(`KUBERNETES_SERVICE_PORT_HTTPS=443`);
+  addActivityLog(`KUBERNETES_PORT_443_TCP=tcp://10.96.0.1:443`);
+  addActivityLog(`KUBERNETES_SERVICE_HOST=10.96.0.1`);
+  addActivityLog(`IMAGE=${image}`);
+
+  configMaps.forEach((cm: any) => {
+    (cm.configData || []).forEach((kv: any) => {
+      addActivityLog(`${kv.key}=${kv.value}`);
+    });
+  });
+
+  secrets.forEach((sec: any) => {
+    (sec.secretData || []).forEach((kv: any) => {
+      addActivityLog(`${kv.key}=${kv.value}`);
+    });
+  });
+};
