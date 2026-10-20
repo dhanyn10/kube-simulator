@@ -160,7 +160,7 @@ describe('HPA Lifecycle & Pod Scaling Integration Tests', () => {
 
     // Pods should have scaled up to at least minReplicas (2) or higher
     expect(scaledDep.data.replicas).toBeGreaterThanOrEqual(2);
-    expect(scaledChildPods.length).toBe(scaledDep.data.replicas);
+    expect(scaledChildPods).toHaveLength(scaledDep.data.replicas);
 
     // 4. Remove HPA node & edge from canvas
     useFlowStore.getState().deleteNodes([hpaNode]);
@@ -270,7 +270,7 @@ describe('HPA Lifecycle & Pod Scaling Integration Tests', () => {
 
     // HPA brings replicas up to satisfy minReplicas (3)
     expect(scaledDep.data.replicas).toBeGreaterThanOrEqual(3);
-    expect(scaledPods.length).toBe(scaledDep.data.replicas);
+    expect(scaledPods).toHaveLength(scaledDep.data.replicas);
 
     // 3. Remove attached HPA from deployment data
     useFlowStore.getState().updateNodeData(deploymentId, { hpas: [] });
