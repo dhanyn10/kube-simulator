@@ -110,11 +110,11 @@ describe('ImageDropdown', () => {
     fireEvent.click(button);
 
     const input = screen.getByPlaceholderText('Search or type custom image...');
-    expect(input).not.toBeNull();
+    expect(input).toBeDefined();
 
     // Click inside dropdown
     fireEvent.mouseDown(input);
-    expect(screen.queryByPlaceholderText('Search or type custom image...')).not.toBeNull();
+    expect(screen.getByPlaceholderText('Search or type custom image...')).toBeDefined();
 
     // Click outside dropdown
     const outside = screen.getByTestId('outside');

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	_ "embed"
+	_ "embed" // Required for embedding wails.json via go:embed
 	"encoding/json"
 	"fmt"
 	"log"
@@ -32,6 +32,7 @@ const (
 	isTestKey        contextKey = "is_test"
 	testFilePathKey  contextKey = "test_file_path"
 	testMaximisedKey contextKey = "test_maximised"
+	kubeSimulatorDir            = ".kube-simulator"
 )
 
 // App struct
@@ -338,7 +339,7 @@ func (a *App) OpenFileFolder(location string) bool {
 
 	targetPath := location
 	if targetPath == "" {
-		targetPath = filepath.Join(homeDir, ".kube-simulator")
+		targetPath = filepath.Join(homeDir, kubeSimulatorDir)
 	} else if strings.HasPrefix(targetPath, "~/") {
 		targetPath = filepath.Join(homeDir, targetPath[2:])
 	} else if targetPath == "~" {
@@ -499,7 +500,7 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 		return []AutosaveProfileItem{}
 	}
 
-	dir := filepath.Join(userHome, ".kube-simulator", "autosaves")
+	dir := filepath.Join(userHome, kubeSimulatorDir, "autosaves")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return []AutosaveProfileItem{}
@@ -528,7 +529,7 @@ func (a *App) GetAutosaveProfiles() []AutosaveProfileItem {
 			}
 		}
 
-		locationPath := fmt.Sprintf("~/.kube-simulator/autosaves/%s", entry.Name())
+		locationPath := fmt.Sprintf("~/%s/autosaves/%s", kubeSimulatorDir, entry.Name())
 		items = append(items, AutosaveProfileItem{
 			Key:       key,
 			Timestamp: ts,
@@ -551,7 +552,7 @@ func (a *App) GetInternetProfiles() []InternetProfile {
 		return []InternetProfile{}
 	}
 
-	dir := filepath.Join(userHome, ".kube-simulator", "internet_profiles")
+	dir := filepath.Join(userHome, kubeSimulatorDir, "internet_profiles")
 	_ = os.MkdirAll(dir, 0755)
 
 	entries, err := os.ReadDir(dir)
@@ -587,7 +588,7 @@ func (a *App) SaveInternetProfile(name, profileJson string) bool {
 		return false
 	}
 
-	dir := filepath.Join(userHome, ".kube-simulator", "internet_profiles")
+	dir := filepath.Join(userHome, kubeSimulatorDir, "internet_profiles")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		logger.Error("Failed to create internet profiles dir: %v", err)
 		return false
@@ -623,7 +624,7 @@ func (a *App) DeleteInternetProfile(name string) bool {
 		return false
 	}
 
-	dir := filepath.Join(userHome, ".kube-simulator", "internet_profiles")
+	dir := filepath.Join(userHome, kubeSimulatorDir, "internet_profiles")
 	sanitized := strings.ToLower(name)
 	sanitized = strings.ReplaceAll(sanitized, " ", "_")
 	var builder strings.Builder
@@ -666,9 +667,9 @@ func (a *App) MaximizeWindow() {
 		} else {
 			// In tests, simulate branch coverage by reading from the test context
 			if val, ok := appCtx.Value(testMaximisedKey).(bool); ok && val {
-				// Simulates: if wailsRuntime.WindowIsMaximised(appCtx)
+				logger.Info("Simulated window unmaximise in test")
 			} else {
-				// Simulates: else branch
+				logger.Info("Simulated window maximise in test")
 			}
 		}
 	}

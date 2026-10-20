@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName } from '@/lib/utils';
+import { parseCPU, parseMemory, formatCPU, formatMemory, getAbsPos, randomId, validateResourceLimits, generateYaml, cn, trimDashes, sanitizeSlug, cleanProjectName, generateRandomHash, formatPodName, beautifyYaml } from '@/lib/utils';
 
 describe('utils', () => {
   describe('trimDashes', () => {
@@ -221,5 +221,45 @@ describe('utils', () => {
         };
         expect(await generateYaml([], [])).toBe("");
       });
+  });
+
+  describe('beautifyYaml', () => {
+    it('returns empty string for empty or whitespace-only inputs', () => {
+      expect(beautifyYaml('')).toBe('');
+      expect(beautifyYaml('   \n  ')).toBe('');
+      expect(beautifyYaml(null as any)).toBe('');
+      expect(beautifyYaml(undefined as any)).toBe('');
+    });
+
+    it('formats raw JSON single object and array into clean Kubernetes YAML', () => {
+      const singleJson = JSON.stringify({ apiVersion: 'v1', kind: 'Pod', metadata: { name: 'my-pod' } });
+      const singleResult = beautifyYaml(singleJson);
+      expect(singleResult).toContain('apiVersion: v1');
+      expect(singleResult).toContain('kind: Pod');
+      expect(singleResult).toContain('name: my-pod');
+
+      const arrayJson = JSON.stringify([
+        { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'cm1' } },
+        { apiVersion: 'v1', kind: 'Secret', metadata: { name: 'sec1' } }
+      ]);
+      const arrayResult = beautifyYaml(arrayJson);
+      expect(arrayResult).toContain('kind: ConfigMap');
+      expect(arrayResult).toContain('kind: Secret');
+      expect(arrayResult).toContain('---');
+    });
+
+    it('formats and normalizes multi-document YAML with standard indentation', () => {
+      const rawYaml = 'apiVersion: v1\nkind: Service\nmetadata:\n  name: svc\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: dep';
+      const result = beautifyYaml(rawYaml);
+      expect(result).toContain('apiVersion: v1');
+      expect(result).toContain('kind: Service');
+      expect(result).toContain('kind: Deployment');
+      expect(result).toContain('---');
+    });
+
+    it('gracefully falls back to trimmed string on invalid YAML syntax', () => {
+      const invalidYaml = 'invalid: [unclosed';
+      expect(beautifyYaml(invalidYaml)).toBe('invalid: [unclosed');
+    });
   });
 });

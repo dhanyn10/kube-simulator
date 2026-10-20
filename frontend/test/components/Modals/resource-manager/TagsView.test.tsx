@@ -120,6 +120,7 @@ describe('TagsView', () => {
     mockFetchDockerHubTags.mockReturnValueOnce(pendingPromise);
 
     const { unmount } = render(<TagsView {...defaultProps} />);
+    expect(mockFetchDockerHubTags).toHaveBeenCalled();
 
     // Unmount before promise resolves
     unmount();
@@ -127,6 +128,7 @@ describe('TagsView', () => {
     // Now resolve the promise
     resolveTags!(JSON.stringify({ results: [{ name: 'unmounted-tag' }] }));
     await pendingPromise;
+    expect(screen.queryByText('unmounted-tag')).toBeNull();
 
     // Test rejection branch when unmounted
     let rejectPromise: (err: any) => void;
@@ -138,6 +140,8 @@ describe('TagsView', () => {
     unmount2();
     rejectPromise!(new Error('Error after unmount'));
     await pendingReject.catch(() => {});
+    expect(mockFetchDockerHubTags).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('Error after unmount')).toBeNull();
   });
 
   it('filters out falsy tag names from data.results and handles null data.results fallback', async () => {

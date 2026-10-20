@@ -1,28 +1,34 @@
+import { generateYamlClientSide } from './manifestGenerator';
+
 export const initWailsMocks = () => {
     if (typeof globalThis === 'undefined' || (globalThis as any).go) return;
 
-    (globalThis as any)._originalConsoleLog('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
+    const safeLog = (globalThis as any)._originalConsoleLog || console.log;
+    const safeWarn = (globalThis as any)._originalConsoleWarn || console.warn;
+    const safeError = (globalThis as any)._originalConsoleError || console.error;
+
+    safeLog('[Mocks] Real Wails backend not detected. Initializing browser mocks...');
 
     (globalThis as any).runtime = {
         EventsOnMultiple: (eventName: string, _callback: any, _maxCallbacks: number) => {
-            (globalThis as any)._originalConsoleLog(`[Mocks] EventsOnMultiple called for: ${eventName}`);
+            safeLog(`[Mocks] EventsOnMultiple called for: ${eventName}`);
             return () => {};
         },
         EventsOn: (eventName: string, _callback: any) => {
-            (globalThis as any)._originalConsoleLog(`[Mocks] EventsOn called for: ${eventName}`);
+            safeLog(`[Mocks] EventsOn called for: ${eventName}`);
             return () => {};
         },
         EventsOff: () => {},
         EventsEmit: () => {},
-        LogPrint: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogTrace: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogDebug: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogInfo: (msg: string) => (globalThis as any)._originalConsoleLog(msg),
-        LogWarning: (msg: string) => (globalThis as any)._originalConsoleWarn(msg),
-        LogError: (msg: string) => (globalThis as any)._originalConsoleError(msg),
+        LogPrint: (msg: string) => safeLog(msg),
+        LogTrace: (msg: string) => safeLog(msg),
+        LogDebug: (msg: string) => safeLog(msg),
+        LogInfo: (msg: string) => safeLog(msg),
+        LogWarning: (msg: string) => safeWarn(msg),
+        LogError: (msg: string) => safeError(msg),
         LogFatal: (msg: string) => {
-            (globalThis as any)._originalConsoleError(`[FATAL] ${msg}`);
-            // Explicitly handle fatal if needed, but (globalThis as any)._originalConsoleError interceptor will catch it
+            safeError(`[FATAL] ${msg}`);
+            // Explicitly handle fatal if needed, but safeError interceptor will catch it
         }
     };
 
@@ -98,15 +104,15 @@ export const initWailsMocks = () => {
                     version: '0.4.0'
                 }),
                 MinimizeWindow: () => {
-                    (globalThis as any)._originalConsoleLog('Minimize Window');
+                    safeLog('Minimize Window');
                     return Promise.resolve();
                 },
                 MaximizeWindow: () => {
-                    (globalThis as any)._originalConsoleLog('Maximize Window');
+                    safeLog('Maximize Window');
                     return Promise.resolve();
                 },
                 CloseWindow: () => {
-                    (globalThis as any)._originalConsoleLog('Close Window');
+                    safeLog('Close Window');
                     return Promise.resolve();
                 },
                 GetSetting: () => Promise.resolve(""),
@@ -131,7 +137,51 @@ export const initWailsMocks = () => {
                     const profiles = JSON.parse(localStorage.getItem('mock_internet_profiles') || '[]');
                     localStorage.setItem('mock_internet_profiles', JSON.stringify(profiles.filter((p: any) => p.name !== name)));
                     return Promise.resolve(true);
-                }
+                },
+                GenerateYaml: (nodesJson: string, edgesJson: string) => {
+                    try {
+                        const nodes = JSON.parse(nodesJson || '[]');
+                        const edges = JSON.parse(edgesJson || '[]');
+                        return Promise.resolve(generateYamlClientSide(nodes, edges));
+                    } catch {
+                        return Promise.resolve('');
+                    }
+                },
+                WriteLog: (_category: string, _level: string, _message: string) => Promise.resolve(true),
+                OpenLogFile: () => Promise.resolve(true),
+                CheckForUpdates: (currentVersion: string) => Promise.resolve({
+                    updateAvailable: false,
+                    currentVersion,
+                    latestVersion: currentVersion,
+                    releaseUrl: '',
+                    releaseNotes: '',
+                    publishedAt: '',
+                    isPrerelease: false
+                }),
+                FetchDockerHubPopular: () => Promise.resolve(JSON.stringify({
+                    results: [
+                        { name: 'nginx', description: 'Official build of Nginx.' },
+                        { name: 'redis', description: 'In-memory data structure store' },
+                        { name: 'postgres', description: 'The PostgreSQL database' }
+                    ]
+                })),
+                FetchDockerHubTags: (_imageName: string) => Promise.resolve(JSON.stringify({
+                    results: [
+                        { name: 'latest' },
+                        { name: 'alpine' },
+                        { name: '1.25' }
+                    ]
+                })),
+                SearchDockerHub: (query: string) => Promise.resolve(JSON.stringify({
+                    results: [
+                        { repo_name: query, short_description: `Search results for ${query}` }
+                    ]
+                })),
+                Greet: (name: string) => Promise.resolve(`Hello ${name}!`),
+                CalculateAppHeight: (screenHeight: number) => Promise.resolve(Math.round(screenHeight * 0.85)),
+                GetTargetScreenHeight: () => Promise.resolve(1080),
+                GetTargetScreen: () => Promise.resolve(false),
+                SetInitialFile: () => Promise.resolve()
             }
         }
     };

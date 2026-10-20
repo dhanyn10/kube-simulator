@@ -9,9 +9,9 @@ const mockGetInternetProfiles = vi.fn();
 const mockSaveInternetProfile = vi.fn();
 const mockDeleteInternetProfile = vi.fn();
 
-// Mock window.go
+// Mock globalThis.go
 beforeEach(() => {
-  (window as any).go = {
+  (globalThis as any).go = {
     main: {
       App: {
         GetInternetProfiles: mockGetInternetProfiles,
@@ -74,6 +74,8 @@ describe('InternetProfileModal', () => {
         performUpdate={mockPerformUpdate}
       />
     );
+    const dot1 = screen.getByTestId('mini-active-traffic-dot');
+    expect(dot1.querySelector('.fill-rose-500')).not.toBeNull();
 
     // Case 2: Edge with validationError: true (isRed: true)
     useFlowStore.setState({
@@ -94,6 +96,8 @@ describe('InternetProfileModal', () => {
         performUpdate={mockPerformUpdate}
       />
     );
+    const dot2 = screen.getByTestId('mini-active-traffic-dot');
+    expect(dot2.querySelector('.fill-rose-500')).not.toBeNull();
 
     // Case 3: Edge pointing to unready Pod or Deployment (isRed: true)
     useFlowStore.setState({
@@ -116,6 +120,8 @@ describe('InternetProfileModal', () => {
         performUpdate={mockPerformUpdate}
       />
     );
+    const dot3 = screen.getByTestId('mini-active-traffic-dot');
+    expect(dot3.querySelector('.fill-rose-500')).not.toBeNull();
 
     // Case 4: Edge pointing to non-Pod/Deployment node (e.g. Service or Ingress) (isRed: false if healthy)
     useFlowStore.setState({
@@ -134,6 +140,8 @@ describe('InternetProfileModal', () => {
         performUpdate={mockPerformUpdate}
       />
     );
+    const dot4 = screen.getByTestId('mini-active-traffic-dot');
+    expect(dot4.querySelector('.fill-blue-400')).not.toBeNull();
 
     // Case 5: Edge pointing to ready Pod (isRed: false)
     useFlowStore.setState({
@@ -152,6 +160,8 @@ describe('InternetProfileModal', () => {
         performUpdate={mockPerformUpdate}
       />
     );
+    const dot5 = screen.getByTestId('mini-active-traffic-dot');
+    expect(dot5.querySelector('.fill-blue-400')).not.toBeNull();
   });
 
   it('renders light mode styling, singular "1 Available Profile" label, and handles card background/button styling', async () => {

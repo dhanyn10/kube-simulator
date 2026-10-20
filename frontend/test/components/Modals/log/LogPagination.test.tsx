@@ -86,51 +86,23 @@ describe('LogPagination', () => {
     expect(onPageChange).toHaveBeenCalledWith(2);
   });
 
-  it('calculates page numbers correctly when totalPages > 5 and currentPage is near the end', () => {
+  it.each([
+    { currentPage: 9, expectedStart: 6, expectedEnd: 10, scenario: 'near the end' },
+    { currentPage: 3, expectedStart: 1, expectedEnd: 5, scenario: 'near the start' },
+    { currentPage: 10, expectedStart: 6, expectedEnd: 10, scenario: 'equals totalPages' },
+  ])('calculates page numbers correctly when totalPages > 5 and currentPage is $scenario', ({ currentPage, expectedStart, expectedEnd }) => {
     const onPageChange = vi.fn();
     render(
       <LogPagination
         {...defaultProps}
-        currentPage={9}
+        currentPage={currentPage}
         totalPages={10}
         totalItems={200}
         onPageChange={onPageChange}
       />
     );
 
-    expect(screen.getByTestId('log-pagination-page-6')).toBeInTheDocument();
-    expect(screen.getByTestId('log-pagination-page-10')).toBeInTheDocument();
-  });
-
-  it('calculates page numbers correctly when currentPage is near start and totalPages > 5 (end > totalPages is false)', () => {
-    const onPageChange = vi.fn();
-    render(
-      <LogPagination
-        {...defaultProps}
-        currentPage={3}
-        totalPages={10}
-        totalItems={200}
-        onPageChange={onPageChange}
-      />
-    );
-
-    expect(screen.getByTestId('log-pagination-page-1')).toBeInTheDocument();
-    expect(screen.getByTestId('log-pagination-page-5')).toBeInTheDocument();
-  });
-
-  it('calculates page numbers correctly when currentPage equals totalPages and totalPages > 5 (triggering end > totalPages clamping)', () => {
-    const onPageChange = vi.fn();
-    render(
-      <LogPagination
-        {...defaultProps}
-        currentPage={10}
-        totalPages={10}
-        totalItems={200}
-        onPageChange={onPageChange}
-      />
-    );
-
-    expect(screen.getByTestId('log-pagination-page-6')).toBeInTheDocument();
-    expect(screen.getByTestId('log-pagination-page-10')).toBeInTheDocument();
+    expect(screen.getByTestId(`log-pagination-page-${expectedStart}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`log-pagination-page-${expectedEnd}`)).toBeInTheDocument();
   });
 });

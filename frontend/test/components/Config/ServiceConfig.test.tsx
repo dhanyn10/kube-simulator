@@ -182,7 +182,7 @@ describe('ServiceConfig', () => {
 
     const toggleBtns = screen.getAllByTitle('Show/Hide on Card');
     // Toggles for: serviceType, nodePort, port, targetPort, selector
-    expect(toggleBtns.length).toBe(5);
+    expect(toggleBtns).toHaveLength(5);
     fireEvent.click(toggleBtns[0]);
     expect(mockProps.toggleVisibility).toHaveBeenCalledWith('serviceType');
     fireEvent.click(toggleBtns[1]);
@@ -196,7 +196,7 @@ describe('ServiceConfig', () => {
 
     const yamlBtns = screen.getAllByTitle('Include in YAML');
     // Yaml toggles for: serviceType, nodePort, targetPort, selector
-    expect(yamlBtns.length).toBe(4);
+    expect(yamlBtns).toHaveLength(4);
     fireEvent.click(yamlBtns[0]);
     expect(mockProps.toggleYaml).toHaveBeenCalledWith('serviceType');
     fireEvent.click(yamlBtns[1]);

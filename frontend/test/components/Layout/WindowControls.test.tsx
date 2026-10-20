@@ -51,6 +51,7 @@ describe('WindowControls', () => {
     delete (globalThis as any).go;
     render(<WindowControls colorMode="light" />);
     const minBtn = screen.getByLabelText('minimize');
-    fireEvent.click(minBtn); // Should not crash
+    expect(() => fireEvent.click(minBtn)).not.toThrow();
+    expect(minBtn).toBeDefined();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { YamlModal } from '@/components/Modals/YamlModal';
 import '@testing-library/jest-dom';
 
@@ -71,5 +71,34 @@ describe('YamlModal', () => {
     const copyBtn = screen.getByText('Copy');
     fireEvent.click(copyBtn);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('');
+  });
+
+  it('displays auto-beautified badge and automatically formats JSON manifests into clean YAML', () => {
+    const rawJsonManifest = JSON.stringify([
+      { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'my-cm' }, data: { ENV: 'prod' } }
+    ]);
+    render(<YamlModal content={rawJsonManifest} colorMode="dark" onClose={mockOnClose} />);
+
+    expect(screen.getByTestId('auto-beautified-badge')).toBeInTheDocument();
+    expect(screen.getByText('Auto-Beautified')).toBeInTheDocument();
+    expect(screen.getByText(/kind: ConfigMap/)).toBeInTheDocument();
+    expect(screen.getByText(/name: my-cm/)).toBeInTheDocument();
+  });
+
+  it('copies auto-beautified YAML to clipboard even if raw input was unformatted JSON', async () => {
+    const rawJsonManifest = JSON.stringify({ apiVersion: 'v1', kind: 'Secret', metadata: { name: 'sec' } });
+    render(<YamlModal content={rawJsonManifest} colorMode="dark" onClose={mockOnClose} />);
+
+    const copyBtn = screen.getByText('Copy');
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      "apiVersion: v1\nkind: Secret\nmetadata:\n  name: sec"
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Copied!')).toBeDefined();
+    });
   });
 });
