@@ -539,4 +539,77 @@ describe('InternetConfig', () => {
     const hoverCircle = hoverDotGroup.querySelector('circle');
     expect(hoverCircle?.getAttribute('class')).toContain('fill-emerald-400');
   });
+
+  it('covers line 105 rect.width fallback to width and line 297 slider onChange fallback to 1', async () => {
+    const profileNode = {
+      id: 'int-cover',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: 100,
+        currentHourIndex: 0,
+        currentMinuteIndex: 0,
+        displaySettings: { traffic: true },
+        connectionProfile: {
+          name: 'Cover Profile',
+          hourly: { '00:00': 100, '01:00': 200 }
+        }
+      }
+    };
+
+    const { rerender } = render(
+      <InternetConfig
+        selectedNode={profileNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    // Line 105: chart overlay click with rect.width = 0 falls back to width
+    const overlayRect = screen.getByTestId('readonly-chart-canvas-overlay');
+    vi.spyOn(overlayRect, 'getBoundingClientRect').mockReturnValue({
+      width: 0,
+      height: 64,
+      top: 8,
+      left: 8,
+      bottom: 72,
+      right: 8,
+      x: 8,
+      y: 8,
+      toJSON: () => {}
+    });
+
+    await act(async () => {
+      fireEvent.click(overlayRect, { clientX: 20 });
+    });
+    expect(performUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      currentMinuteIndex: expect.any(Number),
+    }));
+
+    // Line 297: slider is rendered when connectionProfile is absent
+    const manualNode = {
+      id: 'int-manual',
+      type: 'Internet',
+      data: {
+        label: 'Internet',
+        traffic: 100,
+        displaySettings: { traffic: true }
+      }
+    };
+
+    rerender(
+      <InternetConfig
+        selectedNode={manualNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+      />
+    );
+
+    // Slider onChange with empty value falls back to 1
+    const slider = screen.getByRole('slider') as HTMLInputElement;
+    performUpdate.mockClear();
+    Object.defineProperty(slider, 'value', { get: () => '', configurable: true });
+    fireEvent.change(slider);
+    expect(performUpdate).toHaveBeenCalledWith({ traffic: 1 });
+  });
 });

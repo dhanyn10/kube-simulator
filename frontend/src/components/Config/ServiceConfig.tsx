@@ -24,21 +24,9 @@ interface SelectorDropdownOption {
 }
 
 export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
-  {
-    value: 'ClusterIP',
-    label: 'ClusterIP',
-    description: 'Exposes service on an internal IP in the cluster (Default).'
-  },
-  {
-    value: 'NodePort',
-    label: 'NodePort',
-    description: 'Exposes service on each Node’s IP at a static port.'
-  },
-  {
-    value: 'LoadBalancer',
-    label: 'LoadBalancer',
-    description: 'Exposes service externally using cloud provider’s load balancer.'
-  }
+  { value: 'ClusterIP', label: 'ClusterIP', description: 'Exposes service on an internal IP in the cluster (Default).' },
+  { value: 'NodePort', label: 'NodePort', description: 'Exposes service on each Node’s IP at a static port.' },
+  { value: 'LoadBalancer', label: 'LoadBalancer', description: 'Exposes service externally using cloud provider’s load balancer.' }
 ];
 
 /**

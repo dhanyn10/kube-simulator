@@ -50,9 +50,9 @@ describe('TerminalPanel', () => {
     });
     render(<TerminalPanel />);
     expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
-    expect(screen.getByText('Kube Console')).toBeInTheDocument();
-    expect(screen.getByText('Kubectl Activity')).toBeInTheDocument();
-    expect(screen.getByText('Kube Logs')).toBeInTheDocument();
+    expect(screen.queryByText('Kube Console')).not.toBeInTheDocument();
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.getByText('Logs')).toBeInTheDocument();
   });
 
   it('renders kubectl activity logs', () => {
@@ -74,7 +74,7 @@ describe('TerminalPanel', () => {
     });
     render(<TerminalPanel />);
 
-    const logsTab = screen.getByText('Kube Logs');
+    const logsTab = screen.getByText('Logs');
     fireEvent.click(logsTab);
 
     expect(useFlowStore.getState().terminalActiveTab).toBe('logs');
@@ -410,28 +410,28 @@ describe('TerminalPanel', () => {
         useFlowStore.setState({ isTerminalOpen: true, terminalActiveTab: 'activity', colorMode: 'dark' });
       });
       const { rerender } = render(<TerminalPanel />);
-      let activityTab = screen.getByText('Kubectl Activity');
+      let activityTab = screen.getByText('Activity');
       expect(activityTab.className).toContain('text-white');
 
       act(() => {
         useFlowStore.setState({ colorMode: 'light' });
       });
       rerender(<TerminalPanel />);
-      activityTab = screen.getByText('Kubectl Activity');
+      activityTab = screen.getByText('Activity');
       expect(activityTab.className).toContain('text-slate-900');
 
       act(() => {
         useFlowStore.setState({ terminalActiveTab: 'logs', colorMode: 'dark' });
       });
       rerender(<TerminalPanel />);
-      activityTab = screen.getByText('Kubectl Activity');
+      activityTab = screen.getByText('Activity');
       expect(activityTab.className).toContain('text-slate-500');
 
       act(() => {
         useFlowStore.setState({ colorMode: 'light' });
       });
       rerender(<TerminalPanel />);
-      activityTab = screen.getByText('Kubectl Activity');
+      activityTab = screen.getByText('Activity');
       expect(activityTab.className).toContain('text-slate-400');
     });
 
@@ -1096,6 +1096,32 @@ describe('TerminalPanel', () => {
 
       expect(input.value).toBe('kubectl logs web-pod');
       unmount();
+    });
+    it('opens context menu on right click in terminal panel and allows toggling options', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalShowAuth: true,
+          terminalShowFilterLogs: true,
+          terminalShowExportLogs: true,
+        });
+      });
+
+      render(<TerminalPanel />);
+      const container = screen.getByTestId('terminal-container');
+
+      fireEvent.contextMenu(container, { clientX: 250, clientY: 700 });
+
+      expect(screen.getByTestId('terminal-context-menu')).toBeInTheDocument();
+      expect(screen.getByTestId('terminal-context-auth')).toBeInTheDocument();
+      expect(screen.getByTestId('terminal-context-filter-logs')).toBeInTheDocument();
+      expect(screen.getByTestId('terminal-context-export-log-file')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('terminal-context-auth'));
+      expect(useFlowStore.getState().terminalShowAuth).toBe(false);
+
+      fireEvent.click(document.body);
+      expect(screen.queryByTestId('terminal-context-menu')).not.toBeInTheDocument();
     });
   });
 });

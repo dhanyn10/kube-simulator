@@ -1,7 +1,9 @@
+import React, { useState } from 'react';
 import { Node } from '@xyflow/react';
 import { Terminal, Search, Download, Trash2, X, ShieldCheck } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
+import { TerminalContextMenu } from './TerminalContextMenu';
 
 export interface TerminalToolbarProps {
   terminalActiveTab: 'activity' | 'logs';
@@ -17,6 +19,13 @@ export interface TerminalToolbarProps {
   clearTerminalLogs: () => void;
   setTerminalOpen: (open: boolean) => void;
   colorMode: 'dark' | 'light';
+  showAuth?: boolean;
+  setShowAuth?: (show: boolean) => void;
+  showFilterLogs?: boolean;
+  setShowFilterLogs?: (show: boolean) => void;
+  showExportLogs?: boolean;
+  setShowExportLogs?: (show: boolean) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export const TerminalToolbar = ({
@@ -33,6 +42,13 @@ export const TerminalToolbar = ({
   clearTerminalLogs,
   setTerminalOpen,
   colorMode,
+  showAuth: propShowAuth,
+  setShowAuth: propSetShowAuth,
+  showFilterLogs: propShowFilterLogs,
+  setShowFilterLogs: propSetShowFilterLogs,
+  showExportLogs: propShowExportLogs,
+  setShowExportLogs: propSetShowExportLogs,
+  onContextMenu: propOnContextMenu,
 }: TerminalToolbarProps) => {
   const isDark = colorMode === 'dark';
   const activeIdentity = useFlowStore((state) => state.activeIdentity);
@@ -40,18 +56,59 @@ export const TerminalToolbar = ({
   const setKubeIamModalOpen = useFlowStore((state) => state.setKubeIamModalOpen);
   const iamUsers = useFlowStore((state) => state.iamUsers);
 
+  const [internalContextMenu, setInternalContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const storeShowAuth = useFlowStore((state) => state.terminalShowAuth);
+  const setStoreShowAuth = useFlowStore((state) => state.setTerminalShowAuth);
+  const showAuth = propShowAuth ?? storeShowAuth ?? true;
+  const toggleAuth = () => {
+    const next = !showAuth;
+    propSetShowAuth?.(next);
+    setStoreShowAuth?.(next);
+  };
+
+  const storeShowFilterLogs = useFlowStore((state) => state.terminalShowFilterLogs);
+  const setStoreShowFilterLogs = useFlowStore((state) => state.setTerminalShowFilterLogs);
+  const showFilterLogs = propShowFilterLogs ?? storeShowFilterLogs ?? true;
+  const toggleFilterLogs = () => {
+    const next = !showFilterLogs;
+    propSetShowFilterLogs?.(next);
+    setStoreShowFilterLogs?.(next);
+  };
+
+  const storeShowExportLogs = useFlowStore((state) => state.terminalShowExportLogs);
+  const setStoreShowExportLogs = useFlowStore((state) => state.setTerminalShowExportLogs);
+  const showExportLogs = propShowExportLogs ?? storeShowExportLogs ?? true;
+  const toggleExportLogs = () => {
+    const next = !showExportLogs;
+    propSetShowExportLogs?.(next);
+    setStoreShowExportLogs?.(next);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (propOnContextMenu) {
+      propOnContextMenu(e);
+    } else {
+      setInternalContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  };
+
   return (
-    <div className={cn(
-      "terminal-toolbar",
-      isDark ? "border-slate-800 bg-slate-950/60 text-slate-400" : "border-slate-200 bg-slate-50/80 text-slate-600"
-    )}>
+    <div
+      onContextMenu={handleContextMenu}
+      className={cn(
+        "terminal-toolbar",
+        isDark ? "border-slate-800 bg-slate-950/60 text-slate-400" : "border-slate-200 bg-slate-50/80 text-slate-600"
+      )}
+    >
       <div className="flex items-center gap-4 h-full">
         <div className={cn(
-          "flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest",
+          "flex items-center text-xs font-bold uppercase tracking-widest",
           isDark ? "text-slate-400" : "text-slate-500"
         )}>
           <Terminal size={13} className="text-blue-500" />
-          <span>Kube Console</span>
         </div>
 
         <div className={cn("h-4 w-px", isDark ? "bg-slate-800" : "bg-slate-200")} />
@@ -66,7 +123,7 @@ export const TerminalToolbar = ({
               activityTabClass
             )}
           >
-            Kubectl Activity
+            Activity
           </button>
           <button
             type="button"
@@ -76,7 +133,7 @@ export const TerminalToolbar = ({
               logsTabClass
             )}
           >
-            Kube Logs
+            Logs
           </button>
         </div>
       </div>
@@ -107,74 +164,82 @@ export const TerminalToolbar = ({
         )}
 
         {/* Active Identity Selector */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setKubeIamModalOpen(true)}
-            title="Open Kube IAM Management"
-            className={cn(
-              "p-1 rounded transition-colors flex items-center gap-1 text-[10px] font-mono font-semibold",
-              isDark ? "hover:bg-slate-800 text-emerald-400" : "hover:bg-slate-200 text-emerald-600"
-            )}
-          >
-            <ShieldCheck size={13} />
-            <span>Auth:</span>
-          </button>
-          <select
-            data-testid="terminal-identity-select"
-            value={activeIdentity}
-            onChange={(e) => setActiveIdentity(e.target.value)}
-            className={cn(
-              "border rounded px-2 py-0.5 text-[10px] font-mono focus:outline-none focus:border-emerald-500/50",
-              isDark
-                ? "bg-slate-900 text-emerald-400 border-slate-800"
-                : "bg-white text-emerald-700 border-slate-200"
-            )}
-            title="Active K8s User Identity Context"
-          >
-            <option value="system:admin">system:admin</option>
-            {iamUsers.map((u) => (
-              <option key={u.id} value={u.username}>
-                {u.username}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className={cn("h-4 w-px", isDark ? "bg-slate-800" : "bg-slate-200")} />
+        {showAuth && (
+          <>
+            <div data-testid="terminal-auth-section" className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setKubeIamModalOpen(true)}
+                title="Open Kube IAM Management"
+                className={cn(
+                  "p-1 rounded transition-colors flex items-center gap-1 text-[10px] font-mono font-semibold",
+                  isDark ? "hover:bg-slate-800 text-emerald-400" : "hover:bg-slate-200 text-emerald-600"
+                )}
+              >
+                <ShieldCheck size={13} />
+                <span>Auth:</span>
+              </button>
+              <select
+                data-testid="terminal-identity-select"
+                value={activeIdentity}
+                onChange={(e) => setActiveIdentity(e.target.value)}
+                className={cn(
+                  "border rounded px-2 py-0.5 text-[10px] font-mono focus:outline-none focus:border-emerald-500/50",
+                  isDark
+                    ? "bg-slate-900 text-emerald-400 border-slate-800"
+                    : "bg-white text-emerald-700 border-slate-200"
+                )}
+                title="Active K8s User Identity Context"
+              >
+                <option value="system:admin">system:admin</option>
+                {iamUsers.map((u) => (
+                  <option key={u.id} value={u.username}>
+                    {u.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={cn("h-4 w-px", isDark ? "bg-slate-800" : "bg-slate-200")} />
+          </>
+        )}
 
         {/* Search Bar */}
-        <div className="relative w-36">
-          <Search size={10} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", isDark ? "text-slate-500" : "text-slate-400")} />
-          <input
-            type="text"
-            placeholder="Filter logs..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              "w-full border rounded pl-7 pr-2 py-0.5 text-[10px] outline-none focus:border-blue-500/50",
-              isDark
-                ? "bg-slate-900/60 border-slate-800 text-slate-300 placeholder-slate-600"
-                : "bg-slate-50 border-slate-200 text-slate-700 placeholder-slate-400"
-            )}
-          />
-        </div>
-
-        <div className={cn("h-4 w-px", isDark ? "bg-slate-800" : "bg-slate-200")} />
+        {showFilterLogs && (
+          <>
+            <div data-testid="terminal-filter-section" className="relative w-36">
+              <Search size={10} className={cn("absolute left-2.5 top-1/2 -translate-y-1/2", isDark ? "text-slate-500" : "text-slate-400")} />
+              <input
+                type="text"
+                placeholder="Filter logs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={cn(
+                  "w-full border rounded pl-7 pr-2 py-0.5 text-[10px] outline-none focus:border-blue-500/50",
+                  isDark
+                    ? "bg-slate-900/60 border-slate-800 text-slate-300 placeholder-slate-600"
+                    : "bg-slate-50 border-slate-200 text-slate-700 placeholder-slate-400"
+                )}
+              />
+            </div>
+            <div className={cn("h-4 w-px", isDark ? "bg-slate-800" : "bg-slate-200")} />
+          </>
+        )}
 
         {/* Action buttons */}
-        <button
-          type="button"
-          onClick={handleExportLogs}
-          title="Export Log File"
-          data-testid="terminal-export-log-btn"
-          className={cn(
-            "terminal-action-btn",
-            isDark ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-          )}
-        >
-          <Download size={12} />
-        </button>
+        {showExportLogs && (
+          <button
+            type="button"
+            onClick={handleExportLogs}
+            title="Export Log File"
+            data-testid="terminal-export-log-btn"
+            className={cn(
+              "terminal-action-btn",
+              isDark ? "hover:bg-slate-800 text-slate-500 hover:text-slate-200" : "hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+            )}
+          >
+            <Download size={12} />
+          </button>
+        )}
         <button
           type="button"
           onClick={clearTerminalLogs}
@@ -198,6 +263,21 @@ export const TerminalToolbar = ({
           <X size={12} />
         </button>
       </div>
+
+      {internalContextMenu && (
+        <TerminalContextMenu
+          x={internalContextMenu.x}
+          y={internalContextMenu.y}
+          colorMode={colorMode}
+          onClose={() => setInternalContextMenu(null)}
+          showAuth={showAuth}
+          onToggleAuth={toggleAuth}
+          showFilterLogs={showFilterLogs}
+          onToggleFilterLogs={toggleFilterLogs}
+          showExportLogs={showExportLogs}
+          onToggleExportLogs={toggleExportLogs}
+        />
+      )}
     </div>
   );
 };

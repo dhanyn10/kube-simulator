@@ -363,4 +363,25 @@ describe('TagInput', () => {
 
     expect(screen.getByText('pods')).toBeInTheDocument();
   });
+
+  it('covers unhandled key press in handleKeyDown and renders suggestions dropdown in light mode', () => {
+    render(
+      <TagInput
+        tags={[]}
+        suggestions={['pods', 'services']}
+        onChange={vi.fn()}
+        colorMode="light"
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    // Line 230: renders AutocompleteDropdown with colorMode light
+    expect(screen.getByText('pods')).toBeInTheDocument();
+
+    // Line 162: press an arbitrary key like 'a'
+    // This falls through handleKeyDown without matching Enter, comma, Backspace, or Escape
+    fireEvent.keyDown(input, { key: 'a' });
+    expect(input).toBeInTheDocument();
+  });
 });

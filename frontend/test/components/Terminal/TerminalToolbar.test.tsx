@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TerminalToolbar } from '@/components/Terminal/TerminalToolbar';
 import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
@@ -24,23 +24,31 @@ describe('TerminalToolbar', () => {
     colorMode: 'dark' as const,
   };
 
-  it('renders Kube Console title and tab buttons', () => {
+  beforeEach(() => {
+    useFlowStore.setState({
+      terminalShowAuth: true,
+      terminalShowFilterLogs: true,
+      terminalShowExportLogs: true,
+    });
+  });
+
+  it('renders tab buttons without Kube Console text', () => {
     render(<TerminalToolbar {...defaultProps} />);
 
-    expect(screen.getByText('Kube Console')).toBeInTheDocument();
-    expect(screen.getByText('Kubectl Activity')).toBeInTheDocument();
-    expect(screen.getByText('Kube Logs')).toBeInTheDocument();
+    expect(screen.queryByText('Kube Console')).not.toBeInTheDocument();
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.getByText('Logs')).toBeInTheDocument();
   });
 
   it('handles switching active tab', () => {
     render(<TerminalToolbar {...defaultProps} />);
 
-    const logsTabBtn = screen.getByText('Kube Logs');
+    const logsTabBtn = screen.getByText('Logs');
     fireEvent.click(logsTabBtn);
 
     expect(defaultProps.setTerminalActiveTab).toHaveBeenCalledWith('logs');
 
-    const activityTabBtn = screen.getByText('Kubectl Activity');
+    const activityTabBtn = screen.getByText('Activity');
     fireEvent.click(activityTabBtn);
     expect(defaultProps.setTerminalActiveTab).toHaveBeenCalledWith('activity');
   });
@@ -129,8 +137,90 @@ describe('TerminalToolbar', () => {
     expect(setActiveIdentity).toHaveBeenCalledWith('dev-alice');
   });
 
-  it('renders correctly in light mode', () => {
+  it('renders correctly in light mode without Kube Console text', () => {
     render(<TerminalToolbar {...defaultProps} colorMode="light" />);
-    expect(screen.getByText('Kube Console')).toBeInTheDocument();
+    expect(screen.queryByText('Kube Console')).not.toBeInTheDocument();
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+  });
+
+  it('opens context menu on right click on terminal toolbar and allows toggling auth, filter logs, and export', () => {
+    const { container } = render(<TerminalToolbar {...defaultProps} />);
+    const toolbar = container.querySelector('.terminal-toolbar')!;
+    expect(toolbar).toBeInTheDocument();
+
+    expect(screen.getByTestId('terminal-auth-section')).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-filter-section')).toBeInTheDocument();
+    expect(screen.getByTestId('terminal-export-log-btn')).toBeInTheDocument();
+
+    // Right-click on toolbar
+    fireEvent.contextMenu(toolbar, { clientX: 200, clientY: 100 });
+
+    const contextMenu = screen.getByTestId('terminal-context-menu');
+    expect(contextMenu).toBeInTheDocument();
+
+    const authOption = screen.getByTestId('terminal-context-auth');
+    const filterOption = screen.getByTestId('terminal-context-filter-logs');
+    const exportOption = screen.getByTestId('terminal-context-export-log-file');
+
+    expect(authOption).toHaveAttribute('aria-checked', 'true');
+    expect(filterOption).toHaveAttribute('aria-checked', 'true');
+    expect(exportOption).toHaveAttribute('aria-checked', 'true');
+
+    // Toggle Auth off
+    fireEvent.click(authOption);
+    expect(screen.queryByTestId('terminal-auth-section')).not.toBeInTheDocument();
+
+    // Toggle Filter logs off
+    fireEvent.click(filterOption);
+    expect(screen.queryByTestId('terminal-filter-section')).not.toBeInTheDocument();
+
+    // Toggle Export log file off
+    fireEvent.click(exportOption);
+    expect(screen.queryByTestId('terminal-export-log-btn')).not.toBeInTheDocument();
+
+    // Toggle Auth back on
+    fireEvent.click(authOption);
+    expect(screen.getByTestId('terminal-auth-section')).toBeInTheDocument();
+
+    // Close menu by clicking outside
+    fireEvent.click(document.body);
+    expect(screen.queryByTestId('terminal-context-menu')).not.toBeInTheDocument();
+  });
+
+  it('supports custom prop handlers for visibility toggles', () => {
+    const setShowAuth = vi.fn();
+    const setShowFilterLogs = vi.fn();
+    const setShowExportLogs = vi.fn();
+
+    const { container } = render(
+      <TerminalToolbar
+        {...defaultProps}
+        showAuth={false}
+        setShowAuth={setShowAuth}
+        showFilterLogs={false}
+        setShowFilterLogs={setShowFilterLogs}
+        showExportLogs={false}
+        setShowExportLogs={setShowExportLogs}
+      />
+    );
+
+    expect(screen.queryByTestId('terminal-auth-section')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('terminal-filter-section')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('terminal-export-log-btn')).not.toBeInTheDocument();
+
+    const toolbar = container.querySelector('.terminal-toolbar')!;
+    fireEvent.contextMenu(toolbar, { clientX: 150, clientY: 80 });
+
+    const authOption = screen.getByTestId('terminal-context-auth');
+    fireEvent.click(authOption);
+    expect(setShowAuth).toHaveBeenCalledWith(true);
+
+    const filterOption = screen.getByTestId('terminal-context-filter-logs');
+    fireEvent.click(filterOption);
+    expect(setShowFilterLogs).toHaveBeenCalledWith(true);
+
+    const exportOption = screen.getByTestId('terminal-context-export-log-file');
+    fireEvent.click(exportOption);
+    expect(setShowExportLogs).toHaveBeenCalledWith(true);
   });
 });
