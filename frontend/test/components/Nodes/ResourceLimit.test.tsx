@@ -100,6 +100,6 @@ describe('ResourceLimitNode', () => {
     );
 
     const handles = container.querySelectorAll('.opacity-20');
-    expect(handles.length).toBe(2);
+    expect(handles).toHaveLength(2);
   });
 });

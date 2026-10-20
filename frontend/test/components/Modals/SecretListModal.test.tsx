@@ -77,7 +77,7 @@ describe('SecretListModal', () => {
     expect(screen.getByText('Manage attached Secrets')).toBeInTheDocument();
     expect(screen.getByText('untyped-secret')).toBeInTheDocument();
     expect(screen.getAllByText('Opaque').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('No data entries').length).toBe(2);
+    expect(screen.getAllByText('No data entries')).toHaveLength(2);
   });
 
   it('renders empty message when no secrets attached', () => {
