@@ -1,8 +1,8 @@
 import { logger } from '@/lib/logger';
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, CheckCircle2, Sparkles } from 'lucide-react';
+import { cn, beautifyYaml } from '@/lib/utils';
 
 interface YamlModalProps {
   content: string;
@@ -12,9 +12,10 @@ interface YamlModalProps {
 
 export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalProps>) {
   const [copied, setCopied] = React.useState(false);
+  const formattedContent = React.useMemo(() => beautifyYaml(content), [content]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content).then(() => {
+    navigator.clipboard.writeText(formattedContent).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch((err) => {
@@ -54,6 +55,18 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
             <h2 id="modal-title" className={cn('text-[10px] font-bold tracking-[0.2em] uppercase', colorMode === 'dark' ? 'text-slate-400' : 'text-slate-600')}>
               Kubernetes Manifest Output
             </h2>
+            <span
+              data-testid="auto-beautified-badge"
+              className={cn(
+                'px-2 py-0.5 text-[9px] font-semibold rounded-full border flex items-center gap-1',
+                colorMode === 'dark'
+                  ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/50'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              )}
+            >
+              <Sparkles size={10} />
+              Auto-Beautified
+            </span>
           </div>
           <button type="button" onClick={onClose} className={cn('p-1.5 rounded transition-colors', colorMode === 'dark' ? 'hover:bg-slate-800 text-slate-500' : 'hover:bg-slate-200 text-slate-500')}>
             <X size={16} />
@@ -63,7 +76,7 @@ export function YamlModal({ content, colorMode, onClose }: Readonly<YamlModalPro
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           {/* Main YAML Viewer */}
           <div className={cn('flex-1 p-6 font-mono text-[11px] leading-relaxed overflow-auto select-all custom-scrollbar', colorMode === 'dark' ? 'bg-slate-950 text-emerald-500/90' : 'bg-slate-50 text-emerald-700/90')}>
-            <pre>{content || '# No resources generated yet.'}</pre>
+            <pre>{formattedContent || '# No resources generated yet.'}</pre>
           </div>
 
           {/* Guidance Section */}

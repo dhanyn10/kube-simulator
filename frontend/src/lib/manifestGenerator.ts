@@ -485,5 +485,5 @@ export const generateYamlClientSide = (nodes: any[], edges: any[]): string => {
 
   if (manifests.length === 0) return '';
 
-  return manifests.map((obj) => yaml.dump(obj, { indent: 2, noRefs: true })).join('---\n');
+  return manifests.map((obj) => yaml.dump(obj, { indent: 2, noRefs: true, lineWidth: -1 }).trim()).join('\n---\n');
 };

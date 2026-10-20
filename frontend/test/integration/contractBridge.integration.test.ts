@@ -116,6 +116,7 @@ describe('Tahap 3 - Contract & Schema Bridge Validation Test', () => {
       expect(sysRes).toHaveProperty('totalMemoryGB');
     });
 
+
     it('validates project management and history persistence contracts in mocks', async () => {
       initWailsMocks();
       const mockApp = (globalThis as any).go.main.App;

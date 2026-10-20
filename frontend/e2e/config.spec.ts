@@ -123,39 +123,34 @@ test.describe('ConfigMap and Secret', () => {
       return (store?.edges?.length ?? 0) > 0;
     });
 
-    // Mock GenerateYaml if it's not present
+    // Mock GenerateYaml for attached ConfigMaps and Secrets
     await page.evaluate(() => {
-      if (!(globalThis as any).go?.main?.App?.GenerateYaml) {
-        (globalThis as any).go = {
-          main: {
-            App: {
-              GenerateYaml: async () => JSON.stringify([
-                { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'app-config' }, data: { API_URL: 'https://api.example.com' } },
-                { apiVersion: 'v1', kind: 'Secret', metadata: { name: 'app-secret' } },
-                {
-                  apiVersion: 'apps/v1',
-                  kind: 'Deployment',
-                  metadata: { name: 'app-deploy' },
-                  spec: {
-                    template: {
-                      spec: {
-                        containers: [
-                          {
-                            name: 'main',
-                            env: [
-                              { name: 'API_URL', valueFrom: { configMapKeyRef: { name: 'app-config', key: 'API_URL' } } }
-                            ]
-                          }
-                        ]
-                      }
-                    }
+      (globalThis as any).go = (globalThis as any).go || {};
+      (globalThis as any).go.main = (globalThis as any).go.main || {};
+      (globalThis as any).go.main.App = (globalThis as any).go.main.App || {};
+      (globalThis as any).go.main.App.GenerateYaml = async () => JSON.stringify([
+        { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'app-config' }, data: { API_URL: 'https://api.example.com' } },
+        { apiVersion: 'v1', kind: 'Secret', metadata: { name: 'app-secret' } },
+        {
+          apiVersion: 'apps/v1',
+          kind: 'Deployment',
+          metadata: { name: 'app-deploy' },
+          spec: {
+            template: {
+              spec: {
+                containers: [
+                  {
+                    name: 'main',
+                    env: [
+                      { name: 'API_URL', valueFrom: { configMapKeyRef: { name: 'app-config', key: 'API_URL' } } }
+                    ]
                   }
-                }
-              ])
+                ]
+              }
             }
           }
-        };
-      }
+        }
+      ]);
     });
 
     // Open Canvas dropdown

@@ -179,6 +179,22 @@ func TestContract_FrontendPayloadDeserialization(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("App.GenerateYaml IPC Contract and Manifest Format Invariants", func(t *testing.T) {
+		app := NewApp()
+		manifestJSON := app.GenerateYaml(sampleNodesJSON, sampleEdgesJSON)
+		if strings.TrimSpace(manifestJSON) == "" {
+			t.Fatal("GenerateYaml returned empty output")
+		}
+
+		var items []interface{}
+		if err := json.Unmarshal([]byte(manifestJSON), &items); err != nil {
+			t.Fatalf("GenerateYaml output is not a valid JSON array: %v", err)
+		}
+		if len(items) < 3 {
+			t.Errorf("Expected at least 3 generated manifests, got %d", len(items))
+		}
+	})
 }
 
 // TestContract_ProjectFileRoundTrip verifies the .infra file persistence contract.

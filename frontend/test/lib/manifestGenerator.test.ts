@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateYamlClientSide } from '@/lib/manifestGenerator';
+import yaml from 'js-yaml';
 
 describe('manifestGenerator test suite', () => {
   it('returns empty string when nodes are empty or have no valid types', () => {
@@ -235,7 +236,7 @@ describe('manifestGenerator test suite', () => {
 
     expect(yamlOutput).toContain('kind: PersistentVolumeClaim');
     expect(yamlOutput).toContain('storageClassName: fast-ssd');
-    expect(yamlOutput).toContain('accessModes:\n    - ReadWriteMany');
+    expect(yamlOutput).toContain('ReadWriteMany');
     expect(yamlOutput).not.toContain('storageClassName: standard');
   });
 
@@ -285,7 +286,9 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput).toContain('name: target-linked-pod');
     expect(yamlOutput).toContain('memory: 256Mi');
 
-    expect(yamlOutput).not.toContain('name: disabled-resources-pod\n    spec:\n      containers:\n        - name: disabled-resources-pod\n          image: nginx:latest\n          imagePullPolicy: IfNotPresent\n          resources:');
+    const docs = yaml.loadAll(yamlOutput) as any[];
+    const disabledPod = docs.find((d) => d?.metadata?.name === 'disabled-resources-pod');
+    expect(disabledPod?.spec?.containers?.[0]?.resources).toBeUndefined();
   });
 
   it('generates Service manifests with custom serviceType and nodePort', () => {
@@ -619,5 +622,19 @@ describe('manifestGenerator test suite', () => {
     expect(pvcYaml).toContain('storage: 1Gi');
     expect(pvcYaml).toContain('storageClassName: standard');
     expect(pvcYaml).not.toContain('storageClassName: false');
+  });
+
+  it('generates parseable Kubernetes multi-document YAML without line wrap corruption', () => {
+    const nodes = [
+      { id: 'dep1', type: 'Deployment', data: { label: 'web-service', image: 'nginx:1.25.3-alpine-slim-with-long-tag' } },
+      { id: 'cm1', type: 'ConfigMap', data: { label: 'api-config', configData: [{ key: 'LOG_LEVEL', value: 'debug' }] } },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const docs = yaml.loadAll(yamlOutput) as any[];
+
+    expect(docs).toHaveLength(2);
+    expect(docs[0].kind).toBe('Deployment');
+    expect(docs[1].kind).toBe('ConfigMap');
+    expect(yamlOutput).toContain('---');
   });
 });

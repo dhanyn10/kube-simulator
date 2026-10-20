@@ -275,3 +275,48 @@ export async function generateYaml(nodes: any[], edges: any[]): Promise<string> 
   }
   return generateYamlClientSide(nodes, edges);
 }
+
+/**
+ * Automatically formats and beautifies Kubernetes YAML manifests.
+ * Normalizes indentation to standard 2-space spec, unwraps line wraps, and handles both
+ * JSON payloads and raw multi-document YAML strings.
+ *
+ * @param raw - Input string in YAML or JSON format.
+ * @returns Clean, beautified multi-document YAML string.
+ */
+export function beautifyYaml(raw: string): string {
+  if (!raw || !raw.trim()) {
+    return '';
+  }
+
+  const trimmed = raw.trim();
+
+  // 1. Check if input is a valid JSON string (array or object)
+  try {
+    const parsed = JSON.parse(trimmed);
+    const docs = Array.isArray(parsed) ? parsed : [parsed];
+    const validDocs = docs.filter((doc) => doc && typeof doc === 'object');
+    if (validDocs.length > 0) {
+      return validDocs
+        .map((doc) => yaml.dump(doc, { indent: 2, noRefs: true, lineWidth: -1 }).trim())
+        .join('\n---\n');
+    }
+  } catch {
+    // Not JSON, continue to YAML parsing
+  }
+
+  // 2. Parse as multi-document YAML and re-dump with clean 2-space indentation
+  try {
+    const docs = yaml.loadAll(trimmed);
+    const validDocs = docs.filter((doc) => doc !== null && doc !== undefined && typeof doc === 'object');
+    if (validDocs.length > 0) {
+      return validDocs
+        .map((doc) => yaml.dump(doc, { indent: 2, noRefs: true, lineWidth: -1 }).trim())
+        .join('\n---\n');
+    }
+  } catch {
+    // If parsing fails, return raw trimmed text
+  }
+
+  return trimmed;
+}
