@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TerminalToolbar } from '@/components/Terminal/TerminalToolbar';
+import { useFlowStore } from '@/store';
 import '@testing-library/jest-dom';
 
 describe('TerminalToolbar', () => {
@@ -13,7 +14,7 @@ describe('TerminalToolbar', () => {
       { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' } },
       { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep' } },
     ] as any,
-    terminalSelectedResourceId: 'pod-1',
+    terminalSelectedResourceId: null,
     setTerminalSelectedResourceId: vi.fn(),
     searchQuery: '',
     setSearchQuery: vi.fn(),
@@ -38,6 +39,10 @@ describe('TerminalToolbar', () => {
     fireEvent.click(logsTabBtn);
 
     expect(defaultProps.setTerminalActiveTab).toHaveBeenCalledWith('logs');
+
+    const activityTabBtn = screen.getByText('Kubectl Activity');
+    fireEvent.click(activityTabBtn);
+    expect(defaultProps.setTerminalActiveTab).toHaveBeenCalledWith('activity');
   });
 
   it('renders resource dropdown in logs tab and updates selected resource', () => {
@@ -55,6 +60,18 @@ describe('TerminalToolbar', () => {
 
     fireEvent.change(select, { target: { value: 'dep-1' } });
     expect(defaultProps.setTerminalSelectedResourceId).toHaveBeenCalledWith('dep-1');
+  });
+
+  it('renders resource dropdown in light mode without label', () => {
+    render(
+      <TerminalToolbar
+        {...defaultProps}
+        colorMode="light"
+        terminalActiveTab="logs"
+        loggableResources={[{ id: 'pod-2', type: 'Pod' } as any]}
+      />
+    );
+    expect(screen.getByText('pod/pod-2')).toBeInTheDocument();
   });
 
   it('handles search input filter query changes', () => {
@@ -80,5 +97,40 @@ describe('TerminalToolbar', () => {
     const minimizeBtn = screen.getByTitle('Minimize Panel');
     fireEvent.click(minimizeBtn);
     expect(defaultProps.setTerminalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('opens IAM modal when Auth button is clicked', () => {
+    const setKubeIamModalOpen = vi.fn();
+    useFlowStore.setState({ setKubeIamModalOpen });
+    render(<TerminalToolbar {...defaultProps} />);
+
+    const authBtn = screen.getByTitle('Open Kube IAM Management');
+    fireEvent.click(authBtn);
+    expect(setKubeIamModalOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('renders IAM users and handles changing active identity', () => {
+    const setActiveIdentity = vi.fn();
+    useFlowStore.setState({
+      activeIdentity: 'system:admin',
+      setActiveIdentity,
+      iamUsers: [
+        { id: 'u1', username: 'dev-alice' } as any,
+        { id: 'u2', username: 'ops-bob' } as any,
+      ],
+    });
+    render(<TerminalToolbar {...defaultProps} />);
+
+    const identitySelect = screen.getByTestId('terminal-identity-select');
+    expect(screen.getByText('dev-alice')).toBeInTheDocument();
+    expect(screen.getByText('ops-bob')).toBeInTheDocument();
+
+    fireEvent.change(identitySelect, { target: { value: 'dev-alice' } });
+    expect(setActiveIdentity).toHaveBeenCalledWith('dev-alice');
+  });
+
+  it('renders correctly in light mode', () => {
+    render(<TerminalToolbar {...defaultProps} colorMode="light" />);
+    expect(screen.getByText('Kube Console')).toBeInTheDocument();
   });
 });

@@ -243,8 +243,14 @@ describe('ResourceManager', () => {
 
     // Confirm overwrite
     fireEvent.click(screen.getByText('Overwrite'));
-    fireEvent.click(screen.getByText('YES'));
+    act(() => {
+      useFlowStore.setState({ currentProject: { id: 2, name: 'Project 2' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('YES'));
+    });
     expect(mockUpdateProject).toHaveBeenCalledWith(2, expect.any(String));
+    await waitFor(() => expect(useFlowStore.getState().lastSavedSnapshot).toContain('"n1"'));
   });
 
   it('filters sidebar tabs using search input', async () => {

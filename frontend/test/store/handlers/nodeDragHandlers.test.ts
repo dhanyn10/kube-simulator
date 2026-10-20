@@ -46,9 +46,10 @@ describe('dragHandlers', () => {
     onNodeDrag({} as any, nodeOverDep);
     expect(useFlowStore.getState().hoveredDeploymentId).toBeDefined();
 
-    // 2. Detaching from a Deployment
-    const nodeDetaching = { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 10, y: 10 }, data: {} } as any;
+    // 2. Detaching from a Deployment (< 20% overlap sets detachingId on line 55)
+    const nodeDetaching = { id: 'n1', type: 'Pod', parentId: 'd1', position: { x: 500, y: 500 }, data: {} } as any;
     onNodeDrag({} as any, nodeDetaching);
+    expect(useFlowStore.getState().detachingDeploymentId).toBe('d1');
   });
 
   it('onNodeDragStop prevents detaching Role outside of a Namespace', () => {
