@@ -285,7 +285,7 @@ export async function generateYaml(nodes: any[], edges: any[]): Promise<string> 
  * @returns Clean, beautified multi-document YAML string.
  */
 export function beautifyYaml(raw: string): string {
-  if (!raw || !raw.trim()) {
+  if (!raw?.trim()) {
     return '';
   }
 
