@@ -1,42 +1,12 @@
 import { useState } from 'react';
 import { useFlowStore } from '@/store';
 import { KubeIAMPolicy } from '@/types';
+import rawDefaultPolicies from './defaultPolicies.json';
 
 export type IAMStep = 1 | 2 | 3;
 export type IAMAccessType = 'Full Access' | 'Managed Access';
 
-export const DEFAULT_POLICIES: KubeIAMPolicy[] = [
-  {
-    name: 'AdministratorAccess',
-    type: 'Default',
-    description: 'Provides full access to Kube resources and cluster management.'
-  },
-  {
-    name: 'ReadOnlyAccess',
-    type: 'Default',
-    description: 'Provides read-only access to view workloads, services, and configs.'
-  },
-  {
-    name: 'PowerUserAccess',
-    type: 'Default',
-    description: 'Provides full access to application workloads without security admin controls.'
-  },
-  {
-    name: 'ContainerDeveloperPolicy',
-    type: 'Default',
-    description: 'Allows managing deployments, pods, and service connections.'
-  },
-  {
-    name: 'NetworkingAdminPolicy',
-    type: 'Default',
-    description: 'Allows configuring services, ingresses, and external traffic routing.'
-  },
-  {
-    name: 'StorageAdminPolicy',
-    type: 'Default',
-    description: 'Provides full access to PVCs and storage configuration.'
-  }
-];
+export const DEFAULT_POLICIES: KubeIAMPolicy[] = rawDefaultPolicies as KubeIAMPolicy[];
 
 export const useKubeIamWizard = () => {
   const isOpen = useFlowStore((state) => state.isKubeIamModalOpen);

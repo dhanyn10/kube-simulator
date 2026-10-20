@@ -67,11 +67,7 @@ export interface ChartLayoutResult {
   padBottom: number;
 }
 
-export const PROFILE_INTERVAL_OPTIONS = [
-  { label: '1 Hour', minutes: 60 },
-  { label: '30 Minutes', minutes: 30 },
-  { label: '10 Minutes', minutes: 10 },
-] as const;
+export const PROFILE_INTERVAL_OPTIONS = [{ label: '1 Hour', minutes: 60 }, { label: '30 Minutes', minutes: 30 }, { label: '10 Minutes', minutes: 10 }] as const;
 
 export const MINUTES_PER_HOUR = 60;
 export const HOURS_IN_DAY = 24;
