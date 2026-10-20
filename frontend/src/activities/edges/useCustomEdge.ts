@@ -8,6 +8,7 @@ export const checkNodeUnready = (node: any, nodes: any[]): boolean => {
   if (!node) return false;
   const isWorkload = node.type === 'Pod' || node.type === 'Deployment';
   if (isWorkload && node.data?.status !== 'ready') return true;
+  if (node.data?.status === 'error') return true;
 
   if (node.type === 'Deployment') {
     const childPods = nodes.filter((n: any) => String(n.parentId) === String(node.id) && n.type === 'Pod');

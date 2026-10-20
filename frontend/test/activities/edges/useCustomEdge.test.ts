@@ -502,7 +502,7 @@ describe('useCustomEdge & edge helpers', () => {
 
     // 2. Line 106: getTargetLoggableNode where isTargetError is true, unreadyNode is a Service (non-workload), and targetNode is a Pod
     const podTarget = { id: 'pod-target', type: 'Pod', data: { status: 'ready' } };
-    const svcUnready = { id: 'svc-unready', type: 'Service' };
+    const svcUnready = { id: 'svc-unready', type: 'Service', data: { status: 'error' } };
     const loggableNode = getTargetLoggableNode(
       'pod-target',
       true,

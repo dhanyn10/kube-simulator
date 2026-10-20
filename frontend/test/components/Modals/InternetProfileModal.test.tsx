@@ -506,4 +506,45 @@ describe('InternetProfileModal', () => {
     expect(mockSaveInternetProfile).toHaveBeenCalled();
     expect(screen.getByText('Auto Saved')).toBeDefined();
   });
+
+  it('covers getAutoSaveButtonClass line 59 in light mode and onUpdateProfile line 463 in custom profile view', async () => {
+    // 1. Line 59: Light mode Auto Save button styling
+    useFlowStore.setState({ colorMode: 'light' });
+
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
+
+    const detailsButtons = screen.getAllByRole('button', { name: /Details/i });
+    await act(async () => {
+      fireEvent.click(detailsButtons[0]);
+    });
+
+    const autoSaveBtn = screen.getByTestId('auto-save-btn');
+    expect(autoSaveBtn.className).toContain('bg-slate-100');
+
+    // 2. Line 463: onUpdateProfile in Custom Profile view
+    const backBtn = screen.getByRole('button', { name: /Back to Profiles Gallery/i });
+    await act(async () => {
+      fireEvent.click(backBtn);
+    });
+
+    const addCustomCard = screen.getByText('Add Custom Profile');
+    await act(async () => {
+      fireEvent.click(addCustomCard);
+    });
+
+    // In InteractiveTrafficChart, the interval select changes intervalMinutes and triggers onUpdateProfile on line 463
+    const intervalSelect = screen.getByRole('combobox');
+    await act(async () => {
+      fireEvent.change(intervalSelect, { target: { value: '30' } });
+    });
+  });
 });

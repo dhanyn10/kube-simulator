@@ -491,7 +491,11 @@ describe('InternetConfig', () => {
   });
 
   it('covers getHoverDotClass line 37 when hover hour equals currentHourIndex with isRed = false', async () => {
-    useFlowStore.setState({ isSimulating: true });
+    useFlowStore.setState({
+      isSimulating: true,
+      edges: [{ id: 'e1', source: 'int1', target: 'svc1' }] as any,
+      nodes: [{ id: 'svc1', type: 'Service', data: { label: 'my-svc' } }] as any
+    });
 
     const profileNode = {
       id: 'int1',
@@ -530,6 +534,9 @@ describe('InternetConfig', () => {
     await act(async () => {
       fireEvent.pointerMove(overlayRect, { clientX: 8, clientY: 10 });
     });
-    expect(screen.getByTestId('hover-traffic-dot')).toBeDefined();
+    const hoverDotGroup = screen.getByTestId('hover-traffic-dot');
+    expect(hoverDotGroup).toBeDefined();
+    const hoverCircle = hoverDotGroup.querySelector('circle');
+    expect(hoverCircle?.getAttribute('class')).toContain('fill-emerald-400');
   });
 });

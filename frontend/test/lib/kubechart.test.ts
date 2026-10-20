@@ -15,7 +15,8 @@ import {
   computeChartLayout,
   convertProfileToTimeSeries,
   computeYAxisTicks,
-  resolvePadding
+  resolvePadding,
+  getInterpolatedValueForMinute
 } from '@/lib/kubechart';
 
 describe('kubechart library', () => {
@@ -497,5 +498,26 @@ describe('kubechart library', () => {
       { padLeft: 10, padRight: 10, padTop: 10, padBottom: 10 }
     );
     expect(chartDataDefaultInterval.points).toHaveLength(25);
+  });
+
+  it('covers getInterpolatedValueForMinute branches: !prev && !next, !prev, !next, and exact anchor matching', () => {
+    // 1. !prev && !next (e.g. invalid item with NaN minutes)
+    expect(getInterpolatedValueForMinute('00:50', 50, {}, [{ minute: NaN, val: 100 }])).toBe(0);
+
+    // 2. !prev (minuteIdx is strictly before the first available anchor point)
+    const anchors = [
+      { minute: 60, val: 100 },
+      { minute: 120, val: 200 }
+    ];
+    expect(getInterpolatedValueForMinute('00:30', 30, {}, anchors)).toBe(100);
+
+    // 3. !next (minuteIdx is strictly after the last available anchor point)
+    expect(getInterpolatedValueForMinute('03:00', 180, {}, anchors)).toBe(200);
+
+    // 4. prev.minute === next.minute (minuteIdx lands exactly on an anchor point without timeStr key in hourly)
+    expect(getInterpolatedValueForMinute('01:00', 60, {}, anchors)).toBe(100);
+
+    // 5. Normal interpolation between anchors
+    expect(getInterpolatedValueForMinute('01:30', 90, {}, anchors)).toBe(150);
   });
 });
