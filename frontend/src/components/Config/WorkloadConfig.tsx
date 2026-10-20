@@ -1,5 +1,6 @@
 import { useFlowStore } from '@/store';
-import { AlertTriangle, Box, Layers, RotateCcw, Server } from 'lucide-react';
+import { AlertTriangle, Box, Layers, RotateCcw, Server, Activity } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ConfigSection, NumberStepper } from '@/components/UI/ConfigUI';
 import { ImageDropdown } from '@/components/UI/ImageDropdown';
 import { SelectorGroup } from '@/components/UI/SelectorGroup';
@@ -24,7 +25,7 @@ export const WorkloadConfig = ({
   toggleYaml
 }: WorkloadConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
-  const { replicaValue, updateReplicas, pvcInfo } = useWorkloadConfigHandler(selectedNode);
+  const { replicaValue, updateReplicas, pvcInfo, hpaInfo } = useWorkloadConfigHandler(selectedNode);
 
   const data = selectedNode.data;
 
@@ -83,11 +84,30 @@ export const WorkloadConfig = ({
 
       {/* Replicas Configuration */}
       <ConfigSection title="Replicas" icon={Layers}>
-        <NumberStepper
-          value={replicaValue}
-          onChange={updateReplicas}
-          colorMode={colorMode}
-        />
+        <div className="relative">
+          <NumberStepper
+            value={replicaValue}
+            onChange={updateReplicas}
+            colorMode={colorMode}
+            disabled={hpaInfo.isControlled}
+          />
+          {hpaInfo.isControlled && (
+            <div
+              data-testid="hpa-replica-overlay"
+              className={cn(
+                "absolute inset-0 rounded backdrop-blur-[2px] flex items-center justify-center gap-1.5 px-2.5 z-10 border transition-all cursor-not-allowed select-none",
+                colorMode === 'dark'
+                  ? "bg-slate-900/85 border-fuchsia-500/40 text-fuchsia-300 shadow-[0_0_12px_rgba(217,70,239,0.15)]"
+                  : "bg-fuchsia-50/90 border-fuchsia-300 text-fuchsia-800 shadow-[0_0_12px_rgba(217,70,239,0.1)]"
+              )}
+            >
+              <Activity size={12} className="text-fuchsia-500 shrink-0 animate-pulse" />
+              <span className="text-[10px] font-bold tracking-tight">
+                Managed by HPA
+              </span>
+            </div>
+          )}
+        </div>
       </ConfigSection>
 
       {/* Pod Specific Main Settings */}

@@ -5,7 +5,7 @@ import {
   getUpdateReplicasTargetId,
   useWorkloadConfigHandler,
 } from '@/activities/config/useWorkloadConfig';
-import { checkWorkloadConnectedPvc } from '@/activities/config/workloadConfigHelpers';
+import { checkWorkloadConnectedPvc, checkWorkloadHpaStatus } from '@/activities/config/workloadConfigHelpers';
 import { useFlowStore } from '@/store';
 
 describe('useWorkloadConfig', () => {
@@ -272,6 +272,93 @@ describe('useWorkloadConfig', () => {
       });
 
       expect(updateNodeDataMock).toHaveBeenCalledWith('d1', { replicas: 5 });
+    });
+
+    it('blocks updateReplicas when workload is controlled by HPA', () => {
+      const updateNodeDataMock = vi.fn();
+      const depWithHpa = {
+        id: 'd-hpa',
+        type: 'Deployment',
+        data: {
+          replicas: 3,
+          hpas: [{ id: 'h1', name: 'app-hpa', minReplicas: 2, maxReplicas: 10 }]
+        }
+      };
+
+      useFlowStore.setState({
+        nodes: [depWithHpa] as any,
+        edges: [],
+        updateNodeData: updateNodeDataMock,
+      });
+
+      const { result } = renderHook(() => useWorkloadConfigHandler(depWithHpa));
+
+      expect(result.current.hpaInfo.isControlled).toBe(true);
+      expect(result.current.hpaInfo.hpaName).toBe('app-hpa');
+
+      act(() => {
+        result.current.updateReplicas(8);
+      });
+
+      // Should be blocked and not call updateNodeData
+      expect(updateNodeDataMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkWorkloadHpaStatus', () => {
+    it('returns false for null or undefined node', () => {
+      expect(checkWorkloadHpaStatus(null, [], [])).toEqual({ isControlled: false });
+    });
+
+    it('detects direct attached HPA on workload', () => {
+      const node = {
+        id: 'w1',
+        type: 'Deployment',
+        data: { hpas: [{ id: 'h1', name: 'attached-hpa', minReplicas: 3, maxReplicas: 9 }] }
+      };
+      const res = checkWorkloadHpaStatus(node, [node as any], []);
+      expect(res).toEqual({
+        isControlled: true,
+        hpaName: 'attached-hpa',
+        minReplicas: 3,
+        maxReplicas: 9,
+      });
+    });
+
+    it('detects direct connected HPA node via edges in both directions', () => {
+      const dep = { id: 'dep1', type: 'Deployment', data: { label: 'my-dep' } };
+      const hpa = { id: 'hpa1', type: 'HPA', data: { label: 'canvas-hpa', minReplicas: 2, maxReplicas: 6 } };
+      const edge = { id: 'e1', source: 'hpa1', target: 'dep1' };
+
+      // HPA -> Dep
+      const res = checkWorkloadHpaStatus(dep, [dep as any, hpa as any], [edge as any]);
+      expect(res.isControlled).toBe(true);
+      expect(res.hpaName).toBe('canvas-hpa');
+      expect(res.minReplicas).toBe(2);
+      expect(res.maxReplicas).toBe(6);
+
+      // Dep -> HPA edge direction
+      const edgeRev = { id: 'e2', source: 'dep1', target: 'hpa1' };
+      const resRev = checkWorkloadHpaStatus(dep, [dep as any, hpa as any], [edgeRev as any]);
+      expect(resRev.isControlled).toBe(true);
+    });
+
+    it('detects parent attached or connected HPA when selected node is a child Pod', () => {
+      const parentDep = {
+        id: 'parent1',
+        type: 'Deployment',
+        data: { hpas: [{ name: 'parent-hpa', minReplicas: 1, maxReplicas: 5 }] }
+      };
+      const childPod = {
+        id: 'pod1',
+        type: 'Pod',
+        parentId: 'parent1',
+        data: { label: 'pod-1' }
+      };
+
+      const res = checkWorkloadHpaStatus(childPod, [parentDep as any, childPod as any], []);
+      expect(res.isControlled).toBe(true);
+      expect(res.hpaName).toBe('parent-hpa');
     });
   });
 });

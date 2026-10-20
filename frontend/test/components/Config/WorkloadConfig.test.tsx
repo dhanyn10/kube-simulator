@@ -521,4 +521,85 @@ describe('WorkloadConfig', () => {
     fireEvent.click(onFailureBtn);
     expect(performUpdate).toHaveBeenCalledWith({ restartPolicy: 'OnFailure' });
   });
+
+  it('renders HPA overlay and disables replica stepper when HPA is attached or connected', () => {
+    // 1. Attached HPA on Deployment
+    const depWithHpa = {
+      id: 'dep-hpa-1',
+      type: 'Deployment',
+      data: {
+        label: 'autoscale-dep',
+        replicas: 4,
+        hpas: [{ id: 'hpa-1', name: 'my-hpa', minReplicas: 2, maxReplicas: 8 }]
+      }
+    };
+    useFlowStore.setState({ nodes: [depWithHpa] as any, edges: [], colorMode: 'dark' });
+
+    const { rerender } = render(
+      <WorkloadConfig
+        selectedNode={depWithHpa}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByTestId('hpa-replica-overlay')).toBeDefined();
+    expect(screen.getByText('Managed by HPA')).toBeDefined();
+
+    const input = screen.getByDisplayValue('4') as HTMLInputElement;
+    expect(input.disabled).toBe(true);
+
+    // 2. Light mode test
+    useFlowStore.setState({ colorMode: 'light' });
+    rerender(
+      <WorkloadConfig
+        selectedNode={depWithHpa}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+    expect(screen.getByTestId('hpa-replica-overlay')).toBeDefined();
+
+    // 3. Child Pod with HPA connected to parent Deployment
+    const parentDep = {
+      id: 'parent-dep',
+      type: 'Deployment',
+      data: { label: 'parent-dep', replicas: 3 }
+    };
+    const childPod = {
+      id: 'child-pod-1',
+      type: 'Pod',
+      parentId: 'parent-dep',
+      data: { label: 'child-pod', parentId: 'parent-dep' }
+    };
+    const hpaNode = {
+      id: 'hpa-node-1',
+      type: 'HPA',
+      data: { label: 'connected-hpa', minReplicas: 1, maxReplicas: 10 }
+    };
+    const edge = {
+      id: 'e-hpa',
+      source: 'hpa-node-1',
+      target: 'parent-dep'
+    };
+
+    useFlowStore.setState({
+      nodes: [parentDep, childPod, hpaNode] as any,
+      edges: [edge] as any
+    });
+
+    rerender(
+      <WorkloadConfig
+        selectedNode={childPod}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByTestId('hpa-replica-overlay')).toBeDefined();
+    expect(screen.getByText('Managed by HPA')).toBeDefined();
+  });
 });

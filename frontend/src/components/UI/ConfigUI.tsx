@@ -124,12 +124,12 @@ export const AdvancedSection = ({ children, colorMode }: { children: React.React
 /**
  * A numeric input component with increment and decrement buttons.
  */
-export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode }: any) => (
+export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode, disabled = false }: any) => (
   <div className="flex items-center gap-2">
     <button
       type="button"
       onClick={() => onChange(Math.max(min, value - 1))}
-      disabled={value <= min}
+      disabled={disabled || value <= min}
       className={cn(
         "p-1.5 rounded border transition-colors disabled:opacity-30",
         colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
@@ -140,6 +140,7 @@ export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode 
     <input
       type="number"
       value={value}
+      disabled={disabled}
       min={min}
       max={max}
       onChange={(e) => {
@@ -157,13 +158,14 @@ export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode 
         "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
         colorMode === 'dark' 
           ? "bg-slate-900/50 border-slate-700/50 text-slate-200 focus:border-blue-500/50" 
-          : "bg-white border-slate-300 text-slate-800 focus:border-blue-500"
+          : "bg-white border-slate-300 text-slate-800 focus:border-blue-500",
+        disabled && "opacity-50 cursor-not-allowed"
       )}
     />
     <button
       type="button"
       onClick={() => onChange(Math.min(max, value + 1))}
-      disabled={value >= max}
+      disabled={disabled || value >= max}
       className={cn(
         "p-1.5 rounded border transition-colors disabled:opacity-30",
         colorMode === 'dark' ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-300"
@@ -174,7 +176,7 @@ export const NumberStepper = ({ value, onChange, min = 1, max = 1000, colorMode 
   </div>
 );
 
-export const RangeInput = ({ value, onChange, min, max, step = 1, unit = "%" }: any) => (
+export const RangeInput = ({ value, onChange, min, max, step = 1, unit = "%", disabled = false }: any) => (
   <div className="space-y-1.5">
     <input
       type="range"
@@ -182,6 +184,7 @@ export const RangeInput = ({ value, onChange, min, max, step = 1, unit = "%" }: 
       max={max}
       step={step}
       value={value}
+      disabled={disabled}
       onChange={(e) => onChange(Number.parseInt(e.target.value, 10))}
       className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
     />

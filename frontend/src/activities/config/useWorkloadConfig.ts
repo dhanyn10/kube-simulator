@@ -3,7 +3,7 @@
  */
 
 import { useFlowStore } from '@/store';
-import { checkWorkloadConnectedPvc } from './workloadConfigHelpers';
+import { checkWorkloadConnectedPvc, checkWorkloadHpaStatus } from './workloadConfigHelpers';
 
 /**
  * Calculates the total replicas for a given node,
@@ -48,8 +48,10 @@ export const useWorkloadConfigHandler = (selectedNode: any) => {
 
   const replicaValue = getReplicaValue(selectedNode, nodes);
   const pvcInfo = checkWorkloadConnectedPvc(selectedNode, nodes, edges, replicaValue);
+  const hpaInfo = checkWorkloadHpaStatus(selectedNode, nodes, edges);
 
   const updateReplicas = (replicas: number) => {
+    if (hpaInfo.isControlled) return;
     const targetId = getUpdateReplicasTargetId(selectedNode, nodes);
     updateNodeData(targetId, { replicas });
   };
@@ -58,5 +60,6 @@ export const useWorkloadConfigHandler = (selectedNode: any) => {
     replicaValue,
     updateReplicas,
     pvcInfo,
+    hpaInfo,
   };
 };
