@@ -209,7 +209,7 @@ export function calculateMinutePoint(
   };
 }
 
-function getInterpolatedValueForMinute(
+export function getInterpolatedValueForMinute(
   timeStr: string,
   minuteIdx: number,
   hourly: Record<string, number>,
@@ -222,8 +222,8 @@ function getInterpolatedValueForMinute(
     return 0;
   }
 
-  let prev = existingMinuteKeys[0];
-  let next = existingMinuteKeys.at(-1);
+  let prev: { minute: number; val: number } | undefined;
+  let next: { minute: number; val: number } | undefined;
 
   for (const item of existingMinuteKeys) {
     if (item.minute <= minuteIdx && (prev === undefined || item.minute >= prev.minute)) {
@@ -243,11 +243,8 @@ function getInterpolatedValueForMinute(
   if (!next) {
     return prev.val;
   }
-  if (prev.minute === next.minute || prev.minute >= minuteIdx) {
+  if (prev.minute === next.minute) {
     return prev.val;
-  }
-  if (next.minute <= minuteIdx) {
-    return next.val;
   }
 
   const frac = (minuteIdx - prev.minute) / (next.minute - prev.minute);

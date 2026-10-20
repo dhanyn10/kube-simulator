@@ -14,7 +14,7 @@ describe('NodeUI', () => {
     it('renders correctly', () => {
       render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" />);
       const buttons = screen.getAllByRole('button');
-      expect(buttons.length).toBe(2);
+      expect(buttons).toHaveLength(2);
     });
 
     it('calls toggleNodeSettings when settings button is clicked in light and dark mode', () => {
@@ -67,7 +67,7 @@ describe('NodeUI', () => {
     it('hides settings button if hideSettings is true', () => {
       render(<NodeActionButtons id="n1" onDelete={mockOnDelete} colorMode="dark" hideSettings={true} />);
       const buttons = screen.getAllByRole('button');
-      expect(buttons.length).toBe(1);
+      expect(buttons).toHaveLength(1);
     });
   });
 

@@ -35,6 +35,44 @@ const (
 	kubeSimulatorDir            = ".kube-simulator"
 )
 
+var infraProjectFilters = []wailsRuntime.FileFilter{
+	{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
+}
+
+func getTestFilePath() (string, bool) {
+	if appCtx != nil && appCtx.Value(isTestKey) != nil {
+		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok {
+			return testPath, true
+		}
+		return "", true
+	}
+	return "", false
+}
+
+func isLiveRuntime() bool {
+	return appCtx != nil && appCtx.Value(isTestKey) == nil
+}
+
+func shouldOpenInExplorer() bool {
+	return appCtx == nil || appCtx.Value(isTestKey) == nil
+}
+
+func setAppWindowTitle(title string) {
+	if isLiveRuntime() {
+		wailsRuntime.WindowSetTitle(appCtx, fmt.Sprintf("Kube Simulator - %s", title))
+	}
+}
+
+func expandHomePath(targetPath, homeDir string) string {
+	if targetPath == "~" {
+		return homeDir
+	}
+	if strings.HasPrefix(targetPath, "~/") {
+		return filepath.Join(homeDir, targetPath[2:])
+	}
+	return targetPath
+}
+
 // App struct
 type App struct {
 	history         *db.HistoryManager
@@ -241,9 +279,7 @@ func (a *App) SaveProject(name, content string) int64 {
 		logger.Error("Error saving project: %v", err)
 		return -1
 	}
-	if appCtx != nil && appCtx.Value(isTestKey) == nil {
-		wailsRuntime.WindowSetTitle(appCtx, fmt.Sprintf("Kube Simulator - %s", name))
-	}
+	setAppWindowTitle(name)
 	return id
 }
 
@@ -268,12 +304,8 @@ func (a *App) WriteLog(category, level, message string) bool {
 
 func (a *App) OpenLogFile() bool {
 	var logFilePath string
-	if appCtx != nil && appCtx.Value(isTestKey) != nil {
-		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok && testPath != "" {
-			logFilePath = testPath
-		} else {
-			logFilePath = logger.GetLogFilePath()
-		}
+	if testPath, isTest := getTestFilePath(); isTest && testPath != "" {
+		logFilePath = testPath
 	} else {
 		logFilePath = logger.GetLogFilePath()
 	}
@@ -294,7 +326,7 @@ func (a *App) OpenLogFile() bool {
 		_ = os.WriteFile(logFilePath, []byte("{}\n"), 0644)
 	}
 
-	if appCtx == nil || appCtx.Value(isTestKey) == nil {
+	if shouldOpenInExplorer() {
 		if err := explorer.OpenInExplorer(logFilePath); err != nil {
 			logger.Error("Failed to open log directory %s: %v", dir, err)
 			return false
@@ -308,21 +340,11 @@ func (a *App) FileExists(location string) bool {
 	if location == "" {
 		return false
 	}
-	targetPath := location
-	if strings.HasPrefix(targetPath, "~/") {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return false
-		}
-		targetPath = filepath.Join(homeDir, targetPath[2:])
-	} else if targetPath == "~" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return false
-		}
-		targetPath = homeDir
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return false
 	}
-
+	targetPath := expandHomePath(location, homeDir)
 	stat, err := os.Stat(targetPath)
 	if err != nil || stat.IsDir() {
 		return false
@@ -337,15 +359,14 @@ func (a *App) OpenFileFolder(location string) bool {
 		return false
 	}
 
-	targetPath := location
-	if targetPath == "" {
+	var targetPath string
+	if location == "" {
 		targetPath = filepath.Join(homeDir, kubeSimulatorDir)
-	} else if strings.HasPrefix(targetPath, "~/") {
-		targetPath = filepath.Join(homeDir, targetPath[2:])
-	} else if targetPath == "~" {
-		targetPath = homeDir
-	} else if !filepath.IsAbs(targetPath) {
-		targetPath = filepath.Join(homeDir, targetPath)
+	} else {
+		targetPath = expandHomePath(location, homeDir)
+		if !filepath.IsAbs(targetPath) {
+			targetPath = filepath.Join(homeDir, targetPath)
+		}
 	}
 
 	folderPath := targetPath
@@ -356,7 +377,7 @@ func (a *App) OpenFileFolder(location string) bool {
 		_ = os.MkdirAll(folderPath, 0755)
 	}
 
-	if appCtx == nil || appCtx.Value(isTestKey) == nil {
+	if shouldOpenInExplorer() {
 		if err := explorer.OpenInExplorer(folderPath); err != nil {
 			logger.Error("Failed to open folder %s: %v", folderPath, err)
 			return false
@@ -365,28 +386,28 @@ func (a *App) OpenFileFolder(location string) bool {
 	return true
 }
 
+func (a *App) selectProjectFileDialog(saveDialog bool, defaultFilename, title string) (string, error) {
+	if testPath, isTest := getTestFilePath(); isTest {
+		return testPath, nil
+	}
+	if saveDialog {
+		return wailsRuntime.SaveFileDialog(appCtx, wailsRuntime.SaveDialogOptions{
+			DefaultFilename: defaultFilename,
+			Title:           title,
+			Filters:         infraProjectFilters,
+		})
+	}
+	return wailsRuntime.OpenFileDialog(appCtx, wailsRuntime.OpenDialogOptions{
+		Title:   title,
+		Filters: infraProjectFilters,
+	})
+}
+
 func (a *App) ExportProjectFile(name, canvasContent, yamlContent string) bool {
 	if appCtx == nil {
 		return false
 	}
-	var filePath string
-	var err error
-	if appCtx.Value(isTestKey) != nil {
-		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok {
-			filePath = testPath
-		} else {
-			filePath = ""
-		}
-	} else {
-		filePath, err = wailsRuntime.SaveFileDialog(appCtx, wailsRuntime.SaveDialogOptions{
-			DefaultFilename: fmt.Sprintf("%s.infra", name),
-			Title:           "Export Infrastructure Project",
-			Filters: []wailsRuntime.FileFilter{
-				{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
-			},
-		})
-	}
-
+	filePath, err := a.selectProjectFileDialog(true, fmt.Sprintf("%s.infra", name), "Export Infrastructure Project")
 	if err != nil || filePath == "" {
 		return false
 	}
@@ -411,23 +432,7 @@ func (a *App) ImportProjectFile() string {
 	if appCtx == nil {
 		return ""
 	}
-	var filePath string
-	var err error
-	if appCtx.Value(isTestKey) != nil {
-		if testPath, ok := appCtx.Value(testFilePathKey).(string); ok {
-			filePath = testPath
-		} else {
-			filePath = ""
-		}
-	} else {
-		filePath, err = wailsRuntime.OpenFileDialog(appCtx, wailsRuntime.OpenDialogOptions{
-			Title: "Import Infrastructure Project",
-			Filters: []wailsRuntime.FileFilter{
-				{DisplayName: "Kube Simulator Project (*.infra)", Pattern: "*.infra"},
-			},
-		})
-	}
-
+	filePath, err := a.selectProjectFileDialog(false, "", "Import Infrastructure Project")
 	if err != nil || filePath == "" {
 		return ""
 	}
@@ -456,9 +461,7 @@ func (a *App) LoadProject(id int64) *db.Project {
 		logger.Error("Error loading project: %v", err)
 		return nil
 	}
-	if appCtx != nil && appCtx.Value(isTestKey) == nil {
-		wailsRuntime.WindowSetTitle(appCtx, fmt.Sprintf("Kube Simulator - %s", proj.Name))
-	}
+	setAppWindowTitle(proj.Name)
 	return proj
 }
 
@@ -546,13 +549,39 @@ type InternetProfile struct {
 	Timestamp int64          `json:"timestamp,omitempty"`
 }
 
-func (a *App) GetInternetProfiles() []InternetProfile {
+func sanitizeProfileFilename(name string) string {
+	sanitized := strings.ToLower(name)
+	sanitized = strings.ReplaceAll(sanitized, " ", "_")
+	var builder strings.Builder
+	for _, r := range sanitized {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			builder.WriteRune(r)
+		}
+	}
+	filename := builder.String()
+	if filename == "" {
+		return "profile"
+	}
+	return filename
+}
+
+func (a *App) getInternetProfilesDir() (string, error) {
 	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(userHome, kubeSimulatorDir, "internet_profiles"), nil
+}
+
+func (a *App) getInternetProfilePath(dir, name string) string {
+	return filepath.Join(dir, fmt.Sprintf("%s.json", sanitizeProfileFilename(name)))
+}
+
+func (a *App) GetInternetProfiles() []InternetProfile {
+	dir, err := a.getInternetProfilesDir()
 	if err != nil {
 		return []InternetProfile{}
 	}
-
-	dir := filepath.Join(userHome, kubeSimulatorDir, "internet_profiles")
 	_ = os.MkdirAll(dir, 0755)
 
 	entries, err := os.ReadDir(dir)
@@ -582,32 +611,18 @@ func (a *App) SaveInternetProfile(name, profileJson string) bool {
 	if name == "" || profileJson == "" {
 		return false
 	}
-	userHome, err := os.UserHomeDir()
+	dir, err := a.getInternetProfilesDir()
 	if err != nil {
 		logger.Error("Failed to resolve user home dir: %v", err)
 		return false
 	}
 
-	dir := filepath.Join(userHome, kubeSimulatorDir, "internet_profiles")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		logger.Error("Failed to create internet profiles dir: %v", err)
 		return false
 	}
 
-	sanitized := strings.ToLower(name)
-	sanitized = strings.ReplaceAll(sanitized, " ", "_")
-	var builder strings.Builder
-	for _, r := range sanitized {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
-			builder.WriteRune(r)
-		}
-	}
-	filename := builder.String()
-	if filename == "" {
-		filename = "profile"
-	}
-
-	filePath := filepath.Join(dir, fmt.Sprintf("%s.json", filename))
+	filePath := a.getInternetProfilePath(dir, name)
 	if err := os.WriteFile(filePath, []byte(profileJson), 0644); err != nil {
 		logger.Error("Error writing internet profile file: %v", err)
 		return false
@@ -619,26 +634,12 @@ func (a *App) DeleteInternetProfile(name string) bool {
 	if name == "" {
 		return false
 	}
-	userHome, err := os.UserHomeDir()
+	dir, err := a.getInternetProfilesDir()
 	if err != nil {
 		return false
 	}
 
-	dir := filepath.Join(userHome, kubeSimulatorDir, "internet_profiles")
-	sanitized := strings.ToLower(name)
-	sanitized = strings.ReplaceAll(sanitized, " ", "_")
-	var builder strings.Builder
-	for _, r := range sanitized {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
-			builder.WriteRune(r)
-		}
-	}
-	filename := builder.String()
-	if filename == "" {
-		filename = "profile"
-	}
-
-	filePath := filepath.Join(dir, fmt.Sprintf("%s.json", filename))
+	filePath := a.getInternetProfilePath(dir, name)
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 		logger.Error("Error deleting internet profile file: %v", err)
 		return false
@@ -649,10 +650,8 @@ func (a *App) DeleteInternetProfile(name string) bool {
 // Window Control Actions
 
 func (a *App) MinimizeWindow() {
-	if appCtx != nil {
-		if appCtx.Value(isTestKey) == nil {
-			wailsRuntime.WindowMinimise(appCtx)
-		}
+	if isLiveRuntime() {
+		wailsRuntime.WindowMinimise(appCtx)
 	}
 }
 
@@ -676,10 +675,8 @@ func (a *App) MaximizeWindow() {
 }
 
 func (a *App) CloseWindow() {
-	if appCtx != nil {
-		if appCtx.Value(isTestKey) == nil {
-			wailsRuntime.Quit(appCtx)
-		}
+	if isLiveRuntime() {
+		wailsRuntime.Quit(appCtx)
 	}
 }
 
