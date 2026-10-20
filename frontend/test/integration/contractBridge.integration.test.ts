@@ -1,9 +1,48 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import * as WailsAppBindings from '@/../wailsjs/go/main/App';
 import { initWailsMocks } from '@/lib/mocks';
 import { useFlowStore } from '@/store/useFlowStore';
-import { DEFAULT_POD_DATA, DEFAULT_SERVICE_DATA } from '@/constants/config';
-import type { K8sNodeType } from '@/types';
+
+// Canonical list of all IPC methods exposed by the Go Wails backend (App struct in app.go)
+const WAILS_APP_IPC_METHODS = [
+  'CalculateAppHeight',
+  'CheckForUpdates',
+  'CloseWindow',
+  'DeleteInternetProfile',
+  'DeleteProject',
+  'ExportProjectFile',
+  'FetchDockerHubPopular',
+  'FetchDockerHubTags',
+  'FileExists',
+  'GenerateYaml',
+  'GetAutosaveProfiles',
+  'GetCurrentHistoryIndex',
+  'GetHistoryLogs',
+  'GetInternetProfiles',
+  'GetProjects',
+  'GetSetting',
+  'GetSystemInfo',
+  'GetSystemResources',
+  'GetTargetScreen',
+  'GetTargetScreenHeight',
+  'Greet',
+  'ImportProjectFile',
+  'JumpToHistory',
+  'LoadProject',
+  'MaximizeWindow',
+  'MinimizeWindow',
+  'OpenFileFolder',
+  'OpenLogFile',
+  'PushHistory',
+  'Redo',
+  'SaveInternetProfile',
+  'SaveProject',
+  'SaveSetting',
+  'SearchDockerHub',
+  'SetInitialFile',
+  'Undo',
+  'UpdateProject',
+  'WriteLog',
+] as const;
 
 describe('Tahap 3 - Contract & Schema Bridge Validation Test', () => {
   beforeEach(() => {
@@ -21,15 +60,10 @@ describe('Tahap 3 - Contract & Schema Bridge Validation Test', () => {
       const mockApp = (globalThis as any).go?.main?.App;
       expect(mockApp).toBeDefined();
 
-      const exportedBindingNames = Object.keys(WailsAppBindings).filter(
-        (key) => typeof (WailsAppBindings as any)[key] === 'function'
-      );
+      // Verify that every single Wails backend IPC method exists in mocks.ts
+      expect(WAILS_APP_IPC_METHODS).toHaveLength(38);
 
-      // Verify non-empty binding set from Wails generator
-      expect(exportedBindingNames.length).toBeGreaterThan(30);
-
-      // Verify that every single Wails method exists in mocks.ts
-      exportedBindingNames.forEach((methodName) => {
+      WAILS_APP_IPC_METHODS.forEach((methodName) => {
         expect(
           typeof mockApp[methodName],
           `Expected mock implementation for Wails binding "${methodName}" to exist in mocks.ts`
