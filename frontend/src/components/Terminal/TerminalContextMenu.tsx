@@ -56,6 +56,7 @@ export const TerminalContextMenu = ({
     <div
       ref={menuRef}
       role="menu"
+      tabIndex={-1}
       aria-label="Terminal context menu"
       data-testid="terminal-context-menu"
       style={{ top: position.top, left: position.left }}

@@ -22,6 +22,8 @@ describe('TerminalContextMenu', () => {
 
     const menu = screen.getByTestId('terminal-context-menu');
     expect(menu).toBeInTheDocument();
+    expect(menu).toHaveAttribute('role', 'menu');
+    expect(menu).toHaveAttribute('tabindex', '-1');
 
     const authBtn = screen.getByTestId('terminal-context-auth');
     const filterBtn = screen.getByTestId('terminal-context-filter-logs');
