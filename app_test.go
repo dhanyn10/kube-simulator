@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -692,4 +693,274 @@ func TestApp_InternetProfiles(t *testing.T) {
 	if len(afterDelete) != 0 {
 		t.Errorf("Expected 0 profiles after delete, got %d", len(afterDelete))
 	}
+}
+
+func TestApp_ComprehensiveEdgeCases(t *testing.T) {
+	app, cleanup := setupAppWithDB(t)
+	defer cleanup()
+
+	tmpHome := os.Getenv("USERPROFILE")
+	if tmpHome == "" {
+		tmpHome = os.Getenv("HOME")
+	}
+
+	t.Run("expandHomePath and FileExists variations", func(t *testing.T) {
+		// 1. FileExists with "~" (directory, not file) -> false
+		if app.FileExists("~") {
+			t.Error("Expected FileExists('~') to return false for directory")
+		}
+
+		// 2. FileExists with "~/something"
+		subFile := filepath.Join(tmpHome, "test_home.infra")
+		_ = os.WriteFile(subFile, []byte("{}"), 0644)
+		if !app.FileExists("~/test_home.infra") {
+			t.Error("Expected FileExists('~/test_home.infra') to return true")
+		}
+
+		// 3. FileExists with non-existent "~/" path
+		if app.FileExists("~/non_existent_file.infra") {
+			t.Error("Expected FileExists with non-existent ~/ file to return false")
+		}
+	})
+
+	t.Run("OpenFileFolder variations", func(t *testing.T) {
+		// 1. OpenFileFolder with "~"
+		if !app.OpenFileFolder("~") {
+			t.Error("Expected OpenFileFolder('~') to return true")
+		}
+
+		// 2. OpenFileFolder with "~/" path
+		if !app.OpenFileFolder("~/subfolder") {
+			t.Error("Expected OpenFileFolder('~/subfolder') to return true")
+		}
+
+		// 3. OpenFileFolder with relative path
+		if !app.OpenFileFolder("relative/path/folder") {
+			t.Error("Expected OpenFileFolder with relative path to return true")
+		}
+
+		// 4. OpenFileFolder with non-existent path that creates parent folder
+		nonExistentFile := filepath.Join(tmpHome, "new_nested_dir", "file.infra")
+		if !app.OpenFileFolder(nonExistentFile) {
+			t.Error("Expected OpenFileFolder to create directory and return true")
+		}
+		if _, err := os.Stat(filepath.Dir(nonExistentFile)); os.IsNotExist(err) {
+			t.Error("Expected parent directory to be created")
+		}
+	})
+
+	t.Run("OpenLogFile creates non-existent log file", func(t *testing.T) {
+		newLogPath := filepath.Join(tmpHome, "logs_sub", "new_app_logs.jsonl")
+		ctx := context.WithValue(context.Background(), isTestKey, true)
+		ctx = context.WithValue(ctx, testFilePathKey, newLogPath)
+		appCtx = ctx
+		defer func() { appCtx = nil }()
+
+		if !app.OpenLogFile() {
+			t.Error("Expected OpenLogFile to return true")
+		}
+		if _, err := os.Stat(newLogPath); os.IsNotExist(err) {
+			t.Error("Expected OpenLogFile to create missing log file")
+		}
+	})
+
+	t.Run("selectProjectFileDialog and getTestFilePath with empty test path", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), isTestKey, true)
+		// isTestKey is set, but testFilePathKey is not set
+		appCtx = ctx
+		defer func() { appCtx = nil }()
+
+		if app.ExportProjectFile("EmptyPath", "{}", "") {
+			t.Error("Expected ExportProjectFile to return false when testFilePath is empty")
+		}
+		if res := app.ImportProjectFile(); res != "" {
+			t.Errorf("Expected ImportProjectFile to return empty string, got %s", res)
+		}
+	})
+
+	t.Run("GetHistoryLogs with corrupted entry and index gap", func(t *testing.T) {
+		badgerDB := app.history.GetDB()
+		if badgerDB == nil {
+			t.Fatal("Expected badgerDB to be non-nil")
+		}
+
+		// Push one normal history item so maxIndex >= 0
+		app.PushHistory("{}")
+
+		// Corrupt entry hist:0 with invalid JSON
+		_ = badgerDB.Update(func(txn *badger.Txn) error {
+			return txn.Set([]byte("hist:0"), []byte("invalid-non-json-content"))
+		})
+
+		logs := app.GetHistoryLogs()
+		if len(logs) == 0 {
+			t.Fatal("Expected logs to not be empty")
+		}
+		if logs[0].ActionName != "Activity #0" {
+			t.Errorf("Expected fallback action name 'Activity #0', got '%s'", logs[0].ActionName)
+		}
+
+		// Delete hist:0 to test index gap (err != nil in txn.Get)
+		_ = badgerDB.Update(func(txn *badger.Txn) error {
+			return txn.Delete([]byte("hist:0"))
+		})
+		logsAfterDelete := app.GetHistoryLogs()
+		if len(logsAfterDelete) != 0 {
+			t.Errorf("Expected 0 logs after deleting index 0, got %d", len(logsAfterDelete))
+		}
+	})
+
+	t.Run("GetAutosaveProfiles with edge cases", func(t *testing.T) {
+		autosavesDir := filepath.Join(tmpHome, kubeSimulatorDir, "autosaves")
+		_ = os.RemoveAll(autosavesDir)
+
+		// 1. Dir does not exist yet
+		emptyProfiles := app.GetAutosaveProfiles()
+		if len(emptyProfiles) != 0 {
+			t.Errorf("Expected 0 autosave profiles when dir missing, got %d", len(emptyProfiles))
+		}
+
+		// 2. Dir contains a subdirectory and a non-.infra file
+		_ = os.MkdirAll(filepath.Join(autosavesDir, "subfolder"), 0755)
+		_ = os.WriteFile(filepath.Join(autosavesDir, "ignore.txt"), []byte("text"), 0644)
+		_ = os.WriteFile(filepath.Join(autosavesDir, "profile1.infra"), []byte(`{"timestamp": 1712345678000}`), 0644)
+		_ = os.WriteFile(filepath.Join(autosavesDir, "profile2.infra"), []byte(`invalid json`), 0644)
+		_ = os.WriteFile(filepath.Join(autosavesDir, "profile3.infra"), []byte(`{"timestamp": 0}`), 0644)
+
+		profiles := app.GetAutosaveProfiles()
+		if len(profiles) != 3 {
+			t.Fatalf("Expected exactly 3 .infra profiles, got %d", len(profiles))
+		}
+
+		var foundProfile1 bool
+		for _, p := range profiles {
+			if p.Key == "profile1" {
+				foundProfile1 = true
+				if p.Timestamp != 1712345678000 {
+					t.Errorf("Expected profile1 timestamp 1712345678000, got %d", p.Timestamp)
+				}
+			}
+		}
+		if !foundProfile1 {
+			t.Error("Expected to find profile1")
+		}
+	})
+
+	t.Run("sanitizeProfileFilename fallback", func(t *testing.T) {
+		// All symbols stripped -> returns "profile"
+		saved := app.SaveInternetProfile("!@#$%^&*()+=", `{"name":"Symbols Only"}`)
+		if !saved {
+			t.Error("Expected SaveInternetProfile with symbols to succeed with fallback name")
+		}
+		profiles := app.GetInternetProfiles()
+		var found bool
+		for _, p := range profiles {
+			if p.Name == "Symbols Only" {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("Expected profile 'Symbols Only' to be saved and found")
+		}
+		app.DeleteInternetProfile("!@#$%^&*()+=")
+	})
+
+	t.Run("GetInternetProfiles with invalid entries", func(t *testing.T) {
+		ipDir, _ := app.getInternetProfilesDir()
+		_ = os.MkdirAll(filepath.Join(ipDir, "subfolder"), 0755)
+		_ = os.WriteFile(filepath.Join(ipDir, "readme.txt"), []byte("hello"), 0644)
+		_ = os.WriteFile(filepath.Join(ipDir, "invalid.json"), []byte("invalid-json"), 0644)
+		_ = os.WriteFile(filepath.Join(ipDir, "noname.json"), []byte(`{"hourly":{}}`), 0644)
+
+		// Also save a valid profile
+		app.SaveInternetProfile("Valid Profile", `{"name":"Valid Profile"}`)
+		defer app.DeleteInternetProfile("Valid Profile")
+
+		profiles := app.GetInternetProfiles()
+		var validFound bool
+		for _, p := range profiles {
+			if p.Name == "Valid Profile" {
+				validFound = true
+			}
+		}
+		if !validFound {
+			t.Error("Expected valid profile to be found while skipping invalid entries")
+		}
+	})
+
+	t.Run("SaveInternetProfile and DeleteInternetProfile edge cases", func(t *testing.T) {
+		// Empty JSON
+		if app.SaveInternetProfile("name", "") {
+			t.Error("Expected SaveInternetProfile to fail with empty JSON")
+		}
+
+		// Delete non-existent profile (should return true without crashing)
+		if !app.DeleteInternetProfile("non_existent_profile_xyz") {
+			t.Error("Expected DeleteInternetProfile for non-existent profile to return true")
+		}
+	})
+
+	t.Run("handleInitialFileOpen with valid file", func(t *testing.T) {
+		testFile := filepath.Join(tmpHome, "initial_test.infra")
+		_ = os.WriteFile(testFile, []byte(`{"name":"initial"}`), 0644)
+
+		app.SetInitialFile(testFile)
+		ctx := context.WithValue(context.Background(), isTestKey, true)
+		app.handleInitialFileOpen(ctx)
+
+		time.Sleep(30 * time.Millisecond)
+
+		// Reset initialFilePath
+		app.SetInitialFile("")
+		app.handleInitialFileOpen(ctx) // Should return immediately
+	})
+
+	t.Run("UserHomeDir failure error paths", func(t *testing.T) {
+		oldHome := os.Getenv("HOME")
+		oldUserProfile := os.Getenv("USERPROFILE")
+		oldHomeDrive := os.Getenv("HOMEDRIVE")
+		oldHomePath := os.Getenv("HOMEPATH")
+
+		os.Setenv("HOME", "")
+		os.Setenv("USERPROFILE", "")
+		os.Setenv("HOMEDRIVE", "")
+		os.Setenv("HOMEPATH", "")
+
+		defer func() {
+			os.Setenv("HOME", oldHome)
+			os.Setenv("USERPROFILE", oldUserProfile)
+			os.Setenv("HOMEDRIVE", oldHomeDrive)
+			os.Setenv("HOMEPATH", oldHomePath)
+		}()
+
+		if app.FileExists("some-file") {
+			t.Error("Expected FileExists to return false when home dir fails")
+		}
+		if app.OpenFileFolder("some-folder") {
+			t.Error("Expected OpenFileFolder to return false when home dir fails")
+		}
+		if profiles := app.GetAutosaveProfiles(); len(profiles) != 0 {
+			t.Errorf("Expected 0 autosave profiles when home dir fails, got %d", len(profiles))
+		}
+		if _, err := app.getInternetProfilesDir(); err == nil {
+			t.Error("Expected getInternetProfilesDir to return error when home dir fails")
+		}
+		if profiles := app.GetInternetProfiles(); len(profiles) != 0 {
+			t.Errorf("Expected 0 internet profiles when home dir fails, got %d", len(profiles))
+		}
+		if app.SaveInternetProfile("name", "{}") {
+			t.Error("Expected SaveInternetProfile to return false when home dir fails")
+		}
+		if app.DeleteInternetProfile("name") {
+			t.Error("Expected DeleteInternetProfile to return false when home dir fails")
+		}
+	})
+
+	t.Run("getTestFilePath when appCtx is nil", func(t *testing.T) {
+		appCtx = nil
+		path, isTest := getTestFilePath()
+		if isTest || path != "" {
+			t.Errorf("Expected empty string and false, got %s and %v", path, isTest)
+		}
+	})
 }
