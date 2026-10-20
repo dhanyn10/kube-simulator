@@ -108,6 +108,12 @@ export interface UiSlice {
   addTerminalLog: (resourceId: string, line: string) => void;
   addActivityLog: (line: string) => void;
   clearTerminalLogs: () => void;
+  terminalShowAuth: boolean;
+  setTerminalShowAuth: (show: boolean) => void;
+  terminalShowFilterLogs: boolean;
+  setTerminalShowFilterLogs: (show: boolean) => void;
+  terminalShowExportLogs: boolean;
+  setTerminalShowExportLogs: (show: boolean) => void;
 
   // Terminal Command Tree modal state & actions
   isTerminalCommandTreeModalOpen: boolean;
@@ -750,6 +756,12 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     }));
   },
   clearTerminalLogs: () => set({ terminalLogs: {}, activityLogs: [] }),
+  terminalShowAuth: true,
+  setTerminalShowAuth: (show) => set({ terminalShowAuth: show }),
+  terminalShowFilterLogs: true,
+  setTerminalShowFilterLogs: (show) => set({ terminalShowFilterLogs: show }),
+  terminalShowExportLogs: true,
+  setTerminalShowExportLogs: (show) => set({ terminalShowExportLogs: show }),
 
   // Terminal Command Tree initial state & action
   isTerminalCommandTreeModalOpen: false,

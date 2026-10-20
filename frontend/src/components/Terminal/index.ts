@@ -5,3 +5,4 @@ export * from './TerminalCommandForm';
 export * from './TerminalPaginationBar';
 export * from './TerminalMinimizedTrigger';
 export * from './AutocompleteItem';
+export * from './TerminalContextMenu';

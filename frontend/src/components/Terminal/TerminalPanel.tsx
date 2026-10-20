@@ -16,6 +16,7 @@ import { TerminalLogBody } from './TerminalLogBody';
 import { TerminalPaginationBar } from './TerminalPaginationBar';
 import { TerminalCommandForm } from './TerminalCommandForm';
 import { TerminalToolbar } from './TerminalToolbar';
+import { TerminalContextMenu } from './TerminalContextMenu';
 
 /**
  * TerminalPanel renders the interactive Kubernetes Console (Kube Terminal) drawer panel.
@@ -38,6 +39,20 @@ export const TerminalPanel = () => {
   const currentProject = useFlowStore((state) => state.currentProject);
   const nodes = useFlowStore((state) => state.nodes);
   const colorMode = useFlowStore((state) => state.colorMode);
+  const terminalShowAuth = useFlowStore((state) => state.terminalShowAuth);
+  const setTerminalShowAuth = useFlowStore((state) => state.setTerminalShowAuth);
+  const terminalShowFilterLogs = useFlowStore((state) => state.terminalShowFilterLogs);
+  const setTerminalShowFilterLogs = useFlowStore((state) => state.setTerminalShowFilterLogs);
+  const terminalShowExportLogs = useFlowStore((state) => state.terminalShowExportLogs);
+  const setTerminalShowExportLogs = useFlowStore((state) => state.setTerminalShowExportLogs);
+
+  const [terminalContextMenu, setTerminalContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const handleTerminalContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTerminalContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -221,6 +236,7 @@ export const TerminalPanel = () => {
   return (
     <div
       data-testid="terminal-container"
+      onContextMenu={handleTerminalContextMenu}
       className={cn(
         "terminal-panel-container",
         colorMode === 'dark'
@@ -229,6 +245,7 @@ export const TerminalPanel = () => {
       )}
     >
       <TerminalToolbar
+        onContextMenu={handleTerminalContextMenu}
         terminalActiveTab={terminalActiveTab}
         setTerminalActiveTab={setTerminalActiveTab}
         activityTabClass={activityTabClass}
@@ -310,6 +327,20 @@ export const TerminalPanel = () => {
             />
           )}
         </div>
+      )}
+      {terminalContextMenu && (
+        <TerminalContextMenu
+          x={terminalContextMenu.x}
+          y={terminalContextMenu.y}
+          colorMode={colorMode}
+          onClose={() => setTerminalContextMenu(null)}
+          showAuth={terminalShowAuth}
+          onToggleAuth={() => setTerminalShowAuth(!terminalShowAuth)}
+          showFilterLogs={terminalShowFilterLogs}
+          onToggleFilterLogs={() => setTerminalShowFilterLogs(!terminalShowFilterLogs)}
+          showExportLogs={terminalShowExportLogs}
+          onToggleExportLogs={() => setTerminalShowExportLogs(!terminalShowExportLogs)}
+        />
       )}
     </div>
   );
