@@ -17,8 +17,10 @@ import {
   handleDescribeConfigMapCommand,
   handleGetSecretsCommand,
   handleDescribeSecretCommand,
+  handleExecCommand,
   CommandContext
 } from '@/activities/terminal/terminalCommands';
+import { printNodeEnvironment, printContainerEnv } from '@/activities/terminal/terminalLogUtils';
 
 describe('terminalCommands', () => {
   let mockCtx: CommandContext;
@@ -844,4 +846,59 @@ describe('terminalCommands', () => {
       expect(activityLogs.some(l => l.includes('0 available'))).toBe(true);
     });
   });
+
+    it('handleExecCommand executes env and shell inspection on workloads', () => {
+      // 1. Non-matching command
+      expect(handleExecCommand('kubectl get pods', mockCtx)).toBe(false);
+
+      // 2. Pod not found
+      activityLogs = [];
+      const notFoundRes = handleExecCommand('kubectl exec non-existent-pod -- env', mockCtx);
+      expect(notFoundRes).toBe(true);
+      expect(activityLogs.some(l => l.includes('pods "non-existent-pod" not found'))).toBe(true);
+
+      // 3. Shell session (sh / bash)
+      activityLogs = [];
+      const shellRes = handleExecCommand('kubectl exec my-pod -- sh', mockCtx);
+      expect(shellRes).toBe(true);
+      expect(activityLogs.some(l => l.includes('Connected to container "app-container" in pod "my-pod"'))).toBe(true);
+
+      // 4. Print env with ConfigMap & Secret attached
+      mockCtx.nodes = [
+        {
+          id: 'env-pod',
+          type: 'Pod',
+          data: {
+            label: 'env-pod',
+            image: 'my-custom-app:v1',
+            configMaps: [{ id: 'cm1', name: 'app-cfg', configData: [{ key: 'PORT', value: '8080' }] }],
+            secrets: [{ id: 's1', name: 'app-sec', secretData: [{ key: 'DB_PASSWORD', value: 'secret123' }] }]
+          }
+        } as any
+      ];
+      activityLogs = [];
+      const envRes = handleExecCommand('kubectl exec env-pod -- env', mockCtx);
+      expect(envRes).toBe(true);
+      expect(activityLogs.some(l => l.includes('HOSTNAME=env-pod'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('PORT=8080'))).toBe(true);
+      expect(activityLogs.some(l => l.includes('DB_PASSWORD=secret123'))).toBe(true);
+    });
+
+    it('printNodeEnvironment prints environment variables and handles empty fallback', () => {
+      const logs: string[] = [];
+      const logger = (line: string) => logs.push(line);
+
+      // Empty data
+      printNodeEnvironment({}, logger);
+      expect(logs).toContain('    Environment:  <none>');
+
+      // With ConfigMap & Secret
+      logs.length = 0;
+      printNodeEnvironment({
+        configMaps: [{ name: 'cfg', configData: [{ key: 'HTTP_PORT', value: '80' }] }],
+        secrets: [{ name: 'sec', secretData: [{ key: 'API_KEY', value: 'abc' }] }]
+      }, logger);
+      expect(logs.some(l => l.includes("HTTP_PORT:  <set to the key 'HTTP_PORT' of config map 'cfg'>"))).toBe(true);
+      expect(logs.some(l => l.includes("API_KEY:  <set to the key 'API_KEY' in secret 'sec'>"))).toBe(true);
+    });
 });

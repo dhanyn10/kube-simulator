@@ -36,6 +36,10 @@ const createSuggestion = (
 });
 
 export const PREDEFINED_KEYS: readonly KeySuggestion[] = [
+  createSuggestion('REQUIRE_SECRET', 'Enforces that a Secret must be attached for container authentication.', [
+    ['true', 'Enforce Secret requirement (crashes if no Secret attached)'],
+    ['false', 'Optional Secret (standard)'],
+  ]),
   createSuggestion('PORT', 'Container listening port. Must match Service targetPort.', [
     ['80', 'Standard HTTP Port'],
     ['8080', 'Alt Web Server Port'],

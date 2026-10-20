@@ -1,5 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
-import { K8sNodeData, K8sConfigMapItem } from '@/types';
+import { K8sNodeData, K8sConfigMapItem, K8sSecretItem } from '@/types';
 import { safeRandom } from './utils';
 import { logger } from './logger';
 import { SimulationContext, updateNodeData } from './simulationTypes';
@@ -36,13 +36,16 @@ const parseConfigKeyValuePair = (
   if (keyUpper === 'LOG_LEVEL') {
     settings.logLevel = valueTrimmed.toUpperCase();
   }
+  if ((keyUpper === 'REQUIRE_SECRET' || keyUpper === 'AUTH_REQUIRED') && valueTrimmed.toLowerCase() === 'true') {
+    settings.requireSecret = true;
+  }
 };
 
 /**
  * Parses ConfigMap entries for simulation parameter overrides like CHAOS_MODE, PORT, MAX_CONNECTIONS, and LOG_LEVEL.
  */
 export const parseConfigMapSettings = (configMaps: K8sConfigMapItem[]) => {
-  const settings = { hasSimulatedFailure: false, failingCmName: '', cmPort: null as number | null, maxConnections: null as number | null, logLevel: 'INFO' };
+  const settings = { hasSimulatedFailure: false, failingCmName: '', cmPort: null as number | null, maxConnections: null as number | null, logLevel: 'INFO', requireSecret: false };
 
   for (const cm of configMaps) {
     if (!cm.configData) continue;
@@ -243,12 +246,124 @@ export const logLogLevelStream = (dep: Node, ctx: SimulationContext, logLevel: s
 /**
  * Evaluates attached ConfigMap settings during runtime simulation.
  */
-export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number } => {
+
+/**
+ * Parses Secret entries for simulation failures like SIMULATE_FAILURE or INVALID_CREDENTIALS.
+ */
+export const parseSecretSimulationSettings = (secrets: K8sSecretItem[]) => {
+  let hasAuthFailure = false;
+  let failingSecretName = '';
+
+  for (const sec of secrets) {
+    if (!sec.secretData || !Array.isArray(sec.secretData)) continue;
+    for (const kv of sec.secretData) {
+      const k = kv.key?.trim().toUpperCase();
+      const v = kv.value?.trim().toLowerCase();
+      if ((k === 'SIMULATE_FAILURE' || k === 'INVALID_CREDENTIALS' || k === 'FAIL_AUTH') && (v === 'true' || v === 'enabled')) {
+        hasAuthFailure = true;
+        failingSecretName = sec.name;
+        break;
+      }
+    }
+    if (hasAuthFailure) break;
+  }
+
+  return { hasAuthFailure, failingSecretName };
+};
+
+const applySecretPodFailure = (
+  pod: Node,
+  ctx: SimulationContext,
+  reason: string,
+  logMsg: string
+): boolean => {
+  let changed = false;
+  if (pod.data.status !== 'crashing') {
+    if (updateNodeData(ctx, pod.id, { status: 'crashing', simulatedFailureSecret: reason })) {
+      changed = true;
+    }
+  }
+  if (ctx.ticks % 3 === 0) {
+    try {
+      ctx.get()?.addLog?.('warning', logMsg, 'Simulation');
+    } catch (error) {
+      logger.error('[Secret Simulation] Failed to add log', error);
+    }
+  }
+  return changed;
+};
+
+const recoverSinglePodFromSecret = (pod: Node, ctx: SimulationContext): boolean => {
+  if (pod.data.status !== 'crashing' || !pod.data.simulatedFailureSecret) {
+    return false;
+  }
+  const podData = pod.data as K8sNodeData;
+  const nextStatus = isPodReadyConfigured(podData) ? 'ready' : 'pending';
+  if (!updateNodeData(ctx, pod.id, { status: nextStatus, simulatedFailureSecret: undefined })) {
+    return false;
+  }
+  try {
+    ctx.get()?.addLog?.('info', `[Secret Recovered] Credentials verified. Pod "${pod.data.label || pod.id}" restored to ${nextStatus}!`, 'Simulation');
+  } catch (error) {
+    logger.error('[Secret Simulation] Failed to add log', error);
+  }
+  return true;
+};
+
+/**
+ * Evaluates attached Secret settings and authentication dependencies during runtime simulation.
+ */
+export const checkSecretSimulationStatus = (
+  dep: Node,
+  ctx: SimulationContext,
+  isSecretRequired = false
+): { hasChanges: boolean; isBlocked: boolean } => {
+  const deploymentData = dep.data as K8sNodeData;
+  const secrets = deploymentData.secrets || [];
+  const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
+  const podLabel = (dep.data?.label as string) || dep.id;
+
+  const { hasAuthFailure, failingSecretName } = parseSecretSimulationSettings(secrets);
+
+  if (hasAuthFailure) {
+    let hasChanges = false;
+    const msg = `[Secret Auth Failure] Invalid credentials in Secret "${failingSecretName}". Pod "${podLabel}" failed authentication (CrashLoopBackOff)!`;
+    for (const pod of childPods) {
+      if (applySecretPodFailure(pod, ctx, failingSecretName, msg)) {
+        hasChanges = true;
+      }
+    }
+    return { hasChanges, isBlocked: true };
+  }
+
+  const mustHaveSecret = isSecretRequired || Boolean(deploymentData.requireSecret);
+  if (mustHaveSecret && secrets.length === 0) {
+    let hasChanges = false;
+    const msg = `[Secret Required] Workload "${podLabel}" requires an attached Secret for authentication. Pod set to CrashLoopBackOff!`;
+    for (const pod of childPods) {
+      if (applySecretPodFailure(pod, ctx, 'missing_secret', msg)) {
+        hasChanges = true;
+      }
+    }
+    return { hasChanges, isBlocked: true };
+  }
+
+  let hasChanges = false;
+  for (const pod of childPods) {
+    if (recoverSinglePodFromSecret(pod, ctx)) {
+      hasChanges = true;
+    }
+  }
+
+  return { hasChanges, isBlocked: false };
+};
+
+export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext): { hasChanges: boolean; isBlocked: boolean; effectiveTrafficLimit?: number; requireSecret?: boolean } => {
   const deploymentData = dep.data as K8sNodeData;
   const configMaps = deploymentData.configMaps || [];
   const childPods = dep.type === 'Pod' ? [dep] : (ctx.childPodMap?.get(dep.id) || []);
 
-  const { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel } = parseConfigMapSettings(configMaps);
+  const { hasSimulatedFailure, failingCmName, cmPort, maxConnections, logLevel, requireSecret } = parseConfigMapSettings(configMaps);
 
   const chaosResult = handleChaosModeSimulation(childPods, ctx, hasSimulatedFailure, failingCmName);
   if (chaosResult.isBlocked) {
@@ -266,6 +381,7 @@ export const checkConfigMapSimulationStatus = (dep: Node, ctx: SimulationContext
     hasChanges: chaosResult.hasChanges || portResult.hasChanges,
     isBlocked: false,
     effectiveTrafficLimit: maxConnections ?? undefined,
+    requireSecret,
   };
 };
 
@@ -295,8 +411,11 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   const cmResult = checkConfigMapSimulationStatus(dep, ctx);
   if (cmResult.isBlocked) return { hasChanges: cmResult.hasChanges };
 
+  const secretResult = checkSecretSimulationStatus(dep, ctx, cmResult.requireSecret);
+  if (secretResult.isBlocked) return { hasChanges: cmResult.hasChanges || secretResult.hasChanges };
+
   const pvcResult = checkPvcReadiness(dep, ctx);
-  if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges || cmResult.hasChanges };
+  if (pvcResult.isBlocked) return { hasChanges: pvcResult.hasChanges || cmResult.hasChanges || secretResult.hasChanges };
 
   const trafficResult = calculateIncomingTraffic(dep, ctx);
   const effectiveTraffic = handleTrafficThrottling(dep, trafficResult.traffic, cmResult.effectiveTrafficLimit, ctx);
@@ -306,5 +425,5 @@ export const processWorkloadSimulation = (dep: Node, ctx: SimulationContext): { 
   const oomChanged = handleOomCrashes(dep, metricsResult.isOOM, ctx);
   const hpaChanged = handleHpaScaling(dep, metricsResult.cpuPercent, ctx);
 
-  return { hasChanges: cmResult.hasChanges || pvcResult.hasChanges || oomChanged || hpaChanged };
+  return { hasChanges: cmResult.hasChanges || secretResult.hasChanges || pvcResult.hasChanges || oomChanged || hpaChanged };
 };

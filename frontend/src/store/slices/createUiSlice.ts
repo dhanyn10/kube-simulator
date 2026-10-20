@@ -34,16 +34,16 @@ export interface UiSlice {
   colorMode: 'dark' | 'light';
   minimapPosition: MiniMapPosition;
   setMinimapPosition: (position: MiniMapPosition) => void;
-  roleModalTargetNode: { id: string; label: string } | null;
-  setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
-  configMapModalTargetNode: { id: string; label: string } | null;
-  setConfigMapModalTargetNode: (target: { id: string; label: string } | null) => void;
-  secretModalTargetNode: { id: string; label: string } | null;
-  setSecretModalTargetNode: (target: { id: string; label: string } | null) => void;
-  hpaModalTargetNode: { id: string; label: string } | null;
-  setHpaModalTargetNode: (target: { id: string; label: string } | null) => void;
-  resourceLimitModalTargetNode: { id: string; label: string } | null;
-  setResourceLimitModalTargetNode: (target: { id: string; label: string } | null) => void;
+  roleModalTargetNode: { id: string; label: string; initialItem?: any } | null;
+  setRoleModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  configMapModalTargetNode: { id: string; label: string; initialItem?: any } | null;
+  setConfigMapModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  secretModalTargetNode: { id: string; label: string; initialItem?: any } | null;
+  setSecretModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  hpaModalTargetNode: { id: string; label: string; initialItem?: any } | null;
+  setHpaModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  resourceLimitModalTargetNode: { id: string; label: string; initialItem?: any } | null;
+  setResourceLimitModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
 
   // Active K8s Identity state & actions
   activeIdentity: string;

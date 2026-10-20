@@ -5,7 +5,7 @@ import { useReplicaSetNodeHandler } from '@/activities/nodes';
 import { AttachedResourcesFooter } from './AttachedResourcesFooter';
 import { ForbiddenOverlay } from './ForbiddenOverlay';
 
-export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeData>>) => {
+export const ReplicaSetNode = memo(({ selected, data, id }: NodeProps<Node<K8sNodeData>>) => {
   const { containerClass, badgeClass } = useReplicaSetNodeHandler(selected);
 
   return (
@@ -32,7 +32,7 @@ export const ReplicaSetNode = memo(({ selected, data }: NodeProps<Node<K8sNodeDa
 
       <div className="flex-1" />
 
-      <AttachedResourcesFooter data={data} />
+      <AttachedResourcesFooter data={data} nodeId={id} />
     </div>
   );
 });

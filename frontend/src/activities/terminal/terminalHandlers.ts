@@ -2,7 +2,7 @@ import { Node } from '@xyflow/react';
 import { safeRandom } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { CommandContext } from './terminalCommands';
-import { CommandHistoryEntry, findNodeByTargetName, getPodDisplayStatus } from './terminalLogUtils';
+import { CommandHistoryEntry, findNodeByTargetName, getPodDisplayStatus, printNodeEnvironment } from './terminalLogUtils';
 
 /**
  * Handles the 'kubectl get pods' command by printing all workload pods present on the canvas.
@@ -233,6 +233,7 @@ export const handleHelpCommand = (cmdLower: string, addActivityLogOrCtx: ((line:
   addActivityLog('  kubectl logs <pod-name>               Stream live container stdout logs');
   addActivityLog('  kubectl describe deploy <name>        Describe deployment specifications');
   addActivityLog('  kubectl describe pod <name>           Describe pod specifications & events');
+  addActivityLog('  kubectl exec <pod-name> -- env        Print container environment variables');
   addActivityLog('  history                               View command execution history with timestamps');
   addActivityLog('  clear                                 Clear the console log list');
 
@@ -267,6 +268,7 @@ const printNodeDescription = (
   addActivityLog(`    Limits:`);
   addActivityLog(`      cpu:      ${cpu}`);
   addActivityLog(`      memory:   ${memory}`);
+  printNodeEnvironment(foundNode.data, addActivityLog);
   addActivityLog(`Events:`);
   addActivityLog(`  Type    Reason     Age   From               Message`);
   addActivityLog(`  ----    ------     ----  ----               -------`);

@@ -22,7 +22,9 @@ import {
   logLogLevelStream,
   handleChaosModeSimulation,
   checkPortMismatch,
-  isInternetConnectionRed
+  isInternetConnectionRed,
+  parseSecretSimulationSettings,
+  checkSecretSimulationStatus
 } from '@/lib/simulation';
 import { safeRandom } from '@/lib/utils';
 import { Node, Edge } from '@xyflow/react';
@@ -1105,6 +1107,137 @@ describe('simulation test suite', () => {
         edgeMap: undefined as any
       });
       expect(isInternetConnectionRed(internet, ctxNoEdgeMap)).toBe(true);
+    });
+  });
+
+  describe('Secret simulation tests', () => {
+    it('parseSecretSimulationSettings detects auth failures and returns clean status', () => {
+      expect(parseSecretSimulationSettings([])).toEqual({ hasAuthFailure: false, failingSecretName: '' });
+      expect(parseSecretSimulationSettings([{ id: 's1', name: 'sec1', secretData: [] }])).toEqual({ hasAuthFailure: false, failingSecretName: '' });
+
+      const failureSecret = [
+        {
+          id: 's1',
+          name: 'bad-secret',
+          secretData: [{ key: 'SIMULATE_FAILURE', value: 'true' }]
+        }
+      ];
+      expect(parseSecretSimulationSettings(failureSecret)).toEqual({ hasAuthFailure: true, failingSecretName: 'bad-secret' });
+
+      const invalidCreds = [
+        {
+          id: 's2',
+          name: 'invalid-cred-secret',
+          secretData: [{ key: 'INVALID_CREDENTIALS', value: 'true' }]
+        }
+      ];
+      expect(parseSecretSimulationSettings(invalidCreds)).toEqual({ hasAuthFailure: true, failingSecretName: 'invalid-cred-secret' });
+
+      const failAuthSecret = [
+        {
+          id: 's3',
+          name: 'auth-fail-sec',
+          secretData: [{ key: 'FAIL_AUTH', value: 'enabled' }]
+        }
+      ];
+      expect(parseSecretSimulationSettings(failAuthSecret)).toEqual({ hasAuthFailure: true, failingSecretName: 'auth-fail-sec' });
+    });
+
+    it('checkSecretSimulationStatus crashes child pods when secret has auth failure', () => {
+      const dep = createNode('dep-sec', 'Deployment', {
+        label: 'auth-workload',
+        secrets: [
+          {
+            id: 's1',
+            name: 'broken-sec',
+            secretData: [{ key: 'SIMULATE_FAILURE', value: 'true' }]
+          }
+        ]
+      });
+      const pod = createNode('pod-sec-1', 'Pod', { parentId: 'dep-sec', status: 'ready', image: 'nginx:latest' });
+      const addLog = vi.fn();
+      const ctx = getMockCtx({
+        nodes: [dep, pod],
+        childPodMap: new Map([['dep-sec', [pod]]]),
+        get: vi.fn().mockReturnValue({ addLog }),
+        ticks: 3
+      });
+      ctx.updatedNodes = [dep, pod];
+      ctx.nodeIndexMap = new Map([['dep-sec', 0], ['pod-sec-1', 1]]);
+
+      const res = checkSecretSimulationStatus(dep, ctx);
+      expect(res.isBlocked).toBe(true);
+      expect(res.hasChanges).toBe(true);
+      expect(ctx.updatedNodes[1].data.status).toBe('crashing');
+      expect(ctx.updatedNodes[1].data.simulatedFailureSecret).toBe('broken-sec');
+      expect(addLog).toHaveBeenCalledWith('warning', expect.stringContaining('Invalid credentials in Secret "broken-sec"'), 'Simulation');
+    });
+
+    it('checkSecretSimulationStatus crashes pods when secret is required but missing, and recovers when attached', () => {
+      const dep = createNode('dep-req', 'Deployment', {
+        label: 'req-workload',
+        requireSecret: true,
+        secrets: []
+      });
+      const pod = createNode('pod-req-1', 'Pod', { parentId: 'dep-req', status: 'ready', image: 'nginx:latest' });
+      const addLog = vi.fn();
+      const ctx = getMockCtx({
+        nodes: [dep, pod],
+        childPodMap: new Map([['dep-req', [pod]]]),
+        get: vi.fn().mockReturnValue({ addLog }),
+        ticks: 3
+      });
+      ctx.updatedNodes = [dep, pod];
+      ctx.nodeIndexMap = new Map([['dep-req', 0], ['pod-req-1', 1]]);
+
+      // 1. Missing secret
+      const resMissing = checkSecretSimulationStatus(dep, ctx, true);
+      expect(resMissing.isBlocked).toBe(true);
+      expect(ctx.updatedNodes[1].data.status).toBe('crashing');
+      expect(ctx.updatedNodes[1].data.simulatedFailureSecret).toBe('missing_secret');
+
+      // 2. Attach valid secret and verify recovery
+      dep.data.secrets = [{ id: 's-ok', name: 'valid-secret', secretData: [{ key: 'DB_PASS', value: 'secret' }] }];
+      ctx.childPodMap = new Map([['dep-req', [ctx.updatedNodes[1]]]]);
+      const resRecover = checkSecretSimulationStatus(dep, ctx, false);
+      expect(resRecover.isBlocked).toBe(false);
+      expect(resRecover.hasChanges).toBe(true);
+      expect(ctx.updatedNodes[1].data.status).toBe('ready');
+      expect(ctx.updatedNodes[1].data.simulatedFailureSecret).toBeUndefined();
+    });
+
+    it('processWorkloadSimulation blocks and unblocks via ConfigMap REQUIRE_SECRET', () => {
+      const dep = createNode('dep-cm-sec', 'Deployment', {
+        label: 'cm-sec-workload',
+        status: 'ready',
+        configMaps: [
+          {
+            id: 'cm-req',
+            name: 'cm-auth',
+            configData: [{ key: 'REQUIRE_SECRET', value: 'true' }]
+          }
+        ],
+        secrets: []
+      });
+      const pod = createNode('pod-cm-sec', 'Pod', { parentId: 'dep-cm-sec', status: 'ready', image: 'nginx:latest' });
+      const ctx = getMockCtx({
+        nodes: [dep, pod],
+        childPodMap: new Map([['dep-cm-sec', [pod]]]),
+        ticks: 1
+      });
+      ctx.updatedNodes = [dep, pod];
+      ctx.nodeIndexMap = new Map([['dep-cm-sec', 0], ['pod-cm-sec', 1]]);
+
+      // Blocked because REQUIRE_SECRET is true and secrets is empty
+      const blockedRes = processWorkloadSimulation(dep, ctx);
+      expect(blockedRes.hasChanges).toBe(true);
+      expect(ctx.updatedNodes[1].data.status).toBe('crashing');
+
+      // Add secret and run again
+      dep.data.secrets = [{ id: 'sec-ok', name: 'app-secret', secretData: [{ key: 'TOKEN', value: 'xyz' }] }];
+      ctx.childPodMap = new Map([['dep-cm-sec', [ctx.updatedNodes[1]]]]);
+      const okRes = processWorkloadSimulation(dep, ctx);
+      expect(ctx.updatedNodes[1].data.status).toBe('ready');
     });
   });
 });

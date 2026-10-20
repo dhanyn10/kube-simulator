@@ -333,6 +333,7 @@ export default function App() {
             onClose={() => setRoleModalTargetNode(null)}
             targetNodeId={roleModalTargetNode?.id || null}
             targetNodeLabel={roleModalTargetNode?.label}
+            initialRole={roleModalTargetNode?.initialItem}
             onSave={handleRoleSave}
           />
 
@@ -341,6 +342,7 @@ export default function App() {
             onClose={() => setConfigMapModalTargetNode(null)}
             targetNodeId={configMapModalTargetNode?.id || null}
             targetNodeLabel={configMapModalTargetNode?.label}
+            initialConfigMap={configMapModalTargetNode?.initialItem}
             onSave={handleConfigMapSave}
           />
 
@@ -349,6 +351,7 @@ export default function App() {
             onClose={() => setSecretModalTargetNode(null)}
             targetNodeId={secretModalTargetNode?.id || null}
             targetNodeLabel={secretModalTargetNode?.label}
+            initialSecret={secretModalTargetNode?.initialItem}
             onSave={handleSecretSave}
           />
 
@@ -357,6 +360,7 @@ export default function App() {
             onClose={() => setHpaModalTargetNode(null)}
             targetNodeId={hpaModalTargetNode?.id || null}
             targetNodeLabel={hpaModalTargetNode?.label}
+            initialHpa={hpaModalTargetNode?.initialItem}
             onSave={handleHpaSave}
           />
 
@@ -365,6 +369,7 @@ export default function App() {
             onClose={() => setResourceLimitModalTargetNode(null)}
             targetNodeId={resourceLimitModalTargetNode?.id || null}
             targetNodeLabel={resourceLimitModalTargetNode?.label}
+            initialResourceLimit={resourceLimitModalTargetNode?.initialItem}
             onSave={handleResourceLimitSave}
           />
 
