@@ -2,6 +2,7 @@ import { Node } from '@xyflow/react';
 import { K8sNodeData } from '@/types';
 import { parseCPU, parseMemory, safeRandom } from './utils';
 import { syncDeployment } from '@/store/nodeHelpers';
+import { evaluateImageResourceConsumption } from '@/activities/ui/imageCharacteristicsHelpers';
 import { SimulationContext, updateNodeData } from './simulationTypes';
 import { isInternetConnectionRed } from './simulationReachability';
 
@@ -175,9 +176,12 @@ export const calculateResourceMetrics = (dep: Node, incomingTraffic: number, ctx
   const cpuLimitMilli = parseCPU(deploymentData.cpuLimit);
   const memLimitMiB = parseMemory(deploymentData.memoryLimit);
 
-  const noise = () => (safeRandom() * 20 - 10);
-  const cpuValue = Math.max(10, Math.min(((incomingTraffic / 1000) * 200 / replicas) + 50 + noise(), cpuLimitMilli));
-  const memValue = Math.max(20, Math.min(((incomingTraffic / 1000) * 128 / replicas) + 100 + noise(), memLimitMiB));
+  const imageName = (deploymentData.image as string) || 'nginx:latest';
+  const noiseVal = safeRandom() * 20 - 10;
+  const computed = evaluateImageResourceConsumption(imageName, incomingTraffic, replicas, noiseVal);
+
+  const cpuValue = Math.max(10, Math.min(computed.cpuValue, cpuLimitMilli));
+  const memValue = Math.max(10, Math.min(computed.memValue, memLimitMiB));
 
   const isThrottled = cpuValue >= cpuLimitMilli;
   const isOOM = memValue >= memLimitMiB;

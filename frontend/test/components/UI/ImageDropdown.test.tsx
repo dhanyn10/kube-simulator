@@ -105,12 +105,12 @@ describe('ImageDropdown', () => {
     fireEvent.click(button);
 
     // Click toggle characteristics button
-    const toggleBtns = screen.getAllByTitle('Toggle hero stats');
+    const toggleBtns = screen.getAllByTitle('Toggle simulator variables');
     expect(toggleBtns.length).toBeGreaterThan(0);
 
     fireEvent.click(toggleBtns[0]);
 
-    // Check expanded hero metrics
+    // Check expanded simulator metrics
     expect(screen.getAllByText(/TRF:/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/RAM:/i).length).toBeGreaterThan(0);
   });

@@ -23,6 +23,7 @@ interface ImageAccordionItemProps {
 const ImageAccordionItem = ({ opt, value, colorMode, handleSelectOption }: ImageAccordionItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isSelected = value === opt.name;
+  const chars = opt.characteristics;
 
   return (
     <div className={cn(
@@ -66,7 +67,7 @@ const ImageAccordionItem = ({ opt, value, colorMode, handleSelectOption }: Image
             e.stopPropagation();
             setIsExpanded(!isExpanded);
           }}
-          title="Toggle hero stats"
+          title="Toggle simulator variables"
           className={cn(
             "p-1 rounded text-slate-400 hover:text-slate-200 transition-colors shrink-0",
             colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-200"
@@ -84,25 +85,25 @@ const ImageAccordionItem = ({ opt, value, colorMode, handleSelectOption }: Image
           <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
             <Gauge size={10} className="text-emerald-400 shrink-0" />
             <span className="text-slate-500 mr-0.5">TRF:</span>
-            <span className="font-semibold text-emerald-400 truncate">{opt.characteristics.maxTraffic}</span>
+            <span className="font-semibold text-emerald-400 truncate">{chars.maxTrafficRpm.toLocaleString()} rpm</span>
           </div>
 
           <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
             <HardDrive size={10} className="text-blue-400 shrink-0" />
             <span className="text-slate-500 mr-0.5">RAM:</span>
-            <span className="font-semibold truncate">{opt.characteristics.ramWeight}</span>
+            <span className="font-semibold truncate">{chars.baseMemoryMiB} MiB</span>
           </div>
 
           <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
             <Zap size={10} className="text-amber-400 shrink-0" />
-            <span className="text-slate-500 mr-0.5">STU:</span>
-            <span className="font-semibold truncate">{opt.characteristics.startup}</span>
+            <span className="text-slate-500 mr-0.5">START:</span>
+            <span className="font-semibold truncate">{chars.startupDelayTicks} ticks</span>
           </div>
 
           <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
             <Cpu size={10} className="text-purple-400 shrink-0" />
             <span className="text-slate-500 mr-0.5">CPU:</span>
-            <span className="font-semibold truncate">{opt.characteristics.cpuClass}</span>
+            <span className="font-semibold truncate">{chars.cpuPer1kTrafficMilli}m/1k</span>
           </div>
         </div>
       )}

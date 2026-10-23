@@ -3,6 +3,7 @@ import { K8sNodeData } from '@/types';
 import { safeRandom } from './utils';
 import { logger } from './logger';
 import { SimulationContext, updateNodeData } from './simulationTypes';
+import { getImageCharacteristics } from '@/activities/ui/imageCharacteristicsHelpers';
 
 /**
  * Schedules automated recovery for crashing pods after a delay based on restartPolicy.
@@ -26,7 +27,10 @@ export const scheduleRecovery = (_dep: Node, podId: string, ctx: SimulationConte
   }
 
   const speed = currentState?.simulationSpeed || 1;
-  const delayMs = Math.round(3000 / Math.max(1, speed));
+  const imageName = podData?.image || 'nginx:latest';
+  const chars = getImageCharacteristics(imageName);
+  // Scale recovery delay using numerical startupDelayTicks factor
+  const delayMs = Math.round((1000 * chars.startupDelayTicks) / Math.max(1, speed));
   const policy = podData?.restartPolicy || 'Always';
 
   try {
