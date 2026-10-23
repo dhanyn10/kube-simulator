@@ -1,5 +1,5 @@
-import React from 'react';
-import { Search, Globe, Box, ChevronDown, Plus, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Globe, Box, ChevronDown, ChevronRight, Plus, Check, Zap, Cpu, HardDrive, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getOptionClasses,
@@ -12,6 +12,103 @@ interface ImageDropdownProps {
   onChange: (value: string) => void;
   colorMode: 'dark' | 'light';
 }
+
+interface ImageAccordionItemProps {
+  opt: ImageOption;
+  value: string;
+  colorMode: 'dark' | 'light';
+  handleSelectOption: (imgName: string) => void;
+}
+
+const ImageAccordionItem = ({ opt, value, colorMode, handleSelectOption }: ImageAccordionItemProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isSelected = value === opt.name;
+
+  return (
+    <div className={cn(
+      "rounded-lg border transition-all duration-150 overflow-hidden",
+      colorMode === 'dark'
+        ? (isSelected ? "border-blue-500/50 bg-slate-900/80" : "border-slate-800/80 bg-slate-900/30 hover:border-slate-700")
+        : (isSelected ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-slate-50/50 hover:border-slate-300")
+    )}>
+      <div className="flex items-center justify-between p-1.5 gap-1.5">
+        <button
+          type="button"
+          onClick={() => handleSelectOption(opt.name)}
+          className={cn(
+            "flex-1 flex items-center justify-between text-left text-[11px] font-mono truncate transition-colors py-0.5 px-1 rounded",
+            getOptionClasses(opt.name, value, colorMode)
+          )}
+        >
+          <span className="flex items-center gap-1.5 truncate">
+            {opt.source === 'local' ? (
+              <Box size={11} className="text-emerald-500 shrink-0" />
+            ) : (
+              <Globe size={11} className="text-blue-500 shrink-0" />
+            )}
+            <span className="truncate">{opt.name}</span>
+          </span>
+          {isSelected ? (
+            <Check size={12} className="text-blue-500 shrink-0" />
+          ) : (
+            <span className={cn(
+              "text-[7px] px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 font-sans",
+              opt.source === 'local' ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
+            )}>
+              {opt.source === 'local' ? 'LOCAL' : 'PUBLIC'}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+          title="Toggle hero stats"
+          className={cn(
+            "p-1 rounded text-slate-400 hover:text-slate-200 transition-colors shrink-0",
+            colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-200"
+          )}
+        >
+          <ChevronRight size={12} className={cn("transition-transform duration-200", isExpanded && "rotate-90")} />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className={cn(
+          "px-2.5 pb-2 pt-1 border-t grid grid-cols-2 gap-1.5 font-mono text-[9px]",
+          colorMode === 'dark' ? "border-slate-800/80 bg-slate-950/60 text-slate-300" : "border-slate-200/80 bg-white/80 text-slate-700"
+        )}>
+          <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
+            <Gauge size={10} className="text-emerald-400 shrink-0" />
+            <span className="text-slate-500 mr-0.5">TRF:</span>
+            <span className="font-semibold text-emerald-400 truncate">{opt.characteristics.maxTraffic}</span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
+            <HardDrive size={10} className="text-blue-400 shrink-0" />
+            <span className="text-slate-500 mr-0.5">RAM:</span>
+            <span className="font-semibold truncate">{opt.characteristics.ramWeight}</span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
+            <Zap size={10} className="text-amber-400 shrink-0" />
+            <span className="text-slate-500 mr-0.5">STU:</span>
+            <span className="font-semibold truncate">{opt.characteristics.startup}</span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-800/30 dark:bg-slate-900/50 p-1 rounded">
+            <Cpu size={10} className="text-purple-400 shrink-0" />
+            <span className="text-slate-500 mr-0.5">CPU:</span>
+            <span className="font-semibold truncate">{opt.characteristics.cpuClass}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface OptionsListProps {
   search: string;
@@ -33,7 +130,7 @@ const OptionsList = ({
   const hasMatches = filteredOptions.dockerHub.length > 0 || filteredOptions.local.length > 0;
 
   return (
-    <div className="max-h-[190px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+    <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
       {search.trim().length > 0 && (
         <button
           type="button"
@@ -54,25 +151,15 @@ const OptionsList = ({
       {filteredOptions.local.length > 0 && (
         <div>
           <p className="text-[9px] font-bold text-slate-500 px-2 py-1 uppercase tracking-wider">Local & Custom Cache</p>
-          <div className="space-y-0.5 mt-0.5">
+          <div className="space-y-1 mt-0.5">
             {filteredOptions.local.map((opt) => (
-              <button
+              <ImageAccordionItem
                 key={opt.name}
-                type="button"
-                onClick={() => handleSelectOption(opt.name)}
-                className={cn(
-                  "w-full flex items-center justify-between p-2 rounded-lg text-left text-[11px] font-mono transition-colors",
-                  getOptionClasses(opt.name, value, colorMode)
-                )}
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Box size={11} className="text-emerald-500 shrink-0" />
-                  <span className="truncate">{opt.name}</span>
-                </span>
-                {value === opt.name ? <Check size={12} className="text-blue-500 shrink-0" /> : (
-                  <span className="text-[7px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 font-sans">LOCAL</span>
-                )}
-              </button>
+                opt={opt}
+                value={value}
+                colorMode={colorMode}
+                handleSelectOption={handleSelectOption}
+              />
             ))}
           </div>
         </div>
@@ -81,25 +168,15 @@ const OptionsList = ({
       {filteredOptions.dockerHub.length > 0 && (
         <div>
           <p className="text-[9px] font-bold text-slate-500 px-2 py-1 uppercase tracking-wider">Docker Hub Registry</p>
-          <div className="space-y-0.5 mt-0.5">
+          <div className="space-y-1 mt-0.5">
             {filteredOptions.dockerHub.map((opt) => (
-              <button
+              <ImageAccordionItem
                 key={opt.name}
-                type="button"
-                onClick={() => handleSelectOption(opt.name)}
-                className={cn(
-                  "w-full flex items-center justify-between p-2 rounded-lg text-left text-[11px] font-mono transition-colors",
-                  getOptionClasses(opt.name, value, colorMode)
-                )}
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Globe size={11} className="text-blue-500 shrink-0" />
-                  <span className="truncate">{opt.name}</span>
-                </span>
-                {value === opt.name ? <Check size={12} className="text-blue-500 shrink-0" /> : (
-                  <span className="text-[7px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 font-sans">PUBLIC</span>
-                )}
-              </button>
+                opt={opt}
+                value={value}
+                colorMode={colorMode}
+                handleSelectOption={handleSelectOption}
+              />
             ))}
           </div>
         </div>

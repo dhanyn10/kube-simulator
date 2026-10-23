@@ -97,6 +97,24 @@ describe('ImageDropdown', () => {
     expect(onChange).toHaveBeenCalledWith('redis:alpine');
   });
 
+  it('allows expanding characteristics accordion for image items', async () => {
+    const onChange = vi.fn();
+    render(<TargetImageDropdown value="openjdk:17-jdk-slim" onChange={onChange} colorMode="dark" />);
+
+    const button = screen.getByRole('button');
+    fireEvent.click(button);
+
+    // Click toggle characteristics button
+    const toggleBtns = screen.getAllByTitle('Toggle hero stats');
+    expect(toggleBtns.length).toBeGreaterThan(0);
+
+    fireEvent.click(toggleBtns[0]);
+
+    // Check expanded hero metrics
+    expect(screen.getAllByText(/TRF:/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/RAM:/i).length).toBeGreaterThan(0);
+  });
+
   it('closes dropdown when clicking outside and stays open when clicking inside', async () => {
     const onChange = vi.fn();
     render(
