@@ -7,6 +7,7 @@ export * from './useSidebarContextMenu';
 export * from './mainLogger';
 export * from './useGlobalContextMenu';
 export * from './profileChartHelpers';
+export * from './imageCharacteristicsHelpers';
 export * from './imageDropdownHelpers';
 export * from './useImageDropdown';
 export * from './autocompleteDropdownHelpers';

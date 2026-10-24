@@ -92,9 +92,27 @@ describe('ImageDropdown', () => {
 
     // Reopen dropdown and click a Docker Hub registry option
     fireEvent.click(button);
-    const redisOpt = screen.getByText('redis:alpine');
+    const redisOpt = screen.getByText('redis:7-alpine');
     fireEvent.click(redisOpt);
-    expect(onChange).toHaveBeenCalledWith('redis:alpine');
+    expect(onChange).toHaveBeenCalledWith('redis:7-alpine');
+  });
+
+  it('allows expanding characteristics accordion for image items', async () => {
+    const onChange = vi.fn();
+    render(<TargetImageDropdown value="openjdk:21-jdk-slim" onChange={onChange} colorMode="dark" />);
+
+    const button = screen.getByRole('button');
+    fireEvent.click(button);
+
+    // Click toggle characteristics button
+    const toggleBtns = screen.getAllByTitle('Toggle simulator variables');
+    expect(toggleBtns.length).toBeGreaterThan(0);
+
+    fireEvent.click(toggleBtns[0]);
+
+    // Check expanded simulator metrics
+    expect(screen.getAllByText(/TRF:/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/RAM:/i).length).toBeGreaterThan(0);
   });
 
   it('closes dropdown when clicking outside and stays open when clicking inside', async () => {

@@ -1,8 +1,10 @@
 import { DEFAULT_REGISTRY_IMAGES } from '@/constants/config';
+import { getImageCharacteristics, ImageCharacteristics } from './imageCharacteristicsHelpers';
 
 export interface ImageOption {
   name: string;
   source: 'docker' | 'local';
+  characteristics: ImageCharacteristics;
 }
 
 /**
@@ -30,11 +32,19 @@ export const filterImageOptions = (
   const query = search.toLowerCase();
   const dockerHub = DEFAULT_REGISTRY_IMAGES.filter((img) =>
     img.name.toLowerCase().includes(query)
-  ).map((img) => ({ name: img.name, source: 'docker' as const }));
+  ).map((img) => ({
+    name: img.name,
+    source: 'docker' as const,
+    characteristics: img.characteristics || getImageCharacteristics(img.name),
+  }));
 
   const local = customImages
     .filter((img) => img.toLowerCase().includes(query))
-    .map((img) => ({ name: img, source: 'local' as const }));
+    .map((img) => ({
+      name: img,
+      source: 'local' as const,
+      characteristics: getImageCharacteristics(img),
+    }));
 
   return { dockerHub, local };
 };

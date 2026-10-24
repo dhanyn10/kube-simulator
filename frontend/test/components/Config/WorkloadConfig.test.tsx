@@ -250,10 +250,10 @@ describe('WorkloadConfig', () => {
     const dropdownTrigger = screen.getByText('nginx:latest');
     fireEvent.click(dropdownTrigger);
 
-    const redisOption = screen.getByText('redis:alpine');
+    const redisOption = screen.getByText('redis:7-alpine');
     fireEvent.click(redisOption);
 
-    expect(performUpdate).toHaveBeenCalledWith({ image: 'redis:alpine', status: 'ready' });
+    expect(performUpdate).toHaveBeenCalledWith({ image: 'redis:7-alpine', status: 'ready' });
   });
 
   it('renders Restart Policy selector for Pod and handles policy updates', () => {
