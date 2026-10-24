@@ -92,14 +92,14 @@ describe('ImageDropdown', () => {
 
     // Reopen dropdown and click a Docker Hub registry option
     fireEvent.click(button);
-    const redisOpt = screen.getByText('redis:alpine');
+    const redisOpt = screen.getByText('redis:7-alpine');
     fireEvent.click(redisOpt);
-    expect(onChange).toHaveBeenCalledWith('redis:alpine');
+    expect(onChange).toHaveBeenCalledWith('redis:7-alpine');
   });
 
   it('allows expanding characteristics accordion for image items', async () => {
     const onChange = vi.fn();
-    render(<TargetImageDropdown value="openjdk:17-jdk-slim" onChange={onChange} colorMode="dark" />);
+    render(<TargetImageDropdown value="openjdk:21-jdk-slim" onChange={onChange} colorMode="dark" />);
 
     const button = screen.getByRole('button');
     fireEvent.click(button);

@@ -32,12 +32,12 @@ export interface RegistryImageItem {
 
 export const DEFAULT_REGISTRY_IMAGES: readonly RegistryImageItem[] = [
   { name: 'nginx:latest', desc: 'Official high-performance HTTP server & reverse proxy', characteristics: getImageCharacteristics('nginx:latest') },
-  { name: 'redis:alpine', desc: 'In-memory data structure store, alpine edition', characteristics: getImageCharacteristics('redis:alpine') },
-  { name: 'postgres:15-alpine', desc: 'Powerful, open-source object-relational database', characteristics: getImageCharacteristics('postgres:15-alpine') },
-  { name: 'node:18-alpine', desc: 'JavaScript runtime built on Chrome\'s V8 engine', characteristics: getImageCharacteristics('node:18-alpine') },
-  { name: 'python:3.11-slim', desc: 'Python programming language runtime environment', characteristics: getImageCharacteristics('python:3.11-slim') },
-  { name: 'mysql:8.0', desc: 'Widely used open-source relational database management system', characteristics: getImageCharacteristics('mysql:8.0') },
-  { name: 'golang:1.21-alpine', desc: 'Go programming language compiler and runtime', characteristics: getImageCharacteristics('golang:1.21-alpine') },
-  { name: 'openjdk:17-jdk-slim', desc: 'Java Development Kit runtime environment', characteristics: getImageCharacteristics('openjdk:17-jdk-slim') },
+  { name: 'redis:7-alpine', desc: 'In-memory data structure store (v7 LTS), alpine edition', characteristics: getImageCharacteristics('redis:7-alpine') },
+  { name: 'postgres:16-alpine', desc: 'Powerful, open-source object-relational database (v16 LTS)', characteristics: getImageCharacteristics('postgres:16-alpine') },
+  { name: 'node:22-alpine', desc: 'JavaScript runtime built on Chrome\'s V8 engine (v22 LTS)', characteristics: getImageCharacteristics('node:22-alpine') },
+  { name: 'python:3.12-slim', desc: 'Python programming language runtime environment (v3.12)', characteristics: getImageCharacteristics('python:3.12-slim') },
+  { name: 'mysql:8.4', desc: 'Widely used open-source relational database management system (v8.4 LTS)', characteristics: getImageCharacteristics('mysql:8.4') },
+  { name: 'golang:1.24-alpine', desc: 'Go programming language compiler and runtime (v1.24)', characteristics: getImageCharacteristics('golang:1.24-alpine') },
+  { name: 'openjdk:21-jdk-slim', desc: 'Java Development Kit runtime environment (JDK 21 LTS)', characteristics: getImageCharacteristics('openjdk:21-jdk-slim') },
   { name: 'nginx:alpine', desc: 'Nginx web server on lightweight Alpine Linux', characteristics: getImageCharacteristics('nginx:alpine') }
 ] as const;
