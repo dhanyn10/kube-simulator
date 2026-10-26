@@ -1,32 +1,11 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface MenuItem {
-  label: string;
-  icon?: any;
-  onClick: () => void;
-  shortcut?: string;
-  type?: 'separator';
-  checked?: boolean;
-}
-
-interface MenuBarDropdownProps {
-  readonly menu: {
-    readonly label: string;
-    readonly items: readonly MenuItem[];
-  };
-  readonly activeMenu: string | null;
-  readonly setActiveMenu: (label: string | null) => void;
-  readonly colorMode: 'dark' | 'light';
-  readonly onMenuClick?: (label: string) => void;
-}
-
-interface MenuItemButtonProps {
-  readonly item: MenuItem;
-  readonly isDark: boolean;
-  readonly hasIconsOrChecks: boolean;
-  readonly onItemClick: (item: MenuItem) => void;
-}
+import {
+  MenuItem,
+  MenuBarDropdownProps,
+  MenuItemButtonProps,
+  useMenuBarDropdown,
+} from '@/activities/menubar';
 
 const renderItemIconSlot = (item: MenuItem) => {
   if (typeof item.checked === 'boolean') {
@@ -71,50 +50,24 @@ const MenuItemButton = ({ item, isDark, hasIconsOrChecks, onItemClick }: MenuIte
   );
 };
 
-export const MenuBarDropdown = ({
-  menu,
-  activeMenu,
-  setActiveMenu,
-  colorMode,
-  onMenuClick,
-}: MenuBarDropdownProps) => {
-  const isOpen = activeMenu === menu.label;
-  const isDark = colorMode === 'dark';
-
-  const activeClasses = isDark ? "bg-slate-800 text-white" : "bg-slate-200 text-slate-900";
-  const inactiveClasses = isDark ? "hover:bg-slate-800" : "hover:bg-slate-200";
-
-  const buttonClasses = cn(
-    "menubar-dropdown-btn",
-    isOpen ? activeClasses : inactiveClasses
-  );
-
-  const handleHeaderClick = () => {
-    if (onMenuClick) {
-      onMenuClick(menu.label);
-    }
-    if (menu.label === 'File') {
-      setActiveMenu(null);
-    } else {
-      setActiveMenu(isOpen ? null : menu.label);
-    }
-  };
-
-  const handleItemClick = (item: MenuItem) => {
-    item.onClick();
-    if (typeof item.checked !== 'boolean') {
-      setActiveMenu(null);
-    }
-  };
-
-  const hasIconsOrChecks = menu.items.some((i) => i.icon || typeof i.checked === 'boolean');
+export const MenuBarDropdown = (props: MenuBarDropdownProps) => {
+  const { menu, colorMode } = props;
+  const {
+    isOpen,
+    isDark,
+    buttonClasses,
+    hasIconsOrChecks,
+    handleHeaderClick,
+    handleMouseEnter,
+    handleItemClick,
+  } = useMenuBarDropdown(props);
 
   return (
     <div className="relative" style={{ '--wails-draggable': 'no-drag' }}>
       <button
         type="button"
         onClick={handleHeaderClick}
-        onMouseEnter={() => activeMenu && menu.label !== 'File' && setActiveMenu(menu.label)}
+        onMouseEnter={handleMouseEnter}
         className={buttonClasses}
       >
         {menu.label}
