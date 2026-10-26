@@ -99,6 +99,23 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
       }
     }
 
+    const trimmedName = newProjectName.trim();
+    const currentSessionKey = getCurrentSessionAutosaveKey();
+    const isCustomProjectName = Boolean(trimmedName && trimmedName !== currentSessionKey);
+
+    if (isCustomProjectName && app?.SaveProject) {
+      const id = await app.SaveProject(trimmedName, content);
+      if (id !== undefined) {
+        useFlowStore.setState({
+          currentProject: { id, name: trimmedName },
+          lastSavedSnapshot: content,
+        });
+        await loadRecentFiles();
+        onClose();
+        return;
+      }
+    }
+
     if (isAutosaveOn && app?.SaveSetting) {
       const sessionKey = getCurrentSessionAutosaveKey();
       await app.SaveSetting(sessionKey, content);
@@ -109,7 +126,8 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
       return;
     }
 
-    const saveName = newProjectName.trim() || getCurrentSessionAutosaveKey();
+
+    const saveName = trimmedName || currentSessionKey;
     if (app?.SaveProject) {
       const id = await app.SaveProject(saveName, content);
       if (id !== undefined) {

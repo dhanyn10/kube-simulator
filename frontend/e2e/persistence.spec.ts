@@ -11,32 +11,32 @@ test.describe('Persistence & Projects', () => {
     await page.getByRole('button', { name: 'Pod Atomic unit of K8s' }).click();
     await expect(page.locator('.react-flow__node-Pod')).toBeVisible();
 
-    // 2. Save project
-    await page.getByRole('button', { name: 'Resource', exact: true }).click();
-    await page.getByText('Resource Manager').click();
+    // 2. Save project via File Backstage View
+    await page.getByRole('button', { name: 'File', exact: true }).click();
+    await expect(page.getByTestId('file-backstage-view')).toBeVisible();
 
     const projectName = `TS-Test-${Date.now()}`;
-    await page.getByPlaceholder('Enter new architecture name...').fill(projectName);
-    await page.getByRole('button', { name: 'Save New' }).click();
+    await page.getByPlaceholder('Enter project/architecture name...').fill(projectName);
+    await page.getByTestId('backstage-save-btn').click();
+    await expect(page.getByTestId('file-backstage-view')).not.toBeVisible();
+
+    // Verify saved project is active in File Backstage View
+    await page.getByRole('button', { name: 'File', exact: true }).click();
     await expect(page.getByText(projectName)).toBeVisible();
-    await expect(page.locator('span').filter({ hasText: /^Active$/ })).toBeVisible();
+    await expect(page.locator('tr', { hasText: projectName }).getByText('Active')).toBeVisible();
+
+    // Return to canvas
+    await page.getByTestId('file-backstage-back-btn').click();
+    await expect(page.getByTestId('file-backstage-view')).not.toBeVisible();
 
     // 3. Reload and Load
-    // Try to close any open panels (Manager or Config)
-    // The transparent backdrop might intercept clicks on the X button if not careful
-    // or the test might be hitting the wrong close button.
-    // Let's close the modal specifically.
-    const modalXButton = page.locator('dialog[open] button[aria-label="Close"]');
-    if (await modalXButton.isVisible()) {
-        await modalXButton.click();
-    }
-
     await page.reload();
     await expect(page.locator('.react-flow__node-Pod')).not.toBeVisible();
 
-    await page.getByRole('button', { name: 'Resource', exact: true }).click();
-    await page.getByText('Resource Manager').click();
-    await page.getByText(projectName).locator('..').locator('..').locator('..').getByRole('button', { name: 'Open' }).click();
+    await page.getByRole('button', { name: 'File', exact: true }).click();
+    await expect(page.getByTestId('file-backstage-view')).toBeVisible();
+    await page.locator('tr', { hasText: projectName }).getByRole('button', { name: 'Open' }).click();
+    await expect(page.getByTestId('file-backstage-view')).not.toBeVisible();
 
     await expect(page.locator('.react-flow__node-Pod')).toBeVisible();
   });
