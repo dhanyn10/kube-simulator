@@ -21,6 +21,56 @@ interface MenuBarDropdownProps {
   readonly onMenuClick?: (label: string) => void;
 }
 
+interface MenuItemButtonProps {
+  readonly item: MenuItem;
+  readonly isDark: boolean;
+  readonly hasIconsOrChecks: boolean;
+  readonly onItemClick: (item: MenuItem) => void;
+}
+
+const renderItemIconSlot = (item: MenuItem) => {
+  if (typeof item.checked === 'boolean') {
+    return item.checked ? <Check size={14} className="stroke-[2.5]" /> : null;
+  }
+  if (item.icon) {
+    const IconComponent = item.icon;
+    return <IconComponent size={13} className="opacity-70" />;
+  }
+  return null;
+};
+
+const MenuItemButton = ({ item, isDark, hasIconsOrChecks, onItemClick }: MenuItemButtonProps) => {
+  return (
+    <button
+      type="button"
+      aria-checked={typeof item.checked === 'boolean' ? item.checked : undefined}
+      data-testid={`menubar-item-${item.label}`}
+      onClick={() => onItemClick(item)}
+      className={cn(
+        "menubar-dropdown-item group",
+        isDark ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
+      )}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        {hasIconsOrChecks && (
+          <span
+            data-testid={`menubar-check-slot-${item.label}`}
+            className="w-4 h-4 flex items-center justify-center shrink-0"
+          >
+            {renderItemIconSlot(item)}
+          </span>
+        )}
+        <span className="truncate">{item.label}</span>
+      </div>
+      {item.shortcut && (
+        <span className="text-[10px] opacity-50 font-mono group-hover:opacity-100 ml-2 shrink-0">
+          {item.shortcut}
+        </span>
+      )}
+    </button>
+  );
+};
+
 export const MenuBarDropdown = ({
   menu,
   activeMenu,
@@ -50,6 +100,15 @@ export const MenuBarDropdown = ({
     }
   };
 
+  const handleItemClick = (item: MenuItem) => {
+    item.onClick();
+    if (typeof item.checked !== 'boolean') {
+      setActiveMenu(null);
+    }
+  };
+
+  const hasIconsOrChecks = menu.items.some((i) => i.icon || typeof i.checked === 'boolean');
+
   return (
     <div className="relative" style={{ '--wails-draggable': 'no-drag' }}>
       <button
@@ -67,8 +126,7 @@ export const MenuBarDropdown = ({
           colorMode === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
         )}>
           {menu.items.map((item, idx) => {
-            const isSeparator = item.type === 'separator';
-            if (isSeparator) {
+            if (item.type === 'separator') {
               const sepClass = colorMode === 'dark' ? "bg-slate-800" : "bg-slate-200";
               return (
                 <div 
@@ -78,42 +136,14 @@ export const MenuBarDropdown = ({
               );
             }
 
-            let checkboxClass = isDark ? "border-slate-700" : "border-slate-300";
-            if (item.checked) {
-              checkboxClass = "bg-blue-500 border-blue-500 text-white";
-            }
-
             return (
-              <button
-                type="button"
+              <MenuItemButton
                 key={item.label}
-                onClick={() => {
-                  item.onClick();
-                  if (typeof item.checked !== 'boolean') setActiveMenu(null);
-                }}
-                className={cn(
-                  "menubar-dropdown-item group",
-                  isDark ? "hover:bg-blue-600 text-slate-300 hover:text-white" : "hover:bg-blue-50 text-slate-700 hover:text-blue-700"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {item.icon && <item.icon size={12} className="opacity-70" />}
-                  <span>{item.label}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {item.shortcut && (
-                    <span className="text-[10px] opacity-50 font-mono group-hover:opacity-100">{item.shortcut}</span>
-                  )}
-                  {typeof item.checked === 'boolean' && (
-                    <div className={cn(
-                      "w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors",
-                      checkboxClass
-                    )}>
-                      {item.checked && <Check size={10} />}
-                    </div>
-                  )}
-                </div>
-              </button>
+                item={item}
+                isDark={isDark}
+                hasIconsOrChecks={hasIconsOrChecks}
+                onItemClick={handleItemClick}
+              />
             );
           })}
         </div>

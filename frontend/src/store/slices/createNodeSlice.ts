@@ -24,6 +24,7 @@ export interface NodeSlice {
   pasteNodes: () => void;
   groupNodes: (nodeIds: string[]) => void;
   ungroupNodes: (nodeIds: string[]) => void;
+  alignAllNodesToGrid: (gridGap?: number) => void;
 }
 
 export const createNodeSlice: StateCreator<FlowState, [], [], NodeSlice> = (set, get) => {

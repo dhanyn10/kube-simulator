@@ -124,6 +124,10 @@ export interface UiSlice {
   resourceManagerTargetImage: string | null;
   setResourceManagerOpen: (open: boolean, targetImage?: string | null) => void;
 
+  // Canvas alignment guideline helper state
+  alignmentGuideLines: { horizontal: number | null; vertical: number | null; snapX?: number; snapY?: number } | null;
+  setAlignmentGuideLines: (lines: { horizontal: number | null; vertical: number | null; snapX?: number; snapY?: number } | null) => void;
+
   toggleColorMode: () => void;
   setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
@@ -780,6 +784,9 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
       isResourceManagerOpen: open,
       resourceManagerTargetImage: open ? targetImage : null,
     }),
+
+  alignmentGuideLines: null,
+  setAlignmentGuideLines: (lines) => set({ alignmentGuideLines: lines }),
 
   saveSettingsJson: () => {
     const state = get();

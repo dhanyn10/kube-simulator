@@ -1,6 +1,6 @@
 import React from 'react';
 import { Panel, useReactFlow } from '@xyflow/react';
-import { Plus, Minus, Maximize, Minimize } from 'lucide-react';
+import { Plus, Minus, Maximize, Minimize, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store';
 import { useFitView } from '@/hooks/useFitView';
@@ -9,6 +9,7 @@ export const CanvasControlsPanel: React.FC = () => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const isAutofocusEnabled = useFlowStore((state) => state.isAutofocusEnabled);
   const toggleAutofocus = useFlowStore((state) => state.toggleAutofocus);
+  const alignAllNodesToGrid = useFlowStore((state) => state.alignAllNodesToGrid);
 
   const { zoomIn, zoomOut } = useReactFlow();
   const fitView = useFitView();
@@ -42,6 +43,15 @@ export const CanvasControlsPanel: React.FC = () => {
         title={isAutofocusEnabled ? 'Disable Autofocus' : 'Enable Autofocus'}
       >
         <Minimize size={16} />
+      </button>
+      <button
+        type="button"
+        data-testid="align-all-cards-btn"
+        onClick={() => alignAllNodesToGrid()}
+        className={btnClass}
+        title="Align & Snap All Cards to Grid"
+      >
+        <LayoutGrid size={16} />
       </button>
     </Panel>
   );

@@ -19,6 +19,7 @@ import {
   ensureUniqueResourceName
 } from './nodeUtils';
 import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
+import { alignAllNodesToGrid as alignAllNodesToGridHelper } from '@/activities/layout/canvasAlignmentHelpers';
 import { formatPodName, safeRandom } from '@/lib/utils';
 import {
   emitLiveScaleCommand,
@@ -721,6 +722,16 @@ export const nodeActions = (set: (state: Partial<FlowState>) => void, get: () =>
     nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: `group-${crypto.randomUUID().split('-')[0]}` } } : n),
     lastActionId: `group-${Date.now()}`, lastActionName: 'Group Elements'
   }),
+  alignAllNodesToGrid: (gridGap: number = 24) => {
+    const store = get();
+    const alignedNodes = alignAllNodesToGridHelper(store.nodes, gridGap);
+    set({
+      nodes: alignedNodes,
+      lastActionId: `align-grid-${Date.now()}`,
+      lastActionName: 'Align to Grid',
+    });
+    store.addActivityLog?.(`Aligned all nodes to canvas grid (${gridGap}px)`);
+  },
   ungroupNodes: (ids: string[]) => set({
     nodes: get().nodes.map((n: Node) => ids.includes(n.id) ? { ...n, data: { ...n.data, groupId: undefined } } : n),
     lastActionId: `ungroup-${Date.now()}`, lastActionName: 'Ungroup Elements'

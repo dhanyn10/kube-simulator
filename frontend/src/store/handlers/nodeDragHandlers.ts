@@ -10,6 +10,7 @@ import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
 import { calculateOverlap, handlePodMoveToDeployment, handleGenericContainerMove } from './nodeDragUtils';
 import { isNodeAccessForbidden } from '@/activities/nodes/rbacNodeHelpers';
+import { calculateAlignmentGuides } from '@/activities/layout/canvasAlignmentHelpers';
 
 /**
  * Determines the interaction relationship between a dragging node and a target container.
@@ -207,6 +208,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     
     const nodeAbs = getAbsPos(node.id, nodes, node);
     const { hoveredId, detachingId } = findHoveredContainer(node, nodeAbs, nodes);
+    const guides = calculateAlignmentGuides(node, nodes, 8);
 
     const nextNodes = nodes.map((n: Node) => {
         if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'Namespace') {
@@ -219,7 +221,13 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
         draggedNodeId: node.id,
         hoveredDeploymentId: hoveredId, 
         detachingDeploymentId: detachingId,
-        nodes: nextNodes
+        nodes: nextNodes,
+        alignmentGuideLines: {
+          horizontal: guides.horizontal,
+          vertical: guides.vertical,
+          snapX: guides.snapX,
+          snapY: guides.snapY,
+        },
     });
   },
 
@@ -231,11 +239,17 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     if (isNodeAccessForbidden(store.activeIdentity, store.iamUsers || [], node.type, node.data, store.nodes)) {
       return;
     }
-    const { detachingDeploymentId, hoveredDeploymentId } = store;
+    const { detachingDeploymentId, hoveredDeploymentId, alignmentGuideLines } = store;
 
     set((state: FlowState) => {
       let nextNodes = [...state.nodes];
       let finalNode = { ...node };
+      if (alignmentGuideLines?.snapX !== undefined) {
+        finalNode.position = { ...finalNode.position, x: alignmentGuideLines.snapX };
+      }
+      if (alignmentGuideLines?.snapY !== undefined) {
+        finalNode.position = { ...finalNode.position, y: alignmentGuideLines.snapY };
+      }
 
       // 1. Collision Detection
       nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
@@ -262,6 +276,7 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
         draggedNodeId: null,
         hoveredDeploymentId: null,
         detachingDeploymentId: null,
+        alignmentGuideLines: null,
         nodes: sortNodes(nextNodes.map(n => ({ ...n, data: { ...n.data, isHovered: false, isDetaching: false } }))),
         lastActionId: `drag-${Date.now()}`,
         lastActionName: 'Move Element'

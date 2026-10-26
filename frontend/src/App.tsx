@@ -9,7 +9,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { logger } from './lib/logger';
-import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel, CanvasMiniMap } from './components/Layout';
+import { Sidebar, RightSidebar, MenuBar, TerminalPanel, FileBackstageView, CanvasControlsPanel, CanvasMiniMap, AlignmentGuideOverlay } from './components/Layout';
 import { ContextMenu, ResourceManager, SidebarContextMenu } from './components/UI';
 import { MonitoringDashboard, DetachedMonitoring, LogToast } from './components/Monitoring';
 import {
@@ -284,6 +284,7 @@ export default function App() {
               style={{ opacity: canvasBgOpacity }}
             />
 
+            <AlignmentGuideOverlay />
             <CanvasMiniMap />
 
             <CanvasControlsPanel />
