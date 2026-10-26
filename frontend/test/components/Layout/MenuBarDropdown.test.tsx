@@ -146,28 +146,68 @@ describe('MenuBarDropdown', () => {
     expect(setActiveMenu).not.toHaveBeenCalledWith(null);
   });
 
-  it('renders checkmark for checked items and handles unchecked boolean items', () => {
-    const uncheckedMenu = {
+  it('renders checkmark for checked items and handles unchecked boolean items with check slot', () => {
+    const viewMenu = {
       label: 'View',
       items: [
         { label: 'Show Grid', onClick: vi.fn(), checked: false },
+        { label: 'Autofocus', onClick: vi.fn(), checked: true },
+        { label: 'Settings', icon: Settings, onClick: vi.fn() },
+        { label: 'Plain Item', onClick: vi.fn() },
       ],
     };
     const setActiveMenu = vi.fn();
 
     render(
       <MenuBarDropdown
-        menu={uncheckedMenu}
+        menu={viewMenu}
         activeMenu="View"
         setActiveMenu={setActiveMenu}
         colorMode="dark"
       />
     );
 
-    const checkBtn = screen.getByText('Show Grid').closest('button')!;
-    fireEvent.click(checkBtn);
-    expect(uncheckedMenu.items[0].onClick).toHaveBeenCalled();
+    const showGridBtn = screen.getByRole('button', { name: /Show Grid/i });
+    expect(showGridBtn.getAttribute('aria-checked')).toBe('false');
+    const showGridSlot = screen.getByTestId('menubar-check-slot-Show Grid');
+    expect(showGridSlot.querySelector('svg')).toBeNull();
+
+    const autofocusBtn = screen.getByRole('button', { name: /Autofocus/i });
+    expect(autofocusBtn.getAttribute('aria-checked')).toBe('true');
+    const autofocusSlot = screen.getByTestId('menubar-check-slot-Autofocus');
+    expect(autofocusSlot.querySelector('svg')).not.toBeNull();
+
+    const settingsSlot = screen.getByTestId('menubar-check-slot-Settings');
+    expect(settingsSlot.querySelector('svg')).not.toBeNull();
+
+    const plainSlot = screen.getByTestId('menubar-check-slot-Plain Item');
+    expect(plainSlot.querySelector('svg')).toBeNull();
+
+    fireEvent.click(showGridBtn);
+    expect(viewMenu.items[0].onClick).toHaveBeenCalled();
     expect(setActiveMenu).not.toHaveBeenCalledWith(null);
+  });
+
+  it('does not render check slots when menu has no icons or checkable items', () => {
+    const plainMenu = {
+      label: 'Edit',
+      items: [
+        { label: 'Undo', onClick: vi.fn() },
+        { label: 'Redo', onClick: vi.fn() },
+      ],
+    };
+
+    render(
+      <MenuBarDropdown
+        menu={plainMenu}
+        activeMenu="Edit"
+        setActiveMenu={vi.fn()}
+        colorMode="light"
+      />
+    );
+
+    expect(screen.queryByTestId('menubar-check-slot-Undo')).toBeNull();
+    expect(screen.queryByTestId('menubar-check-slot-Redo')).toBeNull();
   });
 
   it('handles File menu click and hover interactions', () => {
