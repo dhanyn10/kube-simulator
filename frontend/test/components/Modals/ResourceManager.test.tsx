@@ -12,6 +12,7 @@ describe('ResourceManager', () => {
       configuringNodeId: 'node-1',
       updateNodeData: vi.fn(),
       addCustomImage: vi.fn(),
+      resourceManagerTargetImage: null,
     });
   });
 
@@ -43,6 +44,38 @@ describe('ResourceManager', () => {
 
     expect(screen.getByText('golang:1.24-alpine')).toBeDefined();
     expect(screen.queryByText('openjdk:21-jdk-slim')).toBeNull();
+  });
+
+  it('highlights target image and displays focused badge when targetImage prop is set', () => {
+    const scrollIntoViewMock = vi.fn();
+    globalThis.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock;
+
+    render(
+      <ResourceManager
+        isOpen={true}
+        onClose={vi.fn()}
+        targetImage="openjdk:21-jdk-slim"
+      />
+    );
+
+    const targetCard = screen.getByTestId('resource-manager-item-openjdk:21-jdk-slim');
+    expect(targetCard).toBeDefined();
+    expect(targetCard.className).toContain('ring-2 ring-blue-500');
+    expect(screen.getByText('Focused')).toBeDefined();
+  });
+
+  it('highlights target image from store state and handles light mode styling', () => {
+    useFlowStore.setState({
+      colorMode: 'light',
+      resourceManagerTargetImage: 'golang:1.24-alpine',
+    });
+
+    render(<ResourceManager isOpen={true} onClose={vi.fn()} />);
+
+    const targetCard = screen.getByTestId('resource-manager-item-golang:1.24-alpine');
+    expect(targetCard).toBeDefined();
+    expect(targetCard.className).toContain('ring-2 ring-blue-500');
+    expect(screen.getByText('Focused')).toBeDefined();
   });
 
   it('applies image to active configuring workload node on Apply click', () => {

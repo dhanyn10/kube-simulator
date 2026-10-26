@@ -133,6 +133,9 @@ export default function App() {
   const isLogModalOpen = useFlowStore((state) => state.isLogModalOpen);
   const isKubeIamWizardOpen = useFlowStore((state) => state.isKubeIamWizardOpen);
   const isTerminalCommandTreeModalOpen = useFlowStore((state) => state.isTerminalCommandTreeModalOpen);
+  const isResourceManagerOpen = useFlowStore((state) => state.isResourceManagerOpen);
+  const resourceManagerTargetImage = useFlowStore((state) => state.resourceManagerTargetImage);
+  const setResourceManagerOpen = useFlowStore((state) => state.setResourceManagerOpen);
 
   const finalCanvasBgColor = getFinalCanvasBgColor(canvasBgColor, colorMode);
   const { defaultContextMenu, setDefaultContextMenu } = useGlobalContextMenu();
@@ -244,7 +247,7 @@ export default function App() {
             deleteKeyCode={
               isAnyModalOverlayOpen({
                 isFileBackstageOpen,
-                isProjectOpen,
+                isProjectOpen: isProjectOpen || isResourceManagerOpen,
                 isScenarioOpen,
                 isAboutDialogOpen,
                 isSettingsOpen,
@@ -377,7 +380,14 @@ export default function App() {
 
           <TerminalCommandTreeModal />
 
-          <ResourceManager isOpen={isProjectOpen} onClose={() => setIsProjectOpen(false)} />
+          <ResourceManager
+            isOpen={isProjectOpen || isResourceManagerOpen}
+            targetImage={resourceManagerTargetImage}
+            onClose={() => {
+              setIsProjectOpen(false);
+              setResourceManagerOpen(false);
+            }}
+          />
 
           <LogToast />
           <LogModal />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Box, Search, Gauge, HardDrive, Zap, Cpu, Check } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,18 @@ export interface ResourceManagerProps {
   readonly isOpen: boolean;
   /** Callback fired when the modal is closed. */
   readonly onClose: () => void;
+  /** Optional target image name to auto-focus and highlight. */
+  readonly targetImage?: string | null;
 }
+
+const getItemCardClass = (isTarget: boolean, colorMode: 'dark' | 'light'): string => {
+  if (isTarget) {
+    return "ring-2 ring-blue-500 border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10";
+  }
+  return colorMode === 'dark'
+    ? "bg-slate-900/60 border-slate-800/80 hover:border-slate-700"
+    : "bg-white border-slate-200/80 hover:border-slate-300 shadow-sm";
+};
 
 /**
  * ResourceManager is the modal component for displaying all container runtime setup images
@@ -21,14 +32,31 @@ export interface ResourceManagerProps {
  * @param props - Modal visibility and callback props.
  * @returns Renderable React modal element or null if closed.
  */
-export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
+export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManagerProps) => {
   const [search, setSearch] = useState('');
+  const targetItemRef = useRef<HTMLDivElement | null>(null);
 
   const colorMode = useFlowStore((state) => state.colorMode);
   const customImages = useFlowStore((state) => state.customImages);
   const addCustomImage = useFlowStore((state) => state.addCustomImage);
   const selectedNodeId = useFlowStore((state) => state.configuringNodeId);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
+  const storeTargetImage = useFlowStore((state) => state.resourceManagerTargetImage);
+
+  const activeTargetImage = targetImage ?? storeTargetImage;
+
+  useEffect(() => {
+    if (isOpen && activeTargetImage) {
+      setSearch('');
+      const timer = setTimeout(() => {
+        if (targetItemRef.current) {
+          targetItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetItemRef.current.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, activeTargetImage]);
 
   // Combine default registry setup images and custom images into a single setup list
   const allImages = [
@@ -105,23 +133,30 @@ export const ResourceManager = ({ isOpen, onClose }: ResourceManagerProps) => {
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-[50vh]">
           {filteredImages.map((item) => {
             const chars = item.characteristics || getImageCharacteristics(item.name);
+            const isTarget = activeTargetImage === item.name;
 
             return (
               <div
                 key={item.name}
+                ref={isTarget ? targetItemRef : undefined}
+                tabIndex={isTarget ? 0 : undefined}
+                data-testid={`resource-manager-item-${item.name}`}
                 className={cn(
-                  "p-3 rounded-xl border transition-all duration-150 flex flex-col gap-2.5",
-                  colorMode === 'dark'
-                    ? "bg-slate-900/60 border-slate-800/80 hover:border-slate-700"
-                    : "bg-white border-slate-200/80 hover:border-slate-300 shadow-sm"
+                  "p-3 rounded-xl border transition-all duration-150 flex flex-col gap-2.5 outline-none",
+                  getItemCardClass(isTarget, colorMode)
                 )}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-mono">
-                    <Box size={14} className="text-blue-500 shrink-0" />
+                    <Box size={14} className={isTarget ? "text-blue-400 shrink-0" : "text-blue-500 shrink-0"} />
                     <span className="text-xs font-bold text-slate-200 dark:text-slate-200">
                       {item.name}
                     </span>
+                    {isTarget && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-500 text-white tracking-wider">
+                        Focused
+                      </span>
+                    )}
                   </div>
 
                   <button

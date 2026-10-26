@@ -119,6 +119,11 @@ export interface UiSlice {
   isTerminalCommandTreeModalOpen: boolean;
   setTerminalCommandTreeModalOpen: (open: boolean) => void;
 
+  // Resource Manager modal state & actions
+  isResourceManagerOpen: boolean;
+  resourceManagerTargetImage: string | null;
+  setResourceManagerOpen: (open: boolean, targetImage?: string | null) => void;
+
   toggleColorMode: () => void;
   setGlobalEdgeColors: (color: string, errorColor: string) => void;
   setDraggingSidebarItem: (item: K8sResourceType | null) => void;
@@ -766,6 +771,15 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   // Terminal Command Tree initial state & action
   isTerminalCommandTreeModalOpen: false,
   setTerminalCommandTreeModalOpen: (open) => set({ isTerminalCommandTreeModalOpen: open }),
+
+  // Resource Manager initial state & action
+  isResourceManagerOpen: false,
+  resourceManagerTargetImage: null,
+  setResourceManagerOpen: (open, targetImage = null) =>
+    set({
+      isResourceManagerOpen: open,
+      resourceManagerTargetImage: open ? targetImage : null,
+    }),
 
   saveSettingsJson: () => {
     const state = get();
