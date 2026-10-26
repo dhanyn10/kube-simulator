@@ -35,6 +35,7 @@ const getItemCardClass = (isTarget: boolean, colorMode: 'dark' | 'light'): strin
 export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManagerProps) => {
   const [search, setSearch] = useState('');
   const targetItemRef = useRef<HTMLDivElement | null>(null);
+  const targetButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const colorMode = useFlowStore((state) => state.colorMode);
   const customImages = useFlowStore((state) => state.customImages);
@@ -49,10 +50,8 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
     if (isOpen && activeTargetImage) {
       setSearch('');
       const timer = setTimeout(() => {
-        if (targetItemRef.current) {
-          targetItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          targetItemRef.current.focus();
-        }
+        targetItemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetButtonRef.current?.focus();
       }, 50);
       return () => clearTimeout(timer);
     }
@@ -139,10 +138,9 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
               <div
                 key={item.name}
                 ref={isTarget ? targetItemRef : undefined}
-                tabIndex={isTarget ? 0 : undefined}
                 data-testid={`resource-manager-item-${item.name}`}
                 className={cn(
-                  "p-3 rounded-xl border transition-all duration-150 flex flex-col gap-2.5 outline-none",
+                  "p-3 rounded-xl border transition-all duration-150 flex flex-col gap-2.5",
                   getItemCardClass(isTarget, colorMode)
                 )}
               >
@@ -161,6 +159,7 @@ export const ResourceManager = ({ isOpen, onClose, targetImage }: ResourceManage
 
                   <button
                     type="button"
+                    ref={isTarget ? targetButtonRef : undefined}
                     onClick={() => handleSelectImage(item.name)}
                     className={cn(
                       "px-3 py-1 rounded-lg text-[11px] font-bold font-mono transition-all flex items-center gap-1.5 shrink-0",
