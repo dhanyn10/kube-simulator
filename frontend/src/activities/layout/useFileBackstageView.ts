@@ -15,6 +15,92 @@ export interface UseFileBackstageViewParams {
   readonly onClose: () => void;
 }
 
+interface QuickSaveContext {
+  app: any;
+  content: string;
+  onClose: () => void;
+  loadRecentFiles: () => Promise<void>;
+}
+
+const tryUpdateExistingProject = async (
+  ctx: QuickSaveContext,
+  currentProject: { id: number; name: string } | null,
+  isAutosaveOn: boolean
+): Promise<boolean> => {
+  if (!currentProject || currentProject.id === -1 || !ctx.app?.UpdateProject) {
+    return false;
+  }
+  if (isAutosaveOn) {
+    ctx.onClose();
+    return true;
+  }
+  const success = await ctx.app.UpdateProject(currentProject.id, ctx.content);
+  if (success) {
+    useFlowStore.setState({ lastSavedSnapshot: ctx.content });
+    await ctx.loadRecentFiles();
+    ctx.onClose();
+    return true;
+  }
+  return false;
+};
+
+const trySaveProjectRecord = async (
+  ctx: QuickSaveContext,
+  saveName: string
+): Promise<boolean> => {
+  if (!ctx.app?.SaveProject) return false;
+  const id = await ctx.app.SaveProject(saveName, ctx.content);
+  if (id !== undefined) {
+    useFlowStore.setState({
+      currentProject: { id, name: saveName },
+      lastSavedSnapshot: ctx.content,
+    });
+    await ctx.loadRecentFiles();
+    ctx.onClose();
+    return true;
+  }
+  return false;
+};
+
+const trySaveAutosaveSettings = async (
+  ctx: QuickSaveContext,
+  sessionKey: string
+): Promise<boolean> => {
+  if (!ctx.app?.SaveSetting) return false;
+  await ctx.app.SaveSetting(sessionKey, ctx.content);
+  await ctx.app.SaveSetting('auto_saved_profile_latest', sessionKey);
+  await ctx.app.SaveSetting('auto_saved_profile_content', ctx.content);
+  await ctx.loadRecentFiles();
+  ctx.onClose();
+  return true;
+};
+
+const executeQuickSave = async (
+  ctx: QuickSaveContext,
+  currentProject: { id: number; name: string } | null,
+  newProjectName: string,
+  isAutosaveOn: boolean
+): Promise<void> => {
+  if (await tryUpdateExistingProject(ctx, currentProject, isAutosaveOn)) {
+    return;
+  }
+
+  const trimmedName = newProjectName.trim();
+  const currentSessionKey = getCurrentSessionAutosaveKey();
+  const isCustomProjectName = Boolean(trimmedName && trimmedName !== currentSessionKey);
+
+  if (isCustomProjectName && (await trySaveProjectRecord(ctx, trimmedName))) {
+    return;
+  }
+
+  if (isAutosaveOn && (await trySaveAutosaveSettings(ctx, currentSessionKey))) {
+    return;
+  }
+
+  const saveName = trimmedName || currentSessionKey;
+  await trySaveProjectRecord(ctx, saveName);
+};
+
 export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewParams) {
   const fitView = useFitView();
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -85,42 +171,12 @@ export function useFileBackstageView({ isOpen, onClose }: UseFileBackstageViewPa
     const content = JSON.stringify({ nodes, edges, timestamp: Date.now() });
     const app = globalThis.go?.main?.App;
 
-    if (currentProject && currentProject.id !== -1 && app?.UpdateProject) {
-      if (isAutosaveOn) {
-        onClose();
-        return;
-      }
-      const success = await app.UpdateProject(currentProject.id, content);
-      if (success) {
-        useFlowStore.setState({ lastSavedSnapshot: content });
-        await loadRecentFiles();
-        onClose();
-        return;
-      }
-    }
-
-    if (isAutosaveOn && app?.SaveSetting) {
-      const sessionKey = getCurrentSessionAutosaveKey();
-      await app.SaveSetting(sessionKey, content);
-      await app.SaveSetting('auto_saved_profile_latest', sessionKey);
-      await app.SaveSetting('auto_saved_profile_content', content);
-      await loadRecentFiles();
-      onClose();
-      return;
-    }
-
-    const saveName = newProjectName.trim() || getCurrentSessionAutosaveKey();
-    if (app?.SaveProject) {
-      const id = await app.SaveProject(saveName, content);
-      if (id !== undefined) {
-        useFlowStore.setState({
-          currentProject: { id, name: saveName },
-          lastSavedSnapshot: content,
-        });
-        await loadRecentFiles();
-        onClose();
-      }
-    }
+    await executeQuickSave(
+      { app, content, onClose, loadRecentFiles },
+      currentProject,
+      newProjectName,
+      isAutosaveOn
+    );
   };
 
   const handleRestore = async (item: Parameters<typeof restoreRecentFile>[0]) => {

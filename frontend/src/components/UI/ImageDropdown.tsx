@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, Globe, Box, ChevronDown, Plus, Check } from 'lucide-react';
+import { Search, Globe, Box, ChevronDown, Info, Plus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFlowStore } from '@/store';
 import {
   getOptionClasses,
   useImageDropdown,
@@ -13,6 +14,93 @@ interface ImageDropdownProps {
   colorMode: 'dark' | 'light';
 }
 
+interface ImageOptionItemProps {
+  opt: ImageOption;
+  value: string;
+  colorMode: 'dark' | 'light';
+  handleSelectOption: (imgName: string) => void;
+  onOpenInfo: (imgName: string) => void;
+}
+
+const getOptionContainerClass = (isSelected: boolean, colorMode: 'dark' | 'light'): string => {
+  if (colorMode === 'dark') {
+    return isSelected
+      ? "border-blue-500/50 bg-slate-900/80"
+      : "border-slate-800/80 bg-slate-900/30 hover:border-slate-700";
+  }
+  return isSelected
+    ? "border-blue-300 bg-blue-50/40"
+    : "border-slate-200 bg-slate-50/50 hover:border-slate-300";
+};
+
+const ImageOptionItem = ({
+  opt,
+  value,
+  colorMode,
+  handleSelectOption,
+  onOpenInfo,
+}: ImageOptionItemProps) => {
+  const isSelected = value === opt.name;
+  const containerClass = getOptionContainerClass(isSelected, colorMode);
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border transition-all duration-150 overflow-hidden",
+        containerClass
+      )}
+    >
+      <div className="flex items-center justify-between p-1.5 gap-1.5">
+        <button
+          type="button"
+          onClick={() => handleSelectOption(opt.name)}
+          className={cn(
+            "flex-1 flex items-center justify-between text-left text-[11px] font-mono truncate transition-colors py-0.5 px-1 rounded",
+            getOptionClasses(opt.name, value, colorMode)
+          )}
+        >
+          <span className="flex items-center gap-1.5 truncate">
+            {opt.source === 'local' ? (
+              <Box size={11} className="text-emerald-500 shrink-0" />
+            ) : (
+              <Globe size={11} className="text-blue-500 shrink-0" />
+            )}
+            <span className="truncate">{opt.name}</span>
+          </span>
+          {isSelected ? (
+            <Check size={12} className="text-blue-500 shrink-0" />
+          ) : (
+            <span
+              className={cn(
+                "text-[7px] px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 font-sans",
+                opt.source === 'local' ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
+              )}
+            >
+              {opt.source === 'local' ? 'LOCAL' : 'PUBLIC'}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          data-testid={`info-btn-${opt.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenInfo(opt.name);
+          }}
+          title={`View ${opt.name} in Resource Manager`}
+          className={cn(
+            "p-1 rounded text-slate-400 hover:text-blue-400 transition-colors shrink-0",
+            colorMode === 'dark' ? "hover:bg-slate-800" : "hover:bg-slate-200"
+          )}
+        >
+          <Info size={12} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface OptionsListProps {
   search: string;
   value: string;
@@ -20,6 +108,7 @@ interface OptionsListProps {
   filteredOptions: { dockerHub: ImageOption[]; local: ImageOption[] };
   handleSelectOption: (imgName: string) => void;
   handleUseCustomImage: () => void;
+  onOpenInfo: (imgName: string) => void;
 }
 
 const OptionsList = ({
@@ -28,12 +117,13 @@ const OptionsList = ({
   colorMode,
   filteredOptions,
   handleSelectOption,
-  handleUseCustomImage
+  handleUseCustomImage,
+  onOpenInfo,
 }: OptionsListProps) => {
   const hasMatches = filteredOptions.dockerHub.length > 0 || filteredOptions.local.length > 0;
 
   return (
-    <div className="max-h-[190px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+    <div className="max-h-[260px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
       {search.trim().length > 0 && (
         <button
           type="button"
@@ -54,25 +144,16 @@ const OptionsList = ({
       {filteredOptions.local.length > 0 && (
         <div>
           <p className="text-[9px] font-bold text-slate-500 px-2 py-1 uppercase tracking-wider">Local & Custom Cache</p>
-          <div className="space-y-0.5 mt-0.5">
+          <div className="space-y-1 mt-0.5">
             {filteredOptions.local.map((opt) => (
-              <button
+              <ImageOptionItem
                 key={opt.name}
-                type="button"
-                onClick={() => handleSelectOption(opt.name)}
-                className={cn(
-                  "w-full flex items-center justify-between p-2 rounded-lg text-left text-[11px] font-mono transition-colors",
-                  getOptionClasses(opt.name, value, colorMode)
-                )}
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Box size={11} className="text-emerald-500 shrink-0" />
-                  <span className="truncate">{opt.name}</span>
-                </span>
-                {value === opt.name ? <Check size={12} className="text-blue-500 shrink-0" /> : (
-                  <span className="text-[7px] bg-emerald-500/10 text-emerald-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 font-sans">LOCAL</span>
-                )}
-              </button>
+                opt={opt}
+                value={value}
+                colorMode={colorMode}
+                handleSelectOption={handleSelectOption}
+                onOpenInfo={onOpenInfo}
+              />
             ))}
           </div>
         </div>
@@ -81,25 +162,16 @@ const OptionsList = ({
       {filteredOptions.dockerHub.length > 0 && (
         <div>
           <p className="text-[9px] font-bold text-slate-500 px-2 py-1 uppercase tracking-wider">Docker Hub Registry</p>
-          <div className="space-y-0.5 mt-0.5">
+          <div className="space-y-1 mt-0.5">
             {filteredOptions.dockerHub.map((opt) => (
-              <button
+              <ImageOptionItem
                 key={opt.name}
-                type="button"
-                onClick={() => handleSelectOption(opt.name)}
-                className={cn(
-                  "w-full flex items-center justify-between p-2 rounded-lg text-left text-[11px] font-mono transition-colors",
-                  getOptionClasses(opt.name, value, colorMode)
-                )}
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Globe size={11} className="text-blue-500 shrink-0" />
-                  <span className="truncate">{opt.name}</span>
-                </span>
-                {value === opt.name ? <Check size={12} className="text-blue-500 shrink-0" /> : (
-                  <span className="text-[7px] bg-blue-500/10 text-blue-500 px-1 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 font-sans">PUBLIC</span>
-                )}
-              </button>
+                opt={opt}
+                value={value}
+                colorMode={colorMode}
+                handleSelectOption={handleSelectOption}
+                onOpenInfo={onOpenInfo}
+              />
             ))}
           </div>
         </div>
@@ -113,6 +185,7 @@ const OptionsList = ({
 };
 
 export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps) => {
+  const setResourceManagerOpen = useFlowStore((state) => state.setResourceManagerOpen);
   const {
     isOpen,
     setIsOpen,
@@ -124,6 +197,11 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
     handleSelectOption,
     handleUseCustomImage,
   } = useImageDropdown({ value, onChange });
+
+  const handleOpenInfo = (imageName: string) => {
+    setResourceManagerOpen(true, imageName);
+    setIsOpen(false);
+  };
 
   return (
     <div ref={dropdownRef} className="relative w-full">
@@ -174,6 +252,7 @@ export const ImageDropdown = ({ value, onChange, colorMode }: ImageDropdownProps
             filteredOptions={filteredOptions}
             handleSelectOption={handleSelectOption}
             handleUseCustomImage={handleUseCustomImage}
+            onOpenInfo={handleOpenInfo}
           />
         </div>
       )}

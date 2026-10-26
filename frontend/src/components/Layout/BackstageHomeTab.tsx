@@ -101,6 +101,7 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
           />
           <button
             type="button"
+            data-testid="backstage-save-btn"
             onClick={handleQuickSaveCurrent}
             disabled={isCanvasEmpty}
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-900/10 transition-all cursor-pointer"
@@ -208,7 +209,24 @@ export const BackstageHomeTab: React.FC<BackstageHomeTabProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right text-xs font-mono text-slate-400 align-top pt-3.5">
-                        {file.updatedAt}
+                        <div className="flex items-center justify-end gap-2.5">
+                          <span>{file.updatedAt}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRestoreFile(file);
+                            }}
+                            className={cn(
+                              "px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer shadow-sm",
+                              isDark
+                                ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                                : "bg-white hover:bg-slate-100 border-slate-200 text-slate-700"
+                            )}
+                          >
+                            Open
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

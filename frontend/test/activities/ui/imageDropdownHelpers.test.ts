@@ -14,6 +14,9 @@ describe('imageDropdownHelpers', () => {
     const filtered = filterImageOptions('redis', custom);
 
     expect(filtered.dockerHub.some((img) => img.name.includes('redis'))).toBe(true);
-    expect(filtered.local).toEqual([{ name: 'redis:custom', source: 'local' }]);
+    expect(filtered.local).toHaveLength(1);
+    expect(filtered.local[0].name).toBe('redis:custom');
+    expect(filtered.local[0].source).toBe('local');
+    expect(filtered.local[0].characteristics).toBeDefined();
   });
 });

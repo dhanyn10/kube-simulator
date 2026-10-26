@@ -8,10 +8,18 @@ describe('ImageDropdown', () => {
     vi.clearAllMocks();
     useFlowStore.setState({
       customImages: ['my-local-image:latest'],
+      isResourceManagerOpen: false,
+      resourceManagerTargetImage: null,
       addCustomImage: vi.fn((img) => {
         const current = useFlowStore.getState().customImages;
         useFlowStore.setState({ customImages: [...current, img] });
-      })
+      }),
+      setResourceManagerOpen: (open: boolean, targetImage: string | null = null) => {
+        useFlowStore.setState({
+          isResourceManagerOpen: open,
+          resourceManagerTargetImage: open ? targetImage : null,
+        });
+      },
     });
   });
 
@@ -92,9 +100,26 @@ describe('ImageDropdown', () => {
 
     // Reopen dropdown and click a Docker Hub registry option
     fireEvent.click(button);
-    const redisOpt = screen.getByText('redis:alpine');
+    const redisOpt = screen.getByText('redis:7-alpine');
     fireEvent.click(redisOpt);
-    expect(onChange).toHaveBeenCalledWith('redis:alpine');
+    expect(onChange).toHaveBeenCalledWith('redis:7-alpine');
+  });
+
+  it('opens resource manager and targets image when clicking info icon', async () => {
+    const onChange = vi.fn();
+    render(<TargetImageDropdown value="openjdk:21-jdk-slim" onChange={onChange} colorMode="dark" />);
+
+    const button = screen.getByRole('button', { name: /openjdk:21-jdk-slim/i });
+    fireEvent.click(button);
+
+    const infoBtn = screen.getByTestId('info-btn-openjdk:21-jdk-slim');
+    expect(infoBtn).toBeDefined();
+
+    fireEvent.click(infoBtn);
+
+    expect(useFlowStore.getState().isResourceManagerOpen).toBe(true);
+    expect(useFlowStore.getState().resourceManagerTargetImage).toBe('openjdk:21-jdk-slim');
+    expect(screen.queryByPlaceholderText('Search or type custom image...')).toBeNull();
   });
 
   it('closes dropdown when clicking outside and stays open when clicking inside', async () => {
