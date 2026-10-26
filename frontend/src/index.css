@@ -247,7 +247,7 @@
   }
 
   .menubar-dropdown-btn {
-    @apply px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors;
+    @apply px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer;
   }
 
   .menubar-dropdown-panel {
@@ -256,6 +256,18 @@
 
   .menubar-dropdown-item {
     @apply w-full px-3 py-1.5 text-xs flex items-center justify-between transition-colors text-left font-medium;
+  }
+
+  .menubar-check-slot {
+    @apply w-4 h-4 flex items-center justify-center shrink-0;
+  }
+
+  .menubar-dropdown-shortcut {
+    @apply text-[10px] opacity-50 font-mono group-hover:opacity-100 ml-2 shrink-0;
+  }
+
+  .menubar-dropdown-separator {
+    @apply h-px my-1;
   }
 
   /* Sidebar Component Styles */

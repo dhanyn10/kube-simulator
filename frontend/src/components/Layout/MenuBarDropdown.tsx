@@ -55,7 +55,7 @@ const MenuItemButton = ({ item, isDark, hasIconsOrChecks, onItemClick }: MenuIte
         {hasIconsOrChecks && (
           <span
             data-testid={`menubar-check-slot-${item.label}`}
-            className="w-4 h-4 flex items-center justify-center shrink-0"
+            className="menubar-check-slot"
           >
             {renderItemIconSlot(item)}
           </span>
@@ -63,7 +63,7 @@ const MenuItemButton = ({ item, isDark, hasIconsOrChecks, onItemClick }: MenuIte
         <span className="truncate">{item.label}</span>
       </div>
       {item.shortcut && (
-        <span className="text-[10px] opacity-50 font-mono group-hover:opacity-100 ml-2 shrink-0">
+        <span className="menubar-dropdown-shortcut">
           {item.shortcut}
         </span>
       )}
@@ -85,7 +85,7 @@ export const MenuBarDropdown = ({
   const inactiveClasses = isDark ? "hover:bg-slate-800" : "hover:bg-slate-200";
 
   const buttonClasses = cn(
-    "px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer",
+    "menubar-dropdown-btn",
     isOpen ? activeClasses : inactiveClasses
   );
 
@@ -131,7 +131,7 @@ export const MenuBarDropdown = ({
               return (
                 <div 
                   key={`sep-${menu.label}-${item.label || idx}`} 
-                  className={cn("h-px my-1", sepClass)} 
+                  className={cn("menubar-dropdown-separator", sepClass)} 
                 />
               );
             }
