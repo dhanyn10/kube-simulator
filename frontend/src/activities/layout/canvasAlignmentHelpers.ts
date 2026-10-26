@@ -19,6 +19,11 @@ export interface NodeBounds {
   height: number;
 }
 
+export interface MatchResult {
+  line: number;
+  snap: number;
+}
+
 /**
  * Calculates absolute or relative bounding dimensions for a given node.
  */
@@ -47,7 +52,7 @@ export const checkVerticalMatch = (
   drag: NodeBounds,
   target: NodeBounds,
   threshold: number
-): { line: number; snap: number } | null => {
+): MatchResult | null => {
   if (Math.abs(drag.left - target.left) <= threshold) {
     return { line: target.left, snap: target.left };
   }
@@ -73,7 +78,7 @@ export const checkHorizontalMatch = (
   drag: NodeBounds,
   target: NodeBounds,
   threshold: number
-): { line: number; snap: number } | null => {
+): MatchResult | null => {
   if (Math.abs(drag.top - target.top) <= threshold) {
     return { line: target.top, snap: target.top };
   }
@@ -93,6 +98,51 @@ export const checkHorizontalMatch = (
 };
 
 /**
+ * Finds vertical alignment match against peer canvas nodes.
+ */
+const findPeerVerticalGuide = (
+  dragBounds: NodeBounds,
+  peers: Node[],
+  threshold: number
+): MatchResult | null => {
+  for (const peer of peers) {
+    const match = checkVerticalMatch(dragBounds, getNodeBounds(peer), threshold);
+    if (match) return match;
+  }
+  return null;
+};
+
+/**
+ * Finds horizontal alignment match against peer canvas nodes.
+ */
+const findPeerHorizontalGuide = (
+  dragBounds: NodeBounds,
+  peers: Node[],
+  threshold: number
+): MatchResult | null => {
+  for (const peer of peers) {
+    const match = checkHorizontalMatch(dragBounds, getNodeBounds(peer), threshold);
+    if (match) return match;
+  }
+  return null;
+};
+
+/**
+ * Finds fallback alignment match against nearest canvas grid interval.
+ */
+const findGridGuide = (
+  coord: number,
+  gridGap: number,
+  threshold: number
+): MatchResult | null => {
+  const nearestGrid = Math.round(coord / gridGap) * gridGap;
+  if (Math.abs(coord - nearestGrid) <= Math.min(threshold, 4)) {
+    return { line: nearestGrid, snap: nearestGrid };
+  }
+  return null;
+};
+
+/**
  * Calculates smart alignment guide lines by comparing dragging node coordinates
  * with peer nodes and canvas grid lines.
  */
@@ -107,57 +157,17 @@ export const calculateAlignmentGuides = (
     (n) => n.id !== draggingNode.id && n.parentId === draggingNode.parentId
   );
 
-  let verticalLine: number | null = null;
-  let horizontalLine: number | null = null;
-  let snapX: number | undefined;
-  let snapY: number | undefined;
+  const vMatch = findPeerVerticalGuide(dragBounds, peers, threshold)
+    ?? findGridGuide(dragBounds.left, gridGap, threshold);
 
-  for (const peer of peers) {
-    const peerBounds = getNodeBounds(peer);
-
-    if (verticalLine === null) {
-      const vMatch = checkVerticalMatch(dragBounds, peerBounds, threshold);
-      if (vMatch) {
-        verticalLine = vMatch.line;
-        snapX = vMatch.snap;
-      }
-    }
-
-    if (horizontalLine === null) {
-      const hMatch = checkHorizontalMatch(dragBounds, peerBounds, threshold);
-      if (hMatch) {
-        horizontalLine = hMatch.line;
-        snapY = hMatch.snap;
-      }
-    }
-
-    if (verticalLine !== null && horizontalLine !== null) {
-      break;
-    }
-  }
-
-  // Fallback: If not aligned with peers, check proximity to grid lines
-  if (verticalLine === null) {
-    const nearestGridX = Math.round(dragBounds.left / gridGap) * gridGap;
-    if (Math.abs(dragBounds.left - nearestGridX) <= Math.min(threshold, 4)) {
-      verticalLine = nearestGridX;
-      snapX = nearestGridX;
-    }
-  }
-
-  if (horizontalLine === null) {
-    const nearestGridY = Math.round(dragBounds.top / gridGap) * gridGap;
-    if (Math.abs(dragBounds.top - nearestGridY) <= Math.min(threshold, 4)) {
-      horizontalLine = nearestGridY;
-      snapY = nearestGridY;
-    }
-  }
+  const hMatch = findPeerHorizontalGuide(dragBounds, peers, threshold)
+    ?? findGridGuide(dragBounds.top, gridGap, threshold);
 
   return {
-    vertical: verticalLine,
-    horizontal: horizontalLine,
-    snapX,
-    snapY,
+    vertical: vMatch?.line ?? null,
+    horizontal: hMatch?.line ?? null,
+    snapX: vMatch?.snap,
+    snapY: hMatch?.snap,
   };
 };
 
