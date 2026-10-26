@@ -6,3 +6,4 @@ export * from './rightSidebarHelpers';
 export * from './useRightSidebar';
 export * from './useCanvasMiniMap';
 export * from './useModalOverlayState';
+export * from './canvasAlignmentHelpers';

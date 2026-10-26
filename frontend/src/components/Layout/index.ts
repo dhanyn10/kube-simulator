@@ -7,4 +7,5 @@ export * from './SimulationControls';
 export * from './WindowControls';
 export * from './CanvasControlsPanel';
 export * from './CanvasMiniMap';
+export * from './AlignmentGuideOverlay';
 export * from '../Terminal';
