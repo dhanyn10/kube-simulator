@@ -20,17 +20,27 @@ interface ImageAccordionItemProps {
   handleSelectOption: (imgName: string) => void;
 }
 
+const getAccordionContainerClass = (isSelected: boolean, colorMode: 'dark' | 'light'): string => {
+  if (colorMode === 'dark') {
+    return isSelected
+      ? "border-blue-500/50 bg-slate-900/80"
+      : "border-slate-800/80 bg-slate-900/30 hover:border-slate-700";
+  }
+  return isSelected
+    ? "border-blue-300 bg-blue-50/40"
+    : "border-slate-200 bg-slate-50/50 hover:border-slate-300";
+};
+
 const ImageAccordionItem = ({ opt, value, colorMode, handleSelectOption }: ImageAccordionItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isSelected = value === opt.name;
   const chars = opt.characteristics;
+  const containerClass = getAccordionContainerClass(isSelected, colorMode);
 
   return (
     <div className={cn(
       "rounded-lg border transition-all duration-150 overflow-hidden",
-      colorMode === 'dark'
-        ? (isSelected ? "border-blue-500/50 bg-slate-900/80" : "border-slate-800/80 bg-slate-900/30 hover:border-slate-700")
-        : (isSelected ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-slate-50/50 hover:border-slate-300")
+      containerClass
     )}>
       <div className="flex items-center justify-between p-1.5 gap-1.5">
         <button

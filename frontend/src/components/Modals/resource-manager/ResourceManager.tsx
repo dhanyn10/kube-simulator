@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Search, Gauge, HardDrive, Zap, Cpu, Check, Layers } from 'lucide-react';
+import { Box, Search, Gauge, HardDrive, Zap, Cpu, Check } from 'lucide-react';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 import { Modal } from '@/components/Modals/Modal';
