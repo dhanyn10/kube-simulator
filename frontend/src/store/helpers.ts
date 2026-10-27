@@ -98,10 +98,11 @@ interface PodNodeParams {
 const updatePodNode = (
   existingPod: Node,
   commonData: any,
-  params: PodNodeParams
+  params: PodNodeParams,
+  parentData?: Partial<K8sNodeData>
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
-  const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
+  const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas }, parentData);
   const width = existingPod.data?.isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
     : minSize.width;
@@ -135,11 +136,12 @@ const updatePodNode = (
 // Helper to create a new pod node
 const createPodNode = (
   commonData: any,
-  params: PodNodeParams
+  params: PodNodeParams,
+  parentData?: Partial<K8sNodeData>
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
-  const minSize = getPodMinimumSize({ ...commonData, replicas });
+  const minSize = getPodMinimumSize({ ...commonData, replicas }, parentData);
   return {
     id,
     type: 'Pod',
@@ -164,6 +166,69 @@ const createPodNode = (
       onDelete: () => {},
       onRename: () => {},
     }
+  };
+};
+
+const resolveGroupPodHash = (
+  isStatefulSet: boolean,
+  data: Partial<K8sNodeData>,
+  currentPods: Node[],
+  forceRandomize: boolean
+): string => {
+  if (isStatefulSet) return '';
+  if (forceRandomize) return generateRandomHash(5);
+  const existingHash = (data.podHash as string) || (currentPods[0]?.data?.podHash as string);
+  return existingHash || generateRandomHash(5);
+};
+
+interface ReplicaSuffixInfo {
+  replicaSuffix: string;
+  replicaSuffixes?: string[];
+  nextOrdinal: number;
+}
+
+const resolveReplicaGroupSuffixes = (
+  replicas: number,
+  existingPod: Node | undefined,
+  forceRandomize: boolean
+): { replicaSuffix: string; replicaSuffixes: string[] } => {
+  const existingList = (existingPod?.data?.replicaSuffixes as string[]) || [];
+  const replicaSuffixes: string[] = [];
+  for (let r = 0; r < replicas; r++) {
+    if (!forceRandomize && existingList[r]) {
+      replicaSuffixes.push(existingList[r]);
+    } else {
+      replicaSuffixes.push(generateRandomHash(5));
+    }
+  }
+  return { replicaSuffix: replicaSuffixes[0], replicaSuffixes };
+};
+
+const resolvePodSuffixInfo = (
+  isStatefulSet: boolean,
+  replicas: number,
+  existingPod: Node | undefined,
+  currentOrdinal: number,
+  forceRandomize: boolean
+): ReplicaSuffixInfo => {
+  if (isStatefulSet) {
+    return {
+      replicaSuffix: String(currentOrdinal),
+      nextOrdinal: currentOrdinal + replicas,
+    };
+  }
+
+  if (replicas === 1) {
+    const existingSuffix = existingPod?.data?.replicaSuffix as string;
+    const replicaSuffix = !forceRandomize && existingSuffix ? existingSuffix : generateRandomHash(5);
+    return { replicaSuffix, nextOrdinal: currentOrdinal };
+  }
+
+  const { replicaSuffix, replicaSuffixes } = resolveReplicaGroupSuffixes(replicas, existingPod, forceRandomize);
+  return {
+    replicaSuffix,
+    replicaSuffixes,
+    nextOrdinal: currentOrdinal,
   };
 };
 
@@ -192,39 +257,22 @@ export const syncPodsInDeployment = (
   const isStatefulSet = deployment.type === 'StatefulSet' || data.workloadType === 'StatefulSet';
 
   // Step 1: Generate or preserve a single 5-character group podHash for Deployment or empty for StatefulSet
-  let groupPodHash = '';
-  if (!isStatefulSet) {
-    if (forceRandomize) {
-      groupPodHash = generateRandomHash(5);
-    } else {
-      const existingHash = (data.podHash as string) || (currentPods[0]?.data?.podHash as string);
-      groupPodHash = existingHash || generateRandomHash(5);
-    }
-  }
-
+  const groupPodHash = resolveGroupPodHash(isStatefulSet, data, currentPods, forceRandomize);
   data.podHash = groupPodHash;
 
   // Step 2: Iterate over target pod replica groups and assign unique per-pod replica suffixes or ordinal indices
   let currentOrdinal = 0;
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
+    const { replicaSuffix, replicaSuffixes, nextOrdinal } = resolvePodSuffixInfo(
+      isStatefulSet,
+      replicas,
+      existingPod,
+      currentOrdinal,
+      forceRandomize
+    );
+    currentOrdinal = nextOrdinal;
 
-    const existingSuffixes = (existingPod?.data?.replicaSuffixes as string[]) || [];
-    const replicaSuffixes: string[] = [];
-    for (let i = 0; i < replicas; i++) {
-      if (isStatefulSet) {
-        replicaSuffixes.push(String(currentOrdinal));
-        currentOrdinal++;
-      } else if (!forceRandomize && existingSuffixes[i]) {
-        replicaSuffixes.push(existingSuffixes[i]);
-      } else {
-        const canReuseSingleSuffix = i === 0 && Boolean(existingPod?.data?.replicaSuffix) && !forceRandomize;
-        const initialSuffix = canReuseSingleSuffix ? (existingPod.data.replicaSuffix as string) : generateRandomHash(5);
-        replicaSuffixes.push(initialSuffix);
-      }
-    }
-
-    const replicaSuffix = replicaSuffixes[0];
     const podName = isStatefulSet
       ? `${baseName}-${replicaSuffix}`
       : formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
@@ -245,9 +293,10 @@ export const syncPodsInDeployment = (
       workloadType: isStatefulSet ? 'StatefulSet' : 'Deployment'
     };
 
+    const parentData = deployment.data as unknown as K8sNodeData;
     return existingPod 
-      ? updatePodNode(existingPod, podDataWithWorkloadType, params)
-      : createPodNode(podDataWithWorkloadType, params);
+      ? updatePodNode(existingPod, podDataWithWorkloadType, params, parentData)
+      : createPodNode(podDataWithWorkloadType, params, parentData);
   });
 };
 

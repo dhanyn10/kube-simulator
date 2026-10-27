@@ -6,6 +6,7 @@ import {
   calculatePodBaseHeight,
   calculatePodContentHeight,
   calculatePodAttachedHeight,
+  calculatePodConfigMapVarsHeight,
   POD_MIN_DIMENSIONS
 } from '@/lib/podSizing';
 import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
@@ -222,9 +223,11 @@ const buildPodYogaSubTree = (
   yoga: YogaEngine,
   pod: Node,
   idx: number,
-  isLastPod: boolean
+  isLastPod: boolean,
+  deployment?: Node
 ) => {
   const podData = (pod.data as unknown as K8sNodeData) || ({} as K8sNodeData);
+  const parentData = deployment ? (deployment.data as unknown as K8sNodeData) : undefined;
   const showRuntime = Boolean(podData.displaySettings?.runtime !== false && podData.runtime && podData.runtime !== 'none');
   const showWebserver = Boolean(podData.displaySettings?.webserver !== false && podData.webserver && podData.webserver !== 'none');
   const visibleBadges: string[] = [];
@@ -232,7 +235,7 @@ const buildPodYogaSubTree = (
   if (showWebserver && podData.webserver) visibleBadges.push(String(podData.webserver));
 
   const { isMegaPod } = getPodReplicaInfo(podData);
-  const minSize = getPodMinimumSize(podData);
+  const minSize = getPodMinimumSize(podData, parentData);
 
   const podWidth = podData.isManuallyResized
     ? Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width)
@@ -260,9 +263,18 @@ const buildPodYogaSubTree = (
   contentYogaNode.setMinHeight(contentHeight);
   podYogaNode.insertChild(contentYogaNode, 1);
 
+  let childIndex = 2;
+  const configMapVarsHeight = calculatePodConfigMapVarsHeight(podData, parentData);
+  if (configMapVarsHeight > 0) {
+    const cmYogaNode = yoga.Node.create();
+    cmYogaNode.setWidth(podWidth);
+    cmYogaNode.setMinHeight(configMapVarsHeight);
+    podYogaNode.insertChild(cmYogaNode, childIndex++);
+  }
+
   const attachedContainerNode = buildAttachedContainerYogaNode(yoga, podData, podWidth);
   if (attachedContainerNode) {
-    podYogaNode.insertChild(attachedContainerNode, 2);
+    podYogaNode.insertChild(attachedContainerNode, childIndex);
   }
 
   return podYogaNode;
@@ -287,7 +299,7 @@ const calculateFallbackLayout = (config: FallbackLayoutConfig) => {
   let currentY = paddingY;
   const laidOutPods = pods.map((pod, idx) => {
     const podData = (pod.data as unknown as K8sNodeData) || ({} as K8sNodeData);
-    const minSize = getPodMinimumSize(podData);
+    const minSize = getPodMinimumSize(podData, data);
     const podW = podData.isManuallyResized
       ? Math.max(pod.width || 0, pod.measured?.width || 0, minSize.width)
       : minSize.width;
@@ -306,6 +318,7 @@ const calculateFallbackLayout = (config: FallbackLayoutConfig) => {
       ...pod,
       width: podW,
       height: podH,
+      measured: { width: podW, height: podH },
       style: {
         ...cleanStyle,
         width: podW,
@@ -347,7 +360,7 @@ export const calculateDeploymentLayoutWithYoga = (
   const minWidth = isReplicaSet ? 180 : (POD_MIN_DIMENSIONS.width + paddingX * 2 + 10);
   const minHeight = isReplicaSet ? 100 : (POD_MIN_DIMENSIONS.height + paddingY + bottomPadding);
 
-  const maxPodWidth = Math.max(0, ...pods.map(p => getPodMinimumSize((p.data as unknown as K8sNodeData) || {}).width));
+  const maxPodWidth = Math.max(0, ...pods.map(p => getPodMinimumSize((p.data as unknown as K8sNodeData) || {}, data).width));
   let deploymentWidth = Math.max(minWidth, maxPodWidth + paddingX * 2);
 
   if (data.isManuallyResized && deployment.width) {
@@ -377,7 +390,7 @@ export const calculateDeploymentLayoutWithYoga = (
 
   pods.forEach((pod, idx) => {
     const isLastPod = idx === pods.length - 1;
-    const podYogaNode = buildPodYogaSubTree(yoga, pod, idx, isLastPod);
+    const podYogaNode = buildPodYogaSubTree(yoga, pod, idx, isLastPod, deployment);
     rootNode.insertChild(podYogaNode, idx);
   });
 
@@ -390,7 +403,7 @@ export const calculateDeploymentLayoutWithYoga = (
     const computedW = podYogaNode.getComputedWidth();
     const computedH = podYogaNode.getComputedHeight();
 
-    const minSize = getPodMinimumSize((pod.data as unknown as K8sNodeData) || {});
+    const minSize = getPodMinimumSize((pod.data as unknown as K8sNodeData) || {}, data);
 
     const cleanStyle = { ...pod.style };
     delete (cleanStyle as any).height;
@@ -399,6 +412,7 @@ export const calculateDeploymentLayoutWithYoga = (
       ...pod,
       width: computedW,
       height: computedH,
+      measured: { width: computedW, height: computedH },
       style: {
         ...cleanStyle,
         width: computedW,

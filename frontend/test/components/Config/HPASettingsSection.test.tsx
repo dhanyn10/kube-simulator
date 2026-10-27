@@ -20,10 +20,7 @@ describe('HPASettingsSection', () => {
         data={{
           label: 'dep-1',
           type: 'Deployment',
-          hpas: [
-            { id: 'hpa-1', name: 'app-hpa', minReplicas: 2, maxReplicas: 10, targetCPU: 80 },
-            { id: 'hpa-2', name: 'app-hpa-2', minReplicas: 1, maxReplicas: 5, targetCPU: 70 },
-          ],
+          hpas: [{ id: 'hpa-1', name: 'app-hpa', minReplicas: 2, maxReplicas: 10, targetCPU: 80 }, { id: 'hpa-2', name: 'app-hpa-2', minReplicas: 1, maxReplicas: 5, targetCPU: 70 }],
         }}
         nodeId="dep-1"
       />

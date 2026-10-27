@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { pauseSimulation, stopSimulation, checkEmergencyStop, broadcastMetrics, validateHpaTargets, getMetricsChannel, setMetricsChannel } from '@/store/slices/simulationManager';
+import { pauseSimulation, stopSimulation, resetSimulationNodes, checkEmergencyStop, broadcastMetrics, validateHpaTargets, getMetricsChannel, setMetricsChannel } from '@/store/slices/simulationManager';
 import { Node, Edge } from '@xyflow/react';
 
 describe('simulationManager', () => {
@@ -114,6 +114,70 @@ describe('simulationManager', () => {
       stopSimulation(set, get, interval);
 
       expect(set).toHaveBeenCalledWith(expect.objectContaining({ isSimulating: false }));
+    });
+
+    it('resets crashing pods back to initial status and clears simulated failure flags', () => {
+      const set = vi.fn();
+      const get = vi.fn().mockReturnValue({
+        nodes: [
+          {
+            id: 'pod-1',
+            type: 'Pod',
+            data: {
+              image: 'nginx:latest',
+              status: 'crashing',
+              simulatedFailureCM: 'chaos-cm',
+              simulatedFailureSecret: 'missing-secret',
+            },
+          },
+          {
+            id: 'pod-2',
+            type: 'Pod',
+            data: {
+              image: '',
+              status: 'crashing',
+            },
+          },
+        ],
+      });
+      const interval = { current: null };
+
+      stopSimulation(set, get, interval);
+
+      expect(set).toHaveBeenCalledWith(expect.objectContaining({
+        isSimulating: false,
+        isPaused: false,
+        nodes: [
+          expect.objectContaining({
+            id: 'pod-1',
+            data: expect.objectContaining({
+              status: 'ready',
+              simulatedFailureCM: undefined,
+              simulatedFailureSecret: undefined,
+            }),
+          }),
+          expect.objectContaining({
+            id: 'pod-2',
+            data: expect.objectContaining({
+              status: 'pending',
+            }),
+          }),
+        ],
+      }));
+    });
+
+    it('resetSimulationNodes correctly handles Pods, PVCs, Internet, and pass-through nodes', () => {
+      const nodes: any[] = [
+        { id: 'p1', type: 'Pod', data: { image: 'alpine', status: 'crashing' } },
+        { id: 'pvc1', type: 'PVC', data: { pvcStatus: 'Bound' } },
+        { id: 'net1', type: 'Internet', data: { currentHourIndex: 3, currentMinuteIndex: 2, profileTicks: 99 } },
+        { id: 'svc1', type: 'Service', data: { label: 'my-svc' } },
+      ];
+      const result = resetSimulationNodes(nodes);
+      expect(result[0].data.status).toBe('ready');
+      expect(result[1].data.pvcStatus).toBe('Pending');
+      expect(result[2].data.profileTicks).toBe(0);
+      expect(result[3].data.label).toBe('my-svc');
     });
   });
 

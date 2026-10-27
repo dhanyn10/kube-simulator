@@ -114,13 +114,7 @@ describe('rbacNodeHelpers', () => {
 
   it('grants permission if node has direct attached Role matching activeUser', () => {
     const nodeData = {
-      roles: [
-        {
-          name: 'svc-role',
-          assignedUsers: ['dev-user'],
-          rules: [{ apiGroups: [''], resources: ['services'], verbs: ['get'] }],
-        },
-      ],
+      roles: [{ name: 'svc-role', assignedUsers: ['dev-user'], rules: [{ apiGroups: [''], resources: ['services'], verbs: ['get'] }] }],
     };
 
     expect(isResourceAllowedByCanvasRoles(nodeData, 'dev-user', 'services')).toBe(true);

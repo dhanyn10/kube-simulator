@@ -621,18 +621,7 @@ describe('simulation test suite', () => {
     const pod = createNode('pod-cm-test', 'Pod', { status: 'ready', webserver: 'nginx' });
     const srv = createNode('srv1', 'Service', { targetPort: 80 });
     const dep = createNode('dep-cm-test', 'Deployment', {
-      configMaps: [
-        {
-          id: 'cm1',
-          name: 'app-cm',
-          configData: [
-            { key: 'PORT', value: '8080' },
-            { key: 'MAX_CONNECTIONS', value: '100' },
-            { key: 'LOG_LEVEL', value: 'DEBUG' },
-            { key: 'CHAOS_MODE', value: 'disabled' }
-          ]
-        }
-      ]
+      configMaps: [{ id: 'cm1', name: 'app-cm', configData: [{ key: 'PORT', value: '8080' }, { key: 'MAX_CONNECTIONS', value: '100' }, { key: 'LOG_LEVEL', value: 'DEBUG' }, { key: 'CHAOS_MODE', value: 'disabled' }] }]
     });
 
     const edgeSrvDep = { id: 'e-srv-dep', source: 'srv1', target: 'dep-cm-test', data: {} } as Edge;
@@ -699,13 +688,7 @@ describe('simulation test suite', () => {
 
     // Triggers handleTrafficThrottling with exception
     dep.data = {
-      configMaps: [
-        {
-          id: 'cm1',
-          name: 'app-cm',
-          configData: [{ key: 'MAX_CONNECTIONS', value: '10' }]
-        }
-      ]
+      configMaps: [{ id: 'cm1', name: 'app-cm', configData: [{ key: 'MAX_CONNECTIONS', value: '10' }] }]
     };
     const processRes = processWorkloadSimulation(dep, ctxErr);
     expect(processRes).toBeDefined();
@@ -1210,13 +1193,7 @@ describe('simulation test suite', () => {
       const dep = createNode('dep-cm-sec', 'Deployment', {
         label: 'cm-sec-workload',
         status: 'ready',
-        configMaps: [
-          {
-            id: 'cm-req',
-            name: 'cm-auth',
-            configData: [{ key: 'REQUIRE_SECRET', value: 'true' }]
-          }
-        ],
+        configMaps: [{ id: 'cm-req', name: 'cm-auth', configData: [{ key: 'REQUIRE_SECRET', value: 'true' }] }],
         secrets: []
       });
       const pod = createNode('pod-cm-sec', 'Pod', { parentId: 'dep-cm-sec', status: 'ready', image: 'nginx:latest' });

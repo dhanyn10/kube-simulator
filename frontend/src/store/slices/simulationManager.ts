@@ -15,6 +15,39 @@ let consecutiveUnreadyTicks = 0;
 const getRuntime = () => (globalThis as any).runtime;
 
 /**
+ * Resets dynamic simulation runtime fields on nodes back to their idle/initial state.
+ * Restores Pods from 'crashing' back to 'ready' or 'pending', resets PVCs to 'Pending',
+ * and resets Internet traffic profile indices.
+ *
+ * @param nodes List of canvas nodes to reset
+ * @returns Reconciled nodes with runtime fields cleared
+ */
+export const resetSimulationNodes = (nodes: Node[]): Node[] => {
+  return nodes.map(n => {
+    if (n.type === 'PVC') {
+      return { ...n, data: { ...n.data, pvcStatus: 'Pending' } };
+    }
+    if (n.type === 'Internet') {
+      return { ...n, data: { ...n.data, currentHourIndex: 0, currentMinuteIndex: 0, profileTicks: 0 } };
+    }
+    if (n.type === 'Pod') {
+      const podData = n.data as K8sNodeData;
+      const initialStatus = podData.image ? 'ready' : 'pending';
+      return {
+        ...n,
+        data: {
+          ...podData,
+          status: initialStatus,
+          simulatedFailureCM: undefined,
+          simulatedFailureSecret: undefined,
+        }
+      };
+    }
+    return n;
+  });
+};
+
+/**
  * Pauses the simulation without resetting metrics or traffic positions.
  * @param set Zustand store setter.
  * @param simulationInterval Ref to the current interval object.
@@ -38,15 +71,7 @@ export const stopSimulation = (set: (state: Partial<FlowState>) => void, get: ()
     clearInterval(simulationInterval.current);
     simulationInterval.current = null;
   }
-  const resetNodes = get().nodes.map(n => {
-    if (n.type === 'PVC') {
-      return { ...n, data: { ...n.data, pvcStatus: 'Pending' } };
-    }
-    if (n.type === 'Internet') {
-      return { ...n, data: { ...n.data, currentHourIndex: 0, currentMinuteIndex: 0, profileTicks: 0 } };
-    }
-    return n;
-  });
+  const resetNodes = resetSimulationNodes(get().nodes);
   set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, nodes: resetNodes });
 };
 
@@ -103,7 +128,8 @@ export const checkEmergencyStop = (params: {
           clearInterval(simulationInterval.current);
           simulationInterval.current = null;
       }
-      set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, isMonitoringOpen: false, isMonitoringDetached: false });
+      const resetNodes = resetSimulationNodes(nodes);
+      set({ isSimulating: false, isPaused: false, activeSimulationEdges: [], simulationMetrics: {}, nodes: resetNodes, isMonitoringOpen: false, isMonitoringDetached: false });
 
       if (metricsChannel) {
           metricsChannel.postMessage({ type: 'DETACHED_CLOSED' });
@@ -155,4 +181,3 @@ export const getMetricsChannel = () => metricsChannel;
 export const setMetricsChannel = (channel: BroadcastChannel | null) => {
   metricsChannel = channel;
 };
-

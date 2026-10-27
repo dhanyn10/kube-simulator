@@ -33,14 +33,7 @@ describe('terminalConfigCommands', () => {
           type: 'Pod',
           data: {
             label: 'web-pod',
-            roles: [
-              {
-                id: 'role-1',
-                name: 'pod-manager',
-                assignedUsers: ['budi'],
-                rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['*'] }],
-              },
-            ],
+            roles: [{ id: 'role-1', name: 'pod-manager', assignedUsers: ['budi'], rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['*'] }] }],
           },
           position: { x: 0, y: 0 },
         },
@@ -243,13 +236,7 @@ describe('terminalConfigCommands', () => {
             id: 'n-wild',
             type: 'Pod',
             data: {
-              roles: [
-                {
-                  name: 'all-access',
-                  assignedUsers: ['wildcard_user'],
-                  rules: [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }],
-                },
-              ],
+              roles: [{ name: 'all-access', assignedUsers: ['wildcard_user'], rules: [{ apiGroups: ['*'], resources: ['*'], verbs: ['*'] }] }],
             },
           },
         ],
@@ -261,12 +248,7 @@ describe('terminalConfigCommands', () => {
 
     it('covers checkIamPolicy non-matching policy branches, default activeIdentity fallback, and rule verb/resource non-matches', () => {
       // 1. checkIamPolicy for non-matching policy/verb/resource
-      storeState.iamUsers.push({
-        id: 'u-dev-only',
-        username: 'dev_user',
-        accessType: 'Managed Access',
-        policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }],
-      });
+      storeState.iamUsers.push({ id: 'u-dev-only', username: 'dev_user', accessType: 'Managed Access', policies: [{ name: 'ContainerDeveloperPolicy', type: 'Default', description: 'Container dev' }] });
       storeState.activeIdentity = 'dev_user';
 
       // ContainerDeveloperPolicy allows pods/deployments/replicasets/configmaps/secrets, but NOT services/pvcs on delete
@@ -289,21 +271,13 @@ describe('terminalConfigCommands', () => {
             id: 'n-mismatch',
             type: 'Pod',
             data: {
-              roles: [
-                {
-                  name: 'specific-role',
-                  assignedUsers: ['user_mismatch'],
-                  rules: [{ resources: ['pods'], verbs: ['get'] }],
-                },
-              ],
+              roles: [{ name: 'specific-role', assignedUsers: ['user_mismatch'], rules: [{ resources: ['pods'], verbs: ['get'] }] }],
             },
           },
         ],
         getStoreState: () => ({
           activeIdentity: 'user_mismatch',
-          iamUsers: [
-            { id: 'u-mismatch', username: 'user_mismatch', accessType: 'Managed Access', policies: [] },
-          ],
+          iamUsers: [{ id: 'u-mismatch', username: 'user_mismatch', accessType: 'Managed Access', policies: [] }],
         }),
       };
 
@@ -338,21 +312,8 @@ describe('terminalConfigCommands', () => {
             type: 'Pod',
             data: {
               roles: [
-                {
-                  name: 'no-rules-role',
-                  assignedUsers: ['user_test'],
-                  // rules is undefined -> covers role.rules || []
-                },
-                {
-                  name: 'empty-rule-role',
-                  assignedUsers: ['user_test'],
-                  rules: [
-                    {
-                      // resources is undefined -> covers rule.resources || []
-                      // verbs is undefined -> covers rule.verbs || []
-                    },
-                  ],
-                },
+                { name: 'no-rules-role', assignedUsers: ['user_test'] },
+                { name: 'empty-rule-role', assignedUsers: ['user_test'], rules: [{}] },
               ],
             },
           },

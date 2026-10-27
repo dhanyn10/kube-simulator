@@ -27,27 +27,11 @@ describe('AttachedResourcesFooter', () => {
 
   it('renders role, configmap, secret, hpa, and resourceLimit badges with details and fallback titles', () => {
     const data: K8sNodeData = {
-      roles: [
-        { id: 'r1', name: 'admin-role', assignedUsers: ['user1', 'user2'] },
-        { name: 'role-no-id' },
-      ],
+      roles: [{ id: 'r1', name: 'admin-role', assignedUsers: ['user1', 'user2'] }, { name: 'role-no-id' }],
       configMaps: [{ id: 'cm1', name: 'my-cm' }, { name: 'cm-no-id' }],
       secrets: [{ id: 's1', name: 'my-secret' }, { name: 'sec-no-id' }],
-      resourceLimits: [
-        {
-          id: 'res1',
-          name: 'my-limit',
-          cpuRequest: '250m',
-          cpuLimit: '500m',
-          memoryRequest: '128Mi',
-          memoryLimit: '256Mi',
-        },
-        { name: 'res-default' },
-      ],
-      hpas: [
-        { id: 'h1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 },
-        { name: 'hpa-no-details' },
-      ],
+      resourceLimits: [{ id: 'res1', name: 'my-limit', cpuRequest: '250m', cpuLimit: '500m', memoryRequest: '128Mi', memoryLimit: '256Mi' }, { name: 'res-default' }],
+      hpas: [{ id: 'h1', name: 'my-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 }, { name: 'hpa-no-details' }],
     };
 
     render(<AttachedResourcesFooter data={data} />);

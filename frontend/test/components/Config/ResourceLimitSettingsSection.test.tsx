@@ -9,16 +9,7 @@ describe('ResourceLimitSettingsSection', () => {
   const sampleData: K8sNodeData = {
     label: 'App Deployment',
     type: 'Deployment',
-    resourceLimits: [
-      {
-        id: 'res-1',
-        name: 'app-limit',
-        limitCpu: '500m',
-        limitMemory: '512Mi',
-        requestCpu: '250m',
-        requestMemory: '256Mi',
-      },
-    ],
+    resourceLimits: [{ id: 'res-1', name: 'app-limit', limitCpu: '500m', limitMemory: '512Mi', requestCpu: '250m', requestMemory: '256Mi' }],
   };
 
   beforeEach(() => {
