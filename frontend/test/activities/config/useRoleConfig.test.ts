@@ -76,13 +76,7 @@ describe('useRoleConfig', () => {
 
       expect(setEdgesSpy).toHaveBeenCalledWith([]);
       expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
-        rules: [
-          {
-            apiGroups: [''],
-            resources: ['secrets'],
-            verbs: ['get'],
-          },
-        ],
+        rules: [{ apiGroups: [''], resources: ['secrets'], verbs: ['get'] }],
       });
     });
 
@@ -117,13 +111,7 @@ describe('useRoleConfig', () => {
       });
 
       expect(updateNodeDataSpy).toHaveBeenNthCalledWith(1, 'role-1', {
-        rules: [
-          {
-            apiGroups: ['apps'],
-            resources: ['pods'],
-            verbs: ['list'],
-          },
-        ],
+        rules: [{ apiGroups: ['apps'], resources: ['pods'], verbs: ['list'] }],
       });
 
       // Add verb 'watch'
@@ -132,13 +120,7 @@ describe('useRoleConfig', () => {
       });
 
       expect(updateNodeDataSpy).toHaveBeenNthCalledWith(2, 'role-1', {
-        rules: [
-          {
-            apiGroups: ['apps'],
-            resources: ['pods'],
-            verbs: ['list', 'watch'],
-          },
-        ],
+        rules: [{ apiGroups: ['apps'], resources: ['pods'], verbs: ['list', 'watch'] }],
       });
     });
 
@@ -170,13 +152,7 @@ describe('useRoleConfig', () => {
 
       expect(setEdgesSpy).toHaveBeenCalledWith([]);
       expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
-        rules: [
-          {
-            apiGroups: ['apps'],
-            resources: ['deployments'],
-            verbs: ['get'],
-          },
-        ],
+        rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get'] }],
       });
       expect(addLogSpy).toHaveBeenCalledWith('info', '[Canvas Action] Disconnected Role from pods', 'UI');
     });
@@ -200,13 +176,7 @@ describe('useRoleConfig', () => {
       });
 
       expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
-        rules: [
-          {
-            apiGroups: ['apps'],
-            resources: ['pods'],
-            verbs: ['get'],
-          },
-        ],
+        rules: [{ apiGroups: ['apps'], resources: ['pods'], verbs: ['get'] }],
       });
     });
 
@@ -236,13 +206,7 @@ describe('useRoleConfig', () => {
 
       expect(setEdgesSpy).toHaveBeenCalledWith([]);
       expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
-        rules: [
-          {
-            apiGroups: ['apps'],
-            resources: [],
-            verbs: ['get'],
-          },
-        ],
+        rules: [{ apiGroups: ['apps'], resources: [], verbs: ['get'] }],
       });
     });
 
@@ -438,13 +402,7 @@ describe('useRoleConfig', () => {
       });
 
       expect(updateNodeDataSpy).toHaveBeenCalledWith('role-1', {
-        rules: [
-          {
-            apiGroups: ['apps'],
-            resources: ['pods'],
-            verbs: ['get'],
-          },
-        ],
+        rules: [{ apiGroups: ['apps'], resources: ['pods'], verbs: ['get'] }],
       });
     });
   });

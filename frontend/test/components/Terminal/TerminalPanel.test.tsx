@@ -800,19 +800,7 @@ describe('TerminalPanel', () => {
       // Setup some revisions first so rollback can be executed
       act(() => {
         useFlowStore.setState({
-          nodes: [
-            {
-              id: 'dep-1',
-              type: 'Deployment',
-              data: {
-                label: 'api-dep',
-                replicas: 2,
-                image: 'nginx:alpine',
-                rolloutRevisions: ['nginx:latest', 'nginx:alpine']
-              },
-              position: { x: 10, y: 10 }
-            }
-          ]
+          nodes: [{ id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', replicas: 2, image: 'nginx:alpine', rolloutRevisions: ['nginx:latest', 'nginx:alpine'] }, position: { x: 10, y: 10 } }]
         });
       });
 

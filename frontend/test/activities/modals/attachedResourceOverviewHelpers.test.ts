@@ -15,32 +15,9 @@ describe('attachedResourceOverviewHelpers', () => {
       data: {
         label: 'web-pod',
         type: 'Pod',
-        configMaps: [
-          {
-            id: 'cm-1',
-            name: 'web-config',
-            configData: [
-              { key: 'PORT', value: '8080' },
-              { key: 'ENV', value: 'production' },
-            ],
-          },
-        ],
-        secrets: [
-          {
-            id: 'sec-1',
-            name: 'web-secret',
-            type: 'Opaque',
-            secretData: [{ key: 'DB_PASS', value: 'secret123' }],
-          },
-        ],
-        roles: [
-          {
-            id: 'role-1',
-            name: 'pod-reader',
-            rules: [{ resources: ['pods'], verbs: ['get', 'list'] }],
-            assignedUsers: ['alice'],
-          },
-        ],
+        configMaps: [{ id: 'cm-1', name: 'web-config', configData: [{ key: 'PORT', value: '8080' }, { key: 'ENV', value: 'production' }] }],
+        secrets: [{ id: 'sec-1', name: 'web-secret', type: 'Opaque', secretData: [{ key: 'DB_PASS', value: 'secret123' }] }],
+        roles: [{ id: 'role-1', name: 'pod-reader', rules: [{ resources: ['pods'], verbs: ['get', 'list'] }], assignedUsers: ['alice'] }],
       },
     },
     {
@@ -50,32 +27,11 @@ describe('attachedResourceOverviewHelpers', () => {
       data: {
         label: 'api-deployment',
         type: 'Deployment',
-        hpas: [
-          {
-            id: 'hpa-1',
-            name: 'api-hpa',
-            minReplicas: 2,
-            maxReplicas: 10,
-            targetCPU: 75,
-          },
-        ],
-        resourceLimits: [
-          {
-            id: 'res-1',
-            name: 'api-limits',
-            cpuRequest: '250m',
-            cpuLimit: '500m',
-            memoryRequest: '128Mi',
-            memoryLimit: '256Mi',
-          },
-        ],
+        hpas: [{ id: 'hpa-1', name: 'api-hpa', minReplicas: 2, maxReplicas: 10, targetCPU: 75 }],
+        resourceLimits: [{ id: 'res-1', name: 'api-limits', cpuRequest: '250m', cpuLimit: '500m', memoryRequest: '128Mi', memoryLimit: '256Mi' }],
       },
     },
-    {
-      id: 'node-empty',
-      position: { x: 0, y: 0 },
-      data: {},
-    },
+    { id: 'node-empty', position: { x: 0, y: 0 }, data: {} },
   ];
 
   it('extractAllOverviewItems extracts attached items with owner details and handles invalid types', () => {
@@ -189,16 +145,8 @@ describe('attachedResourceOverviewHelpers', () => {
 
   it('extractAllOverviewItems includes unattached saved ConfigMaps from local storage', () => {
     const savedCMs = [
-      {
-        id: 'cm-standalone',
-        name: 'global-config',
-        configData: [{ key: 'LOG_LEVEL', value: 'debug' }],
-      },
-      {
-        id: 'cm-1',
-        name: 'web-config',
-        configData: [{ key: 'PORT', value: '8080' }],
-      },
+      { id: 'cm-standalone', name: 'global-config', configData: [{ key: 'LOG_LEVEL', value: 'debug' }] },
+      { id: 'cm-1', name: 'web-config', configData: [{ key: 'PORT', value: '8080' }] },
     ];
 
     const cms = extractAllOverviewItems(mockNodes, 'ConfigMap', savedCMs, 'Production Cluster');

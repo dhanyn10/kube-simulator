@@ -13,32 +13,9 @@ describe('AttachedResourceOverviewModal', () => {
       position: { x: 0, y: 0 },
       data: {
         label: 'web-pod',
-        configMaps: [
-          {
-            id: 'cm-1',
-            name: 'app-config',
-            configData: [
-              { key: 'PORT', value: '3000' },
-              { key: 'MODE', value: 'test' },
-            ],
-          },
-        ],
-        secrets: [
-          {
-            id: 'sec-1',
-            name: 'app-secret',
-            type: 'Opaque',
-            secretData: [{ key: 'API_KEY', value: '12345' }],
-          },
-        ],
-        roles: [
-          {
-            id: 'role-1',
-            name: 'admin-role',
-            rules: [{ resources: ['pods'], verbs: ['*'] }],
-            assignedUsers: ['john'],
-          },
-        ],
+        configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'PORT', value: '3000' }, { key: 'MODE', value: 'test' }] }],
+        secrets: [{ id: 'sec-1', name: 'app-secret', type: 'Opaque', secretData: [{ key: 'API_KEY', value: '12345' }] }],
+        roles: [{ id: 'role-1', name: 'admin-role', rules: [{ resources: ['pods'], verbs: ['*'] }], assignedUsers: ['john'] }],
       },
     },
     {
@@ -47,25 +24,8 @@ describe('AttachedResourceOverviewModal', () => {
       position: { x: 0, y: 0 },
       data: {
         label: 'backend-dep',
-        hpas: [
-          {
-            id: 'hpa-1',
-            name: 'backend-hpa',
-            minReplicas: 1,
-            maxReplicas: 5,
-            targetCPU: 80,
-          },
-        ],
-        resourceLimits: [
-          {
-            id: 'res-1',
-            name: 'backend-limits',
-            cpuRequest: '100m',
-            cpuLimit: '200m',
-            memoryRequest: '64Mi',
-            memoryLimit: '128Mi',
-          },
-        ],
+        hpas: [{ id: 'hpa-1', name: 'backend-hpa', minReplicas: 1, maxReplicas: 5, targetCPU: 80 }],
+        resourceLimits: [{ id: 'res-1', name: 'backend-limits', cpuRequest: '100m', cpuLimit: '200m', memoryRequest: '64Mi', memoryLimit: '128Mi' }],
       },
     },
   ];
@@ -199,18 +159,16 @@ describe('AttachedResourceOverviewModal', () => {
   });
 
   it('handles empty and edge case items in details sections', () => {
-    const emptyDetailsNodes: Node[] = [
-      {
-        id: 'node-empty-items',
-        position: { x: 0, y: 0 },
-        data: {
-          label: 'empty-pod',
-          configMaps: [{ id: 'cm-empty', name: 'empty-cm', configData: [] }],
-          secrets: [{ id: 'sec-empty', name: 'empty-sec', secretData: [] }],
-          roles: [{ id: 'role-empty', name: 'empty-role', rules: [], assignedUsers: [] }],
-        },
+    const emptyDetailsNodes: Node[] = [{
+      id: 'node-empty-items',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'empty-pod',
+        configMaps: [{ id: 'cm-empty', name: 'empty-cm', configData: [] }],
+        secrets: [{ id: 'sec-empty', name: 'empty-sec', secretData: [] }],
+        roles: [{ id: 'role-empty', name: 'empty-role', rules: [], assignedUsers: [] }],
       },
-    ];
+    }];
     useFlowStore.setState({ nodes: emptyDetailsNodes });
 
     const { rerender } = render(<AttachedResourceOverviewModal type="ConfigMap" onClose={vi.fn()} />);
@@ -238,13 +196,7 @@ describe('AttachedResourceOverviewModal', () => {
 
     useFlowStore.setState({
       nodes: [],
-      savedConfigMaps: [
-        {
-          id: 'cm-standalone-1',
-          name: 'standalone-config',
-          configData: [{ key: 'HOST', value: 'localhost' }],
-        },
-      ],
+      savedConfigMaps: [{ id: 'cm-standalone-1', name: 'standalone-config', configData: [{ key: 'HOST', value: 'localhost' }] }],
       setConfigMapModalTargetNode: mockSetConfigMapModalTargetNode,
     });
 
@@ -270,13 +222,7 @@ describe('AttachedResourceOverviewModal', () => {
 
     useFlowStore.setState({
       nodes: [],
-      savedConfigMaps: [
-        {
-          id: 'cm-to-delete',
-          name: 'standalone-to-delete',
-          configData: [],
-        },
-      ],
+      savedConfigMaps: [{ id: 'cm-to-delete', name: 'standalone-to-delete', configData: [] }],
       deleteSavedConfigMap: mockDeleteSavedConfigMap,
     });
 

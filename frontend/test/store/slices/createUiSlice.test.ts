@@ -356,17 +356,8 @@ describe('createUiSlice', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
-        {
-          id: 'dep-1',
-          type: 'Deployment',
-          data: {
-            label: 'api-dep',
-            isRollingUpdate: true,
-            rolloutTargetImage: 'nginx:alpine',
-            image: 'nginx:latest'
-          }
-        },
-        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-1', status: 'ready', image: 'nginx:latest' } }
+        { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', isRollingUpdate: true, rolloutTargetImage: 'nginx:alpine', image: 'nginx:latest' } },
+        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-1', status: 'ready', image: 'nginx:latest' } },
       ] as any,
       edges: [
         { id: 'e1', source: 'i1', target: 'dep-1' },
@@ -592,15 +583,7 @@ describe('createUiSlice', () => {
     // Attach role assigned to dev-user on a node
     useFlowStore.setState({
       nodes: [
-        {
-          id: 'pod-1',
-          data: {
-            label: 'web-pod',
-            roles: [
-              { id: 'role-1', name: 'app-role', assignedUsers: ['dev-user', 'other-user'] },
-            ],
-          },
-        } as any,
+        { id: 'pod-1', data: { label: 'web-pod', roles: [{ id: 'role-1', name: 'app-role', assignedUsers: ['dev-user', 'other-user'] }] } } as any,
         { id: 'pod-2', data: {} } as any, // Node without roles array
       ],
     });
@@ -755,19 +738,8 @@ describe('createUiSlice', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
-        {
-          id: 'dep-1',
-          type: 'Deployment',
-          data: {
-            label: 'api-dep',
-            isRollingUpdate: true,
-            rolloutTargetImage: 'nginx:alpine',
-            image: 'nginx:latest',
-          },
-        },
-        // Pod 1 is pending with rolloutTargetImage
+        { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', isRollingUpdate: true, rolloutTargetImage: 'nginx:alpine', image: 'nginx:latest' } },
         { id: 'pod-pending', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-pending', status: 'pending', pendingTicks: 0, image: 'nginx:alpine' } },
-        // Pod 2 is ready with old image
         { id: 'pod-ready-old', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-ready-old', status: 'ready', image: 'nginx:latest' } },
       ] as any,
       edges: [
@@ -1102,32 +1074,9 @@ describe('createUiSlice', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
-        {
-          id: 'dep-nolabel',
-          type: 'Deployment',
-          data: {
-            isRollingUpdate: true,
-            rolloutTargetImage: 'v2',
-            image: 'v1',
-          },
-        },
-        {
-          id: 'pod-nolabel-old',
-          type: 'Pod',
-          parentId: 'dep-nolabel',
-          data: {
-            status: 'ready',
-            image: 'v1',
-          },
-        },
-        {
-          id: 'pod-nolabel-pending',
-          type: 'Pod',
-          data: {
-            status: 'pending',
-            pendingTicks: 1,
-          },
-        },
+        { id: 'dep-nolabel', type: 'Deployment', data: { isRollingUpdate: true, rolloutTargetImage: 'v2', image: 'v1' } },
+        { id: 'pod-nolabel-old', type: 'Pod', parentId: 'dep-nolabel', data: { status: 'ready', image: 'v1' } },
+        { id: 'pod-nolabel-pending', type: 'Pod', data: { status: 'pending', pendingTicks: 1 } },
       ] as any,
       edges: [{ id: 'e1', source: 'i1', target: 'dep-nolabel' }] as any,
     });

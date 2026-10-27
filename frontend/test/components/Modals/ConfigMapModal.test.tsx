@@ -161,22 +161,8 @@ describe('ConfigMapModal', () => {
 
   it('handles navigation between form view and list view via Back button', () => {
     useFlowStore.setState({
-      nodes: [
-        {
-          id: 'pod-1',
-          type: 'Pod',
-          position: { x: 0, y: 0 },
-          data: {
-            label: 'web-pod',
-            configMaps: [
-              { id: 'cm-web', name: 'web-config', configData: [{ key: 'ENV', value: 'prod' }] },
-            ],
-          },
-        },
-      ],
-      savedConfigMaps: [
-        { id: 'cm-db', name: 'db-config', configData: [{ key: 'PORT', value: '5432' }] },
-      ],
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [{ key: 'ENV', value: 'prod' }] }] } }],
+      savedConfigMaps: [{ id: 'cm-db', name: 'db-config', configData: [{ key: 'PORT', value: '5432' }] }],
     });
 
     render(<ConfigMapModal {...defaultProps} initialConfigMap={{ id: 'cm-web', name: 'web-config', configData: [] }} />);
@@ -219,19 +205,7 @@ describe('ConfigMapModal', () => {
     const mockDeleteSavedConfigMap = vi.fn();
 
     useFlowStore.setState({
-      nodes: [
-        {
-          id: 'pod-1',
-          type: 'Pod',
-          position: { x: 0, y: 0 },
-          data: {
-            label: 'web-pod',
-            configMaps: [
-              { id: 'cm-web', name: 'web-config', configData: [] },
-            ],
-          },
-        },
-      ],
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [] }] } }],
       savedConfigMaps: [],
       updateNodeData: mockUpdateNodeData,
       deleteSavedConfigMap: mockDeleteSavedConfigMap,
