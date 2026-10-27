@@ -28,13 +28,7 @@ describe('PodConfigMapVars', () => {
     const data = {
       label: 'pod-1',
       displaySettings: { configMapVars: false },
-      configMaps: [
-        {
-          id: 'cm-1',
-          name: 'app-config',
-          configData: [{ key: 'PORT', value: '8080' }],
-        },
-      ],
+      configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'PORT', value: '8080' }] }],
     } as any;
 
     const { container } = render(
@@ -48,13 +42,7 @@ describe('PodConfigMapVars', () => {
   it('renders nothing when configMaps exist but configData is empty', () => {
     const data = {
       label: 'pod-1',
-      configMaps: [
-        {
-          id: 'cm-1',
-          name: 'app-config',
-          configData: [],
-        },
-      ],
+      configMaps: [{ id: 'cm-1', name: 'app-config', configData: [] }],
     } as any;
 
     const { container } = render(
@@ -68,16 +56,7 @@ describe('PodConfigMapVars', () => {
   it('renders configMap variables with icon badge and hover card containing header and direct ID in dark mode', () => {
     const data = {
       label: 'pod-1',
-      configMaps: [
-        {
-          id: 'cm-alpha-123',
-          name: 'app-config',
-          configData: [
-            { key: 'PORT', value: '8080' },
-            { key: 'ENV', value: 'production' },
-          ],
-        },
-      ],
+      configMaps: [{ id: 'cm-alpha-123', name: 'app-config', configData: [{ key: 'PORT', value: '8080' }, { key: 'ENV', value: 'production' }] }],
     } as any;
 
     render(
@@ -112,13 +91,7 @@ describe('PodConfigMapVars', () => {
 
     const data = {
       label: 'pod-1',
-      configMaps: [
-        {
-          id: 'cm-beta-456',
-          name: 'app-config',
-          configData: [{ key: 'PORT', value: '8080' }],
-        },
-      ],
+      configMaps: [{ id: 'cm-beta-456', name: 'app-config', configData: [{ key: 'PORT', value: '8080' }] }],
     } as any;
 
     render(
@@ -147,19 +120,11 @@ describe('PodConfigMapVars', () => {
 
     const data = {
       label: 'pod-1',
-      configMaps: [
-        {
-          id: 'cm-1',
-          name: 'app-config',
-          configData: [
-            { key: 'KEY1', value: 'V1' },
-            { key: 'KEY2', value: 'V2' },
-            { key: 'KEY3', value: 'V3' },
-            { key: 'KEY4', value: 'V4' },
-            { key: 'KEY5', value: 'V5' },
-          ],
-        },
-      ],
+      configMaps: [{
+        id: 'cm-1',
+        name: 'app-config',
+        configData: [{ key: 'KEY1', value: 'V1' }, { key: 'KEY2', value: 'V2' }, { key: 'KEY3', value: 'V3' }, { key: 'KEY4', value: 'V4' }, { key: 'KEY5', value: 'V5' }],
+      }],
     } as any;
 
     render(
@@ -189,12 +154,7 @@ describe('PodConfigMapVars', () => {
     const setConfigMapModalTargetNode = vi.fn();
     useFlowStore.setState({ setConfigMapModalTargetNode });
 
-    const cmItem = {
-      id: 'cm-1',
-      name: 'app-config',
-      configData: [{ key: 'LOG_LEVEL', value: 'debug' }],
-    };
-
+    const cmItem = { id: 'cm-1', name: 'app-config', configData: [{ key: 'LOG_LEVEL', value: 'debug' }] };
     const data = {
       label: 'my-pod',
       configMaps: [cmItem],
@@ -217,11 +177,7 @@ describe('PodConfigMapVars', () => {
   });
 
   it('inherits configMaps from parent deployment if child pod has parentId and no direct configMaps', () => {
-    const parentCm = {
-      id: 'cm-dep',
-      name: 'dep-config',
-      configData: [{ key: 'DATABASE_URL', value: 'postgres://db' }],
-    };
+    const parentCm = { id: 'cm-dep', name: 'dep-config', configData: [{ key: 'DATABASE_URL', value: 'postgres://db' }] };
 
     useFlowStore.setState({
       nodes: [

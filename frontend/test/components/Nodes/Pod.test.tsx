@@ -184,13 +184,7 @@ describe('PodNode', () => {
       type: 'Pod',
       data: {
         label: 'My Pod',
-        configMaps: [
-          {
-            id: 'cm-1',
-            name: 'app-config',
-            configData: [{ key: 'APP_ENV', value: 'production' }],
-          },
-        ],
+        configMaps: [{ id: 'cm-1', name: 'app-config', configData: [{ key: 'APP_ENV', value: 'production' }] }],
       },
     } as any;
 

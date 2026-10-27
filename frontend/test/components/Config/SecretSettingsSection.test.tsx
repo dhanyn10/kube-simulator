@@ -9,14 +9,7 @@ describe('SecretSettingsSection', () => {
   const sampleData: K8sNodeData = {
     label: 'App Pod',
     type: 'Pod',
-    secrets: [
-      {
-        id: 'sec-1',
-        name: 'app-secret',
-        type: 'Opaque',
-        secretData: [{ key: 'KEY', value: 'VAL' }],
-      },
-    ],
+    secrets: [{ id: 'sec-1', name: 'app-secret', type: 'Opaque', secretData: [{ key: 'KEY', value: 'VAL' }] }],
   };
 
   beforeEach(() => {

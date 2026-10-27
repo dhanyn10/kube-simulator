@@ -26,10 +26,7 @@ describe('ConfigMapSettingsSection', () => {
 
     const data = {
       label: 'my-node',
-      configMaps: [
-        { id: 'cm1', name: 'app-config', configData: [{ key: 'K1', value: 'V1' }] },
-        { id: 'cm2', name: 'db-config', configData: [{ key: 'K2', value: 'V2' }] },
-      ],
+      configMaps: [{ id: 'cm1', name: 'app-config', configData: [{ key: 'K1', value: 'V1' }] }, { id: 'cm2', name: 'db-config', configData: [{ key: 'K2', value: 'V2' }] }],
     };
 
     render(<ConfigMapSettingsSection data={data as any} nodeId="node-1" />);
@@ -57,9 +54,7 @@ describe('ConfigMapSettingsSection', () => {
 
     const data = {
       label: 'my-node',
-      configMaps: [
-        { id: 'cm1', name: 'app-config', configData: [{ key: 'API_URL', value: 'http://test' }] },
-      ],
+      configMaps: [{ id: 'cm1', name: 'app-config', configData: [{ key: 'API_URL', value: 'http://test' }] }],
     };
 
     render(<ConfigMapSettingsSection data={data as any} nodeId="node-1" />);

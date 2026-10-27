@@ -26,10 +26,7 @@ describe('RoleSettingsSection', () => {
 
     const data = {
       label: 'my-node',
-      roles: [
-        { id: 'r1', name: 'reader-role', rules: [] },
-        { id: 'r2', name: 'writer-role', rules: [] },
-      ],
+      roles: [{ id: 'r1', name: 'reader-role', rules: [] }, { id: 'r2', name: 'writer-role', rules: [] }],
     };
 
     render(<RoleSettingsSection data={data as any} nodeId="node-1" />);
@@ -57,9 +54,7 @@ describe('RoleSettingsSection', () => {
 
     const data = {
       label: 'my-node',
-      roles: [
-        { id: 'r1', name: 'reader-role', rules: [] },
-      ],
+      roles: [{ id: 'r1', name: 'reader-role', rules: [] }],
     };
 
     render(<RoleSettingsSection data={data as any} nodeId="node-1" />);

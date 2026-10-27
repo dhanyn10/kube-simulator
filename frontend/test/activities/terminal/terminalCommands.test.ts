@@ -634,10 +634,7 @@ describe('terminalCommands', () => {
         id: 'sec-no-data',
         type: 'Deployment',
         data: {
-          secrets: [
-            { name: 'no-data-sec', secretData: null as any },
-            { name: 'fallback-type-sec', type: '' as any, secretData: null as any }
-          ]
+          secrets: [{ name: 'no-data-sec', secretData: null as any }, { name: 'fallback-type-sec', type: '' as any, secretData: null as any }]
         },
         position: { x: 0, y: 0 }
       };
@@ -655,9 +652,7 @@ describe('terminalCommands', () => {
         id: 'cm-no-data',
         type: 'Deployment',
         data: {
-          configMaps: [
-            { name: 'no-data-cm', configData: null as any }
-          ]
+          configMaps: [{ name: 'no-data-cm', configData: null as any }]
         },
         position: { x: 0, y: 0 }
       };
@@ -808,13 +803,7 @@ describe('terminalCommands', () => {
         id: 'r-node',
         type: 'Pod',
         data: {
-          roles: [
-            {
-              name: 'full-role',
-              assignedUsers: ['alice', 'bob'],
-              rules: [{}]
-            }
-          ]
+          roles: [{ name: 'full-role', assignedUsers: ['alice', 'bob'], rules: [{}] }]
         },
         position: { x: 0, y: 0 }
       };

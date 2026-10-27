@@ -74,15 +74,7 @@ describe('podSizing utils', () => {
 
     it('accounts for inherited parent configMaps in pod width calculation', () => {
       const parentData = {
-        configMaps: [
-          {
-            id: 'cm-long',
-            name: 'long-cm',
-            configData: [
-              { key: 'VERY_LONG_CONFIGURATION_KEY_NAME_FOR_TEST', value: 'VERY_LONG_CONFIGURATION_VALUE_STRING_FOR_TEST' },
-            ],
-          },
-        ],
+        configMaps: [{ id: 'cm-long', name: 'long-cm', configData: [{ key: 'VERY_LONG_CONFIGURATION_KEY_NAME_FOR_TEST', value: 'VERY_LONG_CONFIGURATION_VALUE_STRING_FOR_TEST' }] }],
       };
       const podData = { label: 'short-pod', parentId: 'dep-1' };
       const widthWithoutParent = calculatePodWidth(podData, []);
@@ -287,13 +279,7 @@ describe('podSizing utils', () => {
 
     it('computes larger dimensions when inheriting parent configMaps', () => {
       const parentData = {
-        configMaps: [
-          {
-            id: 'cm-1',
-            name: 'cm-1',
-            configData: [{ key: 'K1', value: 'V1' }, { key: 'K2', value: 'V2' }],
-          },
-        ],
+        configMaps: [{ id: 'cm-1', name: 'cm-1', configData: [{ key: 'K1', value: 'V1' }, { key: 'K2', value: 'V2' }] }],
       };
       const podData = { type: 'Pod' as const };
       const sizeWithout = getPodMinimumSize(podData);
@@ -414,16 +400,7 @@ describe('podSizing utils', () => {
 
     it('inherits configMaps from parentData when podData has no direct configMaps', () => {
       const parentData = {
-        configMaps: [
-          {
-            id: 'cm-parent',
-            name: 'parent-cm',
-            configData: [
-              { key: 'PORT', value: '8080' },
-              { key: 'ENV', value: 'production' },
-            ],
-          },
-        ],
+        configMaps: [{ id: 'cm-parent', name: 'parent-cm', configData: [{ key: 'PORT', value: '8080' }, { key: 'ENV', value: 'production' }] }],
       };
       const podData = { type: 'Pod' as const, parentId: 'dep-1' };
       const height = calculatePodConfigMapVarsHeight(podData, parentData);

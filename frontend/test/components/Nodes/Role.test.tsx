@@ -104,13 +104,7 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       const singleRoleData = {
         label: 'app-deployment',
         type: 'Deployment' as const,
-        roles: [
-          {
-            id: 'role-item-1',
-            name: 'app-reader-role',
-            rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }],
-          },
-        ],
+        roles: [{ id: 'role-item-1', name: 'app-reader-role', rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }] }],
       };
 
       const { rerender } = render(<RoleSettingsSection data={singleRoleData as any} nodeId="deploy-1" />);
@@ -120,10 +114,7 @@ describe('Role feature tests (Hero Items on Cards)', () => {
       const multiRoleData = {
         label: 'app-deployment',
         type: 'Deployment' as const,
-        roles: [
-          { id: 'role-item-1', name: 'role-1', rules: [] },
-          { id: 'role-item-2', name: 'role-2', rules: [] },
-        ],
+        roles: [{ id: 'role-item-1', name: 'role-1', rules: [] }, { id: 'role-item-2', name: 'role-2', rules: [] }],
       };
 
       rerender(<RoleSettingsSection data={multiRoleData as any} nodeId="deploy-1" />);
@@ -174,13 +165,7 @@ describe('Role feature tests (Hero Items on Cards)', () => {
             type: 'Deployment',
             data: {
               label: 'app-deployment',
-              roles: [
-                {
-                  id: 'role-1',
-                  name: 'pod-reader',
-                  rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }],
-                },
-              ],
+              roles: [{ id: 'role-1', name: 'pod-reader', rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get'] }] }],
             },
           },
         ],
@@ -205,19 +190,7 @@ describe('Role feature tests (Hero Items on Cards)', () => {
             type: 'Deployment',
             data: {
               label: 'app-deployment',
-              roles: [
-                {
-                  id: 'role-1',
-                  name: 'pod-reader',
-                  rules: [
-                    {
-                      apiGroups: [''],
-                      resources: ['pods'],
-                      verbs: ['get', 'list'],
-                    },
-                  ],
-                },
-              ],
+              roles: [{ id: 'role-1', name: 'pod-reader', rules: [{ apiGroups: [''], resources: ['pods'], verbs: ['get', 'list'] }] }],
             },
           },
         ],

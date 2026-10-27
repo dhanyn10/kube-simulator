@@ -29,15 +29,9 @@ describe('useAppHelpers', () => {
           position: { x: 0, y: 0 },
           data: {
             label: 'Test Node',
-            roles: [
-              { id: 'role-1', name: 'old-role', rules: [] },
-            ],
-            configMaps: [
-              { id: 'cm-1', name: 'old-cm', configData: [] },
-            ],
-            resourceLimits: [
-              { id: 'res-1', name: 'old-limit', cpuRequest: '100m', cpuLimit: '200m' },
-            ],
+            roles: [{ id: 'role-1', name: 'old-role', rules: [] }],
+            configMaps: [{ id: 'cm-1', name: 'old-cm', configData: [] }],
+            resourceLimits: [{ id: 'res-1', name: 'old-limit', cpuRequest: '100m', cpuLimit: '200m' }],
           },
         },
       ],

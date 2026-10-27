@@ -64,10 +64,7 @@ describe('kubeIamHelpers', () => {
         type: 'Pod',
         data: {
           label: 'app-pod',
-          roles: [
-            { id: 'r-1', name: 'pod-reader', assignedUsers: ['dev-user'], createdAt: 1000 },
-            { id: 'r-2', name: 'pod-writer', assignedUsers: ['admin-user'], createdAt: 2000 },
-          ],
+          roles: [{ id: 'r-1', name: 'pod-reader', assignedUsers: ['dev-user'], createdAt: 1000 }, { id: 'r-2', name: 'pod-writer', assignedUsers: ['admin-user'], createdAt: 2000 }],
         },
       },
       {
@@ -75,9 +72,7 @@ describe('kubeIamHelpers', () => {
         type: 'Deployment',
         data: {
           // No label provided -> falls back to node.id
-          roles: [
-            { id: 'r-3', name: 'dep-reader', assignedUsers: ['dev-user'] },
-          ],
+          roles: [{ id: 'r-3', name: 'dep-reader', assignedUsers: ['dev-user'] }],
         },
       },
       {

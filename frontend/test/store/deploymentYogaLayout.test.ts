@@ -243,17 +243,7 @@ describe('deploymentYogaLayout', () => {
       data: {
         replicas: 2,
         label: 'web-deploy',
-        configMaps: [
-          {
-            id: 'cm-vars',
-            name: 'app-env',
-            configData: [
-              { key: 'PORT', value: '8080' },
-              { key: 'DB_HOST', value: 'postgres' },
-              { key: 'DB_USER', value: 'admin' },
-            ],
-          },
-        ],
+        configMaps: [{ id: 'cm-vars', name: 'app-env', configData: [{ key: 'PORT', value: '8080' }, { key: 'DB_HOST', value: 'postgres' }, { key: 'DB_USER', value: 'admin' }] }],
       },
     };
 
@@ -321,16 +311,7 @@ describe('deploymentYogaLayout', () => {
       data: {
         replicas: 2,
         label: 'fallback-cm-dep',
-        configMaps: [
-          {
-            id: 'cm-fallback',
-            name: 'fallback-config',
-            configData: [
-              { key: 'VAR_A', value: 'alpha' },
-              { key: 'VAR_B', value: 'beta' },
-            ],
-          },
-        ],
+        configMaps: [{ id: 'cm-fallback', name: 'fallback-config', configData: [{ key: 'VAR_A', value: 'alpha' }, { key: 'VAR_B', value: 'beta' }] }],
       },
     };
 
