@@ -682,6 +682,20 @@ describe('store helpers', () => {
     const resolved = resolveGlobalCollisions([podNoDimColl1, podNoDimColl2]);
     expect(resolved[0].position.x).not.toBe(0);
   });
+  it('covers group replica suffixes in syncPodsInDeployment with existing list and forceRandomize', () => {
+    const depGroup = { id: 'd-grp', type: 'Deployment', data: { replicas: 10, label: 'app-grp' } } as any;
+    const initialPods = syncPodsInDeployment(depGroup, []);
+    expect(initialPods[0].data.replicas).toBe(10);
+    expect(initialPods[0].data.replicaSuffixes).toHaveLength(10);
+
+    // Sync with existing group pod (forceRandomize: false preserves suffixes)
+    const syncedGroup = syncPodsInDeployment(depGroup, initialPods);
+    expect(syncedGroup[0].data.replicaSuffixes).toEqual(initialPods[0].data.replicaSuffixes);
+
+    // Sync with forceRandomize: true re-randomizes suffixes
+    const randomizedGroup = syncPodsInDeployment(depGroup, initialPods, undefined, true);
+    expect(randomizedGroup[0].data.replicaSuffixes).not.toEqual(initialPods[0].data.replicaSuffixes);
+  });
 });
 
 
