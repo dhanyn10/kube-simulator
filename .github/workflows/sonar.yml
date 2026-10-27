@@ -10,10 +10,10 @@ jobs:
     name: Backend Windows Tests
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '1.25.x'
           cache: true
@@ -29,7 +29,7 @@ jobs:
           go test ./... -v -coverprofile=coverage-backend-windows.out -json > report-backend.json
 
       - name: Upload Windows Backend Coverage Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-backend-coverage-out
           path: |
@@ -44,10 +44,10 @@ jobs:
       matrix:
         index: [1, 2, 3]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -56,7 +56,7 @@ jobs:
         run: npm install -g pnpm@10.30.3
 
       - name: Setup pnpm Cache
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: 'pnpm'
@@ -76,7 +76,7 @@ jobs:
           pnpm exec vitest run --shard=${{ matrix.index }}/3 --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage-shard-${{ matrix.index }}
 
       - name: Upload Frontend Coverage Shard Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage-shard-${{ matrix.index }}
           path: frontend/coverage-shard-${{ matrix.index }}/lcov.info
@@ -86,30 +86,30 @@ jobs:
     runs-on: windows-latest
     needs: [backend-windows-test, frontend-test-shard]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download Windows Backend Coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: windows-backend-coverage-out
           path: .
 
       - name: Download Frontend Coverage Shard 1
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: frontend-coverage-shard-1
           path: frontend/coverage-shard-1
 
       - name: Download Frontend Coverage Shard 2
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: frontend-coverage-shard-2
           path: frontend/coverage-shard-2
 
       - name: Download Frontend Coverage Shard 3
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: frontend-coverage-shard-3
           path: frontend/coverage-shard-3
