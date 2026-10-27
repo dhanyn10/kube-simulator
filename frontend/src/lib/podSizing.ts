@@ -15,7 +15,21 @@ export const calculatePodWidth = (data: Partial<K8sNodeData>, badges: string[]) 
   const badgeWidth = badges.length > 0 ? badges.reduce((t, b) => t + b.length * 5 + 14, 0) + (badges.length - 1) * 4 : 0;
   const showImage = Boolean(data.displaySettings?.image !== false && data.image);
   const readableImageWidth = showImage ? Math.min(320, Math.max(148, String(data.image).length * 5.5 + 16)) : 0;
-  return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding));
+
+  let maxCmVarWidth = 0;
+  if (data.displaySettings?.configMapVars !== false && data.configMaps) {
+    for (const cm of data.configMaps) {
+      if (cm.configData) {
+        for (const item of cm.configData.slice(0, 3)) {
+          const itemWidth = 24 + (item.key.length + String(item.value).length) * 5.5 + 20;
+          if (itemWidth > maxCmVarWidth) maxCmVarWidth = itemWidth;
+        }
+      }
+    }
+  }
+  const readableCmVarWidth = maxCmVarWidth > 0 ? Math.min(260, Math.max(POD_MIN_DIMENSIONS.width, maxCmVarWidth)) : 0;
+
+  return Math.ceil(Math.max(baseWidth, headerContentWidth + 44 + horizontalPadding, labelWidth + horizontalPadding, badgeWidth + horizontalPadding, readableImageWidth + horizontalPadding, readableCmVarWidth));
 };
 
 export const calculatePodBaseHeight = (data: Partial<K8sNodeData>, _width: number, badges: string[], isMegaPod: boolean) => {
@@ -49,11 +63,23 @@ export const calculatePodAttachedHeight = (data: Partial<K8sNodeData>) => {
   return rows * 36;
 };
 
+export const calculatePodConfigMapVarsHeight = (data: Partial<K8sNodeData>) => {
+  if (data.displaySettings?.configMapVars === false) return 0;
+  const configMaps = data.configMaps;
+  if (!configMaps || configMaps.length === 0) return 0;
+  const count = configMaps.reduce((sum, cm) => sum + (cm.configData?.length || 0), 0);
+  if (count === 0) return 0;
+  const displayedCount = Math.min(count, 3);
+  const hasMore = count > 3;
+  return 12 + displayedCount * 18 + (hasMore ? 14 : 0);
+};
+
 export const calculatePodHeight = (data: Partial<K8sNodeData>, width: number, badges: string[], isMegaPod: boolean) => {
   const baseHeight = calculatePodBaseHeight(data, width, badges, isMegaPod);
   const contentHeight = calculatePodContentHeight(data, width);
   const attachedHeight = calculatePodAttachedHeight(data);
-  return baseHeight + contentHeight + attachedHeight;
+  const configMapVarsHeight = calculatePodConfigMapVarsHeight(data);
+  return baseHeight + contentHeight + attachedHeight + configMapVarsHeight;
 };
 
 export const getPodMinimumSize = (data: Partial<K8sNodeData> = {}) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePodWidth, calculatePodHeight, getPodMinimumSize, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
+import { calculatePodWidth, calculatePodHeight, getPodMinimumSize, calculatePodConfigMapVarsHeight, POD_MIN_DIMENSIONS } from '@/lib/podSizing';
 
 describe('podSizing utils', () => {
   describe('calculatePodWidth', () => {
@@ -358,5 +358,22 @@ describe('podSizing utils', () => {
       displaySettings: { webserver: true, runtime: true },
     });
     expect(podWithNoneBadges.width).toBeGreaterThan(0);
+  });
+  describe('calculatePodConfigMapVarsHeight', () => {
+    it('returns 0 when configMaps is undefined, empty, or displaySettings.configMapVars is false', () => {
+      expect(calculatePodConfigMapVarsHeight({})).toBe(0);
+      expect(calculatePodConfigMapVarsHeight({ configMaps: [] })).toBe(0);
+      expect(calculatePodConfigMapVarsHeight({ configMaps: [{ id: 'cm1', name: 'cm', configData: [{ key: 'K', value: 'V' }] }], displaySettings: { configMapVars: false } })).toBe(0);
+    });
+
+    it('calculates correct height for 1-3 items and > 3 items', () => {
+      const cm1 = { id: 'cm1', name: 'cm', configData: [{ key: 'K1', value: 'V1' }] };
+      const h1 = calculatePodConfigMapVarsHeight({ configMaps: [cm1] });
+      expect(h1).toBe(12 + 1 * 18);
+
+      const cm5 = { id: 'cm2', name: 'cm', configData: [{ key: '1', value: '1' }, { key: '2', value: '2' }, { key: '3', value: '3' }, { key: '4', value: '4' }] };
+      const h5 = calculatePodConfigMapVarsHeight({ configMaps: [cm5] });
+      expect(h5).toBe(12 + 3 * 18 + 14);
+    });
   });
 });

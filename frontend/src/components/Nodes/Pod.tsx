@@ -4,6 +4,7 @@ import { Box } from 'lucide-react';
 import { BaseNode } from './BaseNode';
 import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
+import { PodConfigMapVars } from './PodConfigMapVars';
 
 export const PodNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
@@ -47,6 +48,7 @@ export const PodNode = memo((props: NodeProps) => {
             )}
           </>
         )}
+        <PodConfigMapVars data={data} nodeId={props.id} />
       </div>
     </BaseNode>
   );

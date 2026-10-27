@@ -10,6 +10,7 @@ export * from './NodePodBadges';
 export * from './NodeUI';
 export * from './PVC';
 export * from './Pod';
+export * from './PodConfigMapVars';
 export * from './QuickConnectArrows';
 export * from './ReplicaSet';
 export * from './Role';

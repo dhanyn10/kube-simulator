@@ -6,6 +6,7 @@ import {
   calculatePodBaseHeight,
   calculatePodContentHeight,
   calculatePodAttachedHeight,
+  calculatePodConfigMapVarsHeight,
   POD_MIN_DIMENSIONS
 } from '@/lib/podSizing';
 import { getPodReplicaInfo } from '@/lib/podReplicaHelpers';
@@ -260,9 +261,18 @@ const buildPodYogaSubTree = (
   contentYogaNode.setMinHeight(contentHeight);
   podYogaNode.insertChild(contentYogaNode, 1);
 
+  let childIndex = 2;
+  const configMapVarsHeight = calculatePodConfigMapVarsHeight(podData);
+  if (configMapVarsHeight > 0) {
+    const cmYogaNode = yoga.Node.create();
+    cmYogaNode.setWidth(podWidth);
+    cmYogaNode.setMinHeight(configMapVarsHeight);
+    podYogaNode.insertChild(cmYogaNode, childIndex++);
+  }
+
   const attachedContainerNode = buildAttachedContainerYogaNode(yoga, podData, podWidth);
   if (attachedContainerNode) {
-    podYogaNode.insertChild(attachedContainerNode, 2);
+    podYogaNode.insertChild(attachedContainerNode, childIndex);
   }
 
   return podYogaNode;
