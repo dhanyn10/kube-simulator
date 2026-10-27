@@ -102,6 +102,7 @@ test.describe('Error Reporting Feature', () => {
         sessionStorage.removeItem('k8s_sim_logs');
     });
     await page.reload();
+    await page.waitForSelector('[data-testid="app-title"]', { timeout: 10000 });
 
     await page.evaluate(() => {
       console.error('TestError');

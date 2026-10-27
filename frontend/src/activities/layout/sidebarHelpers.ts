@@ -120,18 +120,19 @@ export function executeSidebarAddNode(
     return;
   }
 
-  if (type === 'ConfigMap' && context.setConfigMapModalTargetNode) {
-    context.setConfigMapModalTargetNode({
-      id: targetNode ? targetNode.id : 'cluster-storage',
-      label: targetNode ? (targetNode.data?.label || targetNode.id) : 'Cluster ConfigMaps',
-      initialViewMode: 'list',
-    });
-    return;
-  }
-
-  if (context.setActiveOverviewModal && (type === 'ConfigMap' || type === 'Secret' || type === 'HPA' || type === 'ResourceLimit')) {
-    context.setActiveOverviewModal(type);
-    return;
+  if (type === 'ConfigMap') {
+    if (context.setConfigMapModalTargetNode) {
+      context.setConfigMapModalTargetNode({
+        id: targetNode ? targetNode.id : 'cluster-storage',
+        label: targetNode ? (targetNode.data?.label || targetNode.id) : 'Cluster ConfigMaps',
+        initialViewMode: 'list',
+      });
+      return;
+    }
+    if (context.setActiveOverviewModal) {
+      context.setActiveOverviewModal('ConfigMap');
+      return;
+    }
   }
 
   onAddNode(type);

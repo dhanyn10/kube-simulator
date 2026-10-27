@@ -108,7 +108,7 @@ describe('sidebarHelpers', () => {
     executeSidebarAddNode('Pod' as any, onAddNode, mockContext);
     expect(onAddNode).toHaveBeenCalledWith('Pod');
   });
-  it('executes executeSidebarAddNode with setActiveOverviewModal for attached resources', () => {
+  it('executes executeSidebarAddNode with setActiveOverviewModal for ConfigMap fallback and adds other nodes directly', () => {
     const onAddNode = vi.fn();
     const setActiveOverviewModal = vi.fn();
     const mockContext = {
@@ -125,13 +125,13 @@ describe('sidebarHelpers', () => {
     expect(onAddNode).not.toHaveBeenCalled();
 
     executeSidebarAddNode('Secret', onAddNode, mockContext);
-    expect(setActiveOverviewModal).toHaveBeenCalledWith('Secret');
+    expect(onAddNode).toHaveBeenCalledWith('Secret');
 
     executeSidebarAddNode('HPA', onAddNode, mockContext);
-    expect(setActiveOverviewModal).toHaveBeenCalledWith('HPA');
+    expect(onAddNode).toHaveBeenCalledWith('HPA');
 
     executeSidebarAddNode('ResourceLimit', onAddNode, mockContext);
-    expect(setActiveOverviewModal).toHaveBeenCalledWith('ResourceLimit');
+    expect(onAddNode).toHaveBeenCalledWith('ResourceLimit');
   });
 
   it('executes executeSidebarAddNode with setConfigMapModalTargetNode opening list mode for ConfigMap', () => {
