@@ -304,7 +304,6 @@ interface ConfigMapAutocompletePortalProps {
   readonly isDark: boolean;
   readonly filteredKeys: Array<{ key: string; description?: string }>;
   readonly filteredValues: Array<{ value: string; description?: string }>;
-  readonly portalSelectedIndex: number;
   readonly portalContainerRef: React.RefObject<HTMLDivElement | null>;
   readonly setPortalSelectedIndex: (index: number) => void;
   readonly onSelectKey: (key: string) => void;

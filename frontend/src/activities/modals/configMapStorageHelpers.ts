@@ -13,7 +13,7 @@ export const CONFIG_MAPS_SETTING_KEY = 'kube_configmaps_data';
 export const saveConfigMapsToLocal = async (configMaps: K8sConfigMapItem[]): Promise<boolean> => {
   try {
     const json = JSON.stringify(configMaps);
-    if (typeof globalThis.localStorage !== 'undefined') {
+    if (globalThis.localStorage !== undefined) {
       globalThis.localStorage.setItem(CONFIG_MAPS_STORAGE_KEY, json);
     }
     if (globalThis.go?.main?.App?.SaveSetting) {
@@ -37,7 +37,7 @@ export const loadConfigMapsFromLocal = async (): Promise<K8sConfigMapItem[]> => 
     if (globalThis.go?.main?.App?.GetSetting) {
       dataStr = await globalThis.go.main.App.GetSetting(CONFIG_MAPS_SETTING_KEY);
     }
-    if (!dataStr && typeof globalThis.localStorage !== 'undefined') {
+    if (!dataStr && globalThis.localStorage !== undefined) {
       dataStr = globalThis.localStorage.getItem(CONFIG_MAPS_STORAGE_KEY) || '';
     }
     if (!dataStr) return [];

@@ -21,7 +21,7 @@ export interface ConfigMapListViewProps {
 const STORAGE_COLUMN_KEY = 'k8s_configmap_table_columns';
 
 export const getInitialColumnVisibility = (): ColumnVisibility => {
-  if (typeof globalThis.localStorage !== 'undefined') {
+  if (globalThis.localStorage !== undefined) {
     const saved = globalThis.localStorage.getItem(STORAGE_COLUMN_KEY);
     if (saved) {
       try {
@@ -267,7 +267,7 @@ export const ConfigMapListView: React.FC<ConfigMapListViewProps> = ({
   const toggleColumn = (key: keyof ColumnVisibility) => {
     setColumns((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      if (typeof globalThis.localStorage !== 'undefined') {
+      if (globalThis.localStorage !== undefined) {
         globalThis.localStorage.setItem(STORAGE_COLUMN_KEY, JSON.stringify(next));
       }
       return next;

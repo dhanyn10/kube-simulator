@@ -103,7 +103,7 @@ const checkItemMatchesQuery = (item: OverviewItem, query: string, resourceType: 
   if (item.name.toLowerCase().includes(query)) return true;
   if (item.ownerNode.label.toLowerCase().includes(query)) return true;
   if (item.ownerNode.type.toLowerCase().includes(query)) return true;
-  if (item.profileName && item.profileName.toLowerCase().includes(query)) return true;
+  if (item.profileName?.toLowerCase().includes(query)) return true;
 
   if (resourceType === 'ConfigMap' && Array.isArray(item.rawItem.configData)) {
     return item.rawItem.configData.some(
