@@ -178,7 +178,7 @@ describe('PodNode', () => {
     expect(screen.queryByText('cpu:')).toBeNull();
   });
 
-  it('renders attached configMap variables with CM badge', () => {
+  it('renders attached configMap variables with icon badge and hover card', () => {
     const props = {
       id: 'pod-1',
       type: 'Pod',
@@ -200,7 +200,9 @@ describe('PodNode', () => {
       </ReactFlowProvider>
     );
 
-    expect(screen.getByText('CM')).toBeInTheDocument();
+    expect(screen.getByTestId('pod-cm-badge-APP_ENV')).toBeInTheDocument();
+    expect(screen.getByText('ConfigMap')).toBeInTheDocument();
+    expect(screen.getByText('cm-1')).toBeInTheDocument();
     expect(screen.getByText('APP_ENV:')).toBeInTheDocument();
     expect(screen.getByText('production')).toBeInTheDocument();
   });

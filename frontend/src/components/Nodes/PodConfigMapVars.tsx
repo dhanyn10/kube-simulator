@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { Settings } from 'lucide-react';
 import { K8sNodeData, K8sConfigMapItem } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
@@ -77,26 +78,61 @@ export const PodConfigMapVars: React.FC<PodConfigMapVarsProps> = memo(({ data, n
           key={`pod-cm-var-${entry.cmId}-${entry.key}-${index}`}
           className="flex items-center justify-between text-[9px] font-mono gap-1"
           data-testid={`pod-cm-var-${entry.key}`}
-          title={`ConfigMap: ${entry.cmName}`}
         >
           <div className="flex items-center gap-1 min-w-0">
-            <button
-              type="button"
-              className={cn(
-                "text-[7px] font-bold px-1 py-0.5 rounded uppercase tracking-wider shrink-0 font-sans cursor-pointer transition-colors outline-none",
-                colorMode === 'dark'
-                  ? "bg-teal-950/80 text-teal-400 border border-teal-500/40 hover:bg-teal-900/80"
-                  : "bg-teal-50 text-teal-700 border border-teal-300 hover:bg-teal-100"
-              )}
-              title={`Source: ${entry.cmName} (Click to inspect)`}
-              aria-label={`Inspect ConfigMap ${entry.cmName}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenInspect(entry.cmItem);
-              }}
-            >
-              CM
-            </button>
+            <div className="relative group/cm-badge inline-flex items-center shrink-0">
+              <button
+                type="button"
+                className={cn(
+                  "p-0.5 rounded shrink-0 cursor-pointer transition-colors outline-none flex items-center justify-center",
+                  colorMode === 'dark'
+                    ? "bg-teal-950/80 text-teal-400 border border-teal-500/40 hover:bg-teal-900/80 hover:text-teal-300"
+                    : "bg-teal-50 text-teal-700 border border-teal-300 hover:bg-teal-100 hover:text-teal-800"
+                )}
+                aria-label={`Inspect ConfigMap ${entry.cmName}`}
+                data-testid={`pod-cm-badge-${entry.key}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenInspect(entry.cmItem);
+                }}
+              >
+                <Settings size={9} className="shrink-0" />
+              </button>
+
+              {/* Hover Card Popover */}
+              <div
+                role="tooltip"
+                data-testid={`pod-cm-card-${entry.key}`}
+                className={cn(
+                  "absolute bottom-full left-0 mb-1.5 hidden group-hover/cm-badge:flex flex-col z-50 min-w-[130px] rounded-md shadow-xl border overflow-hidden pointer-events-none transition-all duration-150",
+                  colorMode === 'dark'
+                    ? "bg-slate-900 border-slate-700 text-slate-200 shadow-black/60"
+                    : "bg-white border-slate-200 text-slate-800 shadow-slate-400/40"
+                )}
+              >
+                {/* Card Header */}
+                <div
+                  className={cn(
+                    "px-2 py-1 text-[8px] font-bold tracking-wider flex items-center gap-1 border-b uppercase",
+                    colorMode === 'dark'
+                      ? "bg-slate-800/80 text-teal-400 border-slate-700"
+                      : "bg-teal-50 text-teal-800 border-teal-100"
+                  )}
+                  data-testid="pod-cm-card-header"
+                >
+                  <Settings size={9} className="shrink-0" />
+                  <span>ConfigMap</span>
+                </div>
+
+                {/* Card Body */}
+                <div className="px-2 py-1.5 text-[8.5px] font-mono" data-testid="pod-cm-card-body">
+                  <span className={cn("font-bold truncate select-all block", colorMode === 'dark' ? "text-slate-200" : "text-slate-700")}>
+                    {entry.cmId}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <span
               className={cn("truncate min-w-0", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}
               title={entry.key}
@@ -104,6 +140,7 @@ export const PodConfigMapVars: React.FC<PodConfigMapVarsProps> = memo(({ data, n
               {entry.key}:
             </span>
           </div>
+
           <span
             className={cn(
               "font-bold truncate text-right min-w-0 font-mono",

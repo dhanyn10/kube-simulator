@@ -65,12 +65,12 @@ describe('PodConfigMapVars', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders configMap variables with CM badge, key, and value in dark mode', () => {
+  it('renders configMap variables with icon badge and hover card containing header and direct ID in dark mode', () => {
     const data = {
       label: 'pod-1',
       configMaps: [
         {
-          id: 'cm-1',
+          id: 'cm-alpha-123',
           name: 'app-config',
           configData: [
             { key: 'PORT', value: '8080' },
@@ -86,9 +86,20 @@ describe('PodConfigMapVars', () => {
       </ReactFlowProvider>
     );
 
-    const cmBadges = screen.getAllByText('CM');
-    expect(cmBadges).toHaveLength(2);
-    expect(cmBadges[0]).toHaveClass('text-teal-400');
+    const badgePort = screen.getByTestId('pod-cm-badge-PORT');
+    expect(badgePort).toBeInTheDocument();
+    expect(badgePort).toHaveClass('text-teal-400');
+
+    // Hover cards
+    const hoverCards = screen.getAllByRole('tooltip');
+    expect(hoverCards).toHaveLength(2);
+
+    const cardHeaders = screen.getAllByTestId('pod-cm-card-header');
+    expect(cardHeaders[0]).toHaveTextContent('ConfigMap');
+
+    const cardBodies = screen.getAllByTestId('pod-cm-card-body');
+    expect(cardBodies[0]).toHaveTextContent('cm-alpha-123');
+    expect(cardBodies[0]).not.toHaveTextContent('ID:');
 
     expect(screen.getByText('PORT:')).toBeInTheDocument();
     expect(screen.getByText('8080')).toBeInTheDocument();
@@ -96,14 +107,14 @@ describe('PodConfigMapVars', () => {
     expect(screen.getByText('production')).toBeInTheDocument();
   });
 
-  it('renders correctly in light mode with light theme styling', () => {
+  it('renders correctly in light mode with light theme styling on hover card', () => {
     useFlowStore.setState({ colorMode: 'light' });
 
     const data = {
       label: 'pod-1',
       configMaps: [
         {
-          id: 'cm-1',
+          id: 'cm-beta-456',
           name: 'app-config',
           configData: [{ key: 'PORT', value: '8080' }],
         },
@@ -116,9 +127,18 @@ describe('PodConfigMapVars', () => {
       </ReactFlowProvider>
     );
 
-    const cmBadge = screen.getByText('CM');
-    expect(cmBadge).toHaveClass('text-teal-700');
-    expect(screen.getByText('8080')).toHaveClass('text-teal-600');
+    const badge = screen.getByTestId('pod-cm-badge-PORT');
+    expect(badge).toHaveClass('text-teal-700');
+
+    const card = screen.getByTestId('pod-cm-card-PORT');
+    expect(card).toHaveClass('bg-white');
+
+    const header = screen.getByTestId('pod-cm-card-header');
+    expect(header).toHaveTextContent('ConfigMap');
+
+    const body = screen.getByTestId('pod-cm-card-body');
+    expect(body).toHaveTextContent('cm-beta-456');
+    expect(body).not.toHaveTextContent('ID:');
   });
 
   it('limits to 3 variables and renders + more button for extra variables', () => {
@@ -165,7 +185,7 @@ describe('PodConfigMapVars', () => {
     );
   });
 
-  it('clicking CM badge opens modal for that configMap', () => {
+  it('clicking icon badge opens modal for that configMap', () => {
     const setConfigMapModalTargetNode = vi.fn();
     useFlowStore.setState({ setConfigMapModalTargetNode });
 
@@ -230,5 +250,7 @@ describe('PodConfigMapVars', () => {
 
     expect(screen.getByText('DATABASE_URL:')).toBeInTheDocument();
     expect(screen.getByText('postgres://db')).toBeInTheDocument();
+    expect(screen.getByTestId('pod-cm-card-body')).toHaveTextContent('cm-dep');
+    expect(screen.getByTestId('pod-cm-card-body')).not.toHaveTextContent('ID:');
   });
 });
