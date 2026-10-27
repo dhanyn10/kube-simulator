@@ -1,4 +1,5 @@
 import { useFlowStore } from '@/store';
+import { setCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import { mapProjectNodes, mapProjectEdges } from '@/components/Modals/resource-manager/resourceManagerHelpers';
 import { hydrateNodes } from '@/store/nodeHelpers';
 import { logger } from '@/lib/logger';
@@ -168,6 +169,7 @@ export const restoreRecentFile = async (
         const edgesWithStrings = mapProjectEdges(data.edges || []);
         const hydratedNodes = hydrateNodes(nodesWithStrings, () => useFlowStore.getState());
 
+        setCurrentSessionAutosaveKey(item.name);
         useFlowStore.setState({
           nodes: hydratedNodes,
           edges: edgesWithStrings,

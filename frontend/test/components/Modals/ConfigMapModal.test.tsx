@@ -194,6 +194,9 @@ describe('ConfigMapModal', () => {
     expect(screen.getByText('db-config')).toBeInTheDocument();
     expect(screen.getByText('web-pod')).toBeInTheDocument();
     expect(screen.getByText('Cluster Storage')).toBeInTheDocument();
+    expect(screen.getByTestId('cm-profile-cm-web')).toHaveTextContent(/Profile:autosave-/);
+    expect(screen.getByTestId('cm-resource-cm-web')).toHaveTextContent('Pod:web-pod');
+    expect(screen.getByTestId('cm-resource-cm-db')).toHaveTextContent('Cluster Storage');
 
     // Click Edit on db-config item
     fireEvent.click(screen.getByTitle('Edit ConfigMap db-config'));

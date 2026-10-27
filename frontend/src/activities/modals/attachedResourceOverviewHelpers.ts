@@ -1,6 +1,7 @@
 import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Layers } from 'lucide-react';
 import { Node } from '@xyflow/react';
 import { K8sResourceType, K8sConfigMapItem } from '@/types';
+import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 
 /** Represents an extracted attached resource item paired with its host canvas node metadata. */
 export interface OverviewItem {
@@ -12,6 +13,7 @@ export interface OverviewItem {
     label: string;
     type: string;
   };
+  profileName?: string;
 }
 
 /** Mapping of attached resource types to their property keys in Node data. */
@@ -35,13 +37,17 @@ export const RESOURCE_TYPE_KEY_MAP: Record<string, string> = {
 export const extractAllOverviewItems = (
   nodes: Node[],
   resourceType: K8sResourceType,
-  savedConfigMaps?: K8sConfigMapItem[]
+  savedConfigMaps?: K8sConfigMapItem[],
+  currentProfileName?: string
 ): OverviewItem[] => {
   const key = RESOURCE_TYPE_KEY_MAP[resourceType];
   if (!key) return [];
 
   const items: OverviewItem[] = [];
   const foundIds = new Set<string>();
+  const activeProfile = (currentProfileName && currentProfileName !== 'Default Profile')
+    ? currentProfileName
+    : getCurrentSessionAutosaveKey();
 
   nodes.forEach((node) => {
     const list = node.data?.[key];
@@ -50,6 +56,9 @@ export const extractAllOverviewItems = (
         const itemId = item.id || `${node.id}-${key}-${idx}`;
         foundIds.add(itemId);
         if (item.name) foundIds.add(item.name);
+        const resolvedProfile = (item.profileName && item.profileName !== 'Default Profile')
+          ? item.profileName
+          : activeProfile;
         items.push({
           id: itemId,
           name: item.name || 'Unnamed',
@@ -59,6 +68,7 @@ export const extractAllOverviewItems = (
             label: (node.data?.label as string) || node.id,
             type: node.type || 'Node',
           },
+          profileName: resolvedProfile,
         });
       });
     }
@@ -67,15 +77,20 @@ export const extractAllOverviewItems = (
   if (resourceType === 'ConfigMap' && Array.isArray(savedConfigMaps)) {
     savedConfigMaps.forEach((savedCm) => {
       if (!foundIds.has(savedCm.id) && !foundIds.has(savedCm.name)) {
+        const isAttached = Boolean(savedCm.resourceName);
+        const resolvedProfile = (savedCm.profileName && savedCm.profileName !== 'Default Profile')
+          ? savedCm.profileName
+          : activeProfile;
         items.push({
           id: savedCm.id,
           name: savedCm.name || 'Unnamed',
           rawItem: savedCm,
           ownerNode: {
-            id: 'cluster-storage',
-            label: 'Cluster (Local Storage)',
-            type: 'ConfigMap',
+            id: isAttached ? (savedCm.resourceName || 'saved-resource') : 'cluster-storage',
+            label: savedCm.resourceName || 'Cluster (Local Storage)',
+            type: savedCm.resourceType || (isAttached ? 'Resource' : 'ConfigMap'),
           },
+          profileName: resolvedProfile,
         });
       }
     });
@@ -88,6 +103,7 @@ const checkItemMatchesQuery = (item: OverviewItem, query: string, resourceType: 
   if (item.name.toLowerCase().includes(query)) return true;
   if (item.ownerNode.label.toLowerCase().includes(query)) return true;
   if (item.ownerNode.type.toLowerCase().includes(query)) return true;
+  if (item.profileName && item.profileName.toLowerCase().includes(query)) return true;
 
   if (resourceType === 'ConfigMap' && Array.isArray(item.rawItem.configData)) {
     return item.rawItem.configData.some(

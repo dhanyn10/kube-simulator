@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useConfigMapModal, findActiveKeyInfo } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
+import { getActiveProfileName } from '@/store/useFlowStore';
 import {
   OverviewItem,
   extractAllOverviewItems,
@@ -93,6 +94,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   const [search, setSearch] = useState('');
 
   const nodes = useFlowStore((state) => state.nodes);
+  const currentProject = useFlowStore((state) => state.currentProject);
   const savedConfigMaps = useFlowStore((state) => state.savedConfigMaps);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const deleteSavedConfigMap = useFlowStore((state) => state.deleteSavedConfigMap);
@@ -147,9 +149,10 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     }
   }, [portalSelectedIndex, activeDropdown?.field, filteredKeys.length, filteredValues.length]);
 
+  const currentProfileName = getActiveProfileName(currentProject);
   const allItems = useMemo(
-    () => extractAllOverviewItems(nodes, 'ConfigMap', savedConfigMaps),
-    [nodes, savedConfigMaps]
+    () => extractAllOverviewItems(nodes, 'ConfigMap', savedConfigMaps, currentProfileName),
+    [nodes, savedConfigMaps, currentProfileName]
   );
   const filteredItems = useMemo(
     () => filterOverviewItems(allItems, search, 'ConfigMap'),

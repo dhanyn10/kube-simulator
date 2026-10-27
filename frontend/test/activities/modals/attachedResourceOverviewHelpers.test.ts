@@ -201,12 +201,20 @@ describe('attachedResourceOverviewHelpers', () => {
       },
     ];
 
-    const cms = extractAllOverviewItems(mockNodes, 'ConfigMap', savedCMs);
+    const cms = extractAllOverviewItems(mockNodes, 'ConfigMap', savedCMs, 'Production Cluster');
     expect(cms).toHaveLength(2);
 
     const standalone = cms.find((c) => c.id === 'cm-standalone');
     expect(standalone).toBeDefined();
     expect(standalone?.ownerNode.id).toBe('cluster-storage');
     expect(standalone?.ownerNode.label).toBe('Cluster (Local Storage)');
+    expect(standalone?.profileName).toBe('Production Cluster');
+
+    const attachedSaved = extractAllOverviewItems([], 'ConfigMap', [
+      { id: 'cm-att', name: 'api-config', configData: [], resourceName: 'api-pod', resourceType: 'Pod', profileName: 'Staging Canvas' },
+    ]);
+    expect(attachedSaved[0].ownerNode.label).toBe('api-pod');
+    expect(attachedSaved[0].ownerNode.type).toBe('Pod');
+    expect(attachedSaved[0].profileName).toBe('Staging Canvas');
   });
 });

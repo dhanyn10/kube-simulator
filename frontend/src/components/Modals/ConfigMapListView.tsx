@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Edit2, Trash2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OverviewItem } from '@/activities/modals/attachedResourceOverviewHelpers';
+import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 
 export interface ConfigMapListViewProps {
   readonly search: string;
@@ -29,7 +30,7 @@ export const ConfigMapListView: React.FC<ConfigMapListViewProps> = ({
         />
         <input
           type="text"
-          placeholder="Search ConfigMap by name or target resource..."
+          placeholder="Search ConfigMap by name, profile, or resource..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           className={cn(
@@ -52,6 +53,9 @@ export const ConfigMapListView: React.FC<ConfigMapListViewProps> = ({
         <div className="space-y-2 max-h-[48vh] overflow-y-auto pr-1 custom-scrollbar">
           {items.map((item) => {
             const isCluster = item.ownerNode.id === 'cluster-storage';
+            const profileText = (item.profileName && item.profileName !== 'Default Profile')
+              ? item.profileName
+              : getCurrentSessionAutosaveKey();
 
             return (
               <div
@@ -63,20 +67,50 @@ export const ConfigMapListView: React.FC<ConfigMapListViewProps> = ({
                     : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
                 )}
               >
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <span className="font-semibold text-xs text-slate-200 truncate">
-                    {item.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[9px] px-1.5 py-0.5 rounded border font-medium truncate max-w-[260px]",
-                      isCluster
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                        : "bg-teal-500/10 text-teal-400 border-teal-500/30"
-                    )}
-                  >
-                    {isCluster ? 'Cluster Storage' : item.ownerNode.label}
-                  </span>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-slate-200 truncate">
+                      {item.name}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                    {/* Document Profile Badge */}
+                    <span
+                      data-testid={`cm-profile-${item.id}`}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border font-medium truncate max-w-[200px]",
+                        isDark
+                          ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      )}
+                      title={`Canvas Document: ${profileText}`}
+                    >
+                      <span className="text-slate-400 font-normal">Profile:</span>
+                      <span className="font-semibold truncate">{profileText}</span>
+                    </span>
+
+                    {/* Canvas Resource Badge */}
+                    <span
+                      data-testid={`cm-resource-${item.id}`}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border font-medium truncate max-w-[220px]",
+                        isCluster
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                          : "bg-teal-500/10 text-teal-400 border-teal-500/30"
+                      )}
+                      title={isCluster ? 'Cluster Storage' : `${item.ownerNode.type}: ${item.ownerNode.label}`}
+                    >
+                      {isCluster ? (
+                        <span>Cluster Storage</span>
+                      ) : (
+                        <>
+                          <span className="text-slate-400 font-normal">{item.ownerNode.type}:</span>
+                          <span className="font-semibold truncate">{item.ownerNode.label}</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">

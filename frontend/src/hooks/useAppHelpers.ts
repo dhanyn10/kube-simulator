@@ -5,6 +5,7 @@ import { useFlowStore } from '@/store';
 import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
 import { logger } from '@/lib/logger';
 import { persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
+import { getActiveProfileName } from '@/store/useFlowStore';
 import {
   emitLiveRoleCommand,
   emitLiveSecretCommand,
@@ -145,6 +146,16 @@ export function useAttachmentHandlers() {
   const handleConfigMapSave = (cmItem: K8sConfigMapItem) => {
     if (!configMapModalTargetNode) return;
     const target = nodes.find((n) => n.id === configMapModalTargetNode.id);
+    const currentProject = useFlowStore.getState().currentProject;
+    const activeProfileName = getActiveProfileName(currentProject);
+
+    const enrichedCmItem: K8sConfigMapItem = {
+      ...cmItem,
+      profileName: cmItem.profileName || activeProfileName,
+      resourceName: target ? (target.data?.label || target.id) : cmItem.resourceName,
+      resourceType: target ? (target.type || 'Resource') : cmItem.resourceType,
+    };
+
     if (target) {
       const existingCMs = target.data.configMaps || [];
       const existingIndex = existingCMs.findIndex((c: K8sConfigMapItem) => c.id === cmItem.id);
@@ -152,9 +163,9 @@ export function useAttachmentHandlers() {
 
       if (existingIndex >= 0) {
         updatedCMs = [...existingCMs];
-        updatedCMs[existingIndex] = cmItem;
+        updatedCMs[existingIndex] = enrichedCmItem;
       } else {
-        updatedCMs = [...existingCMs, cmItem];
+        updatedCMs = [...existingCMs, enrichedCmItem];
       }
 
       updateNodeData(target.id, { configMaps: updatedCMs });
@@ -173,8 +184,8 @@ export function useAttachmentHandlers() {
       useFlowStore.getState().addLog('info', `[ConfigMap Saved] Saved ConfigMap "${cmItem.name}" to local storage`, 'UI');
     }
 
-    useFlowStore.getState().addOrUpdateSavedConfigMap(cmItem);
-    void persistConfigMapItem(cmItem);
+    useFlowStore.getState().addOrUpdateSavedConfigMap(enrichedCmItem);
+    void persistConfigMapItem(enrichedCmItem);
     setConfigMapModalTargetNode(null);
   };
 

@@ -51,6 +51,17 @@ export const getCurrentSessionAutosaveKey = (): string => {
   return currentSessionAutosaveKey;
 };
 
+export const setCurrentSessionAutosaveKey = (key: string | null): void => {
+  currentSessionAutosaveKey = key;
+};
+
+export const getActiveProfileName = (currentProject?: { name?: string } | null): string => {
+  if (currentProject?.name?.trim()) {
+    return currentProject.name.trim();
+  }
+  return getCurrentSessionAutosaveKey();
+};
+
 // Initial capture (base state)
 setTimeout(() => {
   const state = flowStore.getState();
