@@ -43,15 +43,14 @@ export const PodConfigMapVars: React.FC<PodConfigMapVarsProps> = memo(({ data, n
   const nodes = useFlowStore((state) => state.nodes);
   const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
 
-  if (data.displaySettings?.configMapVars === false) return null;
+  const parent = data.parentId ? nodes.find((n) => n.id === data.parentId) : null;
+  const effectiveDisplaySettings = data.displaySettings ?? parent?.data?.displaySettings;
+  if (effectiveDisplaySettings?.configMapVars === false) return null;
 
   const directCMs = data.configMaps;
   let effectiveCMs = directCMs;
-  if ((!effectiveCMs || effectiveCMs.length === 0) && data.parentId) {
-    const parent = nodes.find((n) => n.id === data.parentId);
-    if (parent?.data?.configMaps) {
-      effectiveCMs = parent.data.configMaps;
-    }
+  if ((!effectiveCMs || effectiveCMs.length === 0) && parent?.data?.configMaps) {
+    effectiveCMs = parent.data.configMaps;
   }
 
   const entries = getFlattenedConfigMapVars(effectiveCMs);

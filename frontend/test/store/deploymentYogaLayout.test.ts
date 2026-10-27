@@ -235,6 +235,62 @@ describe('deploymentYogaLayout', () => {
     expect(p2.position.y - (p1.position.y + (p1.height || 0))).toBe(20);
   });
 
+  it('correctly calculates dynamic pod height and prevents pod overlap when scaling to 2 replicas with parent ConfigMap variables', () => {
+    const deploymentWithCM: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 2,
+        label: 'web-deploy',
+        configMaps: [
+          {
+            id: 'cm-vars',
+            name: 'app-env',
+            configData: [
+              { key: 'PORT', value: '8080' },
+              { key: 'DB_HOST', value: 'postgres' },
+              { key: 'DB_USER', value: 'admin' },
+            ],
+          },
+        ],
+      },
+    };
+
+    // Child pods do not have direct configMaps (inherited from parent deployment)
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, label: 'web-deploy-pod-1' },
+    };
+
+    const pod2: Node = {
+      id: 'pod2',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, label: 'web-deploy-pod-2' },
+    };
+
+    const layout = calculateDeploymentLayoutWithYoga(deploymentWithCM, [pod1, pod2], yoga);
+    const p1 = layout.laidOutPods[0];
+    const p2 = layout.laidOutPods[1];
+
+    // ConfigMap variables add 12 + 3 * 18 = 66px to base height (92 + 66 = 158px)
+    expect(p1.height).toBeGreaterThanOrEqual(158);
+    expect(p2.height).toBeGreaterThanOrEqual(158);
+
+    // Pod 2 must be positioned below Pod 1 with 20px gap, NO overlap
+    const p1Bottom = p1.position.y + (p1.height || 0);
+    expect(p2.position.y).toBe(p1Bottom + 20);
+
+    // Total deployment container height must accommodate both pods plus padding
+    const p2Bottom = p2.position.y + (p2.height || 0);
+    expect(layout.height).toBeGreaterThanOrEqual(p2Bottom);
+  });
+
   it('handles fallback layout calculation when yoga instance is null', () => {
     const deployment: Node = {
       id: 'dep1',
@@ -255,6 +311,52 @@ describe('deploymentYogaLayout', () => {
     expect(result.laidOutPods).toHaveLength(1);
     expect(result.width).toBeGreaterThan(0);
     expect(result.height).toBeGreaterThan(0);
+  });
+
+  it('prevents pod overlap in fallback layout when yoga instance is null with parent ConfigMap variables', () => {
+    const deploymentWithCM: Node = {
+      id: 'dep1',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 2,
+        label: 'fallback-cm-dep',
+        configMaps: [
+          {
+            id: 'cm-fallback',
+            name: 'fallback-config',
+            configData: [
+              { key: 'VAR_A', value: 'alpha' },
+              { key: 'VAR_B', value: 'beta' },
+            ],
+          },
+        ],
+      },
+    };
+
+    const pod1: Node = {
+      id: 'pod1',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+
+    const pod2: Node = {
+      id: 'pod2',
+      type: 'Pod',
+      parentId: 'dep1',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+
+    const result = calculateDeploymentLayoutWithYoga(deploymentWithCM, [pod1, pod2], null);
+    const p1 = result.laidOutPods[0];
+    const p2 = result.laidOutPods[1];
+
+    expect(p1.height).toBeGreaterThan(92);
+    expect(p2.height).toBeGreaterThan(92);
+    expect(p2.position.y).toBe((p1.position.y + (p1.height || 0)) + 20);
   });
 
   it('handles ReplicaSet container type and manually resized deployment bounds', () => {

@@ -98,10 +98,11 @@ interface PodNodeParams {
 const updatePodNode = (
   existingPod: Node,
   commonData: any,
-  params: PodNodeParams
+  params: PodNodeParams,
+  parentData?: Partial<K8sNodeData>
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
-  const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas });
+  const minSize = getPodMinimumSize({ ...existingPod.data, ...commonData, replicas }, parentData);
   const width = existingPod.data?.isManuallyResized
     ? Math.max(existingPod.width || 0, existingPod.measured?.width || 0, minSize.width)
     : minSize.width;
@@ -135,11 +136,12 @@ const updatePodNode = (
 // Helper to create a new pod node
 const createPodNode = (
   commonData: any,
-  params: PodNodeParams
+  params: PodNodeParams,
+  parentData?: Partial<K8sNodeData>
 ): Node => {
   const { replicas, totalReplicas, deploymentId, podName, baseName, podHash, replicaSuffix, replicaSuffixes } = params;
   const id = `pod-${crypto.randomUUID().split('-')[0]}`;
-  const minSize = getPodMinimumSize({ ...commonData, replicas });
+  const minSize = getPodMinimumSize({ ...commonData, replicas }, parentData);
   return {
     id,
     type: 'Pod',
@@ -208,23 +210,35 @@ export const syncPodsInDeployment = (
   let currentOrdinal = 0;
   return targetPodReplicas.map((replicas, index) => {
     const existingPod = currentPods[index];
+    const isSingleUnit = replicas === 1;
 
-    const existingSuffixes = (existingPod?.data?.replicaSuffixes as string[]) || [];
-    const replicaSuffixes: string[] = [];
-    for (let i = 0; i < replicas; i++) {
-      if (isStatefulSet) {
-        replicaSuffixes.push(String(currentOrdinal));
-        currentOrdinal++;
-      } else if (!forceRandomize && existingSuffixes[i]) {
-        replicaSuffixes.push(existingSuffixes[i]);
+    let replicaSuffix = '';
+    let replicaSuffixes: string[] | undefined;
+
+    if (isStatefulSet) {
+      replicaSuffix = String(currentOrdinal);
+      currentOrdinal += replicas;
+    } else if (isSingleUnit) {
+      if (forceRandomize) {
+        replicaSuffix = generateRandomHash(5);
       } else {
-        const canReuseSingleSuffix = i === 0 && Boolean(existingPod?.data?.replicaSuffix) && !forceRandomize;
-        const initialSuffix = canReuseSingleSuffix ? (existingPod.data.replicaSuffix as string) : generateRandomHash(5);
-        replicaSuffixes.push(initialSuffix);
+        const existingSuffix = existingPod?.data?.replicaSuffix as string;
+        replicaSuffix = existingSuffix || generateRandomHash(5);
       }
+    } else {
+      // Group of replicas: generate array of unique 5-char hashes
+      const existingList = (existingPod?.data?.replicaSuffixes as string[]) || [];
+      replicaSuffixes = [];
+      for (let r = 0; r < replicas; r++) {
+        if (!forceRandomize && existingList[r]) {
+          replicaSuffixes.push(existingList[r]);
+        } else {
+          replicaSuffixes.push(generateRandomHash(5));
+        }
+      }
+      replicaSuffix = replicaSuffixes[0];
     }
 
-    const replicaSuffix = replicaSuffixes[0];
     const podName = isStatefulSet
       ? `${baseName}-${replicaSuffix}`
       : formatPodName(baseName, groupPodHash, replicaSuffix, totalReplicas);
@@ -245,9 +259,10 @@ export const syncPodsInDeployment = (
       workloadType: isStatefulSet ? 'StatefulSet' : 'Deployment'
     };
 
+    const parentData = deployment.data as unknown as K8sNodeData;
     return existingPod 
-      ? updatePodNode(existingPod, podDataWithWorkloadType, params)
-      : createPodNode(podDataWithWorkloadType, params);
+      ? updatePodNode(existingPod, podDataWithWorkloadType, params, parentData)
+      : createPodNode(podDataWithWorkloadType, params, parentData);
   });
 };
 
