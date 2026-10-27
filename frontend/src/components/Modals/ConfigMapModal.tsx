@@ -81,6 +81,301 @@ const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
   </button>
 );
 
+function getModalTitle(isListMode: boolean, hasExistingItem: boolean): string {
+  if (isListMode) {
+    return 'Cluster ConfigMaps Overview';
+  }
+  if (hasExistingItem) {
+    return 'Edit ConfigMap';
+  }
+  return 'Attach ConfigMap';
+}
+
+function getModalSubtitle(
+  isListMode: boolean,
+  filteredCount: number,
+  targetNodeLabel?: string
+): string {
+  if (isListMode) {
+    const plural = filteredCount === 1 ? '' : 's';
+    return `${filteredCount} ConfigMap${plural} available across cluster`;
+  }
+  if (targetNodeLabel) {
+    return `Target card: ${targetNodeLabel}`;
+  }
+  return 'Configure Key-Value Data';
+}
+
+function removeConfigMapFromNodeOrStore(
+  item: OverviewItem,
+  nodes: any[],
+  updateNodeData: (id: string, data: any) => void,
+  deleteSavedConfigMap: (id: string) => void,
+  addLog: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void
+): void {
+  if (item.ownerNode.id !== 'cluster-storage') {
+    const owner = nodes.find((n) => n.id === item.ownerNode.id);
+    if (owner) {
+      const currentList: any[] = owner.data?.configMaps || [];
+      const updatedList = currentList.filter((x) => x.id !== item.rawItem.id);
+      updateNodeData(item.ownerNode.id, { configMaps: updatedList });
+      addLog(
+        'info',
+        `[Attached Resource] Removed ConfigMap '${item.name}' from ${item.ownerNode.label}`,
+        'UI'
+      );
+    }
+  }
+  void removeConfigMapFromLocal(item.rawItem.id);
+  deleteSavedConfigMap(item.rawItem.id);
+}
+
+interface ConfigMapModalFooterProps {
+  readonly isListMode: boolean;
+  readonly isDark: boolean;
+  readonly hasExistingItem: boolean;
+  readonly onAddNewFromList: () => void;
+  readonly onClose: () => void;
+  readonly onBackToMode: () => void;
+  readonly onSave: () => void;
+}
+
+const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
+  isListMode,
+  isDark,
+  hasExistingItem,
+  onAddNewFromList,
+  onClose,
+  onBackToMode,
+  onSave,
+}) => {
+  if (isListMode) {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <button
+          type="button"
+          onClick={onAddNewFromList}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-all cursor-pointer"
+        >
+          <Plus size={14} />
+          <span>+ Add ConfigMap</span>
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+            isDark
+              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+              : "border-slate-300 hover:bg-slate-100 text-slate-700"
+          )}
+        >
+          Close
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between w-full">
+      <button
+        type="button"
+        data-testid="configmap-back-button"
+        onClick={onBackToMode}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
+          isDark
+            ? "border-slate-700 hover:bg-slate-800 text-teal-400"
+            : "border-slate-300 hover:bg-slate-100 text-teal-600"
+        )}
+      >
+        <ArrowLeft size={13} />
+        <span>Back</span>
+      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+            isDark
+              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+              : "border-slate-300 hover:bg-slate-100 text-slate-700"
+          )}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-md transition-all cursor-pointer"
+        >
+          {hasExistingItem ? 'Update ConfigMap' : 'Attach ConfigMap'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+interface ConfigMapRowItemProps {
+  readonly row: { id: string; key: string; value: string };
+  readonly isDark: boolean;
+  readonly onFocusOrChange: (target: HTMLElement, rowId: string, field: 'key' | 'value', value?: string) => void;
+  readonly onRemove: (rowId: string) => void;
+}
+
+const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
+  row,
+  isDark,
+  onFocusOrChange,
+  onRemove,
+}) => {
+  const matchedKeyInfo = findActiveKeyInfo(row.key);
+
+  return (
+    <div
+      className={cn(
+        "p-2 rounded-lg border space-y-2 transition-all",
+        isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-100 border-slate-200"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <div className="w-1/2">
+          <input
+            id={`cm-key-input-${row.id}`}
+            aria-label="Key"
+            type="text"
+            value={row.key}
+            onFocus={(e) => onFocusOrChange(e.currentTarget, row.id, 'key')}
+            onChange={(e) => onFocusOrChange(e.currentTarget, row.id, 'key', e.target.value)}
+            placeholder="e.g. PORT, LOG_LEVEL"
+            className={cn(
+              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+              isDark
+                ? "bg-slate-950 border-slate-700 text-slate-200"
+                : "bg-slate-50 border-slate-300 text-slate-800"
+            )}
+          />
+        </div>
+
+        <div className="w-1/2">
+          <input
+            id={`cm-val-input-${row.id}`}
+            aria-label="Value"
+            type="text"
+            value={row.value}
+            onFocus={(e) => onFocusOrChange(e.currentTarget, row.id, 'value')}
+            onChange={(e) => onFocusOrChange(e.currentTarget, row.id, 'value', e.target.value)}
+            placeholder="e.g. 80, INFO, enabled"
+            className={cn(
+              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
+              isDark
+                ? "bg-slate-950 border-slate-700 text-slate-100"
+                : "bg-slate-50 border-slate-300 text-slate-900"
+            )}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onRemove(row.id)}
+          className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer shrink-0"
+          title="Remove row"
+          aria-label="Remove row"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {matchedKeyInfo?.hint && (
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
+          <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+          <span>{matchedKeyInfo.hint}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface ConfigMapAutocompletePortalProps {
+  readonly activeDropdown: { rowId: string; field: 'key' | 'value' } | null;
+  readonly dropdownPos: { top: number; left: number; width: number } | null;
+  readonly activeRowId: string | null;
+  readonly isDark: boolean;
+  readonly filteredKeys: Array<{ key: string; description?: string }>;
+  readonly filteredValues: Array<{ value: string; description?: string }>;
+  readonly portalSelectedIndex: number;
+  readonly portalContainerRef: React.RefObject<HTMLDivElement | null>;
+  readonly setPortalSelectedIndex: (index: number) => void;
+  readonly onSelectKey: (key: string) => void;
+  readonly onSelectValue: (val: string) => void;
+}
+
+const ConfigMapAutocompletePortal: React.FC<ConfigMapAutocompletePortalProps> = ({
+  activeDropdown,
+  dropdownPos,
+  activeRowId,
+  isDark,
+  filteredKeys,
+  filteredValues,
+  portalContainerRef,
+  setPortalSelectedIndex,
+  onSelectKey,
+  onSelectValue,
+}) => {
+  if (!activeDropdown || !dropdownPos || !activeRowId || typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      ref={portalContainerRef}
+      id="configmap-autocomplete-portal"
+      data-testid="configmap-autocomplete-portal"
+      style={{
+        position: 'fixed',
+        top: `${dropdownPos.top}px`,
+        left: `${dropdownPos.left}px`,
+        width: `${dropdownPos.width}px`,
+        zIndex: 9999,
+      }}
+      className={cn(
+        "max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] divide-y custom-scrollbar animate-in fade-in-50 duration-100",
+        isDark
+          ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
+          : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+      )}
+    >
+      {activeDropdown.field === 'key' && filteredKeys.map((item, index) => (
+        <AutocompleteOptionItem
+          key={`portal-key-${item.key}`}
+          testId={`key-option-${item.key}`}
+          primaryText={item.key}
+          badgeText="KEY"
+          isDark={isDark}
+          index={index}
+          onHover={() => setPortalSelectedIndex(index)}
+          onSelect={() => onSelectKey(item.key)}
+        />
+      ))}
+
+      {activeDropdown.field === 'value' && filteredValues.map((opt, index) => (
+        <AutocompleteOptionItem
+          key={`portal-val-${opt.value}`}
+          testId={`val-option-${opt.value}`}
+          primaryText={opt.value}
+          secondaryText={opt.description}
+          isDark={isDark}
+          index={index}
+          onHover={() => setPortalSelectedIndex(index)}
+          onSelect={() => onSelectValue(opt.value)}
+        />
+      ))}
+    </div>,
+    document.body
+  );
+};
+
 export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   isOpen,
   onClose,
@@ -172,95 +467,25 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   };
 
   const handleDeleteFromList = (item: OverviewItem) => {
-    if (item.ownerNode.id !== 'cluster-storage') {
-      const owner = nodes.find((n) => n.id === item.ownerNode.id);
-      if (owner) {
-        const currentList: any[] = owner.data?.configMaps || [];
-        const updatedList = currentList.filter((x) => x.id !== item.rawItem.id);
-        updateNodeData(item.ownerNode.id, { configMaps: updatedList });
-        addLog(
-          'info',
-          `[Attached Resource] Removed ConfigMap '${item.name}' from ${item.ownerNode.label}`,
-          'UI'
-        );
-      }
-    }
-    void removeConfigMapFromLocal(item.rawItem.id);
-    deleteSavedConfigMap(item.rawItem.id);
+    removeConfigMapFromNodeOrStore(item, nodes, updateNodeData, deleteSavedConfigMap, addLog);
   };
 
   const isListMode = mode === 'list';
+  const hasExistingItem = Boolean(activeItem || initialConfigMap);
+  const modalTitle = getModalTitle(isListMode, hasExistingItem);
+  const modalSubtitle = getModalSubtitle(isListMode, filteredItems.length, targetNodeLabel);
 
-  const footer = isListMode ? (
-    <div className="flex items-center justify-between w-full">
-      <button
-        type="button"
-        onClick={handleAddNewFromList}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-all cursor-pointer"
-      >
-        <Plus size={14} />
-        <span>+ Add ConfigMap</span>
-      </button>
-      <button
-        type="button"
-        onClick={onClose}
-        className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-          isDark
-            ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-            : "border-slate-300 hover:bg-slate-100 text-slate-700"
-        )}
-      >
-        Close
-      </button>
-    </div>
-  ) : (
-    <div className="flex items-center justify-between w-full">
-      <button
-        type="button"
-        data-testid="configmap-back-button"
-        onClick={() => setMode('list')}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
-          isDark
-            ? "border-slate-700 hover:bg-slate-800 text-teal-400"
-            : "border-slate-300 hover:bg-slate-100 text-teal-600"
-        )}
-      >
-        <ArrowLeft size={13} />
-        <span>Back</span>
-      </button>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-            isDark
-              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-              : "border-slate-300 hover:bg-slate-100 text-slate-700"
-          )}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-md transition-all cursor-pointer"
-        >
-          {activeItem || initialConfigMap ? 'Update ConfigMap' : 'Attach ConfigMap'}
-        </button>
-      </div>
-    </div>
+  const footer = (
+    <ConfigMapModalFooter
+      isListMode={isListMode}
+      isDark={isDark}
+      hasExistingItem={hasExistingItem}
+      onAddNewFromList={handleAddNewFromList}
+      onClose={onClose}
+      onBackToMode={() => setMode('list')}
+      onSave={handleSave}
+    />
   );
-
-  const modalTitle = isListMode
-    ? 'Cluster ConfigMaps Overview'
-    : (activeItem || initialConfigMap ? 'Edit ConfigMap' : 'Attach ConfigMap');
-
-  const modalSubtitle = isListMode
-    ? `${filteredItems.length} ConfigMap${filteredItems.length === 1 ? '' : 's'} available across cluster`
-    : (targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Key-Value Data');
 
   return (
     <Modal
@@ -346,136 +571,42 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {rows.map((row) => {
-                  const matchedKeyInfo = findActiveKeyInfo(row.key);
-
-                  return (
-                    <div
-                      key={row.id}
-                      className={cn(
-                        "p-2 rounded-lg border space-y-2 transition-all",
-                        isDark ? "bg-slate-900/60 border-slate-800" : "bg-slate-100 border-slate-200"
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        {/* Key Field with Fixed Portal Dropdown */}
-                        <div className="w-1/2">
-                          <input
-                            id={`cm-key-input-${row.id}`}
-                            aria-label="Key"
-                            type="text"
-                            value={row.key}
-                            onFocus={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'key')}
-                            onChange={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'key', e.target.value)}
-                            placeholder="e.g. PORT, LOG_LEVEL"
-                            className={cn(
-                              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                              isDark
-                                ? "bg-slate-950 border-slate-700 text-slate-200"
-                                : "bg-slate-50 border-slate-300 text-slate-800"
-                            )}
-                          />
-                        </div>
-
-                        {/* Value Field with Fixed Portal Dropdown */}
-                        <div className="w-1/2">
-                          <input
-                            id={`cm-val-input-${row.id}`}
-                            aria-label="Value"
-                            type="text"
-                            value={row.value}
-                            onFocus={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'value')}
-                            onChange={(e) => handleInputFocusOrChange(e.currentTarget, row.id, 'value', e.target.value)}
-                            placeholder="e.g. 80, INFO, enabled"
-                            className={cn(
-                              "w-full px-2.5 py-1.5 rounded border text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500/50",
-                              isDark
-                                ? "bg-slate-950 border-slate-700 text-slate-100"
-                                : "bg-slate-50 border-slate-300 text-slate-900"
-                            )}
-                          />
-                        </div>
-
-                        {/* Delete button */}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(row.id)}
-                          className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer shrink-0"
-                          title="Remove row"
-                          aria-label="Remove row"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Educational Hint */}
-                      {matchedKeyInfo?.hint && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pl-1">
-                          <HelpCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                          <span>{matchedKeyInfo.hint}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {rows.map((row) => (
+                  <ConfigMapRowItem
+                    key={row.id}
+                    row={row}
+                    isDark={isDark}
+                    onFocusOrChange={handleInputFocusOrChange}
+                    onRemove={handleRemoveRow}
+                  />
+                ))}
               </div>
             )}
           </div>
 
           {/* Viewport Fixed Autocomplete Portal */}
-          {activeDropdown && dropdownPos && activeRow && typeof document !== 'undefined' && createPortal(
-            <div
-              ref={portalContainerRef}
-              id="configmap-autocomplete-portal"
-              data-testid="configmap-autocomplete-portal"
-              style={{
-                position: 'fixed',
-                top: `${dropdownPos.top}px`,
-                left: `${dropdownPos.left}px`,
-                width: `${dropdownPos.width}px`,
-                zIndex: 9999,
-              }}
-              className={cn(
-                "max-h-48 overflow-y-auto rounded-md shadow-2xl border font-mono text-[11px] divide-y custom-scrollbar animate-in fade-in-50 duration-100",
-                isDark
-                  ? "bg-slate-900 border-slate-700 text-slate-200 divide-slate-800"
-                  : "bg-white border-slate-200 text-slate-800 divide-slate-100"
-              )}
-            >
-              {activeDropdown.field === 'key' && filteredKeys.map((item, index) => (
-                <AutocompleteOptionItem
-                  key={`portal-key-${item.key}`}
-                  testId={`key-option-${item.key}`}
-                  primaryText={item.key}
-                  badgeText="KEY"
-                  isDark={isDark}
-                  index={index}
-                  onHover={() => setPortalSelectedIndex(index)}
-                  onSelect={() => {
-                    handleRowChange(activeRow.id, 'key', item.key);
-                    setActiveDropdown(null);
-                  }}
-                />
-              ))}
-
-              {activeDropdown.field === 'value' && filteredValues.map((opt, index) => (
-                <AutocompleteOptionItem
-                  key={`portal-val-${opt.value}`}
-                  testId={`val-option-${opt.value}`}
-                  primaryText={opt.value}
-                  secondaryText={opt.description}
-                  isDark={isDark}
-                  index={index}
-                  onHover={() => setPortalSelectedIndex(index)}
-                  onSelect={() => {
-                    handleRowChange(activeRow.id, 'value', opt.value);
-                    setActiveDropdown(null);
-                  }}
-                />
-              ))}
-            </div>,
-            document.body
-          )}
+          <ConfigMapAutocompletePortal
+            activeDropdown={activeDropdown}
+            dropdownPos={dropdownPos}
+            activeRowId={activeRow?.id || null}
+            isDark={isDark}
+            filteredKeys={filteredKeys}
+            filteredValues={filteredValues}
+            portalContainerRef={portalContainerRef}
+            setPortalSelectedIndex={setPortalSelectedIndex}
+            onSelectKey={(key) => {
+              if (activeRow) {
+                handleRowChange(activeRow.id, 'key', key);
+                setActiveDropdown(null);
+              }
+            }}
+            onSelectValue={(value) => {
+              if (activeRow) {
+                handleRowChange(activeRow.id, 'value', value);
+                setActiveDropdown(null);
+              }
+            }}
+          />
         </div>
       )}
     </Modal>
