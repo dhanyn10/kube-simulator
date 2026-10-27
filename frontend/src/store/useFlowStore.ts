@@ -6,6 +6,8 @@ import { createDeploymentSlice } from '@/store/slices/createDeploymentSlice';
 import { createNodeSlice } from '@/store/slices/createNodeSlice';
 import { createUiSlice } from '@/store/slices/createUiSlice';
 import { createLogSlice } from '@/store/slices/createLogSlice';
+import { saveConfigMapsToLocal } from '@/activities/modals/configMapStorageHelpers';
+import { K8sConfigMapItem } from '@/types';
 
 /**
  * Formats a Date object into an autosave key with format: autosave-ddmmyyyyhis
@@ -65,6 +67,29 @@ setTimeout(() => {
 }, 500);
 
 // Core function to execute autosave
+
+const syncConfigMapsOnAutosave = (state: FlowState) => {
+  const allNodeConfigMaps: K8sConfigMapItem[] = [];
+  state.nodes.forEach((n) => {
+    if (Array.isArray(n.data?.configMaps)) {
+      allNodeConfigMaps.push(...n.data.configMaps);
+    }
+  });
+
+  const merged = [...allNodeConfigMaps];
+  if (Array.isArray(state.savedConfigMaps)) {
+    state.savedConfigMaps.forEach((scm) => {
+      if (!merged.some((m) => m.id === scm.id || m.name === scm.name)) {
+        merged.push(scm);
+      }
+    });
+  }
+
+  if (merged.length > 0) {
+    void saveConfigMapsToLocal(merged);
+  }
+};
+
 const executeAutosave = (state: FlowState) => {
   if (!state.isAutosaveEnabled) return;
 
@@ -86,6 +111,8 @@ const executeAutosave = (state: FlowState) => {
     void app.SaveSetting('auto_saved_profile_content', content);
     logger.info(`[Autosave] Profile saved under key: ${currentSessionAutosaveKey}`);
   }
+
+  syncConfigMapsOnAutosave(state);
 
   if (state.currentProject && state.currentProject.id !== -1 && app?.UpdateProject) {
     void app.UpdateProject(state.currentProject.id, content).then((success) => {

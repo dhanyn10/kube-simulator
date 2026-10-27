@@ -26,6 +26,7 @@ import {
   KubeIAMModal,
   SaveModal,
   TerminalCommandTreeModal,
+  AttachedResourceOverviewModal,
 } from './components/Modals';
 import {
   PodNode,
@@ -111,6 +112,8 @@ export default function App() {
   const isSidebarVisible = useFlowStore((state) => state.isSidebarVisible);
   const isRightSidebarVisible = useFlowStore((state) => state.isRightSidebarVisible);
   const setGlobalEdgeColors = useFlowStore((state) => state.setGlobalEdgeColors);
+  const activeOverviewModal = useFlowStore((state) => state.activeOverviewModal);
+  const setActiveOverviewModal = useFlowStore((state) => state.setActiveOverviewModal);
   const copyNodes = useFlowStore((state) => state.copyNodes);
   const pasteNodes = useFlowStore((state) => state.pasteNodes);
   const groupNodes = useFlowStore((state) => state.groupNodes);
@@ -347,6 +350,7 @@ export default function App() {
             targetNodeId={configMapModalTargetNode?.id || null}
             targetNodeLabel={configMapModalTargetNode?.label}
             initialConfigMap={configMapModalTargetNode?.initialItem}
+            initialViewMode={configMapModalTargetNode?.initialViewMode}
             onSave={handleConfigMapSave}
           />
 
@@ -378,6 +382,11 @@ export default function App() {
           />
 
           <KubeIAMModal />
+
+          <AttachedResourceOverviewModal
+            type={activeOverviewModal}
+            onClose={() => setActiveOverviewModal(null)}
+          />
 
           <TerminalCommandTreeModal />
 

@@ -59,7 +59,7 @@ describe('DataResourceConfig', () => {
       />
     );
 
-    expect(screen.getByText('Belum ada data konfigurasi')).toBeDefined();
+    expect(screen.getByText('No configuration data yet')).toBeDefined();
   });
 
   it('renders correctly for Secret with empty configData fallback text', () => {
@@ -83,7 +83,7 @@ describe('DataResourceConfig', () => {
     );
 
     expect(screen.getByText('Secrets (Key-Value)')).toBeDefined();
-    expect(screen.getByText('Belum ada data secret')).toBeDefined();
+    expect(screen.getByText('No secret data yet')).toBeDefined();
   });
 
   it('handles adding new items and toggles, triggering onToggle and onYamlToggle callbacks on lines 54 and 56', () => {

@@ -351,6 +351,9 @@ describe('useAppHelpers', () => {
       });
 
       expect(useFlowStore.getState().configuringNodeId).toBeNull();
+      expect(useFlowStore.getState().savedConfigMaps).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'cm-1', name: 'new-cm' })])
+      );
     });
 
     it('handleConfigMapSave updates existing configmap and attaches new configmap', () => {

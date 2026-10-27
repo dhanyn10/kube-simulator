@@ -91,29 +91,46 @@ export function executeSidebarAddNode(
   type: K8sResourceType,
   onAddNode: (type: K8sResourceType) => void,
   context: {
-    nodes: any[];
-    configuringNodeId: string | null;
-    setKubeIamModalOpen: (open: boolean) => void;
-    setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
-    addLog: (type: 'info' | 'warn' | 'error', msg: string, category?: string) => void;
+    nodes?: any[];
+    configuringNodeId?: string | null;
+    setKubeIamModalOpen?: (open: boolean) => void;
+    setActiveOverviewModal?: (type: K8sResourceType | null) => void;
+    setRoleModalTargetNode?: (target: { id: string; label: string } | null) => void;
+    setConfigMapModalTargetNode?: (target: { id: string; label: string; initialViewMode?: 'form' | 'list' } | null) => void;
+    addLog?: (type: 'info' | 'warn' | 'error', msg: string, category?: string) => void;
   }
 ): void {
   if (type === 'IAM') {
-    context.setKubeIamModalOpen(true);
+    context.setKubeIamModalOpen?.(true);
     return;
   }
 
+  const targetNode = context.nodes?.find((n) => n.selected || n.id === context.configuringNodeId);
+
   if (type === 'Role') {
-    const targetNode = context.nodes.find((n) => n.selected || n.id === context.configuringNodeId);
     if (targetNode) {
-      context.setRoleModalTargetNode({ id: targetNode.id, label: targetNode.data?.label || targetNode.id });
+      context.setRoleModalTargetNode?.({ id: targetNode.id, label: targetNode.data?.label || targetNode.id });
     } else {
-      context.addLog(
+      context.addLog?.(
         'warn',
         "[Sidebar Action] 'Role' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.",
         'UI'
       );
     }
+    return;
+  }
+
+  if (type === 'ConfigMap' && context.setConfigMapModalTargetNode) {
+    context.setConfigMapModalTargetNode({
+      id: targetNode ? targetNode.id : 'cluster-storage',
+      label: targetNode ? (targetNode.data?.label || targetNode.id) : 'Cluster ConfigMaps',
+      initialViewMode: 'list',
+    });
+    return;
+  }
+
+  if (context.setActiveOverviewModal && (type === 'ConfigMap' || type === 'Secret' || type === 'HPA' || type === 'ResourceLimit')) {
+    context.setActiveOverviewModal(type);
     return;
   }
 

@@ -34,6 +34,8 @@ export const useConfigMapModal = ({
   const colorMode = useFlowStore((state) => state.colorMode);
   const isDark = colorMode === 'dark';
 
+  const [activeItem, setActiveItem] = useState<K8sConfigMapItem | null>(initialConfigMap || null);
+
   const [cmName, setCmName] = useState<string>(() => {
     if (initialConfigMap?.name) return initialConfigMap.name;
     const randomSuffix = crypto.randomUUID().split('-')[0];
@@ -56,6 +58,26 @@ export const useConfigMapModal = ({
     handleInputFocusOrChange: triggerInputFocusOrChange,
   } = useAutocompletePortal('configmap-autocomplete-portal');
 
+  const loadConfigMap = useCallback((item: K8sConfigMapItem | null) => {
+    setActiveItem(item);
+    if (item?.configData?.length) {
+      setCmName(item.name || 'app-config');
+      const loadedRows = item.configData.map((entry, idx) => ({
+        id: `row-${idx}-${Date.now()}`,
+        key: entry.key,
+        value: entry.value,
+      }));
+      setRows(loadedRows);
+    } else if (item?.name) {
+      setCmName(item.name);
+      setRows([]);
+    } else {
+      const randomSuffix = crypto.randomUUID().split('-')[0];
+      setCmName(`cm-${randomSuffix}`);
+      setRows([]);
+    }
+  }, [setRows]);
+
   const initialCmId = initialConfigMap?.id;
   const initialCmName = initialConfigMap?.name;
   const initialCmDataStr = initialConfigMap?.configData
@@ -64,20 +86,8 @@ export const useConfigMapModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
-
-    if (initialConfigMap?.configData?.length) {
-      setCmName(initialConfigMap.name || 'app-config');
-      const loadedRows = initialConfigMap.configData.map((item, idx) => ({
-        id: `row-${idx}-${Date.now()}`,
-        key: item.key,
-        value: item.value,
-      }));
-      setRows(loadedRows);
-    } else if (initialConfigMap?.name) {
-      setCmName(initialConfigMap.name);
-      setRows([]);
-    }
-  }, [isOpen, targetNodeId, initialCmId, initialCmName, initialCmDataStr]);
+    loadConfigMap(initialConfigMap || null);
+  }, [isOpen, targetNodeId, initialCmId, initialCmName, initialCmDataStr, loadConfigMap]);
 
   const handleInputFocusOrChange = useCallback(
     (
@@ -103,10 +113,11 @@ export const useConfigMapModal = ({
 
   const handleSave = useCallback(() => {
     const configData = getValidData();
-    const configMapItem = buildConfigMapItem(initialConfigMap?.id, cmName, configData);
+    const targetId = activeItem?.id || initialConfigMap?.id;
+    const configMapItem = buildConfigMapItem(targetId, cmName, configData);
     onSave(configMapItem);
     onClose();
-  }, [getValidData, initialConfigMap, cmName, onSave, onClose]);
+  }, [getValidData, activeItem, initialConfigMap, cmName, onSave, onClose]);
 
   // Active row and filtered key/value autocomplete options
   const activeRow = rows.find((r) => r.id === activeDropdown?.rowId);
@@ -119,6 +130,9 @@ export const useConfigMapModal = ({
     cmName,
     setCmName,
     rows,
+    activeItem,
+    setActiveItem,
+    loadConfigMap,
     activeDropdown,
     setActiveDropdown,
     dropdownPos,

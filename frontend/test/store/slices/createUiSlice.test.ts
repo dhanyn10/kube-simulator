@@ -1374,4 +1374,45 @@ describe('createUiSlice', () => {
     }
     expect(useFlowStore.getState().colorMode).toBeDefined();
   });
+
+  it('covers savedConfigMaps actions: set, addOrUpdate, and delete', () => {
+    const { setSavedConfigMaps, addOrUpdateSavedConfigMap, deleteSavedConfigMap } = useFlowStore.getState();
+
+    // 1. setSavedConfigMaps
+    setSavedConfigMaps([{ id: 'cm-1', name: 'config-1', configData: [] }]);
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(1);
+
+    // 2. add new
+    addOrUpdateSavedConfigMap({ id: 'cm-2', name: 'config-2', configData: [] });
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(2);
+
+    // 3. update existing
+    addOrUpdateSavedConfigMap({ id: 'cm-2', name: 'config-2-renamed', configData: [{ key: 'K', value: 'V' }] });
+    const cms = useFlowStore.getState().savedConfigMaps;
+    expect(cms).toHaveLength(2);
+    expect(cms[1].name).toBe('config-2-renamed');
+
+    // 4. delete
+    deleteSavedConfigMap('cm-1');
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(1);
+    expect(useFlowStore.getState().savedConfigMaps[0].id).toBe('cm-2');
+  });
+
+  it('covers loadSettingsJson restoring savedConfigMaps from local storage', async () => {
+    localStorage.setItem(
+      'kube_simulator_configmaps',
+      JSON.stringify([
+        { id: 'cm-restored', name: 'restored-config', configData: [{ key: 'FOO', value: 'BAR' }] }
+      ])
+    );
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    loadSettingsJson();
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(useFlowStore.getState().savedConfigMaps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'cm-restored' })])
+    );
+  });
 });

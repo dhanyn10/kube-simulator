@@ -2,7 +2,8 @@ import { logger } from '@/lib/logger';
 import { StateCreator } from 'zustand';
 import { Node, Edge } from '@xyflow/react';
 import type { FlowState, SimulationMetricPoint } from '@/store/types';
-import { K8sResourceType, KubeIAMUser } from '@/types';
+import { K8sResourceType, KubeIAMUser, K8sConfigMapItem } from '@/types';
+import { loadConfigMapsFromLocal } from '@/activities/modals/configMapStorageHelpers';
 import { safeRandom } from '@/lib/utils';
 import {
   processWorkloadSimulation,
@@ -36,14 +37,20 @@ export interface UiSlice {
   setMinimapPosition: (position: MiniMapPosition) => void;
   roleModalTargetNode: { id: string; label: string; initialItem?: any } | null;
   setRoleModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
-  configMapModalTargetNode: { id: string; label: string; initialItem?: any } | null;
-  setConfigMapModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  configMapModalTargetNode: { id: string; label: string; initialItem?: any; initialViewMode?: 'form' | 'list' } | null;
+  setConfigMapModalTargetNode: (target: { id: string; label: string; initialItem?: any; initialViewMode?: 'form' | 'list' } | null) => void;
   secretModalTargetNode: { id: string; label: string; initialItem?: any } | null;
   setSecretModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
   hpaModalTargetNode: { id: string; label: string; initialItem?: any } | null;
   setHpaModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
   resourceLimitModalTargetNode: { id: string; label: string; initialItem?: any } | null;
   setResourceLimitModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  activeOverviewModal: K8sResourceType | null;
+  setActiveOverviewModal: (type: K8sResourceType | null) => void;
+  savedConfigMaps: K8sConfigMapItem[];
+  setSavedConfigMaps: (configMaps: K8sConfigMapItem[]) => void;
+  addOrUpdateSavedConfigMap: (cm: K8sConfigMapItem) => void;
+  deleteSavedConfigMap: (cmId: string) => void;
 
   // Active K8s Identity state & actions
   activeIdentity: string;
@@ -615,6 +622,29 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
   setHpaModalTargetNode: (target) => set({ hpaModalTargetNode: target }),
   resourceLimitModalTargetNode: null,
   setResourceLimitModalTargetNode: (target) => set({ resourceLimitModalTargetNode: target }),
+  activeOverviewModal: null,
+  setActiveOverviewModal: (type) => set({ activeOverviewModal: type }),
+  savedConfigMaps: [],
+  setSavedConfigMaps: (configMaps) => set({ savedConfigMaps: configMaps }),
+  addOrUpdateSavedConfigMap: (cm) => {
+    set((state) => {
+      const existing = state.savedConfigMaps || [];
+      const idx = existing.findIndex((c) => c.id === cm.id || c.name === cm.name);
+      let updated: K8sConfigMapItem[];
+      if (idx >= 0) {
+        updated = [...existing];
+        updated[idx] = cm;
+      } else {
+        updated = [...existing, cm];
+      }
+      return { savedConfigMaps: updated };
+    });
+  },
+  deleteSavedConfigMap: (cmId) => {
+    set((state) => ({
+      savedConfigMaps: (state.savedConfigMaps || []).filter((c) => c.id !== cmId && c.name !== cmId),
+    }));
+  },
 
   // Active K8s Identity initial state & actions
   activeIdentity: 'system:admin',
@@ -804,6 +834,11 @@ export const createUiSlice: StateCreator<FlowState, [], [], UiSlice> = (set, get
     }
   },
   loadSettingsJson: () => {
+    void loadConfigMapsFromLocal().then((savedCMs) => {
+      if (savedCMs && savedCMs.length > 0) {
+        set({ savedConfigMaps: savedCMs });
+      }
+    });
     if (globalThis.go?.main?.App?.GetSetting) {
       void globalThis.go.main.App.GetSetting('app_settings_json').then((val: string) => {
         if (val) {

@@ -4,6 +4,7 @@ import { EventsOn } from '@wailsjs/runtime';
 import { useFlowStore } from '@/store';
 import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
 import { logger } from '@/lib/logger';
+import { persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
 import {
   emitLiveRoleCommand,
   emitLiveSecretCommand,
@@ -144,32 +145,37 @@ export function useAttachmentHandlers() {
   const handleConfigMapSave = (cmItem: K8sConfigMapItem) => {
     if (!configMapModalTargetNode) return;
     const target = nodes.find((n) => n.id === configMapModalTargetNode.id);
-    if (!target) return;
+    if (target) {
+      const existingCMs = target.data.configMaps || [];
+      const existingIndex = existingCMs.findIndex((c: K8sConfigMapItem) => c.id === cmItem.id);
+      let updatedCMs: K8sConfigMapItem[];
 
-    const existingCMs = target.data.configMaps || [];
-    const existingIndex = existingCMs.findIndex((c: K8sConfigMapItem) => c.id === cmItem.id);
-    let updatedCMs: K8sConfigMapItem[];
+      if (existingIndex >= 0) {
+        updatedCMs = [...existingCMs];
+        updatedCMs[existingIndex] = cmItem;
+      } else {
+        updatedCMs = [...existingCMs, cmItem];
+      }
 
-    if (existingIndex >= 0) {
-      updatedCMs = [...existingCMs];
-      updatedCMs[existingIndex] = cmItem;
+      updateNodeData(target.id, { configMaps: updatedCMs });
+      useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${configMapModalTargetNode.label}`, 'UI');
+
+      useFlowStore.setState({
+        configuringNodeId: target.id,
+        configuringEdgeId: null,
+        isRightSidebarVisible: true,
+        isHistoryViewOpen: false,
+      });
+
+      // Auto-emit live kubectl command
+      emitLiveConfigMapCommand(cmItem.name, configMapModalTargetNode.label);
     } else {
-      updatedCMs = [...existingCMs, cmItem];
+      useFlowStore.getState().addLog('info', `[ConfigMap Saved] Saved ConfigMap "${cmItem.name}" to local storage`, 'UI');
     }
 
-    updateNodeData(target.id, { configMaps: updatedCMs });
-    useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${configMapModalTargetNode.label}`, 'UI');
+    useFlowStore.getState().addOrUpdateSavedConfigMap(cmItem);
+    void persistConfigMapItem(cmItem);
     setConfigMapModalTargetNode(null);
-
-    useFlowStore.setState({
-      configuringNodeId: target.id,
-      configuringEdgeId: null,
-      isRightSidebarVisible: true,
-      isHistoryViewOpen: false,
-    });
-
-    // Auto-emit live kubectl command
-    emitLiveConfigMapCommand(cmItem.name, configMapModalTargetNode.label);
   };
 
   const handleHpaSave = (hpaItem: K8sHpaItem) => {

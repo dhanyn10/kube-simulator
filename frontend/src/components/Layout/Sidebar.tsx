@@ -150,6 +150,8 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
   const nodes = useFlowStore((state) => state.nodes);
   const configuringNodeId = useFlowStore((state) => state.configuringNodeId);
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
+  const setActiveOverviewModal = useFlowStore((state) => state.setActiveOverviewModal);
+  const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
   const addLog = useFlowStore((state) => state.addLog);
 
   const handleAddNode = (type: K8sResourceType) => {
@@ -157,6 +159,8 @@ export const Sidebar = ({ onAddNode }: SidebarProps) => {
       nodes,
       configuringNodeId,
       setKubeIamModalOpen,
+      setActiveOverviewModal,
+      setConfigMapModalTargetNode,
       setRoleModalTargetNode,
       addLog,
     });
