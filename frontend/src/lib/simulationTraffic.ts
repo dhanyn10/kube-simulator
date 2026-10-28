@@ -211,7 +211,7 @@ const findConnectedHPA = (depId: string, ctx: SimulationContext): Node | undefin
   return undefined;
 };
 
-const calculateDesiredReplicas = (
+export const calculateDesiredReplicas = (
   replicas: number,
   cpuPercent: number,
   hpaData: K8sNodeData

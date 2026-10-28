@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { AttachedResourceOverviewModal } from '@/components/Modals/AttachedResourceOverviewModal';
+import { RESOURCE_TYPE_KEY_MAP } from '@/activities/modals/attachedResourceOverviewHelpers';
 import { useFlowStore } from '@/store';
 import { Node } from '@xyflow/react';
 
@@ -232,5 +233,174 @@ describe('AttachedResourceOverviewModal', () => {
     fireEvent.click(deleteBtn);
 
     expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-to-delete');
+  });
+
+  it('covers fallback branches across details components and delete handler', () => {
+    const updateNodeData = vi.fn();
+    useFlowStore.setState({ updateNodeData });
+
+    const mixedNodes: Node[] = [
+      {
+        id: 'node-more-cm',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'multi-pod',
+          // ConfigMap with > 5 variables (Branch 2)
+          configMaps: [
+            {
+              id: 'cm-many',
+              name: 'many-vars-cm',
+              configData: [
+                { key: 'V1', value: '1' }, { key: 'V2', value: '2' }, { key: 'V3', value: '3' },
+                { key: 'V4', value: '4' }, { key: 'V5', value: '5' }, { key: 'V6', value: '6' },
+                { key: 'V7', value: '7' },
+              ],
+            },
+            { id: 'cm-no-list', name: 'no-list-cm' }, // configData undefined (Branch 0)
+          ],
+          // Secret with secretData undefined (Branch 3)
+          secrets: [{ id: 'sec-no-data', name: 'no-data-secret' }],
+          // Role with 1 rule (Branch 9 singular 'rule'), missing resources (Branch 10), and missing rules/assignedUsers (Branches 6, 7)
+          roles: [
+            {
+              id: 'role-single',
+              name: 'single-rule-role',
+              rules: [{ resources: undefined }],
+              assignedUsers: ['alice'],
+            },
+            {
+              id: 'role-plural',
+              name: 'plural-rules-role',
+              rules: [{ resources: ['pods'] }, { resources: ['services'] }],
+              assignedUsers: ['bob'],
+            },
+            { id: 'role-no-arrays', name: 'no-arrays-role' },
+          ],
+        },
+      },
+      {
+        id: 'dep-more',
+        type: 'Deployment',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'dep-alt',
+          // HPA with min/max/targetCPU undefined (Branches 12, 13, 14)
+          hpas: [{ id: 'hpa-undef', name: 'undef-hpa' }],
+          // ResourceLimit with requestCpu/limitCpu/requestMemory/limitMemory, and one with none (Branches 15, 16, 17, 18)
+          resourceLimits: [
+            { id: 'res-alt', name: 'alt-limits', requestCpu: '200m', limitCpu: '400m', requestMemory: '100Mi', limitMemory: '200Mi' },
+            { id: 'res-none', name: 'none-limits' },
+          ],
+        },
+      },
+      {
+        id: 'owner-no-resource-array',
+        type: 'Pod',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'no-array-owner',
+          // data has secrets at extraction, but we will test missing resourceKey on owner
+        },
+      },
+    ];
+
+    useFlowStore.setState({ nodes: mixedNodes });
+
+    // 1. ConfigMap details: +2 more and no variables defined
+    const { rerender } = render(<AttachedResourceOverviewModal type="ConfigMap" onClose={vi.fn()} />);
+    expect(screen.getByText('+2 more')).toBeInTheDocument();
+    expect(screen.getAllByText('No variables defined')[0]).toBeInTheDocument();
+
+    // 2. Secret details: secretData undefined (No secret keys)
+    rerender(<AttachedResourceOverviewModal type="Secret" onClose={vi.fn()} />);
+    expect(screen.getByText('No secret keys')).toBeInTheDocument();
+
+    // Delete a Secret (Branch 34: type !== 'ConfigMap')
+    const deleteSecBtn = screen.getByTitle('Delete Secret no-data-secret');
+    fireEvent.click(deleteSecBtn);
+    expect(updateNodeData).toHaveBeenCalledWith('node-more-cm', { secrets: [] });
+
+    // 3. Role details: '1 rule (' singular and 'No rules'
+    rerender(<AttachedResourceOverviewModal type="Role" onClose={vi.fn()} />);
+    expect(screen.getByText(/1 rule \(/)).toBeInTheDocument();
+    expect(screen.getByText('No rules')).toBeInTheDocument();
+
+    // 4. HPA details: min/max/targetCPU fallbacks
+    rerender(<AttachedResourceOverviewModal type="HPA" onClose={vi.fn()} />);
+    expect(screen.getByText('Min: 1')).toBeInTheDocument();
+    expect(screen.getByText('Max: 10')).toBeInTheDocument();
+    expect(screen.getByText('Target CPU: 80%')).toBeInTheDocument();
+
+    // 5. ResourceLimit details: alternative names and 'none' fallbacks
+    rerender(<AttachedResourceOverviewModal type="ResourceLimit" onClose={vi.fn()} />);
+    expect(screen.getByText(/CPU: 200m req \/ 400m limit/)).toBeInTheDocument();
+    expect(screen.getByText(/Mem: 100Mi req \/ 200Mi limit/)).toBeInTheDocument();
+    expect(screen.getByText(/CPU: none req \/ none limit/)).toBeInTheDocument();
+    expect(screen.getByText(/Mem: none req \/ none limit/)).toBeInTheDocument();
+
+    // 6. Delete when owner is not found in nodes (Branch 32)
+    act(() => {
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'ghost-owner-target',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: {
+              secrets: [{ id: 'sec-ghost', name: 'ghost-sec' }],
+            },
+          },
+        ],
+      });
+    });
+
+    rerender(<AttachedResourceOverviewModal type="Secret" onClose={vi.fn()} />);
+    const ghostDeleteBtn = screen.getByTitle('Delete Secret ghost-sec');
+
+    // Spy on Array.prototype.find to return undefined for owner lookup (Branch 32)
+    const findSpy = vi.spyOn(Array.prototype, 'find').mockReturnValueOnce(undefined);
+    fireEvent.click(ghostDeleteBtn);
+    findSpy.mockRestore();
+
+    // Owner found but owner.data.secrets is undefined (Branch 33: fallback to [])
+    const mockOwnerNoSecrets = {
+      id: 'ghost-owner-target',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {}, // no secrets
+    };
+    const findSpyNoData = vi.spyOn(Array.prototype, 'find').mockReturnValueOnce(mockOwnerNoSecrets);
+    fireEvent.click(ghostDeleteBtn);
+    findSpyNoData.mockRestore();
+    expect(updateNodeData).toHaveBeenCalledWith('ghost-owner-target', { secrets: [] });
+  });
+
+  it('handles edit action with unhandled resource type safely', () => {
+    RESOURCE_TYPE_KEY_MAP['CustomRes'] = 'customs';
+    try {
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'node-custom',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: {
+              label: 'custom-pod',
+              customs: [{ id: 'c-1', name: 'my-custom' }],
+            },
+          },
+        ] as any,
+      });
+
+      const onClose = vi.fn();
+      render(<AttachedResourceOverviewModal type={'CustomRes' as any} onClose={onClose} />);
+
+      const editBtn = screen.getByTitle('Edit Resource Limit my-custom');
+      fireEvent.click(editBtn);
+      expect(onClose).toHaveBeenCalled();
+    } finally {
+      delete RESOURCE_TYPE_KEY_MAP['CustomRes'];
+    }
   });
 });
