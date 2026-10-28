@@ -44,7 +44,8 @@ describe('ConfigMapListView', () => {
     expect(screen.getByText('frontend-pod')).toBeInTheDocument();
     expect(screen.getByText('db-config')).toBeInTheDocument();
     expect(screen.getByText('database-deployment')).toBeInTheDocument();
-    expect(screen.getByText('Cluster Storage')).toBeInTheDocument();
+    expect(screen.getByTestId('cm-resource-cm-3')).toHaveTextContent('-');
+    expect(screen.queryByText('Cluster Storage')).not.toBeInTheDocument();
   });
 
   it('toggles column dropdown and hides/shows Profile and Component columns with checkmark buttons', () => {

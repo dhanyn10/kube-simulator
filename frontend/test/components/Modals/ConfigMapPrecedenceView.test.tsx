@@ -204,6 +204,32 @@ describe('ConfigMapPrecedenceView', () => {
     expect(mockOnDeleteItem).toHaveBeenCalledWith(mockItems[1]);
   });
 
+  it('renders unattached ConfigMaps with (No Component) and never renders Cluster Storage', () => {
+    const unattachedItems: OverviewItem[] = [
+      {
+        id: 'cm-unattached',
+        name: 'unattached-config',
+        rawItem: { id: 'cm-unattached', name: 'unattached-config', configData: [{ key: 'UNATTACHED_KEY', value: '123' }] },
+        ownerNode: { id: 'cluster-storage', label: '', type: '' },
+        profileName: 'autosave-session-1',
+      },
+    ];
+
+    render(
+      <ConfigMapPrecedenceView
+        profileName="autosave-session-1"
+        items={unattachedItems}
+        isDark={true}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+      />
+    );
+
+    expect(screen.getByTestId('component-title-unattached')).toHaveTextContent('(No Component)');
+    expect(screen.queryByText('Cluster Storage')).not.toBeInTheDocument();
+    expect(screen.getByTestId('cm-id-cm-unattached')).toHaveTextContent('cm-unattached');
+  });
+
   it('renders empty state when items list is empty', () => {
     render(
       <ConfigMapPrecedenceView

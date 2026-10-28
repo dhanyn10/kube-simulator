@@ -64,7 +64,7 @@ describe('ConfigMapModal', () => {
     expect(keyInput).toHaveValue('MAX_CONNECTIONS');
   });
 
-  it('calls onSave and onClose when saving parameters', () => {
+  it('calls onSave and returns to Cluster ConfigMaps Overview list view instead of closing modal', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
@@ -86,7 +86,8 @@ describe('ConfigMapModal', () => {
       name: 'my-custom-cm',
       configData: [{ key: 'PORT', value: '80' }],
     });
-    expect(defaultProps.onClose).toHaveBeenCalled();
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
   it('renders in light color mode correctly with default subtitle and light dropdown options', () => {
@@ -172,10 +173,10 @@ describe('ConfigMapModal', () => {
     expect(screen.getByText('web-config')).toBeInTheDocument();
     expect(screen.getByText('db-config')).toBeInTheDocument();
     expect(screen.getByText('web-pod')).toBeInTheDocument();
-    expect(screen.getByText('Cluster Storage')).toBeInTheDocument();
+    expect(screen.queryByText('Cluster Storage')).not.toBeInTheDocument();
     expect(screen.getByTestId('cm-profile-cm-web')).toHaveTextContent(/Profile:autosave-/);
     expect(screen.getByTestId('cm-resource-cm-web')).toHaveTextContent('Pod:web-pod');
-    expect(screen.getByTestId('cm-resource-cm-db')).toHaveTextContent('Cluster Storage');
+    expect(screen.getByTestId('cm-resource-cm-db')).toHaveTextContent('-');
 
     // Click Edit on db-config item
     fireEvent.click(screen.getByTitle('Edit ConfigMap db-config'));
@@ -360,5 +361,45 @@ describe('ConfigMapModal', () => {
     expect(screen.getByDisplayValue('postgres')).toBeInTheDocument();
     expect(screen.getByDisplayValue('DB_PORT')).toBeInTheDocument();
     expect(screen.getByDisplayValue('5432')).toBeInTheDocument();
+  });
+
+  it('does not prefill attached component by default when adding a new configmap, leaving it unattached/empty', () => {
+    const mockOnSave = vi.fn();
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [] } }],
+      savedConfigMaps: [],
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        targetNodeId="pod-1"
+        targetNodeLabel="web-pod"
+        initialConfigMap={null}
+        onSave={mockOnSave}
+      />
+    );
+
+    // No default component should be attached
+    expect(screen.queryByTestId('attached-component-tag-pod-1')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Attach component (e.g. Deployment, Pod)...')).toBeInTheDocument();
+
+    // Add row and save
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'CUSTOM_KEY' } });
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'custom_val' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach ConfigMap' }));
+
+    // Saved item must not have resourceName or resourceType
+    expect(mockOnSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.any(String),
+        configData: [{ key: 'CUSTOM_KEY', value: 'custom_val' }],
+      })
+    );
+    const savedItem = mockOnSave.mock.calls[0][0];
+    expect(savedItem.resourceName).toBeUndefined();
+    expect(savedItem.resourceType).toBeUndefined();
   });
 });

@@ -167,7 +167,13 @@ const ConfigMapTableRow: React.FC<ConfigMapTableRowProps> = ({
   onDeleteItem,
   onSelectProfile,
 }) => {
-  const isCluster = item.ownerNode.id === 'cluster-storage';
+  const hasComponent = Boolean(
+    item.ownerNode?.label &&
+    item.ownerNode.label !== 'Cluster Storage' &&
+    item.ownerNode.label !== 'Cluster (Local Storage)' &&
+    item.ownerNode.id !== 'cluster-storage' &&
+    item.ownerNode.id !== ''
+  );
   const profileText =
     item.profileName && item.profileName !== 'Default Profile'
       ? item.profileName
@@ -227,25 +233,23 @@ const ConfigMapTableRow: React.FC<ConfigMapTableRowProps> = ({
 
       {columns.component && (
         <td className="py-2.5 px-3">
-          <span
-            data-testid={`cm-resource-${item.id}`}
-            className={cn(
-              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[200px]",
-              isCluster
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : "bg-teal-500/10 text-teal-400 border-teal-500/30"
-            )}
-            title={isCluster ? 'Cluster Storage' : `${item.ownerNode.type}: ${item.ownerNode.label}`}
-          >
-            {isCluster ? (
-              <span>Cluster Storage</span>
-            ) : (
-              <>
-                <span className="text-slate-400 font-normal">{item.ownerNode.type}:</span>
-                <span className="font-semibold truncate">{item.ownerNode.label}</span>
-              </>
-            )}
-          </span>
+          {hasComponent ? (
+            <span
+              data-testid={`cm-resource-${item.id}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[200px] bg-teal-500/10 text-teal-400 border-teal-500/30"
+              title={`${item.ownerNode.type}: ${item.ownerNode.label}`}
+            >
+              <span className="text-slate-400 font-normal">{item.ownerNode.type}:</span>
+              <span className="font-semibold truncate">{item.ownerNode.label}</span>
+            </span>
+          ) : (
+            <span
+              data-testid={`cm-resource-${item.id}`}
+              className="text-slate-500 text-xs italic"
+            >
+              -
+            </span>
+          )}
         </td>
       )}
 

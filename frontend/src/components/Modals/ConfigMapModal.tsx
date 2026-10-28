@@ -6,7 +6,7 @@ import { ConfigMapListView } from './ConfigMapListView';
 import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
 import { K8sConfigMapItem } from '@/types';
 import { cn } from '@/lib/utils';
-import { useConfigMapModal, findActiveKeyInfo } from '@/activities/modals';
+import { useConfigMapModal, findActiveKeyInfo, buildConfigMapItem } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
 import { getActiveProfileName } from '@/store/useFlowStore';
@@ -89,41 +89,28 @@ export function findAllAttachedComponents(
   cmId: string | undefined,
   cmName: string | undefined,
   nodes: any[],
-  initialTargetNodeId?: string | null,
-  initialTargetNodeLabel?: string
+  resourceName?: string
 ): ComponentOption[] {
   const results: ComponentOption[] = [];
   const foundNodeIds = new Set<string>();
 
   if (cmId || cmName) {
     nodes.forEach((node) => {
-      if (
+      const nodeLabel = (node.data?.label as string) || node.id;
+      const isAttachedInNode =
         Array.isArray(node.data?.configMaps) &&
-        node.data.configMaps.some((c: any) => (cmId && c.id === cmId) || (cmName && c.name === cmName))
-      ) {
+        node.data.configMaps.some((c: any) => (cmId && c.id === cmId) || (cmName && c.name === cmName));
+      const isNamedResource = Boolean(resourceName && (nodeLabel === resourceName || node.id === resourceName));
+
+      if ((isAttachedInNode || isNamedResource) && !foundNodeIds.has(node.id)) {
         foundNodeIds.add(node.id);
         results.push({
           id: node.id,
-          label: (node.data?.label as string) || node.id,
+          label: nodeLabel,
           type: node.type || 'Node',
         });
       }
     });
-  }
-
-  if (
-    initialTargetNodeId &&
-    initialTargetNodeId !== 'cluster-storage' &&
-    !foundNodeIds.has(initialTargetNodeId)
-  ) {
-    const targetNode = nodes.find((n) => n.id === initialTargetNodeId);
-    if (targetNode) {
-      results.push({
-        id: targetNode.id,
-        label: (targetNode.data?.label as string) || initialTargetNodeLabel || targetNode.id,
-        type: targetNode.type || 'Node',
-      });
-    }
   }
 
   return results;
@@ -553,15 +540,15 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     if (!isOpen) return;
     const initialCmId = initialConfigMap?.id || activeItem?.id;
     const initialCmName = initialConfigMap?.name || activeItem?.name;
+    const resName = initialConfigMap?.resourceName || activeItem?.resourceName;
     const initialComps = findAllAttachedComponents(
       initialCmId,
       initialCmName,
       nodes,
-      targetNodeId,
-      targetNodeLabel
+      resName
     );
     setAttachedComponents(initialComps);
-  }, [isOpen, initialConfigMap?.id, initialConfigMap?.name, targetNodeId, targetNodeLabel, nodes]);
+  }, [isOpen, initialConfigMap?.id, initialConfigMap?.name, initialConfigMap?.resourceName, activeItem?.id, activeItem?.name, activeItem?.resourceName, nodes]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -654,8 +641,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       item.rawItem.id,
       item.rawItem.name,
       nodes,
-      item.ownerNode.id !== 'cluster-storage' ? item.ownerNode.id : null,
-      item.ownerNode.label
+      item.rawItem.resourceName || (item.ownerNode.id !== 'cluster-storage' ? item.ownerNode.label : undefined)
     );
     setAttachedComponents(comps);
     setMode('form');
@@ -768,6 +754,32 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     );
   };
 
+  const handleSaveModal = () => {
+    const validRows = rows
+      .filter((r) => r.key.trim() !== '')
+      .map((r) => ({ key: r.key.trim(), value: r.value }));
+    const targetId = activeItem?.id || initialConfigMap?.id;
+    const baseItem = buildConfigMapItem(targetId, cmName, validRows);
+
+    const hasAttached = attachedComponents.length > 0;
+    const targetResName = hasAttached ? attachedComponents.map((c) => c.label).join(', ') : undefined;
+    const targetResType = hasAttached ? attachedComponents[0].type : undefined;
+    const resolvedProfile = selectedProfile || activeItem?.profileName;
+
+    const configMapItem: K8sConfigMapItem = {
+      ...(activeItem || {}),
+      ...baseItem,
+      ...(resolvedProfile ? { profileName: resolvedProfile } : {}),
+      ...(targetResName ? { resourceName: targetResName } : {}),
+      ...(targetResType ? { resourceType: targetResType } : {}),
+    };
+
+    onSave(configMapItem);
+    setActiveItem(null);
+    setAttachedComponents([]);
+    setMode('list');
+  };
+
   const hasExistingItem = Boolean(activeItem || initialConfigMap);
   const modalTitle = getModalTitle(mode, hasExistingItem, selectedProfile);
   const modalSubtitle = getModalSubtitle(mode, filteredItems.length, targetNodeLabel, selectedProfile);
@@ -780,7 +792,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       onAddNewFromList={handleAddNewFromList}
       onClose={onClose}
       onBackToMode={() => setMode('list')}
-      onSave={handleSave}
+      onSave={handleSaveModal}
     />
   );
 

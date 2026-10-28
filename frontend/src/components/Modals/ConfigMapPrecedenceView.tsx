@@ -285,23 +285,28 @@ const ComponentGroupCard: React.FC<ComponentGroupCardProps> = ({
       )}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <Box size={14} className={group.isCluster ? "text-emerald-400 shrink-0" : "text-teal-400 shrink-0"} />
+        <Box size={14} className={group.isCluster ? "text-slate-400 shrink-0" : "text-teal-400 shrink-0"} />
         <h3
           data-testid={`component-title-${group.componentId}`}
-          className="font-bold text-xs text-slate-200 truncate"
+          className={cn(
+            "text-xs truncate",
+            group.isCluster ? "font-normal text-slate-400 italic" : "font-bold text-slate-200"
+          )}
         >
           {group.componentLabel}
         </h3>
-        <span
-          className={cn(
-            "px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border",
-            group.isCluster
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-              : "bg-teal-500/10 text-teal-400 border-teal-500/20"
-          )}
-        >
-          {group.componentType}
-        </span>
+        {group.componentType ? (
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border",
+              group.isCluster
+                ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                : "bg-teal-500/10 text-teal-400 border-teal-500/20"
+            )}
+          >
+            {group.componentType}
+          </span>
+        ) : null}
       </div>
       <span className="text-[10px] text-slate-500 font-medium shrink-0">
         {group.items.length} ConfigMap{group.items.length > 1 ? 's' : ''}
@@ -375,10 +380,18 @@ export const ConfigMapPrecedenceView: React.FC<ConfigMapPrecedenceViewProps> = (
   const componentGroups = useMemo<ComponentGroup[]>(() => {
     const map = new Map<string, ComponentGroup>();
     orderedItems.forEach((item) => {
-      const compId = item.ownerNode.id || 'cluster-storage';
-      const compLabel = item.ownerNode.id === 'cluster-storage' ? 'Cluster Storage' : item.ownerNode.label;
-      const compType = item.ownerNode.type || (item.ownerNode.id === 'cluster-storage' ? 'Cluster' : 'Node');
-      const isCluster = item.ownerNode.id === 'cluster-storage';
+      const isUnattached =
+        !item.ownerNode?.id ||
+        item.ownerNode.id === 'cluster-storage' ||
+        item.ownerNode.id === 'unattached' ||
+        !item.ownerNode?.label ||
+        item.ownerNode.label === 'Cluster Storage' ||
+        item.ownerNode.label === 'Cluster (Local Storage)';
+
+      const compId = isUnattached ? 'unattached' : item.ownerNode.id;
+      const compLabel = isUnattached ? '(No Component)' : item.ownerNode.label;
+      const compType = isUnattached ? '' : (item.ownerNode.type || 'Node');
+      const isCluster = isUnattached;
       const key = `${compId}::${compLabel}`;
 
       if (!map.has(key)) {
@@ -422,7 +435,10 @@ export const ConfigMapPrecedenceView: React.FC<ConfigMapPrecedenceViewProps> = (
     const nextGroupItems = reorderItems(targetGroup.items, fromIndex, toIndex);
     let nextGroupIdx = 0;
     const updatedOrdered = orderedItems.map((item) => {
-      const isThisComp = item.ownerNode.id === compId || (compId === 'cluster-storage' && item.ownerNode.id === 'cluster-storage');
+      const isThisComp =
+        item.ownerNode.id === compId ||
+        (compId === 'unattached' && (!item.ownerNode.id || item.ownerNode.id === 'cluster-storage' || item.ownerNode.id === 'unattached')) ||
+        (compId === 'cluster-storage' && item.ownerNode.id === 'cluster-storage');
       if (isThisComp && nextGroupIdx < nextGroupItems.length) {
         const replacement = nextGroupItems[nextGroupIdx];
         nextGroupIdx += 1;
@@ -437,7 +453,7 @@ export const ConfigMapPrecedenceView: React.FC<ConfigMapPrecedenceViewProps> = (
     if (targetNode) {
       const rawCms: K8sConfigMapItem[] = nextGroupItems.map((it) => it.rawItem);
       updateNodeData(targetNode.id, { configMaps: rawCms });
-    } else if (compId === 'cluster-storage') {
+    } else if (compId === 'cluster-storage' || compId === 'unattached') {
       const rawSaved: K8sConfigMapItem[] = nextGroupItems.map((it) => it.rawItem);
       setSavedConfigMaps(rawSaved);
       void saveConfigMapsToLocal(rawSaved);
