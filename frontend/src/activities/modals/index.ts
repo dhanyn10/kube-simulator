@@ -16,3 +16,5 @@ export * from './terminalCommandTreeHelpers';
 export * from './aboutDialogHelpers';
 export * from './useAboutDialog';
 export * from './useSettingsModal';
+export * from './attachedResourceOverviewHelpers';
+export * from './configMapStorageHelpers';

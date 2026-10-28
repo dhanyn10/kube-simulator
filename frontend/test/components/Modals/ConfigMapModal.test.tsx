@@ -158,4 +158,68 @@ describe('ConfigMapModal', () => {
     fireEvent.click(screen.getByTitle('Remove row'));
     expect(screen.queryByLabelText('Key')).not.toBeInTheDocument();
   });
+
+  it('handles navigation between form view and list view via Back button', () => {
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [{ key: 'ENV', value: 'prod' }] }] } }],
+      savedConfigMaps: [{ id: 'cm-db', name: 'db-config', configData: [{ key: 'PORT', value: '5432' }] }],
+    });
+
+    render(<ConfigMapModal {...defaultProps} initialConfigMap={{ id: 'cm-web', name: 'web-config', configData: [] }} />);
+
+    // Initially in form mode
+    expect(screen.getByRole('heading', { name: 'Edit ConfigMap' })).toBeInTheDocument();
+    expect(screen.getByTestId('configmap-back-button')).toBeInTheDocument();
+
+    // Click Back button in footer
+    fireEvent.click(screen.getByTestId('configmap-back-button'));
+
+    // Should now be in list mode
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+    expect(screen.getByText('web-config')).toBeInTheDocument();
+    expect(screen.getByText('db-config')).toBeInTheDocument();
+    expect(screen.getByText('web-pod')).toBeInTheDocument();
+    expect(screen.getByText('Cluster Storage')).toBeInTheDocument();
+    expect(screen.getByTestId('cm-profile-cm-web')).toHaveTextContent(/Profile:autosave-/);
+    expect(screen.getByTestId('cm-resource-cm-web')).toHaveTextContent('Pod:web-pod');
+    expect(screen.getByTestId('cm-resource-cm-db')).toHaveTextContent('Cluster Storage');
+
+    // Click Edit on db-config item
+    fireEvent.click(screen.getByTitle('Edit ConfigMap db-config'));
+
+    // Should now be back in form mode with db-config loaded
+    expect(screen.getByDisplayValue('db-config')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('5432')).toBeInTheDocument();
+
+    // Click header back button
+    fireEvent.click(screen.getByTestId('configmap-header-back-button'));
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+
+    // Click + Add ConfigMap from list mode
+    fireEvent.click(screen.getByText('+ Add ConfigMap'));
+    expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
+  });
+
+  it('renders directly in list view when initialViewMode is list and handles delete', () => {
+    const mockUpdateNodeData = vi.fn();
+    const mockDeleteSavedConfigMap = vi.fn();
+
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [] }] } }],
+      savedConfigMaps: [],
+      updateNodeData: mockUpdateNodeData,
+      deleteSavedConfigMap: mockDeleteSavedConfigMap,
+      addLog: vi.fn(),
+    });
+
+    render(<ConfigMapModal {...defaultProps} initialViewMode="list" />);
+
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+    expect(screen.getByText('web-config')).toBeInTheDocument();
+
+    // Delete item
+    fireEvent.click(screen.getByTitle('Delete ConfigMap web-config'));
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', { configMaps: [] });
+    expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-web');
+  });
 });

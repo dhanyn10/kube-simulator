@@ -81,13 +81,7 @@ describe('RoleModal component', () => {
     const initialRole = {
       id: 'role-123',
       name: 'existing-role',
-      rules: [
-        {
-          apiGroups: ['apps'],
-          resources: ['deployments'],
-          verbs: ['get', 'watch'],
-        },
-      ],
+      rules: [{ apiGroups: ['apps'], resources: ['deployments'], verbs: ['get', 'watch'] }],
     };
 
     render(

@@ -62,6 +62,9 @@ export interface K8sConfigMapItem {
   id: string;
   name: string;
   configData: Array<{ key: string; value: string }>;
+  profileName?: string;
+  resourceName?: string;
+  resourceType?: string;
 }
 
 export interface K8sSecretItem {

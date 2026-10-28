@@ -35,16 +35,7 @@ describe('manifestGenerator test suite', () => {
 
   it('generates StatefulSet YAML manifest when workloadType is StatefulSet', () => {
     const nodes = [
-      {
-        id: 'pod1',
-        type: 'Pod',
-        data: {
-          label: 'Stateful Redis',
-          replicas: 3,
-          workloadType: 'StatefulSet',
-          image: 'redis:alpine',
-        },
-      },
+      { id: 'pod1', type: 'Pod', data: { label: 'Stateful Redis', replicas: 3, workloadType: 'StatefulSet', image: 'redis:alpine' } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
@@ -56,35 +47,9 @@ describe('manifestGenerator test suite', () => {
 
   it('generates StatefulSet with volumeClaimTemplates and Headless Service correctly', () => {
     const nodes = [
-      {
-        id: 'ss1',
-        type: 'StatefulSet',
-        data: {
-          label: 'Db StatefulSet',
-          replicas: 3,
-          workloadType: 'StatefulSet',
-          image: 'postgres:15-alpine',
-        },
-      },
-      {
-        id: 'pvc1',
-        type: 'PVC',
-        data: {
-          label: 'Data Storage',
-          accessMode: 'ReadWriteOnce',
-          storageClass: 'fast-ssd',
-          storageCapacity: '20Gi',
-        },
-      },
-      {
-        id: 'svc1',
-        type: 'Service',
-        data: {
-          label: 'Db Headless',
-          serviceType: 'Headless',
-          port: 5432,
-        },
-      },
+      { id: 'ss1', type: 'StatefulSet', data: { label: 'Db StatefulSet', replicas: 3, workloadType: 'StatefulSet', image: 'postgres:15-alpine' } },
+      { id: 'pvc1', type: 'PVC', data: { label: 'Data Storage', accessMode: 'ReadWriteOnce', storageClass: 'fast-ssd', storageCapacity: '20Gi' } },
+      { id: 'svc1', type: 'Service', data: { label: 'Db Headless', serviceType: 'Headless', port: 5432 } },
     ];
 
     const edges = [
@@ -107,26 +72,8 @@ describe('manifestGenerator test suite', () => {
 
   it('generates Pod and Deployment YAML manifests correctly with custom ports and restart policies', () => {
     const nodes = [
-      {
-        id: 'pod1',
-        type: 'Pod',
-        data: {
-          label: 'My Pod 1',
-          image: 'redis:latest',
-          port: '6379',
-          restartPolicy: 'OnFailure',
-        },
-      },
-      {
-        id: 'dep1',
-        type: 'Deployment',
-        data: {
-          label: 'App Deployment',
-          replicas: 3,
-          image: 'nginx:alpine',
-          yamlSettings: { restartPolicy: false },
-        },
-      },
+      { id: 'pod1', type: 'Pod', data: { label: 'My Pod 1', image: 'redis:latest', port: '6379', restartPolicy: 'OnFailure' } },
+      { id: 'dep1', type: 'Deployment', data: { label: 'App Deployment', replicas: 3, image: 'nginx:alpine', yamlSettings: { restartPolicy: false } } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
@@ -157,63 +104,12 @@ describe('manifestGenerator test suite', () => {
   it('generates Service, ConfigMap, Secret, PVC and Namespace manifests with custom settings', () => {
     const nodes = [
       { id: 'ns1', type: 'Namespace', data: { label: 'Production' } },
-      {
-        id: 'svc1',
-        type: 'Service',
-        parentId: 'ns1',
-        data: {
-          label: 'Web Service',
-          port: '80',
-          targetPort: '8080',
-          selector: 'custom-app',
-        },
-      },
-      {
-        id: 'svc2',
-        type: 'Service',
-        data: {
-          label: 'No Selector Service',
-          yamlSettings: { selector: false },
-        },
-      },
-      {
-        id: 'cm1',
-        type: 'ConfigMap',
-        data: {
-          label: 'App Config',
-          configData: [
-            { key: 'KEY1', value: 'VAL1' },
-            { key: 'EMPTY_KEY', value: '' },
-            { key: '', value: 'IGNORED' },
-          ],
-        },
-      },
-      {
-        id: 'sec1',
-        type: 'Secret',
-        data: {
-          label: 'App Secret',
-          configData: [{ key: 'PASS', value: 'secret123' }],
-        },
-      },
-      {
-        id: 'pvc1',
-        type: 'PVC',
-        data: {
-          label: 'Data PVC',
-          accessMode: 'ReadWriteMany',
-          storageClass: 'fast-ssd',
-          storageCapacity: '10Gi',
-        },
-      },
-      {
-        id: 'pvc2',
-        type: 'PVC',
-        data: {
-          label: 'No StorageClass PVC',
-          yamlSettings: { storageClass: false },
-        },
-      },
+      { id: 'svc1', type: 'Service', parentId: 'ns1', data: { label: 'Web Service', port: '80', targetPort: '8080', selector: 'custom-app' } },
+      { id: 'svc2', type: 'Service', data: { label: 'No Selector Service', yamlSettings: { selector: false } } },
+      { id: 'cm1', type: 'ConfigMap', data: { label: 'App Config', configData: [{ key: 'KEY1', value: 'VAL1' }, { key: 'EMPTY_KEY', value: '' }, { key: '', value: 'IGNORED' }] } },
+      { id: 'sec1', type: 'Secret', data: { label: 'App Secret', configData: [{ key: 'PASS', value: 'secret123' }] } },
+      { id: 'pvc1', type: 'PVC', data: { label: 'Data PVC', accessMode: 'ReadWriteMany', storageClass: 'fast-ssd', storageCapacity: '10Gi' } },
+      { id: 'pvc2', type: 'PVC', data: { label: 'No StorageClass PVC', yamlSettings: { storageClass: false } } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
@@ -242,34 +138,9 @@ describe('manifestGenerator test suite', () => {
 
   it('handles resource limit connections via both source and target edges', () => {
     const nodes = [
-      {
-        id: 'pod1',
-        type: 'Pod',
-        data: {
-          label: 'Source Linked Pod',
-          cpuRequest: '100m',
-          cpuLimit: '200m',
-        },
-      },
-      {
-        id: 'pod2',
-        type: 'Pod',
-        data: {
-          label: 'Target Linked Pod',
-          memoryRequest: '128Mi',
-          memoryLimit: '256Mi',
-        },
-      },
-      {
-        id: 'pod3',
-        type: 'Pod',
-        data: {
-          label: 'Disabled Resources Pod',
-          cpuRequest: '100m',
-          resourceLimits: [{ id: 'rl1' }],
-          yamlSettings: { resources: false },
-        },
-      },
+      { id: 'pod1', type: 'Pod', data: { label: 'Source Linked Pod', cpuRequest: '100m', cpuLimit: '200m' } },
+      { id: 'pod2', type: 'Pod', data: { label: 'Target Linked Pod', memoryRequest: '128Mi', memoryLimit: '256Mi' } },
+      { id: 'pod3', type: 'Pod', data: { label: 'Disabled Resources Pod', cpuRequest: '100m', resourceLimits: [{ id: 'rl1' }], yamlSettings: { resources: false } } },
       { id: 'rl1', type: 'ResourceLimit', data: { label: 'Limit Node 1' } },
       { id: 'rl2', type: 'ResourceLimit', data: { label: 'Limit Node 2' } },
     ];
@@ -293,28 +164,8 @@ describe('manifestGenerator test suite', () => {
 
   it('generates Service manifests with custom serviceType and nodePort', () => {
     const nodes = [
-      {
-        id: 'svc1',
-        type: 'Service',
-        data: {
-          label: 'NodePort Service',
-          serviceType: 'NodePort',
-          port: '80',
-          targetPort: '8080',
-          nodePort: '30080',
-        },
-      },
-      {
-        id: 'svc2',
-        type: 'Service',
-        data: {
-          label: 'LoadBalancer Service',
-          serviceType: 'LoadBalancer',
-          port: '443',
-          targetPort: '8443',
-          nodePort: '30443',
-        },
-      },
+      { id: 'svc1', type: 'Service', data: { label: 'NodePort Service', serviceType: 'NodePort', port: '80', targetPort: '8080', nodePort: '30080' } },
+      { id: 'svc2', type: 'Service', data: { label: 'LoadBalancer Service', serviceType: 'LoadBalancer', port: '443', targetPort: '8443', nodePort: '30443' } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
@@ -342,17 +193,8 @@ describe('manifestGenerator test suite', () => {
 
   it('covers service selector resolution via outgoing edges and nodePort disabling via yamlSettings', () => {
     const nodes = [
-      {
-        id: 'svc1',
-        type: 'Service',
-        data: {
-          label: 'Edge Selector Service',
-          serviceType: 'NodePort',
-          nodePort: '30080',
-          yamlSettings: { nodePort: false, serviceType: false }
-        }
-      },
-      { id: 'pod1', type: 'Pod', data: { label: 'Linked Workload' } }
+      { id: 'svc1', type: 'Service', data: { label: 'Edge Selector Service', serviceType: 'NodePort', nodePort: '30080', yamlSettings: { nodePort: false, serviceType: false } } },
+      { id: 'pod1', type: 'Pod', data: { label: 'Linked Workload' } },
     ];
 
     const edges = [{ id: 'e1', source: 'svc1', target: 'pod1' }];
@@ -392,26 +234,8 @@ describe('manifestGenerator test suite', () => {
     const nodes = [
       { id: 'cm1', type: 'ConfigMap', data: { label: 'Bad ConfigMap', configData: null } },
       { id: 'sec1', type: 'Secret', data: { label: 'Bad Secret', configData: 'invalid' } },
-      {
-        id: 'pod1',
-        type: 'Pod',
-        data: {
-          label: 'Requests Only Pod',
-          cpuRequest: '500m',
-          memoryRequest: '512Mi',
-          resourceLimits: [{ id: 'rl1' }]
-        }
-      },
-      {
-        id: 'pod2',
-        type: 'Pod',
-        data: {
-          label: 'Limits Only Pod',
-          cpuLimit: '1000m',
-          memoryLimit: '1024Mi',
-          resourceLimits: [{ id: 'rl1' }]
-        }
-      }
+      { id: 'pod1', type: 'Pod', data: { label: 'Requests Only Pod', cpuRequest: '500m', memoryRequest: '512Mi', resourceLimits: [{ id: 'rl1' }] } },
+      { id: 'pod2', type: 'Pod', data: { label: 'Limits Only Pod', cpuLimit: '1000m', memoryLimit: '1024Mi', resourceLimits: [{ id: 'rl1' }] } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
@@ -439,24 +263,8 @@ describe('manifestGenerator test suite', () => {
 
   it('explicitly covers yamlSettings.resources === false branch and createResourceObject with empty request/limit fields', () => {
     const nodes = [
-      {
-        id: 'pod1',
-        type: 'Pod',
-        data: {
-          label: 'No Res Pod',
-          cpuRequest: '100m',
-          yamlSettings: { resources: false }
-        }
-      },
-      {
-        id: 'pod2',
-        type: 'Pod',
-        data: {
-          label: 'Empty Res Pod',
-          resourceLimits: [{ id: 'rl1' }]
-          // cpuRequest, cpuLimit, memoryRequest, memoryLimit are all undefined
-        }
-      }
+      { id: 'pod1', type: 'Pod', data: { label: 'No Res Pod', cpuRequest: '100m', yamlSettings: { resources: false } } },
+      { id: 'pod2', type: 'Pod', data: { label: 'Empty Res Pod', resourceLimits: [{ id: 'rl1' }] } },
     ];
 
     const yamlOutput = generateYamlClientSide(nodes, []);
@@ -499,48 +307,12 @@ describe('manifestGenerator test suite', () => {
 
     // 3. StatefulSet with bare PVC defaults, edge to non-PVC, incoming from non-Service, and incoming from Service without label
     const statefulSetNodes = [
-      {
-        id: 'ss-bare',
-        type: 'StatefulSet',
-        data: {
-          label: 'ss-bare-app',
-          workloadType: 'StatefulSet',
-          // replicas undefined -> 1
-        },
-      },
-      {
-        id: 'pvc-bare-1',
-        type: 'PVC',
-        data: {
-          // label undefined -> 'data'
-          // accessMode undefined -> 'ReadWriteOnce'
-          // storageClass undefined -> 'standard'
-          // storageCapacity undefined -> '1Gi'
-        },
-      },
-      {
-        id: 'pvc-no-storageclass',
-        type: 'PVC',
-        data: {
-          label: 'pvc-no-sc',
-          yamlSettings: { storageClass: false }, // storageClassName becomes undefined
-        },
-      },
-      {
-        id: 'cm-extra',
-        type: 'ConfigMap',
-        data: { label: 'cm-extra' },
-      },
-      {
-        id: 'svc-no-label',
-        type: 'Service',
-        data: {}, // label undefined -> fallback to name
-      },
-      {
-        id: 'pod-sender',
-        type: 'Pod',
-        data: { label: 'sender-pod' },
-      },
+      { id: 'ss-bare', type: 'StatefulSet', data: { label: 'ss-bare-app', workloadType: 'StatefulSet' } },
+      { id: 'pvc-bare-1', type: 'PVC', data: {} },
+      { id: 'pvc-no-storageclass', type: 'PVC', data: { label: 'pvc-no-sc', yamlSettings: { storageClass: false } } },
+      { id: 'cm-extra', type: 'ConfigMap', data: { label: 'cm-extra' } },
+      { id: 'svc-no-label', type: 'Service', data: {} },
+      { id: 'pod-sender', type: 'Pod', data: { label: 'sender-pod' } },
     ];
 
     const ssEdges = [
@@ -582,17 +354,7 @@ describe('manifestGenerator test suite', () => {
 
     // 6. Secret configData with empty key and undefined value
     const secretNodes = [
-      {
-        id: 'sec-edge-cases',
-        type: 'Secret',
-        data: {
-          label: 'secret-edges',
-          configData: [
-            { key: '', value: 'empty-key-ignored' },
-            { key: 'EMPTY_VAL_KEY', value: undefined },
-          ],
-        },
-      },
+      { id: 'sec-edge-cases', type: 'Secret', data: { label: 'secret-edges', configData: [{ key: '', value: 'empty-key-ignored' }, { key: 'EMPTY_VAL_KEY', value: undefined }] } },
     ];
     const secYaml = generateYamlClientSide(secretNodes, []);
     expect(secYaml).toContain('EMPTY_VAL_KEY: \'\'');
@@ -600,22 +362,8 @@ describe('manifestGenerator test suite', () => {
 
     // 7. PVC with bare defaults and with yamlSettings.storageClass: false
     const pvcTestNodes = [
-      {
-        id: 'pvc-default-values',
-        type: 'PVC',
-        data: {
-          label: 'pvc-default-values',
-          // accessMode, storageClass, storageCapacity are undefined
-        },
-      },
-      {
-        id: 'pvc-disabled-sc',
-        type: 'PVC',
-        data: {
-          label: 'pvc-disabled-sc',
-          yamlSettings: { storageClass: false },
-        },
-      },
+      { id: 'pvc-default-values', type: 'PVC', data: { label: 'pvc-default-values' } },
+      { id: 'pvc-disabled-sc', type: 'PVC', data: { label: 'pvc-disabled-sc', yamlSettings: { storageClass: false } } },
     ];
     const pvcYaml = generateYamlClientSide(pvcTestNodes, []);
     expect(pvcYaml).toContain('ReadWriteOnce');

@@ -76,6 +76,46 @@ export function filterSidebarItems<T extends { label: string }>(items: T[], sear
   return items.filter((item) => item.label.toLowerCase().includes(trimmed));
 }
 
+/** Helper context interface for executeSidebarAddNode handler. */
+export interface SidebarAddNodeContext {
+  nodes?: any[];
+  configuringNodeId?: string | null;
+  setKubeIamModalOpen?: (open: boolean) => void;
+  setActiveOverviewModal?: (type: K8sResourceType | null) => void;
+  setRoleModalTargetNode?: (target: { id: string; label: string } | null) => void;
+  setConfigMapModalTargetNode?: (target: { id: string; label: string; initialViewMode?: 'form' | 'list' } | null) => void;
+  addLog?: (type: 'info' | 'warn' | 'error', msg: string, category?: string) => void;
+}
+
+function handleRoleAdd(
+  targetNode: any,
+  context: SidebarAddNodeContext
+): void {
+  if (targetNode) {
+    const label = targetNode.data?.label || targetNode.id;
+    context.setRoleModalTargetNode?.({ id: targetNode.id, label });
+    return;
+  }
+  context.addLog?.(
+    'warn',
+    "[Sidebar Action] 'Role' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.",
+    'UI'
+  );
+}
+
+function handleConfigMapAdd(
+  targetNode: any,
+  context: SidebarAddNodeContext
+): void {
+  if (context.setConfigMapModalTargetNode) {
+    const id = targetNode ? targetNode.id : 'cluster-storage';
+    const label = targetNode?.data?.label || targetNode?.id || 'Cluster ConfigMaps';
+    context.setConfigMapModalTargetNode({ id, label, initialViewMode: 'list' });
+    return;
+  }
+  context.setActiveOverviewModal?.('ConfigMap');
+}
+
 /**
  * Handles adding a resource node or opening modal configurations from the sidebar.
  * Special cases:
@@ -90,30 +130,22 @@ export function filterSidebarItems<T extends { label: string }>(items: T[], sear
 export function executeSidebarAddNode(
   type: K8sResourceType,
   onAddNode: (type: K8sResourceType) => void,
-  context: {
-    nodes: any[];
-    configuringNodeId: string | null;
-    setKubeIamModalOpen: (open: boolean) => void;
-    setRoleModalTargetNode: (target: { id: string; label: string } | null) => void;
-    addLog: (type: 'info' | 'warn' | 'error', msg: string, category?: string) => void;
-  }
+  context: SidebarAddNodeContext
 ): void {
   if (type === 'IAM') {
-    context.setKubeIamModalOpen(true);
+    context.setKubeIamModalOpen?.(true);
     return;
   }
 
+  const targetNode = context.nodes?.find((n) => n.selected || n.id === context.configuringNodeId);
+
   if (type === 'Role') {
-    const targetNode = context.nodes.find((n) => n.selected || n.id === context.configuringNodeId);
-    if (targetNode) {
-      context.setRoleModalTargetNode({ id: targetNode.id, label: targetNode.data?.label || targetNode.id });
-    } else {
-      context.addLog(
-        'warn',
-        "[Sidebar Action] 'Role' is an attached resource. Drag it onto a target card (e.g. Pod, Deployment, Service) or select a card first.",
-        'UI'
-      );
-    }
+    handleRoleAdd(targetNode, context);
+    return;
+  }
+
+  if (type === 'ConfigMap') {
+    handleConfigMapAdd(targetNode, context);
     return;
   }
 

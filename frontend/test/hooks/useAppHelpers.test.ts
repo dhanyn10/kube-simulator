@@ -351,6 +351,9 @@ describe('useAppHelpers', () => {
       });
 
       expect(useFlowStore.getState().configuringNodeId).toBeNull();
+      expect(useFlowStore.getState().savedConfigMaps).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'cm-1', name: 'new-cm' })])
+      );
     });
 
     it('handleConfigMapSave updates existing configmap and attaches new configmap', () => {
@@ -366,7 +369,9 @@ describe('useAppHelpers', () => {
       });
 
       let updatedNodes = useFlowStore.getState().nodes;
-      expect(updatedNodes[0].data.configMaps).toEqual([updatedCm]);
+      expect(updatedNodes[0].data.configMaps).toEqual([
+        expect.objectContaining({ id: 'cm-1', name: 'updated-cm' }),
+      ]);
       expect(useFlowStore.getState().configuringNodeId).toBe('node-1');
 
       act(() => {
@@ -379,7 +384,10 @@ describe('useAppHelpers', () => {
       });
 
       updatedNodes = useFlowStore.getState().nodes;
-      expect(updatedNodes[0].data.configMaps).toEqual([updatedCm, newCm]);
+      expect(updatedNodes[0].data.configMaps).toEqual([
+        expect.objectContaining({ id: 'cm-1', name: 'updated-cm' }),
+        expect.objectContaining({ id: 'cm-2', name: 'new-cm' }),
+      ]);
     });
 
     it('handleSecretSave returns early or attaches new/updated Secret', () => {
@@ -593,7 +601,9 @@ describe('useAppHelpers', () => {
         result.current.handleConfigMapSave(newCM);
       });
       updatedNodes = useFlowStore.getState().nodes;
-      expect(updatedNodes[0].data.configMaps).toEqual([newCM]);
+      expect(updatedNodes[0].data.configMaps).toEqual([
+        expect.objectContaining({ id: 'cm-fresh', name: 'fresh-cm' }),
+      ]);
 
       // 3. handleResourceLimitSave with undefined target.data.resourceLimits
       act(() => {

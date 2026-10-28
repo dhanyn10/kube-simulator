@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { useFlowStore } from '@/store/useFlowStore';
 import {
   toggleSidebarAccordionSection,
   filterSidebarItems,
@@ -106,6 +107,48 @@ describe('sidebarHelpers', () => {
     // 3. Standard node type (e.g. Pod)
     executeSidebarAddNode('Pod' as any, onAddNode, mockContext);
     expect(onAddNode).toHaveBeenCalledWith('Pod');
+  });
+  it('executes executeSidebarAddNode with setActiveOverviewModal for ConfigMap fallback and adds other nodes directly', () => {
+    const onAddNode = vi.fn();
+    const setActiveOverviewModal = vi.fn();
+    const mockContext = {
+      nodes: [],
+      configuringNodeId: null,
+      setKubeIamModalOpen: vi.fn(),
+      setActiveOverviewModal,
+      setRoleModalTargetNode: vi.fn(),
+      addLog: vi.fn(),
+    };
+
+    executeSidebarAddNode('ConfigMap', onAddNode, mockContext);
+    expect(setActiveOverviewModal).toHaveBeenCalledWith('ConfigMap');
+    expect(onAddNode).not.toHaveBeenCalled();
+
+    executeSidebarAddNode('Secret', onAddNode, mockContext);
+    expect(onAddNode).toHaveBeenCalledWith('Secret');
+
+    executeSidebarAddNode('HPA', onAddNode, mockContext);
+    expect(onAddNode).toHaveBeenCalledWith('HPA');
+
+    executeSidebarAddNode('ResourceLimit', onAddNode, mockContext);
+    expect(onAddNode).toHaveBeenCalledWith('ResourceLimit');
+  });
+
+  it('executes executeSidebarAddNode with setConfigMapModalTargetNode opening list mode for ConfigMap', () => {
+    const onAddNode = vi.fn();
+    const setConfigMapModalTargetNode = vi.fn();
+    const mockContext = {
+      nodes: [],
+      configuringNodeId: null,
+      setConfigMapModalTargetNode,
+    };
+
+    executeSidebarAddNode('ConfigMap', onAddNode, mockContext);
+    expect(setConfigMapModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster ConfigMaps',
+      initialViewMode: 'list',
+    });
   });
 
   it('handles drag start and drag end handlers including resetting hovered nodes', () => {

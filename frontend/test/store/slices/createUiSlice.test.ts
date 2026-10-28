@@ -356,17 +356,8 @@ describe('createUiSlice', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
-        {
-          id: 'dep-1',
-          type: 'Deployment',
-          data: {
-            label: 'api-dep',
-            isRollingUpdate: true,
-            rolloutTargetImage: 'nginx:alpine',
-            image: 'nginx:latest'
-          }
-        },
-        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-1', status: 'ready', image: 'nginx:latest' } }
+        { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', isRollingUpdate: true, rolloutTargetImage: 'nginx:alpine', image: 'nginx:latest' } },
+        { id: 'pod-1', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-1', status: 'ready', image: 'nginx:latest' } },
       ] as any,
       edges: [
         { id: 'e1', source: 'i1', target: 'dep-1' },
@@ -592,15 +583,7 @@ describe('createUiSlice', () => {
     // Attach role assigned to dev-user on a node
     useFlowStore.setState({
       nodes: [
-        {
-          id: 'pod-1',
-          data: {
-            label: 'web-pod',
-            roles: [
-              { id: 'role-1', name: 'app-role', assignedUsers: ['dev-user', 'other-user'] },
-            ],
-          },
-        } as any,
+        { id: 'pod-1', data: { label: 'web-pod', roles: [{ id: 'role-1', name: 'app-role', assignedUsers: ['dev-user', 'other-user'] }] } } as any,
         { id: 'pod-2', data: {} } as any, // Node without roles array
       ],
     });
@@ -755,19 +738,8 @@ describe('createUiSlice', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
-        {
-          id: 'dep-1',
-          type: 'Deployment',
-          data: {
-            label: 'api-dep',
-            isRollingUpdate: true,
-            rolloutTargetImage: 'nginx:alpine',
-            image: 'nginx:latest',
-          },
-        },
-        // Pod 1 is pending with rolloutTargetImage
+        { id: 'dep-1', type: 'Deployment', data: { label: 'api-dep', isRollingUpdate: true, rolloutTargetImage: 'nginx:alpine', image: 'nginx:latest' } },
         { id: 'pod-pending', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-pending', status: 'pending', pendingTicks: 0, image: 'nginx:alpine' } },
-        // Pod 2 is ready with old image
         { id: 'pod-ready-old', type: 'Pod', parentId: 'dep-1', data: { label: 'pod-ready-old', status: 'ready', image: 'nginx:latest' } },
       ] as any,
       edges: [
@@ -1102,32 +1074,9 @@ describe('createUiSlice', () => {
     useFlowStore.setState({
       nodes: [
         { id: 'i1', type: 'Internet', data: { trafficSpeed: 10 } },
-        {
-          id: 'dep-nolabel',
-          type: 'Deployment',
-          data: {
-            isRollingUpdate: true,
-            rolloutTargetImage: 'v2',
-            image: 'v1',
-          },
-        },
-        {
-          id: 'pod-nolabel-old',
-          type: 'Pod',
-          parentId: 'dep-nolabel',
-          data: {
-            status: 'ready',
-            image: 'v1',
-          },
-        },
-        {
-          id: 'pod-nolabel-pending',
-          type: 'Pod',
-          data: {
-            status: 'pending',
-            pendingTicks: 1,
-          },
-        },
+        { id: 'dep-nolabel', type: 'Deployment', data: { isRollingUpdate: true, rolloutTargetImage: 'v2', image: 'v1' } },
+        { id: 'pod-nolabel-old', type: 'Pod', parentId: 'dep-nolabel', data: { status: 'ready', image: 'v1' } },
+        { id: 'pod-nolabel-pending', type: 'Pod', data: { status: 'pending', pendingTicks: 1 } },
       ] as any,
       edges: [{ id: 'e1', source: 'i1', target: 'dep-nolabel' }] as any,
     });
@@ -1373,5 +1322,46 @@ describe('createUiSlice', () => {
       (global as any).globalThis = origGlobalThis;
     }
     expect(useFlowStore.getState().colorMode).toBeDefined();
+  });
+
+  it('covers savedConfigMaps actions: set, addOrUpdate, and delete', () => {
+    const { setSavedConfigMaps, addOrUpdateSavedConfigMap, deleteSavedConfigMap } = useFlowStore.getState();
+
+    // 1. setSavedConfigMaps
+    setSavedConfigMaps([{ id: 'cm-1', name: 'config-1', configData: [] }]);
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(1);
+
+    // 2. add new
+    addOrUpdateSavedConfigMap({ id: 'cm-2', name: 'config-2', configData: [] });
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(2);
+
+    // 3. update existing
+    addOrUpdateSavedConfigMap({ id: 'cm-2', name: 'config-2-renamed', configData: [{ key: 'K', value: 'V' }] });
+    const cms = useFlowStore.getState().savedConfigMaps;
+    expect(cms).toHaveLength(2);
+    expect(cms[1].name).toBe('config-2-renamed');
+
+    // 4. delete
+    deleteSavedConfigMap('cm-1');
+    expect(useFlowStore.getState().savedConfigMaps).toHaveLength(1);
+    expect(useFlowStore.getState().savedConfigMaps[0].id).toBe('cm-2');
+  });
+
+  it('covers loadSettingsJson restoring savedConfigMaps from local storage', async () => {
+    localStorage.setItem(
+      'kube_simulator_configmaps',
+      JSON.stringify([
+        { id: 'cm-restored', name: 'restored-config', configData: [{ key: 'FOO', value: 'BAR' }] }
+      ])
+    );
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    loadSettingsJson();
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(useFlowStore.getState().savedConfigMaps).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'cm-restored' })])
+    );
   });
 });
