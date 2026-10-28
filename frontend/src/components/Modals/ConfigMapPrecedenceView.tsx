@@ -360,7 +360,6 @@ export const ConfigMapPrecedenceView: React.FC<ConfigMapPrecedenceViewProps> = (
 
   const nodes = useFlowStore((state) => state.nodes);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
-  const savedConfigMaps = useFlowStore((state) => state.savedConfigMaps);
   const setSavedConfigMaps = useFlowStore((state) => state.setSavedConfigMaps);
   const addLog = useFlowStore((state) => state.addLog);
 

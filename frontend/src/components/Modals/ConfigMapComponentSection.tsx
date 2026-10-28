@@ -16,6 +16,29 @@ export interface ConfigMapComponentSectionProps {
   readonly isDark: boolean;
 }
 
+const getContainerBorderClass = (isFocused: boolean, isDark: boolean): string => {
+  if (isFocused) {
+    return 'ring-2 ring-teal-500/50 border-teal-500';
+  }
+  if (isDark) {
+    return 'border-slate-800 bg-slate-950';
+  }
+  return 'border-slate-300 bg-white';
+};
+
+const getSuggestionItemClass = (isSelected: boolean, isDark: boolean): string => {
+  if (isSelected) {
+    if (isDark) {
+      return 'bg-teal-600/30 text-teal-200';
+    }
+    return 'bg-teal-50 text-teal-800';
+  }
+  if (isDark) {
+    return 'hover:bg-slate-800 text-slate-200';
+  }
+  return 'hover:bg-slate-100 text-slate-700';
+};
+
 export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps> = ({
   attachedComponents,
   availableComponents,
@@ -26,7 +49,6 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const attachedIds = new Set(attachedComponents.map((c) => c.id));
@@ -81,14 +103,10 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
 
       <div className="relative">
         <div
-          ref={containerRef}
           data-testid="configmap-tagify-container"
-          onClick={() => inputRef.current?.focus()}
           className={cn(
             "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-            isFocused
-              ? "ring-2 ring-teal-500/50 border-teal-500"
-              : isDark ? "border-slate-800 bg-slate-950" : "border-slate-300 bg-white"
+            getContainerBorderClass(isFocused, isDark)
           )}
         >
           {attachedComponents.map((comp) => (
@@ -174,9 +192,7 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(
                     "w-full px-3 py-1.5 flex items-center justify-between text-left rounded transition-colors cursor-pointer",
-                    idx === selectedIndex
-                      ? isDark ? "bg-teal-600/30 text-teal-200" : "bg-teal-50 text-teal-800"
-                      : isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                    getSuggestionItemClass(idx === selectedIndex, isDark)
                   )}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">

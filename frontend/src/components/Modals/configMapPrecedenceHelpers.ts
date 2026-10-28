@@ -41,10 +41,10 @@ export function checkIsKeyOverridden(
 
     const configData = lowerCm.rawItem?.configData;
     if (Array.isArray(configData)) {
-      const match = configData.find(
+      const hasMatch = configData.some(
         (kv: { key?: string }) => typeof kv?.key === 'string' && kv.key.trim() === normalizedKey
       );
-      if (match) {
+      if (hasMatch) {
         return {
           isOverridden: true,
           overriddenByCmName: lowerCm.name || lowerCm.rawItem?.name || `cm-${j + 1}`,

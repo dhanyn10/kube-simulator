@@ -5,7 +5,7 @@ import { Modal } from './Modal';
 import { ConfigMapListView } from './ConfigMapListView';
 import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
 import { K8sConfigMapItem } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, safeRandom } from '@/lib/utils';
 import { useConfigMapModal, findActiveKeyInfo, buildConfigMapItem } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
@@ -18,7 +18,8 @@ import {
 import { removeConfigMapFromLocal, persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
 import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
 import { ConfigMapImportDataDropdown } from './ConfigMapImportDataDropdown';
-import { safeRandom } from '@/lib/utils';
+
+export type ConfigMapModalMode = 'form' | 'list' | 'profile';
 
 export interface ConfigMapModalProps {
   readonly isOpen: boolean;
@@ -117,7 +118,7 @@ export function findAllAttachedComponents(
 }
 
 function getModalTitle(
-  mode: 'form' | 'list' | 'profile',
+  mode: ConfigMapModalMode,
   hasExistingItem: boolean,
   selectedProfile?: string | null
 ): string {
@@ -134,7 +135,7 @@ function getModalTitle(
 }
 
 function getModalSubtitle(
-  mode: 'form' | 'list' | 'profile',
+  mode: ConfigMapModalMode,
   filteredCount: number,
   targetNodeLabel?: string,
   selectedProfile?: string | null
@@ -177,7 +178,7 @@ function removeConfigMapFromNodeOrStore(
 }
 
 interface ConfigMapModalFooterProps {
-  readonly mode: 'form' | 'list' | 'profile';
+  readonly mode: ConfigMapModalMode;
   readonly isDark: boolean;
   readonly hasExistingItem: boolean;
   readonly onAddNewFromList: () => void;
@@ -481,7 +482,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   initialViewMode,
   onSave,
 }) => {
-  const [mode, setMode] = useState<'form' | 'list' | 'profile'>('form');
+  const [mode, setMode] = useState<ConfigMapModalMode>('form');
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -511,7 +512,6 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     handleRemoveRow,
     handleRowChange,
     handleInputFocusOrChange,
-    handleSave,
   } = useConfigMapModal({
     isOpen,
     onClose,
@@ -678,7 +678,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
     const targetId = targetCmId || `cm-${Date.now()}`;
     const updatedRaw: K8sConfigMapItem = {
-      ...(activeItem || {}),
+      ...activeItem,
       id: targetId,
       name: cmName,
       configData: rows.map((r) => ({ key: r.key, value: r.value })),
@@ -707,7 +707,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
     const targetId = activeItem?.id || initialConfigMap?.id || `cm-${Date.now()}`;
     const updatedCm: K8sConfigMapItem = {
-      ...(activeItem || {}),
+      ...activeItem,
       id: targetId,
       name: cmName,
       configData: rows.map((r) => ({ key: r.key, value: r.value })),
@@ -767,11 +767,11 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     const resolvedProfile = selectedProfile || activeItem?.profileName;
 
     const configMapItem: K8sConfigMapItem = {
-      ...(activeItem || {}),
+      ...activeItem,
       ...baseItem,
-      ...(resolvedProfile ? { profileName: resolvedProfile } : {}),
-      ...(targetResName ? { resourceName: targetResName } : {}),
-      ...(targetResType ? { resourceType: targetResType } : {}),
+      ...(resolvedProfile ? { profileName: resolvedProfile } : undefined),
+      ...(targetResName ? { resourceName: targetResName } : undefined),
+      ...(targetResType ? { resourceType: targetResType } : undefined),
     };
 
     onSave(configMapItem);
