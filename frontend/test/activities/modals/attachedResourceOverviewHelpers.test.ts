@@ -209,7 +209,7 @@ describe('attachedResourceOverviewHelpers', () => {
 
     const resultProfile = extractAllOverviewItems(nodesWithDefaultProfile, 'ConfigMap', savedWithDupAndDefault, 'Default Profile');
     hasSpy.mockRestore();
-    expect(resultProfile.length).toBe(3);
+    expect(resultProfile).toHaveLength(3);
     expect(resultProfile[0].profileName).toBeDefined();
     expect(resultProfile[1].profileName).toBe('Custom-Canvas-Profile');
     // saved resource without resourceType falls back to 'Resource'

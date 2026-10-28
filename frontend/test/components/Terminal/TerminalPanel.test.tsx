@@ -1203,6 +1203,7 @@ describe('TerminalPanel', () => {
         });
       });
 
+      const exportLogSpy = vi.spyOn(terminalActivities, 'exportLogFile').mockImplementation(() => {});
       const { unmount } = render(<TerminalPanel />);
 
       // Dispatch event with empty detail (line 81 branch false)
@@ -1212,7 +1213,13 @@ describe('TerminalPanel', () => {
 
       // Export logs when selectedNode has no label and currentProject is null (lines 127-128)
       const exportBtn = screen.getByTestId('terminal-export-log-btn');
+      expect(exportBtn).toBeInTheDocument();
       fireEvent.click(exportBtn);
+      expect(exportLogSpy).toHaveBeenCalledWith(
+        ['log line without node label'],
+        expect.stringContaining('node-no-label')
+      );
+      exportLogSpy.mockRestore();
 
       unmount();
     });

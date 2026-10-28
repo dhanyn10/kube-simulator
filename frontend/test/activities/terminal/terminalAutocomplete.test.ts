@@ -614,6 +614,6 @@ describe('terminalAutocomplete', () => {
 
     const scaleSuggs = getAutocompleteSuggestions('kubectl sc', duplicateNodes);
     const scaleWeb = scaleSuggs.filter(s => s.value.includes('web-app'));
-    expect(scaleWeb.length).toBe(1);
+    expect(scaleWeb).toHaveLength(1);
   });
 });

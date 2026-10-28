@@ -67,7 +67,7 @@ describe('simulationPvc', () => {
       const result = countConnectedPvcReplicas(pvcNode, ctx);
 
       expect(result.totalReplicas).toBe(1);
-      expect(result.connectedEdges.length).toBe(1);
+      expect(result.connectedEdges).toHaveLength(1);
     });
 
     it('counts replicas for controllers with invalid or valid replica numbers', () => {

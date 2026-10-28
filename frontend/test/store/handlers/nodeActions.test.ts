@@ -831,7 +831,7 @@ describe('nodeActions', () => {
     updateNodeData(svcNode.id, { selector: 'ingress-app' });
     edges = useFlowStore.getState().edges;
     const ingressEdges = edges.filter(e => e.source === 'svc-lb' && e.target === 'ingress-1');
-    expect(ingressEdges.length).toBe(1);
+    expect(ingressEdges).toHaveLength(1);
 
     // 3. Clear selector: should remove outgoing edges to workloads
     updateNodeData(svcNode.id, { selector: '' });
@@ -885,7 +885,7 @@ describe('nodeActions', () => {
     updateNodeData(ingressNode.id, { backendServiceName: 'api-service' });
     edges = useFlowStore.getState().edges;
     const matching = edges.filter(e => e.source === 'ingress-main' && e.target === 'svc-1');
-    expect(matching.length).toBe(1);
+    expect(matching).toHaveLength(1);
 
     // 3. Clear backendServiceName
     updateNodeData(ingressNode.id, { backendServiceName: '' });
