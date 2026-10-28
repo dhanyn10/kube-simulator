@@ -5,15 +5,8 @@ import { ConfigMapComponentSection } from '@/components/Modals/ConfigMapComponen
 
 describe('ConfigMapComponentSection (Tagify)', () => {
   const defaultProps = {
-    attachedComponents: [
-      { id: 'dep-1', label: 'web-api', type: 'Deployment' },
-      { id: 'pod-1', label: 'nginx', type: 'Pod' },
-    ],
-    availableComponents: [
-      { id: 'dep-1', label: 'web-api', type: 'Deployment' },
-      { id: 'pod-1', label: 'nginx', type: 'Pod' },
-      { id: 'stateful-1', label: 'redis-db', type: 'StatefulSet' },
-    ],
+    attachedComponents: [{ id: 'dep-1', label: 'web-api', type: 'Deployment' }, { id: 'pod-1', label: 'nginx', type: 'Pod' }],
+    availableComponents: [{ id: 'dep-1', label: 'web-api', type: 'Deployment' }, { id: 'pod-1', label: 'nginx', type: 'Pod' }, { id: 'stateful-1', label: 'redis-db', type: 'StatefulSet' }],
     onRemoveComponent: vi.fn(),
     onAttachComponent: vi.fn(),
     isDark: true,

@@ -11,27 +11,9 @@ describe('ConfigMapListView', () => {
   const mockOnDeleteItem = vi.fn();
 
   const mockItems: OverviewItem[] = [
-    {
-      id: 'cm-1',
-      name: 'app-config',
-      rawItem: { id: 'cm-1', name: 'app-config', configData: [] },
-      ownerNode: { id: 'pod-1', label: 'frontend-pod', type: 'Pod' },
-      profileName: 'autosave-session-1',
-    },
-    {
-      id: 'cm-2',
-      name: 'db-config',
-      rawItem: { id: 'cm-2', name: 'db-config', configData: [] },
-      ownerNode: { id: 'deploy-1', label: 'database-deployment', type: 'Deployment' },
-      profileName: 'autosave-session-1',
-    },
-    {
-      id: 'cm-3',
-      name: 'global-config',
-      rawItem: { id: 'cm-3', name: 'global-config', configData: [] },
-      ownerNode: { id: 'cluster-storage', label: 'Cluster Storage', type: 'ConfigMap' },
-      profileName: 'autosave-session-1',
-    },
+    { id: 'cm-1', name: 'app-config', rawItem: { id: 'cm-1', name: 'app-config', configData: [] }, ownerNode: { id: 'pod-1', label: 'frontend-pod', type: 'Pod' }, profileName: 'autosave-session-1' },
+    { id: 'cm-2', name: 'db-config', rawItem: { id: 'cm-2', name: 'db-config', configData: [] }, ownerNode: { id: 'deploy-1', label: 'database-deployment', type: 'Deployment' }, profileName: 'autosave-session-1' },
+    { id: 'cm-3', name: 'global-config', rawItem: { id: 'cm-3', name: 'global-config', configData: [] }, ownerNode: { id: 'cluster-storage', label: 'Cluster Storage', type: 'ConfigMap' }, profileName: 'autosave-session-1' },
   ];
 
   beforeEach(() => {
@@ -148,7 +130,7 @@ describe('ConfigMapListView', () => {
       />
     );
 
-    const searchInput = screen.getByPlaceholderText('Search ConfigMap by name, profile, or resource...');
+    const searchInput = screen.getByPlaceholderText(/Search ConfigMap/i);
     fireEvent.change(searchInput, { target: { value: 'app' } });
     expect(mockOnSearchChange).toHaveBeenCalledWith('app');
 
@@ -189,5 +171,26 @@ describe('ConfigMapListView', () => {
     // Invalid JSON
     globalThis.localStorage.setItem('k8s_configmap_table_columns', 'invalid-json');
     expect(getInitialColumnVisibility()).toEqual({ profile: true, component: true });
+  });
+
+  it('calls onSelectProfile when clicking profile badge button', () => {
+    const mockOnSelectProfile = vi.fn();
+    render(
+      <ConfigMapListView
+        search=""
+        onSearchChange={mockOnSearchChange}
+        items={mockItems}
+        isDark={true}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+        onSelectProfile={mockOnSelectProfile}
+      />
+    );
+
+    const profileBadgeBtn = screen.getByTestId('cm-profile-cm-1');
+    expect(profileBadgeBtn).toBeInTheDocument();
+    fireEvent.click(profileBadgeBtn);
+
+    expect(mockOnSelectProfile).toHaveBeenCalledWith('autosave-session-1');
   });
 });

@@ -7,19 +7,8 @@ import { ConfigMapImportDataDropdown } from '@/components/Modals/ConfigMapImport
 describe('ConfigMapImportDataDropdown', () => {
   const dummyRef = { current: null };
   const sampleConfigMaps = [
-    {
-      id: 'cm-1',
-      name: 'app-env',
-      configData: [
-        { key: 'ENV', value: 'production' },
-        { key: 'DEBUG', value: 'false' },
-      ],
-    },
-    {
-      id: 'cm-2',
-      name: 'db-config',
-      configData: [{ key: 'HOST', value: '127.0.0.1' }],
-    },
+    { id: 'cm-1', name: 'app-env', configData: [{ key: 'ENV', value: 'production' }, { key: 'DEBUG', value: 'false' }] },
+    { id: 'cm-2', name: 'db-config', configData: [{ key: 'HOST', value: '127.0.0.1' }] },
   ];
 
   it('returns null when existingConfigMaps is empty', () => {

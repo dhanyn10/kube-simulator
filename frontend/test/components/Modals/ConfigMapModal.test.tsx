@@ -38,12 +38,7 @@ describe('ConfigMapModal', () => {
     const initialConfigMap: K8sConfigMapItem = {
       id: 'cm-123',
       name: 'existing-config',
-      configData: [
-        { key: 'PORT', value: '8080' },
-        { key: 'MAX_CONNECTIONS', value: '500' },
-        { key: 'LOG_LEVEL', value: 'WARN' },
-        { key: 'CHAOS_MODE', value: 'disabled' },
-      ],
+      configData: [{ key: 'PORT', value: '8080' }, { key: 'MAX_CONNECTIONS', value: '500' }, { key: 'LOG_LEVEL', value: 'WARN' }, { key: 'CHAOS_MODE', value: 'disabled' }],
     };
 
     render(<ConfigMapModal {...defaultProps} initialConfigMap={initialConfigMap} />);
@@ -89,9 +84,7 @@ describe('ConfigMapModal', () => {
     expect(defaultProps.onSave).toHaveBeenCalledWith({
       id: expect.any(String),
       name: 'my-custom-cm',
-      configData: [
-        { key: 'PORT', value: '80' },
-      ],
+      configData: [{ key: 'PORT', value: '80' }],
     });
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
@@ -223,26 +216,39 @@ describe('ConfigMapModal', () => {
     expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-web');
   });
 
+  it('navigates from list view to single profile precedence view when clicking profile badge, and navigates back to list view', () => {
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [{ id: 'cm-web', name: 'web-config', profileName: 'staging-profile', configData: [{ key: 'PORT', value: '8080' }] }] } }],
+      savedConfigMaps: [],
+    });
+
+    render(<ConfigMapModal {...defaultProps} initialViewMode="list" />);
+
+    // Starts in list view
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+
+    // Click profile badge button in table
+    const profileBadge = screen.getByTestId('cm-profile-cm-web');
+    expect(profileBadge).toBeInTheDocument();
+    fireEvent.click(profileBadge);
+
+    // Now in single profile precedence view
+    expect(screen.getByText(/ConfigMap Profile — staging-profile/i)).toBeInTheDocument();
+    expect(screen.getByTestId('configmap-precedence-view')).toBeInTheDocument();
+    expect(screen.getByTestId('cm-id-cm-web')).toHaveTextContent('cm-web');
+
+    // Click Back to ConfigMap list
+    const backBtn = screen.getByTestId('configmap-profile-back-button');
+    fireEvent.click(backBtn);
+
+    // Returns to list view
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+  });
+
   it('handles removing the attached component from the ConfigMap in detail view like Tagify', () => {
     const mockUpdateNodeData = vi.fn();
     useFlowStore.setState({
-      nodes: [
-        {
-          id: 'node-dep-1',
-          type: 'Deployment',
-          position: { x: 0, y: 0 },
-          data: {
-            label: 'api-server',
-            configMaps: [
-              {
-                id: 'cm-api',
-                name: 'api-config',
-                configData: [{ key: 'PORT', value: '3000' }],
-              },
-            ],
-          },
-        },
-      ],
+      nodes: [{ id: 'node-dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'api-server', configMaps: [{ id: 'cm-api', name: 'api-config', configData: [{ key: 'PORT', value: '3000' }] }] } }],
       savedConfigMaps: [],
       updateNodeData: mockUpdateNodeData,
       addLog: vi.fn(),
@@ -278,17 +284,7 @@ describe('ConfigMapModal', () => {
   it('handles attaching to a component from Tagify suggestions in detail view', () => {
     const mockUpdateNodeData = vi.fn();
     useFlowStore.setState({
-      nodes: [
-        {
-          id: 'pod-worker',
-          type: 'Pod',
-          position: { x: 0, y: 0 },
-          data: {
-            label: 'worker-pod',
-            configMaps: [],
-          },
-        },
-      ],
+      nodes: [{ id: 'pod-worker', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'worker-pod', configMaps: [] } }],
       savedConfigMaps: [],
       updateNodeData: mockUpdateNodeData,
       addLog: vi.fn(),
@@ -333,16 +329,7 @@ describe('ConfigMapModal', () => {
   it('handles adding/importing key-value pairs from existing ConfigMap data', () => {
     useFlowStore.setState({
       nodes: [],
-      savedConfigMaps: [
-        {
-          id: 'cm-source',
-          name: 'source-config',
-          configData: [
-            { key: 'DB_HOST', value: 'postgres' },
-            { key: 'DB_PORT', value: '5432' },
-          ],
-        },
-      ],
+      savedConfigMaps: [{ id: 'cm-source', name: 'source-config', configData: [{ key: 'DB_HOST', value: 'postgres' }, { key: 'DB_PORT', value: '5432' }] }],
       addLog: vi.fn(),
     });
 

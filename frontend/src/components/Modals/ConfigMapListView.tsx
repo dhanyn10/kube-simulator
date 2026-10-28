@@ -16,6 +16,7 @@ export interface ConfigMapListViewProps {
   readonly isDark: boolean;
   readonly onEditItem: (item: OverviewItem) => void;
   readonly onDeleteItem: (item: OverviewItem) => void;
+  readonly onSelectProfile?: (profileName: string) => void;
 }
 
 const STORAGE_COLUMN_KEY = 'k8s_configmap_table_columns';
@@ -155,6 +156,7 @@ interface ConfigMapTableRowProps {
   readonly isDark: boolean;
   readonly onEditItem: (item: OverviewItem) => void;
   readonly onDeleteItem: (item: OverviewItem) => void;
+  readonly onSelectProfile?: (profileName: string) => void;
 }
 
 const ConfigMapTableRow: React.FC<ConfigMapTableRowProps> = ({
@@ -163,6 +165,7 @@ const ConfigMapTableRow: React.FC<ConfigMapTableRowProps> = ({
   isDark,
   onEditItem,
   onDeleteItem,
+  onSelectProfile,
 }) => {
   const isCluster = item.ownerNode.id === 'cluster-storage';
   const profileText =
@@ -188,19 +191,37 @@ const ConfigMapTableRow: React.FC<ConfigMapTableRowProps> = ({
 
       {columns.profile && (
         <td className="py-2.5 px-3">
-          <span
-            data-testid={`cm-profile-${item.id}`}
-            className={cn(
-              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[180px]",
-              isDark
-                ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
-                : "bg-indigo-50 text-indigo-700 border-indigo-200"
-            )}
-            title={`Canvas Document: ${profileText}`}
-          >
-            <span className="text-slate-400 font-normal">Profile:</span>
-            <span className="font-semibold truncate">{profileText}</span>
-          </span>
+          {onSelectProfile ? (
+            <button
+              type="button"
+              data-testid={`cm-profile-${item.id}`}
+              onClick={() => onSelectProfile(profileText)}
+              className={cn(
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[180px] cursor-pointer transition-colors text-left",
+                isDark
+                  ? "bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+                  : "bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200"
+              )}
+              title={`Canvas Document: ${profileText}`}
+            >
+              <span className="text-slate-400 font-normal">Profile:</span>
+              <span className="font-semibold truncate">{profileText}</span>
+            </button>
+          ) : (
+            <span
+              data-testid={`cm-profile-${item.id}`}
+              className={cn(
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[180px]",
+                isDark
+                  ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
+                  : "bg-indigo-50 text-indigo-700 border-indigo-200"
+              )}
+              title={`Canvas Document: ${profileText}`}
+            >
+              <span className="text-slate-400 font-normal">Profile:</span>
+              <span className="font-semibold truncate">{profileText}</span>
+            </span>
+          )}
         </td>
       )}
 
@@ -259,6 +280,7 @@ export const ConfigMapListView: React.FC<ConfigMapListViewProps> = ({
   isDark,
   onEditItem,
   onDeleteItem,
+  onSelectProfile,
 }) => {
   const [columns, setColumns] = useState<ColumnVisibility>(getInitialColumnVisibility);
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
@@ -349,6 +371,7 @@ export const ConfigMapListView: React.FC<ConfigMapListViewProps> = ({
                   isDark={isDark}
                   onEditItem={onEditItem}
                   onDeleteItem={onDeleteItem}
+                  onSelectProfile={onSelectProfile}
                 />
               ))
             )}

@@ -9,6 +9,8 @@ export * from './RoleListModal';
 export * from './ConfigMapModal';
 export * from './ConfigMapListModal';
 export * from './ConfigMapListView';
+export * from './ConfigMapPrecedenceView';
+export * from './configMapPrecedenceHelpers';
 export * from './ConfigMapComponentSection';
 export * from './ConfigMapImportDataDropdown';
 export * from './SecretModal';

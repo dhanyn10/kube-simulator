@@ -45,27 +45,49 @@ export const extractAllOverviewItems = (
 
   const items: OverviewItem[] = [];
   const foundIds = new Set<string>();
+  const seenCompositeKeys = new Set<string>();
   const activeProfile = (currentProfileName && currentProfileName !== 'Default Profile')
     ? currentProfileName
     : getCurrentSessionAutosaveKey();
 
   nodes.forEach((node) => {
+    const parentNode = node.parentId ? nodes.find((p) => p.id === node.parentId) : null;
+    const parentList = parentNode ? parentNode.data?.[key] : null;
+
     const list = node.data?.[key];
     if (Array.isArray(list)) {
       list.forEach((item: any, idx: number) => {
         const itemId = item.id || `${node.id}-${key}-${idx}`;
-        foundIds.add(itemId);
-        if (item.name) foundIds.add(item.name);
+        const itemName = item.name || '';
+
+        // If child node inside a controller and parent already has this attached resource, skip child replica duplicate
+        if (
+          Array.isArray(parentList) &&
+          parentList.some((pItem: any) => pItem.id === itemId || (itemName && pItem.name === itemName))
+        ) {
+          return;
+        }
+
+        const componentLabel = (node.data?.label as string) || node.id;
         const resolvedProfile = (item.profileName && item.profileName !== 'Default Profile')
           ? item.profileName
           : activeProfile;
+
+        const compositeKey = `${itemId}::${componentLabel}::${resolvedProfile}`;
+        if (seenCompositeKeys.has(compositeKey)) {
+          return;
+        }
+        seenCompositeKeys.add(compositeKey);
+        foundIds.add(itemId);
+        if (item.name) foundIds.add(item.name);
+
         items.push({
           id: itemId,
           name: item.name || 'Unnamed',
           rawItem: item,
           ownerNode: {
             id: node.id,
-            label: (node.data?.label as string) || node.id,
+            label: componentLabel,
             type: node.type || 'Node',
           },
           profileName: resolvedProfile,
@@ -78,16 +100,26 @@ export const extractAllOverviewItems = (
     savedConfigMaps.forEach((savedCm) => {
       if (!foundIds.has(savedCm.id) && !foundIds.has(savedCm.name)) {
         const isAttached = Boolean(savedCm.resourceName);
+        const componentLabel = savedCm.resourceName || (isAttached ? 'saved-resource' : 'Cluster (Local Storage)');
         const resolvedProfile = (savedCm.profileName && savedCm.profileName !== 'Default Profile')
           ? savedCm.profileName
           : activeProfile;
+
+        const compositeKey = `${savedCm.id}::${componentLabel}::${resolvedProfile}`;
+        if (seenCompositeKeys.has(compositeKey)) {
+          return;
+        }
+        seenCompositeKeys.add(compositeKey);
+        foundIds.add(savedCm.id);
+        if (savedCm.name) foundIds.add(savedCm.name);
+
         items.push({
           id: savedCm.id,
           name: savedCm.name || 'Unnamed',
           rawItem: savedCm,
           ownerNode: {
             id: isAttached ? (savedCm.resourceName || 'saved-resource') : 'cluster-storage',
-            label: savedCm.resourceName || 'Cluster (Local Storage)',
+            label: componentLabel,
             type: savedCm.resourceType || (isAttached ? 'Resource' : 'ConfigMap'),
           },
           profileName: resolvedProfile,
@@ -100,6 +132,7 @@ export const extractAllOverviewItems = (
 };
 
 const checkItemMatchesQuery = (item: OverviewItem, query: string, resourceType: K8sResourceType): boolean => {
+  if (item.id.toLowerCase().includes(query)) return true;
   if (item.name.toLowerCase().includes(query)) return true;
   if (item.ownerNode.label.toLowerCase().includes(query)) return true;
   if (item.ownerNode.type.toLowerCase().includes(query)) return true;

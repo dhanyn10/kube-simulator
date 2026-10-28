@@ -158,7 +158,9 @@ export function useAttachmentHandlers() {
 
     if (target) {
       const existingCMs = target.data.configMaps || [];
-      const existingIndex = existingCMs.findIndex((c: K8sConfigMapItem) => c.id === cmItem.id);
+      const existingIndex = existingCMs.findIndex(
+        (c: K8sConfigMapItem) => c.id === cmItem.id || Boolean(cmItem.name && c.name === cmItem.name)
+      );
       let updatedCMs: K8sConfigMapItem[];
 
       if (existingIndex >= 0) {

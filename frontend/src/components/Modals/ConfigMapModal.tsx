@@ -3,6 +3,7 @@ import { Settings, Plus, Trash2, HelpCircle, TerminalSquare, ArrowLeft } from 'l
 import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
 import { ConfigMapListView } from './ConfigMapListView';
+import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
 import { K8sConfigMapItem } from '@/types';
 import { cn } from '@/lib/utils';
 import { useConfigMapModal, findActiveKeyInfo } from '@/activities/modals';
@@ -128,9 +129,16 @@ export function findAllAttachedComponents(
   return results;
 }
 
-function getModalTitle(isListMode: boolean, hasExistingItem: boolean): string {
-  if (isListMode) {
+function getModalTitle(
+  mode: 'form' | 'list' | 'profile',
+  hasExistingItem: boolean,
+  selectedProfile?: string | null
+): string {
+  if (mode === 'list') {
     return 'Cluster ConfigMaps Overview';
+  }
+  if (mode === 'profile') {
+    return `ConfigMap Profile — ${selectedProfile || 'Canvas Profile'}`;
   }
   if (hasExistingItem) {
     return 'Edit ConfigMap';
@@ -139,13 +147,17 @@ function getModalTitle(isListMode: boolean, hasExistingItem: boolean): string {
 }
 
 function getModalSubtitle(
-  isListMode: boolean,
+  mode: 'form' | 'list' | 'profile',
   filteredCount: number,
-  targetNodeLabel?: string
+  targetNodeLabel?: string,
+  selectedProfile?: string | null
 ): string {
-  if (isListMode) {
+  if (mode === 'list') {
     const plural = filteredCount === 1 ? '' : 's';
     return `${filteredCount} ConfigMap${plural} available across cluster`;
+  }
+  if (mode === 'profile') {
+    return `Canvas Profile: ${selectedProfile || 'Active'} • Evaluation Precedence Order`;
   }
   if (targetNodeLabel) {
     return `Target card: ${targetNodeLabel}`;
@@ -178,7 +190,7 @@ function removeConfigMapFromNodeOrStore(
 }
 
 interface ConfigMapModalFooterProps {
-  readonly isListMode: boolean;
+  readonly mode: 'form' | 'list' | 'profile';
   readonly isDark: boolean;
   readonly hasExistingItem: boolean;
   readonly onAddNewFromList: () => void;
@@ -188,7 +200,7 @@ interface ConfigMapModalFooterProps {
 }
 
 const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
-  isListMode,
+  mode,
   isDark,
   hasExistingItem,
   onAddNewFromList,
@@ -196,7 +208,7 @@ const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
   onBackToMode,
   onSave,
 }) => {
-  if (isListMode) {
+  if (mode === 'list') {
     return (
       <div className="flex items-center justify-between w-full">
         <button
@@ -219,6 +231,49 @@ const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
         >
           Close
         </button>
+      </div>
+    );
+  }
+
+  if (mode === 'profile') {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <button
+          type="button"
+          data-testid="configmap-footer-back-button"
+          onClick={onBackToMode}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
+            isDark
+              ? "border-slate-700 hover:bg-slate-800 text-teal-400"
+              : "border-slate-300 hover:bg-slate-100 text-teal-600"
+          )}
+        >
+          <ArrowLeft size={13} />
+          <span>Back to List</span>
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onAddNewFromList}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-all cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>+ Add ConfigMap</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+              isDark
+                ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+                : "border-slate-300 hover:bg-slate-100 text-slate-700"
+            )}
+          >
+            Close
+          </button>
+        </div>
       </div>
     );
   }
@@ -266,6 +321,7 @@ const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
 
 interface ConfigMapRowItemProps {
   readonly row: { id: string; key: string; value: string };
+  readonly index: number;
   readonly isDark: boolean;
   readonly onFocusOrChange: (target: HTMLElement, rowId: string, field: 'key' | 'value', value?: string) => void;
   readonly onRemove: (rowId: string) => void;
@@ -273,6 +329,7 @@ interface ConfigMapRowItemProps {
 
 const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
   row,
+  index,
   isDark,
   onFocusOrChange,
   onRemove,
@@ -287,7 +344,13 @@ const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
       )}
     >
       <div className="flex items-center gap-2">
-        <div className="w-1/2">
+        <span
+          data-testid={`cm-row-id-${row.id}`}
+          className="w-8 text-center text-xs font-mono font-bold text-slate-500 shrink-0 select-none"
+        >
+          #{index + 1}
+        </span>
+        <div className="flex-1">
           <input
             id={`cm-key-input-${row.id}`}
             aria-label="Key"
@@ -305,7 +368,7 @@ const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
           />
         </div>
 
-        <div className="w-1/2">
+        <div className="flex-1">
           <input
             id={`cm-val-input-${row.id}`}
             aria-label="Value"
@@ -431,7 +494,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   initialViewMode,
   onSave,
 }) => {
-  const [mode, setMode] = useState<'form' | 'list'>('form');
+  const [mode, setMode] = useState<'form' | 'list' | 'profile'>('form');
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const nodes = useFlowStore((state) => state.nodes);
@@ -533,6 +597,22 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     () => filterOverviewItems(allItems, search, 'ConfigMap'),
     [allItems, search]
   );
+
+  const profileItems = useMemo(() => {
+    if (!selectedProfile) return [];
+    const seen = new Set<string>();
+    return allItems.filter((item) => {
+      const itemProfile =
+        item.profileName && item.profileName !== 'Default Profile'
+          ? item.profileName
+          : getCurrentSessionAutosaveKey();
+      if (itemProfile !== selectedProfile) return false;
+      const dedupeKey = `${item.id}::${item.ownerNode.label}`;
+      if (seen.has(dedupeKey)) return false;
+      seen.add(dedupeKey);
+      return true;
+    });
+  }, [allItems, selectedProfile]);
 
   const availableComponents = useMemo(() => {
     return nodes
@@ -659,6 +739,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
     useFlowStore.getState().addOrUpdateSavedConfigMap(updatedCm);
     void persistConfigMapItem(updatedCm);
+    if (!activeItem) setActiveItem(updatedCm);
 
     const nextAttached = [...attachedComponents.filter((c) => c.id !== comp.id), comp];
     setAttachedComponents(nextAttached);
@@ -687,14 +768,13 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     );
   };
 
-  const isListMode = mode === 'list';
   const hasExistingItem = Boolean(activeItem || initialConfigMap);
-  const modalTitle = getModalTitle(isListMode, hasExistingItem);
-  const modalSubtitle = getModalSubtitle(isListMode, filteredItems.length, targetNodeLabel);
+  const modalTitle = getModalTitle(mode, hasExistingItem, selectedProfile);
+  const modalSubtitle = getModalSubtitle(mode, filteredItems.length, targetNodeLabel, selectedProfile);
 
   const footer = (
     <ConfigMapModalFooter
-      isListMode={isListMode}
+      mode={mode}
       isDark={isDark}
       hasExistingItem={hasExistingItem}
       onAddNewFromList={handleAddNewFromList}
@@ -716,7 +796,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       maxHeightClass="h-[75vh]"
       footer={footer}
     >
-      {isListMode ? (
+      {mode === 'list' && (
         <ConfigMapListView
           search={search}
           onSearchChange={setSearch}
@@ -724,8 +804,42 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           isDark={isDark}
           onEditItem={handleEditFromList}
           onDeleteItem={handleDeleteFromList}
+          onSelectProfile={(pName) => {
+            setSelectedProfile(pName);
+            setMode('profile');
+          }}
         />
-      ) : (
+      )}
+
+      {mode === 'profile' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+            <button
+              type="button"
+              data-testid="configmap-profile-back-button"
+              onClick={() => setMode('list')}
+              className="flex items-center gap-1.5 text-xs text-teal-400 hover:text-teal-300 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to ConfigMap list</span>
+            </button>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Profile: <strong className="text-teal-400">{selectedProfile}</strong>
+            </span>
+          </div>
+
+          <ConfigMapPrecedenceView
+            profileName={selectedProfile || currentProfileName}
+            items={profileItems}
+            isDark={isDark}
+            onEditItem={handleEditFromList}
+            onDeleteItem={handleDeleteFromList}
+            onAddNewConfigMap={handleAddNewFromList}
+          />
+        </div>
+      )}
+
+      {mode === 'form' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
             <button
@@ -807,10 +921,17 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {rows.map((row) => (
+                <div className="flex items-center gap-2 px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400 select-none">
+                  <span className="w-8 text-center">ID</span>
+                  <span className="flex-1">Key</span>
+                  <span className="flex-1">Value</span>
+                  <span className="w-7 text-right"></span>
+                </div>
+                {rows.map((row, idx) => (
                   <ConfigMapRowItem
                     key={row.id}
                     row={row}
+                    index={idx}
                     isDark={isDark}
                     onFocusOrChange={handleInputFocusOrChange}
                     onRemove={handleRemoveRow}
