@@ -657,4 +657,354 @@ describe('nodeActions', () => {
     expect(useFlowStore.getState().nodes.some(n => n.id === ssNode.id)).toBe(false);
     expect(useFlowStore.getState().nodes.some(n => n.parentId === ssNode.id)).toBe(false);
   });
+
+  it('extractParentAttachedResources extracts all attached resources during ReplicaSet downscale to 1', () => {
+    const rsNode = {
+      id: 'rs-attached',
+      type: 'ReplicaSet',
+      position: { x: 0, y: 0 },
+      data: {
+        replicas: 2,
+        roles: [{ name: 'admin-role' }],
+        configMaps: [{ name: 'app-cm' }],
+        secrets: [{ name: 'app-sec' }],
+        hpas: [{ name: 'app-hpa' }],
+        resourceLimits: { cpu: '500m', memory: '512Mi' },
+      },
+    };
+    const childPod = {
+      id: 'pod-child-attached',
+      type: 'Pod',
+      parentId: 'rs-attached',
+      position: { x: 10, y: 10 },
+      data: {
+        label: 'child-pod',
+        replicas: 2,
+      },
+    };
+    useFlowStore.setState({ nodes: [rsNode, childPod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(childPod.id, { replicas: 1 });
+
+    const singlePod = useFlowStore.getState().nodes.find(n => n.id === childPod.id)!;
+    expect(singlePod.data.roles).toEqual([{ name: 'admin-role' }]);
+    expect(singlePod.data.configMaps).toEqual([{ name: 'app-cm' }]);
+    expect(singlePod.data.secrets).toEqual([{ name: 'app-sec' }]);
+    expect(singlePod.data.hpas).toEqual([{ name: 'app-hpa' }]);
+    expect(singlePod.data.resourceLimits).toEqual({ cpu: '500m', memory: '512Mi' });
+  });
+
+  it('buildAttachedPatch synchronizes configMaps, secrets, hpas, resourceLimits on controller and child pods', () => {
+    const depNode = {
+      id: 'dep-patch',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1, type: 'Deployment' },
+    };
+    const childPod = {
+      id: 'pod-patch',
+      type: 'Pod',
+      parentId: 'dep-patch',
+      position: { x: 10, y: 10 },
+      data: { type: 'Pod' },
+    };
+    useFlowStore.setState({ nodes: [depNode, childPod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+
+    updateNodeData(childPod.id, { configMaps: [{ name: 'cm-patch' }] });
+    expect(useFlowStore.getState().nodes.find(n => n.id === depNode.id)?.data.configMaps).toEqual([{ name: 'cm-patch' }]);
+
+    updateNodeData(childPod.id, { secrets: [{ name: 'sec-patch' }] });
+    expect(useFlowStore.getState().nodes.find(n => n.id === depNode.id)?.data.secrets).toEqual([{ name: 'sec-patch' }]);
+
+    updateNodeData(childPod.id, { hpas: [{ name: 'hpa-patch' }] });
+    expect(useFlowStore.getState().nodes.find(n => n.id === depNode.id)?.data.hpas).toEqual([{ name: 'hpa-patch' }]);
+
+    updateNodeData(childPod.id, { resourceLimits: { cpu: '100m' } });
+    expect(useFlowStore.getState().nodes.find(n => n.id === depNode.id)?.data.resourceLimits).toEqual({ cpu: '100m' });
+  });
+
+  it('syncPodAttachedItemsGroup synchronizes standalone sibling pods sharing podHash and baseName', () => {
+    const pod1 = {
+      id: 'pod-standalone-1',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: { baseName: 'worker-group', podHash: 'hash123', label: 'worker-group-hash123-abc' },
+    };
+    const pod2 = {
+      id: 'pod-standalone-2',
+      type: 'Pod',
+      position: { x: 50, y: 50 },
+      data: { baseName: 'worker-group', podHash: 'hash123', label: 'worker-group-hash123-def' },
+    };
+    useFlowStore.setState({ nodes: [pod1, pod2] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(pod1.id, { roles: [{ name: 'worker-role' }] });
+
+    const updatedPod2 = useFlowStore.getState().nodes.find(n => n.id === pod2.id)!;
+    expect(updatedPod2.data.roles).toEqual([{ name: 'worker-role' }]);
+  });
+
+  it('handlePodParentSync handles missing parent, fallback baseName, and label fallback during downscale', () => {
+    // 1. Missing parent: child pod with non-existent parentId
+    const orphanPod = {
+      id: 'pod-orphan',
+      type: 'Pod',
+      parentId: 'missing-parent-id',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+    useFlowStore.setState({ nodes: [orphanPod] as any });
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(orphanPod.id, { image: 'nginx:alpine' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === orphanPod.id)?.data.image).toBe('nginx:alpine');
+
+    // 2. ReplicaSet downscale to 1 when child pod has no baseName (falls back to label)
+    const rsNoRep = {
+      id: 'rs-no-rep',
+      type: 'ReplicaSet',
+      position: { x: 0, y: 0 },
+      data: {}, // no replicas specified in parent
+    };
+    const childNoBase = {
+      id: 'pod-no-base',
+      type: 'Pod',
+      parentId: 'rs-no-rep',
+      position: { x: 10, y: 10 },
+      data: { label: 'custom-label' },
+    };
+    useFlowStore.setState({ nodes: [rsNoRep, childNoBase] as any });
+    updateNodeData(childNoBase.id, { replicas: 1 });
+    const cleanPod = useFlowStore.getState().nodes.find(n => n.id === childNoBase.id)!;
+    expect(cleanPod.parentId).toBeUndefined();
+
+    // 3. Child pod with neither baseName nor label (fallback 'pod')
+    const rsNoRep2 = { id: 'rs-no-rep-2', type: 'ReplicaSet', position: { x: 0, y: 0 }, data: {} };
+    const childEmpty = { id: 'pod-empty', type: 'Pod', parentId: 'rs-no-rep-2', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.setState({ nodes: [rsNoRep2, childEmpty] as any });
+    updateNodeData(childEmpty.id, { replicas: 1 });
+    const cleanPod2 = useFlowStore.getState().nodes.find(n => n.id === childEmpty.id)!;
+    expect(cleanPod2.data.label).toContain('pod');
+  });
+
+  it('syncEdgesFromFormSelection handles Service with LoadBalancer to Ingress, cleared selector, and duplicate edge check', () => {
+    const svcNode = {
+      id: 'svc-lb',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'my-lb-svc', serviceType: 'ClusterIP', selector: '' },
+    };
+    const ingressNode = {
+      id: 'ingress-1',
+      type: 'Ingress',
+      position: { x: 100, y: 0 },
+      data: { label: 'ingress-app' },
+    };
+    const depNode = {
+      id: 'dep-target',
+      type: 'Deployment',
+      position: { x: 200, y: 0 },
+      data: { label: 'web-workload' },
+    };
+    const existingEdge = {
+      id: 'e-existing',
+      source: 'svc-lb',
+      target: 'ingress-1',
+    };
+    useFlowStore.setState({
+      nodes: [svcNode, ingressNode, depNode] as any,
+      edges: [existingEdge] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Changing serviceType to LoadBalancer and selector to ingress-app
+    updateNodeData(svcNode.id, { serviceType: 'LoadBalancer', selector: 'ingress-app' });
+    let edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === 'svc-lb' && e.target === 'ingress-1')).toBe(true);
+
+    // 2. Duplicate edge check: update again with same selector
+    updateNodeData(svcNode.id, { selector: 'ingress-app' });
+    edges = useFlowStore.getState().edges;
+    const ingressEdges = edges.filter(e => e.source === 'svc-lb' && e.target === 'ingress-1');
+    expect(ingressEdges.length).toBe(1);
+
+    // 3. Clear selector: should remove outgoing edges to workloads
+    updateNodeData(svcNode.id, { selector: '' });
+    edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === 'svc-lb')).toBe(false);
+
+    // 4. Update selector to non-matching target
+    updateNodeData(svcNode.id, { selector: 'non-matching-selector' });
+    edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === 'svc-lb')).toBe(false);
+  });
+
+  it('syncEdgesFromFormSelection handles Ingress backendServiceName update and duplicate edge check', () => {
+    const ingressNode = {
+      id: 'ingress-main',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'main-ingress', backendServiceName: '' },
+    };
+    const svc1 = {
+      id: 'svc-1',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'api-service' },
+    };
+    const svc2 = {
+      id: 'svc-2',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'old-service' },
+    };
+    const oldEdge = {
+      id: 'e-old',
+      source: 'ingress-main',
+      target: 'svc-2',
+    };
+    useFlowStore.setState({
+      nodes: [ingressNode, svc1, svc2] as any,
+      edges: [oldEdge] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Point to api-service (removes old edge to svc-2 and creates edge to svc-1)
+    updateNodeData(ingressNode.id, { backendServiceName: 'api-service' });
+    let edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === 'ingress-main' && e.target === 'svc-1')).toBe(true);
+    expect(edges.some(e => e.source === 'ingress-main' && e.target === 'svc-2')).toBe(false);
+
+    // 2. Duplicate edge check: call again with same backendServiceName
+    updateNodeData(ingressNode.id, { backendServiceName: 'api-service' });
+    edges = useFlowStore.getState().edges;
+    const matching = edges.filter(e => e.source === 'ingress-main' && e.target === 'svc-1');
+    expect(matching.length).toBe(1);
+
+    // 3. Clear backendServiceName
+    updateNodeData(ingressNode.id, { backendServiceName: '' });
+    edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === 'ingress-main')).toBe(false);
+  });
+
+  it('sanitizeAndUpdateServiceSelector resets selector when changing from LoadBalancer to ClusterIP targeting Ingress', () => {
+    const ingressNode = {
+      id: 'ingress-target',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'ingress-lbl' },
+    };
+    const svcNode = {
+      id: 'svc-lb-switch',
+      type: 'Service',
+      position: { x: 50, y: 50 },
+      data: { serviceType: 'LoadBalancer', selector: 'ingress-lbl' },
+    };
+    useFlowStore.setState({ nodes: [ingressNode, svcNode] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(svcNode.id, { serviceType: 'ClusterIP' });
+
+    const updatedSvc = useFlowStore.getState().nodes.find(n => n.id === svcNode.id)!;
+    expect(updatedSvc.data.serviceType).toBe('ClusterIP');
+    expect(updatedSvc.data.selector).toBe('');
+  });
+
+  it('syncPvcRealtimeStatuses updates PVC status when real-time evaluation status differs', () => {
+    const pvcNode = {
+      id: 'pvc-rt',
+      type: 'PVC',
+      position: { x: 0, y: 0 },
+      data: { label: 'data-pvc', pvcStatus: 'Pending', accessMode: 'ReadWriteOnce' },
+    };
+    const depNode = {
+      id: 'dep-rt',
+      type: 'Deployment',
+      position: { x: 100, y: 0 },
+      data: { label: 'web-rt', replicas: 2 },
+    };
+    const edge = { id: 'e-rt', source: 'pvc-rt', target: 'dep-rt' };
+    useFlowStore.setState({ nodes: [pvcNode, depNode] as any, edges: [edge] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    // Updating dep replicas to 3 triggers syncPvcRealtimeStatuses which evaluates Multi-Attach Error
+    updateNodeData(depNode.id, { replicas: 3 });
+
+    const updatedPvc = useFlowStore.getState().nodes.find(n => n.id === pvcNode.id)!;
+    expect(updatedPvc.data.pvcStatus).toBe('Multi-Attach Error');
+  });
+
+  it('updateNodeData handles workloadType transformation and baseName update', () => {
+    const depNode = {
+      id: 'dep-transform',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'app-workload', type: 'Deployment', replicas: 1 },
+    };
+    useFlowStore.setState({ nodes: [depNode] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    // Transform Deployment to StatefulSet via workloadType
+    updateNodeData(depNode.id, { workloadType: 'StatefulSet', baseName: 'custom-stateful' });
+
+    const transformed = useFlowStore.getState().nodes.find(n => n.id === depNode.id)!;
+    expect(transformed.type).toBe('StatefulSet');
+    expect(transformed.data.baseName).toBe('custom-stateful');
+  });
+
+  it('onNodeClick handles forbidden access, StatefulSet selection, and pane/group actions', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({
+      activeIdentity: 'restricted-user',
+      iamUsers: [{ username: 'restricted-user', policies: [] }],
+      addLog: addLogSpy,
+    });
+
+    const restrictedPod = {
+      id: 'pod-restricted',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: { label: 'secret-pod' },
+    };
+    useFlowStore.setState({ nodes: [restrictedPod] as any });
+
+    const { onNodeClick, onPaneClick, groupNodes, ungroupNodes, alignAllNodesToGrid } = useFlowStore.getState();
+
+    // 1. Forbidden access
+    onNodeClick({} as any, restrictedPod as any);
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('Access forbidden'), 'UI');
+
+    // 2. Allowed StatefulSet click
+    useFlowStore.setState({ activeIdentity: 'system:admin' });
+    const ssNode = { id: 'ss-click', type: 'StatefulSet', position: { x: 0, y: 0 }, data: {} };
+    onNodeClick({} as any, ssNode as any);
+    expect(useFlowStore.getState().activeDeploymentId).toBe('ss-click');
+    expect(useFlowStore.getState().configuringNodeId).toBe('ss-click');
+
+    // 3. onPaneClick
+    onPaneClick();
+    expect(useFlowStore.getState().activeDeploymentId).toBeNull();
+    expect(useFlowStore.getState().configuringNodeId).toBeNull();
+
+    // 4. groupNodes and ungroupNodes
+    const n1 = { id: 'node-grp-1', type: 'Pod', position: { x: 0, y: 0 }, data: {} };
+    useFlowStore.setState({ nodes: [n1] as any });
+    groupNodes(['node-grp-1']);
+    expect(useFlowStore.getState().nodes[0].data.groupId).toBeDefined();
+
+    ungroupNodes(['node-grp-1']);
+    expect(useFlowStore.getState().nodes[0].data.groupId).toBeUndefined();
+
+    // 5. alignAllNodesToGrid with default gridGap and activity log
+    const addActivityLog = vi.fn();
+    useFlowStore.setState({ addActivityLog });
+    alignAllNodesToGrid();
+    expect(addActivityLog).toHaveBeenCalledWith('Aligned all nodes to canvas grid (24px)');
+  });
+
 });

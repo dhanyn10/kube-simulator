@@ -82,7 +82,7 @@ export const AutocompleteItem = ({
 
   useEffect(() => {
     if (isSelected) {
-      if (hasSubItems && selectedSubIndex >= 0 && selectedSubIndex < (item.subItems?.length || 0)) {
+      if (hasSubItems && selectedSubIndex >= 0 && selectedSubIndex < item.subItems!.length) {
         setHoveredAutocompletePodName(item.subItems![selectedSubIndex]);
       } else if (targetPodName) {
         setHoveredAutocompletePodName(targetPodName);
