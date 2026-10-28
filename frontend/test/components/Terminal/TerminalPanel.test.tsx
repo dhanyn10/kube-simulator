@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { TerminalPanel } from '@/components/Terminal/TerminalPanel';
+import * as terminalActivities from '@/activities/terminal';
 import {
   handleGetPods,
   handleGetDeployments,
@@ -1108,8 +1109,146 @@ describe('TerminalPanel', () => {
       fireEvent.click(screen.getByTestId('terminal-context-auth'));
       expect(useFlowStore.getState().terminalShowAuth).toBe(false);
 
+      fireEvent.click(screen.getByTestId('terminal-context-filter-logs'));
+      expect(useFlowStore.getState().terminalShowFilterLogs).toBe(false);
+
+      fireEvent.click(screen.getByTestId('terminal-context-export-log-file'));
+      expect(useFlowStore.getState().terminalShowExportLogs).toBe(false);
+
       fireEvent.click(document.body);
       expect(screen.queryByTestId('terminal-context-menu')).not.toBeInTheDocument();
+    });
+
+    it('covers pointerdown click outside to dismiss autocomplete dropdown and light mode styling', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'activity',
+          colorMode: 'light',
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+          ],
+        });
+      });
+
+      const { unmount } = render(<TerminalPanel />);
+      const container = screen.getByTestId('terminal-container');
+      expect(container).toHaveClass('bg-white/95');
+
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: 'kubectl' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      // Click outside footer
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByTestId('terminal-autocomplete-popup')).toBeNull();
+
+      // Re-trigger dropdown and click inside footer (should not close)
+      fireEvent.change(input, { target: { value: 'kubectl ' } });
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+      fireEvent.pointerDown(input);
+      expect(screen.getByTestId('terminal-autocomplete-popup')).toBeInTheDocument();
+
+      unmount();
+    });
+
+    it('covers handleSelectSuggestion with subitem chip and simple item without subitems', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          isSimulating: true,
+          terminalActiveTab: 'activity',
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+          ],
+        });
+      });
+
+      const { unmount } = render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      // 1. Click subitem chip with podName parameter (rendered when typing 'kubectl log')
+      fireEvent.change(input, { target: { value: 'kubectl log' } });
+      const subitemBtn = screen.getByTestId('autocomplete-subitem-0');
+      fireEvent.click(subitemBtn);
+      expect(input.value).toBe('kubectl logs web-pod');
+
+      // 2. Click suggestion main button with subItems (without passing podName, lines 173-174)
+      fireEvent.change(input, { target: { value: 'kubectl log' } });
+      const mainLogsItem = screen.getByTestId('autocomplete-item-0');
+      fireEvent.click(mainLogsItem);
+      expect(input.value).toBe('kubectl logs web-pod');
+
+      // 3. Select suggestion without subItems (e.g. kubectl get pods)
+      fireEvent.change(input, { target: { value: 'kubectl get' } });
+      const firstItem = screen.getByTestId('autocomplete-item-0');
+      fireEvent.click(firstItem);
+      expect(input.value).toContain('kubectl get');
+
+      unmount();
+    });
+
+    it('covers terminal-insert-command event with falsy detail and export logs with node lacking label', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'logs',
+          terminalSelectedResourceId: 'node-no-label',
+          currentProject: null,
+          terminalShowExportLogs: true,
+          nodes: [
+            { id: 'node-no-label', type: 'Pod', data: {}, position: { x: 0, y: 0 } },
+          ],
+          terminalLogs: { 'node-no-label': ['log line without node label'] },
+        });
+      });
+
+      const { unmount } = render(<TerminalPanel />);
+
+      // Dispatch event with empty detail (line 81 branch false)
+      act(() => {
+        globalThis.dispatchEvent(new CustomEvent('terminal-insert-command', { detail: '' }));
+      });
+
+      // Export logs when selectedNode has no label and currentProject is null (lines 127-128)
+      const exportBtn = screen.getByTestId('terminal-export-log-btn');
+      fireEvent.click(exportBtn);
+
+      unmount();
+    });
+
+    it('covers setDropdownOpenCustom(true) and out-of-bounds selectedSubIndex in handleSelectSuggestion', () => {
+      act(() => {
+        useFlowStore.setState({
+          isTerminalOpen: true,
+          terminalActiveTab: 'activity',
+          nodes: [
+            { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+          ],
+        });
+      });
+
+      const spy = vi.spyOn(terminalActivities, 'handleTerminalKeyDown').mockImplementation((opts) => {
+        opts.setSelectedSubIndex?.(5);
+        opts.setIsDropdownOpen?.(true);
+      });
+
+      const { unmount } = render(<TerminalPanel />);
+      const input = screen.getByTestId('terminal-cli-input') as HTMLInputElement;
+
+      // Trigger keydown to invoke the spy
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      spy.mockRestore();
+
+      // Now trigger autocomplete suggestion for kubectl log
+      fireEvent.change(input, { target: { value: 'kubectl log' } });
+      const mainLogsItem = screen.getByTestId('autocomplete-item-0');
+      fireEvent.click(mainLogsItem);
+
+      // Since selectedSubIndex is 5 and there is only 1 pod, it falls back to item.subItems[0]
+      expect(input.value).toBe('kubectl logs web-pod');
+
+      unmount();
     });
   });
 });
