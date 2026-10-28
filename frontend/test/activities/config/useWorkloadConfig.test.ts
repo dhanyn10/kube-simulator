@@ -360,5 +360,92 @@ describe('useWorkloadConfig', () => {
       expect(res.isControlled).toBe(true);
       expect(res.hpaName).toBe('parent-hpa');
     });
+
+    it('detects parent controller connected HPA node via canvas edges for a child Pod with data.parentId', () => {
+      const parentDep = {
+        id: 'parent-dep-id',
+        type: 'Deployment',
+        data: { label: 'parent-deployment' },
+      };
+      const childPod = {
+        id: 'child-pod-1',
+        type: 'Pod',
+        data: { parentId: 'parent-dep-id', label: 'pod-child' },
+      };
+      // HPA without label, minReplicas, or maxReplicas to test default fallbacks
+      const hpaNode = {
+        id: 'hpa-canvas-node',
+        type: 'HPA',
+        data: {},
+      };
+      const edge = {
+        id: 'e-hpa-parent',
+        source: 'hpa-canvas-node',
+        target: 'parent-dep-id',
+      };
+
+      const res = checkWorkloadHpaStatus(
+        childPod,
+        [parentDep as any, childPod as any, hpaNode as any],
+        [edge as any]
+      );
+
+      expect(res).toEqual({
+        isControlled: true,
+        hpaName: 'hpa-canvas-node',
+        minReplicas: 1,
+        maxReplicas: 10,
+      });
+    });
+
+    it('returns false when child Pod parentId does not exist in nodes', () => {
+      const orphanPod = {
+        id: 'orphan-pod',
+        type: 'Pod',
+        parentId: 'missing-parent',
+        data: {},
+      };
+      const res = checkWorkloadHpaStatus(orphanPod, [orphanPod as any], []);
+      expect(res.isControlled).toBe(false);
+    });
+
+    it('returns false when parent exists but has neither attached nor connected HPA', () => {
+      const parentDep = {
+        id: 'plain-parent',
+        type: 'Deployment',
+        data: { label: 'no-hpa-dep', hpas: [] },
+      };
+      const childPod = {
+        id: 'plain-child',
+        type: 'Pod',
+        parentId: 'plain-parent',
+        data: {},
+      };
+      // Connected edge to a Service, not an HPA
+      const svcNode = { id: 'svc-1', type: 'Service', data: {} };
+      const edge = { id: 'e-svc', source: 'plain-parent', target: 'svc-1' };
+
+      const res = checkWorkloadHpaStatus(
+        childPod,
+        [parentDep as any, childPod as any, svcNode as any],
+        [edge as any]
+      );
+      expect(res.isControlled).toBe(false);
+    });
+
+    it('handles non-HPA and ghost edges connected to workload node in findConnectedHpaNode', () => {
+      const depNode = { id: 'd1', type: 'Deployment', data: {} };
+      const svcNode = { id: 's1', type: 'Service', data: {} };
+      const edgeToSvc = { id: 'e1', source: 'd1', target: 's1' };
+      const edgeFromGhost = { id: 'e2', source: 'ghost', target: 'd1' };
+      const edgeToGhost = { id: 'e3', source: 'd1', target: 'ghost2' };
+
+      const res = checkWorkloadHpaStatus(
+        depNode,
+        [depNode as any, svcNode as any],
+        [edgeToSvc as any, edgeFromGhost as any, edgeToGhost as any]
+      );
+      expect(res.isControlled).toBe(false);
+    });
   });
 });

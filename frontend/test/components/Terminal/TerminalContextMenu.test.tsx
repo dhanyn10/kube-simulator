@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import '@testing-library/jest-dom';
 import { TerminalContextMenu } from '@/components/Terminal/TerminalContextMenu';
 
@@ -114,5 +115,17 @@ describe('TerminalContextMenu', () => {
     const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
     const prevented = !menu.dispatchEvent(event);
     expect(prevented).toBe(true);
+  });
+
+  it('returns null when document is undefined (SSR environment)', () => {
+    const originalDoc = globalThis.document;
+    try {
+      // @ts-expect-error test SSR environment
+      delete globalThis.document;
+      const html = renderToString(<TerminalContextMenu {...defaultProps} />);
+      expect(html).toBe('');
+    } finally {
+      globalThis.document = originalDoc;
+    }
   });
 });

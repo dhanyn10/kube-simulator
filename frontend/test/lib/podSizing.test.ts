@@ -81,6 +81,35 @@ describe('podSizing utils', () => {
       const widthWithParent = calculatePodWidth(podData, [], parentData);
       expect(widthWithParent).toBeGreaterThan(widthWithoutParent);
     });
+
+    it('skips configMap without configData and inherits parent configMaps when data.configMaps is an empty array', () => {
+      const parentData = {
+        configMaps: [
+          { id: 'cm-empty', name: 'empty-cm' } as any,
+          { id: 'cm-long', name: 'long-cm', configData: [{ key: 'VERY_LONG_CONFIGURATION_KEY_NAME_FOR_TEST', value: 'VERY_LONG_CONFIGURATION_VALUE_STRING_FOR_TEST' }] },
+        ],
+      };
+      // data.configMaps is truthy but length is 0, so it falls back to parentData.configMaps
+      const podData = { label: 'short-pod', parentId: 'dep-1', configMaps: [] };
+      const widthWithParent = calculatePodWidth(podData, [], parentData);
+      expect(widthWithParent).toBeGreaterThan(POD_MIN_DIMENSIONS.width);
+
+      // displaySettings.configMapVars === false directly on pod
+      const widthCmHidden = calculatePodWidth({
+        configMaps: parentData.configMaps,
+        displaySettings: { configMapVars: false },
+      }, []);
+      expect(widthCmHidden).toBe(POD_MIN_DIMENSIONS.width);
+
+      // displaySettings.configMapVars === false inherited from parentData
+      const widthParentCmHidden = calculatePodWidth({
+        parentId: 'dep-1',
+      }, [], {
+        configMaps: parentData.configMaps,
+        displaySettings: { configMapVars: false },
+      });
+      expect(widthParentCmHidden).toBe(POD_MIN_DIMENSIONS.width);
+    });
   });
 
   describe('calculatePodHeight', () => {

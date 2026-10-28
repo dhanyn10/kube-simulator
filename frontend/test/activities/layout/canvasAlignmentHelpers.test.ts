@@ -25,6 +25,27 @@ describe('canvasAlignmentHelpers', () => {
     expect(bounds.top).toBe(50);
     expect(bounds.bottom).toBe(150);
     expect(bounds.centerY).toBe(100);
+
+    // When width/height are undefined but measured is provided
+    const measuredNode: Node = {
+      id: 'node-measured',
+      position: { x: 0, y: 0 },
+      measured: { width: 320, height: 160 },
+      data: {},
+    };
+    const measuredBounds = getNodeBounds(measuredNode);
+    expect(measuredBounds.width).toBe(320);
+    expect(measuredBounds.height).toBe(160);
+
+    // When width/height and measured are all missing (defaults 240, 120)
+    const fallbackNode: Node = {
+      id: 'node-fallback',
+      position: { x: 10, y: 20 },
+      data: {},
+    };
+    const fallbackBounds = getNodeBounds(fallbackNode);
+    expect(fallbackBounds.width).toBe(240);
+    expect(fallbackBounds.height).toBe(120);
   });
 
   it('checkVerticalMatch identifies left, center, right, and adjacent vertical alignments', () => {
@@ -92,6 +113,14 @@ describe('canvasAlignmentHelpers', () => {
       data: {},
     };
 
+    const nonMatchingPeer: Node = {
+      id: 'p-far',
+      position: { x: 800, y: 800 },
+      width: 100,
+      height: 100,
+      data: {},
+    };
+
     const peerNode: Node = {
       id: 'p1',
       position: { x: 100, y: 200 },
@@ -100,7 +129,7 @@ describe('canvasAlignmentHelpers', () => {
       data: {},
     };
 
-    const guides = calculateAlignmentGuides(draggingNode, [draggingNode, peerNode], 8);
+    const guides = calculateAlignmentGuides(draggingNode, [draggingNode, nonMatchingPeer, peerNode], 8);
     expect(guides.vertical).toBe(100);
     expect(guides.horizontal).toBe(200);
     expect(guides.snapX).toBe(100);
@@ -119,6 +148,30 @@ describe('canvasAlignmentHelpers', () => {
     const guides = calculateAlignmentGuides(draggingNode, [draggingNode], 8, 24);
     expect(guides.vertical).toBe(24);
     expect(guides.horizontal).toBe(48);
+  });
+
+  it('calculateAlignmentGuides returns null for vertical and horizontal guides when far from peer and grid lines', () => {
+    // gridGap = 100, threshold = 2. Position { x: 50, y: 50 } is exactly in the middle of grid intervals
+    const draggingNode: Node = {
+      id: 'd1',
+      position: { x: 50, y: 50 },
+      width: 100,
+      height: 100,
+      data: {},
+    };
+
+    const peerWithDifferentParent: Node = {
+      id: 'peer-other-parent',
+      parentId: 'ns-other',
+      position: { x: 50, y: 50 },
+      data: {},
+    };
+
+    const guides = calculateAlignmentGuides(draggingNode, [draggingNode, peerWithDifferentParent], 2, 100);
+    expect(guides.vertical).toBeNull();
+    expect(guides.horizontal).toBeNull();
+    expect(guides.snapX).toBeUndefined();
+    expect(guides.snapY).toBeUndefined();
   });
 
   it('alignAllNodesToGrid rounds node positions to grid multiples and resolves collisions', () => {

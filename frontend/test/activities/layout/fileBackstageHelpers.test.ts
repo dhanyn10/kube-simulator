@@ -148,6 +148,56 @@ describe('fileBackstageHelpers', () => {
       expect(items[0].name).toBe('autosave-profile-1');
       expect(items[1].name).toBe('Existing Project');
     });
+
+    it('handles non-array GetAutosaveProfiles, missing latest autosave key/content, and missing or false FileExists in fallback autosave', async () => {
+      // 1. GetAutosaveProfiles returns null (non-array Branch 3), GetSetting returns null (Branch 5), GetProjects returns null (Branch 11)
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetAutosaveProfiles: vi.fn().mockResolvedValue(null),
+            GetSetting: vi.fn().mockResolvedValue(null),
+            GetProjects: vi.fn().mockResolvedValue(null),
+          },
+        },
+      };
+
+      const emptyItems = await fetchRecentFiles();
+      expect(emptyItems).toEqual([]);
+
+      // 2. GetSetting returns key and content, but FileExists returns false (Branch 9)
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetSetting: vi.fn().mockImplementation((k: string) => {
+              if (k === 'auto_saved_profile_latest') return Promise.resolve('profile-1');
+              if (k === 'auto_saved_profile_content') return Promise.resolve('{}');
+              return Promise.resolve(null);
+            }),
+            FileExists: vi.fn().mockResolvedValue(false),
+          },
+        },
+      };
+
+      const nonExistentItems = await fetchRecentFiles();
+      expect(nonExistentItems).toEqual([]);
+
+      // 3. FileExists is undefined (Branch 8 fallback to true)
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetSetting: vi.fn().mockImplementation((k: string) => {
+              if (k === 'auto_saved_profile_latest') return Promise.resolve('profile-fallback');
+              if (k === 'auto_saved_profile_content') return Promise.resolve('{}');
+              return Promise.resolve(null);
+            }),
+          },
+        },
+      };
+
+      const fallbackItems = await fetchRecentFiles();
+      expect(fallbackItems).toHaveLength(1);
+      expect(fallbackItems[0].name).toBe('profile-fallback');
+    });
   });
 
   describe('restoreRecentFile', () => {
@@ -297,6 +347,38 @@ describe('fileBackstageHelpers', () => {
       await restoreRecentFile(stringItem, onClose, fitView);
       expect(onClose).not.toHaveBeenCalled();
     });
+
+    it('handles autosave file with falsy content and handles empty/missing nodes and edges', async () => {
+      const onClose = vi.fn();
+      const fitView = vi.fn();
+
+      // 1. Both GetSetting calls return null (Branch 27: content is null)
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetSetting: vi.fn().mockResolvedValue(null),
+          },
+        },
+      };
+
+      const item: RecentFileItem = { id: 'autosave-1', name: 'autosave-1', location: '', fullPath: '', updatedAt: '', isAutosave: true };
+      await restoreRecentFile(item, onClose, fitView);
+      expect(onClose).not.toHaveBeenCalled();
+
+      // 2. data.nodes and data.edges are undefined in content JSON (Branch 28 & 29 fallback to [])
+      (globalThis as any).go = {
+        main: {
+          App: {
+            GetSetting: vi.fn().mockResolvedValue(JSON.stringify({})),
+          },
+        },
+      };
+
+      await restoreRecentFile(item, onClose, fitView);
+      expect(onClose).toHaveBeenCalled();
+      expect(useFlowStore.getState().nodes).toEqual([]);
+      expect(useFlowStore.getState().edges).toEqual([]);
+    });
   });
 
   describe('deleteRecentFile', () => {
@@ -354,6 +436,49 @@ describe('fileBackstageHelpers', () => {
       expect(mockSaveSetting).toHaveBeenCalledWith('auto_saved_profile_content', '');
       expect(reloadFiles).toHaveBeenCalled();
     });
+
+    it('handles autosave item when SaveSetting is missing, or when item is not latest autosave', async () => {
+      const reloadFiles = vi.fn();
+
+      // 1. SaveSetting is undefined (Branch 18)
+      (globalThis as any).go = { main: { App: {} } };
+      const item: RecentFileItem = { id: 'autosave-1', name: 'autosave-1', location: '', fullPath: '', updatedAt: '', isAutosave: true };
+      await deleteRecentFile(item, reloadFiles);
+      expect(reloadFiles).toHaveBeenCalled();
+
+      // 2. item.name !== latest autosave (Branch 19)
+      reloadFiles.mockClear();
+      const mockSaveSetting = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = {
+        main: {
+          App: {
+            SaveSetting: mockSaveSetting,
+            GetSetting: vi.fn().mockResolvedValue('different-latest-profile'),
+          },
+        },
+      };
+      await deleteRecentFile(item, reloadFiles);
+      expect(mockSaveSetting).toHaveBeenCalledWith('autosave-1', '');
+      expect(mockSaveSetting).not.toHaveBeenCalledWith('auto_saved_profile_latest', '');
+      expect(reloadFiles).toHaveBeenCalled();
+    });
+
+    it('handles non-autosave item with string id or missing DeleteProject', async () => {
+      const reloadFiles = vi.fn();
+
+      // 1. Non-autosave item with string id (Branch 20: typeof item.id !== 'number')
+      (globalThis as any).go = { main: { App: { DeleteProject: vi.fn() } } };
+      const stringItem: RecentFileItem = { id: 'string-id', name: 'String Item', location: '', fullPath: '', updatedAt: '' };
+      await deleteRecentFile(stringItem, reloadFiles);
+      expect(reloadFiles).toHaveBeenCalled();
+
+      // 2. item.id is number, but DeleteProject is undefined (Branch 21)
+      reloadFiles.mockClear();
+      (globalThis as any).go = { main: { App: {} } };
+      const numberItem: RecentFileItem = { id: 123, name: 'Num Item', location: '', fullPath: '', updatedAt: '' };
+      await deleteRecentFile(numberItem, reloadFiles);
+      expect(reloadFiles).toHaveBeenCalled();
+    });
   });
 
   describe('openRecentFileFolder', () => {
@@ -377,6 +502,19 @@ describe('fileBackstageHelpers', () => {
 
       await openRecentFileFolder(item);
       expect(mockOpenFileFolder).toHaveBeenCalledWith('~/.kube-simulator/projects/project_1.infra');
+    });
+
+    it('returns early when OpenFileFolder is undefined or falls back to fullPath when location is empty', async () => {
+      // 1. OpenFileFolder is undefined (Branch 22)
+      (globalThis as any).go = { main: { App: {} } };
+      const itemNoLoc: RecentFileItem = { id: 1, name: 'P1', location: '', fullPath: '/custom/path/project.infra', updatedAt: '' };
+      await openRecentFileFolder(itemNoLoc);
+
+      // 2. OpenFileFolder exists and location is empty (Branch 23 fallback to fullPath)
+      const mockOpenFileFolder = vi.fn().mockResolvedValue(true);
+      (globalThis as any).go = { main: { App: { OpenFileFolder: mockOpenFileFolder } } };
+      await openRecentFileFolder(itemNoLoc);
+      expect(mockOpenFileFolder).toHaveBeenCalledWith('/custom/path/project.infra');
     });
   });
 

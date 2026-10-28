@@ -300,4 +300,79 @@ describe('dragHandlers', () => {
     state = useFlowStore.getState();
     expect(state.nodes.find(n => n.id === 'ns1')?.parentId).toBeUndefined();
   });
+
+  it('covers fallback branches across drag handlers', () => {
+    const { onNodeDragStart, onNodeDrag, onNodeDragStop } = useFlowStore.getState();
+
+    // 1. iamUsers is undefined in store (Branches 42, 48, 52)
+    useFlowStore.setState({
+      iamUsers: undefined as any,
+      activeIdentity: null,
+      nodes: [
+        { id: 'c1', type: 'Deployment', position: { x: 0, y: 0 }, data: {} }, // no width/height (Branches 7, 8)
+        { id: 'c2', type: 'Deployment', position: { x: 200, y: 200 }, data: {} }, // no width/height (Branches 9, 10)
+        { id: 'other-node', type: 'Service', position: { x: 900, y: 900 }, data: {} },
+        { id: 'child-pod', type: 'Pod', parentId: 'c1', position: { x: 50, y: 50 }, data: {} }, // no replicas (Branch 24)
+        { id: 'typeless-node', position: { x: 50, y: 50 }, data: {} } as any, // no type (Branches 4, 5, 17, 18)
+      ],
+      hoveredDeploymentId: null,
+      detachingDeploymentId: null,
+    });
+
+    const childPod = useFlowStore.getState().nodes.find(n => n.id === 'child-pod')!;
+
+    // 2. onNodeDragStart with iamUsers undefined
+    onNodeDragStart({} as any, childPod);
+    expect(useFlowStore.getState().draggedNodeId).toBe('child-pod');
+
+    // 3. onNodeDrag with node overlapping its parent > 20% (Branch 1 returns 'hovering') and containers without dimensions
+    onNodeDrag({} as any, childPod);
+
+    // 4. onNodeDrag with typeless node (Branches 4, 5)
+    const typelessNode = useFlowStore.getState().nodes.find(n => n.id === 'typeless-node')!;
+    onNodeDrag({} as any, typelessNode);
+
+    // 5. onNodeDragStop with internal move having other-node in canvas (Branch 34)
+    onNodeDragStop({} as any, childPod);
+
+    // 6. onNodeDragStop detaching pod with missing replicas (Branch 24: fallback to 1)
+    useFlowStore.setState({ detachingDeploymentId: 'c1' });
+    onNodeDragStop({} as any, { ...childPod, position: { x: -200, y: -200 } });
+
+    // 7. onNodeDragStop with hovered target container lacking type (Branches 17, 18)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'typeless-target', position: { x: 0, y: 0 }, data: {} },
+        { id: 'typeless-dragged', position: { x: 10, y: 10 }, data: {} },
+      ] as any,
+      hoveredDeploymentId: 'typeless-target',
+    });
+    onNodeDragStop({} as any, { id: 'typeless-dragged', position: { x: 10, y: 10 }, data: {} } as any);
+
+    // 8. container whose type returns undefined after filter (Branch 4)
+    let accessed = false;
+    const dynamicContainer = {
+      id: 'dynamic-dep',
+      get type() {
+        if (!accessed) {
+          accessed = true;
+          return 'Deployment';
+        }
+        return undefined;
+      },
+      position: { x: 0, y: 0 },
+      width: 320,
+      height: 160,
+      data: {},
+    };
+    useFlowStore.setState({
+      nodes: [
+        dynamicContainer as any,
+        { id: 'p-dyn', type: 'Pod', position: { x: 10, y: 10 }, data: {} },
+      ],
+      hoveredDeploymentId: null,
+      detachingDeploymentId: null,
+    });
+    onNodeDrag({} as any, { id: 'p-dyn', type: 'Pod', position: { x: 10, y: 10 }, data: {} } as any);
+  });
 });
