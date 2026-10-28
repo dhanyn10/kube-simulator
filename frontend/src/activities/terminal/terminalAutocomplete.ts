@@ -503,7 +503,7 @@ const handleScaleSequence = (input: string, deployNames: string[]): SuggestionIt
     return [createItem('kubectl scale deployment/', 'kubectl scale deployment/', 'Subcommand', 'Scale a deployment resource', true, NO_DEPLOYMENT_REASON)];
   }
 
-  const rest = input.startsWith('kubectl scale') ? input.slice('kubectl scale'.length) : '';
+  const rest = input.slice('kubectl scale'.length);
   const restTrim = rest.trim();
 
   if (!restTrim) {
@@ -705,10 +705,11 @@ const countWordMatches = (
 ): number => {
   let count = 0;
   while (count < labelWords.length && count < targetWords.length) {
-    const wordLower = labelWords[count]?.toLowerCase();
+    const word = labelWords[count] as string;
+    const wordLower = word.toLowerCase();
     const isMatch = strictIndex
       ? wordLower === targetWords[count]
-      : targetWords.includes(wordLower ?? '');
+      : targetWords.includes(wordLower);
     if (!isMatch) break;
     count++;
   }

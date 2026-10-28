@@ -65,4 +65,30 @@ describe('ConfigMapImportDataDropdown', () => {
     fireEvent.click(screen.getByTestId('import-option-app-env'));
     expect(onImport).toHaveBeenCalledWith(sampleConfigMaps[0]);
   });
+
+  it('renders correctly in light mode (isDark = false) with menu opened', () => {
+    const onImport = vi.fn();
+    render(
+      <ConfigMapImportDataDropdown
+        isOpen={true}
+        onToggleOpen={vi.fn()}
+        existingConfigMaps={sampleConfigMaps}
+        onImport={onImport}
+        isDark={false}
+        dropdownRef={dummyRef}
+      />
+    );
+
+    const btn = screen.getByTestId('btn-add-from-existing-cm');
+    expect(btn).toHaveClass('bg-white');
+
+    const menu = screen.getByTestId('import-existing-cm-menu');
+    expect(menu).toHaveClass('bg-white');
+
+    const option = screen.getByTestId('import-option-app-env');
+    expect(option).toHaveClass('hover:bg-slate-100');
+
+    fireEvent.click(option);
+    expect(onImport).toHaveBeenCalledWith(sampleConfigMaps[0]);
+  });
 });

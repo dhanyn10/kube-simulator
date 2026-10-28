@@ -15,6 +15,7 @@ import {
   CONFIG_SUBCOMMANDS,
   GET_SUBCOMMANDS,
   UTILITY_COMMANDS,
+  getKubectlSubcommandCandidates,
 } from '@/activities/terminal/terminalAutocomplete';
 import { Node } from '@xyflow/react';
 
@@ -418,5 +419,201 @@ describe('terminalAutocomplete', () => {
 
     expect(trimSuggestionLabel(item, 'a b c d ').value).toBe('a b c d e');
     expect(trimSuggestionLabel(item, 'a b c d ').description).toBe('Full description for a b c d e');
+  });
+
+  it('handles node fallback names and edge cases in resource extractors', () => {
+    const fallbackNodes: Node[] = [
+      { id: 'dep-fallback', type: 'Deployment', data: {}, position: { x: 0, y: 0 } },
+      { id: 'pod-fallback', type: 'Pod', data: {}, position: { x: 0, y: 0 } },
+      {
+        id: 'pod-nobasename',
+        type: 'Pod',
+        data: { replicaSuffixes: ['s1', 's2'] },
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'pod-ss-type',
+        type: 'Pod',
+        data: { baseName: 'stateful', type: 'StatefulSet', replicaSuffixes: ['0', '1'] },
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'node-empty-res',
+        type: 'Deployment',
+        data: {
+          roles: [{ name: '' }, {}, null, undefined, { name: 'valid-role' }],
+          configMaps: 'invalid-cm-list' as any,
+          secrets: null as any,
+        },
+        position: { x: 0, y: 0 },
+      },
+    ];
+
+    expect(getDeploymentNames(fallbackNodes)).toContain('dep-fallback');
+    const podNames = getPodNames(fallbackNodes);
+    expect(podNames).toContain('pod-fallback');
+    expect(podNames).toContain('pod-s1');
+    expect(podNames).toContain('pod-s2');
+    expect(podNames).toContain('stateful-0');
+    expect(podNames).toContain('stateful-1');
+
+    expect(getRoleNames(fallbackNodes)).toEqual(['valid-role']);
+    expect(getConfigMapNames(fallbackNodes)).toEqual([]);
+    expect(getSecretNames(fallbackNodes)).toEqual([]);
+  });
+
+  it('handles get and config subcommand candidates in getKubectlSubcommandCandidates', () => {
+    const getCandidates = getKubectlSubcommandCandidates('g');
+    expect(getCandidates.some(s => s.value === 'kubectl get pods')).toBe(true);
+
+    const configCandidates = getKubectlSubcommandCandidates('c');
+    expect(configCandidates.some(s => s.value === 'kubectl config get-contexts')).toBe(true);
+
+    const mockNodes: Node[] = [
+      { id: 'dep-1', type: 'Deployment', data: { label: 'web' }, position: { x: 0, y: 0 } },
+      { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+    ];
+
+    const getSuggs = getAutocompleteSuggestions('kubectl g', mockNodes);
+    expect(getSuggs.some(s => s.value === 'kubectl get pods')).toBe(true);
+
+    const configSuggs = getAutocompleteSuggestions('kubectl c', mockNodes);
+    expect(configSuggs.some(s => s.value === 'kubectl config view')).toBe(true);
+  });
+
+  it('handles edge cases in scale and set sequence matching', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' }, position: { x: 0, y: 0 } },
+    ];
+
+    const scaleCustom = getAutocompleteSuggestions('kubectl scale custom-workload', mockNodes);
+    expect(scaleCustom).toEqual([]);
+
+    const settingsSugg = getAutocompleteSuggestions('kubectl settings', mockNodes);
+    expect(settingsSugg).toEqual([]);
+
+    const setEnvSugg = getAutocompleteSuggestions('kubectl set env', mockNodes);
+    expect(setEnvSugg).toEqual([]);
+
+    const setCustomApp = getAutocompleteSuggestions('kubectl set image custom-app', mockNodes);
+    expect(setCustomApp).toEqual([]);
+  });
+
+  it('handles edge cases in rollout, describe, and delete sequences', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' }, position: { x: 0, y: 0 } },
+      { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+    ];
+
+    const rolloutFast = getAutocompleteSuggestions('kubectl rollout-fast', mockNodes);
+    expect(rolloutFast).toEqual([]);
+
+    const rolloutRestart = getAutocompleteSuggestions('kubectl rollout restart', mockNodes);
+    expect(rolloutRestart).toEqual([]);
+
+    const describeUnknown = getAutocompleteSuggestions('kubectl describe unknown-resource', mockNodes);
+    expect(describeUnknown).toEqual([]);
+
+    const deleteNoDeploys = getAutocompleteSuggestions('kubectl delete', [
+      { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+    ]);
+    const depItem = deleteNoDeploys.find(s => s.value.includes('deployment'));
+    expect(depItem?.disabled).toBe(true);
+    expect(depItem?.disabledReason).toContain('no Deployment on canvas');
+
+    const deleteServiceItem = getAutocompleteSuggestions('kubectl delete service myservice', mockNodes);
+    expect(deleteServiceItem).toEqual([]);
+  });
+
+  it('handles enabled status and undefined reasons when resources are present', () => {
+    const mockNodes: Node[] = [
+      { id: 'dep-1', type: 'Deployment', data: { label: 'web-dep' }, position: { x: 0, y: 0 } },
+      { id: 'pod-1', type: 'Pod', data: { label: 'web-pod' }, position: { x: 0, y: 0 } },
+    ];
+
+    const topCommands = getAutocompleteSuggestions('kubectl', mockNodes);
+    const scaleCmd = topCommands.find(c => c.value === 'kubectl scale');
+    expect(scaleCmd?.disabled).toBe(false);
+    expect(scaleCmd?.disabledReason).toBeUndefined();
+
+    const logsCmd = topCommands.find(c => c.value === 'kubectl logs');
+    expect(logsCmd?.disabled).toBe(false);
+    expect(logsCmd?.disabledReason).toBeUndefined();
+  });
+
+  it('covers trimSuggestionLabel and helper trimming edge cases', () => {
+    const item = { value: 'kubectl get pods', label: 'kubectl get pods', category: 'Command' as const };
+
+    expect(trimSuggestionLabel(item, '')).toEqual(item);
+    expect(trimSuggestionLabel(item, '   ')).toEqual(item);
+
+    const mismatchedDirect = { value: 'kubectl get', label: 'kubectl get', category: 'Subcommand' as const };
+    expect(trimSuggestionLabel(mismatchedDirect, 'random command ')).toEqual(mismatchedDirect);
+
+    expect(trimSuggestionLabel(mismatchedDirect, 'kubectl get ')).toEqual(mismatchedDirect);
+
+    const labelRestEmpty = { value: 'kubectl get pods', label: 'kubectl get', category: 'Subcommand' as const };
+    expect(trimSuggestionLabel(labelRestEmpty, 'kubectl get').label).toBe('pods');
+
+    const labelPrefixEmpty = { value: 'kubectl ', label: 'kubectl ', category: 'Command' as const };
+    expect(trimSuggestionLabel(labelPrefixEmpty, 'kubectl').label).toBe('kubectl ');
+
+    const fullWordItem = { value: 'kubectl get pods', label: 'get pods', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordItem, 'kubectl get').label).toBe('pods');
+
+    // trimByFullWords: when rawInput has extra spaces so direct match fails, but full words match
+    const fullWordMultiSpace = { value: 'kubectl get pods', label: 'get <resource>', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordMultiSpace, 'kubectl get   ').label).toBe('<resource>');
+
+    // trimByFullWords: when matchCount === 0, falls through to valRest
+    const fullWordNoMatch = { value: 'kubectl get pods', label: 'nomatch resource', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordNoMatch, 'kubectl get   ').label).toBe('pods');
+
+    // trimByFullWords: when labelRest is empty, falls through to valRest
+    const fullWordEmptyRest = { value: 'kubectl get pods', label: 'get ', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordEmptyRest, 'kubectl get   ').label).toBe('pods');
+
+    // trimByFullWords: when valRest is empty
+    const fullWordValEmpty = { value: 'kubectl get ', label: 'get <resource>', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordValEmpty, 'kubectl get   ')).toEqual(fullWordValEmpty);
+
+    const fullWordShort = { value: 'kubectl get pods', label: 'get', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordShort, 'kubectl get').label).toBe('pods');
+
+    const fullWordSpaces = { value: 'kubectl get pods', label: 'get   ', category: 'Command' as const };
+    expect(trimSuggestionLabel(fullWordSpaces, 'kubectl get').label).toBe('pods');
+
+    // trimByPartialWord: when item.label equals completedPrefix so rest is empty string at line 753
+    const partialLabelEmptyRest = { value: 'kubectl   pods', label: 'kubectl   ', category: 'Command' as const };
+    expect(trimSuggestionLabel(partialLabelEmptyRest, 'kubectl   xyz').label).toBe('pods');
+
+    const partialTrimmed = { value: 'kubectl describe', label: 'kubectl describe', category: 'Command' as const };
+    expect(trimSuggestionLabel(partialTrimmed, 'kubectl   des').label).toBe('describe');
+
+    const partialEmptyRest = { value: 'kubectl ', label: 'kubectl ', category: 'Command' as const };
+    expect(trimSuggestionLabel(partialEmptyRest, 'kubectl   des').label).toBe('kubectl ');
+
+    const partialValMatch = { value: 'get pods all', label: 'get deployments', category: 'Command' as const };
+    expect(trimSuggestionLabel(partialValMatch, 'get pods xyz').label).toBe('deployments');
+
+    const partialLabelRestEmpty = { value: 'get pods all', label: 'get   ', category: 'Command' as const };
+    expect(trimSuggestionLabel(partialLabelRestEmpty, 'get pods xyz').label).toBe('all');
+
+    const partialValEmpty = { value: 'get pods ', label: 'nomatch', category: 'Command' as const };
+    expect(trimSuggestionLabel(partialValEmpty, 'get pods xyz').label).toBe('nomatch');
+
+    const noMatchItem = { value: 'diff value', label: 'diff label', category: 'Command' as const };
+    expect(trimSuggestionLabel(noMatchItem, 'get pods xyz').label).toBe('diff label');
+  });
+
+  it('deduplicates suggestions with identical values', () => {
+    const duplicateNodes: Node[] = [
+      { id: 'd1', type: 'Deployment', data: { label: 'web-app' }, position: { x: 0, y: 0 } },
+      { id: 'd2', type: 'Deployment', data: { label: 'web-app' }, position: { x: 0, y: 0 } },
+    ];
+
+    const scaleSuggs = getAutocompleteSuggestions('kubectl sc', duplicateNodes);
+    const scaleWeb = scaleSuggs.filter(s => s.value.includes('web-app'));
+    expect(scaleWeb).toHaveLength(1);
   });
 });
