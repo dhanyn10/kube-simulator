@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowStore } from '@/store';
 
 const initialAddLog = useFlowStore.getState().addLog;
+const initialAddActivityLog = useFlowStore.getState().addActivityLog;
 
 describe('nodeActions', () => {
   beforeEach(() => {
@@ -1005,6 +1006,468 @@ describe('nodeActions', () => {
     useFlowStore.setState({ addActivityLog });
     alignAllNodesToGrid();
     expect(addActivityLog).toHaveBeenCalledWith('Aligned all nodes to canvas grid (24px)');
+  });
+
+
+  it('covers attached resources fallback branches and unrelated nodes in syncPodAttachedItemsGroup', () => {
+    // 1. Controller parent with child pod and an unrelated node on canvas
+    const dep = {
+      id: 'dep-controller',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { replicas: 1 },
+    };
+    const childPod = {
+      id: 'pod-inside',
+      type: 'Pod',
+      parentId: 'dep-controller',
+      position: { x: 10, y: 10 },
+      data: {},
+    };
+    const unrelatedNode = {
+      id: 'unrelated-pod',
+      type: 'Pod',
+      position: { x: 100, y: 100 },
+      data: { label: 'other' },
+    };
+    useFlowStore.setState({ nodes: [dep, childPod, unrelatedNode] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    // Exercise fallback chain: newData.hpas, newData.resourceLimits, etc.
+    updateNodeData(childPod.id, { hpas: [{ name: 'hpa-chain' }] });
+    updateNodeData(childPod.id, { resourceLimits: { cpu: '100m' } });
+
+    expect(useFlowStore.getState().nodes.find(n => n.id === dep.id)?.data.hpas).toEqual([{ name: 'hpa-chain' }]);
+    expect(useFlowStore.getState().nodes.find(n => n.id === unrelatedNode.id)?.data.hpas).toBeUndefined();
+
+    // 2. Standalone pod group with sibling sharing non-controller parent (isSameParent) and unrelated node
+    const nsParent = { id: 'ns-group-parent', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+    const podA = { id: 'pod-a', type: 'Pod', parentId: 'ns-group-parent', position: { x: 10, y: 10 }, data: {} };
+    const podB = { id: 'pod-b', type: 'Pod', parentId: 'ns-group-parent', position: { x: 20, y: 20 }, data: {} };
+    useFlowStore.setState({ nodes: [nsParent, podA, podB, unrelatedNode] as any });
+
+    updateNodeData(podA.id, { configMaps: [{ name: 'cm-sibling' }] });
+    expect(useFlowStore.getState().nodes.find(n => n.id === podB.id)?.data.configMaps).toEqual([{ name: 'cm-sibling' }]);
+  });
+
+  it('covers syncEdgesFromFormSelection with non-workload targets, Ingress filtering, and child pod exclusions', () => {
+    const svc = {
+      id: 'svc-filter-test',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { serviceType: 'ClusterIP', selector: 'initial-old' },
+    };
+    const pvcNode = { id: 'pvc-edge-test', type: 'PVC', position: { x: 50, y: 0 }, data: {} };
+    const ingressNode = { id: 'ingress-by-id', type: 'Ingress', position: { x: 100, y: 0 }, data: { label: 'ing-lbl' } };
+    const childPod = {
+      id: 'child-pod-excluded',
+      type: 'Pod',
+      parentId: 'some-parent',
+      position: { x: 150, y: 0 },
+      data: { label: 'target-pod', parentId: 'some-parent' },
+    };
+    const standalonePod = {
+      id: 'standalone-matched',
+      type: 'Pod',
+      position: { x: 200, y: 0 },
+      data: { label: 'target-pod' },
+    };
+    // Edge from service to PVC (non-workload target) to test line 292
+    const edgeToPvc = { id: 'e-to-pvc', source: 'svc-filter-test', target: 'pvc-edge-test' };
+    const edgeToIngress = { id: 'e-to-ing', source: 'svc-filter-test', target: 'ingress-by-id' };
+
+    useFlowStore.setState({
+      nodes: [svc, pvcNode, ingressNode, childPod, standalonePod] as any,
+      edges: [edgeToPvc, edgeToIngress] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Service with ClusterIP pointing to target-pod:
+    // edgeToPvc is preserved (non-workload target), edgeToIngress is removed (ClusterIP cannot target Ingress)
+    // Child pod is excluded, standalone pod gets edge
+    updateNodeData(svc.id, { selector: 'target-pod' });
+    let edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === 'svc-filter-test' && e.target === 'pvc-edge-test')).toBe(true);
+    expect(edges.some(e => e.source === 'svc-filter-test' && e.target === 'ingress-by-id')).toBe(false);
+    expect(edges.some(e => e.source === 'svc-filter-test' && e.target === 'standalone-matched')).toBe(true);
+    expect(edges.some(e => e.source === 'svc-filter-test' && e.target === 'child-pod-excluded')).toBe(false);
+
+    // 2. sanitizeAndUpdateServiceSelector when selector matches ingress by id
+    updateNodeData(svc.id, { serviceType: 'LoadBalancer', selector: 'ingress-by-id' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === svc.id)?.data.selector).toBe('ingress-by-id');
+
+    // Changing back to ClusterIP resets selector targeting ingress by id
+    updateNodeData(svc.id, { serviceType: 'ClusterIP' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === svc.id)?.data.selector).toBe('');
+
+    // 3. Changing to ClusterIP when selector is for regular workload preserves selector
+    updateNodeData(svc.id, { serviceType: 'LoadBalancer', selector: 'target-pod' });
+    updateNodeData(svc.id, { serviceType: 'ClusterIP' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === svc.id)?.data.selector).toBe('target-pod');
+  });
+
+  it('covers Ingress connected to non-Service targets and reference invalidation on Service rename/deletion', () => {
+    const ingress = {
+      id: 'ing-ref-test',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'my-ingress', backendServiceName: 'web-service' },
+    };
+    const svc = {
+      id: 'svc-ref-test',
+      type: 'Service',
+      position: { x: 100, y: 0 },
+      data: { label: 'web-service' },
+    };
+    const otherNode = { id: 'other-node', type: 'Pod', position: { x: 200, y: 0 }, data: {} };
+    // Edge from Ingress to non-Service target
+    const edgeToPod = { id: 'e-ing-pod', source: 'ing-ref-test', target: 'other-node' };
+    const edgeToSvc = { id: 'e-ing-svc', source: 'ing-ref-test', target: 'svc-ref-test' };
+
+    useFlowStore.setState({
+      nodes: [ingress, svc, otherNode] as any,
+      edges: [edgeToPod, edgeToSvc] as any,
+    });
+
+    const { updateNodeData, deleteNodes } = useFlowStore.getState();
+
+    // 1. Ingress update preserving edge to non-Service target
+    updateNodeData(ingress.id, { backendServiceName: 'web-service' });
+    expect(useFlowStore.getState().edges.some(e => e.source === 'ing-ref-test' && e.target === 'other-node')).toBe(true);
+
+    // 2. Renaming Service invalidates Ingress backendServiceName
+    updateNodeData(svc.id, { label: 'web-service-v2' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === ingress.id)?.data.backendServiceName).toBe('');
+
+    // 3. Reset backendServiceName and delete Service: invalidates reference again
+    updateNodeData(ingress.id, { backendServiceName: 'web-service-v2' });
+    const svcToDelete = useFlowStore.getState().nodes.find(n => n.id === svc.id)!;
+    deleteNodes([svcToDelete]);
+    expect(useFlowStore.getState().nodes.find(n => n.id === ingress.id)?.data.backendServiceName).toBe('');
+  });
+
+  it('covers nodeActions helpers: baseName update alone, group/ungroup non-matching nodes, alignAllNodesToGrid without activity log', () => {
+    const pod1 = { id: 'p-grp-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'p1' } };
+    const pod2 = { id: 'p-grp-2', type: 'Pod', position: { x: 10, y: 10 }, data: { label: 'p2' } };
+    useFlowStore.setState({ nodes: [pod1, pod2] as any });
+
+    const { updateNodeData, groupNodes, ungroupNodes, alignAllNodesToGrid } = useFlowStore.getState();
+
+    // 1. updateNodeData with baseName alone
+    updateNodeData(pod1.id, { baseName: 'p1-new-base' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === pod1.id)?.data.baseName).toBe('p1-new-base');
+
+    // 2. groupNodes only touches matching node, pod2 remains undefined
+    groupNodes(['p-grp-1']);
+    expect(useFlowStore.getState().nodes.find(n => n.id === pod1.id)?.data.groupId).toBeDefined();
+    expect(useFlowStore.getState().nodes.find(n => n.id === pod2.id)?.data.groupId).toBeUndefined();
+
+    // 3. ungroupNodes only touches matching node
+    ungroupNodes(['p-grp-1']);
+    expect(useFlowStore.getState().nodes.find(n => n.id === pod1.id)?.data.groupId).toBeUndefined();
+
+    // 4. alignAllNodesToGrid when addActivityLog is undefined
+    useFlowStore.setState({ addActivityLog: undefined });
+    expect(() => alignAllNodesToGrid(16)).not.toThrow();
+    useFlowStore.setState({ addActivityLog: initialAddActivityLog });
+  });
+
+
+  it('covers controller pod additions (StatefulSet and ReplicaSet) and others mapping in handleAdditionSync', () => {
+    const { addNode } = useFlowStore.getState();
+
+    // 1. Add Pod into StatefulSet parent
+    addNode('StatefulSet', { x: 0, y: 0 });
+    const ssParent = useFlowStore.getState().nodes.find(n => n.type === 'StatefulSet')!;
+    addNode('Pod', { x: 10, y: 10 }, ssParent.id);
+    expect(useFlowStore.getState().nodes.some(n => n.parentId === ssParent.id && n.type === 'Pod')).toBe(true);
+
+    // 2. Add Pod into ReplicaSet parent with an unrelated node on canvas
+    addNode('ReplicaSet', { x: 100, y: 100 });
+    const rsParent = useFlowStore.getState().nodes.find(n => n.type === 'ReplicaSet')!;
+    addNode('Pod', { x: 110, y: 110 }, rsParent.id);
+    expect(useFlowStore.getState().nodes.some(n => n.parentId === rsParent.id && n.type === 'Pod')).toBe(true);
+  });
+
+  it('covers processNodeDeletion for child pod inside Namespace parent and with unrelated canvas nodes', () => {
+    const nsParent = { id: 'ns-del-test', type: 'Namespace', position: { x: 0, y: 0 }, data: {} };
+    const podInNs = { id: 'pod-in-ns', type: 'Pod', parentId: 'ns-del-test', position: { x: 10, y: 10 }, data: {} };
+    const unrelatedNode = { id: 'unrelated-del', type: 'Service', position: { x: 50, y: 50 }, data: { label: 'svc-unrelated' } };
+
+    useFlowStore.setState({ nodes: [nsParent, podInNs, unrelatedNode] as any });
+    const { deleteNodes } = useFlowStore.getState();
+
+    // Deleting pod inside Namespace: parent is not in WORKLOAD_CONTROLLERS
+    deleteNodes([podInNs as any]);
+    expect(useFlowStore.getState().nodes.some(n => n.id === 'pod-in-ns')).toBe(false);
+
+    // Deleting child pod inside Deployment with unrelated node on canvas to exercise others.map fallback
+    const depParent = { id: 'dep-del-test', type: 'Deployment', position: { x: 0, y: 0 }, data: { replicas: 2 } };
+    const childPodNoReplicas = { id: 'pod-no-rep', type: 'Pod', parentId: 'dep-del-test', position: { x: 10, y: 10 }, data: {} }; // no replicas in data
+    useFlowStore.setState({ nodes: [depParent, childPodNoReplicas, unrelatedNode] as any });
+
+    deleteNodes([childPodNoReplicas as any]);
+    expect(useFlowStore.getState().nodes.some(n => n.id === 'pod-no-rep')).toBe(false);
+    expect(useFlowStore.getState().nodes.some(n => n.id === 'unrelated-del')).toBe(true);
+  });
+
+  it('covers deleteNodes for PVC/Namespace (non-workload) and fallback dimensions/types', () => {
+    const pvcNode = { id: 'pvc-del', type: 'PVC', position: { x: 0, y: 0 }, data: {} }; // no width/height/label
+    const nodeNoType = { id: 'node-notype', position: { x: 10, y: 10 }, data: {} }; // no type property
+    useFlowStore.setState({ nodes: [pvcNode, nodeNoType] as any });
+
+    const { deleteNodes } = useFlowStore.getState();
+    deleteNodes([pvcNode as any, nodeNoType as any]);
+
+    expect(useFlowStore.getState().nodes.some(n => n.id === 'pvc-del')).toBe(false);
+    expect(useFlowStore.getState().nodes.some(n => n.id === 'node-notype')).toBe(false);
+  });
+
+  it('covers Ingress filter with unrelated edge and live resource command limit fallbacks', () => {
+    const ingress = { id: 'ing-edge-test', type: 'Ingress', position: { x: 0, y: 0 }, data: { backendServiceName: 'web-svc' } };
+    const svc = { id: 'svc-match', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'web-svc' } };
+    const unrelatedEdge = { id: 'e-unrelated-source', source: 'some-other-source', target: 'some-other-target' };
+    const ingressEdge = { id: 'e-ing-svc', source: 'ing-edge-test', target: 'svc-match' };
+
+    useFlowStore.setState({ nodes: [ingress, svc] as any, edges: [unrelatedEdge, ingressEdge] as any });
+    const { updateNodeData } = useFlowStore.getState();
+
+    // Trigger Ingress filter while unrelated edge exists
+    updateNodeData(ingress.id, { backendServiceName: 'web-svc' });
+    expect(useFlowStore.getState().edges.some(e => e.id === 'e-unrelated-source')).toBe(true);
+
+    // Updating only cpuLimit (memoryLimit undefined) and updating only memoryLimit (cpuLimit undefined)
+    const depNode = { id: 'dep-res-partial', type: 'Deployment', position: { x: 0, y: 0 }, data: { cpuLimit: '100m', memoryLimit: '128Mi' } };
+    useFlowStore.setState({ nodes: [depNode] as any });
+
+    updateNodeData(depNode.id, { cpuLimit: '250m' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === depNode.id)?.data.cpuLimit).toBe('250m');
+
+    updateNodeData(depNode.id, { memoryLimit: '512Mi' });
+    expect(useFlowStore.getState().nodes.find(n => n.id === depNode.id)?.data.memoryLimit).toBe('512Mi');
+  });
+
+  it('covers onNodeClick activeDeploymentId null for Pod, and workloadType non-controller Pod', () => {
+    const podNode = { id: 'pod-plain-click', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'plain-pod' } };
+    useFlowStore.setState({ nodes: [podNode] as any, activeDeploymentId: 'some-dep' });
+
+    const { onNodeClick, updateNodeData } = useFlowStore.getState();
+
+    // 1. onNodeClick on Pod sets activeDeploymentId to null
+    onNodeClick({} as any, podNode as any);
+    expect(useFlowStore.getState().activeDeploymentId).toBeNull();
+    expect(useFlowStore.getState().configuringNodeId).toBe('pod-plain-click');
+
+    // 2. updateNodeData passing workloadType on a Pod node: does not transform type
+    updateNodeData(podNode.id, { workloadType: 'StatefulSet' as any, label: 'pod-new-lbl' });
+    const updated = useFlowStore.getState().nodes.find(n => n.id === podNode.id)!;
+    expect(updated.type).toBe('Pod');
+  });
+
+
+  it('covers attached patch fallbacks for secrets, hpas, and resourceLimits with sibling label fallback', () => {
+    const pod1 = {
+      id: 'p-patch-1',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: { baseName: 'shared-workload', podHash: 'hash123', label: 'shared-workload-abc' },
+    };
+    const pod2 = {
+      id: 'p-patch-2',
+      type: 'Pod',
+      position: { x: 50, y: 50 },
+      data: { baseName: undefined, podHash: 'hash123', label: 'shared-workload' },
+    };
+    useFlowStore.setState({ nodes: [pod1, pod2] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+
+    // 1. Secrets update
+    updateNodeData(pod1.id, { secrets: ['sec-test-1'] });
+    let p2 = useFlowStore.getState().nodes.find(n => n.id === pod2.id);
+    expect(p2?.data.secrets).toEqual(['sec-test-1']);
+
+    // 2. HPAs update
+    updateNodeData(pod1.id, { hpas: ['hpa-test-1'] });
+    p2 = useFlowStore.getState().nodes.find(n => n.id === pod2.id);
+    expect(p2?.data.hpas).toEqual(['hpa-test-1']);
+
+    // 3. ResourceLimits update
+    updateNodeData(pod1.id, { resourceLimits: ['limit-test-1'] });
+    p2 = useFlowStore.getState().nodes.find(n => n.id === pod2.id);
+    expect(p2?.data.resourceLimits).toEqual(['limit-test-1']);
+  });
+
+  it('covers handlePodParentSync with undefined parent replicas and scaling to 0', () => {
+    const parentDeploy = {
+      id: 'parent-dep-zero',
+      type: 'Deployment',
+      position: { x: 0, y: 0 },
+      data: { label: 'web-deploy', replicas: undefined },
+    };
+    const childPod = {
+      id: 'child-pod-zero',
+      type: 'Pod',
+      parentId: 'parent-dep-zero',
+      position: { x: 10, y: 10 },
+      data: { label: 'web-deploy-pod1', baseName: 'web-deploy' },
+    };
+    useFlowStore.setState({ nodes: [parentDeploy, childPod] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(childPod.id, { replicas: 0 });
+
+    const updatedParent = useFlowStore.getState().nodes.find(n => n.id === parentDeploy.id);
+    expect(updatedParent?.data.replicas).toBe(0);
+  });
+
+  it('covers syncEdgesFromFormSelection with missing type and baseName fallback on targets', () => {
+    const untypedNode = {
+      id: 'untyped-node-1',
+      type: undefined as any,
+      position: { x: 100, y: 100 },
+      data: { label: 'other-label' },
+    };
+    const targetDeploy = {
+      id: 'target-dep-basename',
+      type: 'Deployment',
+      position: { x: 200, y: 200 },
+      data: { label: '', baseName: 'backend-svc-sel' },
+    };
+    const svc = {
+      id: 'svc-sel-test',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'my-service', selector: 'backend-svc-sel', serviceType: 'ClusterIP' },
+    };
+    const existingEdge = {
+      id: 'e-svc-target-1',
+      source: svc.id,
+      target: targetDeploy.id,
+      type: 'custom',
+    };
+    useFlowStore.setState({
+      nodes: [untypedNode, targetDeploy, svc] as any,
+      edges: [existingEdge],
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+    // Update selector triggering edge evaluation
+    updateNodeData(svc.id, { selector: 'backend-svc-sel' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.source === svc.id && e.target === targetDeploy.id)).toBe(true);
+  });
+
+  it('covers target without type, empty labels, and fallback to id for live commands and logs', () => {
+    const untypedTarget = {
+      id: 'untyped-target-node',
+      type: undefined as any,
+      position: { x: 0, y: 0 },
+      data: { label: '', baseName: 'prev-basename' },
+    };
+    useFlowStore.setState({ nodes: [untypedTarget] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(untypedTarget.id, {
+      label: '',
+      image: 'nginx:alpine',
+      cpuLimit: '250m',
+    });
+
+    const updated = useFlowStore.getState().nodes.find(n => n.id === untypedTarget.id);
+    expect(updated).toBeDefined();
+  });
+
+  it('covers onNodeClick with undefined iamUsers and empty label in forbidden log', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({
+      activeIdentity: 'restricted-user',
+      iamUsers: undefined as any,
+      addLog: addLogSpy,
+    });
+
+    const secretNode = {
+      id: 'secret-card-unlabeled',
+      type: 'Secret',
+      position: { x: 0, y: 0 },
+      data: { label: '' },
+    };
+    useFlowStore.setState({ nodes: [secretNode] as any });
+
+    const { onNodeClick } = useFlowStore.getState();
+    onNodeClick({} as any, secretNode as any);
+
+    expect(addLogSpy).toHaveBeenCalledWith(
+      'warn',
+      expect.stringContaining('Access forbidden for user "restricted-user" on card "secret-card-unlabeled" (Secret)'),
+      'UI'
+    );
+  });
+
+
+  it('covers handleAdditionSync when Pod is added into a Namespace parent', () => {
+    const nsNode = { id: 'ns-target', type: 'Namespace', position: { x: 0, y: 0 }, data: { label: 'my-ns' } };
+    useFlowStore.setState({ nodes: [nsNode] as any });
+
+    const { addNode } = useFlowStore.getState();
+    addNode('Pod', { x: 50, y: 50 }, 'ns-target');
+
+    const pod = useFlowStore.getState().nodes.find(n => n.type === 'Pod');
+    expect(pod?.parentId).toBe('ns-target');
+  });
+
+  it('covers sanitizeAndUpdateServiceSelector when selector is empty/undefined', () => {
+    const svc = {
+      id: 'svc-no-sel',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'svc-no-sel', serviceType: 'LoadBalancer', selector: '' },
+    };
+    useFlowStore.setState({ nodes: [svc] as any });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(svc.id, { serviceType: 'ClusterIP' });
+
+    const updatedSvc = useFlowStore.getState().nodes.find(n => n.id === svc.id);
+    expect(updatedSvc?.data.serviceType).toBe('ClusterIP');
+  });
+
+  it('covers Ingress filter preserving edges where e.source !== targetNode.id', () => {
+    const ingress = {
+      id: 'ing-edge-test',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'my-ing', backendServiceName: 'old-svc' },
+    };
+    const svc = {
+      id: 'svc-matching',
+      type: 'Service',
+      position: { x: 200, y: 0 },
+      data: { label: 'new-svc' },
+    };
+    const unrelatedEdge = {
+      id: 'e-unrelated-source',
+      source: 'other-source-id',
+      target: 'other-target-id',
+    };
+    const oldIngressEdge = {
+      id: 'e-old-ingress',
+      source: ingress.id,
+      target: svc.id,
+    };
+    useFlowStore.setState({
+      nodes: [ingress, svc] as any,
+      edges: [unrelatedEdge, oldIngressEdge] as any,
+    });
+
+    const { updateNodeData } = useFlowStore.getState();
+    updateNodeData(ingress.id, { backendServiceName: 'new-svc' });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges.some(e => e.id === 'e-unrelated-source')).toBe(true);
+    expect(edges.some(e => e.source === ingress.id && e.target === svc.id)).toBe(true);
   });
 
 });
