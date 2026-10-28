@@ -254,6 +254,32 @@ describe('useFileBackstageView', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('handles quick save when app.SaveProject or app.SaveSetting is missing', async () => {
+    // 1. Missing SaveProject when autosave is off
+    useFlowStore.setState({ currentProject: null, isAutosaveEnabled: false });
+    (globalThis as any).go = {
+      main: {
+        App: {},
+      },
+    };
+
+    const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
+
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 2. Missing SaveSetting when autosave is on
+    useFlowStore.setState({ currentProject: null, isAutosaveEnabled: true });
+    await act(async () => {
+      await result.current.handleQuickSaveCurrent();
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('calls handleRestore, handleDeleteFile, and handleOpenFolder wrapper functions', async () => {
     const { result } = renderHook(() => useFileBackstageView({ isOpen: true, onClose }));
 

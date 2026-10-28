@@ -390,6 +390,89 @@ describe('useAppHelpers', () => {
       ]);
     });
 
+    it('covers all condition branches in handleConfigMapSave: cluster-storage, list mode with/without resourceName, fallback label, and fallback type', () => {
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      // 1. Target node has no data.label and no type (falls back to target.id and 'Resource')
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'node-bare',
+            position: { x: 0, y: 0 },
+            data: {}, // no label
+          } as any,
+        ],
+      });
+
+      act(() => {
+        result.current.setConfigMapModalTargetNode({ id: 'node-bare', label: '' });
+      });
+
+      act(() => {
+        result.current.handleConfigMapSave({ id: 'cm-bare', name: 'bare-cm', configData: [] });
+      });
+
+      let nodes = useFlowStore.getState().nodes;
+      expect(nodes[0].data.configMaps).toEqual([
+        expect.objectContaining({
+          id: 'cm-bare',
+          resourceName: 'node-bare', // fell back to target.id
+          resourceType: 'Resource',   // fell back to 'Resource'
+        }),
+      ]);
+
+      // 2. targetNodeId is 'cluster-storage' (unattached in overview)
+      act(() => {
+        result.current.setConfigMapModalTargetNode({ id: 'cluster-storage', label: 'Cluster ConfigMaps', initialViewMode: 'list' });
+      });
+
+      act(() => {
+        result.current.handleConfigMapSave({ id: 'cm-cs', name: 'cs-cm', configData: [] });
+      });
+
+      expect(useFlowStore.getState().savedConfigMaps).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'cm-cs', name: 'cs-cm' })])
+      );
+
+      // 3. initialViewMode === 'list' with cmItem.resourceName present (isUnattachedInOverview is false, attaches to node)
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'node-with-res',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: { label: 'Pod With Res' },
+          } as any,
+        ],
+      });
+
+      act(() => {
+        result.current.setConfigMapModalTargetNode({ id: 'node-with-res', label: 'Pod With Res', initialViewMode: 'list' });
+      });
+
+      act(() => {
+        result.current.handleConfigMapSave({ id: 'cm-with-res', name: 'with-res-cm', resourceName: 'Pod With Res', configData: [] });
+      });
+
+      nodes = useFlowStore.getState().nodes;
+      expect(nodes[0].data.configMaps).toEqual([
+        expect.objectContaining({ id: 'cm-with-res', name: 'with-res-cm', resourceName: 'Pod With Res' }),
+      ]);
+
+      // 4. initialViewMode === 'list' with !cmItem.resourceName (isUnattachedInOverview is true, stays unattached)
+      act(() => {
+        result.current.setConfigMapModalTargetNode({ id: 'node-with-res', label: 'Pod With Res', initialViewMode: 'list' });
+      });
+
+      act(() => {
+        result.current.handleConfigMapSave({ id: 'cm-unattached-list', name: 'unattached-list-cm', configData: [] });
+      });
+
+      expect(useFlowStore.getState().savedConfigMaps).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'cm-unattached-list', name: 'unattached-list-cm' })])
+      );
+    });
+
     it('handleSecretSave returns early or attaches new/updated Secret', () => {
       const { result } = renderHook(() => useAttachmentHandlers());
 
