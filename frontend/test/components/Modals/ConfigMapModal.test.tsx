@@ -38,12 +38,7 @@ describe('ConfigMapModal', () => {
     const initialConfigMap: K8sConfigMapItem = {
       id: 'cm-123',
       name: 'existing-config',
-      configData: [
-        { key: 'PORT', value: '8080' },
-        { key: 'MAX_CONNECTIONS', value: '500' },
-        { key: 'LOG_LEVEL', value: 'WARN' },
-        { key: 'CHAOS_MODE', value: 'disabled' },
-      ],
+      configData: [{ key: 'PORT', value: '8080' }, { key: 'MAX_CONNECTIONS', value: '500' }, { key: 'LOG_LEVEL', value: 'WARN' }, { key: 'CHAOS_MODE', value: 'disabled' }],
     };
 
     render(<ConfigMapModal {...defaultProps} initialConfigMap={initialConfigMap} />);
@@ -69,7 +64,7 @@ describe('ConfigMapModal', () => {
     expect(keyInput).toHaveValue('MAX_CONNECTIONS');
   });
 
-  it('calls onSave and onClose when saving parameters', () => {
+  it('calls onSave and returns to Cluster ConfigMaps Overview list view instead of closing modal', () => {
     render(<ConfigMapModal {...defaultProps} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
@@ -89,11 +84,10 @@ describe('ConfigMapModal', () => {
     expect(defaultProps.onSave).toHaveBeenCalledWith({
       id: expect.any(String),
       name: 'my-custom-cm',
-      configData: [
-        { key: 'PORT', value: '80' },
-      ],
+      configData: [{ key: 'PORT', value: '80' }],
     });
-    expect(defaultProps.onClose).toHaveBeenCalled();
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
   });
 
   it('renders in light color mode correctly with default subtitle and light dropdown options', () => {
@@ -179,10 +173,10 @@ describe('ConfigMapModal', () => {
     expect(screen.getByText('web-config')).toBeInTheDocument();
     expect(screen.getByText('db-config')).toBeInTheDocument();
     expect(screen.getByText('web-pod')).toBeInTheDocument();
-    expect(screen.getByText('Cluster Storage')).toBeInTheDocument();
+    expect(screen.queryByText('Cluster Storage')).not.toBeInTheDocument();
     expect(screen.getByTestId('cm-profile-cm-web')).toHaveTextContent(/Profile:autosave-/);
     expect(screen.getByTestId('cm-resource-cm-web')).toHaveTextContent('Pod:web-pod');
-    expect(screen.getByTestId('cm-resource-cm-db')).toHaveTextContent('Cluster Storage');
+    expect(screen.getByTestId('cm-resource-cm-db')).toHaveTextContent('-');
 
     // Click Edit on db-config item
     fireEvent.click(screen.getByTitle('Edit ConfigMap db-config'));
@@ -221,5 +215,191 @@ describe('ConfigMapModal', () => {
     fireEvent.click(screen.getByTitle('Delete ConfigMap web-config'));
     expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', { configMaps: [] });
     expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-web');
+  });
+
+  it('navigates from list view to single profile precedence view when clicking profile badge, and navigates back to list view', () => {
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [{ id: 'cm-web', name: 'web-config', profileName: 'staging-profile', configData: [{ key: 'PORT', value: '8080' }] }] } }],
+      savedConfigMaps: [],
+    });
+
+    render(<ConfigMapModal {...defaultProps} initialViewMode="list" />);
+
+    // Starts in list view
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+
+    // Click profile badge button in table
+    const profileBadge = screen.getByTestId('cm-profile-cm-web');
+    expect(profileBadge).toBeInTheDocument();
+    fireEvent.click(profileBadge);
+
+    // Now in single profile precedence view
+    expect(screen.getByText(/ConfigMap Profile — staging-profile/i)).toBeInTheDocument();
+    expect(screen.getByTestId('configmap-precedence-view')).toBeInTheDocument();
+    expect(screen.getByTestId('cm-id-cm-web')).toHaveTextContent('cm-web');
+
+    // Click Back to ConfigMap list
+    const backBtn = screen.getByTestId('configmap-profile-back-button');
+    fireEvent.click(backBtn);
+
+    // Returns to list view
+    expect(screen.getByText('Cluster ConfigMaps Overview')).toBeInTheDocument();
+  });
+
+  it('handles removing the attached component from the ConfigMap in detail view like Tagify', () => {
+    const mockUpdateNodeData = vi.fn();
+    useFlowStore.setState({
+      nodes: [{ id: 'node-dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'api-server', configMaps: [{ id: 'cm-api', name: 'api-config', configData: [{ key: 'PORT', value: '3000' }] }] } }],
+      savedConfigMaps: [],
+      updateNodeData: mockUpdateNodeData,
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        targetNodeId="node-dep-1"
+        targetNodeLabel="api-server"
+        initialConfigMap={{
+          id: 'cm-api',
+          name: 'api-config',
+          configData: [{ key: 'PORT', value: '3000' }],
+        }}
+      />
+    );
+
+    // Initial attached component tag is visible
+    expect(screen.getByTestId('attached-component-tag-node-dep-1')).toHaveTextContent('Deployment:api-server');
+
+    // Click Tagify X remove button on the tag
+    const removeBtn = screen.getByTestId('remove-component-tag-node-dep-1');
+    fireEvent.click(removeBtn);
+
+    // Expect node update to remove the configMap
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('node-dep-1', { configMaps: [] });
+
+    // Expect tag to be removed from the container
+    expect(screen.queryByTestId('attached-component-tag-node-dep-1')).not.toBeInTheDocument();
+  });
+
+  it('handles attaching to a component from Tagify suggestions in detail view', () => {
+    const mockUpdateNodeData = vi.fn();
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-worker', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'worker-pod', configMaps: [] } }],
+      savedConfigMaps: [],
+      updateNodeData: mockUpdateNodeData,
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster ConfigMaps"
+        initialConfigMap={{
+          id: 'cm-worker',
+          name: 'worker-config',
+          configData: [{ key: 'QUEUE', value: 'redis' }],
+        }}
+      />
+    );
+
+    // Focus Tagify input to open suggestions
+    const input = screen.getByPlaceholderText('Attach component (e.g. Deployment, Pod)...');
+    fireEvent.focus(input);
+
+    expect(screen.getByTestId('tagify-suggestions-dropdown')).toBeInTheDocument();
+
+    // Select pod-worker from Tagify dropdown
+    fireEvent.mouseDown(screen.getByTestId('tagify-suggestion-pod-worker'));
+
+    // Expect node update to receive the configMap
+    expect(mockUpdateNodeData).toHaveBeenCalledWith(
+      'pod-worker',
+      expect.objectContaining({
+        configMaps: expect.arrayContaining([
+          expect.objectContaining({ name: 'worker-config' }),
+        ]),
+      })
+    );
+
+    // Expect attached component tag to be rendered
+    expect(screen.getByTestId('attached-component-tag-pod-worker')).toHaveTextContent('Pod:worker-pod');
+  });
+
+  it('handles adding/importing key-value pairs from existing ConfigMap data', () => {
+    useFlowStore.setState({
+      nodes: [],
+      savedConfigMaps: [{ id: 'cm-source', name: 'source-config', configData: [{ key: 'DB_HOST', value: 'postgres' }, { key: 'DB_PORT', value: '5432' }] }],
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        initialConfigMap={{
+          id: 'cm-new',
+          name: 'new-config',
+          configData: [{ key: 'INIT', value: 'true' }],
+        }}
+      />
+    );
+
+    // Click Add from Existing button
+    const importBtn = screen.getByTestId('btn-add-from-existing-cm');
+    fireEvent.click(importBtn);
+
+    // Verify dropdown menu opens
+    expect(screen.getByTestId('import-existing-cm-menu')).toBeInTheDocument();
+    expect(screen.getByTestId('import-option-source-config')).toBeInTheDocument();
+
+    // Click source-config option
+    fireEvent.click(screen.getByTestId('import-option-source-config'));
+
+    // Check that imported keys and values now appear in the form
+    expect(screen.getByDisplayValue('DB_HOST')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('postgres')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('DB_PORT')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('5432')).toBeInTheDocument();
+  });
+
+  it('does not prefill attached component by default when adding a new configmap, leaving it unattached/empty', () => {
+    const mockOnSave = vi.fn();
+    useFlowStore.setState({
+      nodes: [{ id: 'pod-1', type: 'Pod', position: { x: 0, y: 0 }, data: { label: 'web-pod', configMaps: [] } }],
+      savedConfigMaps: [],
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        targetNodeId="pod-1"
+        targetNodeLabel="web-pod"
+        initialConfigMap={null}
+        onSave={mockOnSave}
+      />
+    );
+
+    // No default component should be attached
+    expect(screen.queryByTestId('attached-component-tag-pod-1')).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Attach component (e.g. Deployment, Pod)...')).toBeInTheDocument();
+
+    // Add row and save
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'CUSTOM_KEY' } });
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'custom_val' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach ConfigMap' }));
+
+    // Saved item must not have resourceName or resourceType
+    expect(mockOnSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.any(String),
+        configData: [{ key: 'CUSTOM_KEY', value: 'custom_val' }],
+      })
+    );
+    const savedItem = mockOnSave.mock.calls[0][0];
+    expect(savedItem.resourceName).toBeUndefined();
+    expect(savedItem.resourceType).toBeUndefined();
   });
 });

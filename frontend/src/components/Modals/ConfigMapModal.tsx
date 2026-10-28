@@ -3,9 +3,10 @@ import { Settings, Plus, Trash2, HelpCircle, TerminalSquare, ArrowLeft } from 'l
 import { createPortal } from 'react-dom';
 import { Modal } from './Modal';
 import { ConfigMapListView } from './ConfigMapListView';
+import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
 import { K8sConfigMapItem } from '@/types';
-import { cn } from '@/lib/utils';
-import { useConfigMapModal, findActiveKeyInfo } from '@/activities/modals';
+import { cn, safeRandom } from '@/lib/utils';
+import { useConfigMapModal, findActiveKeyInfo, buildConfigMapItem } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
 import { getActiveProfileName } from '@/store/useFlowStore';
@@ -14,7 +15,11 @@ import {
   extractAllOverviewItems,
   filterOverviewItems,
 } from '@/activities/modals/attachedResourceOverviewHelpers';
-import { removeConfigMapFromLocal } from '@/activities/modals/configMapStorageHelpers';
+import { removeConfigMapFromLocal, persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
+import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
+import { ConfigMapImportDataDropdown } from './ConfigMapImportDataDropdown';
+
+export type ConfigMapModalMode = 'form' | 'list' | 'profile';
 
 export interface ConfigMapModalProps {
   readonly isOpen: boolean;
@@ -81,9 +86,47 @@ const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
   </button>
 );
 
-function getModalTitle(isListMode: boolean, hasExistingItem: boolean): string {
-  if (isListMode) {
+export function findAllAttachedComponents(
+  cmId: string | undefined,
+  cmName: string | undefined,
+  nodes: any[],
+  resourceName?: string
+): ComponentOption[] {
+  const results: ComponentOption[] = [];
+  const foundNodeIds = new Set<string>();
+
+  if (cmId || cmName) {
+    nodes.forEach((node) => {
+      const nodeLabel = (node.data?.label as string) || node.id;
+      const isAttachedInNode =
+        Array.isArray(node.data?.configMaps) &&
+        node.data.configMaps.some((c: any) => (cmId && c.id === cmId) || (cmName && c.name === cmName));
+      const isNamedResource = Boolean(resourceName && (nodeLabel === resourceName || node.id === resourceName));
+
+      if ((isAttachedInNode || isNamedResource) && !foundNodeIds.has(node.id)) {
+        foundNodeIds.add(node.id);
+        results.push({
+          id: node.id,
+          label: nodeLabel,
+          type: node.type || 'Node',
+        });
+      }
+    });
+  }
+
+  return results;
+}
+
+function getModalTitle(
+  mode: ConfigMapModalMode,
+  hasExistingItem: boolean,
+  selectedProfile?: string | null
+): string {
+  if (mode === 'list') {
     return 'Cluster ConfigMaps Overview';
+  }
+  if (mode === 'profile') {
+    return `ConfigMap Profile — ${selectedProfile || 'Canvas Profile'}`;
   }
   if (hasExistingItem) {
     return 'Edit ConfigMap';
@@ -92,13 +135,17 @@ function getModalTitle(isListMode: boolean, hasExistingItem: boolean): string {
 }
 
 function getModalSubtitle(
-  isListMode: boolean,
+  mode: ConfigMapModalMode,
   filteredCount: number,
-  targetNodeLabel?: string
+  targetNodeLabel?: string,
+  selectedProfile?: string | null
 ): string {
-  if (isListMode) {
+  if (mode === 'list') {
     const plural = filteredCount === 1 ? '' : 's';
     return `${filteredCount} ConfigMap${plural} available across cluster`;
+  }
+  if (mode === 'profile') {
+    return `Canvas Profile: ${selectedProfile || 'Active'} • Evaluation Precedence Order`;
   }
   if (targetNodeLabel) {
     return `Target card: ${targetNodeLabel}`;
@@ -131,7 +178,7 @@ function removeConfigMapFromNodeOrStore(
 }
 
 interface ConfigMapModalFooterProps {
-  readonly isListMode: boolean;
+  readonly mode: ConfigMapModalMode;
   readonly isDark: boolean;
   readonly hasExistingItem: boolean;
   readonly onAddNewFromList: () => void;
@@ -141,7 +188,7 @@ interface ConfigMapModalFooterProps {
 }
 
 const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
-  isListMode,
+  mode,
   isDark,
   hasExistingItem,
   onAddNewFromList,
@@ -149,7 +196,7 @@ const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
   onBackToMode,
   onSave,
 }) => {
-  if (isListMode) {
+  if (mode === 'list') {
     return (
       <div className="flex items-center justify-between w-full">
         <button
@@ -172,6 +219,49 @@ const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
         >
           Close
         </button>
+      </div>
+    );
+  }
+
+  if (mode === 'profile') {
+    return (
+      <div className="flex items-center justify-between w-full">
+        <button
+          type="button"
+          data-testid="configmap-footer-back-button"
+          onClick={onBackToMode}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
+            isDark
+              ? "border-slate-700 hover:bg-slate-800 text-teal-400"
+              : "border-slate-300 hover:bg-slate-100 text-teal-600"
+          )}
+        >
+          <ArrowLeft size={13} />
+          <span>Back to List</span>
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onAddNewFromList}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-all cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>+ Add ConfigMap</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
+              isDark
+                ? "border-slate-700 hover:bg-slate-800 text-slate-300"
+                : "border-slate-300 hover:bg-slate-100 text-slate-700"
+            )}
+          >
+            Close
+          </button>
+        </div>
       </div>
     );
   }
@@ -219,6 +309,7 @@ const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
 
 interface ConfigMapRowItemProps {
   readonly row: { id: string; key: string; value: string };
+  readonly index: number;
   readonly isDark: boolean;
   readonly onFocusOrChange: (target: HTMLElement, rowId: string, field: 'key' | 'value', value?: string) => void;
   readonly onRemove: (rowId: string) => void;
@@ -226,6 +317,7 @@ interface ConfigMapRowItemProps {
 
 const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
   row,
+  index,
   isDark,
   onFocusOrChange,
   onRemove,
@@ -240,7 +332,13 @@ const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
       )}
     >
       <div className="flex items-center gap-2">
-        <div className="w-1/2">
+        <span
+          data-testid={`cm-row-id-${row.id}`}
+          className="w-8 text-center text-xs font-mono font-bold text-slate-500 shrink-0 select-none"
+        >
+          #{index + 1}
+        </span>
+        <div className="flex-1">
           <input
             id={`cm-key-input-${row.id}`}
             aria-label="Key"
@@ -258,7 +356,7 @@ const ConfigMapRowItem: React.FC<ConfigMapRowItemProps> = ({
           />
         </div>
 
-        <div className="w-1/2">
+        <div className="flex-1">
           <input
             id={`cm-val-input-${row.id}`}
             aria-label="Value"
@@ -384,7 +482,8 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   initialViewMode,
   onSave,
 }) => {
-  const [mode, setMode] = useState<'form' | 'list'>('form');
+  const [mode, setMode] = useState<ConfigMapModalMode>('form');
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const nodes = useFlowStore((state) => state.nodes);
@@ -400,6 +499,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     setCmName,
     rows,
     activeItem,
+    setActiveItem,
     loadConfigMap,
     activeDropdown,
     setActiveDropdown,
@@ -408,10 +508,10 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     filteredKeys,
     filteredValues,
     handleAddRow,
+    handleAddMultipleRows,
     handleRemoveRow,
     handleRowChange,
     handleInputFocusOrChange,
-    handleSave,
   } = useConfigMapModal({
     isOpen,
     onClose,
@@ -419,6 +519,10 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     initialConfigMap,
     onSave,
   });
+
+  const [attachedComponents, setAttachedComponents] = useState<ComponentOption[]>([]);
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
 
   const portalContainerRef = useRef<HTMLDivElement>(null);
   const [portalSelectedIndex, setPortalSelectedIndex] = useState<number>(0);
@@ -431,6 +535,34 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       setMode('form');
     }
   }, [isOpen, initialViewMode, initialConfigMap?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const initialCmId = initialConfigMap?.id || activeItem?.id;
+    const initialCmName = initialConfigMap?.name || activeItem?.name;
+    const resName = initialConfigMap?.resourceName || activeItem?.resourceName;
+    const initialComps = findAllAttachedComponents(
+      initialCmId,
+      initialCmName,
+      nodes,
+      resName
+    );
+    setAttachedComponents(initialComps);
+  }, [isOpen, initialConfigMap?.id, initialConfigMap?.name, initialConfigMap?.resourceName, activeItem?.id, activeItem?.name, activeItem?.resourceName, nodes]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
+        setIsImportDropdownOpen(false);
+      }
+    };
+    if (isImportDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isImportDropdownOpen]);
 
   useEffect(() => {
     setPortalSelectedIndex(0);
@@ -453,15 +585,71 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     [allItems, search]
   );
 
+  const profileItems = useMemo(() => {
+    if (!selectedProfile) return [];
+    const seen = new Set<string>();
+    return allItems.filter((item) => {
+      const itemProfile =
+        item.profileName && item.profileName !== 'Default Profile'
+          ? item.profileName
+          : getCurrentSessionAutosaveKey();
+      if (itemProfile !== selectedProfile) return false;
+      const dedupeKey = `${item.id}::${item.ownerNode.label}`;
+      if (seen.has(dedupeKey)) return false;
+      seen.add(dedupeKey);
+      return true;
+    });
+  }, [allItems, selectedProfile]);
+
+  const availableComponents = useMemo(() => {
+    return nodes
+      .filter((n) =>
+        ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'].includes(n.type || '')
+      )
+      .map((n) => ({
+        id: n.id,
+        label: (n.data?.label as string) || n.id,
+        type: n.type || 'Node',
+      }));
+  }, [nodes]);
+
+  const existingConfigMapsWithData = useMemo(() => {
+    const list: K8sConfigMapItem[] = [];
+    const seen = new Set<string>();
+    const currentId = activeItem?.id || initialConfigMap?.id;
+    allItems.forEach((item) => {
+      const raw = item.rawItem as K8sConfigMapItem;
+      if (
+        raw &&
+        Array.isArray(raw.configData) &&
+        raw.configData.length > 0 &&
+        raw.id !== currentId &&
+        !seen.has(raw.name)
+      ) {
+        seen.add(raw.name);
+        list.push(raw);
+      }
+    });
+    return list;
+  }, [allItems, activeItem?.id, initialConfigMap?.id]);
+
   if (!isOpen) return null;
 
   const handleEditFromList = (item: OverviewItem) => {
     loadConfigMap(item.rawItem);
+    const comps = findAllAttachedComponents(
+      item.rawItem.id,
+      item.rawItem.name,
+      nodes,
+      item.rawItem.resourceName || (item.ownerNode.id !== 'cluster-storage' ? item.ownerNode.label : undefined)
+    );
+    setAttachedComponents(comps);
     setMode('form');
   };
 
   const handleAddNewFromList = () => {
     loadConfigMap(null);
+    setAttachedComponents([]);
     setMode('form');
   };
 
@@ -469,20 +657,142 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     removeConfigMapFromNodeOrStore(item, nodes, updateNodeData, deleteSavedConfigMap, addLog);
   };
 
-  const isListMode = mode === 'list';
+  const handleRemoveComponent = (componentId: string) => {
+    const owner = nodes.find((n) => n.id === componentId);
+    const targetCmId = activeItem?.id || initialConfigMap?.id;
+    if (owner) {
+      const currentList: K8sConfigMapItem[] = owner.data?.configMaps || [];
+      const updatedList = currentList.filter(
+        (c) => c.id !== targetCmId && c.name !== cmName
+      );
+      updateNodeData(owner.id, { configMaps: updatedList });
+      addLog(
+        'info',
+        `[ConfigMap] Removed attached component '${owner.data?.label || owner.id}' from ConfigMap '${cmName}'`,
+        'UI'
+      );
+    }
+
+    const remaining = attachedComponents.filter((c) => c.id !== componentId);
+    setAttachedComponents(remaining);
+
+    const targetId = targetCmId || `cm-${Date.now()}`;
+    const updatedRaw: K8sConfigMapItem = {
+      ...activeItem,
+      id: targetId,
+      name: cmName,
+      configData: rows.map((r) => ({ key: r.key, value: r.value })),
+      profileName: activeItem?.profileName || currentProfileName,
+      resourceName: remaining.length > 0 ? remaining.map((r) => r.label).join(', ') : undefined,
+      resourceType: remaining.length > 0 ? remaining[0].type : undefined,
+    };
+    useFlowStore.getState().addOrUpdateSavedConfigMap(updatedRaw);
+    void persistConfigMapItem(updatedRaw);
+
+    if (activeItem) {
+      setActiveItem({
+        ...activeItem,
+        resourceName: updatedRaw.resourceName,
+        resourceType: updatedRaw.resourceType,
+      });
+    }
+  };
+
+  const handleAttachComponent = (comp: ComponentOption) => {
+    const targetNode = nodes.find((n) => n.id === comp.id);
+    if (!targetNode) return;
+
+    const targetLabel = (targetNode.data?.label as string) || targetNode.id;
+    const targetType = targetNode.type || 'Node';
+
+    const targetId = activeItem?.id || initialConfigMap?.id || `cm-${Date.now()}`;
+    const updatedCm: K8sConfigMapItem = {
+      ...activeItem,
+      id: targetId,
+      name: cmName,
+      configData: rows.map((r) => ({ key: r.key, value: r.value })),
+      profileName: activeItem?.profileName || currentProfileName,
+      resourceName: targetLabel,
+      resourceType: targetType,
+    };
+
+    const currentCMs: K8sConfigMapItem[] = targetNode.data?.configMaps || [];
+    const exists = currentCMs.some((c) => c.id === targetId || c.name === cmName);
+    const updatedCMs = exists
+      ? currentCMs.map((c) => (c.id === targetId || c.name === cmName ? updatedCm : c))
+      : [...currentCMs, updatedCm];
+    updateNodeData(targetNode.id, { configMaps: updatedCMs });
+
+    useFlowStore.getState().addOrUpdateSavedConfigMap(updatedCm);
+    void persistConfigMapItem(updatedCm);
+    if (!activeItem) setActiveItem(updatedCm);
+
+    const nextAttached = [...attachedComponents.filter((c) => c.id !== comp.id), comp];
+    setAttachedComponents(nextAttached);
+    addLog(
+      'info',
+      `[ConfigMap] Attached ConfigMap '${cmName}' to component '${targetLabel}'`,
+      'UI'
+    );
+  };
+
+  const handleImportFromConfigMap = (sourceCm: K8sConfigMapItem) => {
+    if (!Array.isArray(sourceCm.configData) || sourceCm.configData.length === 0) return;
+
+    const importedRows = sourceCm.configData.map((entry, idx) => ({
+      id: `imported-${Date.now()}-${idx}-${safeRandom().toString(36).slice(2, 7)}`,
+      key: entry.key,
+      value: entry.value,
+    }));
+
+    handleAddMultipleRows(importedRows);
+    setIsImportDropdownOpen(false);
+    addLog(
+      'info',
+      `[ConfigMap Data] Added ${importedRows.length} key-value pair(s) from ConfigMap '${sourceCm.name}'`,
+      'UI'
+    );
+  };
+
+  const handleSaveModal = () => {
+    const validRows = rows
+      .filter((r) => r.key.trim() !== '')
+      .map((r) => ({ key: r.key.trim(), value: r.value }));
+    const targetId = activeItem?.id || initialConfigMap?.id;
+    const baseItem = buildConfigMapItem(targetId, cmName, validRows);
+
+    const hasAttached = attachedComponents.length > 0;
+    const targetResName = hasAttached ? attachedComponents.map((c) => c.label).join(', ') : undefined;
+    const targetResType = hasAttached ? attachedComponents[0].type : undefined;
+    const resolvedProfile = selectedProfile || activeItem?.profileName;
+
+    const configMapItem: K8sConfigMapItem = {
+      ...activeItem,
+      ...baseItem,
+      ...(resolvedProfile ? { profileName: resolvedProfile } : undefined),
+      ...(targetResName ? { resourceName: targetResName } : undefined),
+      ...(targetResType ? { resourceType: targetResType } : undefined),
+    };
+
+    onSave(configMapItem);
+    setActiveItem(null);
+    setAttachedComponents([]);
+    setMode('list');
+  };
+
   const hasExistingItem = Boolean(activeItem || initialConfigMap);
-  const modalTitle = getModalTitle(isListMode, hasExistingItem);
-  const modalSubtitle = getModalSubtitle(isListMode, filteredItems.length, targetNodeLabel);
+  const modalTitle = getModalTitle(mode, hasExistingItem, selectedProfile);
+  const modalSubtitle = getModalSubtitle(mode, filteredItems.length, targetNodeLabel, selectedProfile);
 
   const footer = (
     <ConfigMapModalFooter
-      isListMode={isListMode}
+      mode={mode}
       isDark={isDark}
       hasExistingItem={hasExistingItem}
       onAddNewFromList={handleAddNewFromList}
       onClose={onClose}
       onBackToMode={() => setMode('list')}
-      onSave={handleSave}
+      onSave={handleSaveModal}
     />
   );
 
@@ -498,7 +808,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       maxHeightClass="h-[75vh]"
       footer={footer}
     >
-      {isListMode ? (
+      {mode === 'list' && (
         <ConfigMapListView
           search={search}
           onSearchChange={setSearch}
@@ -506,8 +816,42 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
           isDark={isDark}
           onEditItem={handleEditFromList}
           onDeleteItem={handleDeleteFromList}
+          onSelectProfile={(pName) => {
+            setSelectedProfile(pName);
+            setMode('profile');
+          }}
         />
-      ) : (
+      )}
+
+      {mode === 'profile' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+            <button
+              type="button"
+              data-testid="configmap-profile-back-button"
+              onClick={() => setMode('list')}
+              className="flex items-center gap-1.5 text-xs text-teal-400 hover:text-teal-300 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to ConfigMap list</span>
+            </button>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Profile: <strong className="text-teal-400">{selectedProfile}</strong>
+            </span>
+          </div>
+
+          <ConfigMapPrecedenceView
+            profileName={selectedProfile || currentProfileName}
+            items={profileItems}
+            isDark={isDark}
+            onEditItem={handleEditFromList}
+            onDeleteItem={handleDeleteFromList}
+            onAddNewConfigMap={handleAddNewFromList}
+          />
+        </div>
+      )}
+
+      {mode === 'form' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
             <button
@@ -525,6 +869,15 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               </span>
             )}
           </div>
+
+          {/* Tagify Related Component Section */}
+          <ConfigMapComponentSection
+            attachedComponents={attachedComponents}
+            availableComponents={availableComponents}
+            onRemoveComponent={handleRemoveComponent}
+            onAttachComponent={handleAttachComponent}
+            isDark={isDark}
+          />
 
           {/* ConfigMap Name */}
           <div>
@@ -554,13 +907,23 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                 <p className="text-xs font-semibold text-slate-300">Data (Key-Value)</p>
                 <p className="text-[11px] text-slate-400">Type text or choose suggestions from dropdown for simulation parameters.</p>
               </div>
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600/20 text-teal-400 border border-teal-500/30 hover:bg-teal-600/30 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Row
-              </button>
+              <div className="flex items-center gap-2">
+                <ConfigMapImportDataDropdown
+                  isOpen={isImportDropdownOpen}
+                  onToggleOpen={() => setIsImportDropdownOpen((prev) => !prev)}
+                  existingConfigMaps={existingConfigMapsWithData}
+                  onImport={handleImportFromConfigMap}
+                  isDark={isDark}
+                  dropdownRef={importDropdownRef}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600/20 text-teal-400 border border-teal-500/30 hover:bg-teal-600/30 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Row
+                </button>
+              </div>
             </div>
 
             {/* Rows Container */}
@@ -570,10 +933,17 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {rows.map((row) => (
+                <div className="flex items-center gap-2 px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400 select-none">
+                  <span className="w-8 text-center">ID</span>
+                  <span className="flex-1">Key</span>
+                  <span className="flex-1">Value</span>
+                  <span className="w-7 text-right"></span>
+                </div>
+                {rows.map((row, idx) => (
                   <ConfigMapRowItem
                     key={row.id}
                     row={row}
+                    index={idx}
                     isDark={isDark}
                     onFocusOrChange={handleInputFocusOrChange}
                     onRemove={handleRemoveRow}

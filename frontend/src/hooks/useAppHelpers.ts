@@ -145,9 +145,17 @@ export function useAttachmentHandlers() {
 
   const handleConfigMapSave = (cmItem: K8sConfigMapItem) => {
     if (!configMapModalTargetNode) return;
-    const target = nodes.find((n) => n.id === configMapModalTargetNode.id);
     const currentProject = useFlowStore.getState().currentProject;
     const activeProfileName = getActiveProfileName(currentProject);
+
+    // If modal was opened in overview/list/profile mode and user saved without attaching any component,
+    // do not force-attach to any card.
+    const isUnattachedInOverview = configMapModalTargetNode.id === 'cluster-storage' ||
+      (configMapModalTargetNode.initialViewMode === 'list' && !cmItem.resourceName);
+
+    const target = !isUnattachedInOverview
+      ? nodes.find((n) => n.id === configMapModalTargetNode.id)
+      : null;
 
     const enrichedCmItem: K8sConfigMapItem = {
       ...cmItem,
@@ -157,8 +165,10 @@ export function useAttachmentHandlers() {
     };
 
     if (target) {
-      const existingCMs = target.data.configMaps || [];
-      const existingIndex = existingCMs.findIndex((c: K8sConfigMapItem) => c.id === cmItem.id);
+      const existingCMs = target.data?.configMaps || [];
+      const existingIndex = existingCMs.findIndex(
+        (c: K8sConfigMapItem) => c.id === cmItem.id || Boolean(cmItem.name && c.name === cmItem.name)
+      );
       let updatedCMs: K8sConfigMapItem[];
 
       if (existingIndex >= 0) {
@@ -186,7 +196,7 @@ export function useAttachmentHandlers() {
 
     useFlowStore.getState().addOrUpdateSavedConfigMap(enrichedCmItem);
     void persistConfigMapItem(enrichedCmItem);
-    setConfigMapModalTargetNode(null);
+    setConfigMapModalTargetNode({ id: 'cluster-storage', label: 'Cluster ConfigMaps', initialViewMode: 'list' });
   };
 
   const handleHpaSave = (hpaItem: K8sHpaItem) => {

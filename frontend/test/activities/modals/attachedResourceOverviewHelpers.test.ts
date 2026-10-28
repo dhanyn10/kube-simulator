@@ -165,4 +165,16 @@ describe('attachedResourceOverviewHelpers', () => {
     expect(attachedSaved[0].ownerNode.type).toBe('Pod');
     expect(attachedSaved[0].profileName).toBe('Staging Canvas');
   });
+
+  it('deduplicates duplicate ConfigMap entries on the same component and child replica pods', () => {
+    const duplicateNodes: Node[] = [
+      { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'web-workload', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [{ key: 'PORT', value: '80' }] }, { id: 'cm-web', name: 'web-config', configData: [{ key: 'PORT', value: '80' }] }] } },
+      { id: 'pod-replica-1', type: 'Pod', parentId: 'dep-1', position: { x: 0, y: 0 }, data: { label: 'web-workload', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [{ key: 'PORT', value: '80' }] }] } },
+    ];
+
+    const result = extractAllOverviewItems(duplicateNodes, 'ConfigMap');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('cm-web');
+    expect(result[0].ownerNode.label).toBe('web-workload');
+  });
 });

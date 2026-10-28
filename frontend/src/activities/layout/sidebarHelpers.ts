@@ -104,13 +104,11 @@ function handleRoleAdd(
 }
 
 function handleConfigMapAdd(
-  targetNode: any,
+  _targetNode: any,
   context: SidebarAddNodeContext
 ): void {
   if (context.setConfigMapModalTargetNode) {
-    const id = targetNode ? targetNode.id : 'cluster-storage';
-    const label = targetNode?.data?.label || targetNode?.id || 'Cluster ConfigMaps';
-    context.setConfigMapModalTargetNode({ id, label, initialViewMode: 'list' });
+    context.setConfigMapModalTargetNode({ id: 'cluster-storage', label: 'Cluster ConfigMaps', initialViewMode: 'list' });
     return;
   }
   context.setActiveOverviewModal?.('ConfigMap');
