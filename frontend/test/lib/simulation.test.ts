@@ -1216,5 +1216,306 @@ describe('simulation test suite', () => {
       const okRes = processWorkloadSimulation(dep, ctx);
       expect(ctx.updatedNodes[1].data.status).toBe('ready');
     });
+
+    it('covers all branch edge cases for ConfigMap & Secret simulation and recovery', () => {
+      // 1. parseConfigKeyValuePair alternative keys and invalid numbers
+      const cmSettings = parseConfigMapSettings([
+        {
+          id: 'cm-alt',
+          name: 'alt-cm',
+          configData: [
+            { key: 'AUTH_REQUIRED', value: 'true' },
+            { key: 'SIMULATE_FAILURE', value: 'true' },
+            { key: 'PORT', value: 'invalid-port' },
+            { key: 'MAX_CONNECTIONS', value: 'invalid-max' },
+            { key: 'LOG_LEVEL', value: 'debug' },
+            { key: undefined as any, value: 'val' },
+          ],
+        },
+        { id: 'cm-no-data', name: 'no-data-cm' } as any, // cm.configData is undefined
+      ]);
+      expect(cmSettings.requireSecret).toBe(true);
+      expect(cmSettings.hasSimulatedFailure).toBe(true);
+      expect(cmSettings.cmPort).toBeNull();
+      expect(cmSettings.maxConnections).toBeNull();
+      expect(cmSettings.logLevel).toBe('DEBUG');
+
+      // 2. parseSecretSimulationSettings alternative failure keys
+      const secFailureSettings = parseSecretSimulationSettings([
+        { id: 's-fail-1', name: 'sec-1', secretData: [{ key: 'FAIL_AUTH', value: 'enabled' }] },
+        { id: 's-invalid-data', name: 'sec-null', secretData: null as any },
+      ]);
+      expect(secFailureSettings.hasAuthFailure).toBe(true);
+      expect(secFailureSettings.failingSecretName).toBe('sec-1');
+
+      // 3. Pod recovery without image configures status as 'pending'
+      const podNoImg = createNode('pod-no-img', 'Pod', {
+        status: 'crashing',
+        simulatedFailureCM: 'chaos-cm',
+        simulatedFailureSecret: 'sec-fail',
+      });
+      const ctxRecovery = getMockCtx({
+        nodes: [podNoImg],
+        updatedNodes: [podNoImg],
+      });
+
+      // Handle chaos mode recovery for pod with no image
+      const chaosRecover = handleChaosModeSimulation([podNoImg], ctxRecovery, false, '');
+      expect(chaosRecover.hasChanges).toBe(true);
+      expect(ctxRecovery.updatedNodes[0].data.status).toBe('pending');
+
+      // Handle secret recovery for pod with no image
+      podNoImg.data.status = 'crashing';
+      podNoImg.data.simulatedFailureSecret = 'sec-fail';
+      const secretRecover = checkSecretSimulationStatus(podNoImg, ctxRecovery, false);
+      expect(secretRecover.hasChanges).toBe(true);
+      expect(ctxRecovery.updatedNodes[0].data.status).toBe('pending');
+
+      // 4. Catch blocks and label fallbacks for logging
+      const throwCtx = getMockCtx();
+      throwCtx.get = vi.fn().mockReturnValue({
+        addLog: () => {
+          throw new Error('Log dispatch failed');
+        },
+      });
+
+      // ConfigMap failure and recovery catch blocks with fallback to pod.id (no label)
+      const podNoLabel = createNode('pod-no-label', 'Pod', { status: 'ready', image: 'nginx' });
+      throwCtx.nodes = [podNoLabel];
+      throwCtx.updatedNodes = [podNoLabel];
+      throwCtx.nodeIndexMap = new Map([['pod-no-label', 0]]);
+
+      const chaosFailThrow = handleChaosModeSimulation([podNoLabel], throwCtx, true, 'cm-chaos');
+      expect(chaosFailThrow.hasChanges).toBe(true);
+
+      const chaosRecoverThrow = handleChaosModeSimulation([throwCtx.updatedNodes[0]], throwCtx, false, 'cm-chaos');
+      expect(chaosRecoverThrow.hasChanges).toBe(true);
+
+      // Secret failure and recovery catch blocks with fallback to pod.id
+      const secretFailThrow = checkSecretSimulationStatus(podNoLabel, throwCtx, true);
+      expect(secretFailThrow.hasChanges).toBe(true);
+
+      // Trigger recoverSinglePodFromSecret catch block (line 325)
+      podNoLabel.data.status = 'crashing';
+      podNoLabel.data.simulatedFailureSecret = 'auth_fail';
+      const secretRecoverThrow = checkSecretSimulationStatus(podNoLabel, throwCtx, false);
+      expect(secretRecoverThrow.hasChanges).toBe(true);
+
+      // updateNodeData failure branches on applyPodSimulatedFailure (line 67), recoverSinglePod (line 102), and recoverSinglePodFromSecret (line 320)
+      const unindexedPod = createNode('unindexed-pod', 'Pod', {
+        status: 'crashing',
+        simulatedFailureCM: 'cm-x',
+        simulatedFailureSecret: 'sec-x',
+      });
+      const unindexedCtx = getMockCtx({
+        nodes: [unindexedPod],
+        updatedNodes: [], // empty updatedNodes causes updateNodeData to return false
+        nodeIndexMap: new Map(),
+      });
+      // Line 67: applyPodSimulatedFailure returns false when updateNodeData fails
+      const unindexedReadyPod = createNode('unindexed-ready', 'Pod', { status: 'ready' });
+      expect(handleChaosModeSimulation([unindexedReadyPod], unindexedCtx, true, 'cm-fail').hasChanges).toBe(false);
+      expect(handleChaosModeSimulation([unindexedPod], unindexedCtx, false, '').hasChanges).toBe(false);
+      expect(checkSecretSimulationStatus(unindexedPod, unindexedCtx, false).hasChanges).toBe(false);
+
+      // 5. Port mismatch logging, fallback ports, and error clear
+      const srvNode = createNode('srv-1', 'Service', {
+        port: 8080, // targetPort undefined, falls back to port
+      });
+      const srvEdge = { id: 'e-srv', source: 'srv-1', target: 'pod-no-label' } as Edge;
+      const portCtx = getMockCtx({
+        nodes: [srvNode, podNoLabel],
+        updatedNodes: [srvNode, podNoLabel],
+        nodeMap: new Map([['srv-1', srvNode], ['pod-no-label', podNoLabel]]),
+        targetEdgeMap: new Map([['pod-no-label', [srvEdge]]]),
+      });
+
+      // Mismatch between cmPort 3000 and srvTargetPort 8080
+      const mismatchRes = checkPortMismatch(podNoLabel, portCtx, 3000);
+      expect(mismatchRes.isBlocked).toBe(true);
+      expect(srvEdge.data?.validationError).toContain('Port Mismatch');
+
+      // Edge already has matching validationError (lines 178-181 branch false)
+      const repeatRes = checkPortMismatch(podNoLabel, portCtx, 3000);
+      expect(repeatRes.isBlocked).toBe(true);
+
+      // Resolve mismatch with cmPort 8080 -> clears validationError (line 185)
+      const resolvedPortRes = checkPortMismatch(podNoLabel, portCtx, 8080);
+      expect(resolvedPortRes.isBlocked).toBe(false);
+      expect(srvEdge.data?.validationError).toBeUndefined();
+
+      // Fallback to default port 80 when both targetPort and port are undefined
+      srvNode.data = {};
+      const fallbackPortRes = checkPortMismatch(podNoLabel, portCtx, 80);
+      expect(fallbackPortRes.isBlocked).toBe(false);
+
+      // Non-service source node in checkPortMismatch
+      const nonSrvNode = createNode('other-source', 'Deployment');
+      const nonSrvEdge = { id: 'e-other', source: 'other-source', target: 'pod-no-label' } as Edge;
+      portCtx.nodeMap = new Map([['other-source', nonSrvNode]]);
+      portCtx.targetEdgeMap = new Map([['pod-no-label', [nonSrvEdge]]]);
+      const nonSrvRes = checkPortMismatch(podNoLabel, portCtx, 80);
+      expect(nonSrvRes.isBlocked).toBe(false);
+
+      // Port mismatch error throw block
+      portCtx.get = vi.fn().mockReturnValue({
+        addLog: () => {
+          throw new Error('Port log failed');
+        },
+      });
+      delete srvEdge.data?.validationError;
+      portCtx.nodeMap = new Map([['srv-1', srvNode]]);
+      portCtx.targetEdgeMap = new Map([['pod-no-label', [srvEdge]]]);
+      srvNode.data = { targetPort: 8080 };
+      expect(checkPortMismatch(podNoLabel, portCtx, 9999).isBlocked).toBe(true);
+
+      // 6. logLogLevelStream for DEBUG, WARN, ERROR levels
+      (safeRandom as any).mockReturnValue(0.9); // pass > 0.4 check
+      const logCtx = getMockCtx({ ticks: 3 }); // pass % 3 === 0
+      const appNode = createNode('app-node', 'Pod');
+      logLogLevelStream(appNode, logCtx, 'DEBUG');
+      logLogLevelStream(appNode, logCtx, 'WARN');
+      logLogLevelStream(appNode, logCtx, 'ERROR');
+
+      // logLogLevelStream catch block
+      logCtx.get = vi.fn().mockReturnValue({
+        addLog: () => {
+          throw new Error('Stream log failed');
+        },
+      });
+      logLogLevelStream(appNode, logCtx, 'ERROR');
+
+      // 7. Workload simulation with PVC blockage
+      const pvcBlockedDep = createNode('dep-pvc-block', 'Deployment', { status: 'ready' });
+      const pvcNode = createNode('pvc-block', 'PVC', { pvcStatus: 'Pending' });
+      const edgeToPvc = { id: 'e-pvc', source: 'pvc-block', target: 'dep-pvc-block' } as Edge;
+      const pvcBlockCtx = getMockCtx({
+        nodes: [pvcBlockedDep, pvcNode],
+        updatedNodes: [pvcBlockedDep, pvcNode],
+        nodeMap: new Map([['dep-pvc-block', pvcBlockedDep], ['pvc-block', pvcNode]]),
+        targetEdgeMap: new Map([['dep-pvc-block', [edgeToPvc]]]),
+      });
+      const pvcWorkloadRes = processWorkloadSimulation(pvcBlockedDep, pvcBlockCtx);
+      expect(pvcWorkloadRes.hasChanges).toBe(true);
+
+      // 8. Traffic throttling with even and odd ticks, and catch block
+      const depThrottled = createNode('dep-throttled', 'Deployment', {
+        status: 'ready',
+        configMaps: [{ id: 'cm-max', name: 'cm-max', configData: [{ key: 'MAX_CONNECTIONS', value: '10' }] }],
+      });
+      const netNode = createNode('net-1', 'Internet', { traffic: 1000, currentTraffic: 1000 });
+      const inEdge = { id: 'e-throttle', source: 'net-1', target: 'dep-throttled' } as Edge;
+
+      const throttleCtxEven = getMockCtx({
+        ticks: 2,
+        nodes: [depThrottled, netNode],
+        nodeMap: new Map([['dep-throttled', depThrottled], ['net-1', netNode]]),
+        targetEdgeMap: new Map([['dep-throttled', [inEdge]]]),
+      });
+      const throttleEvenRes = processWorkloadSimulation(depThrottled, throttleCtxEven);
+      expect(throttleEvenRes).toBeDefined();
+
+      // checkConfigMapSimulationStatus with dep.type !== 'Pod' and childPodMap without dep entry (line 378 fallback to [])
+      const depNoChildMap = createNode('dep-no-map', 'Deployment');
+      const ctxNoChildMap = getMockCtx({ childPodMap: new Map() });
+      expect(checkConfigMapSimulationStatus(depNoChildMap, ctxNoChildMap)).toBeDefined();
+
+      // Lines 84, 284, 306: applySimulatedFailures and applySecretPodFailures
+      const podAlreadyCrashing = createNode('pod-already-crash', 'Pod', {
+        status: 'crashing',
+        simulatedFailureCM: 'cm-x',
+        simulatedFailureSecret: 'sec-x',
+      });
+      const crashCtx = getMockCtx({
+        nodes: [podAlreadyCrashing],
+        updatedNodes: [podAlreadyCrashing],
+      });
+      expect(handleChaosModeSimulation([podAlreadyCrashing], crashCtx, true, 'cm-fail').hasChanges).toBe(false);
+      expect(checkSecretSimulationStatus(podAlreadyCrashing, crashCtx, true).hasChanges).toBe(false);
+
+      // Line 284: applySecretPodFailure updateNodeData returns false
+      const readyUnindexedPod = createNode('ready-unindexed', 'Pod', { status: 'ready' });
+      expect(checkSecretSimulationStatus(readyUnindexedPod, unindexedCtx, true).hasChanges).toBe(false);
+
+      // Line 378: childPodMap is undefined
+      const depUndefinedChildMap = createNode('dep-undef-map', 'Deployment');
+      const ctxUndefChildMap = getMockCtx({ childPodMap: undefined });
+      expect(checkConfigMapSimulationStatus(depUndefinedChildMap, ctxUndefChildMap)).toBeDefined();
+
+      // Line 432: processWorkloadSimulation when pvcResult.isBlocked is true AND cmResult/secretResult hasChanges is true
+      const depCmRecoverPvcBlock = createNode('dep-cr-pb', 'Deployment', {
+        status: 'ready',
+        configMaps: [{ id: 'cm-normal', name: 'cm-normal', configData: [] }],
+        secrets: [{ id: 'sec-valid', name: 'sec-v', secretData: [{ key: 'K', value: 'V' }] }],
+      });
+      const podToRecover = createNode('pod-to-rec', 'Pod', {
+        parentId: 'dep-cr-pb',
+        status: 'crashing',
+        simulatedFailureCM: 'old-cm',
+        simulatedFailureSecret: 'old-sec',
+        image: 'nginx:latest',
+      });
+      const pvcBlock = createNode('pvc-pending', 'PVC', { pvcStatus: 'Pending' });
+      const edgeToPvcBlock = { id: 'e-pvc-b', source: 'pvc-pending', target: 'dep-cr-pb' } as Edge;
+
+      const comboCtx = getMockCtx({
+        nodes: [depCmRecoverPvcBlock, podToRecover, pvcBlock],
+        updatedNodes: [depCmRecoverPvcBlock, podToRecover, pvcBlock],
+        nodeMap: new Map([
+          ['dep-cr-pb', depCmRecoverPvcBlock],
+          ['pod-to-rec', podToRecover],
+          ['pvc-pending', pvcBlock],
+        ]),
+        targetEdgeMap: new Map([['dep-cr-pb', [edgeToPvcBlock]]]),
+        childPodMap: new Map([['dep-cr-pb', [podToRecover]]]),
+      });
+      comboCtx.nodeIndexMap = new Map([
+        ['dep-cr-pb', 0],
+        ['pod-to-rec', 1],
+        ['pvc-pending', 2],
+      ]);
+      const comboRes = processWorkloadSimulation(depCmRecoverPvcBlock, comboCtx);
+      expect(comboRes.hasChanges).toBe(true);
+
+      // processWorkloadSimulation blocked by ConfigMap chaos mode (line 426)
+      const depChaosBlock = createNode('dep-chaos-block', 'Deployment', {
+        status: 'ready',
+        configMaps: [{ id: 'cm-chaos-b', name: 'chaos-b', configData: [{ key: 'CHAOS_MODE', value: 'enabled' }] }],
+      });
+      const chaosBlockCtx = getMockCtx({
+        nodes: [depChaosBlock],
+        updatedNodes: [depChaosBlock],
+        childPodMap: new Map(),
+      });
+      expect(processWorkloadSimulation(depChaosBlock, chaosBlockCtx).hasChanges).toBe(false);
+
+      const throttleCtxOdd = getMockCtx({
+        ticks: 3,
+        nodes: [depThrottled, netNode],
+        nodeMap: new Map([['dep-throttled', depThrottled], ['net-1', netNode]]),
+        targetEdgeMap: new Map([['dep-throttled', [inEdge]]]),
+        internetNodes: [netNode],
+        internetReachableMap: new Map([[netNode.id, new Set([depThrottled.id])]]),
+      });
+      const throttleOddRes = processWorkloadSimulation(depThrottled, throttleCtxOdd);
+      expect(throttleOddRes).toBeDefined();
+
+      // Throttling catch block (line 415)
+      const throttleThrowCtx = getMockCtx({
+        ticks: 2,
+        nodes: [depThrottled, netNode],
+        nodeMap: new Map([['dep-throttled', depThrottled], ['net-1', netNode]]),
+        targetEdgeMap: new Map([['dep-throttled', [inEdge]]]),
+        internetNodes: [netNode],
+        internetReachableMap: new Map([[netNode.id, new Set([depThrottled.id])]]),
+      });
+      throttleThrowCtx.get = vi.fn().mockReturnValue({
+        addLog: () => {
+          throw new Error('Throttling log error');
+        },
+      });
+      const throttleThrowRes = processWorkloadSimulation(depThrottled, throttleThrowCtx);
+      expect(throttleThrowRes).toBeDefined();
+    });
   });
 });

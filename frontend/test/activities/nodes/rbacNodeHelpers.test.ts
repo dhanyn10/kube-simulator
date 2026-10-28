@@ -60,6 +60,7 @@ describe('rbacNodeHelpers', () => {
     expect(mapNodeTypeToResource('ConfigMap')).toBe('configmaps');
     expect(mapNodeTypeToResource('Secret')).toBe('secrets');
     expect(mapNodeTypeToResource('Role')).toBe('roles');
+    expect(mapNodeTypeToResource('CustomWorkload')).toBe('customworkload');
     expect(mapNodeTypeToResource('')).toBe('');
     expect(mapNodeTypeToResource(undefined)).toBe('');
   });
@@ -139,5 +140,75 @@ describe('rbacNodeHelpers', () => {
 
   it('denies access if user is not found in iamUsers list and has no role bindings', () => {
     expect(isNodeAccessForbidden('unknown-user', [devUser], 'Pod')).toBe(true);
+  });
+
+  it('covers all branch edge cases for IAM policies, attached roles, and standalone roles', () => {
+    // 1. User without policies array
+    const userNoPolicies = { id: '99', username: 'no-pol', roles: [] } as any;
+    expect(isResourceAllowedByIamPolicies(userNoPolicies, 'pods')).toBe(false);
+
+    // 2. Resource with internet and empty string
+    expect(isResourceAllowedByIamPolicies(devUser, 'internet')).toBe(true);
+    expect(isResourceAllowedByIamPolicies(netUser, 'internet')).toBe(true);
+    expect(isResourceAllowedByIamPolicies(devUser, '')).toBe(false);
+
+    // 3. checkNodeAttachedRoles branches
+    // Non-array roles or empty roles
+    expect(isResourceAllowedByCanvasRoles({ roles: null }, 'dev-user', 'pods')).toBe(false);
+    expect(isResourceAllowedByCanvasRoles({ roles: [] }, 'dev-user', 'pods')).toBe(false);
+
+    // role.assignedUsers is not array or does not include user
+    expect(isResourceAllowedByCanvasRoles({ roles: [{ assignedUsers: null }] }, 'dev-user', 'pods')).toBe(false);
+    expect(isResourceAllowedByCanvasRoles({ roles: [{ assignedUsers: ['other-user'] }] }, 'dev-user', 'pods')).toBe(false);
+
+    // role.rules is empty or undefined -> returns true
+    expect(isResourceAllowedByCanvasRoles({ roles: [{ assignedUsers: ['dev-user'], rules: [] }] }, 'dev-user', 'pods')).toBe(true);
+    expect(isResourceAllowedByCanvasRoles({ roles: [{ assignedUsers: ['dev-user'] }] }, 'dev-user', 'pods')).toBe(true);
+
+    // rule.resources is undefined or includes wildcard '*' or matches empty targetRes
+    expect(isResourceAllowedByCanvasRoles({
+      roles: [{ assignedUsers: ['dev-user'], rules: [{ resources: ['*'] }] }],
+    }, 'dev-user', 'pods')).toBe(true);
+
+    expect(isResourceAllowedByCanvasRoles({
+      roles: [{ assignedUsers: ['dev-user'], rules: [{ resources: ['other'] }] }],
+    }, 'dev-user', '')).toBe(true); // empty targetRes matches (!targetRes)
+
+    expect(isResourceAllowedByCanvasRoles({
+      roles: [{ assignedUsers: ['dev-user'], rules: [{ resources: null }] }],
+    }, 'dev-user', 'pods')).toBe(false);
+
+    // 4. checkCanvasStandaloneRoles branches
+    // allNodes is not array
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', 'not-array' as any)).toBe(false);
+    // allNodes is omitted
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods')).toBe(false);
+
+    // standalone role node has no data (!roleData)
+    const nodeNoData = { id: 'r-nodata', type: 'Role', data: null };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', [nodeNoData as any])).toBe(false);
+
+    // standalone role has non-array assignedUsers or does not include user
+    const nodeWrongUsers = { id: 'r-u', type: 'Role', data: { assignedUsers: ['other-user'] } };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', [nodeWrongUsers as any])).toBe(false);
+
+    // standalone role has empty rules or undefined rules -> returns true
+    const nodeEmptyRules = { id: 'r-empty', type: 'Role', data: { assignedUsers: ['dev-user'], rules: [] } };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', [nodeEmptyRules as any])).toBe(true);
+    const nodeUndefinedRules = { id: 'r-undef-rules', type: 'Role', data: { assignedUsers: ['dev-user'] } };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', [nodeUndefinedRules as any])).toBe(true);
+
+    // standalone role has wildcard or matches empty targetRes or undefined resources
+    const nodeWildcard = { id: 'r-star', type: 'Role', data: { assignedUsers: ['dev-user'], rules: [{ resources: ['*'] }] } };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', [nodeWildcard as any])).toBe(true);
+
+    const nodeOtherRes = { id: 'r-other', type: 'Role', data: { assignedUsers: ['dev-user'], rules: [{ resources: ['services'] }] } };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', '', [nodeOtherRes as any])).toBe(true);
+
+    const nodeNullRes = { id: 'r-null', type: 'Role', data: { assignedUsers: ['dev-user'], rules: [{ resources: null }] } };
+    expect(isResourceAllowedByCanvasRoles({}, 'dev-user', 'pods', [nodeNullRes as any])).toBe(false);
+
+    // 5. isNodeAccessForbidden when activeIdentity is falsy
+    expect(isNodeAccessForbidden('', [devUser], 'Pod')).toBe(false);
   });
 });
