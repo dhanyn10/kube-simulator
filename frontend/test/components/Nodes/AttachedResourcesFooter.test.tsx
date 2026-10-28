@@ -141,4 +141,40 @@ describe('AttachedResourcesFooter', () => {
     render(<AttachedResourcesFooter data={data} />);
     expect(screen.getByTitle(/Resource Limit: standalone-res/)).toBeInTheDocument();
   });
+
+  it('does not trigger store modal setters when nodeId is undefined', () => {
+    useFlowStore.setState({
+      configMapModalTargetNode: null,
+      secretModalTargetNode: null,
+      roleModalTargetNode: null,
+      hpaModalTargetNode: null,
+      resourceLimitModalTargetNode: null,
+    });
+
+    const data: K8sNodeData = {
+      label: 'no-node-id',
+      configMaps: [{ id: 'cm-1', name: 'app-config' }],
+      secrets: [{ id: 'sec-1', name: 'app-secret' }],
+      roles: [{ id: 'role-1', name: 'app-role' }],
+      hpas: [{ id: 'hpa-1', name: 'app-hpa' }],
+      resourceLimits: [{ id: 'res-1', name: 'app-limits' }],
+    };
+
+    render(<AttachedResourcesFooter data={data} />);
+
+    fireEvent.click(screen.getByTitle('Role: app-role'));
+    expect(useFlowStore.getState().roleModalTargetNode).toBeNull();
+
+    fireEvent.click(screen.getByTitle('ConfigMap: app-config'));
+    expect(useFlowStore.getState().configMapModalTargetNode).toBeNull();
+
+    fireEvent.click(screen.getByTitle('Secret: app-secret'));
+    expect(useFlowStore.getState().secretModalTargetNode).toBeNull();
+
+    fireEvent.click(screen.getByTitle(/Resource Limit: app-limits/));
+    expect(useFlowStore.getState().resourceLimitModalTargetNode).toBeNull();
+
+    fireEvent.click(screen.getByTitle(/HPA: app-hpa/));
+    expect(useFlowStore.getState().hpaModalTargetNode).toBeNull();
+  });
 });

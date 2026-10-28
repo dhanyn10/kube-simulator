@@ -209,4 +209,68 @@ describe('PodConfigMapVars', () => {
     expect(screen.getByTestId('pod-cm-card-body')).toHaveTextContent('cm-dep');
     expect(screen.getByTestId('pod-cm-card-body')).not.toHaveTextContent('ID:');
   });
+
+  it('opens inspect modal targeting parentId and falls back to nodeId when label is missing', () => {
+    const setConfigMapModalTargetNode = vi.fn();
+    const parentCm = { name: 'app-no-id-cm', configData: [{ key: 'API_KEY', value: 'xyz' }] };
+
+    useFlowStore.setState({
+      setConfigMapModalTargetNode,
+      nodes: [
+        {
+          id: 'parent-controller-id',
+          type: 'Deployment',
+          position: { x: 0, y: 0 },
+          data: { configMaps: [parentCm] },
+        } as any,
+      ],
+    });
+
+    const dataWithoutLabel = {
+      parentId: 'parent-controller-id',
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <PodConfigMapVars data={dataWithoutLabel} nodeId="pod-fallback-id" />
+      </ReactFlowProvider>
+    );
+
+    const cmBadge = screen.getByRole('button', { name: /Inspect ConfigMap app-no-id-cm/i });
+    fireEvent.click(cmBadge);
+
+    expect(setConfigMapModalTargetNode).toHaveBeenCalledWith({
+      id: 'parent-controller-id',
+      label: 'pod-fallback-id',
+      initialItem: parentCm,
+    });
+  });
+
+  it('renders + more button in light mode with light theme styles', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+
+    const data = {
+      label: 'pod-1',
+      configMaps: [{
+        id: 'cm-1',
+        name: 'app-config',
+        configData: [
+          { key: 'K1', value: 'V1' },
+          { key: 'K2', value: 'V2' },
+          { key: 'K3', value: 'V3' },
+          { key: 'K4', value: 'V4' },
+        ],
+      }],
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <PodConfigMapVars data={data} nodeId="node-1" />
+      </ReactFlowProvider>
+    );
+
+    const moreBtn = screen.getByTestId('pod-cm-more-btn');
+    expect(moreBtn).toHaveClass('text-teal-600');
+    expect(moreBtn).toHaveTextContent('+ 1 more...');
+  });
 });
