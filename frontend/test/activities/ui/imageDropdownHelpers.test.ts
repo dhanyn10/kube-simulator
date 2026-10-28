@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getOptionClasses, filterImageOptions } from '@/activities/ui/imageDropdownHelpers';
+import { DEFAULT_REGISTRY_IMAGES } from '@/constants/config';
 
 describe('imageDropdownHelpers', () => {
   it('returns appropriate CSS classes for image options', () => {
@@ -18,5 +19,17 @@ describe('imageDropdownHelpers', () => {
     expect(filtered.local[0].name).toBe('redis:custom');
     expect(filtered.local[0].source).toBe('local');
     expect(filtered.local[0].characteristics).toBeDefined();
+  });
+
+  it('falls back to getImageCharacteristics when registry image item lacks characteristics', () => {
+    const origCharacteristics = (DEFAULT_REGISTRY_IMAGES[0] as any).characteristics;
+    try {
+      (DEFAULT_REGISTRY_IMAGES[0] as any).characteristics = undefined;
+      const res = filterImageOptions('nginx:latest', []);
+      expect(res.dockerHub[0].characteristics).toBeDefined();
+      expect(res.dockerHub[0].characteristics.maxTrafficRpm).toBeGreaterThan(0);
+    } finally {
+      (DEFAULT_REGISTRY_IMAGES[0] as any).characteristics = origCharacteristics;
+    }
   });
 });

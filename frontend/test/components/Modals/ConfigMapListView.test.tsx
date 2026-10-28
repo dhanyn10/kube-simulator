@@ -194,4 +194,114 @@ describe('ConfigMapListView', () => {
 
     expect(mockOnSelectProfile).toHaveBeenCalledWith('autosave-session-1');
   });
+
+  it('handles undefined globalThis.localStorage in getInitialColumnVisibility', () => {
+    const origLocalStorage = globalThis.localStorage;
+    try {
+      // @ts-expect-error simulate SSR or missing localStorage
+      delete globalThis.localStorage;
+      expect(getInitialColumnVisibility()).toEqual({ profile: true, component: true });
+    } finally {
+      globalThis.localStorage = origLocalStorage;
+    }
+  });
+
+  it('toggles column when globalThis.localStorage is undefined without error', () => {
+    const origLocalStorage = globalThis.localStorage;
+    try {
+      // @ts-expect-error simulate environment without localStorage
+      delete globalThis.localStorage;
+      render(
+        <ConfigMapListView
+          search=""
+          onSearchChange={mockOnSearchChange}
+          items={mockItems}
+          isDark={true}
+          onEditItem={mockOnEditItem}
+          onDeleteItem={mockOnDeleteItem}
+        />
+      );
+      const toggleBtn = screen.getByTestId('column-visibility-toggle-btn');
+      fireEvent.click(toggleBtn);
+      const profileToggle = screen.getByTestId('column-toggle-profile');
+      fireEvent.click(profileToggle);
+      expect(profileToggle).toHaveAttribute('aria-checked', 'false');
+    } finally {
+      globalThis.localStorage = origLocalStorage;
+    }
+  });
+
+  it('renders fallback autosave session profile text when profileName is missing or Default Profile', () => {
+    const itemsWithDefault: OverviewItem[] = [
+      {
+        id: 'cm-def',
+        name: 'default-profile-cm',
+        rawItem: { id: 'cm-def', name: 'default-profile-cm', configData: [] },
+        ownerNode: { id: 'pod-def', label: 'worker-pod', type: 'Pod' },
+        profileName: 'Default Profile',
+      },
+      {
+        id: 'cm-undef',
+        name: 'undef-profile-cm',
+        rawItem: { id: 'cm-undef', name: 'undef-profile-cm', configData: [] },
+        ownerNode: { id: 'pod-undef', label: 'worker-pod-2', type: 'Pod' },
+        profileName: undefined,
+      },
+    ];
+
+    render(
+      <ConfigMapListView
+        search=""
+        onSearchChange={mockOnSearchChange}
+        items={itemsWithDefault}
+        isDark={false}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+      />
+    );
+
+    expect(screen.getByTestId('cm-profile-cm-def')).toBeInTheDocument();
+    expect(screen.getByTestId('cm-profile-cm-undef')).toBeInTheDocument();
+  });
+
+  it('renders profile badge button with light mode styling when onSelectProfile is provided and isDark is false', () => {
+    const mockOnSelectProfile = vi.fn();
+    render(
+      <ConfigMapListView
+        search=""
+        onSearchChange={mockOnSearchChange}
+        items={mockItems}
+        isDark={false}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+        onSelectProfile={mockOnSelectProfile}
+      />
+    );
+
+    const profileBadgeBtn = screen.getByTestId('cm-profile-cm-1');
+    expect(profileBadgeBtn).toHaveClass('bg-indigo-50');
+    fireEvent.click(profileBadgeBtn);
+    expect(mockOnSelectProfile).toHaveBeenCalledWith('autosave-session-1');
+  });
+
+  it('does not close column dropdown when clicking inside the dropdown menu', () => {
+    render(
+      <ConfigMapListView
+        search=""
+        onSearchChange={mockOnSearchChange}
+        items={mockItems}
+        isDark={true}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+      />
+    );
+
+    const toggleBtn = screen.getByTestId('column-visibility-toggle-btn');
+    fireEvent.click(toggleBtn);
+    const menu = screen.getByTestId('column-visibility-menu');
+    expect(menu).toBeInTheDocument();
+
+    fireEvent.mouseDown(menu);
+    expect(screen.getByTestId('column-visibility-menu')).toBeInTheDocument();
+  });
 });
