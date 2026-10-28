@@ -9,6 +9,8 @@ import {
   findNodeByTargetName,
   extractAttachedResources,
   exportLogFile,
+  printNodeEnvironment,
+  printContainerEnv,
 } from '@/activities/terminal/terminalLogUtils';
 import { Node } from '@xyflow/react';
 
@@ -207,6 +209,130 @@ describe('terminalLogUtils', () => {
       appendSpy.mockRestore();
       clickSpy.mockRestore();
       removeSpy.mockRestore();
+    });
+  });
+
+  describe('printNodeEnvironment', () => {
+    it('prints <none> when data is undefined or contains no configMaps and secrets', () => {
+      const logs: string[] = [];
+      const addLog = (line: string) => logs.push(line);
+
+      printNodeEnvironment(undefined, addLog);
+      expect(logs).toEqual(['    Environment:  <none>']);
+
+      logs.length = 0;
+      printNodeEnvironment({ configMaps: [], secrets: [] }, addLog);
+      expect(logs).toEqual(['    Environment:  <none>']);
+
+      logs.length = 0;
+      printNodeEnvironment({ configMaps: 'not-array' as any, secrets: null as any }, addLog);
+      expect(logs).toEqual(['    Environment:  <none>']);
+    });
+
+    it('prints <none> when configMaps and secrets exist but have empty or missing data', () => {
+      const logs: string[] = [];
+      const addLog = (line: string) => logs.push(line);
+
+      printNodeEnvironment(
+        {
+          configMaps: [{ name: 'cm-empty', configData: [] }, { name: 'cm-undef' }],
+          secrets: [{ name: 'sec-empty', secretData: [] }, { name: 'sec-undef' }],
+        },
+        addLog
+      );
+      expect(logs).toEqual(['    Environment:  <none>']);
+    });
+
+    it('prints formatted environment lines for both configMaps and secrets', () => {
+      const logs: string[] = [];
+      const addLog = (line: string) => logs.push(line);
+
+      printNodeEnvironment(
+        {
+          configMaps: [
+            { name: 'app-cfg', configData: [{ key: 'API_URL' }, { key: 'PORT' }] },
+            { name: 'extra-cfg', configData: undefined },
+          ],
+          secrets: [
+            { name: 'app-sec', secretData: [{ key: 'DB_PASS' }] },
+            { name: 'extra-sec' },
+          ],
+        },
+        addLog
+      );
+
+      expect(logs).toEqual([
+        '    Environment:',
+        "      API_URL:  <set to the key 'API_URL' of config map 'app-cfg'>  Optional: false",
+        "      PORT:  <set to the key 'PORT' of config map 'app-cfg'>  Optional: false",
+        "      DB_PASS:  <set to the key 'DB_PASS' in secret 'app-sec'>  Optional: false",
+      ]);
+    });
+  });
+
+  describe('printContainerEnv', () => {
+    it('prints all container environment variables with custom label, image, configMaps, and secrets', () => {
+      const logs: string[] = [];
+      const addLog = (line: string) => logs.push(line);
+
+      const node: Node = {
+        id: 'node-pod-1',
+        position: { x: 0, y: 0 },
+        data: {
+          label: 'my-custom-pod',
+          image: 'redis:alpine',
+          configMaps: [
+            { name: 'redis-conf', configData: [{ key: 'MAX_CLIENTS', value: '10000' }] },
+            { name: 'empty-conf', configData: undefined },
+          ],
+          secrets: [
+            { name: 'redis-auth', secretData: [{ key: 'AUTH_KEY', value: 's3cr3t' }] },
+            { name: 'empty-sec' },
+          ],
+        },
+      };
+
+      printContainerEnv(node, addLog);
+
+      expect(logs).toContain('HOSTNAME=my-custom-pod');
+      expect(logs).toContain('IMAGE=redis:alpine');
+      expect(logs).toContain('MAX_CLIENTS=10000');
+      expect(logs).toContain('AUTH_KEY=s3cr3t');
+      expect(logs).toContain('KUBERNETES_SERVICE_PORT=443');
+    });
+
+    it('falls back to node.id, default image, and handles non-array or missing configMaps/secrets', () => {
+      const logs: string[] = [];
+      const addLog = (line: string) => logs.push(line);
+
+      const minimalNode: Node = {
+        id: 'pod-fallback-id',
+        position: { x: 0, y: 0 },
+        data: {},
+      };
+
+      printContainerEnv(minimalNode, addLog);
+
+      expect(logs).toContain('HOSTNAME=pod-fallback-id');
+      expect(logs).toContain('IMAGE=nginx:latest');
+      expect(logs).toContain('SHLVL=1');
+      expect(logs).toContain('HOME=/root');
+      expect(logs).toContain('TERM=xterm');
+    });
+
+    it('handles node with completely missing data object', () => {
+      const logs: string[] = [];
+      const addLog = (line: string) => logs.push(line);
+
+      const noDataNode = {
+        id: 'node-no-data',
+        position: { x: 0, y: 0 },
+      } as Node;
+
+      printContainerEnv(noDataNode, addLog);
+
+      expect(logs).toContain('HOSTNAME=node-no-data');
+      expect(logs).toContain('IMAGE=nginx:latest');
     });
   });
 });
