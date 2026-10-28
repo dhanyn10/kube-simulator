@@ -14,7 +14,10 @@ import {
   extractAllOverviewItems,
   filterOverviewItems,
 } from '@/activities/modals/attachedResourceOverviewHelpers';
-import { removeConfigMapFromLocal } from '@/activities/modals/configMapStorageHelpers';
+import { removeConfigMapFromLocal, persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
+import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
+import { ConfigMapImportDataDropdown } from './ConfigMapImportDataDropdown';
+import { safeRandom } from '@/lib/utils';
 
 export interface ConfigMapModalProps {
   readonly isOpen: boolean;
@@ -80,6 +83,50 @@ const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
     )}
   </button>
 );
+
+export function findAllAttachedComponents(
+  cmId: string | undefined,
+  cmName: string | undefined,
+  nodes: any[],
+  initialTargetNodeId?: string | null,
+  initialTargetNodeLabel?: string
+): ComponentOption[] {
+  const results: ComponentOption[] = [];
+  const foundNodeIds = new Set<string>();
+
+  if (cmId || cmName) {
+    nodes.forEach((node) => {
+      if (
+        Array.isArray(node.data?.configMaps) &&
+        node.data.configMaps.some((c: any) => (cmId && c.id === cmId) || (cmName && c.name === cmName))
+      ) {
+        foundNodeIds.add(node.id);
+        results.push({
+          id: node.id,
+          label: (node.data?.label as string) || node.id,
+          type: node.type || 'Node',
+        });
+      }
+    });
+  }
+
+  if (
+    initialTargetNodeId &&
+    initialTargetNodeId !== 'cluster-storage' &&
+    !foundNodeIds.has(initialTargetNodeId)
+  ) {
+    const targetNode = nodes.find((n) => n.id === initialTargetNodeId);
+    if (targetNode) {
+      results.push({
+        id: targetNode.id,
+        label: (targetNode.data?.label as string) || initialTargetNodeLabel || targetNode.id,
+        type: targetNode.type || 'Node',
+      });
+    }
+  }
+
+  return results;
+}
 
 function getModalTitle(isListMode: boolean, hasExistingItem: boolean): string {
   if (isListMode) {
@@ -400,6 +447,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     setCmName,
     rows,
     activeItem,
+    setActiveItem,
     loadConfigMap,
     activeDropdown,
     setActiveDropdown,
@@ -408,6 +456,7 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     filteredKeys,
     filteredValues,
     handleAddRow,
+    handleAddMultipleRows,
     handleRemoveRow,
     handleRowChange,
     handleInputFocusOrChange,
@@ -420,6 +469,10 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     onSave,
   });
 
+  const [attachedComponents, setAttachedComponents] = useState<ComponentOption[]>([]);
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
+
   const portalContainerRef = useRef<HTMLDivElement>(null);
   const [portalSelectedIndex, setPortalSelectedIndex] = useState<number>(0);
 
@@ -431,6 +484,34 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       setMode('form');
     }
   }, [isOpen, initialViewMode, initialConfigMap?.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const initialCmId = initialConfigMap?.id || activeItem?.id;
+    const initialCmName = initialConfigMap?.name || activeItem?.name;
+    const initialComps = findAllAttachedComponents(
+      initialCmId,
+      initialCmName,
+      nodes,
+      targetNodeId,
+      targetNodeLabel
+    );
+    setAttachedComponents(initialComps);
+  }, [isOpen, initialConfigMap?.id, initialConfigMap?.name, targetNodeId, targetNodeLabel, nodes]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
+        setIsImportDropdownOpen(false);
+      }
+    };
+    if (isImportDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isImportDropdownOpen]);
 
   useEffect(() => {
     setPortalSelectedIndex(0);
@@ -453,20 +534,157 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     [allItems, search]
   );
 
+  const availableComponents = useMemo(() => {
+    return nodes
+      .filter((n) =>
+        ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'].includes(n.type || '')
+      )
+      .map((n) => ({
+        id: n.id,
+        label: (n.data?.label as string) || n.id,
+        type: n.type || 'Node',
+      }));
+  }, [nodes]);
+
+  const existingConfigMapsWithData = useMemo(() => {
+    const list: K8sConfigMapItem[] = [];
+    const seen = new Set<string>();
+    const currentId = activeItem?.id || initialConfigMap?.id;
+    allItems.forEach((item) => {
+      const raw = item.rawItem as K8sConfigMapItem;
+      if (
+        raw &&
+        Array.isArray(raw.configData) &&
+        raw.configData.length > 0 &&
+        raw.id !== currentId &&
+        !seen.has(raw.name)
+      ) {
+        seen.add(raw.name);
+        list.push(raw);
+      }
+    });
+    return list;
+  }, [allItems, activeItem?.id, initialConfigMap?.id]);
+
   if (!isOpen) return null;
 
   const handleEditFromList = (item: OverviewItem) => {
     loadConfigMap(item.rawItem);
+    const comps = findAllAttachedComponents(
+      item.rawItem.id,
+      item.rawItem.name,
+      nodes,
+      item.ownerNode.id !== 'cluster-storage' ? item.ownerNode.id : null,
+      item.ownerNode.label
+    );
+    setAttachedComponents(comps);
     setMode('form');
   };
 
   const handleAddNewFromList = () => {
     loadConfigMap(null);
+    setAttachedComponents([]);
     setMode('form');
   };
 
   const handleDeleteFromList = (item: OverviewItem) => {
     removeConfigMapFromNodeOrStore(item, nodes, updateNodeData, deleteSavedConfigMap, addLog);
+  };
+
+  const handleRemoveComponent = (componentId: string) => {
+    const owner = nodes.find((n) => n.id === componentId);
+    const targetCmId = activeItem?.id || initialConfigMap?.id;
+    if (owner) {
+      const currentList: K8sConfigMapItem[] = owner.data?.configMaps || [];
+      const updatedList = currentList.filter(
+        (c) => c.id !== targetCmId && c.name !== cmName
+      );
+      updateNodeData(owner.id, { configMaps: updatedList });
+      addLog(
+        'info',
+        `[ConfigMap] Removed attached component '${owner.data?.label || owner.id}' from ConfigMap '${cmName}'`,
+        'UI'
+      );
+    }
+
+    const remaining = attachedComponents.filter((c) => c.id !== componentId);
+    setAttachedComponents(remaining);
+
+    const targetId = targetCmId || `cm-${Date.now()}`;
+    const updatedRaw: K8sConfigMapItem = {
+      ...(activeItem || {}),
+      id: targetId,
+      name: cmName,
+      configData: rows.map((r) => ({ key: r.key, value: r.value })),
+      profileName: activeItem?.profileName || currentProfileName,
+      resourceName: remaining.length > 0 ? remaining.map((r) => r.label).join(', ') : undefined,
+      resourceType: remaining.length > 0 ? remaining[0].type : undefined,
+    };
+    useFlowStore.getState().addOrUpdateSavedConfigMap(updatedRaw);
+    void persistConfigMapItem(updatedRaw);
+
+    if (activeItem) {
+      setActiveItem({
+        ...activeItem,
+        resourceName: updatedRaw.resourceName,
+        resourceType: updatedRaw.resourceType,
+      });
+    }
+  };
+
+  const handleAttachComponent = (comp: ComponentOption) => {
+    const targetNode = nodes.find((n) => n.id === comp.id);
+    if (!targetNode) return;
+
+    const targetLabel = (targetNode.data?.label as string) || targetNode.id;
+    const targetType = targetNode.type || 'Node';
+
+    const targetId = activeItem?.id || initialConfigMap?.id || `cm-${Date.now()}`;
+    const updatedCm: K8sConfigMapItem = {
+      ...(activeItem || {}),
+      id: targetId,
+      name: cmName,
+      configData: rows.map((r) => ({ key: r.key, value: r.value })),
+      profileName: activeItem?.profileName || currentProfileName,
+      resourceName: targetLabel,
+      resourceType: targetType,
+    };
+
+    const currentCMs: K8sConfigMapItem[] = targetNode.data?.configMaps || [];
+    const exists = currentCMs.some((c) => c.id === targetId || c.name === cmName);
+    const updatedCMs = exists
+      ? currentCMs.map((c) => (c.id === targetId || c.name === cmName ? updatedCm : c))
+      : [...currentCMs, updatedCm];
+    updateNodeData(targetNode.id, { configMaps: updatedCMs });
+
+    useFlowStore.getState().addOrUpdateSavedConfigMap(updatedCm);
+    void persistConfigMapItem(updatedCm);
+
+    const nextAttached = [...attachedComponents.filter((c) => c.id !== comp.id), comp];
+    setAttachedComponents(nextAttached);
+    addLog(
+      'info',
+      `[ConfigMap] Attached ConfigMap '${cmName}' to component '${targetLabel}'`,
+      'UI'
+    );
+  };
+
+  const handleImportFromConfigMap = (sourceCm: K8sConfigMapItem) => {
+    if (!Array.isArray(sourceCm.configData) || sourceCm.configData.length === 0) return;
+
+    const importedRows = sourceCm.configData.map((entry, idx) => ({
+      id: `imported-${Date.now()}-${idx}-${safeRandom().toString(36).slice(2, 7)}`,
+      key: entry.key,
+      value: entry.value,
+    }));
+
+    handleAddMultipleRows(importedRows);
+    setIsImportDropdownOpen(false);
+    addLog(
+      'info',
+      `[ConfigMap Data] Added ${importedRows.length} key-value pair(s) from ConfigMap '${sourceCm.name}'`,
+      'UI'
+    );
   };
 
   const isListMode = mode === 'list';
@@ -526,6 +744,15 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
             )}
           </div>
 
+          {/* Tagify Related Component Section */}
+          <ConfigMapComponentSection
+            attachedComponents={attachedComponents}
+            availableComponents={availableComponents}
+            onRemoveComponent={handleRemoveComponent}
+            onAttachComponent={handleAttachComponent}
+            isDark={isDark}
+          />
+
           {/* ConfigMap Name */}
           <div>
             <label htmlFor="configmap-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
@@ -554,13 +781,23 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
                 <p className="text-xs font-semibold text-slate-300">Data (Key-Value)</p>
                 <p className="text-[11px] text-slate-400">Type text or choose suggestions from dropdown for simulation parameters.</p>
               </div>
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600/20 text-teal-400 border border-teal-500/30 hover:bg-teal-600/30 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Row
-              </button>
+              <div className="flex items-center gap-2">
+                <ConfigMapImportDataDropdown
+                  isOpen={isImportDropdownOpen}
+                  onToggleOpen={() => setIsImportDropdownOpen((prev) => !prev)}
+                  existingConfigMaps={existingConfigMapsWithData}
+                  onImport={handleImportFromConfigMap}
+                  isDark={isDark}
+                  dropdownRef={importDropdownRef}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-teal-600/20 text-teal-400 border border-teal-500/30 hover:bg-teal-600/30 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Row
+                </button>
+              </div>
             </div>
 
             {/* Rows Container */}

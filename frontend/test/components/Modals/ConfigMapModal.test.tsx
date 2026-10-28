@@ -222,4 +222,156 @@ describe('ConfigMapModal', () => {
     expect(mockUpdateNodeData).toHaveBeenCalledWith('pod-1', { configMaps: [] });
     expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-web');
   });
+
+  it('handles removing the attached component from the ConfigMap in detail view like Tagify', () => {
+    const mockUpdateNodeData = vi.fn();
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'node-dep-1',
+          type: 'Deployment',
+          position: { x: 0, y: 0 },
+          data: {
+            label: 'api-server',
+            configMaps: [
+              {
+                id: 'cm-api',
+                name: 'api-config',
+                configData: [{ key: 'PORT', value: '3000' }],
+              },
+            ],
+          },
+        },
+      ],
+      savedConfigMaps: [],
+      updateNodeData: mockUpdateNodeData,
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        targetNodeId="node-dep-1"
+        targetNodeLabel="api-server"
+        initialConfigMap={{
+          id: 'cm-api',
+          name: 'api-config',
+          configData: [{ key: 'PORT', value: '3000' }],
+        }}
+      />
+    );
+
+    // Initial attached component tag is visible
+    expect(screen.getByTestId('attached-component-tag-node-dep-1')).toHaveTextContent('Deployment:api-server');
+
+    // Click Tagify X remove button on the tag
+    const removeBtn = screen.getByTestId('remove-component-tag-node-dep-1');
+    fireEvent.click(removeBtn);
+
+    // Expect node update to remove the configMap
+    expect(mockUpdateNodeData).toHaveBeenCalledWith('node-dep-1', { configMaps: [] });
+
+    // Expect tag to be removed from the container
+    expect(screen.queryByTestId('attached-component-tag-node-dep-1')).not.toBeInTheDocument();
+  });
+
+  it('handles attaching to a component from Tagify suggestions in detail view', () => {
+    const mockUpdateNodeData = vi.fn();
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-worker',
+          type: 'Pod',
+          position: { x: 0, y: 0 },
+          data: {
+            label: 'worker-pod',
+            configMaps: [],
+          },
+        },
+      ],
+      savedConfigMaps: [],
+      updateNodeData: mockUpdateNodeData,
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster ConfigMaps"
+        initialConfigMap={{
+          id: 'cm-worker',
+          name: 'worker-config',
+          configData: [{ key: 'QUEUE', value: 'redis' }],
+        }}
+      />
+    );
+
+    // Focus Tagify input to open suggestions
+    const input = screen.getByPlaceholderText('Attach component (e.g. Deployment, Pod)...');
+    fireEvent.focus(input);
+
+    expect(screen.getByTestId('tagify-suggestions-dropdown')).toBeInTheDocument();
+
+    // Select pod-worker from Tagify dropdown
+    fireEvent.mouseDown(screen.getByTestId('tagify-suggestion-pod-worker'));
+
+    // Expect node update to receive the configMap
+    expect(mockUpdateNodeData).toHaveBeenCalledWith(
+      'pod-worker',
+      expect.objectContaining({
+        configMaps: expect.arrayContaining([
+          expect.objectContaining({ name: 'worker-config' }),
+        ]),
+      })
+    );
+
+    // Expect attached component tag to be rendered
+    expect(screen.getByTestId('attached-component-tag-pod-worker')).toHaveTextContent('Pod:worker-pod');
+  });
+
+  it('handles adding/importing key-value pairs from existing ConfigMap data', () => {
+    useFlowStore.setState({
+      nodes: [],
+      savedConfigMaps: [
+        {
+          id: 'cm-source',
+          name: 'source-config',
+          configData: [
+            { key: 'DB_HOST', value: 'postgres' },
+            { key: 'DB_PORT', value: '5432' },
+          ],
+        },
+      ],
+      addLog: vi.fn(),
+    });
+
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        initialConfigMap={{
+          id: 'cm-new',
+          name: 'new-config',
+          configData: [{ key: 'INIT', value: 'true' }],
+        }}
+      />
+    );
+
+    // Click Add from Existing button
+    const importBtn = screen.getByTestId('btn-add-from-existing-cm');
+    fireEvent.click(importBtn);
+
+    // Verify dropdown menu opens
+    expect(screen.getByTestId('import-existing-cm-menu')).toBeInTheDocument();
+    expect(screen.getByTestId('import-option-source-config')).toBeInTheDocument();
+
+    // Click source-config option
+    fireEvent.click(screen.getByTestId('import-option-source-config'));
+
+    // Check that imported keys and values now appear in the form
+    expect(screen.getByDisplayValue('DB_HOST')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('postgres')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('DB_PORT')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('5432')).toBeInTheDocument();
+  });
 });

@@ -51,6 +51,13 @@ export const useConfigMapModal = ({
     getValidData,
   } = useKeyValueModalState('cm', []);
 
+  const handleAddMultipleRows = useCallback(
+    (newRows: Array<{ id: string; key: string; value: string }>) => {
+      setRows((prev) => [...prev, ...newRows]);
+    },
+    [setRows]
+  );
+
   const {
     activeDropdown,
     setActiveDropdown,
@@ -139,7 +146,9 @@ export const useConfigMapModal = ({
     activeRow,
     filteredKeys,
     filteredValues,
+    setRows,
     handleAddRow,
+    handleAddMultipleRows,
     handleRemoveRow,
     handleRowChange,
     handleInputFocusOrChange,
