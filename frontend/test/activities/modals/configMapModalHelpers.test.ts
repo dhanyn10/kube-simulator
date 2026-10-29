@@ -7,6 +7,10 @@ import {
   buildConfigMapItem,
   extractPodHashFromLabel,
   getPodReplicaGroupInfo,
+  resolveTargetOptionLabel,
+  getAvailableWorkloadComponents,
+  appendTargetComponentOption,
+  extractUniqueRawItems,
 } from '@/activities/modals/configMapModalHelpers';
 
 describe('configMapModalHelpers', () => {
@@ -143,6 +147,76 @@ describe('configMapModalHelpers', () => {
         groupKey: 'dep-1',
         groupLabel: 'web-deploy',
       });
+    });
+  });
+  describe('resolveTargetOptionLabel', () => {
+    it('returns groupLabel if groupInfo.isGroup is true', () => {
+      const groupInfo = { isGroup: true, groupKey: 'pod-group:api-123', groupLabel: 'api-123' };
+      expect(resolveTargetOptionLabel(groupInfo, null)).toBe('api-123');
+    });
+
+    it('returns targetNode label or id if targetNode is provided', () => {
+      const nodeWithLabel = { id: 'node-1', data: { label: 'my-pod' } };
+      expect(resolveTargetOptionLabel(null, nodeWithLabel)).toBe('my-pod');
+
+      const nodeWithoutLabel = { id: 'node-2', data: {} };
+      expect(resolveTargetOptionLabel(null, nodeWithoutLabel)).toBe('node-2');
+    });
+
+    it('falls back to targetNodeLabel or targetNodeId or empty string', () => {
+      expect(resolveTargetOptionLabel(null, null, 'custom-label', 'custom-id')).toBe('custom-label');
+      expect(resolveTargetOptionLabel(null, null, undefined, 'custom-id')).toBe('custom-id');
+      expect(resolveTargetOptionLabel(null, null, undefined, undefined)).toBe('');
+    });
+  });
+
+  describe('getAvailableWorkloadComponents', () => {
+    it('extracts workload components and collapses pod replica groups', () => {
+      const nodes = [
+        { id: 'dep-1', type: 'Deployment', data: { label: 'web-deploy' } },
+        { id: 'pod-1', type: 'Pod', data: { baseName: 'web', podHash: 'abc12', label: 'web-abc12-xyz01' } },
+        { id: 'pod-2', type: 'Pod', data: { baseName: 'web', podHash: 'abc12', label: 'web-abc12-xyz02' } },
+        { id: 'unknown-1', type: 'CustomResource', data: { label: 'unknown' } },
+      ];
+      const result = getAvailableWorkloadComponents(nodes);
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ id: 'dep-1', label: 'web-deploy', type: 'Deployment' });
+      expect(result[1]).toEqual({ id: 'pod-group:web-abc12', label: 'web-abc12', type: 'Pod' });
+    });
+  });
+
+  describe('appendTargetComponentOption', () => {
+    it('returns same array if targetNodeId is null or cluster-storage', () => {
+      const initial = [{ id: 'comp-1', label: 'comp-1', type: 'Pod' }];
+      expect(appendTargetComponentOption(initial, null, undefined, [])).toBe(initial);
+      expect(appendTargetComponentOption(initial, 'cluster-storage', undefined, [])).toBe(initial);
+    });
+
+    it('appends target node if not already present', () => {
+      const initial = [{ id: 'comp-1', label: 'comp-1', type: 'Pod' }];
+      const nodes = [{ id: 'target-node', type: 'Deployment', data: { label: 'target-deploy' } }];
+      const result = appendTargetComponentOption(initial, 'target-node', undefined, nodes);
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual({ id: 'target-node', label: 'target-deploy', type: 'Deployment' });
+    });
+
+    it('does not duplicate if already present', () => {
+      const initial = [{ id: 'target-node', label: 'target-deploy', type: 'Deployment' }];
+      const nodes = [{ id: 'target-node', type: 'Deployment', data: { label: 'target-deploy' } }];
+      const result = appendTargetComponentOption(initial, 'target-node', undefined, nodes);
+      expect(result).toBe(initial);
+    });
+  });
+
+  describe('extractUniqueRawItems', () => {
+    it('extracts unique raw items filtering out currentId and duplicate names', () => {
+      const items = [
+        { id: 'item-1', rawItem: { id: 'item-1', name: 'config-a' } },
+        { id: 'item-2', rawItem: { id: 'item-2', name: 'config-b' } },
+        { id: 'item-3', rawItem: { id: 'item-3', name: 'config-b' } }, // duplicate name of item-2
+      ];
+      const result = extractUniqueRawItems(items as any, 'item-1');
+      expect(result).toEqual([{ id: 'item-2', name: 'config-b' }]);
     });
   });
 });

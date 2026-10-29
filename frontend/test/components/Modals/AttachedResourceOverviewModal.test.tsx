@@ -35,6 +35,8 @@ describe('AttachedResourceOverviewModal', () => {
     vi.clearAllMocks();
     useFlowStore.setState({
       nodes: mockNodes,
+      savedConfigMaps: [],
+      savedSecrets: [],
       colorMode: 'dark',
       updateNodeData: vi.fn(),
       addLog: vi.fn(),
@@ -234,6 +236,50 @@ describe('AttachedResourceOverviewModal', () => {
 
     expect(mockDeleteSavedConfigMap).toHaveBeenCalledWith('cm-to-delete');
   });
+
+  it('renders standalone Secret from savedSecrets and handles Add Secret button click', () => {
+    const mockSetSecretModalTargetNode = vi.fn();
+    const onClose = vi.fn();
+
+    useFlowStore.setState({
+      nodes: [],
+      savedSecrets: [{ id: 'sec-standalone-1', name: 'standalone-secret', type: 'Opaque', secretData: [{ key: 'PASS', value: 'secret123' }] }],
+      setSecretModalTargetNode: mockSetSecretModalTargetNode,
+    });
+
+    render(<AttachedResourceOverviewModal type="Secret" onClose={onClose} />);
+
+    expect(screen.getByText('standalone-secret')).toBeInTheDocument();
+    expect(screen.getByText('Attached to: Cluster (Local Storage) (Secret)')).toBeInTheDocument();
+    expect(screen.getByText('PASS')).toBeInTheDocument();
+
+    const addBtn = screen.getByText('+ Add Secret');
+    fireEvent.click(addBtn);
+
+    expect(onClose).toHaveBeenCalled();
+    expect(mockSetSecretModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster Secret',
+    });
+  });
+
+  it('handles deleting a standalone Secret', () => {
+    const mockDeleteSavedSecret = vi.fn();
+
+    useFlowStore.setState({
+      nodes: [],
+      savedSecrets: [{ id: 'sec-to-delete', name: 'standalone-sec-delete', type: 'Opaque', secretData: [] }],
+      deleteSavedSecret: mockDeleteSavedSecret,
+    });
+
+    render(<AttachedResourceOverviewModal type="Secret" onClose={vi.fn()} />);
+
+    const deleteBtn = screen.getByTitle('Delete Secret standalone-sec-delete');
+    fireEvent.click(deleteBtn);
+
+    expect(mockDeleteSavedSecret).toHaveBeenCalledWith('sec-to-delete');
+  });
+
 
   it('covers fallback branches across details components and delete handler', () => {
     const updateNodeData = vi.fn();

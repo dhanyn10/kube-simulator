@@ -5,6 +5,7 @@ import { useFlowStore } from '@/store';
 import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLimitItem } from '@/types';
 import { logger } from '@/lib/logger';
 import { persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
+import { persistSecretItem } from '@/activities/modals/secretStorageHelpers';
 import { getActiveProfileName } from '@/store/useFlowStore';
 import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
 import {
@@ -169,6 +170,84 @@ export function detachConfigMapFromNode(
     );
   }
 }
+export function createEnrichedSecretItem(
+  secretItem: K8sSecretItem,
+  target: any,
+  isTargetAttached: boolean,
+  activeProfileName: string,
+  targetLabel: string
+): K8sSecretItem {
+  const profileName = secretItem.profileName || activeProfileName;
+  if (!isTargetAttached) {
+    return {
+      ...secretItem,
+      profileName,
+      resourceName: undefined,
+      resourceType: undefined,
+    };
+  }
+  return {
+    ...secretItem,
+    profileName,
+    resourceName: secretItem.resourceName || targetLabel,
+    resourceType: secretItem.resourceType || target?.type || 'Resource',
+  };
+}
+
+export function attachSecretToNode(
+  target: any,
+  secretItem: K8sSecretItem,
+  enrichedSecretItem: K8sSecretItem,
+  targetLabel: string,
+  updateNodeData: (id: string, data: any) => void
+) {
+  const existingSecrets = target.data?.secrets || [];
+  const existingIndex = existingSecrets.findIndex(
+    (s: K8sSecretItem) => s.id === secretItem.id || Boolean(secretItem.name && s.name === secretItem.name)
+  );
+
+  let updatedSecrets: K8sSecretItem[];
+  if (existingIndex >= 0) {
+    updatedSecrets = [...existingSecrets];
+    updatedSecrets[existingIndex] = enrichedSecretItem;
+  } else {
+    updatedSecrets = [...existingSecrets, enrichedSecretItem];
+  }
+
+  updateNodeData(target.id, { secrets: updatedSecrets });
+  useFlowStore.getState().addLog('info', `[Secret Attached] Attached Secret "${secretItem.name}" to card ${targetLabel}`, 'UI');
+
+  useFlowStore.setState({
+    configuringNodeId: target.id,
+    configuringEdgeId: null,
+    isRightSidebarVisible: true,
+    isHistoryViewOpen: false,
+  });
+
+  emitLiveSecretCommand(secretItem.name, secretItem.type || 'Opaque', targetLabel);
+}
+
+export function detachSecretFromNode(
+  target: any,
+  secretItem: K8sSecretItem,
+  targetLabel: string,
+  updateNodeData: (id: string, data: any) => void
+) {
+  if (!target) return;
+  const existingSecrets = target.data?.secrets || [];
+  const filteredSecrets = existingSecrets.filter(
+    (s: K8sSecretItem) => s.id !== secretItem.id && (!secretItem.name || s.name !== secretItem.name)
+  );
+  if (filteredSecrets.length !== existingSecrets.length) {
+    updateNodeData(target.id, { secrets: filteredSecrets });
+    useFlowStore.getState().addLog(
+      'info',
+      `[Secret Detached] Detached Secret "${secretItem.name}" from card ${targetLabel}`,
+      'UI'
+    );
+  }
+}
+
 
 export function useAttachmentHandlers() {
   const nodes = useFlowStore((state) => state.nodes);
@@ -217,33 +296,31 @@ export function useAttachmentHandlers() {
 
   const handleSecretSave = (secretItem: K8sSecretItem) => {
     if (!secretModalTargetNode) return;
-    const target = nodes.find((n) => n.id === secretModalTargetNode.id);
-    if (!target) return;
+    const currentProject = useFlowStore.getState().currentProject;
+    const activeProfileName = getActiveProfileName(currentProject);
 
-    const existingSecrets = target.data.secrets || [];
-    const existingIndex = existingSecrets.findIndex((s: K8sSecretItem) => s.id === secretItem.id);
-    let updatedSecrets: K8sSecretItem[];
+    const target = nodes.find((n) => n.id === secretModalTargetNode.id) || null;
+    const targetLabel = (target?.data?.label as string) || target?.id || secretModalTargetNode.label;
+    const isTargetStillAttached = isNodeAttachedToConfigMap(target, secretModalTargetNode, secretItem.resourceName);
 
-    if (existingIndex >= 0) {
-      updatedSecrets = [...existingSecrets];
-      updatedSecrets[existingIndex] = secretItem;
+    const enrichedSecretItem = createEnrichedSecretItem(
+      secretItem,
+      target,
+      isTargetStillAttached,
+      activeProfileName,
+      targetLabel
+    );
+
+    if (target && isTargetStillAttached) {
+      attachSecretToNode(target, secretItem, enrichedSecretItem, targetLabel, updateNodeData);
     } else {
-      updatedSecrets = [...existingSecrets, secretItem];
+      detachSecretFromNode(target, secretItem, targetLabel, updateNodeData);
+      useFlowStore.getState().addLog('info', `[Secret Saved] Saved Secret "${secretItem.name}" to local storage`, 'UI');
     }
 
-    updateNodeData(target.id, { secrets: updatedSecrets });
-    useFlowStore.getState().addLog('info', `[Secret Attached] Attached Secret "${secretItem.name}" to card ${secretModalTargetNode.label}`, 'UI');
-    setSecretModalTargetNode(null);
-
-    useFlowStore.setState({
-      configuringNodeId: target.id,
-      configuringEdgeId: null,
-      isRightSidebarVisible: true,
-      isHistoryViewOpen: false,
-    });
-
-    // Auto-emit live kubectl command
-    emitLiveSecretCommand(secretItem.name, secretItem.type || 'Opaque', secretModalTargetNode.label);
+    useFlowStore.getState().addOrUpdateSavedSecret(enrichedSecretItem);
+    void persistSecretItem(enrichedSecretItem);
+    setSecretModalTargetNode({ id: 'cluster-storage', label: 'Cluster Secrets', initialViewMode: 'list' });
   };
 
   const handleConfigMapSave = (cmItem: K8sConfigMapItem) => {

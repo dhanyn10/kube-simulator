@@ -31,7 +31,7 @@ export const DataResourceConfig = ({
     title: isSecret ? "Secrets (Key-Value)" : "Data (Key-Value)",
     titleIcon: isSecret ? <Lock size={10} /> : <Settings size={10} />,
     valueIcon: isSecret ? <Shield size={10} /> : <Type size={10} />,
-    accentColor: isSecret ? "indigo" : "teal",
+    accentColor: isSecret ? "rose" : "teal",
     emptyText: isSecret ? "No secret data yet" : "No configuration data yet",
     inputType: "text",
     valuePlaceholder: isSecret ? "Secret Value" : "Value"

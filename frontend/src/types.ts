@@ -72,6 +72,9 @@ export interface K8sSecretItem {
   name: string;
   secretData: Array<{ key: string; value: string }>;
   type?: string;
+  profileName?: string;
+  resourceName?: string;
+  resourceType?: string;
 }
 
 export interface K8sHpaItem {

@@ -166,6 +166,30 @@ describe('attachedResourceOverviewHelpers', () => {
     expect(attachedSaved[0].profileName).toBe('Staging Canvas');
   });
 
+  it('extractAllOverviewItems includes unattached saved Secrets from local storage', () => {
+    const savedSecs = [
+      { id: 'sec-standalone', name: 'global-secret', type: 'Opaque', secretData: [{ key: 'API_TOKEN', value: 'secret' }] },
+      { id: 'sec-1', name: 'db-secret', type: 'Opaque', secretData: [{ key: 'DB_PASS', value: '12345' }] },
+    ];
+
+    const secrets = extractAllOverviewItems(mockNodes, 'Secret', savedSecs, 'Production Cluster');
+    expect(secrets).toHaveLength(2);
+
+    const standalone = secrets.find((s) => s.id === 'sec-standalone');
+    expect(standalone).toBeDefined();
+    expect(standalone?.ownerNode.id).toBe('cluster-storage');
+    expect(standalone?.ownerNode.label).toBe('Cluster (Local Storage)');
+    expect(standalone?.profileName).toBe('Production Cluster');
+
+    const attachedSaved = extractAllOverviewItems([], 'Secret', [
+      { id: 'sec-att', name: 'api-secret', type: 'Opaque', secretData: [], resourceName: 'api-pod', resourceType: 'Pod', profileName: 'Staging Canvas' },
+    ]);
+    expect(attachedSaved[0].ownerNode.label).toBe('api-pod');
+    expect(attachedSaved[0].ownerNode.type).toBe('Pod');
+    expect(attachedSaved[0].profileName).toBe('Staging Canvas');
+  });
+
+
   it('deduplicates duplicate ConfigMap entries on the same component and child replica pods', () => {
     const duplicateNodes: Node[] = [
       { id: 'dep-1', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'web-workload', configMaps: [{ id: 'cm-web', name: 'web-config', configData: [{ key: 'PORT', value: '80' }] }, { id: 'cm-web', name: 'web-config', configData: [{ key: 'PORT', value: '80' }] }] } },

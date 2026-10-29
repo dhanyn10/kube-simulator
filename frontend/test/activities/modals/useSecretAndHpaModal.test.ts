@@ -64,7 +64,7 @@ describe('useSecretModal and useHpaModal', () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'existing-sec-1',
-        name: 'unnamed-secret',
+        name: 'existing-sec-1',
         type: 'Opaque'
       })
     );

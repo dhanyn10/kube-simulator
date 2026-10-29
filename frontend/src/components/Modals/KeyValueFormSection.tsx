@@ -11,7 +11,7 @@ export interface KeyValueItem {
 interface KeyValueFormSectionProps {
   items: KeyValueItem[];
   colorMode: string;
-  accentColor: 'indigo' | 'teal';
+  accentColor: 'indigo' | 'teal' | 'rose';
   onAddField: () => void;
   onRemoveField: (id: string) => void;
   onUpdateField: (id: string, field: 'key' | 'value', value: string) => void;
@@ -33,9 +33,16 @@ export const KeyValueFormSection: React.FC<KeyValueFormSectionProps> = ({
   valueInputType = 'text',
   sectionTitle = 'Data (Key - Value Pairs)',
 }) => {
-  const isIndigo = accentColor === 'indigo';
-  const textColor = isIndigo ? 'text-indigo-400 hover:text-indigo-300' : 'text-teal-400 hover:text-teal-300';
-  const ringColor = isIndigo ? 'focus:ring-indigo-500' : 'focus:ring-teal-500';
+  const getAccentColors = (color: 'indigo' | 'teal' | 'rose') => {
+    if (color === 'rose') {
+      return { textColor: 'text-rose-400 hover:text-rose-300', ringColor: 'focus:ring-rose-500' };
+    }
+    if (color === 'indigo') {
+      return { textColor: 'text-indigo-400 hover:text-indigo-300', ringColor: 'focus:ring-indigo-500' };
+    }
+    return { textColor: 'text-teal-400 hover:text-teal-300', ringColor: 'focus:ring-teal-500' };
+  };
+  const { textColor, ringColor } = getAccentColors(accentColor);
 
   return (
     <div className="space-y-3">

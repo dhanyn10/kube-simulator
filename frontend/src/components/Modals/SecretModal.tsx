@@ -1,20 +1,52 @@
-import React from 'react';
-import { Lock } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Lock, ArrowLeft } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sSecretItem } from '@/types';
 import { useFlowStore } from '@/store';
-import { cn } from '@/lib/utils';
+import { getActiveProfileName } from '@/store/useFlowStore';
+import { cn, sanitizeSlug } from '@/lib/utils';
 import { KeyValueFormSection } from './KeyValueFormSection';
-import { useSecretModal } from '@/activities/modals';
+import { useSecretModal } from '@/activities/modals/useSecretModal';
+import {
+  buildSecretItem,
+  findAllAttachedSecretComponents,
+  syncNodesSecret,
+  mergeAttachedSecretComponents,
+  removeSecretFromNodeOrStore,
+  getAvailableWorkloadComponents,
+  appendTargetComponentOption,
+  extractUniqueRawItems,
+  detachSecretComponent,
+  attachSecretComponent,
+  getSecretModalTitle,
+  getSecretModalSubtitle,
+} from '@/activities/modals/secretModalHelpers';
+import {
+  OverviewItem,
+  extractAllOverviewItems,
+  filterOverviewItems,
+} from '@/activities/modals/attachedResourceOverviewHelpers';
+import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
+import { SecretImportDataDropdown } from './SecretImportDataDropdown';
+import { SecretListView } from './SecretListView';
+import { ResourcePrecedenceView } from './ResourcePrecedenceView';
+import { ResourceModalFooter } from './ResourceModalFooter';
+import { useOutsideMouseDown } from '@/hooks/useOutsideMouseDown';
 
-interface SecretModalProps {
+export type SecretModalMode = 'form' | 'list' | 'profile';
+
+export interface SecretModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly targetNodeId: string | null;
   readonly targetNodeLabel?: string;
   readonly initialSecret?: K8sSecretItem | null;
+  readonly initialViewMode?: 'form' | 'list';
   readonly onSave: (secretItem: K8sSecretItem) => void;
 }
+
+export { findAllAttachedSecretComponents, syncNodesSecret, mergeAttachedSecretComponents, removeSecretFromNodeOrStore };
+
 
 export const SecretModal: React.FC<SecretModalProps> = ({
   isOpen,
@@ -22,11 +54,25 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   targetNodeId,
   targetNodeLabel,
   initialSecret,
+  initialViewMode,
   onSave,
 }) => {
   const colorMode = useFlowStore((state) => state.colorMode);
+  const isDark = colorMode === 'dark';
+  const nodes = useFlowStore((state) => state.nodes);
+  const currentProject = useFlowStore((state) => state.currentProject);
+  const updateNodeData = useFlowStore((state) => state.updateNodeData);
+  const addLog = useFlowStore((state) => state.addLog);
+  const savedSecrets = useFlowStore((state) => state.savedSecrets);
+  const deleteSavedSecret = useFlowStore((state) => state.deleteSavedSecret);
+
+  const [mode, setMode] = useState<SecretModalMode>('form');
+  const [activeItem, setActiveItem] = useState<K8sSecretItem | null>(initialSecret || null);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const {
+    secretId,
     secretName,
     setSecretName,
     secretType,
@@ -35,108 +81,381 @@ export const SecretModal: React.FC<SecretModalProps> = ({
     handleAddField,
     handleRemoveField,
     handleUpdateField,
-    handleSave,
-  } = useSecretModal(isOpen, targetNodeId, initialSecret, onSave, onClose);
+    loadSecret,
+    getValidData,
+  } = useSecretModal(isOpen, targetNodeId, initialSecret, onSave, onClose) as any;
+
+  const [attachedComponents, setAttachedComponents] = useState<ComponentOption[]>([]);
+  const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false);
+  const importDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialViewMode === 'list') {
+      setMode('list');
+    } else {
+      setMode('form');
+    }
+  }, [isOpen, initialViewMode, initialSecret?.id]);
+
+  const currentProfileName = getActiveProfileName(currentProject);
+  const allItems = useMemo(
+    () => extractAllOverviewItems(nodes, 'Secret', savedSecrets, currentProfileName),
+    [nodes, savedSecrets, currentProfileName]
+  );
+  const filteredItems = useMemo(
+    () => filterOverviewItems(allItems, search, 'Secret'),
+    [allItems, search]
+  );
+
+  const profileItems = useMemo(() => {
+    const targetProfile = selectedProfile || currentProfileName;
+    return allItems.filter((item) => {
+      const pName = item.profileName && item.profileName !== 'Default Profile'
+        ? item.profileName
+        : currentProfileName;
+      return pName === targetProfile;
+    });
+  }, [allItems, selectedProfile, currentProfileName]);
+
+  const availableComponents = useMemo(() => getAvailableWorkloadComponents(nodes), [nodes]);
+
+  const existingSecrets = useMemo(
+    () => extractUniqueRawItems<K8sSecretItem>(allItems, activeItem?.id || initialSecret?.id || secretId),
+    [allItems, activeItem?.id, initialSecret?.id, secretId]
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const initialSecId = initialSecret?.id;
+    const initialSecName = initialSecret?.name;
+    const resName = initialSecret?.resourceName;
+    const currentNodes = useFlowStore.getState().nodes;
+    const initialComps = findAllAttachedSecretComponents(
+      initialSecId,
+      initialSecName,
+      currentNodes,
+      resName
+    );
+
+    const resolved = appendTargetComponentOption(
+      initialComps,
+      targetNodeId,
+      targetNodeLabel,
+      currentNodes
+    );
+    setAttachedComponents(resolved);
+  }, [isOpen, initialSecret?.id, targetNodeId]);
+
+  useOutsideMouseDown(importDropdownRef, isImportDropdownOpen, () => {
+    setIsImportDropdownOpen(false);
+  });
 
   if (!isOpen) return null;
 
+  const handleEditFromList = (item: OverviewItem) => {
+    loadSecret(item.rawItem);
+    setActiveItem(item.rawItem);
+    setSelectedProfile(null);
+    const comps = findAllAttachedSecretComponents(
+      item.rawItem.id,
+      item.rawItem.name,
+      nodes,
+      item.rawItem.resourceName || (item.ownerNode.id !== 'cluster-storage' ? item.ownerNode.label : undefined)
+    );
+    setAttachedComponents(comps);
+    setMode('form');
+  };
+
+  const handleAddNewFromList = () => {
+    loadSecret(null);
+    setActiveItem(null);
+    setSelectedProfile(null);
+    setAttachedComponents([]);
+    setMode('form');
+  };
+
+  const handleDeleteFromList = (item: OverviewItem) => {
+    removeSecretFromNodeOrStore(item, nodes, updateNodeData, addLog, deleteSavedSecret);
+  };
+
+  const handleRemoveComponent = (componentId: string) => {
+    const targetSecId = activeItem?.id || initialSecret?.id || secretId;
+    const oldSecName = initialSecret?.name || activeItem?.name;
+    detachSecretComponent({
+      nodes,
+      componentId,
+      targetSecId,
+      secretName,
+      oldSecName,
+      updateNodeData,
+      addLog,
+    });
+    setAttachedComponents((prev) => prev.filter((c) => c.id !== componentId));
+  };
+
+  const handleAttachComponent = (comp: ComponentOption) => {
+    const targetId = activeItem?.id || initialSecret?.id || secretId || `secret-${Date.now()}`;
+    const validData = typeof getValidData === 'function' ? getValidData() : [];
+    attachSecretComponent({
+      nodes,
+      comp,
+      targetId,
+      secretName,
+      secretType,
+      validData,
+      updateNodeData,
+      addLog,
+    });
+    setAttachedComponents((prev) => [...prev.filter((c) => c.id !== comp.id), comp]);
+  };
+
+  const handleUseExistingSecret = (sourceSec: K8sSecretItem) => {
+    if (typeof loadSecret === 'function') {
+      loadSecret(sourceSec);
+    }
+    const nextAttached = mergeAttachedSecretComponents(attachedComponents, sourceSec, nodes);
+    setAttachedComponents(nextAttached);
+    setIsImportDropdownOpen(false);
+    addLog(
+      'info',
+      `[Secret] Selected existing Secret '${sourceSec.name}' for component '${targetNodeLabel || targetNodeId || 'canvas'}'`,
+      'UI'
+    );
+  };
+
+  const handleSaveModal = () => {
+    const validData = dataItems
+      .filter((item: any) => item.key.trim() !== '')
+      .map((item: any) => ({ key: item.key.trim(), value: item.value }));
+    const targetId = activeItem?.id || initialSecret?.id || secretId || `secret-${Date.now()}`;
+    const trimmedName = secretName?.trim();
+    const effectiveName = trimmedName ? sanitizeSlug(trimmedName) : targetId;
+    const oldSecName = initialSecret?.name || activeItem?.name;
+
+    const hasAttached = attachedComponents.length > 0;
+    const targetResName = hasAttached ? attachedComponents.map((c) => c.label).join(', ') : '';
+    const targetResType = hasAttached ? attachedComponents[0].type : undefined;
+
+    const secretItem: K8sSecretItem = {
+      ...buildSecretItem(targetId, effectiveName, secretType, validData),
+      profileName: activeItem?.profileName || currentProfileName,
+      resourceName: targetResName,
+      resourceType: targetResType,
+    };
+
+    const attachedIds = new Set(attachedComponents.map((c) => c.id));
+    syncNodesSecret(nodes, targetId, secretItem.name, oldSecName, secretItem, attachedIds, updateNodeData);
+
+    onSave(secretItem);
+    setActiveItem(null);
+    setAttachedComponents([]);
+    setMode('list');
+  };
+
+  const hasExistingItem = Boolean(activeItem || initialSecret);
+  const modalTitle = getSecretModalTitle(mode, hasExistingItem, selectedProfile);
+  const modalSubtitle = getSecretModalSubtitle(mode, filteredItems.length, targetNodeLabel, selectedProfile);
+
   const footer = (
-    <div className="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        onClick={onClose}
-        className={cn(
-          "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-          colorMode === 'dark'
-            ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-            : "border-slate-300 hover:bg-slate-100 text-slate-700"
-        )}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        onClick={handleSave}
-        className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all cursor-pointer"
-      >
-        {initialSecret ? 'Update Secret' : 'Attach Secret'}
-      </button>
-    </div>
+    <ResourceModalFooter
+      mode={mode}
+      isDark={isDark}
+      onAddNewFromList={handleAddNewFromList}
+      onClose={onClose}
+      onBackToMode={() => setMode('list')}
+      onSave={handleSaveModal}
+      addNewButtonLabel="+ Add Secret"
+      saveButtonLabel={hasExistingItem ? 'Update Secret' : 'Attach Secret'}
+      accentColor="rose"
+      backButtonTestId="secret-back-button"
+      closeButtonTestId="secret-list-close-button"
+      profileBackButtonTestId="secret-footer-back-button"
+    />
   );
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={initialSecret ? 'Edit Secret' : 'Attach Secret'}
-      subtitle={targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Sensitive Key-Value Data'}
+      title={modalTitle}
+      subtitle={modalSubtitle}
       icon={Lock}
-      iconColorClass="text-indigo-400"
+      iconColorClass="text-rose-400"
       widthClass="w-full max-w-3xl"
-      maxHeightClass="h-[70vh]"
+      maxHeightClass="h-[75vh]"
       footer={footer}
     >
-      <div className="space-y-4">
-        {/* Secret Name & Type */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="secret-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
-              Secret Name
-            </label>
-            <input
-              id="secret-name-input"
-              type="text"
-              value={secretName}
-              onChange={(e) => setSecretName(e.target.value)}
-              placeholder="e.g. app-secret"
-              maxLength={63}
-              className={cn(
-                "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
-                colorMode === 'dark'
-                  ? "bg-slate-950 border-slate-800 text-slate-100"
-                  : "bg-slate-50 border-slate-300 text-slate-900"
-              )}
+      {mode === 'list' && (
+        <SecretListView
+          search={search}
+          onSearchChange={setSearch}
+          items={filteredItems}
+          isDark={isDark}
+          onEditItem={handleEditFromList}
+          onDeleteItem={handleDeleteFromList}
+          onSelectProfile={(pName) => {
+            setSelectedProfile(pName);
+            setMode('profile');
+          }}
+        />
+      )}
+
+      {mode === 'profile' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+            <button
+              type="button"
+              data-testid="secret-profile-back-button"
+              onClick={() => setMode('list')}
+              className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to Secret list</span>
+            </button>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Profile: <strong className="text-rose-400">{selectedProfile}</strong>
+            </span>
+          </div>
+
+          <ResourcePrecedenceView
+            resourceType="Secret"
+            accentColor="rose"
+            profileName={selectedProfile || currentProfileName}
+            items={profileItems}
+            isDark={isDark}
+            onEditItem={handleEditFromList}
+            onDeleteItem={handleDeleteFromList}
+            onAddNewItem={handleAddNewFromList}
+          />
+        </div>
+      )}
+
+      {mode === 'form' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+            <button
+              type="button"
+              data-testid="secret-header-back-button"
+              onClick={() => setMode('list')}
+              className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to Secret list</span>
+            </button>
+          </div>
+
+          {/* Tagify Related Component Section */}
+          <ConfigMapComponentSection
+            attachedComponents={attachedComponents}
+            availableComponents={availableComponents}
+            onRemoveComponent={handleRemoveComponent}
+            onAttachComponent={handleAttachComponent}
+            isDark={isDark}
+            accentColor="indigo"
+          />
+
+          {hasExistingItem && (
+            <div>
+              <label htmlFor="secret-id-input" className="block text-xs font-semibold mb-1 text-slate-400">
+                Secret ID
+              </label>
+              <input
+                id="secret-id-input"
+                data-testid="secret-id-input"
+                type="text"
+                value={activeItem?.id || secretId || initialSecret?.id}
+                readOnly
+                disabled
+                className={cn(
+                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none cursor-not-allowed opacity-75 select-none",
+                  isDark
+                    ? "bg-slate-900 border-slate-800 text-slate-400"
+                    : "bg-slate-100 border-slate-200 text-slate-500"
+                )}
+              />
+            </div>
+          )}
+
+          {/* Secret Name & Type */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="secret-name-input" className="block text-xs font-semibold mb-1 text-slate-400">
+                Secret Name
+              </label>
+              <input
+                id="secret-name-input"
+                data-testid="secret-name-input"
+                type="text"
+                value={secretName}
+                onChange={(e) => setSecretName(e.target.value)}
+                placeholder="e.g. app-secret"
+                maxLength={63}
+                className={cn(
+                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-rose-500/50 transition-all",
+                  isDark
+                    ? "bg-slate-950 border-slate-800 text-slate-100"
+                    : "bg-slate-50 border-slate-300 text-slate-900"
+                )}
+              />
+            </div>
+            <div>
+              <label htmlFor="secret-type-select" className="block text-xs font-semibold mb-1 text-slate-400">
+                Secret Type
+              </label>
+              <select
+                id="secret-type-select"
+                data-testid="secret-type-select"
+                value={secretType}
+                onChange={(e) => setSecretType(e.target.value)}
+                className={cn(
+                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-rose-500/50 transition-all",
+                  isDark
+                    ? "bg-slate-950 border-slate-800 text-slate-100"
+                    : "bg-slate-50 border-slate-300 text-slate-900"
+                )}
+              >
+                <option value="Opaque">Opaque</option>
+                <option value="kubernetes.io/service-account-token">Service Account Token</option>
+                <option value="kubernetes.io/dockercfg">Docker Config</option>
+                <option value="kubernetes.io/basic-auth">Basic Auth</option>
+                <option value="kubernetes.io/ssh-auth">SSH Auth</option>
+                <option value="kubernetes.io/tls">TLS</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Key-Value Data Section with Use Existing dropdown */}
+          <div className="space-y-3 pt-2 border-t border-slate-800/40">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-400">Secret Data (Key - Value Pairs)</span>
+              <div className="flex items-center gap-2">
+                <SecretImportDataDropdown
+                  isOpen={isImportDropdownOpen}
+                  onToggleOpen={() => setIsImportDropdownOpen((prev) => !prev)}
+                  existingSecrets={existingSecrets}
+                  onImport={handleUseExistingSecret}
+                  isDark={isDark}
+                  dropdownRef={importDropdownRef}
+                />
+              </div>
+            </div>
+
+            <KeyValueFormSection
+              items={dataItems}
+              colorMode={colorMode}
+              accentColor="indigo"
+              onAddField={handleAddField}
+              onRemoveField={handleRemoveField}
+              onUpdateField={handleUpdateField}
+              keyPlaceholder="KEY (e.g. DB_PASSWORD)"
+              valuePlaceholder="Secret Value"
+              valueInputType="text"
+              sectionTitle=""
             />
           </div>
-          <div>
-            <label htmlFor="secret-type-select" className="block text-xs font-semibold mb-1 text-slate-400">
-              Secret Type
-            </label>
-            <select
-              id="secret-type-select"
-              value={secretType}
-              onChange={(e) => setSecretType(e.target.value)}
-              className={cn(
-                "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
-                colorMode === 'dark'
-                  ? "bg-slate-950 border-slate-800 text-slate-100"
-                  : "bg-slate-50 border-slate-300 text-slate-900"
-              )}
-            >
-              <option value="Opaque">Opaque</option>
-              <option value="kubernetes.io/service-account-token">Service Account Token</option>
-              <option value="kubernetes.io/dockercfg">Docker Config</option>
-              <option value="kubernetes.io/basic-auth">Basic Auth</option>
-              <option value="kubernetes.io/ssh-auth">SSH Auth</option>
-              <option value="kubernetes.io/tls">TLS</option>
-            </select>
-          </div>
         </div>
-
-        {/* Key-Value Data Section */}
-        <KeyValueFormSection
-          items={dataItems}
-          colorMode={colorMode}
-          accentColor="indigo"
-          onAddField={handleAddField}
-          onRemoveField={handleRemoveField}
-          onUpdateField={handleUpdateField}
-          keyPlaceholder="KEY (e.g. DB_PASSWORD)"
-          valuePlaceholder="Secret Value"
-          valueInputType="text"
-          sectionTitle="Secret Data (Key - Value Pairs)"
-        />
-      </div>
+      )}
     </Modal>
   );
 };

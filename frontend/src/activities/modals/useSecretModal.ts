@@ -5,7 +5,7 @@ import { useKeyValueModalState } from './useKeyValueModalState';
 
 export const DEFAULT_SECRET_ITEMS = [
   { key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
-  { key: 'API_KEY', value: 'secret-token-xyz' }
+  { key: 'API_KEY', value: 'secret-token-xyz' },
 ];
 
 /**
@@ -25,6 +25,7 @@ export function useSecretModal(
   onSave: (secretItem: K8sSecretItem) => void,
   onClose: () => void
 ) {
+  const [secretId, setSecretId] = useState<string>('');
   const [secretName, setSecretName] = useState<string>('app-secret');
   const [secretType, setSecretType] = useState<string>('Opaque');
 
@@ -34,54 +35,68 @@ export function useSecretModal(
     handleAddField,
     handleRemoveField,
     handleUpdateField,
-    getValidData
+    getValidData,
   } = useKeyValueModalState('sec', DEFAULT_SECRET_ITEMS);
 
-  useEffect(() => {
-    if (initialSecret) {
-      setSecretName(initialSecret.name || 'app-secret');
-      setSecretType(initialSecret.type || 'Opaque');
+  const loadSecret = (sec: K8sSecretItem | null | undefined) => {
+    if (sec) {
+      setSecretId(sec.id);
+      setSecretName(sec.name || 'app-secret');
+      setSecretType(sec.type || 'Opaque');
       setDataItems(
-        initialSecret.secretData && initialSecret.secretData.length > 0
-          ? initialSecret.secretData.map((item) => ({
+        sec.secretData && sec.secretData.length > 0
+          ? sec.secretData.map((item) => ({
               id: `sec-kv-${crypto.randomUUID().split('-')[0]}`,
               key: item.key,
-              value: item.value
+              value: item.value,
             }))
           : [{ id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'DB_PASSWORD', value: 's3cr3tp@ss' }]
       );
     } else {
       const randomSuffix = crypto.randomUUID().split('-')[0];
-      setSecretName(`secret-${randomSuffix}`);
+      const newId = `secret-${randomSuffix}`;
+      setSecretId(newId);
+      setSecretName(newId);
       setSecretType('Opaque');
       setDataItems([
         { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
-        { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_KEY', value: 'secret-token-xyz' }
+        { id: `sec-kv-${crypto.randomUUID().split('-')[0]}`, key: 'API_KEY', value: 'secret-token-xyz' },
       ]);
     }
-  }, [initialSecret, isOpen, targetNodeId, setDataItems]);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSecret(initialSecret);
+    }
+  }, [initialSecret, isOpen, targetNodeId]);
 
   const handleSave = () => {
     const validData = getValidData();
+    const effectiveId = secretId || initialSecret?.id || `secret-${Date.now()}-${crypto.randomUUID().split('-')[0]}`;
+    const trimmedName = secretName?.trim();
     const secretItem: K8sSecretItem = {
-      id: initialSecret?.id || `secret-${Date.now()}-${crypto.randomUUID().split('-')[0]}`,
-      name: sanitizeSlug(secretName) || 'unnamed-secret',
+      id: effectiveId,
+      name: trimmedName ? sanitizeSlug(trimmedName) : effectiveId,
       type: secretType || 'Opaque',
-      secretData: validData
+      secretData: validData,
     };
     onSave(secretItem);
     onClose();
   };
 
   return {
+    secretId,
     secretName,
     setSecretName,
     secretType,
     setSecretType,
     dataItems,
+    setDataItems,
     handleAddField,
     handleRemoveField,
     handleUpdateField,
-    handleSave
+    loadSecret,
+    handleSave,
   };
 }
