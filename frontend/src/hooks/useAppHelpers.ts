@@ -6,6 +6,7 @@ import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLi
 import { logger } from '@/lib/logger';
 import { persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
 import { getActiveProfileName } from '@/store/useFlowStore';
+import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
 import {
   emitLiveRoleCommand,
   emitLiveSecretCommand,
@@ -67,6 +68,16 @@ export function useAppInit(
   }, [setIsAboutDialogOpen]);
 }
 
+function matchesAttachedName(name: string, targetLabel: string, target: any): boolean {
+  if (name === targetLabel || name === target.id) return true;
+  if (target.type === 'Pod' && target.data?.podHash) {
+    const baseName = target.data.baseName || extractPodBaseName(target.data);
+    const groupLabel = `${baseName}-${target.data.podHash}`;
+    return name === groupLabel || targetLabel.startsWith(`${name}-`);
+  }
+  return false;
+}
+
 export function isNodeAttachedToConfigMap(
   target: any,
   targetNodeModal: { id: string; label?: string; initialViewMode?: string } | null,
@@ -76,7 +87,7 @@ export function isNodeAttachedToConfigMap(
   if (typeof resourceName === 'string') {
     const targetLabel = (target.data?.label as string) || target.id || targetNodeModal.label;
     const attachedNames = resourceName.split(',').map((s) => s.trim()).filter(Boolean);
-    return attachedNames.some((name) => name === targetLabel || name === target.id);
+    return attachedNames.some((name) => matchesAttachedName(name, targetLabel, target));
   }
   return targetNodeModal?.initialViewMode !== 'list';
 }

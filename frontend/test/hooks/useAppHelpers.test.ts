@@ -749,6 +749,20 @@ describe('useAppHelpers', () => {
       expect(isNodeAttachedToConfigMap(node, { id: 'node-1' }, 'node-1')).toBe(true);
       expect(isNodeAttachedToConfigMap(node, { id: 'node-1' }, 'Unrelated Node')).toBe(false);
 
+      // 2b. Replica pod matching group name or prefix
+      const replicaPod = {
+        id: 'pod-rep-1',
+        type: 'Pod',
+        data: {
+          baseName: 'web-pod',
+          podHash: '7f9b2',
+          replicaSuffix: 'suf01',
+          label: 'web-pod-7f9b2-suf01',
+        },
+      };
+      expect(isNodeAttachedToConfigMap(replicaPod, { id: 'pod-rep-1' }, 'web-pod-7f9b2')).toBe(true);
+      expect(isNodeAttachedToConfigMap(replicaPod, { id: 'pod-rep-1' }, 'other-pod-group')).toBe(false);
+
       // 3. resourceName is undefined
       expect(isNodeAttachedToConfigMap(node, { id: 'node-1', initialViewMode: 'list' })).toBe(false);
       expect(isNodeAttachedToConfigMap(node, { id: 'node-1', initialViewMode: 'form' })).toBe(true);

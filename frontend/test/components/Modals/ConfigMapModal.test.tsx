@@ -648,4 +648,184 @@ describe('ConfigMapModal', () => {
       expect(result.map((r) => r.id)).toEqual(['dep-1', 'worker-pod']);
     });
   });
+
+  describe('Pod replica group deduplication', () => {
+    it('deduplicates multiple replica pods sharing baseName and podHash in findAllAttachedComponents', () => {
+      const cmItem = { id: 'cm-multi', name: 'multi-cm', configData: [] };
+      const replicaPods = Array.from({ length: 10 }, (_, i) => ({
+        id: `pod-replica-${i + 1}`,
+        type: 'Pod',
+        data: {
+          baseName: 'web-pod',
+          podHash: '7f9b2',
+          replicaSuffix: `suf0${i}`,
+          label: `web-pod-7f9b2-suf0${i}`,
+          configMaps: [cmItem],
+        },
+      }));
+
+      const otherPod = {
+        id: 'pod-other',
+        type: 'Pod',
+        data: {
+          baseName: 'worker',
+          podHash: 'a1b2c',
+          replicaSuffix: 'xyz01',
+          label: 'worker-a1b2c-xyz01',
+          configMaps: [cmItem],
+        },
+      };
+
+      const result = findAllAttachedComponents('cm-multi', 'multi-cm', [...replicaPods, otherPod]);
+      // Should collapse 10 web-pod replicas into 1 group, plus 1 worker group = 2
+      expect(result).toHaveLength(2);
+      expect(result.map((r) => r.label)).toEqual(['web-pod-7f9b2', 'worker-a1b2c']);
+      expect(result[0].id).toBe('pod-group:web-pod-7f9b2');
+      expect(result[1].id).toBe('pod-group:worker-a1b2c');
+    });
+
+    it('syncNodesConfigMap updates all replicas in the group when groupKey is attached or detached', () => {
+      const updateNodeData = vi.fn();
+      const cmItem = { id: 'cm-group', name: 'group-cm', configData: [] };
+      const replicaPods = Array.from({ length: 5 }, (_, i) => ({
+        id: `pod-${i + 1}`,
+        type: 'Pod',
+        data: {
+          baseName: 'api-service',
+          podHash: '9x8y7',
+          replicaSuffix: `rep0${i}`,
+          label: `api-service-9x8y7-rep0${i}`,
+          configMaps: [],
+        },
+      }));
+
+      // 1. Attach group
+      const attachedIds = new Set(['pod-group:api-service-9x8y7']);
+      syncNodesConfigMap(replicaPods, 'cm-group', 'group-cm', undefined, cmItem, attachedIds, updateNodeData);
+      expect(updateNodeData).toHaveBeenCalledTimes(5);
+      replicaPods.forEach((p) => {
+        expect(updateNodeData).toHaveBeenCalledWith(p.id, { configMaps: [cmItem] });
+      });
+
+      // 2. Detach group
+      updateNodeData.mockClear();
+      const attachedPodsWithCm = replicaPods.map((p) => ({
+        ...p,
+        data: { ...p.data, configMaps: [cmItem] },
+      }));
+      syncNodesConfigMap(attachedPodsWithCm, 'cm-group', 'group-cm', undefined, cmItem, new Set(), updateNodeData);
+      expect(updateNodeData).toHaveBeenCalledTimes(5);
+      replicaPods.forEach((p) => {
+        expect(updateNodeData).toHaveBeenCalledWith(p.id, { configMaps: [] });
+      });
+    });
+
+    it('displays only one suggestion in dropdown for 10 replica pods and attaches to all replicas', () => {
+      const mockUpdateNodeData = vi.fn();
+      const replicaPods = Array.from({ length: 10 }, (_, i) => ({
+        id: `pod-web-${i + 1}`,
+        type: 'Pod',
+        position: { x: 0, y: i * 50 },
+        data: {
+          baseName: 'web-app',
+          podHash: '3k4l5',
+          replicaSuffix: `suf0${i}`,
+          label: `web-app-3k4l5-suf0${i}`,
+          configMaps: [],
+        },
+      }));
+
+      useFlowStore.setState({
+        nodes: replicaPods as any,
+        updateNodeData: mockUpdateNodeData,
+        savedConfigMaps: [],
+        addLog: vi.fn(),
+      });
+
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId={null}
+          targetNodeLabel={undefined}
+          initialConfigMap={null}
+        />
+      );
+
+      // Focus the tagify input to open dropdown
+      const tagInput = screen.getByPlaceholderText(/Attach component/i);
+      fireEvent.focus(tagInput);
+
+      // Verify only 1 suggestion exists for the 10 replica pods
+      const suggestion = screen.getByTestId('tagify-suggestion-pod-group:web-app-3k4l5');
+      expect(suggestion).toBeInTheDocument();
+      expect(suggestion).toHaveTextContent('web-app-3k4l5');
+      expect(screen.queryAllByText(/web-app-3k4l5/)).toHaveLength(1);
+
+      // Click to attach the pod group
+      fireEvent.mouseDown(suggestion);
+
+      // Verify only 1 tag is rendered in Related Components
+      expect(screen.getByTestId('attached-component-tag-pod-group:web-app-3k4l5')).toBeInTheDocument();
+
+      // Verify updateNodeData was called for all 10 replica pods
+      expect(mockUpdateNodeData).toHaveBeenCalledTimes(10);
+      replicaPods.forEach((p) => {
+        expect(mockUpdateNodeData).toHaveBeenCalledWith(
+          p.id,
+          expect.objectContaining({
+            configMaps: [expect.objectContaining({ resourceName: 'web-app-3k4l5' })],
+          })
+        );
+      });
+
+      // Remove the group tag
+      mockUpdateNodeData.mockClear();
+      const removeBtn = screen.getByTestId('remove-component-tag-pod-group:web-app-3k4l5');
+      fireEvent.click(removeBtn);
+
+      // Verify tag is removed and all 10 replica pods have CM detached
+      expect(screen.queryByTestId('attached-component-tag-pod-group:web-app-3k4l5')).not.toBeInTheDocument();
+      expect(mockUpdateNodeData).toHaveBeenCalledTimes(10);
+      replicaPods.forEach((p) => {
+        expect(mockUpdateNodeData).toHaveBeenCalledWith(p.id, { configMaps: [] });
+      });
+    });
+
+    it('prefills single group tag when opened from a specific replica node', () => {
+      const replicaPods = Array.from({ length: 5 }, (_, i) => ({
+        id: `pod-rep-${i + 1}`,
+        type: 'Pod',
+        position: { x: 0, y: i * 50 },
+        data: {
+          baseName: 'payment-svc',
+          podHash: '8h9j0',
+          replicaSuffix: `suf0${i}`,
+          label: `payment-svc-8h9j0-suf0${i}`,
+          configMaps: [],
+        },
+      }));
+
+      useFlowStore.setState({
+        nodes: replicaPods as any,
+        savedConfigMaps: [],
+        addLog: vi.fn(),
+      });
+
+      // Target replica 3
+      render(
+        <ConfigMapModal
+          {...defaultProps}
+          targetNodeId="pod-rep-3"
+          targetNodeLabel="payment-svc-8h9j0-suf02"
+          initialConfigMap={null}
+        />
+      );
+
+      // Prefilled tag should represent the group, not individual replica
+      const tag = screen.getByTestId('attached-component-tag-pod-group:payment-svc-8h9j0');
+      expect(tag).toBeInTheDocument();
+      expect(tag).toHaveTextContent('payment-svc-8h9j0');
+      expect(screen.queryByTestId('attached-component-tag-pod-rep-3')).not.toBeInTheDocument();
+    });
+  });
 });

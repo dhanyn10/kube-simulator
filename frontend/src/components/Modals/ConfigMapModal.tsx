@@ -6,7 +6,13 @@ import { ConfigMapListView } from './ConfigMapListView';
 import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
 import { K8sConfigMapItem } from '@/types';
 import { cn } from '@/lib/utils';
-import { useConfigMapModal, findActiveKeyInfo, buildConfigMapItem } from '@/activities/modals';
+import {
+  useConfigMapModal,
+  findActiveKeyInfo,
+  buildConfigMapItem,
+  getPodReplicaGroupInfo,
+  PodReplicaGroupInfo,
+} from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
 import { getActiveProfileName } from '@/store/useFlowStore';
@@ -86,6 +92,30 @@ const AutocompleteOptionItem: React.FC<AutocompleteOptionItemProps> = ({
   </button>
 );
 
+function isNodeConfigMapAttached(
+  node: any,
+  cmId: string | undefined,
+  cmName: string | undefined,
+  resourceNames: readonly string[],
+  groupInfo: PodReplicaGroupInfo
+): boolean {
+  const nodeLabel = (node.data?.label as string) || node.id;
+  const hasConfigMapsArray = Array.isArray(node.data?.configMaps);
+
+  if (hasConfigMapsArray) {
+    return node.data.configMaps.some(
+      (c: any) => (cmId && c.id === cmId) || (cmName && c.name === cmName)
+    );
+  }
+
+  return resourceNames.some(
+    (r) =>
+      r === nodeLabel ||
+      r === node.id ||
+      (groupInfo.isGroup && (r === groupInfo.groupLabel || nodeLabel.startsWith(`${r}-`)))
+  );
+}
+
 export function findAllAttachedComponents(
   cmId: string | undefined,
   cmName: string | undefined,
@@ -95,26 +125,20 @@ export function findAllAttachedComponents(
   if (!cmId && !cmName) return [];
 
   const results: ComponentOption[] = [];
-  const foundNodeIds = new Set<string>();
+  const foundKeys = new Set<string>();
   const resourceNames = resourceName
     ? resourceName.split(',').map((s) => s.trim()).filter(Boolean)
     : [];
 
   nodes.forEach((node) => {
-    const nodeLabel = (node.data?.label as string) || node.id;
-    const hasConfigMapsArray = Array.isArray(node.data?.configMaps);
-    const isAttachedInNode =
-      hasConfigMapsArray &&
-      node.data.configMaps.some((c: any) => (cmId && c.id === cmId) || (cmName && c.name === cmName));
-    const isNamedResource =
-      !hasConfigMapsArray &&
-      resourceNames.some((r) => r === nodeLabel || r === node.id);
+    const groupInfo = getPodReplicaGroupInfo(node);
+    if (foundKeys.has(groupInfo.groupKey)) return;
 
-    if ((isAttachedInNode || isNamedResource) && !foundNodeIds.has(node.id)) {
-      foundNodeIds.add(node.id);
+    if (isNodeConfigMapAttached(node, cmId, cmName, resourceNames, groupInfo)) {
+      foundKeys.add(groupInfo.groupKey);
       results.push({
-        id: node.id,
-        label: nodeLabel,
+        id: groupInfo.groupKey,
+        label: groupInfo.groupLabel,
         type: node.type || 'Node',
       });
     }
@@ -138,7 +162,10 @@ export function syncNodesConfigMap(
       Boolean((targetId && c.id === targetId) || (cmName && c.name === cmName) || (oldCmName && c.name === oldCmName));
     const hasThisCm = currentList.some(isThisCm);
 
-    if (attachedIds.has(node.id)) {
+    const groupInfo = getPodReplicaGroupInfo(node);
+    const isAttached = attachedIds.has(node.id) || (groupInfo.isGroup && attachedIds.has(groupInfo.groupKey));
+
+    if (isAttached) {
       const nextList = hasThisCm
         ? currentList.map((c) => (isThisCm(c) ? configMapItem : c))
         : [...currentList, configMapItem];
@@ -601,12 +628,21 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
 
     if (targetNodeId && targetNodeId !== 'cluster-storage') {
       const targetNode = currentNodes.find((n) => n.id === targetNodeId);
-      const targetLabel = targetNode ? ((targetNode.data?.label as string) || targetNode.id) : (targetNodeLabel || targetNodeId);
+      const groupInfo = targetNode ? getPodReplicaGroupInfo(targetNode) : null;
+      const targetOptionId = groupInfo?.isGroup ? groupInfo.groupKey : targetNodeId;
+      const targetOptionLabel = groupInfo?.isGroup
+        ? groupInfo.groupLabel
+        : (targetNode ? ((targetNode.data?.label as string) || targetNode.id) : (targetNodeLabel || targetNodeId));
       const targetType = targetNode?.type || 'Node';
-      if (!initialComps.some((c) => c.id === targetNodeId)) {
+
+      const alreadyPresent = initialComps.some(
+        (c) => c.id === targetOptionId || (groupInfo?.isGroup && c.label === groupInfo.groupLabel)
+      );
+
+      if (!alreadyPresent) {
         initialComps.push({
-          id: targetNodeId,
-          label: targetLabel,
+          id: targetOptionId,
+          label: targetOptionLabel,
           type: targetType,
         });
       }
@@ -667,15 +703,26 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   }, [allItems, selectedProfile]);
 
   const availableComponents = useMemo(() => {
-    return nodes
+    const list: ComponentOption[] = [];
+    const seenKeys = new Set<string>();
+
+    nodes
       .filter((n) =>
         ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'].includes(n.type || '')
       )
-      .map((n) => ({
-        id: n.id,
-        label: (n.data?.label as string) || n.id,
-        type: n.type || 'Node',
-      }));
+      .forEach((n) => {
+        const groupInfo = getPodReplicaGroupInfo(n);
+        if (!seenKeys.has(groupInfo.groupKey)) {
+          seenKeys.add(groupInfo.groupKey);
+          list.push({
+            id: groupInfo.groupKey,
+            label: groupInfo.groupLabel,
+            type: n.type || 'Node',
+          });
+        }
+      });
+
+    return list;
   }, [nodes]);
 
   const existingConfigMapsWithData = useMemo(() => {
@@ -721,21 +768,26 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   };
 
   const handleRemoveComponent = (componentId: string) => {
-    const owner = nodes.find((n) => n.id === componentId);
     const targetCmId = activeItem?.id || initialConfigMap?.id;
     const oldCmName = initialConfigMap?.name || activeItem?.name;
-    if (owner) {
-      const currentList: K8sConfigMapItem[] = owner.data?.configMaps || [];
+    const targetNodes = nodes.filter((n) => {
+      if (n.id === componentId) return true;
+      const groupInfo = getPodReplicaGroupInfo(n);
+      return groupInfo.isGroup && groupInfo.groupKey === componentId;
+    });
+
+    targetNodes.forEach((node) => {
+      const currentList: K8sConfigMapItem[] = node.data?.configMaps || [];
       const updatedList = currentList.filter(
         (c) => !(targetCmId && c.id === targetCmId) && !(cmName && c.name === cmName) && !(oldCmName && c.name === oldCmName)
       );
-      updateNodeData(owner.id, { configMaps: updatedList });
+      updateNodeData(node.id, { configMaps: updatedList });
       addLog(
         'info',
-        `[ConfigMap] Removed attached component '${owner.data?.label || owner.id}' from ConfigMap '${cmName}'`,
+        `[ConfigMap] Removed attached component '${node.data?.label || node.id}' from ConfigMap '${cmName}'`,
         'UI'
       );
-    }
+    });
 
     const remaining = attachedComponents.filter((c) => c.id !== componentId);
     setAttachedComponents(remaining);
@@ -757,11 +809,16 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   };
 
   const handleAttachComponent = (comp: ComponentOption) => {
-    const targetNode = nodes.find((n) => n.id === comp.id);
-    if (!targetNode) return;
+    const targetNodes = nodes.filter((n) => {
+      if (n.id === comp.id) return true;
+      const groupInfo = getPodReplicaGroupInfo(n);
+      return groupInfo.isGroup && groupInfo.groupKey === comp.id;
+    });
+    if (targetNodes.length === 0) return;
 
-    const targetLabel = (targetNode.data?.label as string) || targetNode.id;
-    const targetType = targetNode.type || 'Node';
+    const primaryNode = targetNodes[0];
+    const targetLabel = comp.label || (primaryNode.data?.label as string) || primaryNode.id;
+    const targetType = primaryNode.type || comp.type || 'Node';
 
     const targetId = activeItem?.id || initialConfigMap?.id || cmId || `cm-${Date.now()}`;
     const effectiveName = cmName.trim() || targetId;
@@ -775,12 +832,14 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       resourceType: targetType,
     };
 
-    const currentCMs: K8sConfigMapItem[] = targetNode.data?.configMaps || [];
-    const exists = currentCMs.some((c) => c.id === targetId || c.name === cmName);
-    const updatedCMs = exists
-      ? currentCMs.map((c) => (c.id === targetId || c.name === cmName ? updatedCm : c))
-      : [...currentCMs, updatedCm];
-    updateNodeData(targetNode.id, { configMaps: updatedCMs });
+    targetNodes.forEach((node) => {
+      const currentCMs: K8sConfigMapItem[] = node.data?.configMaps || [];
+      const exists = currentCMs.some((c) => (targetId && c.id === targetId) || (cmName && c.name === cmName));
+      const updatedCMs = exists
+        ? currentCMs.map((c) => ((targetId && c.id === targetId) || (cmName && c.name === cmName) ? updatedCm : c))
+        : [...currentCMs, updatedCm];
+      updateNodeData(node.id, { configMaps: updatedCMs });
+    });
 
     useFlowStore.getState().addOrUpdateSavedConfigMap(updatedCm);
     void persistConfigMapItem(updatedCm);
