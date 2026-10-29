@@ -2,6 +2,7 @@ import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Layers } from 'lucid
 import { Node } from '@xyflow/react';
 import { K8sResourceType, K8sConfigMapItem } from '@/types';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
+import { getPodReplicaGroupInfo } from './configMapModalHelpers';
 
 /** Represents an extracted attached resource item paired with its host canvas node metadata. */
 export interface OverviewItem {
@@ -68,7 +69,8 @@ export const extractAllOverviewItems = (
           return;
         }
 
-        const componentLabel = (node.data?.label as string) || node.id;
+        const groupInfo = getPodReplicaGroupInfo(node);
+        const componentLabel = groupInfo.isGroup ? groupInfo.groupLabel : ((node.data?.label as string) || node.id);
         const resolvedProfile = (item.profileName && item.profileName !== 'Default Profile')
           ? item.profileName
           : activeProfile;

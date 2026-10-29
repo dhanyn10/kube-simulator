@@ -36,10 +36,14 @@ export const useConfigMapModal = ({
 
   const [activeItem, setActiveItem] = useState<K8sConfigMapItem | null>(initialConfigMap || null);
 
-  const [cmName, setCmName] = useState<string>(() => {
-    if (initialConfigMap?.name) return initialConfigMap.name;
+  const [cmId, setCmId] = useState<string>(() => {
+    if (initialConfigMap?.id) return initialConfigMap.id;
     const randomSuffix = crypto.randomUUID().split('-')[0];
     return `cm-${randomSuffix}`;
+  });
+
+  const [cmName, setCmName] = useState<string>(() => {
+    return initialConfigMap?.name || '';
   });
 
   const {
@@ -67,20 +71,26 @@ export const useConfigMapModal = ({
 
   const loadConfigMap = useCallback((item: K8sConfigMapItem | null) => {
     setActiveItem(item);
+    if (item?.id) {
+      setCmId(item.id);
+    } else {
+      const randomSuffix = crypto.randomUUID().split('-')[0];
+      setCmId(`cm-${randomSuffix}`);
+    }
+
     if (item?.configData?.length) {
-      setCmName(item.name || 'app-config');
+      setCmName(item.name || item.id || '');
       const loadedRows = item.configData.map((entry, idx) => ({
         id: `row-${idx}-${Date.now()}`,
         key: entry.key,
         value: entry.value,
       }));
       setRows(loadedRows);
-    } else if (item?.name) {
-      setCmName(item.name);
+    } else if (item?.name || item?.id) {
+      setCmName(item.name || item.id || '');
       setRows([]);
     } else {
-      const randomSuffix = crypto.randomUUID().split('-')[0];
-      setCmName(`cm-${randomSuffix}`);
+      setCmName('');
       setRows([]);
     }
   }, [setRows]);
@@ -120,11 +130,12 @@ export const useConfigMapModal = ({
 
   const handleSave = useCallback(() => {
     const configData = getValidData();
-    const targetId = activeItem?.id || initialConfigMap?.id;
-    const configMapItem = buildConfigMapItem(targetId, cmName, configData);
+    const targetId = activeItem?.id || initialConfigMap?.id || cmId;
+    const effectiveName = cmName.trim() || targetId;
+    const configMapItem = buildConfigMapItem(targetId, effectiveName, configData);
     onSave(configMapItem);
     onClose();
-  }, [getValidData, activeItem, initialConfigMap, cmName, onSave, onClose]);
+  }, [getValidData, activeItem, initialConfigMap, cmId, cmName, onSave, onClose]);
 
   // Active row and filtered key/value autocomplete options
   const activeRow = rows.find((r) => r.id === activeDropdown?.rowId);
@@ -134,6 +145,8 @@ export const useConfigMapModal = ({
 
   return {
     isDark,
+    cmId,
+    setCmId,
     cmName,
     setCmName,
     rows,

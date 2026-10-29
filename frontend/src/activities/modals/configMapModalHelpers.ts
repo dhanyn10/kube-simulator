@@ -1,6 +1,7 @@
 import { K8sConfigMapItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
 import { KeyValueItem } from '@/components/Modals/KeyValueFormSection';
+import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
 import rawPredefinedKeys from './configMapPredefinedKeys.json';
 
 export type ConfigRow = KeyValueItem;
@@ -61,9 +62,73 @@ export const buildConfigMapItem = (
   configData: Array<{ key: string; value: string }>
 ): K8sConfigMapItem => {
   const suffix = crypto.randomUUID().split('-')[0];
+  const id = initialId || `cm-${Date.now()}-${suffix}`;
+  const trimmedName = rawName?.trim();
+  const name = trimmedName ? sanitizeSlug(trimmedName) : id;
   return {
-    id: initialId || `cm-${Date.now()}-${suffix}`,
-    name: sanitizeSlug(rawName) || 'unnamed-configmap',
+    id,
+    name: name || id,
     configData,
   };
 };
+
+export interface PodReplicaGroupInfo {
+  readonly isGroup: boolean;
+  readonly groupKey: string;
+  readonly groupLabel: string;
+}
+
+/**
+ * Extracts baseName and podHash from a standard Kubernetes replica pod label
+ * formatted as `${baseName}-${podHash}-${replicaSuffix}` without regex backtracking.
+ */
+export function extractPodHashFromLabel(label?: string): { baseName?: string; podHash?: string } {
+  if (!label?.includes('-')) return {};
+  const segments = label.split('-');
+  if (segments.length >= 3) {
+    const suffix = segments.at(-1);
+    const hash = segments.at(-2);
+    if (hash?.length === 5 && suffix?.length === 5) {
+      return {
+        baseName: segments.slice(0, -2).join('-'),
+        podHash: hash,
+      };
+    }
+  }
+  return {};
+}
+
+/**
+ * Evaluates whether a canvas node belongs to a pod replica group and extracts
+ * its unique deduplication group key and display label.
+ */
+export function getPodReplicaGroupInfo(node: any): PodReplicaGroupInfo {
+  if (node?.type === 'Pod') {
+    let podHash = node.data?.podHash;
+    let baseName = node.data?.baseName;
+
+    if (!podHash && typeof node.data?.label === 'string') {
+      const extracted = extractPodHashFromLabel(node.data.label);
+      if (extracted.podHash) {
+        baseName = baseName || extracted.baseName;
+        podHash = extracted.podHash;
+      }
+    }
+
+    if (podHash) {
+      const fallbackBase = node.data ? extractPodBaseName(node.data) : undefined;
+      const resolvedBase = baseName || fallbackBase || 'pod';
+      return {
+        isGroup: true,
+        groupKey: `pod-group:${resolvedBase}-${podHash}`,
+        groupLabel: `${resolvedBase}-${podHash}`,
+      };
+    }
+  }
+
+  return {
+    isGroup: false,
+    groupKey: node?.id || '',
+    groupLabel: (node?.data?.label as string) || node?.id || '',
+  };
+}

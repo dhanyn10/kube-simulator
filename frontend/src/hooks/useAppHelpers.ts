@@ -6,6 +6,7 @@ import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sHpaItem, K8sResourceLi
 import { logger } from '@/lib/logger';
 import { persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
 import { getActiveProfileName } from '@/store/useFlowStore';
+import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
 import {
   emitLiveRoleCommand,
   emitLiveSecretCommand,
@@ -65,6 +66,108 @@ export function useAppInit(
       unsubscribe();
     };
   }, [setIsAboutDialogOpen]);
+}
+
+function matchesAttachedName(name: string, targetLabel: string, target: any): boolean {
+  if (name === targetLabel || name === target.id) return true;
+  if (target.type === 'Pod' && target.data?.podHash) {
+    const baseName = target.data.baseName || extractPodBaseName(target.data);
+    const groupLabel = `${baseName}-${target.data.podHash}`;
+    return name === groupLabel || targetLabel.startsWith(`${name}-`);
+  }
+  return false;
+}
+
+export function isNodeAttachedToConfigMap(
+  target: any,
+  targetNodeModal: { id: string; label?: string; initialViewMode?: string } | null,
+  resourceName?: string
+): boolean {
+  if (!target || targetNodeModal?.id === 'cluster-storage') return false;
+  if (typeof resourceName === 'string') {
+    const targetLabel = (target.data?.label as string) || target.id || targetNodeModal.label;
+    const attachedNames = resourceName.split(',').map((s) => s.trim()).filter(Boolean);
+    return attachedNames.some((name) => matchesAttachedName(name, targetLabel, target));
+  }
+  return targetNodeModal?.initialViewMode !== 'list';
+}
+
+export function createEnrichedConfigMapItem(
+  cmItem: K8sConfigMapItem,
+  target: any,
+  isTargetAttached: boolean,
+  activeProfileName: string,
+  targetLabel: string
+): K8sConfigMapItem {
+  const profileName = cmItem.profileName || activeProfileName;
+  if (!isTargetAttached) {
+    return {
+      ...cmItem,
+      profileName,
+      resourceName: undefined,
+      resourceType: undefined,
+    };
+  }
+  return {
+    ...cmItem,
+    profileName,
+    resourceName: cmItem.resourceName || targetLabel,
+    resourceType: cmItem.resourceType || target?.type || 'Resource',
+  };
+}
+
+export function attachConfigMapToNode(
+  target: any,
+  cmItem: K8sConfigMapItem,
+  enrichedCmItem: K8sConfigMapItem,
+  targetLabel: string,
+  updateNodeData: (id: string, data: any) => void
+) {
+  const existingCMs = target.data?.configMaps || [];
+  const existingIndex = existingCMs.findIndex(
+    (c: K8sConfigMapItem) => c.id === cmItem.id || Boolean(cmItem.name && c.name === cmItem.name)
+  );
+
+  let updatedCMs: K8sConfigMapItem[];
+  if (existingIndex >= 0) {
+    updatedCMs = [...existingCMs];
+    updatedCMs[existingIndex] = enrichedCmItem;
+  } else {
+    updatedCMs = [...existingCMs, enrichedCmItem];
+  }
+
+  updateNodeData(target.id, { configMaps: updatedCMs });
+  useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${targetLabel}`, 'UI');
+
+  useFlowStore.setState({
+    configuringNodeId: target.id,
+    configuringEdgeId: null,
+    isRightSidebarVisible: true,
+    isHistoryViewOpen: false,
+  });
+
+  emitLiveConfigMapCommand(cmItem.name, targetLabel);
+}
+
+export function detachConfigMapFromNode(
+  target: any,
+  cmItem: K8sConfigMapItem,
+  targetLabel: string,
+  updateNodeData: (id: string, data: any) => void
+) {
+  if (!target) return;
+  const existingCMs = target.data?.configMaps || [];
+  const filteredCMs = existingCMs.filter(
+    (c: K8sConfigMapItem) => c.id !== cmItem.id && c.name !== cmItem.name
+  );
+  if (filteredCMs.length !== existingCMs.length) {
+    updateNodeData(target.id, { configMaps: filteredCMs });
+    useFlowStore.getState().addLog(
+      'info',
+      `[ConfigMap Removed] Removed ConfigMap "${cmItem.name}" from card ${targetLabel}`,
+      'UI'
+    );
+  }
 }
 
 export function useAttachmentHandlers() {
@@ -148,49 +251,22 @@ export function useAttachmentHandlers() {
     const currentProject = useFlowStore.getState().currentProject;
     const activeProfileName = getActiveProfileName(currentProject);
 
-    // If modal was opened in overview/list/profile mode and user saved without attaching any component,
-    // do not force-attach to any card.
-    const isUnattachedInOverview = configMapModalTargetNode.id === 'cluster-storage' ||
-      (configMapModalTargetNode.initialViewMode === 'list' && !cmItem.resourceName);
+    const target = nodes.find((n) => n.id === configMapModalTargetNode.id) || null;
+    const targetLabel = (target?.data?.label as string) || target?.id || configMapModalTargetNode.label;
+    const isTargetStillAttached = isNodeAttachedToConfigMap(target, configMapModalTargetNode, cmItem.resourceName);
 
-    const target = !isUnattachedInOverview
-      ? nodes.find((n) => n.id === configMapModalTargetNode.id)
-      : null;
+    const enrichedCmItem = createEnrichedConfigMapItem(
+      cmItem,
+      target,
+      isTargetStillAttached,
+      activeProfileName,
+      targetLabel
+    );
 
-    const enrichedCmItem: K8sConfigMapItem = {
-      ...cmItem,
-      profileName: cmItem.profileName || activeProfileName,
-      resourceName: target ? (target.data?.label || target.id) : cmItem.resourceName,
-      resourceType: target ? (target.type || 'Resource') : cmItem.resourceType,
-    };
-
-    if (target) {
-      const existingCMs = target.data?.configMaps || [];
-      const existingIndex = existingCMs.findIndex(
-        (c: K8sConfigMapItem) => c.id === cmItem.id || Boolean(cmItem.name && c.name === cmItem.name)
-      );
-      let updatedCMs: K8sConfigMapItem[];
-
-      if (existingIndex >= 0) {
-        updatedCMs = [...existingCMs];
-        updatedCMs[existingIndex] = enrichedCmItem;
-      } else {
-        updatedCMs = [...existingCMs, enrichedCmItem];
-      }
-
-      updateNodeData(target.id, { configMaps: updatedCMs });
-      useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${configMapModalTargetNode.label}`, 'UI');
-
-      useFlowStore.setState({
-        configuringNodeId: target.id,
-        configuringEdgeId: null,
-        isRightSidebarVisible: true,
-        isHistoryViewOpen: false,
-      });
-
-      // Auto-emit live kubectl command
-      emitLiveConfigMapCommand(cmItem.name, configMapModalTargetNode.label);
+    if (target && isTargetStillAttached) {
+      attachConfigMapToNode(target, cmItem, enrichedCmItem, targetLabel, updateNodeData);
     } else {
+      detachConfigMapFromNode(target, cmItem, targetLabel, updateNodeData);
       useFlowStore.getState().addLog('info', `[ConfigMap Saved] Saved ConfigMap "${cmItem.name}" to local storage`, 'UI');
     }
 

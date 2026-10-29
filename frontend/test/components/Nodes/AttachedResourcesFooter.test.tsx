@@ -37,7 +37,8 @@ describe('AttachedResourcesFooter', () => {
     render(<AttachedResourcesFooter data={data} />);
 
     expect(screen.getByTitle('Role: admin-role (Users: user1, user2)')).toBeInTheDocument();
-    expect(screen.getByTitle('ConfigMap: my-cm')).toBeInTheDocument();
+    expect(screen.getByTitle('ConfigMaps (2): my-cm, cm-no-id')).toBeInTheDocument();
+    expect(screen.getByTestId('configmap-count-badge')).toHaveTextContent('2');
     expect(screen.getByTitle('Secret: my-secret')).toBeInTheDocument();
     expect(
       screen.getByTitle('Resource Limit: my-limit (CPU: 250m / 500m | Mem: 128Mi / 256Mi)')
@@ -51,12 +52,13 @@ describe('AttachedResourcesFooter', () => {
     expect(screen.getByTitle('HPA: hpa-no-details')).toBeInTheDocument();
   });
 
-  it('renders when only configMaps are present', () => {
+  it('renders when only configMaps are present with single item and no badge', () => {
     const data: K8sNodeData = {
       configMaps: [{ id: 'cm1', name: 'standalone-cm' }],
     };
     render(<AttachedResourcesFooter data={data} />);
     expect(screen.getByTitle('ConfigMap: standalone-cm')).toBeInTheDocument();
+    expect(screen.queryByTestId('configmap-count-badge')).toBeNull();
   });
 
   it('renders when only secrets are present', () => {
@@ -93,7 +95,7 @@ describe('AttachedResourcesFooter', () => {
 
     render(<AttachedResourcesFooter data={data} nodeId="node-123" />);
 
-    // Click ConfigMap badge
+    // Click ConfigMap badge (single item)
     fireEvent.click(screen.getByTitle('ConfigMap: app-config'));
     expect(useFlowStore.getState().configMapModalTargetNode).toEqual({
       id: 'node-123',
@@ -140,6 +142,61 @@ describe('AttachedResourcesFooter', () => {
     };
     render(<AttachedResourcesFooter data={data} />);
     expect(screen.getByTitle(/Resource Limit: standalone-res/)).toBeInTheDocument();
+  });
+
+  it('renders a single icon with count badge when multiple ConfigMaps exist and opens list view on click', () => {
+    const cm1 = { id: 'cm-1', name: 'app-env' };
+    const cm2 = { id: 'cm-2', name: 'app-features' };
+    const cm3 = { id: 'cm-3', name: 'app-ui' };
+
+    const data: K8sNodeData = {
+      label: 'pod-multi-cm',
+      configMaps: [cm1, cm2, cm3],
+    };
+
+    render(<AttachedResourcesFooter data={data} nodeId="pod-node-1" />);
+
+    // Verify only ONE configmap button is rendered instead of three lined up
+    const configMapButtons = screen.getAllByRole('button').filter(btn =>
+      btn.className.includes('node-attached-badge-configmap')
+    );
+    expect(configMapButtons).toHaveLength(1);
+
+    // Verify badge with number 3 at top right
+    const badge = screen.getByTestId('configmap-count-badge');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent('3');
+
+    // Verify combined title and aria-label
+    expect(screen.getByTitle('ConfigMaps (3): app-env, app-features, app-ui')).toBeInTheDocument();
+    expect(screen.getByLabelText('Inspect ConfigMaps (3)')).toBeInTheDocument();
+
+    // Verify clicking opens modal with initialViewMode: 'list'
+    fireEvent.click(configMapButtons[0]);
+    expect(useFlowStore.getState().configMapModalTargetNode).toEqual({
+      id: 'pod-node-1',
+      label: 'pod-multi-cm',
+      initialItem: cm1,
+      initialViewMode: 'list',
+    });
+  });
+
+  it('handles ConfigMaps with fallback names when id or name is missing', () => {
+    const data: K8sNodeData = {
+      configMaps: [{ id: 'cm-only-id' }, {}],
+    };
+    render(<AttachedResourcesFooter data={data} nodeId="node-fallback" />);
+
+    expect(screen.getByTitle('ConfigMaps (2): cm-only-id, Unnamed')).toBeInTheDocument();
+    expect(screen.getByTestId('configmap-count-badge')).toHaveTextContent('2');
+
+    // Single item with no name or id
+    const singleUnnamedData: K8sNodeData = {
+      configMaps: [{}],
+    };
+    const { container } = render(<AttachedResourcesFooter data={singleUnnamedData} />);
+    expect(screen.getByTitle('ConfigMap: Unnamed')).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="configmap-count-badge"]')).toBeNull();
   });
 
   it('does not trigger store modal setters when nodeId is undefined', () => {

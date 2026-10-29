@@ -44,6 +44,21 @@ export function useAttachedResourceSettings<T extends BaseResourceItem>(
   };
 
   const handleSaveItem = (item: T) => {
+    const cmResourceName = (item as any).resourceName;
+    if (resourceKey === 'configMaps') {
+      const isAttachedToThisNode = Boolean(
+        typeof cmResourceName === 'string' &&
+        cmResourceName.split(',').map((s) => s.trim()).some((name) => name === targetNodeLabel || name === nodeId)
+      );
+      if (!isAttachedToThisNode) {
+        const filtered = items.filter((i) => i.id !== item.id && i.name !== item.name);
+        updateNodeData(nodeId, { [resourceKey]: filtered });
+        addLog('info', `[${resourceName} Removed] Removed ${logLabel} "${item.name}" from node`, 'UI');
+        setIsEditModalOpen(false);
+        return;
+      }
+    }
+
     const existingIndex = items.findIndex((i) => i.id === item.id);
     let updated: T[];
     if (existingIndex >= 0) {
