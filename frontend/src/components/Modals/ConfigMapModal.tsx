@@ -5,7 +5,7 @@ import { Modal } from './Modal';
 import { ConfigMapListView } from './ConfigMapListView';
 import { ConfigMapPrecedenceView } from './ConfigMapPrecedenceView';
 import { K8sConfigMapItem } from '@/types';
-import { cn, safeRandom } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useConfigMapModal, findActiveKeyInfo, buildConfigMapItem } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
@@ -563,7 +563,6 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     filteredKeys,
     filteredValues,
     handleAddRow,
-    handleAddMultipleRows,
     handleRemoveRow,
     handleRowChange,
     handleInputFocusOrChange,

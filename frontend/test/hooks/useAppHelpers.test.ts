@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAppInit, useAttachmentHandlers } from '@/hooks/useAppHelpers';
+import {
+  useAppInit,
+  useAttachmentHandlers,
+  isNodeAttachedToConfigMap,
+  createEnrichedConfigMapItem,
+  attachConfigMapToNode,
+  detachConfigMapFromNode,
+} from '@/hooks/useAppHelpers';
 import { useFlowStore } from '@/store';
 import { K8sRoleItem, K8sConfigMapItem, K8sResourceLimitItem } from '@/types';
 
@@ -727,6 +734,98 @@ describe('useAppHelpers', () => {
       });
       updatedNodes = useFlowStore.getState().nodes;
       expect(updatedNodes[0].data.resourceLimits).toEqual([newLimit]);
+    });
+  });
+
+  describe('ConfigMap attachment helpers', () => {
+    it('isNodeAttachedToConfigMap handles all conditions', () => {
+      // 1. null target or cluster-storage
+      expect(isNodeAttachedToConfigMap(null, { id: 'node-1' })).toBe(false);
+      expect(isNodeAttachedToConfigMap({ id: 'node-1' }, { id: 'cluster-storage' })).toBe(false);
+
+      // 2. resourceName is string
+      const node = { id: 'node-1', data: { label: 'My Node' } };
+      expect(isNodeAttachedToConfigMap(node, { id: 'node-1' }, 'My Node, Other Node')).toBe(true);
+      expect(isNodeAttachedToConfigMap(node, { id: 'node-1' }, 'node-1')).toBe(true);
+      expect(isNodeAttachedToConfigMap(node, { id: 'node-1' }, 'Unrelated Node')).toBe(false);
+
+      // 3. resourceName is undefined
+      expect(isNodeAttachedToConfigMap(node, { id: 'node-1', initialViewMode: 'list' })).toBe(false);
+      expect(isNodeAttachedToConfigMap(node, { id: 'node-1', initialViewMode: 'form' })).toBe(true);
+    });
+
+    it('createEnrichedConfigMapItem correctly enriches or strips resource fields', () => {
+      const baseCm: K8sConfigMapItem = { id: 'cm-1', name: 'app-cm', configData: [] };
+
+      // Unattached
+      const unattached = createEnrichedConfigMapItem(baseCm, null, false, 'dev-profile', 'Node Label');
+      expect(unattached.profileName).toBe('dev-profile');
+      expect(unattached.resourceName).toBeUndefined();
+      expect(unattached.resourceType).toBeUndefined();
+
+      // Attached with fallback profileName, targetLabel, and default 'Resource' type
+      const attachedBare = createEnrichedConfigMapItem(baseCm, { id: 'node-1' }, true, 'dev-profile', 'Node Label');
+      expect(attachedBare.profileName).toBe('dev-profile');
+      expect(attachedBare.resourceName).toBe('Node Label');
+      expect(attachedBare.resourceType).toBe('Resource');
+
+      // Attached with custom profileName, resourceName, and target type
+      const customCm: K8sConfigMapItem = {
+        id: 'cm-2',
+        name: 'custom-cm',
+        profileName: 'custom-profile',
+        resourceName: 'Custom Res',
+        resourceType: 'Deployment',
+        configData: [],
+      };
+      const attachedCustom = createEnrichedConfigMapItem(customCm, { id: 'node-1', type: 'StatefulSet' }, true, 'dev-profile', 'Node Label');
+      expect(attachedCustom.profileName).toBe('custom-profile');
+      expect(attachedCustom.resourceName).toBe('Custom Res');
+      expect(attachedCustom.resourceType).toBe('Deployment');
+    });
+
+    it('attachConfigMapToNode updates existing or appends and logs event', () => {
+      const mockUpdate = vi.fn();
+      const target = {
+        id: 'node-1',
+        data: {
+          configMaps: [{ id: 'cm-1', name: 'my-cm', configData: [] }],
+        },
+      };
+
+      // Update existing
+      const updatedCm: K8sConfigMapItem = { id: 'cm-1', name: 'my-cm', configData: [{ key: 'K', value: 'V' }] };
+      attachConfigMapToNode(target, updatedCm, updatedCm, 'Target Card', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('node-1', { configMaps: [updatedCm] });
+
+      // Append new
+      const newCm: K8sConfigMapItem = { id: 'cm-2', name: 'other-cm', configData: [] };
+      attachConfigMapToNode(target, newCm, newCm, 'Target Card', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('node-1', {
+        configMaps: [target.data.configMaps[0], newCm],
+      });
+    });
+
+    it('detachConfigMapFromNode removes existing item or skips if not found / null target', () => {
+      const mockUpdate = vi.fn();
+
+      // null target
+      detachConfigMapFromNode(null, { id: 'cm-1', name: 'cm-1', configData: [] }, 'Target Card', mockUpdate);
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // target without matching CM
+      const target = {
+        id: 'node-1',
+        data: {
+          configMaps: [{ id: 'cm-other', name: 'cm-other', configData: [] }],
+        },
+      };
+      detachConfigMapFromNode(target, { id: 'cm-1', name: 'cm-1', configData: [] }, 'Target Card', mockUpdate);
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // target with matching CM
+      detachConfigMapFromNode(target, { id: 'cm-other', name: 'cm-other', configData: [] }, 'Target Card', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('node-1', { configMaps: [] });
     });
   });
 });

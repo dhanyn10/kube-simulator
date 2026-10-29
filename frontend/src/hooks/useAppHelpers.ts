@@ -67,6 +67,98 @@ export function useAppInit(
   }, [setIsAboutDialogOpen]);
 }
 
+export function isNodeAttachedToConfigMap(
+  target: any,
+  targetNodeModal: { id: string; label?: string; initialViewMode?: string } | null,
+  resourceName?: string
+): boolean {
+  if (!target || targetNodeModal?.id === 'cluster-storage') return false;
+  if (typeof resourceName === 'string') {
+    const targetLabel = (target.data?.label as string) || target.id || targetNodeModal.label;
+    const attachedNames = resourceName.split(',').map((s) => s.trim()).filter(Boolean);
+    return attachedNames.some((name) => name === targetLabel || name === target.id);
+  }
+  return targetNodeModal?.initialViewMode !== 'list';
+}
+
+export function createEnrichedConfigMapItem(
+  cmItem: K8sConfigMapItem,
+  target: any,
+  isTargetAttached: boolean,
+  activeProfileName: string,
+  targetLabel: string
+): K8sConfigMapItem {
+  const profileName = cmItem.profileName || activeProfileName;
+  if (!isTargetAttached) {
+    return {
+      ...cmItem,
+      profileName,
+      resourceName: undefined,
+      resourceType: undefined,
+    };
+  }
+  return {
+    ...cmItem,
+    profileName,
+    resourceName: cmItem.resourceName || targetLabel,
+    resourceType: cmItem.resourceType || target?.type || 'Resource',
+  };
+}
+
+export function attachConfigMapToNode(
+  target: any,
+  cmItem: K8sConfigMapItem,
+  enrichedCmItem: K8sConfigMapItem,
+  targetLabel: string,
+  updateNodeData: (id: string, data: any) => void
+) {
+  const existingCMs = target.data?.configMaps || [];
+  const existingIndex = existingCMs.findIndex(
+    (c: K8sConfigMapItem) => c.id === cmItem.id || Boolean(cmItem.name && c.name === cmItem.name)
+  );
+
+  let updatedCMs: K8sConfigMapItem[];
+  if (existingIndex >= 0) {
+    updatedCMs = [...existingCMs];
+    updatedCMs[existingIndex] = enrichedCmItem;
+  } else {
+    updatedCMs = [...existingCMs, enrichedCmItem];
+  }
+
+  updateNodeData(target.id, { configMaps: updatedCMs });
+  useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${targetLabel}`, 'UI');
+
+  useFlowStore.setState({
+    configuringNodeId: target.id,
+    configuringEdgeId: null,
+    isRightSidebarVisible: true,
+    isHistoryViewOpen: false,
+  });
+
+  emitLiveConfigMapCommand(cmItem.name, targetLabel);
+}
+
+export function detachConfigMapFromNode(
+  target: any,
+  cmItem: K8sConfigMapItem,
+  targetLabel: string,
+  updateNodeData: (id: string, data: any) => void
+) {
+  if (!target) return;
+  const existingCMs = target.data?.configMaps || [];
+  const filteredCMs = existingCMs.filter(
+    (c: K8sConfigMapItem) => c.id !== cmItem.id && c.name !== cmItem.name
+  );
+  if (filteredCMs.length !== existingCMs.length) {
+    updateNodeData(target.id, { configMaps: filteredCMs });
+    useFlowStore.getState().addLog(
+      'info',
+      `[ConfigMap Removed] Removed ConfigMap "${cmItem.name}" from card ${targetLabel}`,
+      'UI'
+    );
+  }
+}
+
 export function useAttachmentHandlers() {
   const nodes = useFlowStore((state) => state.nodes);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
@@ -150,71 +242,20 @@ export function useAttachmentHandlers() {
 
     const target = nodes.find((n) => n.id === configMapModalTargetNode.id) || null;
     const targetLabel = (target?.data?.label as string) || target?.id || configMapModalTargetNode.label;
-    const hasResourceNameField = typeof cmItem.resourceName === 'string';
-    const attachedNames = hasResourceNameField
-      ? cmItem.resourceName!.split(',').map((s) => s.trim()).filter(Boolean)
-      : [];
-    const isTargetStillAttached = Boolean(
-      target &&
-      configMapModalTargetNode.id !== 'cluster-storage' &&
-      (hasResourceNameField
-        ? attachedNames.some((name) => name === targetLabel || name === target.id)
-        : configMapModalTargetNode.initialViewMode !== 'list')
+    const isTargetStillAttached = isNodeAttachedToConfigMap(target, configMapModalTargetNode, cmItem.resourceName);
+
+    const enrichedCmItem = createEnrichedConfigMapItem(
+      cmItem,
+      target,
+      isTargetStillAttached,
+      activeProfileName,
+      targetLabel
     );
 
-    const enrichedCmItem: K8sConfigMapItem = {
-      ...cmItem,
-      profileName: cmItem.profileName || activeProfileName,
-      ...(isTargetStillAttached ? {
-        resourceName: cmItem.resourceName || targetLabel,
-        resourceType: cmItem.resourceType || target?.type || 'Resource',
-      } : {
-        resourceName: undefined,
-        resourceType: undefined,
-      }),
-    };
-
     if (target && isTargetStillAttached) {
-      const existingCMs = target.data?.configMaps || [];
-      const existingIndex = existingCMs.findIndex(
-        (c: K8sConfigMapItem) => c.id === cmItem.id || Boolean(cmItem.name && c.name === cmItem.name)
-      );
-      let updatedCMs: K8sConfigMapItem[];
-
-      if (existingIndex >= 0) {
-        updatedCMs = [...existingCMs];
-        updatedCMs[existingIndex] = enrichedCmItem;
-      } else {
-        updatedCMs = [...existingCMs, enrichedCmItem];
-      }
-
-      updateNodeData(target.id, { configMaps: updatedCMs });
-      useFlowStore.getState().addLog('info', `[ConfigMap Attached] Attached ConfigMap "${cmItem.name}" to card ${configMapModalTargetNode.label}`, 'UI');
-
-      useFlowStore.setState({
-        configuringNodeId: target.id,
-        configuringEdgeId: null,
-        isRightSidebarVisible: true,
-        isHistoryViewOpen: false,
-      });
-
-      // Auto-emit live kubectl command
-      emitLiveConfigMapCommand(cmItem.name, configMapModalTargetNode.label);
+      attachConfigMapToNode(target, cmItem, enrichedCmItem, targetLabel, updateNodeData);
     } else {
-      if (target) {
-        const existingCMs = target.data?.configMaps || [];
-        const filteredCMs = existingCMs.filter(
-          (c: K8sConfigMapItem) => c.id !== cmItem.id && c.name !== cmItem.name
-        );
-        if (filteredCMs.length !== existingCMs.length) {
-          updateNodeData(target.id, { configMaps: filteredCMs });
-          useFlowStore.getState().addLog(
-            'info',
-            `[ConfigMap Removed] Removed ConfigMap "${cmItem.name}" from card ${configMapModalTargetNode.label}`,
-            'UI'
-          );
-        }
-      }
+      detachConfigMapFromNode(target, cmItem, targetLabel, updateNodeData);
       useFlowStore.getState().addLog('info', `[ConfigMap Saved] Saved ConfigMap "${cmItem.name}" to local storage`, 'UI');
     }
 
