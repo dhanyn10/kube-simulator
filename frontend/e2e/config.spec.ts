@@ -56,9 +56,18 @@ test.describe('ConfigMap and Secret', () => {
     await expect(page.locator('#configmap-name-input')).toHaveValue('web-config');
   });
 
-  test('can add and configure Secret', async ({ page }) => {
+  test('can open Cluster Secrets Overview from sidebar', async ({ page }) => {
     await page.getByRole('button', { name: 'Configuration' }).click();
     await page.getByRole('button', { name: 'Secret' }).click();
+    await expect(page.getByText('Cluster Secrets Overview')).toBeVisible();
+  });
+
+  test('can add and configure Secret', async ({ page }) => {
+    // Add Secret node via store directly
+    await page.evaluate(() => {
+      const store = (globalThis as any).useFlowStore.getState();
+      store.addNode('Secret');
+    });
 
     const secretNode = page.locator('.react-flow__node-Secret');
     await expect(secretNode).toBeVisible();
