@@ -68,7 +68,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
       title="Toggle Column Visibility"
       aria-label="Toggle Column Visibility"
     >
-      <SlidersHorizontal size={13} className="text-indigo-400" />
+      <SlidersHorizontal size={13} className="text-rose-400" />
       <span>Columns</span>
     </button>
 
@@ -98,7 +98,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
           <span className="font-medium">Profile</span>
           <span className="w-4 h-4 flex items-center justify-center shrink-0">
             {columns.profile && (
-              <Check size={14} className="text-indigo-400 stroke-[2.5]" data-testid="secret-check-profile" />
+              <Check size={14} className="text-rose-400 stroke-[2.5]" data-testid="secret-check-profile" />
             )}
           </span>
         </button>
@@ -119,7 +119,7 @@ const ColumnDropdown: React.FC<ColumnDropdownProps> = ({
           <span className="font-medium">Component</span>
           <span className="w-4 h-4 flex items-center justify-center shrink-0">
             {columns.component && (
-              <Check size={14} className="text-indigo-400 stroke-[2.5]" data-testid="secret-check-component" />
+              <Check size={14} className="text-rose-400 stroke-[2.5]" data-testid="secret-check-component" />
             )}
           </span>
         </button>
@@ -199,8 +199,8 @@ const SecretTableRow: React.FC<SecretTableRowProps> = ({
             className={cn(
               "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[180px]",
               isDark
-                ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
-                : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                ? "bg-rose-500/10 text-rose-300 border-rose-500/30"
+                : "bg-rose-50 text-rose-700 border-rose-200"
             )}
             title={`Canvas Document: ${profileText}`}
           >
@@ -215,7 +215,7 @@ const SecretTableRow: React.FC<SecretTableRowProps> = ({
           {hasComponent ? (
             <span
               data-testid={`sec-resource-${item.id}`}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[200px] bg-indigo-500/10 text-indigo-400 border-indigo-500/30"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium truncate max-w-[200px] bg-rose-500/10 text-rose-400 border-rose-500/30"
               title={`${item.ownerNode.type}: ${item.ownerNode.label}`}
             >
               <span className="text-slate-400 font-normal">{item.ownerNode.type}:</span>
@@ -238,7 +238,7 @@ const SecretTableRow: React.FC<SecretTableRowProps> = ({
             type="button"
             title={`Edit Secret ${item.name}`}
             onClick={() => onEditItem(item)}
-            className="p-1.5 rounded hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+            className="p-1.5 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
           >
             <Edit2 size={13} />
           </button>
@@ -310,8 +310,8 @@ export const SecretListView: React.FC<SecretListViewProps> = ({
             className={cn(
               "w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border outline-none transition-colors",
               isDark
-                ? "bg-slate-900 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:border-indigo-500"
-                : "bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-indigo-500"
+                ? "bg-slate-900 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:border-rose-500"
+                : "bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-rose-500"
             )}
           />
         </div>
@@ -338,7 +338,7 @@ export const SecretListView: React.FC<SecretListViewProps> = ({
             {items.length === 0 ? (
               <tr>
                 <td colSpan={colSpanCount} className="text-center py-10 px-4">
-                  <Lock size={32} className="mx-auto mb-2 opacity-30 text-indigo-400" />
+                  <Lock size={32} className="mx-auto mb-2 opacity-30 text-rose-400" />
                   <p className="text-xs text-slate-400 font-medium">
                     No Secrets available. Click "+ Add Secret" below to create one.
                   </p>

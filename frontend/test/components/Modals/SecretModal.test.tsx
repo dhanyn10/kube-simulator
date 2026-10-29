@@ -411,4 +411,58 @@ describe('SecretModal', () => {
     fireEvent.click(screen.getByTestId('secret-list-close-button'));
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
+
+  it('displays standalone Secret from savedSecrets in list and provides it in Use Existing dropdown', () => {
+    const mockDeleteSavedSecret = vi.fn();
+    useFlowStore.setState({
+      nodes: [],
+      savedSecrets: [
+        {
+          id: 'sec-saved-1',
+          name: 'standalone-saved-sec',
+          type: 'Opaque',
+          secretData: [{ key: 'API_KEY', value: 'xyz123' }],
+        },
+      ],
+      deleteSavedSecret: mockDeleteSavedSecret,
+    });
+
+    render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster Secrets"
+        initialSecret={null}
+        initialViewMode="list"
+      />
+    );
+
+    // Standalone secret appears in overview
+    expect(screen.getByText('standalone-saved-sec')).toBeInTheDocument();
+    expect(screen.getByTestId('sec-resource-sec-saved-1')).toHaveTextContent('-');
+
+    // Click + Add Secret to go to form mode
+    fireEvent.click(screen.getByRole('button', { name: '+ Add Secret' }));
+    expect(screen.getByRole('heading', { name: 'Attach Secret' })).toBeInTheDocument();
+
+    // Use Existing button should be present because savedSecrets has an item
+    const useExistingBtn = screen.getByTestId('btn-add-from-existing-sec');
+    expect(useExistingBtn).toBeInTheDocument();
+    fireEvent.click(useExistingBtn);
+
+    // Click on the option to import
+    const option = screen.getByTestId('import-option-standalone-saved-sec');
+    expect(option).toBeInTheDocument();
+    fireEvent.click(option);
+
+    // Name and data should now be loaded
+    expect(screen.getByDisplayValue('standalone-saved-sec')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('API_KEY')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('xyz123')).toBeInTheDocument();
+
+    // Go back to list and delete the standalone secret
+    fireEvent.click(screen.getByTestId('secret-back-button'));
+    fireEvent.click(screen.getByTitle('Delete Secret standalone-saved-sec'));
+    expect(mockDeleteSavedSecret).toHaveBeenCalledWith('sec-saved-1');
+  });
 });

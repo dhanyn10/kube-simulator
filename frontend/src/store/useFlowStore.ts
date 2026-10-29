@@ -7,7 +7,8 @@ import { createNodeSlice } from '@/store/slices/createNodeSlice';
 import { createUiSlice } from '@/store/slices/createUiSlice';
 import { createLogSlice } from '@/store/slices/createLogSlice';
 import { saveConfigMapsToLocal } from '@/activities/modals/configMapStorageHelpers';
-import { K8sConfigMapItem } from '@/types';
+import { saveSecretsToLocal } from '@/activities/modals/secretStorageHelpers';
+import { K8sConfigMapItem, K8sSecretItem } from '@/types';
 
 /**
  * Formats a Date object into an autosave key with format: autosave-ddmmyyyyhis
@@ -79,6 +80,29 @@ setTimeout(() => {
 
 // Core function to execute autosave
 
+
+const syncSecretsOnAutosave = (state: FlowState) => {
+  const allNodeSecrets: K8sSecretItem[] = [];
+  state.nodes.forEach((n) => {
+    if (Array.isArray(n.data?.secrets)) {
+      allNodeSecrets.push(...n.data.secrets);
+    }
+  });
+
+  const merged = [...allNodeSecrets];
+  if (Array.isArray(state.savedSecrets)) {
+    state.savedSecrets.forEach((sec) => {
+      if (!merged.some((m) => m.id === sec.id || m.name === sec.name)) {
+        merged.push(sec);
+      }
+    });
+  }
+
+  if (merged.length > 0) {
+    void saveSecretsToLocal(merged);
+  }
+};
+
 const syncConfigMapsOnAutosave = (state: FlowState) => {
   const allNodeConfigMaps: K8sConfigMapItem[] = [];
   state.nodes.forEach((n) => {
@@ -124,6 +148,7 @@ const executeAutosave = (state: FlowState) => {
   }
 
   syncConfigMapsOnAutosave(state);
+  syncSecretsOnAutosave(state);
 
   if (state.currentProject && state.currentProject.id !== -1 && app?.UpdateProject) {
     void app.UpdateProject(state.currentProject.id, content).then((success) => {

@@ -7,9 +7,12 @@ import {
   createEnrichedConfigMapItem,
   attachConfigMapToNode,
   detachConfigMapFromNode,
+  createEnrichedSecretItem,
+  attachSecretToNode,
+  detachSecretFromNode,
 } from '@/hooks/useAppHelpers';
 import { useFlowStore } from '@/store';
-import { K8sRoleItem, K8sConfigMapItem, K8sResourceLimitItem } from '@/types';
+import { K8sRoleItem, K8sConfigMapItem, K8sSecretItem, K8sResourceLimitItem } from '@/types';
 
 vi.mock('@wailsjs/go/main/App.js', () => ({
   GetSystemResources: vi.fn(),
@@ -519,7 +522,12 @@ describe('useAppHelpers', () => {
       });
 
       let updatedNodes = useFlowStore.getState().nodes;
-      expect(updatedNodes[0].data.secrets).toEqual([sec1]);
+      expect(updatedNodes[0].data.secrets).toEqual([
+        expect.objectContaining({ id: 'sec-1', name: 'my-secret' }),
+      ]);
+      expect(useFlowStore.getState().savedSecrets).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'sec-1', name: 'my-secret' })])
+      );
 
       // Update existing secret
       act(() => {
@@ -532,7 +540,9 @@ describe('useAppHelpers', () => {
       });
 
       updatedNodes = useFlowStore.getState().nodes;
-      expect(updatedNodes[0].data.secrets).toEqual([sec1Updated]);
+      expect(updatedNodes[0].data.secrets).toEqual([
+        expect.objectContaining({ id: 'sec-1', name: 'updated-secret' }),
+      ]);
     });
 
     it('handleHpaSave returns early or attaches new/updated HPA', () => {
@@ -840,6 +850,120 @@ describe('useAppHelpers', () => {
       // target with matching CM
       detachConfigMapFromNode(target, { id: 'cm-other', name: 'cm-other', configData: [] }, 'Target Card', mockUpdate);
       expect(mockUpdate).toHaveBeenCalledWith('node-1', { configMaps: [] });
+    });
+
+    it('covers all condition branches in handleSecretSave: cluster-storage, list mode with/without resourceName', () => {
+      const { result } = renderHook(() => useAttachmentHandlers());
+
+      // 1. targetNodeId is 'cluster-storage' (unattached in overview)
+      act(() => {
+        result.current.setSecretModalTargetNode({ id: 'cluster-storage', label: 'Cluster Secrets', initialViewMode: 'list' });
+      });
+
+      act(() => {
+        result.current.handleSecretSave({ id: 'sec-cs', name: 'cs-secret', secretType: 'Opaque', secretData: [] });
+      });
+
+      expect(useFlowStore.getState().savedSecrets).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: 'sec-cs', name: 'cs-secret' })])
+      );
+
+      // 2. target node with resourceName present
+      useFlowStore.setState({
+        nodes: [
+          {
+            id: 'node-with-sec',
+            type: 'Pod',
+            position: { x: 0, y: 0 },
+            data: { label: 'Pod With Sec' },
+          } as any,
+        ],
+      });
+
+      act(() => {
+        result.current.setSecretModalTargetNode({ id: 'node-with-sec', label: 'Pod With Sec', initialViewMode: 'list' });
+      });
+
+      act(() => {
+        result.current.handleSecretSave({ id: 'sec-with-res', name: 'with-res-sec', resourceName: 'Pod With Sec', secretType: 'Opaque', secretData: [] });
+      });
+
+      let nodes = useFlowStore.getState().nodes;
+      expect(nodes[0].data.secrets).toEqual([
+        expect.objectContaining({ id: 'sec-with-res', name: 'with-res-sec', resourceName: 'Pod With Sec' }),
+      ]);
+
+      // 3. user detaches secret
+      act(() => {
+        result.current.setSecretModalTargetNode({ id: 'node-with-sec', label: 'Pod With Sec' });
+      });
+
+      act(() => {
+        result.current.handleSecretSave({ id: 'sec-with-res', name: 'with-res-sec', resourceName: '', secretType: 'Opaque', secretData: [] });
+      });
+
+      nodes = useFlowStore.getState().nodes;
+      expect(nodes[0].data.secrets).toHaveLength(0);
+    });
+
+    it('createEnrichedSecretItem correctly enriches or strips resource fields', () => {
+      const baseSec: K8sSecretItem = { id: 'sec-1', name: 'app-secret', secretData: [] };
+
+      // Unattached
+      const unattached = createEnrichedSecretItem(baseSec, null, false, 'dev-profile', 'Node Label');
+      expect(unattached.profileName).toBe('dev-profile');
+      expect(unattached.resourceName).toBeUndefined();
+      expect(unattached.resourceType).toBeUndefined();
+
+      // Attached
+      const attached = createEnrichedSecretItem(baseSec, { id: 'node-1' }, true, 'dev-profile', 'Node Label');
+      expect(attached.profileName).toBe('dev-profile');
+      expect(attached.resourceName).toBe('Node Label');
+      expect(attached.resourceType).toBe('Resource');
+    });
+
+    it('attachSecretToNode updates existing or appends and logs event', () => {
+      const mockUpdate = vi.fn();
+      const target = {
+        id: 'node-1',
+        data: {
+          secrets: [{ id: 'sec-1', name: 'my-sec', secretData: [] }],
+        },
+      };
+
+      // Update existing
+      const updatedSec: K8sSecretItem = { id: 'sec-1', name: 'my-sec', secretData: [{ key: 'K', value: 'V' }] };
+      attachSecretToNode(target, updatedSec, updatedSec, 'Target Card', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('node-1', { secrets: [updatedSec] });
+
+      // Append new
+      const newSec: K8sSecretItem = { id: 'sec-2', name: 'other-sec', secretData: [] };
+      attachSecretToNode(target, newSec, newSec, 'Target Card', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('node-1', {
+        secrets: [target.data.secrets[0], newSec],
+      });
+    });
+
+    it('detachSecretFromNode removes existing item or skips if not found / null target', () => {
+      const mockUpdate = vi.fn();
+
+      // null target
+      detachSecretFromNode(null, { id: 'sec-1', name: 'sec-1', secretData: [] }, 'Target Card', mockUpdate);
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // target without matching Secret
+      const target = {
+        id: 'node-1',
+        data: {
+          secrets: [{ id: 'sec-other', name: 'sec-other', secretData: [] }],
+        },
+      };
+      detachSecretFromNode(target, { id: 'sec-1', name: 'sec-1', secretData: [] }, 'Target Card', mockUpdate);
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // target with matching Secret
+      detachSecretFromNode(target, { id: 'sec-other', name: 'sec-other', secretData: [] }, 'Target Card', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('node-1', { secrets: [] });
     });
   });
 });

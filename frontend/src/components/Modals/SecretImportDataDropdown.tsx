@@ -31,8 +31,8 @@ export const SecretImportDataDropdown: React.FC<SecretImportDataDropdownProps> =
         className={cn(
           "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border transition-colors cursor-pointer font-medium",
           isDark
-            ? "bg-slate-900 border-slate-700 text-indigo-400 hover:bg-slate-800"
-            : "bg-white border-slate-300 text-indigo-600 hover:bg-slate-50"
+            ? "bg-slate-900 border-slate-700 text-rose-400 hover:bg-slate-800"
+            : "bg-white border-slate-300 text-rose-600 hover:bg-slate-50"
         )}
         title="Use an existing Secret"
       >
@@ -64,7 +64,7 @@ export const SecretImportDataDropdown: React.FC<SecretImportDataDropdownProps> =
                     isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
                   )}
                 >
-                  <span className="font-semibold text-xs text-indigo-400 truncate mr-2">
+                  <span className="font-semibold text-xs text-rose-400 truncate mr-2">
                     {sec.name || sec.id}
                   </span>
                   <span className="text-[10px] text-slate-400 font-mono shrink-0">

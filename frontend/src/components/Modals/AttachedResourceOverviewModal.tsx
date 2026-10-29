@@ -11,6 +11,7 @@ import {
   getResourceOverviewMeta,
 } from '@/activities/modals/attachedResourceOverviewHelpers';
 import { removeConfigMapFromLocal } from '@/activities/modals/configMapStorageHelpers';
+import { removeSecretFromLocal } from '@/activities/modals/secretStorageHelpers';
 
 export interface AttachedResourceOverviewModalProps {
   readonly type: K8sResourceType | null;
@@ -139,6 +140,8 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
   const addLog = useFlowStore((state) => state.addLog);
   const savedConfigMaps = useFlowStore((state) => state.savedConfigMaps);
   const deleteSavedConfigMap = useFlowStore((state) => state.deleteSavedConfigMap);
+  const savedSecrets = useFlowStore((state) => state.savedSecrets);
+  const deleteSavedSecret = useFlowStore((state) => state.deleteSavedSecret);
 
   const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
   const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
@@ -146,7 +149,8 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
   const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
   const setResourceLimitModalTargetNode = useFlowStore((state) => state.setResourceLimitModalTargetNode);
 
-  const allItems = useMemo(() => (type ? extractAllOverviewItems(nodes, type, savedConfigMaps) : []), [nodes, type, savedConfigMaps]);
+  const savedResources = type === 'Secret' ? savedSecrets : savedConfigMaps;
+  const allItems = useMemo(() => (type ? extractAllOverviewItems(nodes, type, savedResources) : []), [nodes, type, savedResources]);
   const filteredItems = useMemo(
     () => (type ? filterOverviewItems(allItems, search, type) : []),
     [allItems, search, type]
@@ -188,6 +192,9 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
     if (type === 'ConfigMap') {
       void removeConfigMapFromLocal(item.rawItem.id);
       deleteSavedConfigMap(item.rawItem.id);
+    } else if (type === 'Secret') {
+      void removeSecretFromLocal(item.rawItem.id);
+      deleteSavedSecret(item.rawItem.id);
     }
   };
 
@@ -210,6 +217,21 @@ export const AttachedResourceOverviewModal: React.FC<AttachedResourceOverviewMod
             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-teal-600 hover:bg-teal-500 text-white cursor-pointer"
           >
             + Add ConfigMap
+          </button>
+        )}
+        {type === 'Secret' && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              setSecretModalTargetNode({
+                id: 'cluster-storage',
+                label: 'Cluster Secret',
+              });
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-rose-600 hover:bg-rose-500 text-white cursor-pointer"
+          >
+            + Add Secret
           </button>
         )}
         <button

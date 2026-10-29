@@ -3,6 +3,7 @@ import { sanitizeSlug } from '@/lib/utils';
 import { ComponentOption } from '@/components/Modals/ConfigMapComponentSection';
 import { getPodReplicaGroupInfo, PodReplicaGroupInfo } from './configMapModalHelpers';
 import { OverviewItem } from './attachedResourceOverviewHelpers';
+import { removeSecretFromLocal } from './secretStorageHelpers';
 
 export function resolveTargetOptionLabel(
   groupInfo: PodReplicaGroupInfo | null,
@@ -164,20 +165,25 @@ export function removeSecretFromNodeOrStore(
   item: OverviewItem,
   nodes: any[],
   updateNodeData: (id: string, data: any) => void,
-  addLog: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void
+  addLog: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void,
+  deleteSavedSecret?: (id: string) => void
 ): void {
-  nodes.forEach((node) => {
-    const currentList: K8sSecretItem[] = node.data?.secrets || [];
-    const isTargetSec = (s: K8sSecretItem) => s.id === item.rawItem.id || Boolean(item.name && s.name === item.name);
-    if (currentList.some(isTargetSec)) {
-      updateNodeData(node.id, {
-        secrets: currentList.filter((s) => !isTargetSec(s)),
-      });
-      addLog(
-        'info',
-        `[Attached Resource] Removed Secret '${item.name}' from ${node.data?.label || node.id}`,
-        'UI'
-      );
-    }
-  });
+  if (item.ownerNode.id !== 'cluster-storage') {
+    nodes.forEach((node) => {
+      const currentList: K8sSecretItem[] = node.data?.secrets || [];
+      const isTargetSec = (s: K8sSecretItem) => s.id === item.rawItem.id || Boolean(item.name && s.name === item.name);
+      if (currentList.some(isTargetSec)) {
+        updateNodeData(node.id, {
+          secrets: currentList.filter((s) => !isTargetSec(s)),
+        });
+        addLog(
+          'info',
+          `[Attached Resource] Removed Secret '${item.name}' from ${node.data?.label || node.id}`,
+          'UI'
+        );
+      }
+    });
+  }
+  void removeSecretFromLocal(item.rawItem.id);
+  deleteSavedSecret?.(item.rawItem.id);
 }

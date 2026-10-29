@@ -325,5 +325,30 @@ describe('secretModalHelpers', () => {
         'UI'
       );
     });
+
+    it('handles cluster-storage item by invoking deleteSavedSecret without touching canvas nodes', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      const deleteSavedSecret = vi.fn();
+
+      const item: OverviewItem = {
+        id: 'sec-cluster-item',
+        name: 'cluster-secret',
+        rawItem: { id: 'sec-cluster-item', name: 'cluster-secret' },
+        ownerNode: { id: 'cluster-storage', label: 'Cluster (Local Storage)', type: 'Secret' },
+      };
+
+      const nodes = [
+        {
+          id: 'pod-1',
+          data: { secrets: [{ id: 'sec-cluster-item', name: 'cluster-secret' }] },
+        },
+      ];
+
+      removeSecretFromNodeOrStore(item, nodes, updateNodeData, addLog, deleteSavedSecret);
+
+      expect(updateNodeData).not.toHaveBeenCalled();
+      expect(deleteSavedSecret).toHaveBeenCalledWith('sec-cluster-item');
+    });
   });
 });

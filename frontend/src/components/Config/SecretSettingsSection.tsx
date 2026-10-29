@@ -19,14 +19,14 @@ export const SecretSettingsSection: React.FC<SecretSettingsSectionProps> = ({ da
       resourceName="Secret"
       logResourceName="Secret"
       icon={Lock}
-      badgeBgColorClass="bg-indigo-600"
-      darkBorderColorClass="border-indigo-500/50"
-      darkTextColorClass="text-indigo-400"
-      darkHoverBorderClass="hover:border-indigo-400"
-      lightBgColorClass="bg-indigo-50"
-      lightBorderColorClass="border-indigo-200"
-      lightTextColorClass="text-indigo-600"
-      lightHoverBorderClass="hover:border-indigo-400"
+      badgeBgColorClass="bg-rose-600"
+      darkBorderColorClass="border-rose-500/50"
+      darkTextColorClass="text-rose-400"
+      darkHoverBorderClass="hover:border-rose-400"
+      lightBgColorClass="bg-rose-50"
+      lightBorderColorClass="border-rose-200"
+      lightTextColorClass="text-rose-600"
+      lightHoverBorderClass="hover:border-rose-400"
       renderListModal={({ isOpen, onClose, targetNodeLabel, items, onEditItem, onDeleteItem, onAddNewItem }) => (
         <SecretListModal
           isOpen={isOpen}

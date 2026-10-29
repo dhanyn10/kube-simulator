@@ -19,3 +19,4 @@ export * from './useAboutDialog';
 export * from './useSettingsModal';
 export * from './attachedResourceOverviewHelpers';
 export * from './configMapStorageHelpers';
+export * from './secretStorageHelpers';

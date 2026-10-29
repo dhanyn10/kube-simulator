@@ -13,7 +13,7 @@ interface KeyValueConfigProps {
   addButtonText: string;
   emptyText: string;
   inputType?: 'text' | 'password';
-  accentColor: 'teal' | 'indigo';
+  accentColor: 'teal' | 'indigo' | 'rose';
   valuePlaceholder?: string;
   isVisible?: boolean;
   onToggle?: () => void;
@@ -71,6 +71,11 @@ export const KeyValueConfig = ({
       btn: "bg-indigo-500 hover:bg-indigo-600",
       focus: "focus:border-indigo-500/50",
       focusLight: "focus:border-indigo-400"
+    },
+    rose: {
+      btn: "bg-rose-500 hover:bg-rose-600",
+      focus: "focus:border-rose-500/50",
+      focusLight: "focus:border-rose-400"
     }
   };
 

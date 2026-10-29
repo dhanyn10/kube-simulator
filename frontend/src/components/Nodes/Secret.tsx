@@ -8,16 +8,16 @@ export const SecretNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
 
   return (
-    <SimpleResourceNode {...props} title="Secret" icon={Lock} color="indigo">
+    <SimpleResourceNode {...props} title="Secret" icon={Lock} color="rose">
       {data.displaySettings?.data !== false && !!data.configData?.length && (
         <div className="mt-2 pt-1 border-t border-slate-700/30">
-          <div className="text-[8px] font-bold text-indigo-500 uppercase tracking-tighter mb-1">
+          <div className="text-[8px] font-bold text-rose-500 uppercase tracking-tighter mb-1">
             Secrets ({data.configData.length})
           </div>
           <div className="space-y-0.5">
             {data.configData.slice(0, 3).map((item) => (
               <div key={item.key} className="text-[9px] font-mono truncate text-slate-400">
-                <span className="text-indigo-500/80">{item.key}:</span> {item.value}
+                <span className="text-rose-500/80">{item.key}:</span> {item.value}
               </div>
             ))}
             {data.configData.length > 3 && (

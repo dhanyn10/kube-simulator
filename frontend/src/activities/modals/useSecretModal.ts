@@ -78,7 +78,7 @@ export function useSecretModal(
     const trimmedName = secretName?.trim();
     const secretItem: K8sSecretItem = {
       id: effectiveId,
-      name: trimmedName ? sanitizeSlug(trimmedName) : 'unnamed-secret',
+      name: trimmedName ? sanitizeSlug(trimmedName) : effectiveId,
       type: secretType || 'Opaque',
       secretData: validData,
     };

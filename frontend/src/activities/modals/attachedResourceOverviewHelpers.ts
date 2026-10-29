@@ -1,6 +1,6 @@
 import { LucideIcon, Settings, Lock, ShieldCheck, Activity, Layers } from 'lucide-react';
 import { Node } from '@xyflow/react';
-import { K8sResourceType, K8sConfigMapItem } from '@/types';
+import { K8sResourceType, K8sConfigMapItem, K8sSecretItem } from '@/types';
 import { getCurrentSessionAutosaveKey } from '@/store/useFlowStore';
 import { getPodReplicaGroupInfo } from './configMapModalHelpers';
 
@@ -38,7 +38,7 @@ export const RESOURCE_TYPE_KEY_MAP: Record<string, string> = {
 export const extractAllOverviewItems = (
   nodes: Node[],
   resourceType: K8sResourceType,
-  savedConfigMaps?: K8sConfigMapItem[],
+  savedResources?: (K8sConfigMapItem | K8sSecretItem)[],
   currentProfileName?: string
 ): OverviewItem[] => {
   const key = RESOURCE_TYPE_KEY_MAP[resourceType];
@@ -98,31 +98,31 @@ export const extractAllOverviewItems = (
     }
   });
 
-  if (resourceType === 'ConfigMap' && Array.isArray(savedConfigMaps)) {
-    savedConfigMaps.forEach((savedCm) => {
-      if (!foundIds.has(savedCm.id) && !foundIds.has(savedCm.name)) {
-        const isAttached = Boolean(savedCm.resourceName);
-        const componentLabel = savedCm.resourceName || (isAttached ? 'saved-resource' : 'Cluster (Local Storage)');
-        const resolvedProfile = (savedCm.profileName && savedCm.profileName !== 'Default Profile')
-          ? savedCm.profileName
+  if ((resourceType === 'ConfigMap' || resourceType === 'Secret') && Array.isArray(savedResources)) {
+    savedResources.forEach((savedItem: any) => {
+      if (!foundIds.has(savedItem.id) && !foundIds.has(savedItem.name)) {
+        const isAttached = Boolean(savedItem.resourceName);
+        const componentLabel = savedItem.resourceName || (isAttached ? 'saved-resource' : 'Cluster (Local Storage)');
+        const resolvedProfile = (savedItem.profileName && savedItem.profileName !== 'Default Profile')
+          ? savedItem.profileName
           : activeProfile;
 
-        const compositeKey = `${savedCm.id}::${componentLabel}::${resolvedProfile}`;
+        const compositeKey = `${savedItem.id}::${componentLabel}::${resolvedProfile}`;
         if (seenCompositeKeys.has(compositeKey)) {
           return;
         }
         seenCompositeKeys.add(compositeKey);
-        foundIds.add(savedCm.id);
-        if (savedCm.name) foundIds.add(savedCm.name);
+        foundIds.add(savedItem.id);
+        if (savedItem.name) foundIds.add(savedItem.name);
 
         items.push({
-          id: savedCm.id,
-          name: savedCm.name || 'Unnamed',
-          rawItem: savedCm,
+          id: savedItem.id,
+          name: savedItem.name || 'Unnamed',
+          rawItem: savedItem,
           ownerNode: {
-            id: isAttached ? (savedCm.resourceName || 'saved-resource') : 'cluster-storage',
+            id: isAttached ? (savedItem.resourceName || 'saved-resource') : 'cluster-storage',
             label: componentLabel,
-            type: savedCm.resourceType || (isAttached ? 'Resource' : 'ConfigMap'),
+            type: savedItem.resourceType || (isAttached ? 'Resource' : resourceType),
           },
           profileName: resolvedProfile,
         });

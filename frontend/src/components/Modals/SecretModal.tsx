@@ -64,7 +64,7 @@ const SecretModalFooter: React.FC<SecretModalFooterProps> = ({
         <button
           type="button"
           onClick={onAddNewFromList}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer"
         >
           <Plus size={14} />
           <span>+ Add Secret</span>
@@ -119,7 +119,7 @@ const SecretModalFooter: React.FC<SecretModalFooterProps> = ({
         <button
           type="button"
           onClick={onSave}
-          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md transition-all cursor-pointer"
+          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-md transition-all cursor-pointer"
         >
           {hasExistingItem ? 'Update Secret' : 'Attach Secret'}
         </button>
@@ -143,6 +143,8 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   const currentProject = useFlowStore((state) => state.currentProject);
   const updateNodeData = useFlowStore((state) => state.updateNodeData);
   const addLog = useFlowStore((state) => state.addLog);
+  const savedSecrets = useFlowStore((state) => state.savedSecrets);
+  const deleteSavedSecret = useFlowStore((state) => state.deleteSavedSecret);
 
   const [mode, setMode] = useState<SecretModalMode>('form');
   const [activeItem, setActiveItem] = useState<K8sSecretItem | null>(initialSecret || null);
@@ -177,8 +179,8 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
   const currentProfileName = getActiveProfileName(currentProject);
   const allItems = useMemo(
-    () => extractAllOverviewItems(nodes, 'Secret', undefined, currentProfileName),
-    [nodes, currentProfileName]
+    () => extractAllOverviewItems(nodes, 'Secret', savedSecrets, currentProfileName),
+    [nodes, savedSecrets, currentProfileName]
   );
   const filteredItems = useMemo(
     () => filterOverviewItems(allItems, search, 'Secret'),
@@ -212,19 +214,15 @@ export const SecretModal: React.FC<SecretModalProps> = ({
     const list: K8sSecretItem[] = [];
     const seen = new Set<string>();
     const currentId = activeItem?.id || initialSecret?.id || secretId;
-
-    nodes.forEach((n) => {
-      const secList: K8sSecretItem[] = n.data?.secrets || [];
-      secList.forEach((s) => {
-        if (s && s.id !== currentId && !seen.has(s.name || s.id)) {
-          seen.add(s.name || s.id);
-          list.push(s);
-        }
-      });
+    allItems.forEach((item) => {
+      const raw = item.rawItem as K8sSecretItem;
+      if (raw && raw.id !== currentId && !seen.has(raw.name)) {
+        seen.add(raw.name);
+        list.push(raw);
+      }
     });
-
     return list;
-  }, [nodes, activeItem?.id, initialSecret?.id, secretId]);
+  }, [allItems, activeItem?.id, initialSecret?.id, secretId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -304,7 +302,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   };
 
   const handleDeleteFromList = (item: OverviewItem) => {
-    removeSecretFromNodeOrStore(item, nodes, updateNodeData, addLog);
+    removeSecretFromNodeOrStore(item, nodes, updateNodeData, addLog, deleteSavedSecret);
   };
 
   const handleRemoveComponent = (componentId: string) => {
@@ -437,7 +435,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
       title={modalTitle}
       subtitle={modalSubtitle}
       icon={Lock}
-      iconColorClass="text-indigo-400"
+      iconColorClass="text-rose-400"
       widthClass="w-full max-w-3xl"
       maxHeightClass="h-[75vh]"
       footer={footer}
@@ -460,7 +458,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
               type="button"
               data-testid="secret-header-back-button"
               onClick={() => setMode('list')}
-              className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors cursor-pointer"
             >
               <ArrowLeft size={13} />
               <span>Back to Secret list</span>
@@ -514,7 +512,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
                 placeholder="e.g. app-secret"
                 maxLength={63}
                 className={cn(
-                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
+                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-rose-500/50 transition-all",
                   isDark
                     ? "bg-slate-950 border-slate-800 text-slate-100"
                     : "bg-slate-50 border-slate-300 text-slate-900"
@@ -531,7 +529,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
                 value={secretType}
                 onChange={(e) => setSecretType(e.target.value)}
                 className={cn(
-                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all",
+                  "w-full px-3 py-2 rounded-lg border text-xs font-mono outline-none focus:ring-2 focus:ring-rose-500/50 transition-all",
                   isDark
                     ? "bg-slate-950 border-slate-800 text-slate-100"
                     : "bg-slate-50 border-slate-300 text-slate-900"

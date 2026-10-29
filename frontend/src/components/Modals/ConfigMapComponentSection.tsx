@@ -8,56 +8,62 @@ export interface ComponentOption {
   readonly type: string;
 }
 
+export type ComponentSectionAccentColor = 'teal' | 'indigo' | 'rose';
+
 export interface ConfigMapComponentSectionProps {
   readonly attachedComponents: readonly ComponentOption[];
   readonly availableComponents: readonly ComponentOption[];
   readonly onRemoveComponent: (componentId: string) => void;
   readonly onAttachComponent: (component: ComponentOption) => void;
   readonly isDark: boolean;
-  readonly accentColor?: 'teal' | 'indigo';
+  readonly accentColor?: ComponentSectionAccentColor;
 }
 
-const getContainerBorderClass = (isFocused: boolean, isDark: boolean, isIndigo: boolean): string => {
+const getContainerBorderClass = (isFocused: boolean, isDark: boolean, accent: ComponentSectionAccentColor): string => {
   if (isFocused) {
-    return isIndigo
-      ? 'ring-2 ring-indigo-500/50 border-indigo-500'
-      : 'ring-2 ring-teal-500/50 border-teal-500';
+    if (accent === 'rose') return 'ring-2 ring-rose-500/50 border-rose-500';
+    if (accent === 'indigo') return 'ring-2 ring-indigo-500/50 border-indigo-500';
+    return 'ring-2 ring-teal-500/50 border-teal-500';
   }
-  if (isDark) {
-    return 'border-slate-800 bg-slate-950';
-  }
+  if (isDark) return 'border-slate-800 bg-slate-950';
   return 'border-slate-300 bg-white';
 };
 
-const getSuggestionItemClass = (isSelected: boolean, isDark: boolean, isIndigo: boolean): string => {
+const getSuggestionItemClass = (isSelected: boolean, isDark: boolean, accent: ComponentSectionAccentColor): string => {
   if (isSelected) {
     if (isDark) {
-      return isIndigo ? 'bg-indigo-600/30 text-indigo-200' : 'bg-teal-600/30 text-teal-200';
+      if (accent === 'rose') return 'bg-rose-600/30 text-rose-200';
+      if (accent === 'indigo') return 'bg-indigo-600/30 text-indigo-200';
+      return 'bg-teal-600/30 text-teal-200';
     }
-    return isIndigo ? 'bg-indigo-50 text-indigo-800' : 'bg-teal-50 text-teal-800';
+    if (accent === 'rose') return 'bg-rose-50 text-rose-800';
+    if (accent === 'indigo') return 'bg-indigo-50 text-indigo-800';
+    return 'bg-teal-50 text-teal-800';
   }
-  if (isDark) {
-    return 'hover:bg-slate-800 text-slate-200';
-  }
+  if (isDark) return 'hover:bg-slate-800 text-slate-200';
   return 'hover:bg-slate-100 text-slate-700';
 };
 
-const getAttachedTagClass = (isDark: boolean, isIndigo: boolean): string => {
+const getAttachedTagClass = (isDark: boolean, accent: ComponentSectionAccentColor): string => {
   if (isDark) {
-    return isIndigo
-      ? 'bg-indigo-950/80 text-indigo-300 border-indigo-500/40'
-      : 'bg-teal-950/80 text-teal-300 border-teal-500/40';
+    if (accent === 'rose') return 'bg-rose-950/80 text-rose-300 border-rose-500/40';
+    if (accent === 'indigo') return 'bg-indigo-950/80 text-indigo-300 border-indigo-500/40';
+    return 'bg-teal-950/80 text-teal-300 border-teal-500/40';
   }
-  return isIndigo
-    ? 'bg-indigo-50 text-indigo-800 border-indigo-300'
-    : 'bg-teal-50 text-teal-800 border-teal-300';
+  if (accent === 'rose') return 'bg-rose-50 text-rose-800 border-rose-300';
+  if (accent === 'indigo') return 'bg-indigo-50 text-indigo-800 border-indigo-300';
+  return 'bg-teal-50 text-teal-800 border-teal-300';
 };
 
-const getSuggestionTypeBadgeClass = (isDark: boolean, isIndigo: boolean): string => {
+const getSuggestionTypeBadgeClass = (isDark: boolean, accent: ComponentSectionAccentColor): string => {
   if (isDark) {
-    return isIndigo ? 'bg-slate-800 text-indigo-400' : 'bg-slate-800 text-teal-400';
+    if (accent === 'rose') return 'bg-slate-800 text-rose-400';
+    if (accent === 'indigo') return 'bg-slate-800 text-indigo-400';
+    return 'bg-slate-800 text-teal-400';
   }
-  return isIndigo ? 'bg-slate-100 text-indigo-600' : 'bg-slate-100 text-teal-600';
+  if (accent === 'rose') return 'bg-slate-100 text-rose-600';
+  if (accent === 'indigo') return 'bg-slate-100 text-indigo-600';
+  return 'bg-slate-100 text-teal-600';
 };
 
 export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps> = ({
@@ -68,7 +74,6 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
   isDark,
   accentColor = 'teal',
 }) => {
-  const isIndigo = accentColor === 'indigo';
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
@@ -129,7 +134,7 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
           data-testid="configmap-tagify-container"
           className={cn(
             "min-h-[38px] p-1.5 rounded-lg border flex flex-wrap items-center gap-1.5 cursor-text transition-all",
-            getContainerBorderClass(isFocused, isDark, isIndigo)
+            getContainerBorderClass(isFocused, isDark, accentColor)
           )}
         >
           {attachedComponents.map((comp) => (
@@ -138,7 +143,7 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
               data-testid={`attached-component-tag-${comp.id}`}
               className={cn(
                 "px-2 py-0.5 rounded-md text-xs font-medium flex items-center gap-1.5 border shadow-xs transition-all animate-in fade-in zoom-in-95 duration-150 select-none",
-                getAttachedTagClass(isDark, isIndigo)
+                getAttachedTagClass(isDark, accentColor)
               )}
             >
               <span className="text-[10px] uppercase font-bold opacity-75">{comp.type}:</span>
@@ -219,13 +224,13 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(
                     "w-full px-3 py-1.5 flex items-center justify-between text-left rounded transition-colors cursor-pointer",
-                    getSuggestionItemClass(idx === selectedIndex, isDark, isIndigo)
+                    getSuggestionItemClass(idx === selectedIndex, isDark, accentColor)
                   )}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <span className={cn(
                       "text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded",
-                      getSuggestionTypeBadgeClass(isDark, isIndigo)
+                      getSuggestionTypeBadgeClass(isDark, accentColor)
                     )}>
                       {comp.type}
                     </span>

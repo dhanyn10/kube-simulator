@@ -1364,4 +1364,45 @@ describe('createUiSlice', () => {
       expect.arrayContaining([expect.objectContaining({ id: 'cm-restored' })])
     );
   });
+
+  it('covers savedSecrets actions: set, addOrUpdate, and delete', () => {
+    const { setSavedSecrets, addOrUpdateSavedSecret, deleteSavedSecret } = useFlowStore.getState();
+
+    // 1. setSavedSecrets
+    setSavedSecrets([{ id: 'sec-1', name: 'secret-1', type: 'Opaque', secretData: [] }]);
+    expect(useFlowStore.getState().savedSecrets).toHaveLength(1);
+
+    // 2. add new
+    addOrUpdateSavedSecret({ id: 'sec-2', name: 'secret-2', type: 'Opaque', secretData: [] });
+    expect(useFlowStore.getState().savedSecrets).toHaveLength(2);
+
+    // 3. update existing
+    addOrUpdateSavedSecret({ id: 'sec-2', name: 'secret-2-renamed', type: 'Opaque', secretData: [{ key: 'K', value: 'V' }] });
+    const secs = useFlowStore.getState().savedSecrets;
+    expect(secs).toHaveLength(2);
+    expect(secs[1].name).toBe('secret-2-renamed');
+
+    // 4. delete
+    deleteSavedSecret('sec-1');
+    expect(useFlowStore.getState().savedSecrets).toHaveLength(1);
+    expect(useFlowStore.getState().savedSecrets[0].id).toBe('sec-2');
+  });
+
+  it('covers loadSettingsJson restoring savedSecrets from local storage', async () => {
+    localStorage.setItem(
+      'kube_simulator_secrets',
+      JSON.stringify([
+        { id: 'sec-restored', name: 'restored-secret', type: 'Opaque', secretData: [{ key: 'TOKEN', value: 'secret123' }] }
+      ])
+    );
+
+    const { loadSettingsJson } = useFlowStore.getState();
+    loadSettingsJson();
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(useFlowStore.getState().savedSecrets).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'sec-restored' })])
+    );
+  });
 });
