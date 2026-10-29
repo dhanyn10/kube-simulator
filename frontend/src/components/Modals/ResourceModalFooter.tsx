@@ -64,6 +64,20 @@ const ListModeFooter: React.FC<{
   </div>
 );
 
+function getProfileBackButtonStyle(accentColor: 'rose' | 'teal', isDark: boolean): string {
+  if (accentColor === 'rose') {
+    return isDark ? "border-slate-700 hover:bg-slate-800 text-rose-400" : "border-slate-300 hover:bg-slate-100 text-rose-600";
+  }
+  return isDark ? "border-slate-700 hover:bg-slate-800 text-teal-400" : "border-slate-300 hover:bg-slate-100 text-teal-600";
+}
+
+function getFormBackButtonStyle(accentColor: 'rose' | 'teal', isDark: boolean): string {
+  if (accentColor === 'rose') {
+    return isDark ? "border-slate-700 hover:bg-slate-800 text-indigo-400" : "border-slate-300 hover:bg-slate-100 text-indigo-600";
+  }
+  return isDark ? "border-slate-700 hover:bg-slate-800 text-teal-400" : "border-slate-300 hover:bg-slate-100 text-teal-600";
+}
+
 const ProfileModeFooter: React.FC<{
   readonly onBackToMode: () => void;
   readonly onAddNewFromList: () => void;
@@ -88,9 +102,7 @@ const ProfileModeFooter: React.FC<{
       onClick={onBackToMode}
       className={cn(
         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
-        accentColor === 'rose'
-          ? isDark ? "border-slate-700 hover:bg-slate-800 text-rose-400" : "border-slate-300 hover:bg-slate-100 text-rose-600"
-          : isDark ? "border-slate-700 hover:bg-slate-800 text-teal-400" : "border-slate-300 hover:bg-slate-100 text-teal-600"
+        getProfileBackButtonStyle(accentColor, isDark)
       )}
     >
       <ArrowLeft size={13} />
@@ -152,9 +164,7 @@ const FormModeFooter: React.FC<{
       onClick={onBackToMode}
       className={cn(
         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
-        accentColor === 'rose'
-          ? isDark ? "border-slate-700 hover:bg-slate-800 text-indigo-400" : "border-slate-300 hover:bg-slate-100 text-indigo-600"
-          : isDark ? "border-slate-700 hover:bg-slate-800 text-teal-400" : "border-slate-300 hover:bg-slate-100 text-teal-600"
+        getFormBackButtonStyle(accentColor, isDark)
       )}
     >
       <ArrowLeft size={13} />

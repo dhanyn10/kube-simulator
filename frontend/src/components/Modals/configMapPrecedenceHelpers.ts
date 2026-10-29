@@ -89,16 +89,32 @@ export function reorderItems<T>(items: readonly T[], fromIndex: number, toIndex:
 /**
  * Generic precedence synchronizer for ConfigMap or Secret order across nodes and local store.
  */
-export function syncResourcePrecedenceOrder(
-  resourceType: 'ConfigMap' | 'Secret',
-  reorderedItems: readonly OverviewItem[],
-  nodes: any[],
-  updateNodeData: (id: string, data: any) => void,
-  savedItems: any[],
-  setSavedItems: (items: any[]) => void,
-  saveToLocal: (items: any[]) => Promise<boolean>,
-  addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void
-): void {
+export type PrecedenceResourceType = 'ConfigMap' | 'Secret';
+export type PrecedenceLogLevel = 'info' | 'warn' | 'error';
+
+export interface SyncPrecedenceParams {
+  resourceType: PrecedenceResourceType;
+  reorderedItems: readonly OverviewItem[];
+  nodes: any[];
+  updateNodeData: (id: string, data: any) => void;
+  savedItems: any[];
+  setSavedItems: (items: any[]) => void;
+  saveToLocal: (items: any[]) => Promise<boolean>;
+  addLog?: (level: PrecedenceLogLevel, message: string, category?: string) => void;
+}
+
+export function syncResourcePrecedenceOrder(params: SyncPrecedenceParams): void {
+  const {
+    resourceType,
+    reorderedItems,
+    nodes,
+    updateNodeData,
+    savedItems,
+    setSavedItems,
+    saveToLocal,
+    addLog,
+  } = params;
+
   const dataProp = resourceType === 'Secret' ? 'secrets' : 'configMaps';
 
   const orderRank = new Map<string, number>();
@@ -152,16 +168,16 @@ export function syncConfigMapPrecedenceOrder(
   setSavedConfigMaps: (cms: K8sConfigMapItem[]) => void,
   addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void
 ): void {
-  syncResourcePrecedenceOrder(
-    'ConfigMap',
+  syncResourcePrecedenceOrder({
+    resourceType: 'ConfigMap',
     reorderedItems,
     nodes,
     updateNodeData,
-    savedConfigMaps,
-    setSavedConfigMaps,
-    saveConfigMapsToLocal,
-    addLog
-  );
+    savedItems: savedConfigMaps,
+    setSavedItems: setSavedConfigMaps,
+    saveToLocal: saveConfigMapsToLocal,
+    addLog,
+  });
 }
 
 /**
@@ -175,14 +191,14 @@ export function syncSecretPrecedenceOrder(
   setSavedSecrets: (secrets: K8sSecretItem[]) => void,
   addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void
 ): void {
-  syncResourcePrecedenceOrder(
-    'Secret',
+  syncResourcePrecedenceOrder({
+    resourceType: 'Secret',
     reorderedItems,
     nodes,
     updateNodeData,
-    savedSecrets,
-    setSavedSecrets,
-    saveSecretsToLocal,
-    addLog
-  );
+    savedItems: savedSecrets,
+    setSavedItems: setSavedSecrets,
+    saveToLocal: saveSecretsToLocal,
+    addLog,
+  });
 }

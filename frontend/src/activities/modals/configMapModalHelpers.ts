@@ -150,13 +150,14 @@ export function resolveTargetOptionLabel(
   return targetNodeLabel || targetNodeId || '';
 }
 
+const ALLOWED_WORKLOADS = new Set(['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress']);
+
 export function getAvailableWorkloadComponents(nodes: any[]): ComponentOption[] {
   const list: ComponentOption[] = [];
   const seenKeys = new Set<string>();
-  const allowedWorkloads = ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'];
 
   nodes
-    .filter((n) => allowedWorkloads.includes(n.type || ''))
+    .filter((n) => ALLOWED_WORKLOADS.has(n.type || ''))
     .forEach((n) => {
       const groupInfo = getPodReplicaGroupInfo(n);
       if (!seenKeys.has(groupInfo.groupKey)) {

@@ -16,6 +16,10 @@ import {
   getAvailableWorkloadComponents,
   appendTargetComponentOption,
   extractUniqueRawItems,
+  detachSecretComponent,
+  attachSecretComponent,
+  getSecretModalTitle,
+  getSecretModalSubtitle,
 } from '@/activities/modals/secretModalHelpers';
 import {
   OverviewItem,
@@ -179,61 +183,32 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   const handleRemoveComponent = (componentId: string) => {
     const targetSecId = activeItem?.id || initialSecret?.id || secretId;
     const oldSecName = initialSecret?.name || activeItem?.name;
-    const targetNodes = nodes.filter((n) => {
-      if (n.id === componentId) return true;
-      const groupInfo = getPodReplicaGroupInfo(n);
-      return groupInfo.isGroup && groupInfo.groupKey === componentId;
+    detachSecretComponent({
+      nodes,
+      componentId,
+      targetSecId,
+      secretName,
+      oldSecName,
+      updateNodeData,
+      addLog,
     });
-
-    targetNodes.forEach((node) => {
-      const currentList: K8sSecretItem[] = node.data?.secrets || [];
-      const updatedList = currentList.filter(
-        (s) => !(targetSecId && s.id === targetSecId) && !(secretName && s.name === secretName) && !(oldSecName && s.name === oldSecName)
-      );
-      updateNodeData(node.id, { secrets: updatedList });
-      addLog(
-        'info',
-        `[Secret] Removed attached component '${node.data?.label || node.id}' from Secret '${secretName}'`,
-        'UI'
-      );
-    });
-
     setAttachedComponents((prev) => prev.filter((c) => c.id !== componentId));
   };
 
   const handleAttachComponent = (comp: ComponentOption) => {
-    const targetNodes = nodes.filter((n) => {
-      if (n.id === comp.id) return true;
-      const groupInfo = getPodReplicaGroupInfo(n);
-      return groupInfo.isGroup && groupInfo.groupKey === comp.id;
-    });
-    if (targetNodes.length === 0) return;
-
-    const primaryNode = targetNodes[0];
-    const targetLabel = comp.label || (primaryNode.data?.label as string) || primaryNode.id;
-    const targetType = primaryNode.type || comp.type || 'Node';
-
     const targetId = activeItem?.id || initialSecret?.id || secretId || `secret-${Date.now()}`;
     const validData = typeof getValidData === 'function' ? getValidData() : [];
-    const updatedSec = buildSecretItem(targetId, secretName, secretType, validData);
-    updatedSec.resourceName = targetLabel;
-    updatedSec.resourceType = targetType;
-
-    targetNodes.forEach((node) => {
-      const currentList: K8sSecretItem[] = node.data?.secrets || [];
-      const exists = currentList.some((s) => (targetId && s.id === targetId) || (secretName && s.name === secretName));
-      const updatedList = exists
-        ? currentList.map((s) => ((targetId && s.id === targetId) || (secretName && s.name === secretName) ? updatedSec : s))
-        : [...currentList, updatedSec];
-      updateNodeData(node.id, { secrets: updatedList });
+    attachSecretComponent({
+      nodes,
+      comp,
+      targetId,
+      secretName,
+      secretType,
+      validData,
+      updateNodeData,
+      addLog,
     });
-
     setAttachedComponents((prev) => [...prev.filter((c) => c.id !== comp.id), comp]);
-    addLog(
-      'info',
-      `[Secret] Attached Secret '${secretName}' to component '${targetLabel}'`,
-      'UI'
-    );
   };
 
   const handleUseExistingSecret = (sourceSec: K8sSecretItem) => {
@@ -280,16 +255,8 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   };
 
   const hasExistingItem = Boolean(activeItem || initialSecret);
-  const modalTitle = mode === 'list'
-    ? 'Cluster Secrets Overview'
-    : mode === 'profile'
-    ? `Secret Profile — ${selectedProfile || 'Canvas Profile'}`
-    : (hasExistingItem ? 'Edit Secret' : 'Attach Secret');
-  const modalSubtitle = mode === 'list'
-    ? `${filteredItems.length} Secret${filteredItems.length === 1 ? '' : 's'} available across cluster`
-    : mode === 'profile'
-    ? `Canvas Profile: ${selectedProfile || 'Active'} • Evaluation Precedence Order`
-    : (targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Sensitive Key-Value Data');
+  const modalTitle = getSecretModalTitle(mode, hasExistingItem, selectedProfile);
+  const modalSubtitle = getSecretModalSubtitle(mode, filteredItems.length, targetNodeLabel, selectedProfile);
 
   const footer = (
     <ResourceModalFooter

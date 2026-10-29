@@ -13,7 +13,7 @@ export interface ResourceColumnVisibility {
 export const getInitialResourceColumnVisibility = (
   storageKey: string
 ): ResourceColumnVisibility => {
-  if (typeof globalThis.localStorage !== 'undefined') {
+  if (globalThis.localStorage !== undefined) {
     const saved = globalThis.localStorage.getItem(storageKey);
     if (saved) {
       try {
@@ -153,6 +153,17 @@ const ResourceTableHeader: React.FC<{
   </thead>
 );
 
+function getProfileBadgeStyle(isRose: boolean, isDark: boolean): string {
+  if (isRose) {
+    return isDark
+      ? "bg-rose-500/10 text-rose-300 border-rose-500/30"
+      : "bg-rose-50 text-rose-700 border-rose-200";
+  }
+  return isDark
+    ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30"
+    : "bg-indigo-50 text-indigo-700 border-indigo-200";
+}
+
 const ResourceProfileCell: React.FC<{
   readonly item: OverviewItem;
   readonly isDark: boolean;
@@ -162,9 +173,7 @@ const ResourceProfileCell: React.FC<{
   readonly onSelectProfile?: (profileName: string) => void;
 }> = ({ item, isDark, profileText, rowPrefix, accentColor, onSelectProfile }) => {
   const isRose = accentColor === 'rose';
-  const badgeStyle = isRose
-    ? isDark ? "bg-rose-500/10 text-rose-300 border-rose-500/30" : "bg-rose-50 text-rose-700 border-rose-200"
-    : isDark ? "bg-indigo-500/10 text-indigo-300 border-indigo-500/30" : "bg-indigo-50 text-indigo-700 border-indigo-200";
+  const badgeStyle = getProfileBadgeStyle(isRose, isDark);
 
   if (onSelectProfile) {
     return (
@@ -377,7 +386,7 @@ export const ResourceListView: React.FC<ResourceListViewProps> = ({
   const toggleColumn = (key: keyof ResourceColumnVisibility) => {
     setColumns((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      if (typeof globalThis.localStorage !== 'undefined') {
+      if (globalThis.localStorage !== undefined) {
         globalThis.localStorage.setItem(storageKey, JSON.stringify(next));
       }
       return next;

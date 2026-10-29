@@ -6,6 +6,10 @@ import {
   syncNodesSecret,
   mergeAttachedSecretComponents,
   removeSecretFromNodeOrStore,
+  detachSecretComponent,
+  attachSecretComponent,
+  getSecretModalTitle,
+  getSecretModalSubtitle,
 } from '@/activities/modals/secretModalHelpers';
 import { K8sSecretItem } from '@/types';
 import { OverviewItem } from '@/activities/modals/attachedResourceOverviewHelpers';
@@ -349,6 +353,127 @@ describe('secretModalHelpers', () => {
 
       expect(updateNodeData).not.toHaveBeenCalled();
       expect(deleteSavedSecret).toHaveBeenCalledWith('sec-cluster-item');
+    });
+  });
+  describe('detachSecretComponent', () => {
+    it('removes target secret by id or name from matched nodes and logs', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      const nodes = [
+        {
+          id: 'pod-1',
+          data: {
+            label: 'web-pod',
+            secrets: [
+              { id: 'sec-1', name: 'db-secret' },
+              { id: 'sec-2', name: 'api-secret' },
+            ],
+          },
+        },
+      ];
+
+      detachSecretComponent({
+        nodes,
+        componentId: 'pod-1',
+        targetSecId: 'sec-1',
+        secretName: 'db-secret',
+        oldSecName: undefined,
+        updateNodeData,
+        addLog,
+      });
+
+      expect(updateNodeData).toHaveBeenCalledWith('pod-1', {
+        secrets: [{ id: 'sec-2', name: 'api-secret' }],
+      });
+      expect(addLog).toHaveBeenCalledWith(
+        'info',
+        "[Secret] Removed attached component 'web-pod' from Secret 'db-secret'",
+        'UI'
+      );
+    });
+  });
+
+  describe('attachSecretComponent', () => {
+    it('attaches or updates secret on target component nodes and logs', () => {
+      const updateNodeData = vi.fn();
+      const addLog = vi.fn();
+      const nodes = [
+        {
+          id: 'pod-1',
+          type: 'Pod',
+          data: {
+            label: 'web-pod',
+            secrets: [],
+          },
+        },
+      ];
+
+      attachSecretComponent({
+        nodes,
+        comp: { id: 'pod-1', label: 'web-pod', type: 'Pod' },
+        targetId: 'sec-1',
+        secretName: 'db-secret',
+        secretType: 'Opaque',
+        validData: [{ key: 'DB_PASS', value: 'secret' }],
+        updateNodeData,
+        addLog,
+      });
+
+      expect(updateNodeData).toHaveBeenCalledWith('pod-1', {
+        secrets: [
+          expect.objectContaining({
+            id: 'sec-1',
+            name: 'db-secret',
+            type: 'Opaque',
+            resourceName: 'web-pod',
+            resourceType: 'Pod',
+          }),
+        ],
+      });
+      expect(addLog).toHaveBeenCalledWith(
+        'info',
+        "[Secret] Attached Secret 'db-secret' to component 'web-pod'",
+        'UI'
+      );
+    });
+
+    it('returns early when target nodes array is empty', () => {
+      const updateNodeData = vi.fn();
+      attachSecretComponent({
+        nodes: [],
+        comp: { id: 'non-existent', label: 'none', type: 'Node' },
+        targetId: 'sec-1',
+        secretName: 'db-secret',
+        secretType: 'Opaque',
+        validData: [],
+        updateNodeData,
+      });
+      expect(updateNodeData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getSecretModalTitle', () => {
+    it('returns appropriate title for list, profile, and form modes', () => {
+      expect(getSecretModalTitle('list', false)).toBe('Cluster Secrets Overview');
+      expect(getSecretModalTitle('profile', false, 'Dev Profile')).toBe('Secret Profile — Dev Profile');
+      expect(getSecretModalTitle('profile', false, null)).toBe('Secret Profile — Canvas Profile');
+      expect(getSecretModalTitle('form', true)).toBe('Edit Secret');
+      expect(getSecretModalTitle('form', false)).toBe('Attach Secret');
+    });
+  });
+
+  describe('getSecretModalSubtitle', () => {
+    it('returns appropriate subtitle for list, profile, and form modes', () => {
+      expect(getSecretModalSubtitle('list', 1)).toBe('1 Secret available across cluster');
+      expect(getSecretModalSubtitle('list', 5)).toBe('5 Secrets available across cluster');
+      expect(getSecretModalSubtitle('profile', 0, undefined, 'Staging')).toBe(
+        'Canvas Profile: Staging • Evaluation Precedence Order'
+      );
+      expect(getSecretModalSubtitle('profile', 0, undefined, null)).toBe(
+        'Canvas Profile: Active • Evaluation Precedence Order'
+      );
+      expect(getSecretModalSubtitle('form', 0, 'My Card')).toBe('Target card: My Card');
+      expect(getSecretModalSubtitle('form', 0)).toBe('Configure Sensitive Key-Value Data');
     });
   });
 });

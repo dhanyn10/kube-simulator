@@ -338,6 +338,22 @@ interface ComponentGroupCardProps {
   readonly onDeleteItem: (item: OverviewItem) => void;
 }
 
+function getComponentBoxColor(isCluster: boolean, isRose: boolean): string {
+  if (isCluster) {
+    return "text-slate-400 shrink-0";
+  }
+  return isRose ? "text-rose-400 shrink-0" : "text-teal-400 shrink-0";
+}
+
+function getComponentBadgeStyle(isCluster: boolean, isRose: boolean): string {
+  if (isCluster) {
+    return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+  }
+  return isRose
+    ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+    : "bg-teal-500/10 text-teal-400 border-teal-500/20";
+}
+
 const ComponentGroupCard: React.FC<ComponentGroupCardProps> = ({
   group,
   profileName,
@@ -357,12 +373,8 @@ const ComponentGroupCard: React.FC<ComponentGroupCardProps> = ({
   onDeleteItem,
 }) => {
   const isRose = accentColor === 'rose';
-  const boxColor = group.isCluster ? "text-slate-400 shrink-0" : isRose ? "text-rose-400 shrink-0" : "text-teal-400 shrink-0";
-  const badgeStyle = group.isCluster
-    ? "bg-slate-500/10 text-slate-400 border-slate-500/20"
-    : isRose
-    ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-    : "bg-teal-500/10 text-teal-400 border-teal-500/20";
+  const boxColor = getComponentBoxColor(group.isCluster, isRose);
+  const badgeStyle = getComponentBadgeStyle(group.isCluster, isRose);
 
   return (
     <div
@@ -551,27 +563,27 @@ export const ResourcePrecedenceView: React.FC<ResourcePrecedenceViewProps> = ({
     setOrderedItems(updatedOrdered);
 
     if (isSecret) {
-      syncResourcePrecedenceOrder(
-        'Secret',
-        updatedOrdered,
+      syncResourcePrecedenceOrder({
+        resourceType: 'Secret',
+        reorderedItems: updatedOrdered,
         nodes,
         updateNodeData,
-        savedSecrets,
-        setSavedSecrets,
-        saveSecretsToLocal,
-        addLog
-      );
+        savedItems: savedSecrets,
+        setSavedItems: setSavedSecrets,
+        saveToLocal: saveSecretsToLocal,
+        addLog,
+      });
     } else {
-      syncResourcePrecedenceOrder(
-        'ConfigMap',
-        updatedOrdered,
+      syncResourcePrecedenceOrder({
+        resourceType: 'ConfigMap',
+        reorderedItems: updatedOrdered,
         nodes,
         updateNodeData,
-        savedConfigMaps,
-        setSavedConfigMaps,
-        saveConfigMapsToLocal,
-        addLog
-      );
+        savedItems: savedConfigMaps,
+        setSavedItems: setSavedConfigMaps,
+        saveToLocal: saveConfigMapsToLocal,
+        addLog,
+      });
     }
   };
 

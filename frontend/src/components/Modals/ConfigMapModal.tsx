@@ -12,7 +12,6 @@ import {
   buildConfigMapItem,
   getPodReplicaGroupInfo,
   PodReplicaGroupInfo,
-  resolveTargetOptionLabel,
   getAvailableWorkloadComponents,
   appendTargetComponentOption,
   extractUniqueRawItems,

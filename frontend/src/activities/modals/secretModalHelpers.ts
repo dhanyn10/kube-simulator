@@ -1,14 +1,7 @@
 import { K8sSecretItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
 import { ComponentOption } from '@/components/Modals/ConfigMapComponentSection';
-import {
-  getPodReplicaGroupInfo,
-  PodReplicaGroupInfo,
-  resolveTargetOptionLabel,
-  getAvailableWorkloadComponents,
-  appendTargetComponentOption,
-  extractUniqueRawItems,
-} from './configMapModalHelpers';
+import { getPodReplicaGroupInfo, PodReplicaGroupInfo } from './configMapModalHelpers';
 import { OverviewItem } from './attachedResourceOverviewHelpers';
 import { removeSecretFromLocal } from './secretStorageHelpers';
 
@@ -17,7 +10,7 @@ export {
   getAvailableWorkloadComponents,
   appendTargetComponentOption,
   extractUniqueRawItems,
-};
+} from './configMapModalHelpers';
 
 /**
  * Constructs a standardized K8sSecretItem object with ID fallback.
@@ -185,4 +178,120 @@ export function removeSecretFromNodeOrStore(
   }
   void removeSecretFromLocal(item.rawItem.id);
   deleteSavedSecret?.(item.rawItem.id);
+}
+
+export interface DetachSecretParams {
+  nodes: any[];
+  componentId: string;
+  targetSecId: string | undefined;
+  secretName: string | undefined;
+  oldSecName: string | undefined;
+  updateNodeData: (id: string, data: any) => void;
+  addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void;
+}
+
+export function detachSecretComponent(params: DetachSecretParams): void {
+  const { nodes, componentId, targetSecId, secretName, oldSecName, updateNodeData, addLog } = params;
+  const targetNodes = nodes.filter((n) => {
+    if (n.id === componentId) return true;
+    const groupInfo = getPodReplicaGroupInfo(n);
+    return groupInfo.isGroup && groupInfo.groupKey === componentId;
+  });
+
+  targetNodes.forEach((node) => {
+    const currentList: K8sSecretItem[] = node.data?.secrets || [];
+    const updatedList = currentList.filter(
+      (s) =>
+        !(targetSecId && s.id === targetSecId) &&
+        !(secretName && s.name === secretName) &&
+        !(oldSecName && s.name === oldSecName)
+    );
+    updateNodeData(node.id, { secrets: updatedList });
+    addLog?.(
+      'info',
+      `[Secret] Removed attached component '${node.data?.label || node.id}' from Secret '${secretName}'`,
+      'UI'
+    );
+  });
+}
+
+export interface AttachSecretParams {
+  nodes: any[];
+  comp: ComponentOption;
+  targetId: string;
+  secretName: string;
+  secretType: string;
+  validData: Array<{ key: string; value: string }>;
+  updateNodeData: (id: string, data: any) => void;
+  addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void;
+}
+
+export function attachSecretComponent(params: AttachSecretParams): void {
+  const { nodes, comp, targetId, secretName, secretType, validData, updateNodeData, addLog } = params;
+  const targetNodes = nodes.filter((n) => {
+    if (n.id === comp.id) return true;
+    const groupInfo = getPodReplicaGroupInfo(n);
+    return groupInfo.isGroup && groupInfo.groupKey === comp.id;
+  });
+  if (targetNodes.length === 0) return;
+
+  const primaryNode = targetNodes[0];
+  const targetLabel = comp.label || (primaryNode.data?.label as string) || primaryNode.id;
+  const targetType = primaryNode.type || comp.type || 'Node';
+
+  const updatedSec = buildSecretItem(targetId, secretName, secretType, validData);
+  updatedSec.resourceName = targetLabel;
+  updatedSec.resourceType = targetType;
+
+  targetNodes.forEach((node) => {
+    const currentList: K8sSecretItem[] = node.data?.secrets || [];
+    const exists = currentList.some(
+      (s) => (targetId && s.id === targetId) || (secretName && s.name === secretName)
+    );
+    const updatedList = exists
+      ? currentList.map((s) =>
+          (targetId && s.id === targetId) || (secretName && s.name === secretName) ? updatedSec : s
+        )
+      : [...currentList, updatedSec];
+    updateNodeData(node.id, { secrets: updatedList });
+  });
+
+  addLog?.(
+    'info',
+    `[Secret] Attached Secret '${secretName}' to component '${targetLabel}'`,
+    'UI'
+  );
+}
+
+export function getSecretModalTitle(
+  mode: 'form' | 'list' | 'profile',
+  hasExistingItem: boolean,
+  selectedProfile?: string | null
+): string {
+  if (mode === 'list') {
+    return 'Cluster Secrets Overview';
+  }
+  if (mode === 'profile') {
+    return `Secret Profile — ${selectedProfile || 'Canvas Profile'}`;
+  }
+  return hasExistingItem ? 'Edit Secret' : 'Attach Secret';
+}
+
+export function getSecretModalSubtitle(
+  mode: 'form' | 'list' | 'profile',
+  filteredCount: number,
+  targetNodeLabel?: string,
+  selectedProfile?: string | null
+): string {
+  if (mode === 'list') {
+    const suffix = filteredCount === 1 ? '' : 's';
+    return `${filteredCount} Secret${suffix} available across cluster`;
+  }
+  if (mode === 'profile') {
+    return `Canvas Profile: ${selectedProfile || 'Active'} • Evaluation Precedence Order`;
+  }
+  if (targetNodeLabel) {
+    return `Target card: ${targetNodeLabel}`;
+  }
+  return 'Configure Sensitive Key-Value Data';
 }

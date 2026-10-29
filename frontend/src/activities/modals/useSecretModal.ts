@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { K8sSecretItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
 import { useKeyValueModalState } from './useKeyValueModalState';
-import { buildSecretItem } from './secretModalHelpers';
 
 export const DEFAULT_SECRET_ITEMS = [
   { key: 'DB_PASSWORD', value: 's3cr3tp@ss' },
