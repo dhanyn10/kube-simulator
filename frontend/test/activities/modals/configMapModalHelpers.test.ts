@@ -57,7 +57,11 @@ describe('configMapModalHelpers', () => {
 
     const item2 = buildConfigMapItem(undefined, '   ', []);
     expect(item2.id).toBeDefined();
-    expect(item2.name).toBe('unnamed-configmap');
+    expect(item2.name).toBe(item2.id);
     expect(item2.configData).toEqual([]);
+
+    const item3 = buildConfigMapItem('cm-custom-id', '', []);
+    expect(item3.id).toBe('cm-custom-id');
+    expect(item3.name).toBe('cm-custom-id');
   });
 });

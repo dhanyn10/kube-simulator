@@ -30,7 +30,7 @@ describe('ConfigMapModal', () => {
 
     expect(screen.getByRole('heading', { name: 'Attach ConfigMap' })).toBeInTheDocument();
     expect(screen.getByText('Target card: My App Node')).toBeInTheDocument();
-    expect(screen.getByDisplayValue(/^cm-/)).toBeInTheDocument();
+    expect(screen.getByTestId('configmap-name-input')).toHaveValue('');
     expect(screen.getByText(/No key-value pairs added/i)).toBeInTheDocument();
   });
 
@@ -238,7 +238,7 @@ describe('ConfigMapModal', () => {
     // Now in single profile precedence view
     expect(screen.getByText(/ConfigMap Profile — staging-profile/i)).toBeInTheDocument();
     expect(screen.getByTestId('configmap-precedence-view')).toBeInTheDocument();
-    expect(screen.getByTestId('cm-id-cm-web')).toHaveTextContent('cm-web');
+    expect(screen.getByTestId('cm-id-cm-web')).toHaveTextContent('web-config');
 
     // Click Back to ConfigMap list
     const backBtn = screen.getByTestId('configmap-profile-back-button');
@@ -578,6 +578,55 @@ describe('ConfigMapModal', () => {
 
     // Verify tag did NOT come back
     expect(screen.queryByTestId('attached-component-tag-pod-1')).not.toBeInTheDocument();
+  });
+
+  it('displays read-only ConfigMap ID input in edit mode and hides it in create mode', () => {
+    // 1. Create mode (initialConfigMap is null)
+    const { unmount } = render(<ConfigMapModal {...defaultProps} initialConfigMap={null} />);
+    expect(screen.queryByTestId('configmap-id-input')).not.toBeInTheDocument();
+    unmount();
+
+    // 2. Edit mode (initialConfigMap is provided)
+    render(
+      <ConfigMapModal
+        {...defaultProps}
+        initialConfigMap={{ id: 'cm-edit-99', name: 'my-service-config', configData: [] }}
+      />
+    );
+    const idInput = screen.getByTestId('configmap-id-input');
+    expect(idInput).toBeInTheDocument();
+    expect(idInput).toHaveValue('cm-edit-99');
+    expect(idInput).toHaveAttribute('readonly');
+    expect(idInput).toBeDisabled();
+
+    // ConfigMap Name input displays existing name
+    const nameInput = screen.getByTestId('configmap-name-input');
+    expect(nameInput).toHaveValue('my-service-config');
+  });
+
+  it('defaults name to generated ID when user leaves ConfigMap Name empty on save', () => {
+    const mockOnSave = vi.fn();
+    render(<ConfigMapModal {...defaultProps} initialConfigMap={null} onSave={mockOnSave} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Add Row/i }));
+    fireEvent.change(screen.getByLabelText('Key'), { target: { value: 'API_KEY' } });
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: 'secret123' } });
+
+    // Ensure name input is empty
+    const nameInput = screen.getByTestId('configmap-name-input');
+    fireEvent.change(nameInput, { target: { value: '' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach ConfigMap' }));
+
+    expect(mockOnSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.stringMatching(/^cm-/),
+        name: expect.stringMatching(/^cm-/),
+        configData: [{ key: 'API_KEY', value: 'secret123' }],
+      })
+    );
+    const savedArg = mockOnSave.mock.calls[0][0];
+    expect(savedArg.name).toBe(savedArg.id);
   });
 
   describe('mergeAttachedComponents helper', () => {

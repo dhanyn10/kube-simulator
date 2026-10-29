@@ -61,9 +61,12 @@ export const buildConfigMapItem = (
   configData: Array<{ key: string; value: string }>
 ): K8sConfigMapItem => {
   const suffix = crypto.randomUUID().split('-')[0];
+  const id = initialId || `cm-${Date.now()}-${suffix}`;
+  const trimmedName = rawName?.trim();
+  const name = trimmedName ? sanitizeSlug(trimmedName) : id;
   return {
-    id: initialId || `cm-${Date.now()}-${suffix}`,
-    name: sanitizeSlug(rawName) || 'unnamed-configmap',
+    id,
+    name: name || id,
     configData,
   };
 };

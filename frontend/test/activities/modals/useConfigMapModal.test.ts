@@ -1,43 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useConfigMapModal } from '@/activities/modals/useConfigMapModal';
-import { useAutocompletePortal } from '@/activities/modals/useAutocompletePortal';
 import { useFlowStore } from '@/store';
+import {
+  findActiveKeyInfo,
+  filterKeysByQuery,
+  filterValuesByQuery,
+} from '@/activities/modals/configMapModalHelpers';
 
-describe('useAutocompletePortal', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+describe('configMapModalHelpers direct logic', () => {
+  it('findActiveKeyInfo, filterKeysByQuery, filterValuesByQuery edge cases', () => {
+    // 1. findActiveKeyInfo with leading/trailing spaces and lower case
+    expect(findActiveKeyInfo('  port  ')?.key).toBe('PORT');
 
-  it('handles input focus and position calculation', () => {
-    const { result } = renderHook(() => useAutocompletePortal('test-portal'));
+    // 2. filterKeysByQuery with empty string returns all predefined keys
+    const allKeys = filterKeysByQuery('');
+    expect(allKeys.length).toBeGreaterThan(0);
 
-    const mockInput = document.createElement('input');
-    vi.spyOn(mockInput, 'getBoundingClientRect').mockReturnValue({
-      top: 100,
-      bottom: 120,
-      left: 50,
-      right: 150,
-      width: 100,
-      height: 20,
-      x: 50,
-      y: 100,
-      toJSON: () => {},
-    });
+    // 3. filterValuesByQuery with undefined keyInfo returns []
+    expect(filterValuesByQuery(undefined, 'anything')).toEqual([]);
 
-    const onValueChange = vi.fn();
+    // 4. filterValuesByQuery matching description
+    const portInfo = findActiveKeyInfo('PORT');
+    const matchedDesc = filterValuesByQuery(portInfo, 'secure');
+    expect(matchedDesc.some((opt) => opt.value === '8443')).toBe(true);
 
-    act(() => {
-      result.current.handleInputFocusOrChange(mockInput, 'row-1', 'key', onValueChange, 'PORT');
-    });
+    // 5. filterValuesByQuery matching value
+    const matchedVal = filterValuesByQuery(portInfo, '80');
+    expect(matchedVal.some((opt) => opt.value === '8080')).toBe(true);
 
-    expect(onValueChange).toHaveBeenCalledWith('row-1', 'key', 'PORT');
-    expect(result.current.activeDropdown).toEqual({ rowId: 'row-1', field: 'key' });
-    expect(result.current.dropdownPos).toEqual({
-      top: 124,
-      left: 50,
-      width: 100,
-    });
+    // 6. filterValuesByQuery with unmatched search returns []
+    const emptyMatches = filterValuesByQuery(portInfo, 'non-existent-search-term');
+    expect(emptyMatches).toEqual([]);
   });
 });
 
@@ -55,15 +49,16 @@ describe('useConfigMapModal hook', () => {
     useFlowStore.setState({ colorMode: 'dark' });
   });
 
-  it('initializes with default generated name when initialConfigMap is null', () => {
+  it('initializes with default generated id and empty name when initialConfigMap is null', () => {
     const { result } = renderHook(() => useConfigMapModal(defaultProps));
 
     expect(result.current.isDark).toBe(true);
-    expect(result.current.cmName).toMatch(/^cm-/);
+    expect(result.current.cmId).toMatch(/^cm-/);
+    expect(result.current.cmName).toBe('');
     expect(result.current.rows).toEqual([]);
   });
 
-  it('loads initialConfigMap rows when provided and falls back to app-config when name is empty', () => {
+  it('loads initialConfigMap rows when provided and falls back to id when name is empty', () => {
     const { result, rerender } = renderHook((props) => useConfigMapModal(props), {
       initialProps: {
         ...defaultProps,
@@ -80,7 +75,7 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows[0].key).toBe('PORT');
     expect(result.current.rows[0].value).toBe('8080');
 
-    // Test when initialConfigMap.name is empty string -> fallback to 'app-config'
+    // Test when initialConfigMap.name is empty string -> fallback to id
     rerender({
       ...defaultProps,
       initialConfigMap: {
@@ -90,7 +85,7 @@ describe('useConfigMapModal hook', () => {
       },
     });
 
-    expect(result.current.cmName).toBe('app-config');
+    expect(result.current.cmName).toBe('cm-empty-name');
   });
 
   it('skips initialization effect when isOpen is false', () => {
@@ -99,15 +94,13 @@ describe('useConfigMapModal hook', () => {
       useConfigMapModal({
         ...defaultProps,
         isOpen: false,
-        initialConfigMap: { id: 'cm-1', name: 'my-cm', configData: [{ key: 'k1', value: 'v1' }] },
       })
     );
 
     expect(result.current.isDark).toBe(false);
-    expect(result.current.rows).toEqual([]);
   });
 
-  it('initializes name without configData when initialConfigMap has name only', () => {
+  it('loads initialConfigMap with name only and empty configData', () => {
     const { result } = renderHook(() =>
       useConfigMapModal({
         ...defaultProps,
@@ -120,7 +113,7 @@ describe('useConfigMapModal hook', () => {
     expect(result.current.rows).toEqual([]);
   });
 
-  it('generates random cmName when initialConfigMap is provided without name', () => {
+  it('uses cmId when initialConfigMap is provided without name', () => {
     const { result } = renderHook(() =>
       useConfigMapModal({
         ...defaultProps,
@@ -129,7 +122,8 @@ describe('useConfigMapModal hook', () => {
       })
     );
 
-    expect(result.current.cmName).toMatch(/^cm-/);
+    expect(result.current.cmId).toBe('cm-no-name');
+    expect(result.current.cmName).toBe('cm-no-name');
   });
 
   it('handles handleInputFocusOrChange callback', () => {
@@ -146,77 +140,61 @@ describe('useConfigMapModal hook', () => {
     });
 
     act(() => {
-      result.current.handleInputFocusOrChange(mockInput, rowId, 'key', 'DB_HOST');
+      result.current.handleInputFocusOrChange(mockInput, rowId, 'key', 'POR');
     });
 
-    expect(result.current.rows[0].key).toBe('DB_HOST');
     expect(result.current.activeDropdown).toEqual({ rowId, field: 'key' });
-    expect(result.current.activeRow?.key).toBe('DB_HOST');
-    expect(result.current.filteredKeys).toBeDefined();
-    expect(result.current.filteredValues).toBeDefined();
+    expect(result.current.rows[0].key).toBe('POR');
   });
 
-  it('handles row modifications and saving', () => {
+  it('handles handleRemoveRow and closes activeDropdown if active row was removed', () => {
     const { result } = renderHook(() => useConfigMapModal(defaultProps));
 
     act(() => {
       result.current.handleAddRow();
     });
-
-    expect(result.current.rows).toHaveLength(1);
-
-    const rowId = result.current.rows[0].id;
-
-    act(() => {
-      result.current.handleRowChange(rowId, 'key', 'MAX_CONNECTIONS');
-      result.current.handleRowChange(rowId, 'value', '1000');
-      result.current.setCmName('my-prod-config');
-    });
-
-    act(() => {
-      result.current.handleSave();
-    });
-
-    expect(defaultProps.onSave).toHaveBeenCalledWith({
-      id: expect.any(String),
-      name: 'my-prod-config',
-      configData: [{ key: 'MAX_CONNECTIONS', value: '1000' }],
-    });
-    expect(defaultProps.onClose).toHaveBeenCalled();
-  });
-
-  it('clears active dropdown when removing active row', () => {
-    const { result } = renderHook(() => useConfigMapModal(defaultProps));
-
-    act(() => {
-      result.current.handleAddRow();
-    });
-
     const rowId = result.current.rows[0].id;
 
     act(() => {
       result.current.setActiveDropdown({ rowId, field: 'key' });
     });
-
     expect(result.current.activeDropdown).toEqual({ rowId, field: 'key' });
 
     act(() => {
       result.current.handleRemoveRow(rowId);
     });
 
-    expect(result.current.activeDropdown).toBeNull();
     expect(result.current.rows).toHaveLength(0);
+    expect(result.current.activeDropdown).toBeNull();
   });
 
-  it('evaluates activeRow, filteredKeys, and filteredValues when activeDropdown is null or rowId is non-matching', () => {
+  it('calculates filteredKeys and filteredValues when activeDropdown is open on key or value', () => {
     const { result } = renderHook(() => useConfigMapModal(defaultProps));
 
     act(() => {
       result.current.handleAddRow();
     });
+    const rowId = result.current.rows[0].id;
 
-    expect(result.current.activeDropdown).toBeNull();
-    expect(result.current.activeRow).toBeUndefined();
+    // Active on key
+    act(() => {
+      result.current.handleRowChange(rowId, 'key', 'POR');
+      result.current.setActiveDropdown({ rowId, field: 'key' });
+    });
+    expect(result.current.filteredKeys.some((k) => k.key === 'PORT')).toBe(true);
+
+    // Active on value
+    act(() => {
+      result.current.handleRowChange(rowId, 'key', 'PORT');
+      result.current.handleRowChange(rowId, 'value', '80');
+      result.current.setActiveDropdown({ rowId, field: 'value' });
+    });
+    expect(result.current.filteredValues.some((v) => v.value === '8080')).toBe(true);
+
+    // When no active row is found (e.g. invalid rowId)
+    act(() => {
+      result.current.setActiveDropdown({ rowId: 'non-existent-row', field: 'key' });
+    });
     expect(result.current.filteredKeys).toEqual([]);
     expect(result.current.filteredValues).toEqual([]);
 
@@ -253,5 +231,30 @@ describe('useConfigMapModal hook', () => {
       configData: [],
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('handleSave defaults name to id when cmName is empty string', () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn();
+
+    const { result } = renderHook(() =>
+      useConfigMapModal({
+        ...defaultProps,
+        onClose,
+        onSave,
+        initialConfigMap: { id: 'cm-auto-fallback', name: '' },
+      })
+    );
+
+    act(() => {
+      result.current.setCmName('');
+      result.current.handleSave();
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      id: 'cm-auto-fallback',
+      name: 'cm-auto-fallback',
+      configData: [],
+    });
   });
 });

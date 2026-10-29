@@ -145,7 +145,7 @@ const ComponentRowGroup: React.FC<ComponentRowGroupProps> = ({
           <div className="flex items-center gap-1.5">
             {dragHandleButton}
             <span data-testid={`cm-id-${item.id}`} className="text-teal-400 font-semibold truncate block max-w-[150px]">
-              {item.id}
+              {item.name || item.id}
             </span>
           </div>
         </td>
@@ -185,7 +185,7 @@ const ComponentRowGroup: React.FC<ComponentRowGroupProps> = ({
                 <div className="flex items-center gap-1.5">
                   {dragHandleButton}
                   <span data-testid={`cm-id-${item.id}`} className="text-teal-400 font-semibold truncate block max-w-[150px]">
-                    {item.id}
+                    {item.name || item.id}
                   </span>
                 </div>
               ) : (

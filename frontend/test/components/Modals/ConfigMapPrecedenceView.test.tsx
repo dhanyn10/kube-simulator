@@ -60,10 +60,10 @@ describe('ConfigMapPrecedenceView', () => {
     expect(screen.queryByRole('columnheader', { name: 'ConfigMap Name' })).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
 
-    // ID column displays cm-xxxx and has drag handle button
-    expect(screen.getByTestId('cm-id-cm-1')).toHaveTextContent('cm-1');
-    expect(screen.getByTestId('cm-id-cm-2')).toHaveTextContent('cm-2');
-    expect(screen.getByTestId('cm-id-cm-3')).toHaveTextContent('cm-3');
+    // Name column displays name and has drag handle button
+    expect(screen.getByTestId('cm-id-cm-1')).toHaveTextContent('base-config');
+    expect(screen.getByTestId('cm-id-cm-2')).toHaveTextContent('override-config');
+    expect(screen.getByTestId('cm-id-cm-3')).toHaveTextContent('deploy-config');
     expect(screen.getByTestId('cm-drag-handle-cm-1')).toBeInTheDocument();
     expect(screen.getByTestId('cm-drag-handle-cm-2')).toBeInTheDocument();
     expect(screen.getByTestId('cm-drag-handle-cm-3')).toBeInTheDocument();
@@ -227,7 +227,7 @@ describe('ConfigMapPrecedenceView', () => {
 
     expect(screen.getByTestId('component-title-unattached')).toHaveTextContent('(No Component)');
     expect(screen.queryByText('Cluster Storage')).not.toBeInTheDocument();
-    expect(screen.getByTestId('cm-id-cm-unattached')).toHaveTextContent('cm-unattached');
+    expect(screen.getByTestId('cm-id-cm-unattached')).toHaveTextContent('unattached-config');
   });
 
   it('renders empty state when items list is empty', () => {
