@@ -5,6 +5,9 @@ import { getPodReplicaGroupInfo, PodReplicaGroupInfo } from './configMapModalHel
 import { OverviewItem } from './attachedResourceOverviewHelpers';
 import { removeSecretFromLocal } from './secretStorageHelpers';
 
+export type SecretModalViewMode = 'form' | 'list' | 'profile';
+export type SecretLogLevel = 'info' | 'warn' | 'error';
+
 export {
   resolveTargetOptionLabel,
   getAvailableWorkloadComponents,
@@ -157,7 +160,7 @@ export function removeSecretFromNodeOrStore(
   item: OverviewItem,
   nodes: any[],
   updateNodeData: (id: string, data: any) => void,
-  addLog: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void,
+  addLog: (level: SecretLogLevel, message: string, category?: string) => void,
   deleteSavedSecret?: (id: string) => void
 ): void {
   if (item.ownerNode.id !== 'cluster-storage') {
@@ -187,7 +190,7 @@ export interface DetachSecretParams {
   secretName: string | undefined;
   oldSecName: string | undefined;
   updateNodeData: (id: string, data: any) => void;
-  addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void;
+  addLog?: (level: SecretLogLevel, message: string, category?: string) => void;
 }
 
 export function detachSecretComponent(params: DetachSecretParams): void {
@@ -223,7 +226,7 @@ export interface AttachSecretParams {
   secretType: string;
   validData: Array<{ key: string; value: string }>;
   updateNodeData: (id: string, data: any) => void;
-  addLog?: (level: 'info' | 'warn' | 'error', message: string, category?: string) => void;
+  addLog?: (level: SecretLogLevel, message: string, category?: string) => void;
 }
 
 export function attachSecretComponent(params: AttachSecretParams): void {
@@ -264,7 +267,7 @@ export function attachSecretComponent(params: AttachSecretParams): void {
 }
 
 export function getSecretModalTitle(
-  mode: 'form' | 'list' | 'profile',
+  mode: SecretModalViewMode,
   hasExistingItem: boolean,
   selectedProfile?: string | null
 ): string {
@@ -278,7 +281,7 @@ export function getSecretModalTitle(
 }
 
 export function getSecretModalSubtitle(
-  mode: 'form' | 'list' | 'profile',
+  mode: SecretModalViewMode,
   filteredCount: number,
   targetNodeLabel?: string,
   selectedProfile?: string | null

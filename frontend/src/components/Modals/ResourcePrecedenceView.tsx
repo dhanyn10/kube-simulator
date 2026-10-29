@@ -30,6 +30,16 @@ interface ComponentGroup {
   readonly items: OverviewItem[];
 }
 
+function getItemDataPairs(rawItem: any): Array<{ key: string; value: string }> {
+  if (Array.isArray(rawItem?.secretData)) {
+    return rawItem.secretData;
+  }
+  if (Array.isArray(rawItem?.configData)) {
+    return rawItem.configData;
+  }
+  return [];
+}
+
 const PrecedenceTableHeader: React.FC<{ readonly isDark: boolean }> = ({ isDark }) => (
   <thead
     className={cn(
@@ -193,11 +203,7 @@ const ComponentRowGroup: React.FC<ComponentRowGroupProps> = ({
   onEditItem,
   onDeleteItem,
 }) => {
-  const data: Array<{ key: string; value: string }> = Array.isArray(item.rawItem?.secretData)
-    ? item.rawItem.secretData
-    : Array.isArray(item.rawItem?.configData)
-    ? item.rawItem.configData
-    : [];
+  const data: Array<{ key: string; value: string }> = getItemDataPairs(item.rawItem);
 
   const dragHover = accentColor === 'rose' ? "hover:text-rose-400 hover:bg-rose-500/15" : "hover:text-teal-400 hover:bg-teal-500/15";
   const dragOverBorder = accentColor === 'rose' ? "border-t-2 border-rose-500 bg-rose-500/10" : "border-t-2 border-teal-500 bg-teal-500/10";
@@ -527,11 +533,7 @@ export const ResourcePrecedenceView: React.FC<ResourcePrecedenceViewProps> = ({
           const idMatch = item.id.toLowerCase().includes(q);
           const nameMatch = item.name.toLowerCase().includes(q);
           const compMatch = grp.componentLabel.toLowerCase().includes(q);
-          const itemData = Array.isArray(item.rawItem?.secretData)
-            ? item.rawItem.secretData
-            : Array.isArray(item.rawItem?.configData)
-            ? item.rawItem.configData
-            : [];
+          const itemData = getItemDataPairs(item.rawItem);
           const dataMatch = itemData.some(
             (kv: { key?: string; value?: string }) =>
               kv?.key?.toLowerCase().includes(q) || kv?.value?.toLowerCase().includes(q)

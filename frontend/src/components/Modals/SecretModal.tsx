@@ -26,7 +26,6 @@ import {
   extractAllOverviewItems,
   filterOverviewItems,
 } from '@/activities/modals/attachedResourceOverviewHelpers';
-import { getPodReplicaGroupInfo } from '@/activities/modals/configMapModalHelpers';
 import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
 import { SecretImportDataDropdown } from './SecretImportDataDropdown';
 import { SecretListView } from './SecretListView';
