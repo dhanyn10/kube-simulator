@@ -25,6 +25,7 @@ vi.mock('@/wailsjs/runtime', () => ({
 
 let capturedMiniMapNodeColor: any = null;
 let capturedBackgroundColor: any = null;
+const mockSetViewport = vi.fn();
 vi.mock('@xyflow/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@xyflow/react')>();
   return {
@@ -37,6 +38,7 @@ vi.mock('@xyflow/react', async (importOriginal) => {
       getNodes: () => [],
       screenToFlowPosition: (p: any) => p,
       getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+      setViewport: mockSetViewport,
     }),
     ReactFlow: ({ children, onNodeClick, onPaneClick, onEdgeClick, onNodeContextMenu, onPaneContextMenu }: any) => (
       <div data-testid="mock-flow">
@@ -300,5 +302,39 @@ describe('App Component', () => {
 
     capturedKeyboardOptions.onUngroup();
     expect(ungroupSpy).toHaveBeenCalledWith(['n1', 'n2']);
+  });
+
+  it('pans canvas on WASD key presses when active', async () => {
+    mockSetViewport.mockClear();
+    await act(async () => {
+      render(<App />);
+    });
+
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    expect(mockSetViewport).toHaveBeenCalled();
+    const lastCallW = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
+    expect(lastCallW.y).toBeGreaterThan(0);
+    globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', bubbles: true }));
+
+    mockSetViewport.mockClear();
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true }));
+    expect(mockSetViewport).toHaveBeenCalled();
+    const lastCallS = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
+    expect(lastCallS.y).toBeLessThan(0);
+    globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 's', bubbles: true }));
+
+    mockSetViewport.mockClear();
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+    expect(mockSetViewport).toHaveBeenCalled();
+    const lastCallA = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
+    expect(lastCallA.x).toBeGreaterThan(0);
+    globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true }));
+
+    mockSetViewport.mockClear();
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true }));
+    expect(mockSetViewport).toHaveBeenCalled();
+    const lastCallD = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
+    expect(lastCallD.x).toBeLessThan(0);
+    globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', bubbles: true }));
   });
 });

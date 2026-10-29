@@ -26,6 +26,7 @@ vi.mock('@xyflow/react', async (importOriginal) => {
       fitBounds: vi.fn(),
       screenToFlowPosition: (p: any) => p,
       getViewport: () => ({ x: 0, y: 0, zoom: 1 }),
+      setViewport: vi.fn(),
     }),
     ReactFlow: ({ children, onNodeClick, onPaneClick, onEdgeClick, onNodeContextMenu }: any) => (
       <div data-testid="mock-flow">

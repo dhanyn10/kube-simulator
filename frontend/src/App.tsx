@@ -49,6 +49,7 @@ import { useFlowStore } from './store';
 import { useHistory } from './hooks/useHistory';
 import { useDropHandler } from './hooks/useDropHandler';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useCanvasNavigation } from './hooks/useCanvasNavigation';
 import { useFileSystem } from './hooks/useFileSystem';
 import { useThemeSync } from './hooks/useThemeSync';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
@@ -181,6 +182,28 @@ export default function App() {
     handleResourceLimitSave,
   } = useAttachmentHandlers();
 
+  const isModalOverlayActive = isAnyModalOverlayOpen({
+    isFileBackstageOpen,
+    isProjectOpen: isProjectOpen || isResourceManagerOpen,
+    isScenarioOpen,
+    isAboutDialogOpen,
+    isSettingsOpen,
+    isSaveModalOpen,
+    isYamlOpen,
+    roleModalTargetNode,
+    configMapModalTargetNode,
+    secretModalTargetNode,
+    hpaModalTargetNode,
+    resourceLimitModalTargetNode,
+    isTerminalOpen,
+    isMonitoringDashboardOpen,
+    isLogModalOpen,
+    isKubeIamWizardOpen,
+    isTerminalCommandTreeModalOpen,
+  });
+
+  useCanvasNavigation({ disabled: isModalOverlayActive });
+
   useKeyboardShortcuts({
     onUndo: handleUndo,
     onRedo: handleRedo,
@@ -247,29 +270,7 @@ export default function App() {
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onNodesDelete={deleteNodes}
-            deleteKeyCode={
-              isAnyModalOverlayOpen({
-                isFileBackstageOpen,
-                isProjectOpen: isProjectOpen || isResourceManagerOpen,
-                isScenarioOpen,
-                isAboutDialogOpen,
-                isSettingsOpen,
-                isSaveModalOpen,
-                isYamlOpen,
-                roleModalTargetNode,
-                configMapModalTargetNode,
-                secretModalTargetNode,
-                hpaModalTargetNode,
-                resourceLimitModalTargetNode,
-                isTerminalOpen,
-                isMonitoringDashboardOpen,
-                isLogModalOpen,
-                isKubeIamWizardOpen,
-                isTerminalCommandTreeModalOpen,
-              })
-                ? null
-                : ['Backspace', 'Delete']
-            }
+            deleteKeyCode={isModalOverlayActive ? null : ['Backspace', 'Delete']}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={defaultEdgeOptions}
