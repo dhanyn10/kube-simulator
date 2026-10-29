@@ -98,7 +98,7 @@ export const ConfigMapComponentSection: React.FC<ConfigMapComponentSectionProps>
         htmlFor="configmap-component-tagify-input"
         className="block text-xs font-semibold text-slate-400"
       >
-        Related Components (Komponen Terkait)
+        Related Components
       </label>
 
       <div className="relative">

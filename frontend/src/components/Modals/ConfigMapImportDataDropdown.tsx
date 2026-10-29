@@ -34,10 +34,10 @@ export const ConfigMapImportDataDropdown: React.FC<ConfigMapImportDataDropdownPr
             ? "bg-slate-900 border-slate-700 text-teal-400 hover:bg-slate-800"
             : "bg-white border-slate-300 text-teal-600 hover:bg-slate-50"
         )}
-        title="Add key-value pairs from an existing ConfigMap"
+        title="Use an existing ConfigMap"
       >
         <Layers size={13} />
-        <span>Add from Existing</span>
+        <span>Use Existing</span>
       </button>
 
       {isOpen && (
@@ -51,7 +51,7 @@ export const ConfigMapImportDataDropdown: React.FC<ConfigMapImportDataDropdownPr
           )}
         >
           <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Select ConfigMap to Add Data
+            Select Existing ConfigMap
           </div>
           <div className="py-0.5">
             {existingConfigMaps.map((cm) => (
@@ -68,11 +68,12 @@ export const ConfigMapImportDataDropdown: React.FC<ConfigMapImportDataDropdownPr
                 <div className="overflow-hidden pr-2">
                   <div className="font-semibold text-xs text-teal-400 truncate">{cm.name}</div>
                   <div className="text-[10px] text-slate-400 truncate">
-                    {cm.configData.length} key-value pair{cm.configData.length > 1 ? 's' : ''}
+                    {cm.configData?.length || 0} key-value pair{cm.configData?.length === 1 ? '' : 's'}
+                    {cm.profileName ? ` • ${cm.profileName}` : ''}
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-slate-500 shrink-0">
-                  +{cm.configData.length}
+                <span className="text-[10px] font-semibold text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 shrink-0">
+                  Use
                 </span>
               </button>
             ))}

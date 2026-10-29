@@ -8,6 +8,59 @@ export interface AttachedResourcesFooterProps {
   readonly nodeId?: string;
 }
 
+interface ConfigMapBadgeProps {
+  readonly configMaps?: readonly any[];
+  readonly nodeId?: string;
+  readonly nodeLabel: string;
+}
+
+const ConfigMapBadge: React.FC<ConfigMapBadgeProps> = ({ configMaps, nodeId, nodeLabel }) => {
+  const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
+
+  if (!configMaps || configMaps.length === 0) return null;
+
+  const count = configMaps.length;
+  const isMultiple = count > 1;
+  const firstCm = configMaps[0];
+  const title = isMultiple
+    ? `ConfigMaps (${count}): ${configMaps.map((cm) => cm.name || cm.id || 'Unnamed').join(', ')}`
+    : `ConfigMap: ${firstCm.name || firstCm.id || 'Unnamed'}`;
+  const ariaLabel = isMultiple
+    ? `Inspect ConfigMaps (${count})`
+    : `Inspect ConfigMap ${firstCm.name || firstCm.id || 'Unnamed'}`;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!nodeId) return;
+    setConfigMapModalTargetNode({
+      id: nodeId,
+      label: nodeLabel,
+      initialItem: firstCm,
+      ...(isMultiple ? { initialViewMode: 'list' as const } : {}),
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      className="node-attached-badge-configmap relative border-0 outline-none flex items-center justify-center cursor-pointer"
+      title={title}
+      aria-label={ariaLabel}
+      onClick={handleClick}
+    >
+      <Settings size={11} />
+      {isMultiple && (
+        <span
+          className="absolute -top-1.5 -right-1.5 min-w-[13px] h-[13px] px-0.5 rounded-full bg-slate-900 text-teal-300 text-[8px] font-bold font-mono flex items-center justify-center shadow border border-teal-500/70 leading-none pointer-events-none"
+          data-testid="configmap-count-badge"
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+};
+
 /**
  * Reusable Card Footer component for rendering attached resources
  * (Roles, ConfigMaps, Secrets, HPAs, ResourceLimits) on canvas nodes.
@@ -15,7 +68,6 @@ export interface AttachedResourcesFooterProps {
  */
 export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = ({ data, nodeId }) => {
   const setRoleModalTargetNode = useFlowStore((state) => state.setRoleModalTargetNode);
-  const setConfigMapModalTargetNode = useFlowStore((state) => state.setConfigMapModalTargetNode);
   const setSecretModalTargetNode = useFlowStore((state) => state.setSecretModalTargetNode);
   const setHpaModalTargetNode = useFlowStore((state) => state.setHpaModalTargetNode);
   const setResourceLimitModalTargetNode = useFlowStore((state) => state.setResourceLimitModalTargetNode);
@@ -56,23 +108,11 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
           </button>
         );
       })}
-      {data.configMaps?.map((cm: any) => (
-        <button
-          type="button"
-          key={cm.id || cm.name}
-          className="node-attached-badge-configmap border-0 outline-none flex items-center justify-center cursor-pointer"
-          title={`ConfigMap: ${cm.name}`}
-          aria-label={`Inspect ConfigMap ${cm.name}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (nodeId) {
-              setConfigMapModalTargetNode({ id: nodeId, label: nodeLabel, initialItem: cm });
-            }
-          }}
-        >
-          <Settings size={11} />
-        </button>
-      ))}
+      <ConfigMapBadge
+        configMaps={data.configMaps}
+        nodeId={nodeId}
+        nodeLabel={nodeLabel}
+      />
       {data.secrets?.map((sec: any) => (
         <button
           type="button"

@@ -471,6 +471,18 @@ describe('useAppHelpers', () => {
       expect(useFlowStore.getState().savedConfigMaps).toEqual(
         expect.arrayContaining([expect.objectContaining({ id: 'cm-unattached-list', name: 'unattached-list-cm' })])
       );
+
+      // 5. User removes component association (resourceName is empty/different), removes ConfigMap from target
+      act(() => {
+        result.current.setConfigMapModalTargetNode({ id: 'node-with-res', label: 'Pod With Res' });
+      });
+
+      act(() => {
+        result.current.handleConfigMapSave({ id: 'cm-with-res', name: 'with-res-cm', resourceName: '', configData: [] });
+      });
+
+      nodes = useFlowStore.getState().nodes;
+      expect(nodes[0].data.configMaps).toHaveLength(0);
     });
 
     it('handleSecretSave returns early or attaches new/updated Secret', () => {

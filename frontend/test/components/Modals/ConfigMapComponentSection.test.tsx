@@ -15,6 +15,8 @@ describe('ConfigMapComponentSection (Tagify)', () => {
   it('renders attached component tag chips with X remove button like Tagify', () => {
     render(<ConfigMapComponentSection {...defaultProps} />);
 
+    expect(screen.getByText('Related Components')).toBeInTheDocument();
+    expect(screen.queryByText(/Komponen Terkait/i)).not.toBeInTheDocument();
     expect(screen.getByTestId('attached-component-tag-dep-1')).toHaveTextContent('Deployment:web-api');
     expect(screen.getByTestId('attached-component-tag-pod-1')).toHaveTextContent('Pod:nginx');
 

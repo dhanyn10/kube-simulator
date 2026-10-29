@@ -55,4 +55,45 @@ describe('useAttachedResourceSettings', () => {
       result.current.handleDeleteItem('cm-1', 'my-config');
     });
   });
+
+  it('removes ConfigMap from node when resourceName does not include this node', () => {
+    const updateNodeDataMock = (id: string, updates: any) => {
+      const storeNodes = useFlowStore.getState().nodes;
+      useFlowStore.setState({
+        nodes: storeNodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...updates } } : n)),
+      });
+    };
+
+    useFlowStore.setState({
+      colorMode: 'light',
+      updateNodeData: updateNodeDataMock,
+      addLog: () => {},
+      nodes: [
+        {
+          id: 'node-2',
+          data: {
+            label: 'Node Two',
+            configMaps: [{ id: 'cm-target', name: 'target-cm', resourceName: 'Node Two' }],
+          },
+        },
+      ],
+    });
+
+    const data = useFlowStore.getState().nodes[0].data;
+    const { result } = renderHook(() =>
+      useAttachedResourceSettings(data, 'node-2', 'configMaps', 'ConfigMap')
+    );
+
+    act(() => {
+      result.current.handleSaveItem({
+        id: 'cm-target',
+        name: 'target-cm',
+        resourceName: 'Other Node',
+      } as any);
+    });
+
+    expect(result.current.isEditModalOpen).toBe(false);
+    const updatedNode = useFlowStore.getState().nodes.find((n) => n.id === 'node-2');
+    expect(updatedNode?.data.configMaps).toHaveLength(0);
+  });
 });
