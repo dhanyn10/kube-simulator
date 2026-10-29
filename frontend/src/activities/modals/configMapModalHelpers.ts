@@ -83,12 +83,12 @@ export interface PodReplicaGroupInfo {
  * formatted as `${baseName}-${podHash}-${replicaSuffix}` without regex backtracking.
  */
 export function extractPodHashFromLabel(label?: string): { baseName?: string; podHash?: string } {
-  if (!label || !label.includes('-')) return {};
+  if (!label?.includes('-')) return {};
   const segments = label.split('-');
   if (segments.length >= 3) {
-    const suffix = segments[segments.length - 1];
-    const hash = segments[segments.length - 2];
-    if (hash.length === 5 && suffix.length === 5) {
+    const suffix = segments.at(-1);
+    const hash = segments.at(-2);
+    if (hash?.length === 5 && suffix?.length === 5) {
       return {
         baseName: segments.slice(0, -2).join('-'),
         podHash: hash,
@@ -116,7 +116,8 @@ export function getPodReplicaGroupInfo(node: any): PodReplicaGroupInfo {
     }
 
     if (podHash) {
-      const resolvedBase = baseName || (node.data ? extractPodBaseName(node.data) : undefined) || 'pod';
+      const fallbackBase = node.data ? extractPodBaseName(node.data) : undefined;
+      const resolvedBase = baseName || fallbackBase || 'pod';
       return {
         isGroup: true,
         groupKey: `pod-group:${resolvedBase}-${podHash}`,

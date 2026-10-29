@@ -199,6 +199,21 @@ export function mergeAttachedComponents(
   return combined;
 }
 
+function resolveTargetOptionLabel(
+  groupInfo: PodReplicaGroupInfo | null,
+  targetNode: any,
+  targetNodeLabel?: string,
+  targetNodeId?: string | null
+): string {
+  if (groupInfo?.isGroup) {
+    return groupInfo.groupLabel;
+  }
+  if (targetNode) {
+    return (targetNode.data?.label as string) || targetNode.id;
+  }
+  return targetNodeLabel || targetNodeId || '';
+}
+
 function getModalTitle(
   mode: ConfigMapModalMode,
   hasExistingItem: boolean,
@@ -630,9 +645,12 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       const targetNode = currentNodes.find((n) => n.id === targetNodeId);
       const groupInfo = targetNode ? getPodReplicaGroupInfo(targetNode) : null;
       const targetOptionId = groupInfo?.isGroup ? groupInfo.groupKey : targetNodeId;
-      const targetOptionLabel = groupInfo?.isGroup
-        ? groupInfo.groupLabel
-        : (targetNode ? ((targetNode.data?.label as string) || targetNode.id) : (targetNodeLabel || targetNodeId));
+      const targetOptionLabel = resolveTargetOptionLabel(
+        groupInfo,
+        targetNode,
+        targetNodeLabel,
+        targetNodeId
+      );
       const targetType = targetNode?.type || 'Node';
 
       const alreadyPresent = initialComps.some(
