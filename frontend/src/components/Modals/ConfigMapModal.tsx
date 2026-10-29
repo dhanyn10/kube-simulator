@@ -12,6 +12,10 @@ import {
   buildConfigMapItem,
   getPodReplicaGroupInfo,
   PodReplicaGroupInfo,
+  resolveTargetOptionLabel,
+  getAvailableWorkloadComponents,
+  appendTargetComponentOption,
+  extractUniqueRawItems,
 } from '@/activities/modals';
 import { centerDropdownItem } from '@/lib/autocompleteUtils';
 import { useFlowStore } from '@/store';
@@ -24,6 +28,8 @@ import {
 import { removeConfigMapFromLocal, persistConfigMapItem } from '@/activities/modals/configMapStorageHelpers';
 import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
 import { ConfigMapImportDataDropdown } from './ConfigMapImportDataDropdown';
+import { ResourceModalFooter } from './ResourceModalFooter';
+import { useOutsideMouseDown } from '@/hooks/useOutsideMouseDown';
 
 export type ConfigMapModalMode = 'form' | 'list' | 'profile';
 
@@ -199,20 +205,6 @@ export function mergeAttachedComponents(
   return combined;
 }
 
-function resolveTargetOptionLabel(
-  groupInfo: PodReplicaGroupInfo | null,
-  targetNode: any,
-  targetNodeLabel?: string,
-  targetNodeId?: string | null
-): string {
-  if (groupInfo?.isGroup) {
-    return groupInfo.groupLabel;
-  }
-  if (targetNode) {
-    return (targetNode.data?.label as string) || targetNode.id;
-  }
-  return targetNodeLabel || targetNodeId || '';
-}
 
 function getModalTitle(
   mode: ConfigMapModalMode,
@@ -274,135 +266,6 @@ function removeConfigMapFromNodeOrStore(
   deleteSavedConfigMap(item.rawItem.id);
 }
 
-interface ConfigMapModalFooterProps {
-  readonly mode: ConfigMapModalMode;
-  readonly isDark: boolean;
-  readonly hasExistingItem: boolean;
-  readonly onAddNewFromList: () => void;
-  readonly onClose: () => void;
-  readonly onBackToMode: () => void;
-  readonly onSave: () => void;
-}
-
-const ConfigMapModalFooter: React.FC<ConfigMapModalFooterProps> = ({
-  mode,
-  isDark,
-  hasExistingItem,
-  onAddNewFromList,
-  onClose,
-  onBackToMode,
-  onSave,
-}) => {
-  if (mode === 'list') {
-    return (
-      <div className="flex items-center justify-between w-full">
-        <button
-          type="button"
-          onClick={onAddNewFromList}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-all cursor-pointer"
-        >
-          <Plus size={14} />
-          <span>+ Add ConfigMap</span>
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-            isDark
-              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-              : "border-slate-300 hover:bg-slate-100 text-slate-700"
-          )}
-        >
-          Close
-        </button>
-      </div>
-    );
-  }
-
-  if (mode === 'profile') {
-    return (
-      <div className="flex items-center justify-between w-full">
-        <button
-          type="button"
-          data-testid="configmap-footer-back-button"
-          onClick={onBackToMode}
-          className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
-            isDark
-              ? "border-slate-700 hover:bg-slate-800 text-teal-400"
-              : "border-slate-300 hover:bg-slate-100 text-teal-600"
-          )}
-        >
-          <ArrowLeft size={13} />
-          <span>Back to List</span>
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onAddNewFromList}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-sm transition-all cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>+ Add ConfigMap</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-              isDark
-                ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-                : "border-slate-300 hover:bg-slate-100 text-slate-700"
-            )}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between w-full">
-      <button
-        type="button"
-        data-testid="configmap-back-button"
-        onClick={onBackToMode}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
-          isDark
-            ? "border-slate-700 hover:bg-slate-800 text-teal-400"
-            : "border-slate-300 hover:bg-slate-100 text-teal-600"
-        )}
-      >
-        <ArrowLeft size={13} />
-        <span>Back</span>
-      </button>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-            isDark
-              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-              : "border-slate-300 hover:bg-slate-100 text-slate-700"
-          )}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onSave}
-          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white shadow-md transition-all cursor-pointer"
-        >
-          {hasExistingItem ? 'Update ConfigMap' : 'Attach ConfigMap'}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 interface ConfigMapRowItemProps {
   readonly row: { id: string; key: string; value: string };
@@ -641,47 +504,18 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
       resName
     );
 
-    if (targetNodeId && targetNodeId !== 'cluster-storage') {
-      const targetNode = currentNodes.find((n) => n.id === targetNodeId);
-      const groupInfo = targetNode ? getPodReplicaGroupInfo(targetNode) : null;
-      const targetOptionId = groupInfo?.isGroup ? groupInfo.groupKey : targetNodeId;
-      const targetOptionLabel = resolveTargetOptionLabel(
-        groupInfo,
-        targetNode,
-        targetNodeLabel,
-        targetNodeId
-      );
-      const targetType = targetNode?.type || 'Node';
-
-      const alreadyPresent = initialComps.some(
-        (c) => c.id === targetOptionId || (groupInfo?.isGroup && c.label === groupInfo.groupLabel)
-      );
-
-      if (!alreadyPresent) {
-        initialComps.push({
-          id: targetOptionId,
-          label: targetOptionLabel,
-          type: targetType,
-        });
-      }
-    }
-
-    setAttachedComponents(initialComps);
+    const resolved = appendTargetComponentOption(
+      initialComps,
+      targetNodeId,
+      targetNodeLabel,
+      currentNodes
+    );
+    setAttachedComponents(resolved);
   }, [isOpen, initialKey, targetNodeId]);
 
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
-        setIsImportDropdownOpen(false);
-      }
-    };
-    if (isImportDropdownOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [isImportDropdownOpen]);
+  useOutsideMouseDown(importDropdownRef, isImportDropdownOpen, () => {
+    setIsImportDropdownOpen(false);
+  });
 
   useEffect(() => {
     setPortalSelectedIndex(0);
@@ -720,46 +554,12 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
     });
   }, [allItems, selectedProfile]);
 
-  const availableComponents = useMemo(() => {
-    const list: ComponentOption[] = [];
-    const seenKeys = new Set<string>();
+  const availableComponents = useMemo(() => getAvailableWorkloadComponents(nodes), [nodes]);
 
-    nodes
-      .filter((n) =>
-        ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'].includes(n.type || '')
-      )
-      .forEach((n) => {
-        const groupInfo = getPodReplicaGroupInfo(n);
-        if (!seenKeys.has(groupInfo.groupKey)) {
-          seenKeys.add(groupInfo.groupKey);
-          list.push({
-            id: groupInfo.groupKey,
-            label: groupInfo.groupLabel,
-            type: n.type || 'Node',
-          });
-        }
-      });
-
-    return list;
-  }, [nodes]);
-
-  const existingConfigMapsWithData = useMemo(() => {
-    const list: K8sConfigMapItem[] = [];
-    const seen = new Set<string>();
-    const currentId = activeItem?.id || initialConfigMap?.id;
-    allItems.forEach((item) => {
-      const raw = item.rawItem as K8sConfigMapItem;
-      if (
-        raw &&
-        raw.id !== currentId &&
-        !seen.has(raw.name)
-      ) {
-        seen.add(raw.name);
-        list.push(raw);
-      }
-    });
-    return list;
-  }, [allItems, activeItem?.id, initialConfigMap?.id]);
+  const existingConfigMapsWithData = useMemo(
+    () => extractUniqueRawItems<K8sConfigMapItem>(allItems, activeItem?.id || initialConfigMap?.id),
+    [allItems, activeItem?.id, initialConfigMap?.id]
+  );
 
   if (!isOpen) return null;
 
@@ -928,14 +728,18 @@ export const ConfigMapModal: React.FC<ConfigMapModalProps> = ({
   const modalSubtitle = getModalSubtitle(mode, filteredItems.length, targetNodeLabel, selectedProfile);
 
   const footer = (
-    <ConfigMapModalFooter
+    <ResourceModalFooter
       mode={mode}
       isDark={isDark}
-      hasExistingItem={hasExistingItem}
       onAddNewFromList={handleAddNewFromList}
       onClose={onClose}
       onBackToMode={() => setMode('list')}
       onSave={handleSaveModal}
+      addNewButtonLabel="+ Add ConfigMap"
+      saveButtonLabel={hasExistingItem ? 'Update ConfigMap' : 'Attach ConfigMap'}
+      accentColor="teal"
+      backButtonTestId="configmap-back-button"
+      profileBackButtonTestId="configmap-footer-back-button"
     />
   );
 

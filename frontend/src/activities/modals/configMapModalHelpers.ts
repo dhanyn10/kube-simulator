@@ -2,6 +2,8 @@ import { K8sConfigMapItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
 import { KeyValueItem } from '@/components/Modals/KeyValueFormSection';
 import { extractPodBaseName } from '@/activities/nodes/useBaseNode';
+import { ComponentOption } from '@/components/Modals/ConfigMapComponentSection';
+import { OverviewItem } from './attachedResourceOverviewHelpers';
 import rawPredefinedKeys from './configMapPredefinedKeys.json';
 
 export type ConfigRow = KeyValueItem;
@@ -131,4 +133,94 @@ export function getPodReplicaGroupInfo(node: any): PodReplicaGroupInfo {
     groupKey: node?.id || '',
     groupLabel: (node?.data?.label as string) || node?.id || '',
   };
+}
+
+export function resolveTargetOptionLabel(
+  groupInfo: PodReplicaGroupInfo | null,
+  targetNode: any,
+  targetNodeLabel?: string,
+  targetNodeId?: string | null
+): string {
+  if (groupInfo?.isGroup) {
+    return groupInfo.groupLabel;
+  }
+  if (targetNode) {
+    return (targetNode.data?.label as string) || targetNode.id;
+  }
+  return targetNodeLabel || targetNodeId || '';
+}
+
+export function getAvailableWorkloadComponents(nodes: any[]): ComponentOption[] {
+  const list: ComponentOption[] = [];
+  const seenKeys = new Set<string>();
+  const allowedWorkloads = ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'];
+
+  nodes
+    .filter((n) => allowedWorkloads.includes(n.type || ''))
+    .forEach((n) => {
+      const groupInfo = getPodReplicaGroupInfo(n);
+      if (!seenKeys.has(groupInfo.groupKey)) {
+        seenKeys.add(groupInfo.groupKey);
+        list.push({
+          id: groupInfo.groupKey,
+          label: groupInfo.groupLabel,
+          type: n.type || 'Node',
+        });
+      }
+    });
+
+  return list;
+}
+
+export function appendTargetComponentOption(
+  components: ComponentOption[],
+  targetNodeId: string | null,
+  targetNodeLabel: string | undefined,
+  nodes: any[]
+): ComponentOption[] {
+  if (!targetNodeId || targetNodeId === 'cluster-storage') {
+    return components;
+  }
+  const targetNode = nodes.find((n) => n.id === targetNodeId);
+  const groupInfo = targetNode ? getPodReplicaGroupInfo(targetNode) : null;
+  const targetOptionId = groupInfo?.isGroup ? groupInfo.groupKey : targetNodeId;
+  const targetOptionLabel = resolveTargetOptionLabel(
+    groupInfo,
+    targetNode,
+    targetNodeLabel,
+    targetNodeId
+  );
+  const targetType = targetNode?.type || 'Node';
+
+  const alreadyPresent = components.some(
+    (c) => c.id === targetOptionId || (groupInfo?.isGroup && c.label === groupInfo.groupLabel)
+  );
+
+  if (!alreadyPresent) {
+    return [
+      ...components,
+      {
+        id: targetOptionId,
+        label: targetOptionLabel,
+        type: targetType,
+      },
+    ];
+  }
+  return components;
+}
+
+export function extractUniqueRawItems<T extends { id: string; name: string }>(
+  items: readonly OverviewItem[],
+  currentId?: string | null
+): T[] {
+  const list: T[] = [];
+  const seen = new Set<string>();
+  items.forEach((item) => {
+    const raw = item.rawItem as T;
+    if (raw && raw.id !== currentId && !seen.has(raw.name)) {
+      seen.add(raw.name);
+      list.push(raw);
+    }
+  });
+  return list;
 }

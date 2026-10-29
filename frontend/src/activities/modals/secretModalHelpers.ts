@@ -1,24 +1,23 @@
 import { K8sSecretItem } from '@/types';
 import { sanitizeSlug } from '@/lib/utils';
 import { ComponentOption } from '@/components/Modals/ConfigMapComponentSection';
-import { getPodReplicaGroupInfo, PodReplicaGroupInfo } from './configMapModalHelpers';
+import {
+  getPodReplicaGroupInfo,
+  PodReplicaGroupInfo,
+  resolveTargetOptionLabel,
+  getAvailableWorkloadComponents,
+  appendTargetComponentOption,
+  extractUniqueRawItems,
+} from './configMapModalHelpers';
 import { OverviewItem } from './attachedResourceOverviewHelpers';
 import { removeSecretFromLocal } from './secretStorageHelpers';
 
-export function resolveTargetOptionLabel(
-  groupInfo: PodReplicaGroupInfo | null,
-  targetNode: any,
-  targetNodeLabel?: string,
-  targetNodeId?: string | null
-): string {
-  if (groupInfo?.isGroup) {
-    return groupInfo.groupLabel;
-  }
-  if (targetNode) {
-    return (targetNode.data?.label as string) || targetNode.id;
-  }
-  return targetNodeLabel || targetNodeId || '';
-}
+export {
+  resolveTargetOptionLabel,
+  getAvailableWorkloadComponents,
+  appendTargetComponentOption,
+  extractUniqueRawItems,
+};
 
 /**
  * Constructs a standardized K8sSecretItem object with ID fallback.

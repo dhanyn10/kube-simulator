@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Lock, Plus, ArrowLeft } from 'lucide-react';
+import { Lock, ArrowLeft } from 'lucide-react';
 import { Modal } from './Modal';
 import { K8sSecretItem } from '@/types';
 import { useFlowStore } from '@/store';
@@ -12,8 +12,10 @@ import {
   findAllAttachedSecretComponents,
   syncNodesSecret,
   mergeAttachedSecretComponents,
-  resolveTargetOptionLabel,
   removeSecretFromNodeOrStore,
+  getAvailableWorkloadComponents,
+  appendTargetComponentOption,
+  extractUniqueRawItems,
 } from '@/activities/modals/secretModalHelpers';
 import {
   OverviewItem,
@@ -24,6 +26,8 @@ import { getPodReplicaGroupInfo } from '@/activities/modals/configMapModalHelper
 import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
 import { SecretImportDataDropdown } from './SecretImportDataDropdown';
 import { SecretListView } from './SecretListView';
+import { ResourceModalFooter } from './ResourceModalFooter';
+import { useOutsideMouseDown } from '@/hooks/useOutsideMouseDown';
 
 export type SecretModalMode = 'form' | 'list';
 
@@ -39,94 +43,6 @@ export interface SecretModalProps {
 
 export { findAllAttachedSecretComponents, syncNodesSecret, mergeAttachedSecretComponents, removeSecretFromNodeOrStore };
 
-interface SecretModalFooterProps {
-  readonly mode: SecretModalMode;
-  readonly isDark: boolean;
-  readonly hasExistingItem: boolean;
-  readonly onAddNewFromList: () => void;
-  readonly onClose: () => void;
-  readonly onBackToMode: () => void;
-  readonly onSave: () => void;
-}
-
-const SecretModalFooter: React.FC<SecretModalFooterProps> = ({
-  mode,
-  isDark,
-  hasExistingItem,
-  onAddNewFromList,
-  onClose,
-  onBackToMode,
-  onSave,
-}) => {
-  if (mode === 'list') {
-    return (
-      <div className="flex items-center justify-between w-full">
-        <button
-          type="button"
-          onClick={onAddNewFromList}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer"
-        >
-          <Plus size={14} />
-          <span>+ Add Secret</span>
-        </button>
-        <button
-          type="button"
-          data-testid="secret-list-close-button"
-          onClick={onClose}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-            isDark
-              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-              : "border-slate-300 hover:bg-slate-100 text-slate-700"
-          )}
-        >
-          Close
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center justify-between w-full">
-      <button
-        type="button"
-        data-testid="secret-back-button"
-        onClick={onBackToMode}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer",
-          isDark
-            ? "border-slate-700 hover:bg-slate-800 text-indigo-400"
-            : "border-slate-300 hover:bg-slate-100 text-indigo-600"
-        )}
-      >
-        <ArrowLeft size={13} />
-        <span>Back</span>
-      </button>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          data-testid="secret-list-close-button"
-          onClick={onClose}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border cursor-pointer",
-            isDark
-              ? "border-slate-700 hover:bg-slate-800 text-slate-300"
-              : "border-slate-300 hover:bg-slate-100 text-slate-700"
-          )}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onSave}
-          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-md transition-all cursor-pointer"
-        >
-          {hasExistingItem ? 'Update Secret' : 'Attach Secret'}
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export const SecretModal: React.FC<SecretModalProps> = ({
   isOpen,
@@ -187,42 +103,12 @@ export const SecretModal: React.FC<SecretModalProps> = ({
     [allItems, search]
   );
 
-  const availableComponents = useMemo(() => {
-    const list: ComponentOption[] = [];
-    const seenKeys = new Set<string>();
+  const availableComponents = useMemo(() => getAvailableWorkloadComponents(nodes), [nodes]);
 
-    nodes
-      .filter((n) =>
-        ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'].includes(n.type || '')
-      )
-      .forEach((n) => {
-        const groupInfo = getPodReplicaGroupInfo(n);
-        if (!seenKeys.has(groupInfo.groupKey)) {
-          seenKeys.add(groupInfo.groupKey);
-          list.push({
-            id: groupInfo.groupKey,
-            label: groupInfo.groupLabel,
-            type: n.type || 'Node',
-          });
-        }
-      });
-
-    return list;
-  }, [nodes]);
-
-  const existingSecrets = useMemo(() => {
-    const list: K8sSecretItem[] = [];
-    const seen = new Set<string>();
-    const currentId = activeItem?.id || initialSecret?.id || secretId;
-    allItems.forEach((item) => {
-      const raw = item.rawItem as K8sSecretItem;
-      if (raw && raw.id !== currentId && !seen.has(raw.name)) {
-        seen.add(raw.name);
-        list.push(raw);
-      }
-    });
-    return list;
-  }, [allItems, activeItem?.id, initialSecret?.id, secretId]);
+  const existingSecrets = useMemo(
+    () => extractUniqueRawItems<K8sSecretItem>(allItems, activeItem?.id || initialSecret?.id || secretId),
+    [allItems, activeItem?.id, initialSecret?.id, secretId]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -237,47 +123,18 @@ export const SecretModal: React.FC<SecretModalProps> = ({
       resName
     );
 
-    if (targetNodeId && targetNodeId !== 'cluster-storage') {
-      const targetNode = currentNodes.find((n) => n.id === targetNodeId);
-      const groupInfo = targetNode ? getPodReplicaGroupInfo(targetNode) : null;
-      const targetOptionId = groupInfo?.isGroup ? groupInfo.groupKey : targetNodeId;
-      const targetOptionLabel = resolveTargetOptionLabel(
-        groupInfo,
-        targetNode,
-        targetNodeLabel,
-        targetNodeId
-      );
-      const targetType = targetNode?.type || 'Node';
-
-      const alreadyPresent = initialComps.some(
-        (c) => c.id === targetOptionId || (groupInfo?.isGroup && c.label === groupInfo.groupLabel)
-      );
-
-      if (!alreadyPresent) {
-        initialComps.push({
-          id: targetOptionId,
-          label: targetOptionLabel,
-          type: targetType,
-        });
-      }
-    }
-
-    setAttachedComponents(initialComps);
+    const resolved = appendTargetComponentOption(
+      initialComps,
+      targetNodeId,
+      targetNodeLabel,
+      currentNodes
+    );
+    setAttachedComponents(resolved);
   }, [isOpen, initialSecret?.id, targetNodeId]);
 
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (importDropdownRef.current && !importDropdownRef.current.contains(e.target as Node)) {
-        setIsImportDropdownOpen(false);
-      }
-    };
-    if (isImportDropdownOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [isImportDropdownOpen]);
+  useOutsideMouseDown(importDropdownRef, isImportDropdownOpen, () => {
+    setIsImportDropdownOpen(false);
+  });
 
   if (!isOpen) return null;
 
@@ -417,14 +274,18 @@ export const SecretModal: React.FC<SecretModalProps> = ({
     : (targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Sensitive Key-Value Data');
 
   const footer = (
-    <SecretModalFooter
+    <ResourceModalFooter
       mode={mode}
       isDark={isDark}
-      hasExistingItem={hasExistingItem}
       onAddNewFromList={handleAddNewFromList}
       onClose={onClose}
       onBackToMode={() => setMode('list')}
       onSave={handleSaveModal}
+      addNewButtonLabel="+ Add Secret"
+      saveButtonLabel={hasExistingItem ? 'Update Secret' : 'Attach Secret'}
+      accentColor="rose"
+      backButtonTestId="secret-back-button"
+      closeButtonTestId="secret-list-close-button"
     />
   );
 
