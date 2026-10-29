@@ -44,39 +44,35 @@ export const ConfigMapImportDataDropdown: React.FC<ConfigMapImportDataDropdownPr
         <div
           data-testid="import-existing-cm-menu"
           className={cn(
-            "absolute right-0 mt-1.5 w-64 rounded-lg shadow-2xl border p-1 z-30 text-xs animate-in fade-in-50 zoom-in-95 duration-100 max-h-52 overflow-y-auto custom-scrollbar",
+            "absolute right-0 mt-1.5 w-60 rounded-lg shadow-2xl border p-1 z-30 text-xs animate-in fade-in-50 zoom-in-95 duration-100 max-h-52 overflow-y-auto custom-scrollbar",
             isDark
-              ? "bg-slate-900 border-slate-700 text-slate-200 divide-y divide-slate-800"
-              : "bg-white border-slate-200 text-slate-800 divide-slate-100"
+              ? "bg-slate-900 border-slate-700 text-slate-200"
+              : "bg-white border-slate-200 text-slate-800"
           )}
         >
-          <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Select Existing ConfigMap
-          </div>
           <div className="py-0.5">
-            {existingConfigMaps.map((cm) => (
-              <button
-                key={`import-cm-item-${cm.id}`}
-                type="button"
-                data-testid={`import-option-${cm.name}`}
-                onClick={() => onImport(cm)}
-                className={cn(
-                  "w-full px-2.5 py-1.5 flex items-center justify-between text-left rounded transition-colors cursor-pointer",
-                  isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                )}
-              >
-                <div className="overflow-hidden pr-2">
-                  <div className="font-semibold text-xs text-teal-400 truncate">{cm.name}</div>
-                  <div className="text-[10px] text-slate-400 truncate">
-                    {cm.configData?.length || 0} key-value pair{cm.configData?.length === 1 ? '' : 's'}
-                    {cm.profileName ? ` • ${cm.profileName}` : ''}
-                  </div>
-                </div>
-                <span className="text-[10px] font-semibold text-teal-400 bg-teal-500/10 px-1.5 py-0.5 rounded border border-teal-500/20 shrink-0">
-                  Use
-                </span>
-              </button>
-            ))}
+            {existingConfigMaps.map((cm) => {
+              const keyCount = cm.configData?.length || 0;
+              return (
+                <button
+                  key={`import-cm-item-${cm.id}`}
+                  type="button"
+                  data-testid={`import-option-${cm.name || cm.id}`}
+                  onClick={() => onImport(cm)}
+                  className={cn(
+                    "w-full px-2.5 py-1.5 flex items-center justify-between text-left rounded transition-colors cursor-pointer",
+                    isDark ? "hover:bg-slate-800 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                  )}
+                >
+                  <span className="font-semibold text-xs text-teal-400 truncate mr-2">
+                    {cm.name || cm.id}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                    {keyCount} {keyCount === 1 ? 'key' : 'keys'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

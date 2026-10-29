@@ -59,7 +59,13 @@ describe('ConfigMapImportDataDropdown', () => {
 
     expect(screen.getByTestId('import-existing-cm-menu')).toBeInTheDocument();
     expect(screen.getByTestId('import-option-app-env')).toHaveTextContent('app-env');
+    expect(screen.getByTestId('import-option-app-env')).toHaveTextContent('2 keys');
     expect(screen.getByTestId('import-option-db-config')).toHaveTextContent('db-config');
+    expect(screen.getByTestId('import-option-db-config')).toHaveTextContent('1 key');
+
+    // Verify removed elements are not present
+    expect(screen.queryByText('Select Existing ConfigMap')).toBeNull();
+    expect(screen.queryByText('Use')).toBeNull();
 
     // Click option
     fireEvent.click(screen.getByTestId('import-option-app-env'));

@@ -352,10 +352,13 @@ describe('ConfigMapModal', () => {
     expect(importBtn).toHaveTextContent('Use Existing');
     fireEvent.click(importBtn);
 
-    // Verify dropdown menu opens with Select Existing ConfigMap title
+    // Verify dropdown menu opens
     expect(screen.getByTestId('import-existing-cm-menu')).toBeInTheDocument();
-    expect(screen.getByText('Select Existing ConfigMap')).toBeInTheDocument();
+    expect(screen.queryByText('Select Existing ConfigMap')).toBeNull();
+    expect(screen.queryByText('Use')).toBeNull();
     expect(screen.getByTestId('import-option-source-config')).toBeInTheDocument();
+    expect(screen.getByTestId('import-option-source-config')).toHaveTextContent('source-config');
+    expect(screen.getByTestId('import-option-source-config')).toHaveTextContent('2 keys');
 
     // Click source-config option
     fireEvent.click(screen.getByTestId('import-option-source-config'));
