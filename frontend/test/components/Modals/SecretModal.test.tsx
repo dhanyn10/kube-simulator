@@ -465,4 +465,62 @@ describe('SecretModal', () => {
     fireEvent.click(screen.getByTitle('Delete Secret standalone-saved-sec'));
     expect(mockDeleteSavedSecret).toHaveBeenCalledWith('sec-saved-1');
   });
+  it('switches to profile precedence mode when profile badge is clicked, and can navigate back', () => {
+    useFlowStore.setState({
+      nodes: [
+        {
+          id: 'pod-auth',
+          type: 'Pod',
+          data: {
+            label: 'auth-pod',
+            secrets: [
+              {
+                id: 'sec-base',
+                name: 'base-auth-sec',
+                profileName: 'staging-profile',
+                secretData: [{ key: 'JWT_SECRET', value: 'secret1' }],
+              },
+              {
+                id: 'sec-override',
+                name: 'override-auth-sec',
+                profileName: 'staging-profile',
+                secretData: [{ key: 'JWT_SECRET', value: 'secret2' }],
+              },
+            ],
+          },
+        },
+      ],
+      savedSecrets: [],
+    });
+
+    render(
+      <SecretModal
+        {...defaultProps}
+        targetNodeId="cluster-storage"
+        targetNodeLabel="Cluster Secrets"
+        initialSecret={null}
+        initialViewMode="list"
+      />
+    );
+
+    expect(screen.getByText('Cluster Secrets Overview')).toBeInTheDocument();
+
+    // Click on profile badge of sec-base
+    const profileBtn = screen.getByTestId('sec-profile-sec-base');
+    fireEvent.click(profileBtn);
+
+    // Should switch to profile mode
+    expect(screen.getByText(/Secret Profile — staging-profile/i)).toBeInTheDocument();
+        expect(screen.getByTestId('secret-precedence-view')).toBeInTheDocument();
+
+    // Shows component card and overridden key
+    expect(screen.getByTestId('component-title-pod-auth')).toHaveTextContent('auth-pod');
+    expect(screen.getByTestId('sec-key-JWT_SECRET-overridden')).toBeInTheDocument();
+    expect(screen.getByTestId('sec-key-JWT_SECRET-active')).toBeInTheDocument();
+
+    // Navigate back to Secret list via top back button
+    const backBtn = screen.getByTestId('secret-profile-back-button');
+    fireEvent.click(backBtn);
+    expect(screen.getByText('Cluster Secrets Overview')).toBeInTheDocument();
+  });
 });

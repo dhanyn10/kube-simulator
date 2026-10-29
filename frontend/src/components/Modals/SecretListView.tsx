@@ -16,6 +16,7 @@ export interface SecretListViewProps {
   readonly isDark: boolean;
   readonly onEditItem: (item: OverviewItem) => void;
   readonly onDeleteItem: (item: OverviewItem) => void;
+  readonly onSelectProfile?: (profileName: string) => void;
 }
 
 const STORAGE_COLUMN_KEY = 'k8s_secret_table_columns';

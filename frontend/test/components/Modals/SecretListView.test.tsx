@@ -156,4 +156,23 @@ describe('SecretListView', () => {
       screen.getByText(/No Secrets available. Click "\+ Add Secret" below to create one./i)
     ).toBeInTheDocument();
   });
+  it('calls onSelectProfile when clicking profile badge button', () => {
+    const mockSelectProfile = vi.fn();
+    render(
+      <SecretListView
+        search=""
+        onSearchChange={mockOnSearchChange}
+        items={sampleItems}
+        isDark={true}
+        onEditItem={mockOnEditItem}
+        onDeleteItem={mockOnDeleteItem}
+        onSelectProfile={mockSelectProfile}
+      />
+    );
+
+    const profileBadgeBtn = screen.getByTestId('sec-profile-sec-1');
+    expect(profileBadgeBtn.tagName).toBe('BUTTON');
+    fireEvent.click(profileBadgeBtn);
+    expect(mockSelectProfile).toHaveBeenCalledWith('staging-profile');
+  });
 });

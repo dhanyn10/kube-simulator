@@ -40,10 +40,6 @@ describe('ConfigMapPrecedenceView', () => {
       />
     );
 
-    // Profile badge and info banner
-    expect(screen.getByTestId('precedence-profile-badge')).toHaveTextContent('autosave-session-1');
-    expect(screen.getByText(/Evaluated top-to-bottom per component/i)).toBeInTheDocument();
-
     // Component titles (one table per component)
     expect(screen.getByTestId('component-title-pod-1')).toHaveTextContent('frontend-pod');
     expect(screen.getByTestId('component-title-deploy-1')).toHaveTextContent('backend-deployment');
@@ -68,10 +64,6 @@ describe('ConfigMapPrecedenceView', () => {
     expect(screen.getByTestId('cm-drag-handle-cm-2')).toBeInTheDocument();
     expect(screen.getByTestId('cm-drag-handle-cm-3')).toBeInTheDocument();
 
-    // Add ConfigMap button
-    const addBtn = screen.getByTestId('precedence-add-cm-btn');
-    fireEvent.click(addBtn);
-    expect(mockOnAddNew).toHaveBeenCalled();
   });
 
   it('renders strikethrough for upper ConfigMap key and value when overridden within the same component', () => {

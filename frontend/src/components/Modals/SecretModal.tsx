@@ -26,10 +26,11 @@ import { getPodReplicaGroupInfo } from '@/activities/modals/configMapModalHelper
 import { ConfigMapComponentSection, ComponentOption } from './ConfigMapComponentSection';
 import { SecretImportDataDropdown } from './SecretImportDataDropdown';
 import { SecretListView } from './SecretListView';
+import { ResourcePrecedenceView } from './ResourcePrecedenceView';
 import { ResourceModalFooter } from './ResourceModalFooter';
 import { useOutsideMouseDown } from '@/hooks/useOutsideMouseDown';
 
-export type SecretModalMode = 'form' | 'list';
+export type SecretModalMode = 'form' | 'list' | 'profile';
 
 export interface SecretModalProps {
   readonly isOpen: boolean;
@@ -64,6 +65,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
 
   const [mode, setMode] = useState<SecretModalMode>('form');
   const [activeItem, setActiveItem] = useState<K8sSecretItem | null>(initialSecret || null);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
   const {
@@ -103,6 +105,16 @@ export const SecretModal: React.FC<SecretModalProps> = ({
     [allItems, search]
   );
 
+  const profileItems = useMemo(() => {
+    const targetProfile = selectedProfile || currentProfileName;
+    return allItems.filter((item) => {
+      const pName = item.profileName && item.profileName !== 'Default Profile'
+        ? item.profileName
+        : currentProfileName;
+      return pName === targetProfile;
+    });
+  }, [allItems, selectedProfile, currentProfileName]);
+
   const availableComponents = useMemo(() => getAvailableWorkloadComponents(nodes), [nodes]);
 
   const existingSecrets = useMemo(
@@ -141,6 +153,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   const handleEditFromList = (item: OverviewItem) => {
     loadSecret(item.rawItem);
     setActiveItem(item.rawItem);
+    setSelectedProfile(null);
     const comps = findAllAttachedSecretComponents(
       item.rawItem.id,
       item.rawItem.name,
@@ -154,6 +167,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   const handleAddNewFromList = () => {
     loadSecret(null);
     setActiveItem(null);
+    setSelectedProfile(null);
     setAttachedComponents([]);
     setMode('form');
   };
@@ -268,9 +282,13 @@ export const SecretModal: React.FC<SecretModalProps> = ({
   const hasExistingItem = Boolean(activeItem || initialSecret);
   const modalTitle = mode === 'list'
     ? 'Cluster Secrets Overview'
+    : mode === 'profile'
+    ? `Secret Profile — ${selectedProfile || 'Canvas Profile'}`
     : (hasExistingItem ? 'Edit Secret' : 'Attach Secret');
   const modalSubtitle = mode === 'list'
     ? `${filteredItems.length} Secret${filteredItems.length === 1 ? '' : 's'} available across cluster`
+    : mode === 'profile'
+    ? `Canvas Profile: ${selectedProfile || 'Active'} • Evaluation Precedence Order`
     : (targetNodeLabel ? `Target card: ${targetNodeLabel}` : 'Configure Sensitive Key-Value Data');
 
   const footer = (
@@ -286,6 +304,7 @@ export const SecretModal: React.FC<SecretModalProps> = ({
       accentColor="rose"
       backButtonTestId="secret-back-button"
       closeButtonTestId="secret-list-close-button"
+      profileBackButtonTestId="secret-footer-back-button"
     />
   );
 
@@ -309,7 +328,41 @@ export const SecretModal: React.FC<SecretModalProps> = ({
           isDark={isDark}
           onEditItem={handleEditFromList}
           onDeleteItem={handleDeleteFromList}
+          onSelectProfile={(pName) => {
+            setSelectedProfile(pName);
+            setMode('profile');
+          }}
         />
+      )}
+
+      {mode === 'profile' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800/40">
+            <button
+              type="button"
+              data-testid="secret-profile-back-button"
+              onClick={() => setMode('list')}
+              className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to Secret list</span>
+            </button>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Profile: <strong className="text-rose-400">{selectedProfile}</strong>
+            </span>
+          </div>
+
+          <ResourcePrecedenceView
+            resourceType="Secret"
+            accentColor="rose"
+            profileName={selectedProfile || currentProfileName}
+            items={profileItems}
+            isDark={isDark}
+            onEditItem={handleEditFromList}
+            onDeleteItem={handleDeleteFromList}
+            onAddNewItem={handleAddNewFromList}
+          />
+        </div>
       )}
 
       {mode === 'form' && (

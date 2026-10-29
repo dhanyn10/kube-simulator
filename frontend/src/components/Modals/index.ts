@@ -18,6 +18,7 @@ export * from './SecretListModal';
 export * from './SecretListView';
 export * from './ResourceListView';
 export * from './ResourceModalFooter';
+export * from './ResourcePrecedenceView';
 export * from './HPAModal';
 export * from './HPAListModal';
 export * from './ResourceLimitModal';
