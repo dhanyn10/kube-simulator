@@ -360,6 +360,7 @@ export default function App() {
             targetNodeId={secretModalTargetNode?.id || null}
             targetNodeLabel={secretModalTargetNode?.label}
             initialSecret={secretModalTargetNode?.initialItem}
+            initialViewMode={secretModalTargetNode?.initialViewMode}
             onSave={handleSecretSave}
           />
 

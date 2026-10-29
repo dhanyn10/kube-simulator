@@ -10,6 +10,7 @@ export * from './useConfigMapModal';
 export * from './useInternetProfileModal';
 export * from './internetProfileChartHelpers';
 export * from './useSecretModal';
+export * from './secretModalHelpers';
 export * from './useHpaModal';
 export * from './useResourceLimitModal';
 export * from './terminalCommandTreeHelpers';

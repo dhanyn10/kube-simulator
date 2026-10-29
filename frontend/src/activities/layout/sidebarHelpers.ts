@@ -84,6 +84,7 @@ export interface SidebarAddNodeContext {
   setActiveOverviewModal?: (type: K8sResourceType | null) => void;
   setRoleModalTargetNode?: (target: { id: string; label: string } | null) => void;
   setConfigMapModalTargetNode?: (target: { id: string; label: string; initialViewMode?: 'form' | 'list' } | null) => void;
+  setSecretModalTargetNode?: (target: { id: string; label: string; initialViewMode?: 'form' | 'list' } | null) => void;
   addLog?: (type: 'info' | 'warn' | 'error', msg: string, category?: string) => void;
 }
 
@@ -114,11 +115,24 @@ function handleConfigMapAdd(
   context.setActiveOverviewModal?.('ConfigMap');
 }
 
+function handleSecretAdd(
+  _targetNode: any,
+  context: SidebarAddNodeContext
+): void {
+  if (context.setSecretModalTargetNode) {
+    context.setSecretModalTargetNode({ id: 'cluster-storage', label: 'Cluster Secrets', initialViewMode: 'list' });
+    return;
+  }
+  context.setActiveOverviewModal?.('Secret');
+}
+
 /**
  * Handles adding a resource node or opening modal configurations from the sidebar.
  * Special cases:
  * - 'IAM': Opens Kube IAM User management modal.
  * - 'Role': Evaluates active selection or configuring node to attach a Role, or logs a warning.
+ * - 'ConfigMap': Opens cluster ConfigMaps overview in list mode.
+ * - 'Secret': Opens cluster Secrets overview in list mode.
  * - Standard nodes: Delegates to `onAddNode` canvas placer.
  *
  * @param type The K8s resource type clicked in sidebar.
@@ -147,34 +161,45 @@ export function executeSidebarAddNode(
     return;
   }
 
+  if (type === 'Secret') {
+    handleSecretAdd(targetNode, context);
+    return;
+  }
+
   onAddNode(type);
 }
 
 /**
  * Initiates drag data payload when dragging a sidebar item onto canvas.
  *
- * @param event Drag event instance.
- * @param nodeType K8s resource type being dragged.
- * @param setDraggingSidebarItem State setter updating active dragging sidebar item.
+ * @param event Drag event.
+ * @param nodeType K8s node type dragged.
+ * @param setDragging Callback saving currently dragged item in store.
  */
 export function handleSidebarDragStart(
   event: React.DragEvent,
   nodeType: K8sResourceType,
-  setDraggingSidebarItem: (item: string | null) => void
+  setDragging: (type: K8sResourceType) => void
 ): void {
   event.dataTransfer.setData('application/reactflow', nodeType);
   event.dataTransfer.effectAllowed = 'move';
-  setDraggingSidebarItem(nodeType);
+  setDragging(nodeType);
 }
 
 /**
- * Clears dragging state and resets node hover states on drag completion.
+ * Finalizes drag cycle and unsets active dragged item in store.
  *
- * @param setDraggingSidebarItem State setter clearing active dragging sidebar item.
+ * @param setDragging Callback saving currently dragged item in store.
  */
-export function handleSidebarDragEnd(setDraggingSidebarItem: (item: string | null) => void): void {
-  setDraggingSidebarItem(null);
-  useFlowStore.setState((state) => ({
-    nodes: state.nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
-  }));
+export function handleSidebarDragEnd(
+  setDragging: (type: K8sResourceType | null) => void
+): void {
+  setDragging(null);
+  const nodes = useFlowStore.getState().nodes;
+  const hasHovered = nodes.some((n) => n.data?.isHovered);
+  if (hasHovered) {
+    useFlowStore.setState({
+      nodes: nodes.map((n) => (n.data?.isHovered ? { ...n, data: { ...n.data, isHovered: false } } : n)),
+    });
+  }
 }

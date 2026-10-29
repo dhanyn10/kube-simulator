@@ -108,7 +108,8 @@ describe('sidebarHelpers', () => {
     executeSidebarAddNode('Pod' as any, onAddNode, mockContext);
     expect(onAddNode).toHaveBeenCalledWith('Pod');
   });
-  it('executes executeSidebarAddNode with setActiveOverviewModal for ConfigMap fallback and adds other nodes directly', () => {
+
+  it('executes executeSidebarAddNode with setActiveOverviewModal for ConfigMap and Secret fallbacks and adds other nodes directly', () => {
     const onAddNode = vi.fn();
     const setActiveOverviewModal = vi.fn();
     const mockContext = {
@@ -125,7 +126,8 @@ describe('sidebarHelpers', () => {
     expect(onAddNode).not.toHaveBeenCalled();
 
     executeSidebarAddNode('Secret', onAddNode, mockContext);
-    expect(onAddNode).toHaveBeenCalledWith('Secret');
+    expect(setActiveOverviewModal).toHaveBeenCalledWith('Secret');
+    expect(onAddNode).not.toHaveBeenCalled();
 
     executeSidebarAddNode('HPA', onAddNode, mockContext);
     expect(onAddNode).toHaveBeenCalledWith('HPA');
@@ -134,19 +136,28 @@ describe('sidebarHelpers', () => {
     expect(onAddNode).toHaveBeenCalledWith('ResourceLimit');
   });
 
-  it('executes executeSidebarAddNode with setConfigMapModalTargetNode opening list mode for ConfigMap', () => {
+  it('executes executeSidebarAddNode with setConfigMapModalTargetNode and setSecretModalTargetNode opening list mode', () => {
     const onAddNode = vi.fn();
     const setConfigMapModalTargetNode = vi.fn();
+    const setSecretModalTargetNode = vi.fn();
     const mockContext = {
       nodes: [],
       configuringNodeId: null,
       setConfigMapModalTargetNode,
+      setSecretModalTargetNode,
     };
 
     executeSidebarAddNode('ConfigMap', onAddNode, mockContext);
     expect(setConfigMapModalTargetNode).toHaveBeenCalledWith({
       id: 'cluster-storage',
       label: 'Cluster ConfigMaps',
+      initialViewMode: 'list',
+    });
+
+    executeSidebarAddNode('Secret', onAddNode, mockContext);
+    expect(setSecretModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster Secrets',
       initialViewMode: 'list',
     });
   });

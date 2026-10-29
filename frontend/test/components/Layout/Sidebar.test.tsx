@@ -98,7 +98,9 @@ describe('Sidebar', () => {
   it('calls onAddNode when a component is clicked and opens IAM modal on IAM click', () => {
     const onAddNode = vi.fn();
     const setKubeIamModalOpen = vi.fn();
-    useFlowStore.setState({ setKubeIamModalOpen });
+    const setSecretModalTargetNode = vi.fn();
+    const setConfigMapModalTargetNode = vi.fn();
+    useFlowStore.setState({ setKubeIamModalOpen, setSecretModalTargetNode, setConfigMapModalTargetNode });
 
     render(<Sidebar onAddNode={onAddNode} />);
 
@@ -110,6 +112,26 @@ describe('Sidebar', () => {
     const iamBtn = screen.getByText('Kube IAM');
     fireEvent.click(iamBtn);
     expect(setKubeIamModalOpen).toHaveBeenCalledWith(true);
+
+    // Configuration section click for ConfigMap and Secret
+    const configBtn = screen.getByText('Configuration');
+    fireEvent.click(configBtn);
+
+    const secretBtn = screen.getByText('Secret');
+    fireEvent.click(secretBtn);
+    expect(setSecretModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster Secrets',
+      initialViewMode: 'list',
+    });
+
+    const cmBtn = screen.getByText('ConfigMap');
+    fireEvent.click(cmBtn);
+    expect(setConfigMapModalTargetNode).toHaveBeenCalledWith({
+      id: 'cluster-storage',
+      label: 'Cluster ConfigMaps',
+      initialViewMode: 'list',
+    });
   });
 
   it('handles drag start for draggable items and handles non-draggable IAM item', () => {

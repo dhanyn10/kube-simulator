@@ -39,8 +39,8 @@ export interface UiSlice {
   setRoleModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
   configMapModalTargetNode: { id: string; label: string; initialItem?: any; initialViewMode?: 'form' | 'list' } | null;
   setConfigMapModalTargetNode: (target: { id: string; label: string; initialItem?: any; initialViewMode?: 'form' | 'list' } | null) => void;
-  secretModalTargetNode: { id: string; label: string; initialItem?: any } | null;
-  setSecretModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
+  secretModalTargetNode: { id: string; label: string; initialItem?: any; initialViewMode?: 'form' | 'list' } | null;
+  setSecretModalTargetNode: (target: { id: string; label: string; initialItem?: any; initialViewMode?: 'form' | 'list' } | null) => void;
   hpaModalTargetNode: { id: string; label: string; initialItem?: any } | null;
   setHpaModalTargetNode: (target: { id: string; label: string; initialItem?: any } | null) => void;
   resourceLimitModalTargetNode: { id: string; label: string; initialItem?: any } | null;
