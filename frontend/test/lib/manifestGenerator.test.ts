@@ -230,6 +230,33 @@ describe('manifestGenerator test suite', () => {
     expect(yamlOutput2).toContain('path: /');
   });
 
+  it('covers multi-service Ingress routing and custom ingressClassName', () => {
+    const nodes = [
+      {
+        id: 'ing-multi',
+        type: 'Ingress',
+        data: {
+          label: 'Multi Ingress',
+          ingressHost: 'api.prod.local',
+          ingressClassName: 'traefik'
+        }
+      },
+      { id: 'svc-api', type: 'Service', data: { label: 'api-service', port: 8080 } },
+      { id: 'svc-pay', type: 'Service', data: { label: 'payment-service', port: 9000 } }
+    ];
+    const edges = [
+      { id: 'e1', source: 'ing-multi', target: 'svc-api' },
+      { id: 'e2', source: 'ing-multi', target: 'svc-pay' }
+    ];
+
+    const yamlOutput = generateYamlClientSide(nodes, edges);
+    expect(yamlOutput).toContain('ingressClassName: traefik');
+    expect(yamlOutput).toContain('path: /api');
+    expect(yamlOutput).toContain('name: api-service');
+    expect(yamlOutput).toContain('path: /payment');
+    expect(yamlOutput).toContain('name: payment-service');
+  });
+
   it('covers ConfigMap and Secret non-array or missing key handling, and ResourceLimit requests/limits combinations', () => {
     const nodes = [
       { id: 'cm1', type: 'ConfigMap', data: { label: 'Bad ConfigMap', configData: null } },

@@ -118,8 +118,8 @@ export const AttachedResourcesFooter: React.FC<AttachedResourcesFooterProps> = (
           type="button"
           key={sec.id || sec.name}
           className="node-attached-badge-secret border-0 outline-none flex items-center justify-center cursor-pointer"
-          title={`Secret: ${sec.name}`}
-          aria-label={`Inspect Secret ${sec.name}`}
+          title={`Secret: ${sec.name || sec.id || 'Unnamed'}`}
+          aria-label={`Inspect Secret ${sec.name || sec.id || 'Unnamed'}`}
           onClick={(e) => {
             e.stopPropagation();
             if (nodeId) {

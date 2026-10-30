@@ -5,7 +5,7 @@ import { K8sResourceType } from '@/types';
  * Defines the macro-level edge connection matrix for canvas diagramming and validation.
  */
 export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResourceType | 'ReplicaSet')[]> = {
-  Internet: ['Service'],
+  Internet: ['Service', 'Ingress'],
   Ingress: ['Service'],
   Service: ['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Service', 'Ingress'],
   Deployment: ['Service', 'Ingress', 'PVC', 'ConfigMap', 'Secret'],
@@ -29,11 +29,12 @@ export const VALID_CONNECTIONS: Record<K8sResourceType | 'ReplicaSet', (K8sResou
  * @returns An English error message if the connection is invalid, or `null` if valid.
  */
 const checkInternetRules = (targetType: string, targetData?: Record<string, any>): string | null => {
+  if (targetType === 'Ingress') return null;
   if (targetType !== 'Service') return null;
   const tType = targetData?.serviceType || 'ClusterIP';
   return tType === 'LoadBalancer' || tType === 'NodePort'
     ? null
-    : `Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ${tType} Service.`;
+    : `Internet can only connect to LoadBalancer Services, NodePort Services, or Ingress. Cannot connect to ${tType} Service.`;
 };
 
 /**
@@ -45,6 +46,7 @@ const checkInternetRules = (targetType: string, targetData?: Record<string, any>
  * @returns An English error message if the incoming connection is invalid, or `null` if valid.
  */
 const checkIngressTargetRules = (sourceType: string, sourceData?: Record<string, any>): string | null => {
+  if (sourceType === 'Internet') return null;
   if (sourceType === 'Service') {
     const sType = sourceData?.serviceType || 'ClusterIP';
     return sType === 'LoadBalancer' || sType === 'NodePort'

@@ -47,7 +47,8 @@ describe('IngressNode', () => {
       data: {
         label: 'My Ingress',
         ingressHost: 'api.example.com',
-        ingressPath: '/api/v1'
+        ingressPath: '/api/v1',
+        ingressClassName: 'traefik'
       }
     } as any;
 
@@ -59,6 +60,7 @@ describe('IngressNode', () => {
 
     expect(screen.getByText(/host: api.example.com/)).toBeDefined();
     expect(screen.getByText('/api/v1')).toBeDefined();
+    expect(screen.getByText('traefik')).toBeDefined();
   });
 
   it('respects displaySettings', () => {
@@ -160,5 +162,32 @@ describe('IngressNode', () => {
     );
 
     expect(screen.getByText('default-clusterip-svc')).toBeInTheDocument();
+  });
+
+  it('renders multiple paths as block elements when displaySettings.path is true', () => {
+    const props = {
+      id: 'i-multi',
+      type: 'Ingress',
+      data: {
+        label: 'Multi Path Ingress',
+        displaySettings: { path: true },
+        ingressPaths: [
+          { id: 'p1', path: '/api' },
+          { id: 'p2', path: '/payment' },
+        ],
+      },
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <IngressNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText('Paths (2)')).toBeDefined();
+    const apiPath = screen.getByText('/api');
+    const paymentPath = screen.getByText('/payment');
+    expect(apiPath).toHaveClass('block');
+    expect(paymentPath).toHaveClass('block');
   });
 });

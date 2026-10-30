@@ -439,7 +439,7 @@
   }
 
   .node-attached-badge-secret {
-    @apply p-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 transition-colors cursor-pointer shadow-sm;
+    @apply p-1 rounded-full bg-rose-600 text-white hover:bg-rose-500 transition-colors cursor-pointer shadow-sm;
   }
 
   .node-attached-badge-resource-limit {

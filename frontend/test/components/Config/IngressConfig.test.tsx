@@ -71,7 +71,7 @@ describe('IngressConfig', () => {
     expect(performUpdate).toHaveBeenCalledWith({ backendServiceName: 'api-service' });
   });
 
-  it('handles path updates and toggle callbacks in advanced section', () => {
+  it('handles path updates and toggle callbacks', () => {
     render(
       <IngressConfig
         selectedNode={selectedNode}
@@ -88,7 +88,6 @@ describe('IngressConfig', () => {
       expect(toggleVisibility).toHaveBeenCalledWith('host');
     }
 
-    fireEvent.click(screen.getByText('Advanced Options'));
     expect(screen.getByText('Path')).toBeDefined();
 
     const pathInput = screen.getByDisplayValue('/api');
@@ -124,7 +123,6 @@ describe('IngressConfig', () => {
 
     expect(screen.getByPlaceholderText('example.com')).toBeDefined();
 
-    fireEvent.click(screen.getByText('Advanced Options'));
     expect(screen.getByPlaceholderText('/')).toBeDefined();
   });
 
@@ -379,5 +377,64 @@ describe('IngressConfig', () => {
     fireEvent.click(dropdownBtn);
 
     expect(screen.getByText('svc-no-label')).toBeDefined();
+  });
+
+  it('handles ingressClassName selection', () => {
+    render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.getByText('Ingress Class')).toBeDefined();
+    const traefikBtn = screen.getByRole('button', { name: 'traefik' });
+    fireEvent.click(traefikBtn);
+    expect(performUpdate).toHaveBeenCalledWith({ ingressClassName: 'traefik' });
+  });
+
+  it('opens IngressPathsModal when Add more paths button is clicked', () => {
+    render(
+      <IngressConfig
+        selectedNode={selectedNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const addMoreBtn = screen.getByRole('button', { name: /Add more paths.../i });
+    fireEvent.click(addMoreBtn);
+
+    expect(screen.getByText('Manage Ingress Routing Paths')).toBeDefined();
+  });
+
+  it('hides manual path input and renders path badges when multiple paths exist', () => {
+    const multiPathNode = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressPaths: [
+          { id: 'p1', path: '/api', serviceName: 'api-service' },
+          { id: 'p2', path: '/payment', serviceName: 'web-service' },
+        ],
+      },
+    };
+
+    render(
+      <IngressConfig
+        selectedNode={multiPathNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    expect(screen.queryByPlaceholderText('/')).toBeNull();
+    expect(screen.getByText('/api')).toBeDefined();
+    expect(screen.getByText('/payment')).toBeDefined();
+    expect(screen.getByRole('button', { name: /Manage Paths \(2 paths\)/i })).toBeDefined();
   });
 });
