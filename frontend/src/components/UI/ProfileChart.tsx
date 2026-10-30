@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Activity, Edit2, ZoomIn, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFlowStore } from '@/store/useFlowStore';
@@ -45,14 +45,18 @@ export const MiniCurvePreview: React.FC<MiniCurvePreviewProps> = ({
   const padTop = 10;
   const padBottom = 10;
 
-  const intervalMinutes = detectProfileInterval(profile.hourly);
+  const intervalMinutes = useMemo(() => detectProfileInterval(profile.hourly), [profile.hourly]);
 
-  const { points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
-    profile,
-    width,
-    height,
-    { padLeft, padRight, padTop, padBottom },
-    intervalMinutes
+  const { points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = useMemo(
+    () =>
+      calculateProfileChartData(
+        profile,
+        width,
+        height,
+        { padLeft, padRight, padTop, padBottom },
+        intervalMinutes
+      ),
+    [profile, width, height, padLeft, padRight, padTop, padBottom, intervalMinutes]
   );
 
   const gradientId = `miniGrad-${profile.name.replaceAll(/\s+/g, '-')}`;
@@ -192,12 +196,16 @@ export const InteractiveTrafficChart: React.FC<InteractiveTrafficChartProps> = (
   const padTop = 20;
   const padBottom = 30;
 
-  const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = calculateProfileChartData(
-    profile,
-    width,
-    height,
-    { padLeft, padRight, padTop, padBottom },
-    intervalMinutes
+  const { values, points, pathD, areaD, minVal, maxVal, chartWidth, chartHeight } = useMemo(
+    () =>
+      calculateProfileChartData(
+        profile,
+        width,
+        height,
+        { padLeft, padRight, padTop, padBottom },
+        intervalMinutes
+      ),
+    [profile, width, height, padLeft, padRight, padTop, padBottom, intervalMinutes]
   );
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
