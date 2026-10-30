@@ -109,7 +109,7 @@ describe('IngressPathsModal', () => {
 
     // 3. Update target service dropdown on row #2
     const selects = screen.getAllByRole('combobox');
-    expect(selects.length).toBe(2);
+    expect(selects).toHaveLength(2);
     fireEvent.change(selects[1], { target: { value: 'web-service' } });
 
     // 4. Update port on row #2
@@ -120,7 +120,7 @@ describe('IngressPathsModal', () => {
 
     // 5. Delete row #1
     const deleteButtons = screen.getAllByRole('button', { name: /Delete path/i });
-    expect(deleteButtons.length).toBe(2);
+    expect(deleteButtons).toHaveLength(2);
     fireEvent.click(deleteButtons[0]);
 
     // Row #1 deleted, only /payment remains

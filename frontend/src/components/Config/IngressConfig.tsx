@@ -17,6 +17,15 @@ interface IngressConfigProps {
  *
  * @param props - Component properties for handling updates and UI toggles.
  */
+const getIngressClassButtonStyles = (isSelected: boolean, colorMode: 'dark' | 'light'): string => {
+  if (isSelected) {
+    return 'bg-rose-500/20 text-rose-400 border-rose-500/40';
+  }
+  return colorMode === 'dark'
+    ? 'bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200'
+    : 'bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900';
+};
+
 export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, toggleYaml }: IngressConfigProps) => {
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
@@ -176,23 +185,22 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
         onToggle={() => toggleVisibility('ingressClassName')}
       >
         <div className="flex gap-1.5 flex-wrap">
-          {['nginx', 'traefik'].map((cls) => (
-            <button
-              key={cls}
-              type="button"
-              onClick={() => performUpdate({ ingressClassName: cls })}
-              className={cn(
-                "px-2 py-1 rounded text-[10px] font-mono font-medium transition-colors cursor-pointer border",
-                (data.ingressClassName || 'nginx') === cls
-                  ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
-                  : colorMode === 'dark'
-                    ? "bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200"
-                    : "bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900"
-              )}
-            >
-              {cls}
-            </button>
-          ))}
+          {['nginx', 'traefik'].map((cls) => {
+            const isSelected = (data.ingressClassName || 'nginx') === cls;
+            return (
+              <button
+                key={cls}
+                type="button"
+                onClick={() => performUpdate({ ingressClassName: cls })}
+                className={cn(
+                  "px-2 py-1 rounded text-[10px] font-mono font-medium transition-colors cursor-pointer border",
+                  getIngressClassButtonStyles(isSelected, colorMode)
+                )}
+              >
+                {cls}
+              </button>
+            );
+          })}
         </div>
       </ConfigSection>
 
