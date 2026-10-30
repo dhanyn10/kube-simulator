@@ -102,4 +102,26 @@ describe('SecretNode', () => {
 
     expect(screen.queryByText(/Secrets/)).toBeNull();
   });
+
+  it('renders correctly with secretData in light mode', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    const props = {
+      id: 's1',
+      type: 'Secret',
+      data: {
+        label: 'My Secret',
+        secretData: [{ key: 'API_KEY', value: 'secret-val' }]
+      }
+    } as any;
+
+    render(
+      <ReactFlowProvider>
+        <SecretNode {...props} />
+      </ReactFlowProvider>
+    );
+
+    expect(screen.getByText(/Secrets \(1\)/)).toBeDefined();
+    expect(screen.getByText('API_KEY:')).toBeDefined();
+    expect(screen.getByText('secret-val')).toBeDefined();
+  });
 });

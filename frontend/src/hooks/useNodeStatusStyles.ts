@@ -42,6 +42,7 @@ export const useNodeStatus = (data: K8sNodeData, statusOverride: string | undefi
 
 export const COLOR_HEX_MAP: Record<string, string> = {
   red: '#ef4444',
+  rose: '#f43f5e',
   pink: '#ec4899',
   purple: '#a855f7',
   'deep-purple': '#673ab7',

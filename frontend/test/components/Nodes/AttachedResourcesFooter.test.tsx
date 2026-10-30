@@ -66,7 +66,9 @@ describe('AttachedResourcesFooter', () => {
       secrets: [{ id: 's1', name: 'standalone-secret' }],
     };
     render(<AttachedResourcesFooter data={data} />);
-    expect(screen.getByTitle('Secret: standalone-secret')).toBeInTheDocument();
+    const secretBtn = screen.getByTitle('Secret: standalone-secret');
+    expect(secretBtn).toBeInTheDocument();
+    expect(secretBtn).toHaveClass('node-attached-badge-secret');
   });
 
   it('renders when only hpas are present', () => {

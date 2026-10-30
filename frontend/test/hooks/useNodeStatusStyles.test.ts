@@ -8,6 +8,7 @@ describe('useNodeStatus', () => {
     expect(getNodeBorderColorHex(true, false, false)).toBe('#ef4444');
     expect(getNodeBorderColorHex(false, true, false)).toBe('#10b981');
     expect(getNodeBorderColorHex(false, false, false, 'blue')).toBe('#3b82f6');
+    expect(getNodeBorderColorHex(false, false, false, 'rose')).toBe('#f43f5e');
     expect(getNodeBorderColorHex(false, false, false, 'unmapped-color')).toBe('#10b981');
     expect(getNodeBorderColorHex(false, false, false)).toBe('#10b981');
   });
