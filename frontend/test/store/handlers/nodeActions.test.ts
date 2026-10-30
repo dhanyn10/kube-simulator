@@ -39,7 +39,74 @@ describe('nodeActions', () => {
     useFlowStore.setState({ addLog: initialAddLog });
   });
 
-  it('addNode uses default random position when position argument is omitted', () => {
+  it('addNode places and stacks cards directly at the center of canvas viewport when position argument is omitted', () => {
+    const { addNode } = useFlowStore.getState();
+    addNode('Pod');
+    addNode('Pod');
+
+    const state = useFlowStore.getState();
+    expect(state.nodes).toHaveLength(2);
+    expect(state.nodes[0].position.x).toBeGreaterThan(0);
+    expect(state.nodes[0].position.y).toBeGreaterThan(0);
+    expect(state.nodes[1].position).toEqual(state.nodes[0].position);
+
+    // Test with DOM container and viewport transform (translate, translate3d, scale, and malformed transform)
+    const canvasMain = document.createElement('main');
+    canvasMain.id = 'canvas-main';
+    canvasMain.getBoundingClientRect = () => ({ width: 1000, height: 800, left: 0, top: 0, right: 1000, bottom: 800, x: 0, y: 0, toJSON: () => {} });
+    const viewportEl = document.createElement('div');
+    viewportEl.className = 'react-flow__viewport';
+    viewportEl.style.transform = 'translate(-100px, -50px) scale(2)';
+    canvasMain.appendChild(viewportEl);
+    document.body.appendChild(canvasMain);
+
+    useFlowStore.setState({ nodes: [] });
+    addNode('Deployment');
+    const dep1 = useFlowStore.getState().nodes[0];
+    // centerX = (500 - (-100)) / 2 = 300; dep width = 320 -> x = 300 - 160 = 140
+    // centerY = (400 - (-50)) / 2 = 225; dep height = 160 -> y = 225 - 80 = 145
+    expect(dep1.position).toEqual({ x: 140, y: 145 });
+
+    // Second click stacks at exact same centered coordinates
+    addNode('Deployment');
+    const dep2 = useFlowStore.getState().nodes[1];
+    expect(dep2.position).toEqual({ x: 140, y: 145 });
+
+    // Test translate3d and fallback values on invalid numbers or unclosed parens
+    viewportEl.setAttribute('style', 'transform: translate3d(invalid, invalid, 0px) scale(invalid)');
+    useFlowStore.setState({ nodes: [] });
+    addNode('Deployment');
+    expect(useFlowStore.getState().nodes[0].position).toEqual({ x: 340, y: 320 });
+
+    viewportEl.setAttribute('style', 'transform: translate(100px');
+    useFlowStore.setState({ nodes: [] });
+    addNode('Deployment');
+    expect(useFlowStore.getState().nodes[0].position).toEqual({ x: 340, y: 320 });
+
+    canvasMain.remove();
+
+    // Verify that any card type auto-inserted in the center is placed at the very top of the stack (highest zIndex and last in array)
+    useFlowStore.setState({
+      nodes: [
+        { id: 'existing-pvc', type: 'PVC', position: { x: 100, y: 100 }, selected: true, style: { zIndex: 3 }, data: { label: 'pvc-0', type: 'PVC' } } as any,
+      ],
+    });
+    addNode('Service');
+    addNode('Pod');
+    addNode('Deployment');
+    addNode('Namespace');
+
+    const stackedNodes = useFlowStore.getState().nodes;
+    expect(stackedNodes).toHaveLength(5);
+    expect(stackedNodes[0].selected).toBe(false);
+    expect(stackedNodes.map((n) => n.type)).toEqual(['PVC', 'Service', 'Pod', 'Deployment', 'Namespace']);
+    expect(stackedNodes[1].zIndex).toBe(4);
+    expect(stackedNodes[2].zIndex).toBe(5);
+    expect(stackedNodes[3].zIndex).toBe(6);
+    expect(stackedNodes[4].zIndex).toBe(7);
+  });
+
+  it('addNode uses default random position when position argument is omitted (legacy check)', () => {
     const { addNode } = useFlowStore.getState();
     addNode('Pod');
 

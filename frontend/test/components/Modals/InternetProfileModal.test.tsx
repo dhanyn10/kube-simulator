@@ -69,100 +69,74 @@ describe('InternetProfileModal', () => {
       edges: []
     });
 
-    const { rerender } = render(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
+    await act(async () => {
+      render(
+        <InternetProfileModal
+          isOpen={true}
+          onClose={mockOnClose}
+          selectedNode={dummyNode}
+          performUpdate={mockPerformUpdate}
+        />
+      );
+    });
     const dot1 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot1.querySelector('.fill-rose-500')).not.toBeNull();
 
     // Case 2: Edge with validationError: true (isRed: true)
-    useFlowStore.setState({
-      nodes: [
-        { id: 'node-internet-1', type: 'Internet', data: {} },
-        { id: 'pod-1', type: 'Pod', data: { status: 'ready' } }
-      ],
-      edges: [
-        { id: 'e1', source: 'node-internet-1', target: 'pod-1', data: { validationError: 'Error' } }
-      ]
+    act(() => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'node-internet-1', type: 'Internet', data: {} },
+          { id: 'pod-1', type: 'Pod', data: { status: 'ready' } }
+        ],
+        edges: [
+          { id: 'e1', source: 'node-internet-1', target: 'pod-1', data: { validationError: 'Error' } }
+        ]
+      });
     });
-
-    rerender(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
     const dot2 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot2.querySelector('.fill-rose-500')).not.toBeNull();
 
     // Case 3: Edge pointing to unready Pod or Deployment (isRed: true)
-    useFlowStore.setState({
-      nodes: [
-        { id: 'node-internet-1', type: 'Internet', data: {} },
-        { id: 'pod-1', type: 'Pod', data: { status: 'pending' } },
-        { id: 'dep-1', type: 'Deployment', data: { status: 'unready' } }
-      ],
-      edges: [
-        { id: 'e1', source: 'node-internet-1', target: 'pod-1', data: {} },
-        { id: 'e2', source: 'node-internet-1', target: 'dep-1', data: {} }
-      ]
+    act(() => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'node-internet-1', type: 'Internet', data: {} },
+          { id: 'pod-1', type: 'Pod', data: { status: 'pending' } },
+          { id: 'dep-1', type: 'Deployment', data: { status: 'unready' } }
+        ],
+        edges: [
+          { id: 'e1', source: 'node-internet-1', target: 'pod-1', data: {} },
+          { id: 'e2', source: 'node-internet-1', target: 'dep-1', data: {} }
+        ]
+      });
     });
-
-    rerender(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
     const dot3 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot3.querySelector('.fill-rose-500')).not.toBeNull();
 
     // Case 4: Edge pointing to non-Pod/Deployment node (e.g. Service or Ingress) (isRed: false if healthy)
-    useFlowStore.setState({
-      nodes: [
-        { id: 'node-internet-1', type: 'Internet', data: {} },
-        { id: 'svc-1', type: 'Service', data: {} }
-      ],
-      edges: [{ id: 'e1', source: 'node-internet-1', target: 'svc-1', data: {} }]
+    act(() => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'node-internet-1', type: 'Internet', data: {} },
+          { id: 'svc-1', type: 'Service', data: {} }
+        ],
+        edges: [{ id: 'e1', source: 'node-internet-1', target: 'svc-1', data: {} }]
+      });
     });
-
-    rerender(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
     const dot4 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot4.querySelector('.fill-blue-400')).not.toBeNull();
 
     // Case 5: Edge pointing to ready Pod (isRed: false)
-    useFlowStore.setState({
-      nodes: [
-        { id: 'node-internet-1', type: 'Internet', data: {} },
-        { id: 'pod-1', type: 'Pod', data: { status: 'ready' } }
-      ],
-      edges: [{ id: 'e1', source: 'node-internet-1', target: 'pod-1', data: {} }]
+    act(() => {
+      useFlowStore.setState({
+        nodes: [
+          { id: 'node-internet-1', type: 'Internet', data: {} },
+          { id: 'pod-1', type: 'Pod', data: { status: 'ready' } }
+        ],
+        edges: [{ id: 'e1', source: 'node-internet-1', target: 'pod-1', data: {} }]
+      });
     });
-
-    rerender(
-      <InternetProfileModal
-        isOpen={true}
-        onClose={mockOnClose}
-        selectedNode={dummyNode}
-        performUpdate={mockPerformUpdate}
-      />
-    );
     const dot5 = screen.getByTestId('mini-active-traffic-dot');
     expect(dot5.querySelector('.fill-blue-400')).not.toBeNull();
   });

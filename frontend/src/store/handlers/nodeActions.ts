@@ -20,7 +20,7 @@ import {
 } from './nodeUtils';
 import { evaluatePvcRealtimeStatus } from '@/activities/config/pvcConfigHelpers';
 import { alignAllNodesToGrid as alignAllNodesToGridHelper } from '@/activities/layout/canvasAlignmentHelpers';
-import { formatPodName, safeRandom } from '@/lib/utils';
+import { formatPodName } from '@/lib/utils';
 import {
   emitLiveScaleCommand,
   emitLiveSetImageCommand,
@@ -451,6 +451,82 @@ const computeNodeDimensions = (
 
 // -- ACTION IMPLEMENTATIONS --
 
+const parseTransformValue = (transform: string, prefix: string): string | null => {
+  const startIdx = transform.indexOf(prefix);
+  if (startIdx === -1) return null;
+  const valueStart = startIdx + prefix.length;
+  const endIdx = transform.indexOf(')', valueStart);
+  if (endIdx === -1) return null;
+  return transform.slice(valueStart, endIdx);
+};
+
+const parseViewportTransform = (transform: string): { x: number; y: number; zoom: number } => {
+  let x = 0;
+  let y = 0;
+  let zoom = 1;
+
+  const translateRaw =
+    parseTransformValue(transform, 'translate3d(') ??
+    parseTransformValue(transform, 'translate(');
+  if (translateRaw) {
+    const parts = translateRaw.split(',');
+    x = Number.parseFloat(parts[0]) || 0;
+    y = Number.parseFloat(parts[1]) || 0;
+  }
+
+  const scaleRaw = parseTransformValue(transform, 'scale(');
+  if (scaleRaw) {
+    zoom = Number.parseFloat(scaleRaw) || 1;
+  }
+
+  return { x, y, zoom };
+};
+
+const getCanvasCenterPosition = (cardSize: { width: number; height: number }): { x: number; y: number } => {
+  const container =
+    globalThis.document?.getElementById('canvas-main') ||
+    globalThis.document?.querySelector('.react-flow__renderer') ||
+    globalThis.document?.querySelector('.react-flow');
+
+  const rect = container?.getBoundingClientRect();
+  const containerWidth = rect && rect.width > 0 ? rect.width : (globalThis.innerWidth || 800);
+  const containerHeight = rect && rect.height > 0 ? rect.height : (globalThis.innerHeight || 600);
+
+  const viewportEl = globalThis.document?.querySelector('.react-flow__viewport') as HTMLElement | null;
+  const { x: viewportX, y: viewportY, zoom } = parseViewportTransform(viewportEl?.style?.transform || viewportEl?.getAttribute?.('style') || '');
+
+  const centerX = (containerWidth / 2 - viewportX) / zoom;
+  const centerY = (containerHeight / 2 - viewportY) / zoom;
+
+  return {
+    x: Math.round(centerX - cardSize.width / 2),
+    y: Math.round(centerY - cardSize.height / 2),
+  };
+};
+
+const getNextTopZIndex = (nodes: Node[]): number => {
+  let maxZ = 0;
+  for (const n of nodes) {
+    const z = n.zIndex ?? (Number(n.style?.zIndex) || 0);
+    if (z > maxZ) maxZ = z;
+  }
+  return maxZ + 1;
+};
+
+const buildNodesAfterAddition = (
+  newNode: Node,
+  currentNodes: Node[],
+  position: { x: number; y: number } | undefined,
+  get: () => FlowState
+): Node[] => {
+  if (!position) {
+    const deselectedNodes = currentNodes.map((n) => (n.selected ? { ...n, selected: false } : n));
+    return [...deselectedNodes, newNode];
+  }
+  const syncedNodes = handleAdditionSync(newNode, [...currentNodes, newNode], get);
+  return resolveGlobalCollisions(syncedNodes, newNode.id);
+};
+
 /**
  * Adds a new Kubernetes resource node to the canvas at target coordinates or initial random position.
  */
@@ -469,16 +545,16 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
   }
 
   const id = `${type.toLowerCase()}-${crypto.randomUUID().split('-')[0]}`;
-  const finalPos = position || { x: 100 + safeRandom() * 200, y: 100 + safeRandom() * 200 };
-
   const initialData = getInitialData(type, id, get);
   const uniqueLabel = ensureUniqueResourceName(initialData.label, type, targetParentId, currentNodes);
   initialData.label = uniqueLabel;
-  if (type === 'Pod' || type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet') {
+  if (type === 'Pod' || WORKLOAD_CONTROLLERS.has(type)) {
     initialData.baseName = uniqueLabel;
   }
 
   const cardSize = getInitialCardSize(type, initialData);
+  const finalPos = position || getCanvasCenterPosition(cardSize);
+  const topZIndex = position ? undefined : getNextTopZIndex(currentNodes);
 
   const newNode: Node = {
     id, type, position: finalPos, parentId: targetParentId,
@@ -486,11 +562,11 @@ const addNodeImpl = (set: (state: Partial<FlowState>) => void, get: () => FlowSt
     data: initialData,
     width: cardSize.width,
     height: cardSize.height,
+    zIndex: topZIndex,
     style: { width: cardSize.width, height: cardSize.height }
   };
 
-  const nextNodes = handleAdditionSync(newNode, [...get().nodes, newNode], get);
-  const collisionResolvedNodes = resolveGlobalCollisions(nextNodes, id);
+  const collisionResolvedNodes = buildNodesAfterAddition(newNode, currentNodes, position, get);
 
   const x1 = Math.round(finalPos.x);
   const y1 = Math.round(finalPos.y);
