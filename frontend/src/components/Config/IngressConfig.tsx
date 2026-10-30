@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
-import { Globe, Code, Server, ChevronDown, Check } from 'lucide-react';
-import { ConfigInput, ConfigSection, AdvancedSection } from '@/components/UI/ConfigUI';
+import { Globe, Code, Server, ChevronDown, Check, Plus } from 'lucide-react';
+import { IngressPathsModal } from '@/components/Modals/IngressPathsModal';
+import { ConfigInput, ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
 
 interface IngressConfigProps {
@@ -22,6 +23,7 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
   const data = selectedNode.data;
 
   const [isBackendDropdownOpen, setIsBackendDropdownOpen] = useState(false);
+  const [isPathsModalOpen, setIsPathsModalOpen] = useState(false);
   const backendDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -167,24 +169,107 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
         />
       </ConfigSection>
 
-      <AdvancedSection colorMode={colorMode}>
-        <ConfigSection
-          title="Path"
-          icon={Code}
-          isVisible={data.displaySettings?.path}
-          onToggle={() => toggleVisibility('path')}
-          isYamlEnabled={data.yamlSettings?.path}
-          onYamlToggle={() => toggleYaml('path')}
-          disableYamlToggle={!data.ingressPath}
-        >
-          <ConfigInput
-            value={data.ingressPath || ''}
-            onChange={(e: any) => performUpdate({ ingressPath: e.target.value })}
-            placeholder="/"
-            colorMode={colorMode}
-          />
-        </ConfigSection>
-      </AdvancedSection>
+      <ConfigSection
+        title="Ingress Class"
+        icon={Server}
+        isVisible={data.displaySettings?.ingressClassName}
+        onToggle={() => toggleVisibility('ingressClassName')}
+      >
+        <div className="flex gap-1.5 flex-wrap">
+          {['nginx', 'traefik'].map((cls) => (
+            <button
+              key={cls}
+              type="button"
+              onClick={() => performUpdate({ ingressClassName: cls })}
+              className={cn(
+                "px-2 py-1 rounded text-[10px] font-mono font-medium transition-colors cursor-pointer border",
+                (data.ingressClassName || 'nginx') === cls
+                  ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
+                  : colorMode === 'dark'
+                    ? "bg-slate-800/60 text-slate-400 border-slate-700/60 hover:text-slate-200"
+                    : "bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900"
+              )}
+            >
+              {cls}
+            </button>
+          ))}
+        </div>
+      </ConfigSection>
+
+      <ConfigSection
+        title="Path"
+        icon={Code}
+        isVisible={data.displaySettings?.path}
+        onToggle={() => toggleVisibility('path')}
+        isYamlEnabled={data.yamlSettings?.path}
+        onYamlToggle={() => toggleYaml('path')}
+        disableYamlToggle={!data.ingressPath && (!Array.isArray(data.ingressPaths) || data.ingressPaths.length === 0)}
+      >
+        <div className="space-y-2">
+          {(!Array.isArray(data.ingressPaths) || data.ingressPaths.length <= 1) ? (
+            <ConfigInput
+              value={data.ingressPath || ''}
+              onChange={(e: any) => performUpdate({ ingressPath: e.target.value })}
+              placeholder="/"
+              colorMode={colorMode}
+            />
+          ) : (
+            <div className="space-y-1">
+              {data.ingressPaths.map((p: any) => (
+                <div
+                  key={`block-path-${p.id || p.path}`}
+                  className={cn(
+                    "block w-full px-2.5 py-1 rounded text-[10px] font-mono border transition-colors",
+                    colorMode === 'dark'
+                      ? "bg-slate-900 border-slate-800 text-rose-400"
+                      : "bg-rose-50 border-rose-200 text-rose-700"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{p.path}</span>
+                    {p.serviceName && (
+                      <span className="text-[9px] opacity-70 font-sans">
+                        → {p.serviceName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsPathsModalOpen(true)}
+            className={cn(
+              "w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded border text-[11px] font-medium transition-all cursor-pointer",
+              colorMode === 'dark'
+                ? "border-dashed border-slate-700 hover:border-rose-500/50 hover:bg-rose-500/10 text-slate-300 hover:text-rose-400"
+                : "border-dashed border-slate-300 hover:border-rose-500/50 hover:bg-rose-50 text-slate-600 hover:text-rose-700"
+            )}
+          >
+            <Plus size={13} />
+            <span>
+              {Array.isArray(data.ingressPaths) && data.ingressPaths.length > 1
+                ? `Manage Paths (${data.ingressPaths.length} paths)`
+                : 'Add more paths...'}
+            </span>
+          </button>
+        </div>
+      </ConfigSection>
+
+      <IngressPathsModal
+        isOpen={isPathsModalOpen}
+        onClose={() => setIsPathsModalOpen(false)}
+        ingressNode={selectedNode}
+        onSave={(paths) => {
+          performUpdate({
+            ingressPaths: paths,
+            ingressPath: paths[0]?.path || data.ingressPath || '/',
+            backendServiceName: paths[0]?.serviceName || data.backendServiceName,
+            servicePort: paths[0]?.servicePort || data.servicePort || 80,
+          });
+        }}
+      />
     </div>
   );
 };

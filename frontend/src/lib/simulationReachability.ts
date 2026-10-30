@@ -39,6 +39,16 @@ export const hasValidIngressBackend = (ingressNode: Node, nodes: Node[], edgeMap
       return true;
     }
   }
+  if (Array.isArray(ingressNode.data?.ingressPaths) && ingressNode.data.ingressPaths.length > 0) {
+    const hasValidRule = ingressNode.data.ingressPaths.some((rule: any) =>
+      nodes.some(node =>
+        node.type === 'Service' &&
+        (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+        (node.data?.label === rule.serviceName || node.data?.selector === rule.serviceName)
+      )
+    );
+    if (hasValidRule) return true;
+  }
   const backendName = ingressNode.data?.backendServiceName || ingressNode.data?.serviceName;
   if (backendName) {
     return nodes.some(node =>
@@ -101,6 +111,21 @@ const enqueueDynamicIngressTargets = (
   );
   for (const service of backendServices) {
     queue.push(String(service.id));
+  }
+
+  if (Array.isArray(currentNode.data?.ingressPaths)) {
+    for (const rule of currentNode.data.ingressPaths) {
+      if (rule.serviceName && rule.serviceName !== backendName) {
+        const matches = nodes.filter(node =>
+          node.type === 'Service' &&
+          (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
+          node.data?.label === rule.serviceName
+        );
+        for (const s of matches) {
+          queue.push(String(s.id));
+        }
+      }
+    }
   }
 };
 

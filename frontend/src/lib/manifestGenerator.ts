@@ -323,18 +323,22 @@ const buildIngressManifest = (
   let serviceName = node.data?.backendServiceName || node.data?.serviceName || '';
   let servicePort = Number(node.data?.servicePort || 80);
 
-  if (!serviceName) {
-    const outgoing = sourceEdgeMap.get(node.id) || [];
-    for (const e of outgoing) {
-      const target = nodeMap.get(e.target);
-      if (target?.type === 'Service') {
-        serviceName = sanitizeName(target?.data?.label || '');
-        if (target?.data?.port) {
-          servicePort = Number(target.data.port);
-        }
-        break;
+  const outgoing = sourceEdgeMap.get(node.id) || [];
+  const connectedServices: Array<{ name: string; port: number }> = [];
+  for (const e of outgoing) {
+    const target = nodeMap.get(e.target);
+    if (target?.type === 'Service') {
+      const sName = sanitizeName(target?.data?.label || '');
+      const sPort = Number(target?.data?.port || 80);
+      if (sName && !connectedServices.some((s) => s.name === sName)) {
+        connectedServices.push({ name: sName, port: sPort });
       }
     }
+  }
+
+  if (!serviceName && connectedServices.length > 0) {
+    serviceName = connectedServices[0].name;
+    servicePort = connectedServices[0].port;
   }
 
   if (!serviceName) {
@@ -343,6 +347,45 @@ const buildIngressManifest = (
 
   const path = node.data.ingressPath || '/';
   const host = node.data.ingressHost || 'example.local';
+  const ingressClassName = node.data?.ingressClassName || 'nginx';
+
+  let paths: any[];
+  if (Array.isArray(node.data?.ingressPaths) && node.data.ingressPaths.length > 0) {
+    paths = node.data.ingressPaths.map((rule: any) => ({
+      path: rule.path || '/',
+      pathType: 'Prefix',
+      backend: {
+        service: {
+          name: sanitizeName(rule.serviceName || serviceName),
+          port: { number: Number(rule.servicePort || servicePort) },
+        },
+      },
+    }));
+  } else if (connectedServices.length > 1) {
+    paths = connectedServices.map((svc) => ({
+      path: `/${svc.name.replace(/-service$/, '')}`,
+      pathType: 'Prefix',
+      backend: {
+        service: {
+          name: svc.name,
+          port: { number: svc.port },
+        },
+      },
+    }));
+  } else {
+    paths = [
+      {
+        path,
+        pathType: 'Prefix',
+        backend: {
+          service: {
+            name: sanitizeName(serviceName),
+            port: { number: servicePort },
+          },
+        },
+      },
+    ];
+  }
 
   return {
     apiVersion: 'networking.k8s.io/v1',
@@ -351,27 +394,16 @@ const buildIngressManifest = (
       ...metadata,
       annotations: {
         'nginx.ingress.kubernetes.io/rewrite-target': '/',
-        'kubernetes.io/ingress.class': 'nginx',
+        'kubernetes.io/ingress.class': ingressClassName,
       },
     },
     spec: {
-      ingressClassName: 'nginx',
+      ingressClassName,
       rules: [
         {
           host,
           http: {
-            paths: [
-              {
-                path,
-                pathType: 'Prefix',
-                backend: {
-                  service: {
-                    name: sanitizeName(serviceName),
-                    port: { number: servicePort },
-                  },
-                },
-              },
-            ],
+            paths,
           },
         },
       ],

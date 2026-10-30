@@ -24,10 +24,10 @@ describe('connections constants', () => {
     expect(error).toBe('Internet cannot be connected to Namespace.');
   });
 
-  it('should return error when connecting Internet directly to Ingress, ClusterIP Service, Pod, Deployment, or ReplicaSet', () => {
-    expect(getConnectionError('Internet', 'Ingress')).toBe('Internet cannot be connected to Ingress.');
+  it('should validate Internet connections to Ingress and workloads', () => {
+    expect(getConnectionError('Internet', 'Ingress')).toBeNull();
     expect(getConnectionError('Internet', 'Service', {}, { serviceType: 'ClusterIP' })).toBe(
-      'Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ClusterIP Service.'
+      'Internet can only connect to LoadBalancer Services, NodePort Services, or Ingress. Cannot connect to ClusterIP Service.'
     );
     expect(getConnectionError('Internet', 'Pod')).toBe('Internet cannot be connected to Pod.');
     expect(getConnectionError('Internet', 'Deployment')).toBe('Internet cannot be connected to Deployment.');
@@ -35,7 +35,9 @@ describe('connections constants', () => {
   });
 
   it('should return null for valid Ingress incoming and outgoing connections', () => {
-    // Service: LoadBalancer -> Ingress
+
+    // Internet -> Ingress
+    expect(getConnectionError('Internet', 'Ingress')).toBeNull();
     expect(getConnectionError('Service', 'Ingress', { serviceType: 'LoadBalancer' })).toBeNull();
     // Service: NodePort -> Ingress
     expect(getConnectionError('Service', 'Ingress', { serviceType: 'NodePort' })).toBeNull();
@@ -48,7 +50,7 @@ describe('connections constants', () => {
 
   it('should return error for invalid incoming connections to Ingress', () => {
     // Internet -> Ingress
-    expect(getConnectionError('Internet', 'Ingress')).toBe('Internet cannot be connected to Ingress.');
+    expect(getConnectionError('Internet', 'Ingress')).toBeNull();
 
     // ClusterIP Service -> Ingress
     expect(getConnectionError('Service', 'Ingress', { serviceType: 'ClusterIP' })).toBe(
@@ -84,7 +86,9 @@ describe('connections constants', () => {
     // Internet -> Service: LoadBalancer
     expect(getConnectionError('Internet', 'Service', {}, { serviceType: 'LoadBalancer' })).toBeNull();
 
-    // Service: LoadBalancer -> Ingress
+
+    // Internet -> Ingress
+    expect(getConnectionError('Internet', 'Ingress')).toBeNull();
     expect(getConnectionError('Service', 'Ingress', { serviceType: 'LoadBalancer' })).toBeNull();
 
     // Service: LoadBalancer -> Pod / Deployment (via spec.selector)
@@ -187,10 +191,10 @@ describe('connections constants', () => {
   it('covers fallback default serviceType ClusterIP across rules and else branch when LoadBalancer targets non-Ingress non-Service', () => {
     // 1. checkInternetRules fallback targetData?.serviceType || 'ClusterIP'
     expect(getConnectionError('Internet', 'Service')).toBe(
-      'Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ClusterIP Service.'
+      'Internet can only connect to LoadBalancer Services, NodePort Services, or Ingress. Cannot connect to ClusterIP Service.'
     );
     expect(getConnectionError('Internet', 'Service', {}, {})).toBe(
-      'Internet can only connect to LoadBalancer or NodePort Services. Cannot connect to ClusterIP Service.'
+      'Internet can only connect to LoadBalancer Services, NodePort Services, or Ingress. Cannot connect to ClusterIP Service.'
     );
 
     // 2. checkIngressTargetRules fallback sourceData?.serviceType || 'ClusterIP'

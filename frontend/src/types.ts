@@ -1,5 +1,12 @@
 export type K8sResourceType = 'Pod' | 'Service' | 'Deployment' | 'StatefulSet' | 'Namespace' | 'Internet' | 'Ingress' | 'HPA' | 'ResourceLimit' | 'PVC' | 'ConfigMap' | 'Secret' | 'Role' | 'IAM';
 
+export interface IngressPathRule {
+  id: string;
+  path: string;
+  serviceName?: string;
+  servicePort?: number;
+}
+
 export interface KubeIAMPolicy {
   name: string;
   type: 'Default' | 'Custom';
@@ -137,8 +144,10 @@ export interface K8sNodeData {
   // Ingress specific fields
   ingressHost?: string;
   ingressPath?: string;
+  ingressClassName?: string;
   backendServiceName?: string;
   servicePort?: number;
+  ingressPaths?: IngressPathRule[];
 
   // Internet specific fields
   traffic?: number;

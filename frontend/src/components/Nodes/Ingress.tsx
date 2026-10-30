@@ -31,10 +31,35 @@ export const IngressNode = memo((props: NodeProps) => {
         </div>
       )}
 
+      {data.displaySettings?.ingressClassName !== false && (
+        <div className={cn("text-[9px] font-mono", colorMode === 'dark' ? "text-slate-400" : "text-slate-500")}>
+          class: <span className="font-semibold text-rose-400">{data.ingressClassName || 'nginx'}</span>
+        </div>
+      )}
+
       {data.displaySettings?.path !== false && (
         <div className="mt-1">
-          <span className="text-[8px] uppercase font-bold text-slate-500">Path</span>
-          <div className="text-[9px] font-mono mt-0.5 text-rose-500">{data.ingressPath || '/'}</div>
+          <span className="text-[8px] uppercase font-bold text-slate-500">
+            {Array.isArray(data.ingressPaths) && data.ingressPaths.length > 1
+              ? `Paths (${data.ingressPaths.length})`
+              : 'Path'}
+          </span>
+          {Array.isArray(data.ingressPaths) && data.ingressPaths.length > 1 ? (
+            <div className="mt-0.5 space-y-0.5">
+              {data.ingressPaths.map((p: any) => (
+                <div
+                  key={`ingress-node-path-${p.id || p.path}`}
+                  className="text-[9px] font-mono text-rose-500 block truncate"
+                >
+                  {p.path}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[9px] font-mono mt-0.5 text-rose-500 block">
+              {data.ingressPath || '/'}
+            </div>
+          )}
         </div>
       )}
 
