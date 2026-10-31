@@ -4,6 +4,7 @@ import {
   useCanvasNavigation,
   isEditableElement,
   isDirectionalKey,
+  normalizeNavigationKey,
   calculateTargetVelocity,
   updatePhysicsVelocity,
 } from '@/hooks/useCanvasNavigation';
@@ -40,6 +41,10 @@ describe('useCanvasNavigation (Cities: Skylines physics style)', () => {
       const editableDiv = document.createElement('div');
       editableDiv.contentEditable = 'true';
       expect(isEditableElement(editableDiv)).toBe(true);
+
+      const menuItem = document.createElement('button');
+      menuItem.setAttribute('role', 'menuitem');
+      expect(isEditableElement(menuItem)).toBe(true);
     });
 
     it('returns true when child is inside an editable or nokey container', () => {
@@ -54,8 +59,8 @@ describe('useCanvasNavigation (Cities: Skylines physics style)', () => {
     });
   });
 
-  describe('isDirectionalKey helper', () => {
-    it('recognizes WASD and arrow keys', () => {
+  describe('isDirectionalKey & normalizeNavigationKey helpers', () => {
+    it('recognizes WASD and arrow keys and maps Arrow keys identically to WASD', () => {
       expect(isDirectionalKey('w')).toBe(true);
       expect(isDirectionalKey('W')).toBe(true);
       expect(isDirectionalKey('a')).toBe(true);
@@ -67,6 +72,12 @@ describe('useCanvasNavigation (Cities: Skylines physics style)', () => {
       expect(isDirectionalKey('ArrowRight')).toBe(true);
       expect(isDirectionalKey('x')).toBe(false);
       expect(isDirectionalKey('Escape')).toBe(false);
+
+      expect(normalizeNavigationKey('ArrowUp')).toBe('w');
+      expect(normalizeNavigationKey('ArrowDown')).toBe('s');
+      expect(normalizeNavigationKey('ArrowLeft')).toBe('a');
+      expect(normalizeNavigationKey('ArrowRight')).toBe('d');
+      expect(normalizeNavigationKey('Escape')).toBeNull();
     });
   });
 
@@ -120,54 +131,54 @@ describe('useCanvasNavigation (Cities: Skylines physics style)', () => {
   });
 
   describe('Hook keyboard interaction & smooth navigation', () => {
-    it('initiates smooth pan on W, A, S, D and Arrow keys', () => {
+    it('initiates smooth pan on W, A, S, D and Arrow keys identically', () => {
       renderHook(() => useCanvasNavigation());
 
-      // Press 'w' -> Up
+      // Press 'ArrowUp' -> Up (same as 'w')
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', cancelable: true }));
       });
       expect(mockSetViewport).toHaveBeenCalled();
       let lastCall = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
       expect(lastCall.y).toBeGreaterThan(200);
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowUp', cancelable: true }));
       });
 
-      // Press 's' -> Down
+      // Press 'ArrowDown' -> Down (same as 's')
       mockSetViewport.mockClear();
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 's', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }));
       });
       expect(mockSetViewport).toHaveBeenCalled();
       lastCall = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
       expect(lastCall.y).toBeLessThan(200);
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 's', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowDown', cancelable: true }));
       });
 
-      // Press 'a' -> Left
+      // Press 'ArrowLeft' -> Left (same as 'a')
       mockSetViewport.mockClear();
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', cancelable: true }));
       });
       expect(mockSetViewport).toHaveBeenCalled();
       lastCall = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
       expect(lastCall.x).toBeGreaterThan(100);
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', cancelable: true }));
       });
 
-      // Press 'd' -> Right
+      // Press 'ArrowRight' -> Right (same as 'd')
       mockSetViewport.mockClear();
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true }));
       });
       expect(mockSetViewport).toHaveBeenCalled();
       lastCall = mockSetViewport.mock.calls[mockSetViewport.mock.calls.length - 1][0];
       expect(lastCall.x).toBeLessThan(100);
       act(() => {
-        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'd', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight', cancelable: true }));
       });
     });
 
@@ -181,6 +192,7 @@ describe('useCanvasNavigation (Cities: Skylines physics style)', () => {
 
       act(() => {
         globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', cancelable: true }));
+        globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', cancelable: true }));
         globalThis.dispatchEvent(new Event('blur'));
       });
     });

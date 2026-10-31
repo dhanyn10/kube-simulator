@@ -23,26 +23,36 @@ export function isEditableElement(el: Element | null): boolean {
   if (!el) return false;
   const tagName = el.tagName?.toUpperCase();
   if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true;
+  if (el.getAttribute?.('role') === 'menuitem') return true;
   const htmlEl = el as HTMLElement;
   if (htmlEl.isContentEditable || htmlEl.contentEditable === 'true' || el.getAttribute?.('contenteditable') === 'true') {
     return true;
   }
-  if (el.closest?.('input, textarea, select, [contenteditable="true"], .nokey')) return true;
+  if (el.closest?.('input, textarea, select, [contenteditable="true"], [role="menu"], .nokey')) return true;
   return false;
 }
 
+export function normalizeNavigationKey(key: string): 'w' | 'a' | 's' | 'd' | null {
+  switch (key.toLowerCase()) {
+    case 'w':
+    case 'arrowup':
+      return 'w';
+    case 's':
+    case 'arrowdown':
+      return 's';
+    case 'a':
+    case 'arrowleft':
+      return 'a';
+    case 'd':
+    case 'arrowright':
+      return 'd';
+    default:
+      return null;
+  }
+}
+
 export function isDirectionalKey(key: string): boolean {
-  const k = key.toLowerCase();
-  return (
-    k === 'w' ||
-    k === 's' ||
-    k === 'a' ||
-    k === 'd' ||
-    k === 'arrowup' ||
-    k === 'arrowdown' ||
-    k === 'arrowleft' ||
-    k === 'arrowright'
-  );
+  return normalizeNavigationKey(key) !== null;
 }
 
 export function calculateTargetVelocity(activeKeys: Set<string>, speed: number): Vector2 {
@@ -226,17 +236,24 @@ export function useCanvasNavigation(options: UseCanvasNavigationOptions = {}) {
       const active = typeof globalThis !== 'undefined' ? globalThis.document?.activeElement : null;
       if (isEditableElement(active)) return;
 
-      if (!isDirectionalKey(event.key)) return;
+      const normalizedKey = normalizeNavigationKey(event.key);
+      if (!normalizedKey) return;
 
       event.preventDefault();
+      event.stopPropagation();
       isShiftRef.current = event.shiftKey;
-      activeKeysRef.current.add(event.key.toLowerCase());
+      activeKeysRef.current.add(normalizedKey);
       startLoop();
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
       isShiftRef.current = event.shiftKey;
-      activeKeysRef.current.delete(event.key.toLowerCase());
+      const normalizedKey = normalizeNavigationKey(event.key);
+      if (normalizedKey) {
+        activeKeysRef.current.delete(normalizedKey);
+      } else {
+        activeKeysRef.current.delete(event.key.toLowerCase());
+      }
     };
 
     const handleBlur = () => {
@@ -244,13 +261,13 @@ export function useCanvasNavigation(options: UseCanvasNavigationOptions = {}) {
       isShiftRef.current = false;
     };
 
-    globalThis.addEventListener('keydown', handleKeyDown);
-    globalThis.addEventListener('keyup', handleKeyUp);
+    globalThis.addEventListener('keydown', handleKeyDown, { capture: true });
+    globalThis.addEventListener('keyup', handleKeyUp, { capture: true });
     globalThis.addEventListener('blur', handleBlur);
 
     return () => {
-      globalThis.removeEventListener('keydown', handleKeyDown);
-      globalThis.removeEventListener('keyup', handleKeyUp);
+      globalThis.removeEventListener('keydown', handleKeyDown, { capture: true });
+      globalThis.removeEventListener('keyup', handleKeyUp, { capture: true });
       globalThis.removeEventListener('blur', handleBlur);
       stopLoop();
     };
