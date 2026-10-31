@@ -1090,6 +1090,80 @@ describe('simulation test suite', () => {
         edgeMap: undefined as any
       });
       expect(isInternetConnectionRed(internet, ctxNoEdgeMap)).toBe(true);
+
+      // 6. hasValidIngressBackend matching IngressPath rule.serviceName via Service selector (L47 branch 3)
+      const ingWithPathsSelector = createNode('ing-paths-sel', 'Ingress', {
+        ingressPaths: [{ path: '/api', serviceName: 'matched-by-selector' }],
+      });
+      const svcMatchingSelector = createNode('svc-sel-match', 'Service', {
+        label: 'other-label',
+        selector: 'matched-by-selector',
+        serviceType: 'ClusterIP',
+      });
+      expect(hasValidIngressBackend(ingWithPathsSelector, [svcMatchingSelector])).toBe(true);
+
+      // 7. hasValidIngressBackend matching IngressPath rule when no Service matches (L50 branch 1)
+      const ingWithUnmatchedPaths = createNode('ing-unmatched-paths', 'Ingress', {
+        ingressPaths: [{ path: '/api', serviceName: 'unmatched-service' }],
+      });
+      expect(hasValidIngressBackend(ingWithUnmatchedPaths, [svcMatchingSelector])).toBe(false);
+
+      // 8. enqueueDynamicIngressTargets when rule has no serviceName (L106 branch 1) and Service has no label (L126 branch 1)
+      const ingWithEmptyServiceNameRule = createNode('ing-empty-rule', 'Ingress', {
+        ingressPaths: [{ path: '/empty' }, { path: '/matched', serviceName: 'matched-backend' }],
+      });
+      const svcWithNoLabel = createNode('svc-no-lbl', 'Service', {
+        label: undefined,
+        serviceType: 'ClusterIP',
+      });
+      const svcMatched = createNode('svc-matched-backend', 'Service', {
+        label: 'matched-backend',
+        serviceType: 'ClusterIP',
+      });
+      const reachSetDynamic = calculateReachability(
+        [ingWithEmptyServiceNameRule],
+        new Map(),
+        [],
+        [ingWithEmptyServiceNameRule, svcWithNoLabel, svcMatched]
+      );
+      expect(reachSetDynamic.has('svc-matched-backend')).toBe(true);
+      expect(reachSetDynamic.has('svc-no-lbl')).toBe(false);
+
+      // 9. hasValidIngressBackend when target.data.serviceType is undefined -> defaults to 'ClusterIP' (L38 branch 1)
+      const ingWithDefTypeSvc = createNode('ing-def-type', 'Ingress');
+      const svcDefType = createNode('svc-def-type', 'Service', {
+        label: 'svc-def',
+        serviceType: undefined, // defaults to ClusterIP
+      });
+      const edgeToDefTypeSvc = { id: 'e-def-type', source: 'ing-def-type', target: 'svc-def-type' } as Edge;
+      expect(hasValidIngressBackend(ingWithDefTypeSvc, [svcDefType], new Map([['ing-def-type', [edgeToDefTypeSvc]]]))).toBe(true);
+
+      // 10. isServiceValidForProcessing when currentNode.data.serviceType is undefined -> defaults to 'ClusterIP' (L70 branch 1)
+      const svcDefTypeNode = createNode('s-def-proc', 'Service', {
+        serviceType: undefined,
+        selector: 'valid-target-pod',
+      });
+      const targetPodValid = createNode('valid-target-pod', 'Pod', { label: 'valid-target-pod' });
+      expect(calculateReachability([svcDefTypeNode], new Map(), [], [svcDefTypeNode, targetPodValid]).has('valid-target-pod')).toBe(true);
+
+      // 11. enqueueDynamicIngressTargets when targetServiceNames.size === 0 (L121 branch 0)
+      const ingNoBackendNames = createNode('ing-no-backends', 'Ingress', {
+        backendServiceName: '',
+        serviceName: '',
+        ingressPaths: [],
+      });
+      expect(calculateReachability([ingNoBackendNames], new Map(), [], [ingNoBackendNames])).toEqual(new Set(['ing-no-backends']));
+
+      // 12. hasUnreadyDownstreamPath where downstream edge.target has no outgoing edges and node is ready (L203 & L209 branch 1)
+      const edgeToTerminalPod = { id: 'e-term', source: 'i1', target: 'term-pod' } as Edge;
+      const terminalPod = createNode('term-pod', 'Pod', { status: 'ready' });
+      const ctxTerminal = getMockCtx({
+        nodes: [internet, terminalPod],
+        activeSimulationEdges: ['e-term'],
+        edgeMap: new Map([['i1', [edgeToTerminalPod]]]),
+        nodeMap: new Map([['i1', internet], ['term-pod', terminalPod]]),
+      });
+      expect(isInternetConnectionRed(internet, ctxTerminal)).toBe(false);
     });
   });
 
