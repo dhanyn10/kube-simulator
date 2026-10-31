@@ -97,6 +97,24 @@ const isSelectableWorkloadNode = (n: any): boolean => {
   return n.type === 'Pod' && !n.parentId && !n.data?.parentId;
 };
 
+const getNodeLabel = (n: any): string => {
+  return (n.data?.label as string) || (n.data?.baseName as string) || n.id || '';
+};
+
+const toSelectorOption = (n: any, currentServiceType: string): SelectorDropdownOption | null => {
+  const label = getNodeLabel(n);
+  if (!label) return null;
+
+  if (currentServiceType === 'LoadBalancer' && n.type === 'Ingress') {
+    return { label, category: 'INGRESS' };
+  }
+
+  if (!isSelectableWorkloadNode(n)) return null;
+  const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
+  const port = Number(n.data?.port) || undefined;
+  return { label, category: cat, port };
+};
+
 const buildServiceSelectorOptions = (
   selectedNode: any,
   nodes: any[],
@@ -106,22 +124,10 @@ const buildServiceSelectorOptions = (
   const optionsMap = new Map<string, SelectorDropdownOption>();
 
   for (const n of nodes) {
-    if (!isNodeInServiceScope(n, selectedNamespaceId, currentServiceType)) continue;
-
-    if (currentServiceType === 'LoadBalancer' && n.type === 'Ingress') {
-      const label = (n.data?.label as string) || n.id;
-      if (label && !optionsMap.has(label)) {
-        optionsMap.set(label, { label, category: 'INGRESS' });
-      }
-      continue;
-    }
-
-    if (isSelectableWorkloadNode(n)) {
-      const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-      if (label && !optionsMap.has(label)) {
-        const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
-        const port = Number(n.data?.port) || undefined;
-        optionsMap.set(label, { label, category: cat, port });
+    if (isNodeInServiceScope(n, selectedNamespaceId, currentServiceType)) {
+      const opt = toSelectorOption(n, currentServiceType);
+      if (opt && !optionsMap.has(opt.label)) {
+        optionsMap.set(opt.label, opt);
       }
     }
   }
@@ -192,6 +198,54 @@ const resolveDisplaySelectorInfo = (
   return { isSelectorValid, displaySelectorText, displayCategory };
 };
 
+const ServiceTypeOptionItem = ({
+  option,
+  currentServiceType,
+  isInsideNamespace,
+  colorMode,
+  onSelect,
+}: {
+  option: ServiceTypeOption;
+  currentServiceType: string;
+  isInsideNamespace: boolean;
+  colorMode: string;
+  onSelect: (value: ServiceTypeOption['value']) => void;
+}) => {
+  const isSelected = currentServiceType === option.value;
+  const isLockedInNamespace = option.value === 'LoadBalancer' && isInsideNamespace;
+  const isDisabled = Boolean(option.disabled || isLockedInNamespace);
+  const lockLabel = isLockedInNamespace ? 'Outside Namespace Only' : 'Disabled';
+
+  return (
+    <button
+      type="button"
+      disabled={isDisabled}
+      onClick={() => {
+        if (!isDisabled) {
+          onSelect(option.value);
+        }
+      }}
+      className={cn(
+        'w-full text-left p-2 rounded text-xs transition-colors flex items-start justify-between gap-2 group',
+        getServiceTypeOptionClasses(isDisabled, isSelected, colorMode)
+      )}
+    >
+      <div className="space-y-0.5 pr-1">
+        <div className="flex items-center gap-1.5 font-medium font-mono flex-wrap">
+          <span>{option.label}</span>
+          {isDisabled && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] rounded font-sans uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
+              <Lock size={10} /> {lockLabel}
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] opacity-60 leading-tight font-sans">{option.description}</p>
+      </div>
+      {isSelected && <Check size={14} className="text-amber-500 shrink-0 mt-0.5" />}
+    </button>
+  );
+};
+
 const ServiceTypeDropdown = ({
   dropdownRef,
   isOpen,
@@ -235,46 +289,65 @@ const ServiceTypeDropdown = ({
             getDropdownMenuClasses(colorMode)
           )}
         >
-          {SERVICE_TYPE_OPTIONS.map((option) => {
-            const isSelected = currentServiceType === option.value;
-            const isLockedInNamespace = option.value === 'LoadBalancer' && isInsideNamespace;
-            const isDisabled = Boolean(option.disabled || isLockedInNamespace);
-            const lockLabel = isLockedInNamespace ? 'Outside Namespace Only' : 'Disabled';
-
-            return (
-              <button
-                key={option.value}
-                type="button"
-                disabled={isDisabled}
-                onClick={() => {
-                  if (!isDisabled) {
-                    performUpdate({ serviceType: option.value });
-                    setIsOpen(false);
-                  }
-                }}
-                className={cn(
-                  'w-full text-left p-2 rounded text-xs transition-colors flex items-start justify-between gap-2 group',
-                  getServiceTypeOptionClasses(isDisabled, isSelected, colorMode)
-                )}
-              >
-                <div className="space-y-0.5 pr-1">
-                  <div className="flex items-center gap-1.5 font-medium font-mono flex-wrap">
-                    <span>{option.label}</span>
-                    {isDisabled && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] rounded font-sans uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                        <Lock size={10} /> {lockLabel}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] opacity-60 leading-tight font-sans">{option.description}</p>
-                </div>
-                {isSelected && <Check size={14} className="text-amber-500 shrink-0 mt-0.5" />}
-              </button>
-            );
-          })}
+          {SERVICE_TYPE_OPTIONS.map((option) => (
+            <ServiceTypeOptionItem
+              key={option.value}
+              option={option}
+              currentServiceType={currentServiceType}
+              isInsideNamespace={isInsideNamespace}
+              colorMode={colorMode}
+              onSelect={(value) => {
+                performUpdate({ serviceType: value });
+                setIsOpen(false);
+              }}
+            />
+          ))}
         </div>
       )}
     </div>
+  );
+};
+
+const ServiceSelectorOptionItem = ({
+  opt,
+  activeIngressTargets,
+  currentSelector,
+  colorMode,
+  onSelect,
+}: {
+  opt: SelectorDropdownOption;
+  activeIngressTargets: string[];
+  currentSelector: string;
+  colorMode: string;
+  onSelect: (opt: SelectorDropdownOption) => void;
+}) => {
+  const isSelected =
+    opt.category === 'INGRESS'
+      ? activeIngressTargets.includes(opt.label)
+      : currentSelector === opt.label;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(opt)}
+      className={cn(
+        'w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer',
+        getWorkloadSelectorOptionClasses(isSelected, colorMode)
+      )}
+    >
+      <span className="truncate">{opt.label}</span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span
+          className={cn(
+            'text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider',
+            getCategoryBadgeClasses(opt.category)
+          )}
+        >
+          {opt.category}
+        </span>
+        {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
+      </div>
+    </button>
   );
 };
 
@@ -345,42 +418,21 @@ const ServiceSelectorDropdown = ({
             getDropdownMenuClasses(colorMode)
           )}
         >
-          {availableOptions.map((opt) => {
-            const isSelected =
-              opt.category === 'INGRESS'
-                ? activeIngressTargets.includes(opt.label)
-                : currentSelector === opt.label;
-
-            return (
-              <button
-                key={`${opt.category}-${opt.label}`}
-                type="button"
-                onClick={() => {
-                  performUpdate(buildSelectorUpdatePatch(opt, data, activeIngressTargets));
-                  if (opt.category !== 'INGRESS') {
-                    setIsOpen(false);
-                  }
-                }}
-                className={cn(
-                  'w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer',
-                  getWorkloadSelectorOptionClasses(isSelected, colorMode)
-                )}
-              >
-                <span className="truncate">{opt.label}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span
-                    className={cn(
-                      'text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider',
-                      getCategoryBadgeClasses(opt.category)
-                    )}
-                  >
-                    {opt.category}
-                  </span>
-                  {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
-                </div>
-              </button>
-            );
-          })}
+          {availableOptions.map((opt) => (
+            <ServiceSelectorOptionItem
+              key={`${opt.category}-${opt.label}`}
+              opt={opt}
+              activeIngressTargets={activeIngressTargets}
+              currentSelector={currentSelector}
+              colorMode={colorMode}
+              onSelect={(selectedOpt) => {
+                performUpdate(buildSelectorUpdatePatch(selectedOpt, data, activeIngressTargets));
+                if (selectedOpt.category !== 'INGRESS') {
+                  setIsOpen(false);
+                }
+              }}
+            />
+          ))}
         </div>
       )}
     </div>
