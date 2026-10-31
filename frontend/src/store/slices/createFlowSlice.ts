@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
 import { getConnectionError } from '@/constants/connections';
-import { getAbsPos } from '@/store/helpers';
+import { getAbsPos, ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { safeRandom } from '@/lib/utils';
 import {
   emitLiveEdgeCreatedCommand,
@@ -776,7 +776,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const newEdges = edges.map((e) => (e.id === oldEdge.id ? validateEdge({ ...e, ...newConnection }) : e));
     set({ edges: newEdges });
   },
-  setNodes: (nodes: Node[]) => set({ nodes }),
+  setNodes: (nodes: Node[]) => set({ nodes: ejectLoadBalancersFromNamespaces(nodes).nodes }),
   setEdges: (edges: Edge[]) => {
     set((state) => {
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, edges);

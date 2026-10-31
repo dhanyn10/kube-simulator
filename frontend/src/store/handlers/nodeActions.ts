@@ -6,7 +6,8 @@ import {
   getNodeData,
   sortNodes,
   getAbsPos,
-  resolveGlobalCollisions
+  resolveGlobalCollisions,
+  ejectLoadBalancersFromNamespaces
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import { calculateCardLayoutWithYoga } from '@/store/deploymentYogaLayout';
@@ -889,6 +890,7 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   };
 
   let nextNodes = syncUpdatedNode(nodeId, updatedNode, updatedData, target, newData, nodes, get);
+  nextNodes = ejectLoadBalancersFromNamespaces(nextNodes).nodes;
 
   const newLabel = (updatedData.label as string) || (updatedData.baseName as string);
   if (

@@ -374,5 +374,16 @@ describe('dragHandlers', () => {
       detachingDeploymentId: null,
     });
     onNodeDrag({} as any, { id: 'p-dyn', type: 'Pod', position: { x: 10, y: 10 }, data: {} } as any);
+
+    const ns = { id: 'ns-fixed', type: 'Namespace', position: { x: 100, y: 100 }, width: 600, height: 400, data: { label: 'prod' } };
+    const lb = { id: 'lb-dragged', type: 'Service', position: { x: 120, y: 150 }, width: 200, height: 120, data: { label: 'lb', serviceType: 'LoadBalancer' } };
+    useFlowStore.setState({ nodes: [ns, lb] as any, hoveredDeploymentId: null, detachingDeploymentId: null });
+    onNodeDrag({} as any, lb as any);
+    expect(useFlowStore.getState().detachingDeploymentId).toBe('ns-fixed');
+    onNodeDragStop({} as any, lb as any);
+    const updatedNs = useFlowStore.getState().nodes.find((n) => n.id === 'ns-fixed')!;
+    const updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'lb-dragged')!;
+    expect(updatedNs.position).toEqual({ x: 100, y: 100 });
+    expect(updatedLb.position).toEqual({ x: 120, y: 100 - 120 - 32 });
   });
 });

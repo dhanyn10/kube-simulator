@@ -6,7 +6,8 @@ import {
   sortNodes,
   syncPodsInDeployment,
   layoutPodsInDeployment,
-  resolveGlobalCollisions
+  resolveGlobalCollisions,
+  ejectLoadBalancersFromNamespaces
 } from '@/store/helpers';
 import { Node } from '@xyflow/react';
 
@@ -22,6 +23,8 @@ describe('store helpers', () => {
     expect(isAllowed('Deployment', 'Service')).toBe(false);
     expect(isAllowed('Namespace', 'Pod')).toBe(true);
     expect(isAllowed('Namespace', 'Deployment')).toBe(true);
+    expect(isAllowed('Namespace', 'Service', { serviceType: 'ClusterIP' })).toBe(true);
+    expect(isAllowed('Namespace', 'Service', { serviceType: 'LoadBalancer' })).toBe(false);
     expect(isAllowed('Service', 'Pod')).toBe(false);
   });
 
@@ -695,6 +698,27 @@ describe('store helpers', () => {
     // Sync with forceRandomize: true re-randomizes suffixes
     const randomizedGroup = syncPodsInDeployment(depGroup, initialPods, undefined, true);
     expect(randomizedGroup[0].data.replicaSuffixes).not.toEqual(initialPods[0].data.replicaSuffixes);
+
+    const ns = { id: 'ns-1', type: 'Namespace', position: { x: 100, y: 100 }, width: 600, height: 400, data: { label: 'prod' } } as any;
+    const lbInsideNearLeft = { id: 'lb-left', type: 'Service', parentId: 'ns-1', position: { x: 20, y: 150 }, width: 200, height: 120, data: { label: 'lb-svc', serviceType: 'LoadBalancer', parentId: 'ns-1' } } as any;
+    const { nodes: ejected, ejectedIds } = ejectLoadBalancersFromNamespaces([ns, lbInsideNearLeft]);
+    expect(ejectedIds).toEqual(['lb-left']);
+    const ejectedLb = ejected.find((n) => n.id === 'lb-left')!;
+    expect(ejectedLb.parentId).toBeUndefined();
+    expect(ejectedLb.position.x).toBe(100 - 200 - 32);
+
+    const lbPlaceholderTop = {
+      id: 'lb-top-88',
+      type: 'Service',
+      position: { x: 300, y: 110 },
+      width: 180,
+      height: 88,
+      style: { width: 180, height: 88 },
+      data: { label: 'lb-top', serviceType: 'LoadBalancer' },
+    } as any;
+    const { nodes: ejectedTopNodes } = ejectLoadBalancersFromNamespaces([ns, lbPlaceholderTop]);
+    const ejectedTop = ejectedTopNodes.find((n) => n.id === 'lb-top-88')!;
+    expect(ejectedTop.position.y).toBe(100 - 200 - 32);
   });
 });
 

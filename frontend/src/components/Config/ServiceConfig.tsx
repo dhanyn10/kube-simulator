@@ -63,6 +63,7 @@ const buildServiceSelectorOptions = (
 ): SelectorDropdownOption[] => {
   const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
   const inSameNamespace = (n: any) => {
+    if (currentServiceType === 'LoadBalancer') return true;
     if (!selectedNamespaceId) {
       return !n.parentId;
     }
@@ -154,6 +155,7 @@ export const ServiceConfig = ({
   const data = selectedNode.data;
   const currentServiceType = data.serviceType || 'ClusterIP';
   const showNodePort = currentServiceType === 'NodePort' || currentServiceType === 'LoadBalancer';
+  const isInsideNamespace = Boolean(selectedNode.parentId || selectedNode.data?.parentId);
 
   const [isServiceTypeDropdownOpen, setIsServiceTypeDropdownOpen] = useState(false);
   const [isSelectorDropdownOpen, setIsSelectorDropdownOpen] = useState(false);
@@ -222,7 +224,8 @@ export const ServiceConfig = ({
             >
               {SERVICE_TYPE_OPTIONS.map((option) => {
                 const isSelected = currentServiceType === option.value;
-                const isDisabled = option.disabled;
+                const isLockedInNamespace = option.value === 'LoadBalancer' && isInsideNamespace;
+                const isDisabled = Boolean(option.disabled || isLockedInNamespace);
 
                 return (
                   <button
@@ -237,15 +240,15 @@ export const ServiceConfig = ({
                     }}
                     className={cn(
                       "w-full text-left p-2 rounded text-xs transition-colors flex items-start justify-between gap-2 group",
-                      getServiceTypeOptionClasses(Boolean(isDisabled), isSelected, colorMode)
+                      getServiceTypeOptionClasses(isDisabled, isSelected, colorMode)
                     )}
                   >
                     <div className="space-y-0.5 pr-1">
-                      <div className="flex items-center gap-1.5 font-medium font-mono">
+                      <div className="flex items-center gap-1.5 font-medium font-mono flex-wrap">
                         <span>{option.label}</span>
                         {isDisabled && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] rounded font-sans uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            <Lock size={10} /> Disabled
+                            <Lock size={10} /> {isLockedInNamespace ? 'Outside Namespace Only' : 'Disabled'}
                           </span>
                         )}
                       </div>

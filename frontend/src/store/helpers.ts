@@ -9,9 +9,12 @@ export const getNodeData = (node: Node): K8sNodeData => {
   return (node.data as unknown as K8sNodeData) || ({} as K8sNodeData);
 };
 
-export const isAllowed = (parentType: string, childType: string): boolean => {
+export const isAllowed = (parentType: string, childType: string, childData?: Record<string, any>): boolean => {
   if (parentType === 'Deployment' || parentType === 'StatefulSet') return childType === 'Pod';
-  if (parentType === 'Namespace') return ['Pod', 'Deployment', 'StatefulSet', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType);
+  if (parentType === 'Namespace') {
+    if (childType === 'Service' && childData?.serviceType === 'LoadBalancer') return false;
+    return ['Pod', 'Deployment', 'StatefulSet', 'Service', 'Internet', 'Ingress', 'HPA', 'Role'].includes(childType);
+  }
   return false;
 };
 
@@ -307,24 +310,51 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
 };
 
 
-const getEffectiveSize = (node: Node) => {
+const getDomMeasuredNodeSize = (nodeId: string | undefined): { width: number; height: number } => {
+  if (!nodeId || typeof globalThis.document === 'undefined') {
+    return { width: 0, height: 0 };
+  }
+  const el = globalThis.document.querySelector(`.react-flow__node[data-id="${nodeId}"]`) as HTMLElement | null;
+  if (!el) return { width: 0, height: 0 };
+  const child = el.firstElementChild as HTMLElement | null;
+  return {
+    width: Math.max(el.offsetWidth || 0, el.scrollWidth || 0, child?.offsetWidth || 0, child?.scrollWidth || 0),
+    height: Math.max(el.offsetHeight || 0, el.scrollHeight || 0, child?.offsetHeight || 0, child?.scrollHeight || 0),
+  };
+};
+
+const getServiceDefaultSize = (node: Node): { w: number; h: number } => {
+  const isLbOrNodePort = node.data?.serviceType === 'LoadBalancer' || node.data?.serviceType === 'NodePort';
+  const rawH = Math.max(node.height || 0, node.measured?.height || 0, Number(node.style?.height) || 0);
+  if (rawH > 0 && rawH !== 88) {
+    return { w: 180, h: rawH };
+  }
+  return { w: 180, h: isLbOrNodePort ? 200 : 180 };
+};
+
+export const getEffectiveSize = (node: Node) => {
+  const domSize = getDomMeasuredNodeSize(node.id);
+  const styleW = Number(node.style?.width) || 0;
+  const styleH = Number(node.style?.height) || 0;
+
   if (node.type === 'Pod') {
     const minSize = getPodMinimumSize(node.data);
     return {
-      width: Math.max(node.width || 0, node.measured?.width || 0, minSize.width),
-      height: Math.max(node.height || 0, node.measured?.height || 0, minSize.height)
+      width: Math.max(node.width || 0, node.measured?.width || 0, styleW, domSize.width, minSize.width),
+      height: Math.max(node.height || 0, node.measured?.height || 0, styleH, domSize.height, minSize.height)
     };
   }
   const getDefaultSize = (type: string | undefined) => {
     if (type === 'Deployment' || type === 'StatefulSet') return { w: 320, h: 160 };
     if (type === 'Namespace') return { w: 600, h: 400 };
+    if (type === 'Service') return getServiceDefaultSize(node);
     return { w: 160, h: 80 };
   };
 
   const { w: defaultW, h: defaultH } = getDefaultSize(node.type);
   return {
-    width: Math.max(node.width || 0, node.measured?.width || 0, defaultW),
-    height: Math.max(node.height || 0, node.measured?.height || 0, defaultH)
+    width: Math.max(node.width || 0, node.measured?.width || 0, styleW, domSize.width, defaultW),
+    height: Math.max(node.height || 0, node.measured?.height || 0, styleH, domSize.height, defaultH)
   };
 };
 
@@ -450,4 +480,110 @@ export const resolveGlobalCollisions = (nodes: Node[], fixedNodeId?: string, ite
     if (!performCollisionIteration(nextNodes, PADDING, fixedNodeId)) break;
   }
   return nextNodes;
+};
+
+export const getNearestOutsideNamespacePosition = (
+  lbNode: Node,
+  nsNode: Node,
+  nodes: Node[]
+): { x: number; y: number } => {
+  const nsAbs = getAbsPos(nsNode.id, nodes);
+  const { width: nsW, height: nsH } = getEffectiveSize(nsNode);
+
+  const lbAbs = getAbsPos(lbNode.id, nodes, lbNode);
+  const { width: lbW, height: lbH } = getEffectiveSize(lbNode);
+  const GAP = 32;
+
+  const clampedY = Math.max(nsAbs.y, Math.min(lbAbs.y, nsAbs.y + Math.max(0, nsH - lbH)));
+  const clampedX = Math.max(nsAbs.x, Math.min(lbAbs.x, nsAbs.x + Math.max(0, nsW - lbW)));
+
+  const candidates = [
+    { x: nsAbs.x - lbW - GAP, y: clampedY },
+    { x: nsAbs.x + nsW + GAP, y: clampedY },
+    { x: clampedX, y: nsAbs.y - lbH - GAP },
+    { x: clampedX, y: nsAbs.y + nsH + GAP },
+  ];
+
+  let best = candidates[0];
+  let bestDistSq = Number.POSITIVE_INFINITY;
+  for (const cand of candidates) {
+    const dx = cand.x - lbAbs.x;
+    const dy = cand.y - lbAbs.y;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq;
+      best = cand;
+    }
+  }
+
+  return { x: Math.round(best.x), y: Math.round(best.y) };
+};
+
+const findContainingOrOverlappingNamespace = (lbNode: Node, nodes: Node[]): Node | undefined => {
+  const parentId = lbNode.parentId || (lbNode.data?.parentId as string | undefined);
+  if (parentId) {
+    const parentNs = nodes.find((n) => n.id === parentId && n.type === 'Namespace');
+    if (parentNs) return parentNs;
+  }
+
+  const lbAbs = getAbsPos(lbNode.id, nodes, lbNode);
+  const { width: lbW, height: lbH } = getEffectiveSize(lbNode);
+  const BUFFER = 32;
+
+  return nodes.find((n) => {
+    if (n.type !== 'Namespace') return false;
+    const nsAbs = getAbsPos(n.id, nodes);
+    const { width: nsW, height: nsH } = getEffectiveSize(n);
+    return (
+      lbAbs.x < nsAbs.x + nsW + BUFFER &&
+      lbAbs.x + lbW + BUFFER > nsAbs.x &&
+      lbAbs.y < nsAbs.y + nsH + BUFFER &&
+      lbAbs.y + lbH + BUFFER > nsAbs.y
+    );
+  });
+};
+
+export const ejectLoadBalancersFromNamespaces = (nodes: Node[]): { nodes: Node[]; ejectedIds: string[] } => {
+  const ejectedIds: string[] = [];
+  let targetNsId: string | undefined;
+
+  const updated = nodes.map((n) => {
+    if (n.type !== 'Service' || n.data?.serviceType !== 'LoadBalancer') return n;
+    const nsNode = findContainingOrOverlappingNamespace(n, nodes);
+    if (!nsNode) return n;
+
+    ejectedIds.push(n.id);
+    targetNsId = nsNode.id;
+    const outsidePos = getNearestOutsideNamespacePosition(n, nsNode, nodes);
+    const nextData = { ...n.data };
+    delete nextData.parentId;
+
+    return {
+      ...n,
+      parentId: undefined,
+      extent: undefined,
+      position: outsidePos,
+      data: nextData,
+    };
+  });
+
+  if (ejectedIds.length === 0) {
+    return { nodes, ejectedIds };
+  }
+
+  const collisionResolved = resolveGlobalCollisions(updated, targetNsId);
+  const finalNodes = collisionResolved.map((n) => {
+    if (n.type !== 'Service' || n.data?.serviceType !== 'LoadBalancer') return n;
+    const overlappingNs = findContainingOrOverlappingNamespace(n, collisionResolved);
+    if (!overlappingNs) return n;
+    return {
+      ...n,
+      position: getNearestOutsideNamespacePosition(n, overlappingNs, collisionResolved),
+    };
+  });
+
+  return {
+    nodes: finalNodes,
+    ejectedIds,
+  };
 };
