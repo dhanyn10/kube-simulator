@@ -399,6 +399,27 @@ describe('manifestGenerator test suite', () => {
     expect(pvcYaml).not.toContain('storageClassName: false');
   });
 
+  it('generates Ingress YAML with custom pathType (Exact vs Prefix) from ingressPaths', () => {
+    const nodes = [
+      {
+        id: 'ing-exact',
+        type: 'Ingress',
+        data: {
+          label: 'exact-ingress',
+          ingressHost: 'auth.example.com',
+          ingressPaths: [
+            { id: 'p1', path: '/login', pathType: 'Exact', serviceName: 'auth-svc', servicePort: 8080 },
+            { id: 'p2', path: '/api', pathType: 'Prefix', serviceName: 'api-svc', servicePort: 3000 },
+          ],
+        },
+      },
+    ];
+    const yamlOutput = generateYamlClientSide(nodes, []);
+    const doc = yaml.load(yamlOutput) as any;
+    expect(doc.spec.rules[0].http.paths[0].pathType).toBe('Exact');
+    expect(doc.spec.rules[0].http.paths[1].pathType).toBe('Prefix');
+  });
+
   it('generates parseable Kubernetes multi-document YAML without line wrap corruption', () => {
     const nodes = [
       { id: 'dep1', type: 'Deployment', data: { label: 'web-service', image: 'nginx:1.25.3-alpine-slim-with-long-tag' } },

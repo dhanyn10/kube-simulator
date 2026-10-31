@@ -4,6 +4,7 @@ export interface IngressPathRule {
   id: string;
   path: string;
   serviceName?: string;
+  pathType?: 'Prefix' | 'Exact';
   servicePort?: number;
 }
 
@@ -146,6 +147,7 @@ export interface K8sNodeData {
   ingressPath?: string;
   ingressClassName?: string;
   backendServiceName?: string;
+  pathType?: 'Prefix' | 'Exact';
   servicePort?: number;
   ingressPaths?: IngressPathRule[];
 

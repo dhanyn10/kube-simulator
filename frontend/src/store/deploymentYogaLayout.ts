@@ -146,7 +146,13 @@ export const calculateCardLayoutWithYoga = (
     return calculatePodCardDimensions(node, data);
   }
 
-  const { minWidth: baseMinWidth, minHeight: baseMinHeight } = getNodeBaseDimensions(nodeType);
+  const { minWidth: baseMinWidth, minHeight: rawBaseMinHeight } = getNodeBaseDimensions(nodeType);
+  const ingressPathCount =
+    nodeType === 'Ingress' && data.displaySettings?.path !== false && Array.isArray(data.ingressPaths)
+      ? data.ingressPaths.length
+      : 0;
+  const ingressExtraHeight = ingressPathCount > 1 ? (ingressPathCount - 1) * 16 : 0;
+  const baseMinHeight = rawBaseMinHeight + ingressExtraHeight;
 
   const attachedHeight = calculatePodAttachedHeight(data);
   const textLabelLength = String(data.label || '').length;

@@ -271,6 +271,8 @@ export default function App() {
             onDragLeave={onDragLeave}
             onNodesDelete={deleteNodes}
             deleteKeyCode={isModalOverlayActive ? null : ['Backspace', 'Delete']}
+            nodesFocusable={false}
+            edgesFocusable={false}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={defaultEdgeOptions}

@@ -353,7 +353,7 @@ const buildIngressManifest = (
   if (Array.isArray(node.data?.ingressPaths) && node.data.ingressPaths.length > 0) {
     paths = node.data.ingressPaths.map((rule: any) => ({
       path: rule.path || '/',
-      pathType: 'Prefix',
+      pathType: rule.pathType || 'Prefix',
       backend: {
         service: {
           name: sanitizeName(rule.serviceName || serviceName),

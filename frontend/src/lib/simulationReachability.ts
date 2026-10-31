@@ -95,37 +95,38 @@ const enqueueDynamicServiceTargets = (
   }
 };
 
+const getIngressTargetServiceNames = (currentNode: Node): Set<string> => {
+  const names = new Set<string>();
+  const backendName = currentNode.data?.backendServiceName || currentNode.data?.serviceName;
+  if (typeof backendName === 'string' && backendName) {
+    names.add(backendName);
+  }
+  if (Array.isArray(currentNode.data?.ingressPaths)) {
+    for (const rule of currentNode.data.ingressPaths) {
+      if (rule?.serviceName) {
+        names.add(String(rule.serviceName));
+      }
+    }
+  }
+  return names;
+};
+
 const enqueueDynamicIngressTargets = (
   currentNode: Node,
   nodes: Node[] | undefined,
   queue: string[]
 ) => {
   if (currentNode.type !== 'Ingress' || !nodes) return;
-  const backendName = currentNode.data?.backendServiceName || currentNode.data?.serviceName;
-  if (!backendName) return;
+  const targetServiceNames = getIngressTargetServiceNames(currentNode);
+  if (targetServiceNames.size === 0) return;
 
   const backendServices = nodes.filter(node =>
     node.type === 'Service' &&
     (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-    node.data?.label === backendName
+    targetServiceNames.has(String(node.data?.label || ''))
   );
   for (const service of backendServices) {
     queue.push(String(service.id));
-  }
-
-  if (Array.isArray(currentNode.data?.ingressPaths)) {
-    for (const rule of currentNode.data.ingressPaths) {
-      if (rule.serviceName && rule.serviceName !== backendName) {
-        const matches = nodes.filter(node =>
-          node.type === 'Service' &&
-          (node.data?.serviceType || 'ClusterIP') === 'ClusterIP' &&
-          node.data?.label === rule.serviceName
-        );
-        for (const s of matches) {
-          queue.push(String(s.id));
-        }
-      }
-    }
   }
 };
 

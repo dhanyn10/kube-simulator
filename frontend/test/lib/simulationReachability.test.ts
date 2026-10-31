@@ -218,6 +218,39 @@ describe('simulationReachability', () => {
     expect(isRed).toBe(false);
   });
 
+  it('enqueues dynamic Ingress targets from ingressPaths even when backendServiceName is empty', () => {
+    const ingNode: Node = {
+      id: 'ing-paths-only',
+      type: 'Ingress',
+      data: {
+        backendServiceName: '',
+        ingressPaths: [{ id: 'p1', path: '/api', serviceName: 'api-svc', servicePort: 80 }],
+      },
+      position: { x: 0, y: 0 },
+    };
+    const svcNode: Node = {
+      id: 'svc-api',
+      type: 'Service',
+      data: { label: 'api-svc', serviceType: 'ClusterIP', selector: 'api-pod' },
+      position: { x: 100, y: 0 },
+    };
+    const podNode: Node = {
+      id: 'pod-api',
+      type: 'Pod',
+      data: { label: 'api-pod', status: 'ready' },
+      position: { x: 200, y: 0 },
+    };
+
+    const reachable = calculateReachability(
+      [ingNode],
+      new Map(),
+      new Set(),
+      [ingNode, svcNode, podNode]
+    );
+    expect(reachable.has('svc-api')).toBe(true);
+    expect(reachable.has('pod-api')).toBe(true);
+  });
+
   it('covers isInternetConnectionRed when Ingress downstream has a valid backend (line 183 false branch)', () => {
     const internetNode: Node = {
       id: 'i1',
