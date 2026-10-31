@@ -56,6 +56,88 @@ const getWorkloadSelectorOptionClasses = (isSelected: boolean, colorMode: string
   return getServiceTypeOptionClasses(false, isSelected, colorMode);
 };
 
+const buildServiceSelectorOptions = (
+  selectedNode: any,
+  nodes: any[],
+  currentServiceType: string
+): SelectorDropdownOption[] => {
+  const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
+  const inSameNamespace = (n: any) => {
+    if (!selectedNamespaceId) {
+      return !n.parentId;
+    }
+    return n.parentId === selectedNamespaceId;
+  };
+
+  const optionsMap = new Map<string, SelectorDropdownOption>();
+
+  if (currentServiceType === 'LoadBalancer') {
+    const ingressNodes = nodes.filter((n) => n.type === 'Ingress' && inSameNamespace(n));
+    for (const n of ingressNodes) {
+      const label = (n.data?.label as string) || n.id;
+      if (label && !optionsMap.has(label)) {
+        optionsMap.set(label, { label, category: 'INGRESS' });
+      }
+    }
+  }
+
+  const workloadNodes = nodes.filter((n) => {
+    if (!inSameNamespace(n)) return false;
+    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') return true;
+    return n.type === 'Pod' && !n.parentId && !n.data?.parentId;
+  });
+
+  for (const n of workloadNodes) {
+    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+    if (label && !optionsMap.has(label)) {
+      const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
+      const port = Number(n.data?.port) || undefined;
+      optionsMap.set(label, { label, category: cat, port });
+    }
+  }
+
+  return Array.from(optionsMap.values());
+};
+
+const resolveActiveIngressTargets = (
+  data: any,
+  currentServiceType: string,
+  availableOptions: SelectorDropdownOption[]
+): string[] => {
+  if (currentServiceType !== 'LoadBalancer') return [];
+  const validIngressLabels = new Set(
+    availableOptions.filter((o) => o.category === 'INGRESS').map((o) => o.label)
+  );
+  if (Array.isArray(data.ingressTargets) && data.ingressTargets.length > 0) {
+    return data.ingressTargets.filter((lbl: string) => validIngressLabels.has(lbl));
+  }
+  if (data.selector && validIngressLabels.has(data.selector)) {
+    return [data.selector];
+  }
+  return [];
+};
+
+const buildSelectorUpdatePatch = (
+  opt: SelectorDropdownOption,
+  data: any,
+  activeIngressTargets: string[]
+): Record<string, any> => {
+  if (opt.category === 'INGRESS') {
+    const nextIngressTargets = activeIngressTargets.includes(opt.label)
+      ? activeIngressTargets.filter((t) => t !== opt.label)
+      : [...activeIngressTargets, opt.label];
+    return {
+      selector: nextIngressTargets[0] || '',
+      ingressTargets: nextIngressTargets.length > 0 ? nextIngressTargets : undefined,
+    };
+  }
+  return {
+    selector: opt.label,
+    ...(data.ingressTargets !== undefined ? { ingressTargets: undefined } : {}),
+    ...(opt.port ? { targetPort: opt.port } : {}),
+  };
+};
+
 /**
  * Configuration component for Kubernetes Service resources.
  *
@@ -93,51 +175,15 @@ export const ServiceConfig = ({
   }, []);
 
   const selectedServiceTypeOption = SERVICE_TYPE_OPTIONS.find((opt) => opt.value === currentServiceType) || SERVICE_TYPE_OPTIONS[0];
+  const availableOptions = buildServiceSelectorOptions(selectedNode, nodes, currentServiceType);
+  const activeIngressTargets = resolveActiveIngressTargets(data, currentServiceType, availableOptions);
 
-  // Canvas inspection: Namespace filtering
-  const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
-  const inSameNamespace = (n: any) => {
-    if (!selectedNamespaceId) {
-      return !n.parentId;
-    }
-    return n.parentId === selectedNamespaceId;
-  };
-
-  // Inspect canvas state for available target options based on Service Type
-  const optionsMap = new Map<string, SelectorDropdownOption>();
-
-  if (currentServiceType === 'LoadBalancer') {
-    // Check Ingress in same namespace for LoadBalancer services
-    const ingressNodes = nodes.filter((n) => n.type === 'Ingress' && inSameNamespace(n));
-    ingressNodes.forEach((n) => {
-      const label = (n.data?.label as string) || n.id;
-      if (label && !optionsMap.has(label)) {
-        optionsMap.set(label, { label, category: 'INGRESS' });
-      }
-    });
-  }
-
-  // Check Pods / Deployments / ReplicaSets in same namespace for all service types
-  const workloadNodes = nodes.filter((n) => {
-    if (!inSameNamespace(n)) return false;
-    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') return true;
-    if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
-    return false;
-  });
-
-  workloadNodes.forEach((n) => {
-    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-    if (label && !optionsMap.has(label)) {
-      const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
-      const port = Number(n.data?.port) || undefined;
-      optionsMap.set(label, { label, category: cat, port });
-    }
-  });
-
-  const availableOptions = Array.from(optionsMap.values());
   const currentSelector = data.selector || '';
   const selectedOptionObj = availableOptions.find((opt) => opt.label === currentSelector);
-  const isSelectorValid = Boolean(currentSelector && selectedOptionObj);
+  const hasMultiIngress = activeIngressTargets.length > 0;
+  const isSelectorValid = hasMultiIngress || Boolean(currentSelector && selectedOptionObj);
+  const displaySelectorText = hasMultiIngress ? activeIngressTargets.join(', ') : (isSelectorValid ? currentSelector : '---');
+  const displayCategory = hasMultiIngress ? 'INGRESS' : selectedOptionObj?.category;
 
   return (
     <div className="space-y-4">
@@ -308,18 +354,18 @@ export const ServiceConfig = ({
                     isSelectorValid ? "text-amber-500" : "text-rose-400 font-mono tracking-widest"
                   )}
                 >
-                  {isSelectorValid ? currentSelector : '---'}
+                  {displaySelectorText}
                 </span>
-                {selectedOptionObj && (
+                {displayCategory && (
                   <span
                     className={cn(
                       "text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0",
-                      selectedOptionObj.category === 'INGRESS'
+                      displayCategory === 'INGRESS'
                         ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                         : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                     )}
                   >
-                    {selectedOptionObj.category}
+                    {displayCategory}
                   </span>
                 )}
               </div>
@@ -334,18 +380,20 @@ export const ServiceConfig = ({
                 )}
               >
                 {availableOptions.map((opt) => {
-                  const isSelected = currentSelector === opt.label;
+                  const isSelected =
+                    opt.category === 'INGRESS'
+                      ? activeIngressTargets.includes(opt.label)
+                      : currentSelector === opt.label;
 
                   return (
                     <button
                       key={`${opt.category}-${opt.label}`}
                       type="button"
                       onClick={() => {
-                        performUpdate({
-                          selector: opt.label,
-                          ...(opt.port ? { targetPort: opt.port } : {}),
-                        });
-                        setIsSelectorDropdownOpen(false);
+                        performUpdate(buildSelectorUpdatePatch(opt, data, activeIngressTargets));
+                        if (opt.category !== 'INGRESS') {
+                          setIsSelectorDropdownOpen(false);
+                        }
                       }}
                       className={cn(
                         "w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer",

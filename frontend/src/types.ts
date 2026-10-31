@@ -115,6 +115,7 @@ export interface K8sNodeData {
   targetPort?: number;
   nodePort?: number;
   selector?: string;
+  ingressTargets?: string[];
   onDelete?: () => void;
   onRename?: (newName: string) => void;
   isHovered?: boolean;

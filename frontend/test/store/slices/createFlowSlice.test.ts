@@ -579,6 +579,12 @@ describe('createFlowSlice', () => {
       position: { x: 200, y: 0 },
       data: { label: 'edge-ingress' },
     };
+    const ingress2 = {
+      id: 'ing-target-2',
+      type: 'Ingress',
+      position: { x: 200, y: 50 },
+      data: { label: 'second-ingress' },
+    };
     const statefulSet = {
       id: 'ss-target',
       type: 'StatefulSet',
@@ -587,13 +593,24 @@ describe('createFlowSlice', () => {
     };
 
     useFlowStore.setState({
-      nodes: [lbSvc, clusterSvc, ingress, statefulSet] as any,
+      nodes: [lbSvc, clusterSvc, ingress, ingress2, statefulSet] as any,
       edges: [],
     });
 
     useFlowStore.getState().onConnect({ source: 'svc-lb', target: 'ing-target' });
-    const updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'svc-lb')!;
+    let updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'svc-lb')!;
     expect(updatedLb.data.selector).toBe('edge-ingress');
+    expect(updatedLb.data.ingressTargets).toEqual(['edge-ingress']);
+
+    useFlowStore.getState().onConnect({ source: 'svc-lb', target: 'ing-target-2' });
+    updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'svc-lb')!;
+    expect(updatedLb.data.ingressTargets).toEqual(['edge-ingress', 'second-ingress']);
+
+    const firstLbEdge = useFlowStore.getState().edges.find((e) => e.source === 'svc-lb' && e.target === 'ing-target')!;
+    useFlowStore.getState().onEdgesChange([{ id: firstLbEdge.id, type: 'remove' }]);
+    updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'svc-lb')!;
+    expect(updatedLb.data.ingressTargets).toEqual(['second-ingress']);
+    expect(updatedLb.data.selector).toBe('second-ingress');
 
     useFlowStore.getState().onConnect({ source: 'svc-cip', target: 'ss-target' });
     const updatedCip = useFlowStore.getState().nodes.find((n) => n.id === 'svc-cip')!;

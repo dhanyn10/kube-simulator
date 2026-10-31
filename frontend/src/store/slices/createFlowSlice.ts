@@ -101,8 +101,38 @@ const isServiceEdgeMatching = (
   if (edge.source !== serviceNodeId) return false;
   const target = allNodes.find((n) => n.id === edge.target);
   if (!target) return false;
-  const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+  const tLabel = (target.data?.label as string) || (target.data?.baseName as string) || target.id;
   return tLabel === currentSelector;
+};
+
+const reconcileServiceOnEdgeChange = (
+  node: Node,
+  nextEdges: Edge[],
+  allNodes: Node[]
+): Node => {
+  const rawIngressTargets = node.data?.ingressTargets as string[] | undefined;
+  if (Array.isArray(rawIngressTargets) && rawIngressTargets.length > 0) {
+    const remainingTargets = rawIngressTargets.filter((lbl) =>
+      nextEdges.some((e) => isServiceEdgeMatching(e, node.id, lbl, allNodes))
+    );
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        selector: remainingTargets[0] || '',
+        ingressTargets: remainingTargets.length > 0 ? remainingTargets : undefined,
+      },
+    };
+  }
+
+  if (node.data?.selector) {
+    const currentSelector = String(node.data.selector);
+    const hasMatch = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, allNodes));
+    if (!hasMatch) {
+      return { ...node, data: { ...node.data, selector: '' } };
+    }
+  }
+  return node;
 };
 
 const reconcileNodeOnEdgeChange = (
@@ -114,12 +144,8 @@ const reconcileNodeOnEdgeChange = (
   if (node.type === 'Ingress') {
     return reconcileIngressOnRemovedEdges(node, removedEdgeObjects, allNodes);
   }
-  if (node.type === 'Service' && node.data?.selector) {
-    const currentSelector = String(node.data.selector);
-    const hasMatch = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, allNodes));
-    if (!hasMatch) {
-      return { ...node, data: { ...node.data, selector: '' } };
-    }
+  if (node.type === 'Service') {
+    return reconcileServiceOnEdgeChange(node, nextEdges, allNodes);
   }
   return node;
 };
@@ -544,6 +570,45 @@ const isValidServiceSelectorTarget = (
   return targetType === 'ingress' && serviceType === 'LoadBalancer';
 };
 
+const buildConnectedServiceData = (
+  currentData: Record<string, any> | undefined,
+  targetNodeInStore: Node | undefined,
+  tgtId: string,
+  targetType: string,
+  allNodes: Node[]
+): Record<string, any> => {
+  const data = currentData || {};
+  const targetLabel =
+    (targetNodeInStore?.data?.label as string) ||
+    (targetNodeInStore?.data?.baseName as string) ||
+    targetNodeInStore?.id ||
+    tgtId;
+
+  if (targetType === 'ingress') {
+    const existingList = Array.isArray(data.ingressTargets) ? (data.ingressTargets as string[]) : [];
+    const currentSel = String(data.selector || '');
+    const isCurrentSelIngress = Boolean(
+      currentSel &&
+      allNodes.some((item) => item.type === 'Ingress' && ((item.data?.label as string) || item.id) === currentSel)
+    );
+    const baseTargets = existingList.length > 0 ? existingList : (isCurrentSelIngress ? [currentSel] : []);
+    const nextTargets = baseTargets.includes(targetLabel) ? baseTargets : [...baseTargets, targetLabel];
+    return {
+      ...data,
+      selector: nextTargets[0] || targetLabel,
+      ingressTargets: nextTargets,
+    };
+  }
+
+  const workloadPort = Number(targetNodeInStore?.data?.port);
+  return {
+    ...data,
+    selector: targetLabel,
+    ...(data.ingressTargets !== undefined ? { ingressTargets: undefined } : {}),
+    ...(workloadPort ? { targetPort: workloadPort } : {}),
+  };
+};
+
 const updateConnectedNodeState = (
   n: Node,
   ctx: ConnectedNodeSyncContext
@@ -569,15 +634,9 @@ const updateConnectedNodeState = (
         data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
       };
     } else if (sType === 'service' && isValidServiceSelectorTarget(updated.data, tType)) {
-      const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
-      const workloadPort = Number(targetNodeInStore?.data?.port);
       updated = {
         ...updated,
-        data: {
-          ...updated.data,
-          selector: targetLabel,
-          ...(workloadPort ? { targetPort: workloadPort } : {}),
-        },
+        data: buildConnectedServiceData(updated.data, targetNodeInStore, tgtId, tType, syncedNodesList),
       };
     }
   }
