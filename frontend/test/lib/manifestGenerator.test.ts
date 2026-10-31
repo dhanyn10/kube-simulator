@@ -251,6 +251,8 @@ describe('manifestGenerator test suite', () => {
 
     const yamlOutput = generateYamlClientSide(nodes, edges);
     expect(yamlOutput).toContain('ingressClassName: traefik');
+    expect(yamlOutput).toContain('traefik.ingress.kubernetes.io/router.entrypoints: web,websecure');
+    expect(yamlOutput).not.toContain('nginx.ingress.kubernetes.io/rewrite-target');
     expect(yamlOutput).toContain('path: /api');
     expect(yamlOutput).toContain('name: api-service');
     expect(yamlOutput).toContain('path: /payment');
