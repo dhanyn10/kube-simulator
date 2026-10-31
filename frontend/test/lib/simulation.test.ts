@@ -1519,3 +1519,72 @@ describe('simulation test suite', () => {
     });
   });
 });
+
+
+describe('simulation uncovered condition coverage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (safeRandom as any).mockReturnValue(0.5);
+  });
+
+  it('checkPortMismatch falls back to no incoming edges when the workload has none registered', () => {
+    const dep = createNode('d-no-edges', 'Deployment', { label: 'no-edges' });
+    const ctx = getMockCtx({ targetEdgeMap: new Map() });
+    expect(checkPortMismatch(dep, ctx, 3000)).toEqual({ hasChanges: false, isBlocked: false });
+  });
+
+  it('parseSecretSimulationSettings ignores secrets whose secretData is not an array', () => {
+    const result = parseSecretSimulationSettings([
+      { id: 's-null', name: 'null-data', secretData: null as any },
+      { id: 's-undef', name: 'undef-data' } as any,
+      { id: 's-fail', name: 'failing', secretData: [{ key: 'FAIL_AUTH', value: 'true' }] },
+    ]);
+    expect(result).toEqual({ hasAuthFailure: true, failingSecretName: 'failing' });
+
+    expect(parseSecretSimulationSettings([{ id: 's-only-null', name: 'x', secretData: null as any }])).toEqual({
+      hasAuthFailure: false,
+      failingSecretName: '',
+    });
+  });
+
+  it('checkConfigMapSimulationStatus treats a standalone Pod as its own child pod', () => {
+    const pod = createNode('pod-standalone', 'Pod', { label: 'standalone', status: 'ready', image: 'nginx' });
+    const ctx = getMockCtx({ nodes: [pod], updatedNodes: [pod], childPodMap: new Map() });
+    ctx.nodeIndexMap = new Map([['pod-standalone', 0]]);
+
+    const result = checkConfigMapSimulationStatus(pod, ctx);
+    expect(result.isBlocked).toBe(false);
+    expect(result.hasChanges).toBe(false);
+
+    const chaosPod = createNode('pod-chaos', 'Pod', {
+      label: 'chaos',
+      status: 'ready',
+      image: 'nginx',
+      configMaps: [{ id: 'cm-chaos', name: 'chaos-cm', configData: [{ key: 'CHAOS_MODE', value: 'enabled' }] }],
+    });
+    const chaosCtx = getMockCtx({ nodes: [chaosPod], updatedNodes: [chaosPod], childPodMap: new Map() });
+    chaosCtx.nodeIndexMap = new Map([['pod-chaos', 0]]);
+    const chaosResult = checkConfigMapSimulationStatus(chaosPod, chaosCtx);
+    expect(chaosResult.isBlocked).toBe(true);
+    expect(chaosCtx.updatedNodes[0].data.status).toBe('crashing');
+  });
+
+  it('processWorkloadSimulation reports no changes when PVC blocks the workload without any state change', () => {
+    const dep = createNode('dep-pvc-nochange', 'Deployment', { label: 'pvc-nochange', status: 'ready' });
+    const pvc = createNode('pvc-still-pending', 'PVC', { label: 'pending-vol', pvcStatus: 'Pending' });
+    const edge = { id: 'e-pvc-nochange', source: 'pvc-still-pending', target: 'dep-pvc-nochange' } as Edge;
+    const ctx = getMockCtx({
+      nodes: [dep, pvc],
+      updatedNodes: [dep, pvc],
+      nodeMap: new Map([['dep-pvc-nochange', dep], ['pvc-still-pending', pvc]]),
+      targetEdgeMap: new Map([['dep-pvc-nochange', [edge]]]),
+      edgeMap: new Map(),
+      childPodMap: new Map(),
+    });
+    ctx.nodeIndexMap = new Map([['dep-pvc-nochange', 0], ['pvc-still-pending', 1]]);
+
+    const result = processWorkloadSimulation(dep, ctx);
+    expect(result.hasChanges).toBe(false);
+    expect(ctx.updatedNodes[1].data.pvcStatus).toBe('Pending');
+  });
+});

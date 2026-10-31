@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ServiceNode } from '@/components/Nodes/Service';
 import { useFlowStore } from '@/store';
@@ -308,5 +308,34 @@ describe('ServiceNode', () => {
       </ReactFlowProvider>
     );
     expect(screen.getByText('app: ingress-one, ing-2')).toBeDefined();
+
+    // LoadBalancer whose ingressTargets are all stale falls back to single selector validation
+    cleanup();
+    render(
+      <ReactFlowProvider>
+        <ServiceNode
+          id="s-stale-ing"
+          type="Service"
+          data={{
+            serviceType: 'LoadBalancer',
+            selector: 'ingress-one',
+            ingressTargets: ['stale-a', 'stale-b'],
+          }}
+        />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ingress-one')).toBeDefined();
+
+    cleanup();
+    render(
+      <ReactFlowProvider>
+        <ServiceNode
+          id="s-stale-ing-no-selector"
+          type="Service"
+          data={{ serviceType: 'LoadBalancer', ingressTargets: ['stale-a'] }}
+        />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ---')).toBeDefined();
   });
 });

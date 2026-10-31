@@ -530,4 +530,19 @@ describe('ServiceConfig', () => {
       }
     }
   });
+
+  it('skips workload nodes that have no label, baseName or id when building selector options', () => {
+    useFlowStore.setState({
+      nodes: [
+        { id: '', type: 'Deployment', data: {} },
+        { id: 'dep-labeled', type: 'Deployment', data: { label: 'labeled-app' } },
+      ] as any,
+    });
+
+    render(<ServiceConfig {...mockProps} selectedNode={{ id: 's-skip', data: { serviceType: 'ClusterIP', selector: 'labeled-app' } }} />);
+    fireEvent.click(screen.getByRole('button', { name: /labeled-app/i }));
+
+    expect(screen.getAllByText('labeled-app').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('DEPLOYMENT')).toHaveLength(2);
+  });
 });
