@@ -6,6 +6,47 @@ import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 
+const isMatchingServiceSelectorNode = (n: any, serviceType: string, selector: string): boolean => {
+  if (serviceType === 'LoadBalancer' && n.type === 'Ingress') {
+    const label = (n.data?.label as string) || n.id;
+    return label === selector;
+  }
+  if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') {
+    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+    return label === selector;
+  }
+  if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) {
+    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+    return label === selector;
+  }
+  return false;
+};
+
+const resolveValidServiceSelectorDisplay = (
+  data: K8sNodeData,
+  serviceType: string,
+  nodes: any[]
+): { isSelectorValid: boolean; selectorText: string } => {
+  if (serviceType === 'LoadBalancer' && Array.isArray(data.ingressTargets) && data.ingressTargets.length > 0) {
+    const validTargets = data.ingressTargets.filter((targetLabel) =>
+      nodes.some((n) => n.type === 'Ingress' && ((n.data?.label as string) || n.id) === targetLabel)
+    );
+    if (validTargets.length > 0) {
+      return { isSelectorValid: true, selectorText: validTargets.join(', ') };
+    }
+  }
+
+  const isSingleValid = Boolean(
+    data.selector &&
+    nodes.some((n) => isMatchingServiceSelectorNode(n, serviceType, data.selector!))
+  );
+
+  return {
+    isSelectorValid: isSingleValid,
+    selectorText: isSingleValid ? String(data.selector) : '---',
+  };
+};
+
 export const ServiceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -14,25 +55,7 @@ export const ServiceNode = memo((props: NodeProps) => {
   const serviceType = data.serviceType || 'ClusterIP';
   const showNodePort = (serviceType === 'NodePort' || serviceType === 'LoadBalancer') && Boolean(data.nodePort);
 
-  // Check if current selector matches an active workload or Ingress on canvas
-  const isSelectorValid = Boolean(
-    data.selector &&
-    nodes.some((n) => {
-      if (serviceType === 'LoadBalancer' && n.type === 'Ingress') {
-        const label = (n.data?.label as string) || n.id;
-        return label === data.selector;
-      }
-      if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
-        const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-        return label === data.selector;
-      }
-      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) {
-        const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-        return label === data.selector;
-      }
-      return false;
-    })
-  );
+  const { isSelectorValid, selectorText } = resolveValidServiceSelectorDisplay(data, serviceType, nodes);
 
   return (
     <BaseNode {...props} data={data} title="Service" icon={Network} color="amber" id={props.id} type={props.type}>
@@ -73,7 +96,7 @@ export const ServiceNode = memo((props: NodeProps) => {
             )}
             style={isSelectorValid ? { color: 'var(--color-mat-amber)' } : undefined}
           >
-            app: {isSelectorValid ? data.selector : '---'}
+            app: {selectorText}
           </div>
         </div>
       )}

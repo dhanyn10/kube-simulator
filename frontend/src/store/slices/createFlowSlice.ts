@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import type { FlowState } from '@/store/types';
 import { getConnectionError } from '@/constants/connections';
-import { getAbsPos } from '@/store/helpers';
+import { getAbsPos, ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { safeRandom } from '@/lib/utils';
 import {
   emitLiveEdgeCreatedCommand,
@@ -101,8 +101,38 @@ const isServiceEdgeMatching = (
   if (edge.source !== serviceNodeId) return false;
   const target = allNodes.find((n) => n.id === edge.target);
   if (!target) return false;
-  const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+  const tLabel = (target.data?.label as string) || (target.data?.baseName as string) || target.id;
   return tLabel === currentSelector;
+};
+
+const reconcileServiceOnEdgeChange = (
+  node: Node,
+  nextEdges: Edge[],
+  allNodes: Node[]
+): Node => {
+  const rawIngressTargets = node.data?.ingressTargets as string[] | undefined;
+  if (Array.isArray(rawIngressTargets) && rawIngressTargets.length > 0) {
+    const remainingTargets = rawIngressTargets.filter((lbl) =>
+      nextEdges.some((e) => isServiceEdgeMatching(e, node.id, lbl, allNodes))
+    );
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        selector: remainingTargets[0] || '',
+        ingressTargets: remainingTargets.length > 0 ? remainingTargets : undefined,
+      },
+    };
+  }
+
+  if (node.data?.selector) {
+    const currentSelector = String(node.data.selector);
+    const hasMatch = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, allNodes));
+    if (!hasMatch) {
+      return { ...node, data: { ...node.data, selector: '' } };
+    }
+  }
+  return node;
 };
 
 const reconcileNodeOnEdgeChange = (
@@ -114,12 +144,8 @@ const reconcileNodeOnEdgeChange = (
   if (node.type === 'Ingress') {
     return reconcileIngressOnRemovedEdges(node, removedEdgeObjects, allNodes);
   }
-  if (node.type === 'Service' && node.data?.selector) {
-    const currentSelector = String(node.data.selector);
-    const hasMatch = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, allNodes));
-    if (!hasMatch) {
-      return { ...node, data: { ...node.data, selector: '' } };
-    }
+  if (node.type === 'Service') {
+    return reconcileServiceOnEdgeChange(node, nextEdges, allNodes);
   }
   return node;
 };
@@ -533,6 +559,57 @@ interface ConnectedNodeSyncContext {
   tgtNode?: Node;
 }
 
+const isValidServiceSelectorTarget = (
+  serviceData: Record<string, any> | undefined,
+  targetType: string
+): boolean => {
+  if (['deployment', 'statefulset', 'pod', 'replicaset'].includes(targetType)) {
+    return true;
+  }
+  const serviceType = String(serviceData?.serviceType || 'ClusterIP');
+  return targetType === 'ingress' && serviceType === 'LoadBalancer';
+};
+
+const buildConnectedServiceData = (
+  currentData: Record<string, any> | undefined,
+  targetNodeInStore: Node | undefined,
+  tgtId: string,
+  targetType: string,
+  allNodes: Node[]
+): Record<string, any> => {
+  const data = currentData || {};
+  const targetLabel =
+    (targetNodeInStore?.data?.label as string) ||
+    (targetNodeInStore?.data?.baseName as string) ||
+    targetNodeInStore?.id ||
+    tgtId;
+
+  if (targetType === 'ingress') {
+    const existingList = Array.isArray(data.ingressTargets) ? (data.ingressTargets as string[]) : [];
+    const currentSel = String(data.selector || '');
+    const isCurrentSelIngress = Boolean(
+      currentSel &&
+      allNodes.some((item) => item.type === 'Ingress' && ((item.data?.label as string) || item.id) === currentSel)
+    );
+    const fallbackTargets = isCurrentSelIngress ? [currentSel] : [];
+    const baseTargets = existingList.length > 0 ? existingList : fallbackTargets;
+    const nextTargets = baseTargets.includes(targetLabel) ? baseTargets : [...baseTargets, targetLabel];
+    return {
+      ...data,
+      selector: nextTargets[0] || targetLabel,
+      ingressTargets: nextTargets,
+    };
+  }
+
+  const workloadPort = Number(targetNodeInStore?.data?.port);
+  return {
+    ...data,
+    selector: targetLabel,
+    ...(data.ingressTargets !== undefined ? { ingressTargets: undefined } : {}),
+    ...(workloadPort ? { targetPort: workloadPort } : {}),
+  };
+};
+
 const updateConnectedNodeState = (
   n: Node,
   ctx: ConnectedNodeSyncContext
@@ -557,9 +634,11 @@ const updateConnectedNodeState = (
         ...updated,
         data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
       };
-    } else if (sType === 'service' && ['deployment', 'pod', 'replicaset'].includes(tType)) {
-      const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
-      updated = { ...updated, data: { ...updated.data, selector: targetLabel } };
+    } else if (sType === 'service' && isValidServiceSelectorTarget(updated.data, tType)) {
+      updated = {
+        ...updated,
+        data: buildConnectedServiceData(updated.data, targetNodeInStore, tgtId, tType, syncedNodesList),
+      };
     }
   }
 
@@ -698,7 +777,7 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
     const newEdges = edges.map((e) => (e.id === oldEdge.id ? validateEdge({ ...e, ...newConnection }) : e));
     set({ edges: newEdges });
   },
-  setNodes: (nodes: Node[]) => set({ nodes }),
+  setNodes: (nodes: Node[]) => set({ nodes: ejectLoadBalancersFromNamespaces(nodes).nodes }),
   setEdges: (edges: Edge[]) => {
     set((state) => {
       const syncedNodes = syncRoleRulesFromConnections(state.nodes, edges);

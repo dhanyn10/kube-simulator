@@ -409,6 +409,19 @@ describe('IngressConfig', () => {
     fireEvent.click(addMoreBtn);
 
     expect(screen.getByText('Manage Ingress Routing Paths')).toBeDefined();
+
+    // Save paths from modal triggers onSave in IngressConfig
+    fireEvent.click(screen.getByRole('button', { name: /Save Paths/i }));
+    expect(performUpdate).toHaveBeenCalled();
+
+    // Reopen and close via Cancel button
+    fireEvent.click(addMoreBtn);
+    fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+
+    // Toggle Ingress Class visibility
+    const showHideButtons = screen.getAllByTitle('Show/Hide on Card');
+    showHideButtons.forEach((btn) => fireEvent.click(btn));
+    expect(toggleVisibility).toHaveBeenCalledWith('ingressClassName');
   });
 
   it('hides manual path input and renders path badges when multiple paths exist', () => {

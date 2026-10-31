@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import { createStore, useStore } from 'zustand';
 import type { FlowState } from '@/store/types';
 import { createFlowSlice } from '@/store/slices/createFlowSlice';
+import { ejectLoadBalancersFromNamespaces } from '@/store/helpers';
 import { createDeploymentSlice } from '@/store/slices/createDeploymentSlice';
 import { createNodeSlice } from '@/store/slices/createNodeSlice';
 import { createUiSlice } from '@/store/slices/createUiSlice';
@@ -201,7 +202,7 @@ export const applyHistoryState = (json: string) => {
     const data = JSON.parse(json);
     isApplyingHistory = true;
     flowStore.setState({
-      nodes: data.nodes,
+      nodes: Array.isArray(data.nodes) ? ejectLoadBalancersFromNamespaces(data.nodes).nodes : data.nodes,
       edges: data.edges,
       lastActionId: `history-apply-${Date.now()}`,
       lastActionName: `Applied: ${data.actionName}`

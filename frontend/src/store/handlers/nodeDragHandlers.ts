@@ -4,7 +4,8 @@ import {
   isAllowed, 
   getNodeData, 
   sortNodes,
-  resolveGlobalCollisions
+  resolveGlobalCollisions,
+  ejectLoadBalancersFromNamespaces
 } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
@@ -25,7 +26,10 @@ const getRelationshipStatus = (node: Node, container: Node, intersects: boolean,
   if (node.parentId === container.id) {
     return overlapPercentage < 20 ? 'detaching' : 'hovering';
   }
-  if (intersects && isAllowed(container.type || '', node.type || '')) {
+  if (intersects && container.type === 'Namespace' && node.type === 'Service' && node.data?.serviceType === 'LoadBalancer') {
+    return 'detaching';
+  }
+  if (intersects && isAllowed(container.type || '', node.type || '', node.data as Record<string, any>)) {
     return 'hovering';
   }
   return null;
@@ -74,7 +78,7 @@ const findHoveredContainer = (node: Node, nodeAbs: { x: number, y: number }, nod
  */
 const applyNewParent = (node: Node, nextNodes: Node[], hoveredId: string, absPos: { x: number, y: number }, get: () => FlowState, finalNode: Node) => {
   const target = nextNodes.find(n => n.id === hoveredId);
-  if (!target || !isAllowed(target.type || '', node.type || '')) {
+  if (!target || !isAllowed(target.type || '', node.type || '', node.data as Record<string, any>)) {
     return nextNodes.map(n => n.id === node.id ? { ...n, parentId: undefined, position: absPos, extent: undefined } : n);
   }
   return (target.type === 'Deployment' || target.type === 'StatefulSet') && node.type === 'Pod'
@@ -166,6 +170,53 @@ const handleDropParenting = (node: Node, finalNode: Node, nextNodes: Node[], hov
   return nextNodes;
 };
 
+const mergeDroppedNodeIntoState = (stateNodes: Node[], nodeId: string, finalNode: Node): Node[] => {
+  return stateNodes.map((n) => {
+    if (n.id !== nodeId) return n;
+    return {
+      ...n,
+      ...finalNode,
+      measured: finalNode.measured ?? n.measured,
+      width: finalNode.width ?? n.width,
+      height: finalNode.height ?? n.height,
+      style: finalNode.style ?? n.style,
+    };
+  });
+};
+
+const reconcileDroppedNode = (
+  node: Node,
+  finalNode: Node,
+  stateNodes: Node[],
+  hoveredDeploymentId: string | null,
+  detachingDeploymentId: string | null,
+  get: () => FlowState
+): { nextNodes: Node[]; finalNode: Node } => {
+  let nextNodes = mergeDroppedNodeIntoState(stateNodes, node.id, finalNode);
+  let resolvedFinalNode = nextNodes.find((n) => n.id === node.id) || finalNode;
+
+  const isLoadBalancerDrag = resolvedFinalNode.type === 'Service' && resolvedFinalNode.data?.serviceType === 'LoadBalancer';
+  if (isLoadBalancerDrag || resolvedFinalNode.type === 'Namespace') {
+    const { nodes: ejectedNodes, ejectedIds } = ejectLoadBalancersFromNamespaces(nextNodes);
+    if (ejectedIds.length > 0) {
+      nextNodes = ejectedNodes;
+      resolvedFinalNode = nextNodes.find((n) => n.id === node.id) || resolvedFinalNode;
+      get().addLog('warn', '[Canvas Action] LoadBalancer Service cannot be placed inside a Namespace! Moved to nearest outside edge.', 'UI');
+      if (isLoadBalancerDrag) {
+        return { nextNodes, finalNode: resolvedFinalNode };
+      }
+    }
+  }
+
+  if (!hoveredDeploymentId) {
+    nextNodes = resolveGlobalCollisions(nextNodes, node.id);
+    resolvedFinalNode = nextNodes.find((n) => n.id === node.id) || resolvedFinalNode;
+  }
+
+  nextNodes = handleDropParenting(node, resolvedFinalNode, nextNodes, hoveredDeploymentId, detachingDeploymentId, get);
+  return { nextNodes, finalNode: resolvedFinalNode };
+};
+
 /**
  * Higher-order store handler managing node drag events on the canvas (drag start, drag movement, drag stop).
  *
@@ -242,24 +293,22 @@ export const dragHandlers = (set: any, get: () => FlowState) => ({
     const { detachingDeploymentId, hoveredDeploymentId, alignmentGuideLines } = store;
 
     set((state: FlowState) => {
-      let nextNodes = [...state.nodes];
-      let finalNode = { ...node };
+      let snappedNode = { ...node };
       if (alignmentGuideLines?.snapX !== undefined) {
-        finalNode.position = { ...finalNode.position, x: alignmentGuideLines.snapX };
+        snappedNode.position = { ...snappedNode.position, x: alignmentGuideLines.snapX };
       }
       if (alignmentGuideLines?.snapY !== undefined) {
-        finalNode.position = { ...finalNode.position, y: alignmentGuideLines.snapY };
+        snappedNode.position = { ...snappedNode.position, y: alignmentGuideLines.snapY };
       }
 
-      // 1. Collision Detection
-      nextNodes = nextNodes.map(n => n.id === node.id ? finalNode : n);
-      if (!hoveredDeploymentId) {
-        nextNodes = resolveGlobalCollisions(nextNodes, node.id);
-        finalNode = nextNodes.find(n => n.id === node.id) || finalNode;
-      }
-
-      // 2. Parenting Logic
-      nextNodes = handleDropParenting(node, finalNode, nextNodes, hoveredDeploymentId, detachingDeploymentId, get);
+      const { nextNodes, finalNode } = reconcileDroppedNode(
+        node,
+        snappedNode,
+        state.nodes,
+        hoveredDeploymentId,
+        detachingDeploymentId,
+        get
+      );
 
       const pos = getAbsPos(node.id, nextNodes, finalNode);
       const x1 = Math.round(pos.x);

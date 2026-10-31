@@ -1,5 +1,5 @@
 import { Node } from '@xyflow/react';
-import { getAbsPos, getNodeData } from '@/store/helpers';
+import { getAbsPos, getNodeData, getEffectiveSize } from '@/store/helpers';
 import { syncDeployment, syncContainerSize } from '@/store/nodeHelpers';
 import type { FlowState } from '@/store/types';
 
@@ -13,13 +13,11 @@ import type { FlowState } from '@/store/types';
  * @returns Object containing `intersects` boolean flag and `overlapPercentage` number
  */
 export const calculateOverlap = (node: Node, nodeAbs: any, container: Node, nodes: Node[]) => {
-  const nodeWidth = node.width || node.measured?.width || 160;
-  const nodeHeight = node.height || node.measured?.height || 80;
+  const { width: nodeWidth, height: nodeHeight } = getEffectiveSize(node);
   const podArea = nodeWidth * nodeHeight;
 
   const contAbs = getAbsPos(container.id, nodes);
-  const contWidth = container.width || container.measured?.width || (container.type === 'Deployment' || container.type === 'StatefulSet' ? 320 : 600);
-  const contHeight = container.height || container.measured?.height || (container.type === 'Deployment' || container.type === 'StatefulSet' ? 160 : 400);
+  const { width: contWidth, height: contHeight } = getEffectiveSize(container);
 
   const overlapX = Math.max(0, Math.min(nodeAbs.x + nodeWidth, contAbs.x + contWidth) - Math.max(nodeAbs.x, contAbs.x));
   const overlapY = Math.max(0, Math.min(nodeAbs.y + nodeHeight, contAbs.y + contHeight) - Math.max(nodeAbs.y, contAbs.y));

@@ -1577,6 +1577,37 @@ describe('nodeActions', () => {
     const paths = updatedIngress.data.ingressPaths as any[];
     expect(paths[0].serviceName).toBe('svc-a');
     expect(paths[1].serviceName).toBe('');
+
+    const dep = { id: 'dep-port-sync', type: 'Deployment', position: { x: 200, y: 0 }, data: { label: 'api-deploy', port: 8080, replicas: 1 } };
+    const childPod = { id: 'pod-child-port', type: 'Pod', parentId: 'dep-port-sync', position: { x: 10, y: 10 }, data: { label: 'api-deploy-abc', baseName: 'api-deploy', port: 8080 } };
+    const svc = { id: 'svc-lb-port', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'api-lb', serviceType: 'LoadBalancer', selector: 'api-deploy', port: 80, targetPort: 8080 } };
+    useFlowStore.setState({ nodes: [dep, childPod, svc] as any, edges: [{ id: 'e-svc-dep', source: 'svc-lb-port', target: 'dep-port-sync' }] as any });
+
+    updateNodeData(dep.id, { port: 9090 });
+    expect(useFlowStore.getState().nodes.find((n) => n.id === svc.id)?.data.targetPort).toBe(9090);
+
+    const currentChildPod = useFlowStore.getState().nodes.find((n) => n.type === 'Pod')!;
+    updateNodeData(currentChildPod.id, { port: 3000 });
+    expect(useFlowStore.getState().nodes.find((n) => n.id === svc.id)?.data.targetPort).toBe(3000);
+
+    // LoadBalancer with multiple ingressTargets: syncs edges and removes deleted Ingress from ingressTargets
+    const ing1 = { id: 'ing-m1', type: 'Ingress', position: { x: 200, y: 0 }, data: { label: 'ing-one' } };
+    const ing2 = { id: 'ing-m2', type: 'Ingress', position: { x: 200, y: 100 }, data: { label: 'ing-two' } };
+    const lbSvc = {
+      id: 'svc-lb-multi',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'lb-multi', serviceType: 'LoadBalancer', selector: 'ing-one' },
+    };
+    useFlowStore.setState({ nodes: [ing1, ing2, lbSvc] as any, edges: [] });
+
+    updateNodeData(lbSvc.id, { ingressTargets: ['ing-one', 'ing-two'] });
+    expect(useFlowStore.getState().edges).toHaveLength(2);
+
+    deleteNodes([ing1 as any]);
+    const afterDeleteLb = useFlowStore.getState().nodes.find((n) => n.id === lbSvc.id)!;
+    expect(afterDeleteLb.data.ingressTargets).toEqual(['ing-two']);
+    expect(afterDeleteLb.data.selector).toBe('ing-two');
   });
 
 });
