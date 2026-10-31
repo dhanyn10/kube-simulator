@@ -695,6 +695,78 @@ const syncPvcRealtimeStatuses = (nodes: Node[], edges: Edge[]): Node[] => {
   });
 };
 
+const collectWorkloadPortSyncTargets = (
+  target: Node,
+  updatedData: K8sNodeData,
+  nodes: Node[]
+): { targetLabels: Set<string>; targetIds: Set<string> } => {
+  const targetLabels = new Set<string>([String(updatedData.label || updatedData.baseName || target.id)]);
+  const targetIds = new Set<string>([target.id]);
+
+  if (target.parentId) {
+    const parentNode = nodes.find((n) => n.id === target.parentId);
+    if (parentNode && WORKLOAD_CONTROLLERS.has(parentNode.type)) {
+      targetLabels.add(String(parentNode.data?.label || parentNode.data?.baseName || parentNode.id));
+      targetIds.add(parentNode.id);
+    }
+  }
+  return { targetLabels, targetIds };
+};
+
+const propagateWorkloadPortToServices = (
+  target: Node,
+  newData: Partial<K8sNodeData>,
+  updatedData: K8sNodeData,
+  nodes: Node[],
+  edges: Edge[]
+): Node[] => {
+  if (newData.port === undefined || !['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet'].includes(target.type || '')) {
+    return nodes;
+  }
+
+  const nextPort = Number(newData.port) || 80;
+  const { targetLabels, targetIds } = collectWorkloadPortSyncTargets(target, updatedData, nodes);
+
+  return nodes.map((n) => {
+    if (n.type !== 'Service') return n;
+    const selectorMatches = targetLabels.has(String(n.data?.selector || ''));
+    const edgeMatches = edges.some((e) => e.source === n.id && targetIds.has(e.target));
+    if (!selectorMatches && !edgeMatches) return n;
+    return {
+      ...n,
+      data: {
+        ...n.data,
+        targetPort: nextPort,
+      },
+    };
+  });
+};
+
+const applyUniqueLabelSanitization = (
+  target: Node,
+  targetData: K8sNodeData,
+  newData: Partial<K8sNodeData>,
+  sanitizedData: Partial<K8sNodeData>,
+  nodes: Node[]
+): Partial<K8sNodeData> => {
+  if (newData.label === undefined && newData.baseName === undefined) {
+    return sanitizedData;
+  }
+  const rawNewName = newData.label || newData.baseName || targetData.label || targetData.baseName;
+  const uniqueName = ensureUniqueResourceName(
+    rawNewName,
+    target.type || '',
+    target.parentId,
+    nodes,
+    target.id
+  );
+  const next = { ...sanitizedData, label: uniqueName };
+  if (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet') {
+    next.baseName = uniqueName;
+  }
+  return next;
+};
+
 const emitLiveUpdateLogs = (
   target: Node,
   targetData: K8sNodeData,
@@ -746,21 +818,7 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
   if (newData.image) {
     sanitizedData.isAutoImage = false;
   }
-
-  if (newData.label !== undefined || newData.baseName !== undefined) {
-    const rawNewName = newData.label || newData.baseName || targetData.label || targetData.baseName;
-    const uniqueName = ensureUniqueResourceName(
-      rawNewName,
-      target.type || '',
-      target.parentId,
-      nodes,
-      target.id
-    );
-    sanitizedData.label = uniqueName;
-    if (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet') {
-      sanitizedData.baseName = uniqueName;
-    }
-  }
+  sanitizedData = applyUniqueLabelSanitization(target, targetData, newData, sanitizedData, nodes);
 
   let updatedData: K8sNodeData = { ...targetData, ...sanitizedData };
   updatedData = sanitizeAndUpdateServiceSelector(target, newData, updatedData, nodes);
@@ -791,6 +849,7 @@ const updateNodeDataImpl = (set: (state: Partial<FlowState>) => void, get: () =>
     nextNodes = invalidateTargetReferences(prevLabel, nextNodes);
   }
 
+  nextNodes = propagateWorkloadPortToServices(target, newData, updatedData, nextNodes, get().edges);
   nextNodes = syncPvcRealtimeStatuses(nextNodes, get().edges);
 
   const currentTargetNode = nextNodes.find((n) => n.id === nodeId) || updatedNode;

@@ -583,7 +583,7 @@ describe('createFlowSlice', () => {
       id: 'ss-target',
       type: 'StatefulSet',
       position: { x: 200, y: 100 },
-      data: { label: 'db-statefulset' },
+      data: { label: 'db-statefulset', port: 5432 },
     };
 
     useFlowStore.setState({
@@ -598,5 +598,6 @@ describe('createFlowSlice', () => {
     useFlowStore.getState().onConnect({ source: 'svc-cip', target: 'ss-target' });
     const updatedCip = useFlowStore.getState().nodes.find((n) => n.id === 'svc-cip')!;
     expect(updatedCip.data.selector).toBe('db-statefulset');
+    expect(updatedCip.data.targetPort).toBe(5432);
   });
 });

@@ -1577,6 +1577,18 @@ describe('nodeActions', () => {
     const paths = updatedIngress.data.ingressPaths as any[];
     expect(paths[0].serviceName).toBe('svc-a');
     expect(paths[1].serviceName).toBe('');
+
+    const dep = { id: 'dep-port-sync', type: 'Deployment', position: { x: 200, y: 0 }, data: { label: 'api-deploy', port: 8080, replicas: 1 } };
+    const childPod = { id: 'pod-child-port', type: 'Pod', parentId: 'dep-port-sync', position: { x: 10, y: 10 }, data: { label: 'api-deploy-abc', baseName: 'api-deploy', port: 8080 } };
+    const svc = { id: 'svc-lb-port', type: 'Service', position: { x: 0, y: 0 }, data: { label: 'api-lb', serviceType: 'LoadBalancer', selector: 'api-deploy', port: 80, targetPort: 8080 } };
+    useFlowStore.setState({ nodes: [dep, childPod, svc] as any, edges: [{ id: 'e-svc-dep', source: 'svc-lb-port', target: 'dep-port-sync' }] as any });
+
+    updateNodeData(dep.id, { port: 9090 });
+    expect(useFlowStore.getState().nodes.find((n) => n.id === svc.id)?.data.targetPort).toBe(9090);
+
+    const currentChildPod = useFlowStore.getState().nodes.find((n) => n.type === 'Pod')!;
+    updateNodeData(currentChildPod.id, { port: 3000 });
+    expect(useFlowStore.getState().nodes.find((n) => n.id === svc.id)?.data.targetPort).toBe(3000);
   });
 
 });

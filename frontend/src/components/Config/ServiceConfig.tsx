@@ -21,6 +21,7 @@ interface ServiceTypeOption {
 interface SelectorDropdownOption {
   label: string;
   category: 'INGRESS' | 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
+  port?: number;
 }
 
 export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
@@ -128,7 +129,8 @@ export const ServiceConfig = ({
     const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
     if (label && !optionsMap.has(label)) {
       const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
-      optionsMap.set(label, { label, category: cat });
+      const port = Number(n.data?.port) || undefined;
+      optionsMap.set(label, { label, category: cat, port });
     }
   });
 
@@ -339,7 +341,10 @@ export const ServiceConfig = ({
                       key={`${opt.category}-${opt.label}`}
                       type="button"
                       onClick={() => {
-                        performUpdate({ selector: opt.label });
+                        performUpdate({
+                          selector: opt.label,
+                          ...(opt.port ? { targetPort: opt.port } : {}),
+                        });
                         setIsSelectorDropdownOpen(false);
                       }}
                       className={cn(

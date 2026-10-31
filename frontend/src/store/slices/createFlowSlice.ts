@@ -570,7 +570,15 @@ const updateConnectedNodeState = (
       };
     } else if (sType === 'service' && isValidServiceSelectorTarget(updated.data, tType)) {
       const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
-      updated = { ...updated, data: { ...updated.data, selector: targetLabel } };
+      const workloadPort = Number(targetNodeInStore?.data?.port);
+      updated = {
+        ...updated,
+        data: {
+          ...updated.data,
+          selector: targetLabel,
+          ...(workloadPort ? { targetPort: workloadPort } : {}),
+        },
+      };
     }
   }
 
