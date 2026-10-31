@@ -551,5 +551,12 @@ describe('createFlowSlice', () => {
       serviceName: 'web-svc',
       servicePort: 80,
     });
+
+    // 4. Removing edge from ing-1 to svc-1 clears api-svc from ingressPaths and falls back backendServiceName to pay-svc
+    const edgeToSvc1 = useFlowStore.getState().edges.find((e) => e.source === 'ing-1' && e.target === 'svc-1')!;
+    useFlowStore.getState().onEdgesChange([{ id: edgeToSvc1.id, type: 'remove' }]);
+    ingNode = useFlowStore.getState().nodes.find((n) => n.id === 'ing-1')!;
+    expect(ingNode.data.backendServiceName).toBe('pay-svc');
+    expect((ingNode.data.ingressPaths as any[])[0].serviceName).toBe('');
   });
 });

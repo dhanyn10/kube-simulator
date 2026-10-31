@@ -38,6 +38,53 @@ const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
 
 const WORKLOAD_CONTROLLERS = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
 
+const reconcileIngressOnRemovedEdges = (
+  node: Node,
+  removedEdges: Edge[],
+  allNodes: Node[]
+): Node => {
+  if (node.type !== 'Ingress' || removedEdges.length === 0) return node;
+
+  const removedTargetServiceLabels = new Set<string>();
+  for (const edge of removedEdges) {
+    if (edge.source !== node.id) continue;
+    const tNode = allNodes.find((n) => n.id === edge.target);
+    if (tNode?.type === 'Service') {
+      const label = (tNode.data?.label as string) || tNode.id;
+      if (label) removedTargetServiceLabels.add(label);
+    }
+  }
+
+  if (removedTargetServiceLabels.size === 0) return node;
+
+  const currentBackend = (node.data?.backendServiceName as string) || '';
+  const rawPaths = node.data?.ingressPaths as any[] | undefined;
+  const hasPathsMatch =
+    Array.isArray(rawPaths) && rawPaths.some((p) => removedTargetServiceLabels.has(p?.serviceName));
+  const hasBackendMatch = removedTargetServiceLabels.has(currentBackend);
+
+  if (!hasBackendMatch && !hasPathsMatch) return node;
+
+  const updatedPaths = Array.isArray(rawPaths)
+    ? rawPaths.map((p) =>
+        removedTargetServiceLabels.has(p?.serviceName) ? { ...p, serviceName: '' } : p
+      )
+    : rawPaths;
+
+  const fallbackBackend = Array.isArray(updatedPaths)
+    ? (updatedPaths.find((p) => p?.serviceName)?.serviceName as string) || ''
+    : '';
+
+  return {
+    ...node,
+    data: {
+      ...node.data,
+      ...(hasBackendMatch ? { backendServiceName: fallbackBackend } : {}),
+      ...(hasPathsMatch ? { ingressPaths: updatedPaths } : {}),
+    },
+  };
+};
+
 const buildConnectedIngressData = (
   currentData: Record<string, any> | undefined,
   targetNodeInStore: Node | undefined,
@@ -424,7 +471,14 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
         return tLabel === currentSelector;
       };
 
+      const removedEdgeObjects = removeChanges
+        .map((c) => ('id' in c ? state.edges.find((e) => e.id === c.id) : undefined))
+        .filter((e): e is Edge => Boolean(e));
+
       syncedNodes = syncedNodes.map((node) => {
+        if (node.type === 'Ingress') {
+          return reconcileIngressOnRemovedEdges(node, removedEdgeObjects, state.nodes);
+        }
         if (node.type === 'Service' && node.data?.selector) {
           const currentSelector = node.data.selector;
           const hasMatchingOutgoingEdge = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, state.nodes));

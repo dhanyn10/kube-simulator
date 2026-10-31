@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { IngressPathsModal } from '@/components/Modals/IngressPathsModal';
+import { IngressPathsModal, normalizeIngressPath } from '@/components/Modals/IngressPathsModal';
 import { useFlowStore } from '@/store';
 
 describe('IngressPathsModal', () => {
@@ -29,6 +29,13 @@ describe('IngressPathsModal', () => {
         { id: 'svc2', type: 'Service', data: { label: 'web-service', serviceType: 'ClusterIP', port: 3000 } },
       ],
     });
+  });
+
+  it('normalizes ingress path strings to start with /', () => {
+    expect(normalizeIngressPath('')).toBe('/');
+    expect(normalizeIngressPath('   ')).toBe('/');
+    expect(normalizeIngressPath('api/v1')).toBe('/api/v1');
+    expect(normalizeIngressPath('/api/v1')).toBe('/api/v1');
   });
 
   it('does not render when isOpen is false', () => {
@@ -85,7 +92,7 @@ describe('IngressPathsModal', () => {
     expect(screen.getByDisplayValue('3000')).toBeDefined();
   });
 
-  it('adds, updates, auto-syncs service port on target service change, deletes, and saves path rules', () => {
+  it('adds, updates, toggles pathType, auto-syncs service port on target service change, deletes, and saves path rules', () => {
     render(
       <IngressPathsModal
         isOpen={true}
@@ -102,10 +109,16 @@ describe('IngressPathsModal', () => {
     // Should now have 2 rows
     expect(screen.getByDisplayValue('/path-2')).toBeDefined();
 
-    // 2. Update path #2
+    // 2. Update path #2 without leading slash and trigger blur -> auto-normalizes to /payment
     const path2Input = screen.getByDisplayValue('/path-2');
-    fireEvent.change(path2Input, { target: { value: '/payment' } });
+    fireEvent.change(path2Input, { target: { value: 'payment' } });
+    fireEvent.blur(path2Input);
     expect(screen.getByDisplayValue('/payment')).toBeDefined();
+
+    // 2b. Toggle pathType on row #2 from Prefix to Exact
+    const pathTypeBtn2 = screen.getByRole('button', { name: /Path type Prefix for path 2/i });
+    fireEvent.click(pathTypeBtn2);
+    expect(screen.getByRole('button', { name: /Path type Exact for path 2/i })).toBeDefined();
 
     // 3. Update target service dropdown on row #2 -> auto-updates port to web-service's port (3000)
     const selects = screen.getAllByRole('combobox');
@@ -135,12 +148,34 @@ describe('IngressPathsModal', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: '/payment',
+          pathType: 'Exact',
           serviceName: 'web-service',
           servicePort: 9000,
         }),
       ])
     );
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('detects duplicate paths, displays warning, and disables Save button', () => {
+    render(
+      <IngressPathsModal
+        isOpen={true}
+        onClose={onClose}
+        ingressNode={mockIngressNode}
+        onSave={onSave}
+      />
+    );
+
+    const addBtn = screen.getByRole('button', { name: /Add Path/i });
+    fireEvent.click(addBtn);
+
+    const path2Input = screen.getByDisplayValue('/path-2');
+    fireEvent.change(path2Input, { target: { value: '/api' } });
+
+    expect(screen.getByText(/Duplicate path detected/i)).toBeDefined();
+    const saveBtn = screen.getByRole('button', { name: /Save Paths/i });
+    expect(saveBtn).toBeDisabled();
   });
 
   it('handles Cancel button click', () => {
