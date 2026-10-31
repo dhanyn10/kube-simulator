@@ -386,4 +386,50 @@ describe('dragHandlers', () => {
     expect(updatedNs.position).toEqual({ x: 100, y: 100 });
     expect(updatedLb.position).toEqual({ x: 120, y: 100 - 120 - 32 });
   });
+
+  it('ejects LoadBalancer services when a Namespace that is not in the store finishes dragging', () => {
+    const addLogSpy = vi.fn();
+    useFlowStore.setState({
+      addLog: addLogSpy,
+      nodes: [
+        { id: 'ns-host', type: 'Namespace', position: { x: 100, y: 100 }, width: 600, height: 400, data: { label: 'host' } },
+        { id: 'lb-inside', type: 'Service', parentId: 'ns-host', position: { x: 20, y: 50 }, width: 200, height: 120, data: { label: 'lb', serviceType: 'LoadBalancer', parentId: 'ns-host' } },
+      ] as any,
+      hoveredDeploymentId: null,
+      detachingDeploymentId: null,
+    });
+
+    const { onNodeDragStop } = useFlowStore.getState();
+    onNodeDragStop({} as any, { id: 'ns-unlisted', type: 'Namespace', position: { x: 2000, y: 2000 }, data: {} } as any);
+
+    const lb = useFlowStore.getState().nodes.find((n) => n.id === 'lb-inside')!;
+    expect(lb.parentId).toBeUndefined();
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('LoadBalancer Service cannot be placed inside a Namespace'), 'UI');
+  });
+
+  it('keeps processing the drop and ejects overlapping LoadBalancers when a Namespace itself is dropped', () => {
+    const addLogSpy = vi.fn();
+    const ns = { id: 'ns-moved', type: 'Namespace', position: { x: 100, y: 100 }, width: 600, height: 400, data: { label: 'moved' } };
+    useFlowStore.setState({
+      addLog: addLogSpy,
+      nodes: [
+        ns,
+        { id: 'lb-overlap', type: 'Service', position: { x: 120, y: 150 }, width: 200, height: 120, data: { label: 'lb', serviceType: 'LoadBalancer' } },
+      ] as any,
+      hoveredDeploymentId: null,
+      detachingDeploymentId: null,
+    });
+
+    const { onNodeDragStop } = useFlowStore.getState();
+    onNodeDragStop({} as any, ns as any);
+
+    const state = useFlowStore.getState();
+    const movedNs = state.nodes.find((n) => n.id === 'ns-moved')!;
+    const lb = state.nodes.find((n) => n.id === 'lb-overlap')!;
+    expect(movedNs.position).toEqual({ x: 100, y: 100 });
+    const isOutside = lb.position.x + 200 <= 100 || lb.position.x >= 700 || lb.position.y + 120 <= 100 || lb.position.y >= 500;
+    expect(isOutside).toBe(true);
+    expect(addLogSpy).toHaveBeenCalledWith('warn', expect.stringContaining('LoadBalancer Service cannot be placed inside a Namespace'), 'UI');
+    expect(state.draggedNodeId).toBeNull();
+  });
 });

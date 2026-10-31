@@ -317,4 +317,23 @@ describe('attachedResourceOverviewHelpers', () => {
     expect(getResourceOverviewMeta('ResourceLimit', 1).subtitle).toBe('1 Resource Limit configured across cluster nodes');
     expect(getResourceOverviewMeta('ResourceLimit', 0).subtitle).toBe('0 Resource Limits configured across cluster nodes');
   });
+
+  it('extractAllOverviewItems uses the pod replica group label when the owner Pod has a podHash', () => {
+    const groupedPod: Node = {
+      id: 'pod-grouped',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'web-abc12-x1',
+        baseName: 'web',
+        podHash: 'abc12',
+        configMaps: [{ id: 'cm-grouped', name: 'grouped-config', configData: [] }],
+      },
+    };
+
+    const items = extractAllOverviewItems([groupedPod], 'ConfigMap');
+    expect(items).toHaveLength(1);
+    expect(items[0].ownerNode.label).toBe('web-abc12');
+    expect(items[0].ownerNode.id).toBe('pod-grouped');
+  });
 });

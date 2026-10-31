@@ -449,4 +449,30 @@ describe('AttachedResourceOverviewModal', () => {
       delete RESOURCE_TYPE_KEY_MAP['CustomRes'];
     }
   });
+
+  it('deletes Role, HPA and ResourceLimit items without touching saved ConfigMap/Secret storage', () => {
+    const updateNodeData = vi.fn();
+    const addLog = vi.fn();
+    const deleteSavedConfigMap = vi.fn();
+    const deleteSavedSecret = vi.fn();
+    useFlowStore.setState({ updateNodeData, addLog, deleteSavedConfigMap, deleteSavedSecret });
+
+    const { unmount } = render(<AttachedResourceOverviewModal type="Role" onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('Delete Role admin-role'));
+    expect(updateNodeData).toHaveBeenCalledWith('pod-1', { roles: [] });
+    expect(addLog).toHaveBeenCalled();
+    unmount();
+
+    const hpaView = render(<AttachedResourceOverviewModal type="HPA" onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('Delete HPA backend-hpa'));
+    expect(updateNodeData).toHaveBeenCalledWith('dep-1', { hpas: [] });
+    hpaView.unmount();
+
+    render(<AttachedResourceOverviewModal type="ResourceLimit" onClose={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('Delete Resource Limit backend-limits'));
+    expect(updateNodeData).toHaveBeenCalledWith('dep-1', { resourceLimits: [] });
+
+    expect(deleteSavedConfigMap).not.toHaveBeenCalled();
+    expect(deleteSavedSecret).not.toHaveBeenCalled();
+  });
 });

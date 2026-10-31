@@ -435,4 +435,80 @@ describe('manifestGenerator test suite', () => {
     expect(docs[1].kind).toBe('ConfigMap');
     expect(yamlOutput).toContain('---');
   });
+
+  it('covers uncovered conditions in manifestGenerator (connected target without label, default paths, fallback service port)', () => {
+    // 1. Service connected to target workload without label (falls back to name) -> Line 265 branch 1
+    const svcTargetNoLabel = {
+      id: 'target-no-label',
+      type: 'Pod',
+      data: {}, // no label
+    };
+    const svcConnecting = {
+      id: 'svc-conn',
+      type: 'Service',
+      data: {
+        label: 'my-service',
+        // selector is missing -> determineServiceSelector inspects outgoing edge
+      },
+    };
+    const edgeToTargetNoLabel = {
+      id: 'e-to-target',
+      source: 'svc-conn',
+      target: 'target-no-label',
+    };
+    const yamlWithTargetNoLabel = generateYamlClientSide([svcConnecting, svcTargetNoLabel], [edgeToTargetNoLabel]);
+    expect(yamlWithTargetNoLabel).toContain('app: my-service');
+    // Service connected to non-workload/non-ingress node (e.g. ConfigMap)
+    const svcConnNonWorkload = {
+      id: 'svc-to-cm',
+      type: 'Service',
+      data: { label: 'svc-to-cm-label' },
+    };
+    const targetCm = {
+      id: 'cm-target',
+      type: 'ConfigMap',
+      data: { label: 'some-config' },
+    };
+    const edgeToCm = {
+      id: 'e-to-cm',
+      source: 'svc-to-cm',
+      target: 'cm-target',
+    };
+    const yamlNonWorkload = generateYamlClientSide([svcConnNonWorkload, targetCm], [edgeToCm]);
+    expect(yamlNonWorkload).toContain('app: svc-to-cm-label');
+
+    // 2. Ingress with ingressPaths where rule.path is empty, rule.pathType is empty, rule.serviceName is empty, rule.servicePort is empty
+    const ingWithSparseRules = {
+      id: 'ing-sparse',
+      type: 'Ingress',
+      data: {
+        label: 'sparse-ingress',
+        backendServiceName: 'fallback-svc',
+        servicePort: 9090,
+        ingressPaths: [
+          { id: 'p1', path: '', pathType: '', serviceName: '', servicePort: '' },
+        ],
+      },
+    };
+    const sparseYaml = generateYamlClientSide([ingWithSparseRules], []);
+    const sparseDoc = yaml.load(sparseYaml) as any;
+    expect(sparseDoc.spec.rules[0].http.paths[0].path).toBe('/');
+    expect(sparseDoc.spec.rules[0].http.paths[0].pathType).toBe('Prefix');
+    expect(sparseDoc.spec.rules[0].http.paths[0].backend.service.name).toBe('fallback-svc');
+    expect(sparseDoc.spec.rules[0].http.paths[0].backend.service.port.number).toBe(9090);
+
+    // 3. Ingress with configuredServiceName where servicePort is undefined/0 (falls back to 80) -> Line 403 branch 1
+    const ingDefaultPort = {
+      id: 'ing-default-port',
+      type: 'Ingress',
+      data: {
+        label: 'default-port-ingress',
+        backendServiceName: 'custom-svc',
+        servicePort: undefined,
+      },
+    };
+    const defaultPortYaml = generateYamlClientSide([ingDefaultPort], []);
+    const defaultPortDoc = yaml.load(defaultPortYaml) as any;
+    expect(defaultPortDoc.spec.rules[0].http.paths[0].backend.service.port.number).toBe(80);
+  });
 });

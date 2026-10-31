@@ -966,4 +966,76 @@ describe('useAppHelpers', () => {
       expect(mockUpdate).toHaveBeenCalledWith('node-1', { secrets: [] });
     });
   });
+
+    it('covers remaining uncovered branches in useAppHelpers (matchesAttachedName fallback, isNodeAttachedToConfigMap label fallbacks, detach with empty name)', () => {
+      // 1. matchesAttachedName: target.data.baseName is falsy -> falls back to extractPodBaseName(target.data) (L75 branch 1)
+      const podHashedNoBaseName = {
+        id: 'pod-hash-nobase',
+        type: 'Pod',
+        data: {
+          label: 'mycustompod-1a2b3c',
+          podHash: '1a2b3c',
+          // baseName is undefined -> extractPodBaseName falls back
+        },
+      };
+      // groupLabel will be extracted from label: 'mycustompod-1a2b3c'
+      expect(isNodeAttachedToConfigMap(podHashedNoBaseName, null, 'mycustompod-1a2b3c')).toBe(true);
+
+      // target.data.baseName is undefined/empty and target.data.label is undefined -> extractPodBaseName fallback
+      const podHashEmptyData = {
+        id: 'pod-hash-emptydata',
+        type: 'Pod',
+        data: {
+          podHash: 'hash99',
+          // baseName falsy, label falsy -> extractPodBaseName returns 'pod'
+        },
+      };
+      expect(isNodeAttachedToConfigMap(podHashEmptyData, null, 'pod-hash99')).toBe(true);
+
+      // 2. isNodeAttachedToConfigMap: target.data.label is empty -> falls back to target.id (L89 branch 1)
+      const targetNoLabel = {
+        id: 'target-id-only',
+        data: {}, // no label
+      };
+      expect(isNodeAttachedToConfigMap(targetNoLabel, null, 'target-id-only')).toBe(true);
+
+      // 3. isNodeAttachedToConfigMap: target.data.label and target.id are empty -> falls back to targetNodeModal.label (L89 branch 2)
+      const targetNoIdNoLabel = {
+        id: '',
+        data: {},
+      };
+      expect(isNodeAttachedToConfigMap(targetNoIdNoLabel, { id: 'modal-id', label: 'modal-target-label' }, 'modal-target-label')).toBe(true);
+
+      // 4. detachConfigMapFromNode: target.data.configMaps is undefined -> defaults to [] (L160 branch 1)
+      const targetNoCMs = {
+        id: 'target-no-cms',
+        data: {},
+      };
+      const mockUpdate = vi.fn();
+      detachConfigMapFromNode(targetNoCMs, { id: 'cm-x', name: 'cm-x', configData: [] }, 'Target', mockUpdate);
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // 5. detachSecretFromNode: target.data.secrets is undefined and secretItem has no name (L237 & L239)
+      const targetNoSecrets = {
+        id: 'target-no-secrets',
+        data: {},
+      };
+      detachSecretFromNode(targetNoSecrets, { id: 'sec-noname', name: '', secretData: [] }, 'Target', mockUpdate);
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // 6. detachSecretFromNode: secretItem.name is empty string -> filters by id only (L239 branch 1)
+      const targetWithSecrets = {
+        id: 'target-with-sec',
+        data: {
+          secrets: [
+            { id: 'sec-1', name: 'first-sec', secretData: [] },
+            { id: 'sec-2', name: 'second-sec', secretData: [] },
+          ],
+        },
+      };
+      detachSecretFromNode(targetWithSecrets, { id: 'sec-1', name: '', secretData: [] }, 'Target', mockUpdate);
+      expect(mockUpdate).toHaveBeenCalledWith('target-with-sec', {
+        secrets: [{ id: 'sec-2', name: 'second-sec', secretData: [] }],
+      });
+    });
 });
