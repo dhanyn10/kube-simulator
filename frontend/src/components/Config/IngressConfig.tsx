@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useFlowStore } from '@/store';
 import { Globe, Code, Server, ChevronDown, Check, Plus } from 'lucide-react';
-import { IngressPathsModal } from '@/components/Modals/IngressPathsModal';
+import { IngressPathsModal, resolveIngressClusterIpServices } from '@/components/Modals/IngressPathsModal';
 import { ConfigInput, ConfigSection } from '@/components/UI/ConfigUI';
 import { cn } from '@/lib/utils';
 
@@ -140,26 +140,7 @@ export const IngressConfig = ({ selectedNode, performUpdate, toggleVisibility, t
 
   const [isPathsModalOpen, setIsPathsModalOpen] = useState(false);
 
-  // Filter for ClusterIP services in the same namespace
-  const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
-  const inSameNamespace = (n: any) => {
-    if (!selectedNamespaceId) {
-      return !n.parentId || n.parentId === '';
-    }
-    return n.parentId === selectedNamespaceId;
-  };
-
-  const clusterIpServices = nodes.filter(
-    (n) => n.type === 'Service' && (n.data?.serviceType || 'ClusterIP') === 'ClusterIP' && inSameNamespace(n)
-  );
-
-  const availableServiceNames = Array.from(
-    new Set(
-      clusterIpServices
-        .map((n) => (n.data?.label as string) || n.id)
-        .filter(Boolean)
-    )
-  );
+  const { availableServiceNames } = resolveIngressClusterIpServices(selectedNode, nodes);
 
   const currentBackend = data.backendServiceName || '';
   const isBackendValid = Boolean(currentBackend && availableServiceNames.includes(currentBackend));

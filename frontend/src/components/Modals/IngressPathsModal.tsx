@@ -29,6 +29,32 @@ export const normalizeIngressPath = (rawPath: string): string => {
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 };
 
+export const resolveIngressClusterIpServices = (
+  ingressNode: any,
+  nodes: any[]
+): { clusterIpServices: any[]; availableServiceNames: string[] } => {
+  const selectedNamespaceId = ingressNode?.parentId || ingressNode?.data?.parentId || null;
+  const clusterIpServices = nodes.filter((n) => {
+    if (n.type !== 'Service' || (n.data?.serviceType || 'ClusterIP') !== 'ClusterIP') {
+      return false;
+    }
+    if (!selectedNamespaceId) {
+      return !n.parentId || n.parentId === '';
+    }
+    return n.parentId === selectedNamespaceId;
+  });
+
+  const availableServiceNames = Array.from(
+    new Set(
+      clusterIpServices
+        .map((n) => (n.data?.label as string) || n.id)
+        .filter(Boolean)
+    )
+  );
+
+  return { clusterIpServices, availableServiceNames };
+};
+
 const getDuplicatePaths = (rules: IngressPathRule[]): Set<string> => {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
@@ -189,25 +215,7 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
   const colorMode = useFlowStore((state) => state.colorMode);
   const nodes = useFlowStore((state) => state.nodes);
 
-  const selectedNamespaceId = ingressNode?.parentId || ingressNode?.data?.parentId || null;
-  const inSameNamespace = (n: any) => {
-    if (!selectedNamespaceId) {
-      return !n.parentId || n.parentId === '';
-    }
-    return n.parentId === selectedNamespaceId;
-  };
-
-  const clusterIpServices = nodes.filter(
-    (n) => n.type === 'Service' && (n.data?.serviceType || 'ClusterIP') === 'ClusterIP' && inSameNamespace(n)
-  );
-
-  const availableServiceNames = Array.from(
-    new Set(
-      clusterIpServices
-        .map((n) => (n.data?.label as string) || n.id)
-        .filter(Boolean)
-    )
-  );
+  const { clusterIpServices, availableServiceNames } = resolveIngressClusterIpServices(ingressNode, nodes);
 
   const getServicePortByName = (svcName: string): number => {
     const matched = clusterIpServices.find(

@@ -38,6 +38,30 @@ const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
 
 const WORKLOAD_CONTROLLERS = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
 
+const collectRemovedIngressServices = (
+  ingressId: string,
+  removedEdges: Edge[],
+  allNodes: Node[]
+): Set<string> => {
+  const labels = new Set<string>();
+  for (const edge of removedEdges) {
+    if (edge.source !== ingressId) continue;
+    const tNode = allNodes.find((n) => n.id === edge.target);
+    if (tNode?.type === 'Service') {
+      labels.add(String(tNode.data?.label || tNode.id));
+    }
+  }
+  return labels;
+};
+
+const clearRemovedIngressServicesFromPaths = (
+  rawPaths: any[] | undefined,
+  removedLabels: Set<string>
+): any[] | undefined => {
+  if (!Array.isArray(rawPaths)) return rawPaths;
+  return rawPaths.map((p) => (removedLabels.has(p?.serviceName) ? { ...p, serviceName: '' } : p));
+};
+
 const reconcileIngressOnRemovedEdges = (
   node: Node,
   removedEdges: Edge[],
@@ -45,44 +69,72 @@ const reconcileIngressOnRemovedEdges = (
 ): Node => {
   if (node.type !== 'Ingress' || removedEdges.length === 0) return node;
 
-  const removedTargetServiceLabels = new Set<string>();
-  for (const edge of removedEdges) {
-    if (edge.source !== node.id) continue;
-    const tNode = allNodes.find((n) => n.id === edge.target);
-    if (tNode?.type === 'Service') {
-      const label = (tNode.data?.label as string) || tNode.id;
-      if (label) removedTargetServiceLabels.add(label);
-    }
-  }
+  const removedLabels = collectRemovedIngressServices(node.id, removedEdges, allNodes);
+  if (removedLabels.size === 0) return node;
 
-  if (removedTargetServiceLabels.size === 0) return node;
-
-  const currentBackend = (node.data?.backendServiceName as string) || '';
+  const currentBackend = String(node.data?.backendServiceName || '');
   const rawPaths = node.data?.ingressPaths as any[] | undefined;
-  const hasPathsMatch =
-    Array.isArray(rawPaths) && rawPaths.some((p) => removedTargetServiceLabels.has(p?.serviceName));
-  const hasBackendMatch = removedTargetServiceLabels.has(currentBackend);
+  const hasPathsMatch = Array.isArray(rawPaths) && rawPaths.some((p) => removedLabels.has(p?.serviceName));
+  const hasBackendMatch = removedLabels.has(currentBackend);
 
   if (!hasBackendMatch && !hasPathsMatch) return node;
 
-  const updatedPaths = Array.isArray(rawPaths)
-    ? rawPaths.map((p) =>
-        removedTargetServiceLabels.has(p?.serviceName) ? { ...p, serviceName: '' } : p
-      )
-    : rawPaths;
-
-  const fallbackBackend = Array.isArray(updatedPaths)
-    ? (updatedPaths.find((p) => p?.serviceName)?.serviceName as string) || ''
-    : '';
+  const updatedPaths = clearRemovedIngressServicesFromPaths(rawPaths, removedLabels);
+  const firstRemainingService = Array.isArray(updatedPaths) ? updatedPaths.find((p) => p?.serviceName)?.serviceName : '';
 
   return {
     ...node,
     data: {
       ...node.data,
-      ...(hasBackendMatch ? { backendServiceName: fallbackBackend } : {}),
+      ...(hasBackendMatch ? { backendServiceName: String(firstRemainingService || '') } : {}),
       ...(hasPathsMatch ? { ingressPaths: updatedPaths } : {}),
     },
   };
+};
+
+const isServiceEdgeMatching = (
+  edge: Edge,
+  serviceNodeId: string,
+  currentSelector: string,
+  allNodes: Node[]
+): boolean => {
+  if (edge.source !== serviceNodeId) return false;
+  const target = allNodes.find((n) => n.id === edge.target);
+  if (!target) return false;
+  const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
+  return tLabel === currentSelector;
+};
+
+const reconcileNodeOnEdgeChange = (
+  node: Node,
+  removedEdgeObjects: Edge[],
+  nextEdges: Edge[],
+  allNodes: Node[]
+): Node => {
+  if (node.type === 'Ingress') {
+    return reconcileIngressOnRemovedEdges(node, removedEdgeObjects, allNodes);
+  }
+  if (node.type === 'Service' && node.data?.selector) {
+    const currentSelector = String(node.data.selector);
+    const hasMatch = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, allNodes));
+    if (!hasMatch) {
+      return { ...node, data: { ...node.data, selector: '' } };
+    }
+  }
+  return node;
+};
+
+const emitRemovedEdgeCommands = (removeChanges: EdgeChange[], nodes: Node[], edges: Edge[]) => {
+  for (const c of removeChanges) {
+    if (!('id' in c)) continue;
+    const removedEdge = edges.find((e) => e.id === c.id);
+    if (!removedEdge) continue;
+    const sNode = nodes.find((n) => n.id === removedEdge.source);
+    const tNode = nodes.find((n) => n.id === removedEdge.target);
+    const sLabel = (sNode?.data?.label as string) || removedEdge.source;
+    const tLabel = (tNode?.data?.label as string) || removedEdge.target;
+    emitLiveEdgeDeletedCommand(sLabel, tLabel);
+  }
 };
 
 const buildConnectedIngressData = (
@@ -257,6 +309,30 @@ const computeAutoLayout = (nodes: Node[], edges: Edge[], direction: LayoutDirect
   });
 };
 
+const collectGroupMemberMoves = (
+  groupId: string,
+  draggedNodeId: string,
+  dx: number,
+  dy: number,
+  nodes: Node[],
+  changeIds: Set<string>
+): NodeChange[] => {
+  const moves: NodeChange[] = [];
+  for (const other of nodes) {
+    if (other.data?.groupId === groupId && other.id !== draggedNodeId && !changeIds.has(other.id)) {
+      moves.push({
+        id: other.id,
+        type: 'position',
+        position: {
+          x: other.position.x + dx,
+          y: other.position.y + dy,
+        },
+      });
+    }
+  }
+  return moves;
+};
+
 const getGroupDragExtraChanges = (changes: NodeChange[], nodes: Node[]): NodeChange[] => {
   const extraChanges: NodeChange[] = [];
   const processedGroupIds = new Set<string>();
@@ -269,24 +345,12 @@ const getGroupDragExtraChanges = (changes: NodeChange[], nodes: Node[]): NodeCha
     const groupId = node?.data?.groupId as string;
     if (!groupId || processedGroupIds.has(groupId)) continue;
 
-    const dx = change.position.x - node!.position.x;
-    const dy = change.position.y - node!.position.y;
+    const dx = change.position.x - node.position.x;
+    const dy = change.position.y - node.position.y;
     if (dx === 0 && dy === 0) continue;
 
     processedGroupIds.add(groupId);
-
-    for (const other of nodes) {
-      if (other.data?.groupId === groupId && other.id !== node.id && !changeIds.has(other.id)) {
-        extraChanges.push({
-          id: other.id,
-          type: 'position',
-          position: {
-            x: other.position.x + dx,
-            y: other.position.y + dy,
-          },
-        });
-      }
-    }
+    extraChanges.push(...collectGroupMemberMoves(groupId, node.id, dx, dy, nodes, changeIds));
   }
   return extraChanges;
 };
@@ -375,6 +439,129 @@ const checkHpaPrerequisite = (
   return true;
 };
 
+const filterAllowedNodeChanges = (
+  changes: NodeChange[],
+  nodes: Node[],
+  activeIdentity: string,
+  iamUsers: any[]
+): NodeChange[] => {
+  return changes.filter((change) => {
+    if (change.type !== 'position' || !change.id) return true;
+    const targetNode = nodes.find((n) => n.id === change.id);
+    if (!targetNode) return true;
+    return !isNodeAccessForbidden(activeIdentity, iamUsers, targetNode.type, targetNode.data, nodes);
+  });
+};
+
+const syncParentContainersOnDimensionChange = (
+  allowedChanges: NodeChange[],
+  nextNodes: Node[],
+  get: () => FlowState
+): Node[] => {
+  const hasDimensionChanges = allowedChanges.some((c) => c.type === 'dimensions');
+  if (!hasDimensionChanges) return nextNodes;
+
+  const parentIds = new Set<string>();
+  for (const c of allowedChanges) {
+    if (c.type === 'dimensions' && c.id) {
+      const node = nextNodes.find((n) => n.id === c.id);
+      if (node?.parentId) parentIds.add(node.parentId);
+    }
+  }
+  if (parentIds.size === 0) return nextNodes;
+
+  let containerSyncedNodes = nextNodes;
+  for (const parentId of parentIds) {
+    const parent = containerSyncedNodes.find((n) => n.id === parentId);
+    const isController = Boolean(parent?.type && WORKLOAD_CONTROLLERS.has(parent.type));
+    if (isController && parent) {
+      const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
+      const others = containerSyncedNodes.filter((n) => n.id !== parent.id && n.parentId !== parent.id);
+      containerSyncedNodes = [...others, updatedDeployment, ...laidOut];
+    } else if (parentId) {
+      containerSyncedNodes = syncContainerSize(parentId, containerSyncedNodes);
+    }
+  }
+  return containerSyncedNodes;
+};
+
+const rerouteConnectionEndpoints = (
+  initialSourceId: string,
+  initialTargetId: string,
+  nodes: Node[]
+): { sourceId: string; targetId: string; sourceNode?: Node; targetNode?: Node } => {
+  let sourceId = initialSourceId;
+  let targetId = initialTargetId;
+  let sourceNode = nodes.find((n) => n.id === sourceId);
+  let targetNode = nodes.find((n) => n.id === targetId);
+
+  const sourceChildParent = rerouteChildPodConnection(sourceNode, nodes);
+  if (sourceChildParent) {
+    sourceId = sourceChildParent.id;
+    sourceNode = sourceChildParent;
+  }
+
+  const targetChildParent = rerouteChildPodConnection(targetNode, nodes);
+  if (targetChildParent) {
+    targetId = targetChildParent.id;
+    targetNode = targetChildParent;
+  }
+
+  if (sourceNode?.type === 'Role') {
+    const parentDep = rerouteRoleConnection(targetNode, nodes);
+    if (parentDep) {
+      targetId = parentDep.id;
+      targetNode = parentDep;
+    }
+  } else if (targetNode?.type === 'Role') {
+    const parentDep = rerouteRoleConnection(sourceNode, nodes);
+    if (parentDep) {
+      sourceId = parentDep.id;
+      sourceNode = parentDep;
+    }
+  }
+
+  return { sourceId, targetId, sourceNode, targetNode };
+};
+
+const updateConnectedNodeState = (
+  n: Node,
+  stateNodes: Node[],
+  syncedNodesList: Node[],
+  edgesList: Edge[],
+  srcId: string,
+  tgtId: string,
+  srcNode?: Node,
+  tgtNode?: Node
+): Node => {
+  let updated = n;
+
+  if (updated.type === 'PVC') {
+    const realTimeStatus = evaluatePvcRealtimeStatus(updated, syncedNodesList, edgesList);
+    if (updated.data?.pvcStatus !== realTimeStatus) {
+      updated = { ...updated, data: { ...updated.data, pvcStatus: realTimeStatus } };
+    }
+  }
+
+  if (updated.id === srcId) {
+    const sType = String(updated.type || updated.data?.type || srcNode?.type || '').toLowerCase();
+    const targetNodeInStore = stateNodes.find((item) => item.id === tgtId);
+    const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
+
+    if (sType === 'ingress' && tType === 'service') {
+      updated = {
+        ...updated,
+        data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
+      };
+    } else if (sType === 'service' && ['deployment', 'pod', 'replicaset'].includes(tType)) {
+      const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
+      updated = { ...updated, data: { ...updated.data, selector: targetLabel } };
+    }
+  }
+
+  return updated;
+};
+
 export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set, get) => ({
   nodes: [],
   edges: [],
@@ -388,55 +575,12 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onNodesChange: (changes: NodeChange[]) => {
     const { nodes, activeIdentity, iamUsers } = get();
-    const allowedChanges = changes.filter((change) => {
-      if (change.type === 'position' && change.id) {
-        const targetNode = nodes.find((n) => n.id === change.id);
-        if (targetNode) {
-          const isForbidden = isNodeAccessForbidden(
-            activeIdentity,
-            iamUsers || [],
-            targetNode.type,
-            targetNode.data,
-            nodes
-          );
-          if (isForbidden) {
-            return false;
-          }
-        }
-      }
-      return true;
-    });
-
+    const allowedChanges = filterAllowedNodeChanges(changes, nodes, activeIdentity, iamUsers || []);
     const extraChanges = getGroupDragExtraChanges(allowedChanges, nodes);
+
     set((state) => {
       const nextNodes = applyNodeChanges([...allowedChanges, ...extraChanges], state.nodes);
-
-      const hasDimensionChanges = allowedChanges.some((c) => c.type === 'dimensions');
-      let containerSyncedNodes = nextNodes;
-      if (hasDimensionChanges) {
-        const parentIds = new Set<string>();
-        allowedChanges.forEach((c) => {
-          if (c.type === 'dimensions' && c.id) {
-            const node = nextNodes.find((n) => n.id === c.id);
-            if (node?.parentId) parentIds.add(node.parentId);
-          }
-        });
-
-        if (parentIds.size > 0) {
-          parentIds.forEach((parentId) => {
-            const parent = containerSyncedNodes.find((n) => n.id === parentId);
-            const isController = Boolean(parent && WORKLOAD_CONTROLLERS.has(parent.type));
-            if (isController && parent) {
-              const { updatedDeployment, laidOut } = syncDeployment(parent, containerSyncedNodes, 0, get);
-              const others = containerSyncedNodes.filter((n) => n.id !== parent.id && n.parentId !== parent.id);
-              containerSyncedNodes = [...others, updatedDeployment, ...laidOut];
-            } else if (parentId) {
-              containerSyncedNodes = syncContainerSize(parentId, containerSyncedNodes);
-            }
-          });
-        }
-      }
-
+      const containerSyncedNodes = syncParentContainersOnDimensionChange(allowedChanges, nextNodes, get);
       const syncedNodes = syncRoleRulesFromConnections(containerSyncedNodes, state.edges);
       return { nodes: syncedNodes };
     });
@@ -444,58 +588,21 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   onEdgesChange: (changes: EdgeChange[]) => {
     const { nodes, edges } = get();
     const removeChanges = changes.filter((c) => c.type === 'remove');
-
-    removeChanges.forEach((c) => {
-      if ('id' in c) {
-        const removedEdge = edges.find((e) => e.id === c.id);
-        if (removedEdge) {
-          const sNode = nodes.find((n) => n.id === removedEdge.source);
-          const tNode = nodes.find((n) => n.id === removedEdge.target);
-          const sLabel = (sNode?.data?.label as string) || removedEdge.source;
-          const tLabel = (tNode?.data?.label as string) || removedEdge.target;
-          emitLiveEdgeDeletedCommand(sLabel, tLabel);
-        }
-      }
-    });
+    emitRemovedEdgeCommands(removeChanges, nodes, edges);
 
     set((state) => {
       const nextEdges = applyEdgeChanges(changes, state.edges);
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
-      // Helper function to check if a Service node has matching outgoing edges
-      const isServiceEdgeMatching = (edge: Edge, serviceNodeId: string, currentSelector: string, allNodes: Node[]) => {
-        if (edge.source !== serviceNodeId) return false;
-        const target = allNodes.find((n) => n.id === edge.target);
-        if (!target) return false;
-        const tLabel = (target.data?.label as string) || (target.data?.baseName as string);
-        return tLabel === currentSelector;
-      };
-
       const removedEdgeObjects = removeChanges
         .map((c) => ('id' in c ? state.edges.find((e) => e.id === c.id) : undefined))
         .filter((e): e is Edge => Boolean(e));
 
-      syncedNodes = syncedNodes.map((node) => {
-        if (node.type === 'Ingress') {
-          return reconcileIngressOnRemovedEdges(node, removedEdgeObjects, state.nodes);
-        }
-        if (node.type === 'Service' && node.data?.selector) {
-          const currentSelector = node.data.selector;
-          const hasMatchingOutgoingEdge = nextEdges.some((e) => isServiceEdgeMatching(e, node.id, currentSelector, state.nodes));
-          if (!hasMatchingOutgoingEdge) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                selector: ''
-              }
-            };
-          }
-        }
-        return node;
-      });
+      syncedNodes = syncedNodes.map((node) =>
+        reconcileNodeOnEdgeChange(node, removedEdgeObjects, nextEdges, state.nodes)
+      );
 
-      const isRemoval = changes.some((c) => c.type === 'remove');
+      const isRemoval = removeChanges.length > 0;
       return {
         edges: nextEdges,
         nodes: syncedNodes,
@@ -520,58 +627,29 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
   },
   onConnect: (connection: Connection) => {
     const { nodes, validateEdge, activeIdentity, iamUsers, addLog } = get();
-    let sourceId = connection.source!;
-    let targetId = connection.target!;
-
-    let sourceNode = nodes.find((n) => n.id === sourceId);
-    let targetNode = nodes.find((n) => n.id === targetId);
+    const initialSourceNode = nodes.find((n) => n.id === connection.source);
+    const initialTargetNode = nodes.find((n) => n.id === connection.target);
 
     if (
-      isNodeAccessForbidden(activeIdentity, iamUsers || [], sourceNode?.type, sourceNode?.data, nodes) ||
-      isNodeAccessForbidden(activeIdentity, iamUsers || [], targetNode?.type, targetNode?.data, nodes)
+      isNodeAccessForbidden(activeIdentity, iamUsers || [], initialSourceNode?.type, initialSourceNode?.data, nodes) ||
+      isNodeAccessForbidden(activeIdentity, iamUsers || [], initialTargetNode?.type, initialTargetNode?.data, nodes)
     ) {
       addLog('warn', `[API Server Auth] Connection rejected: User "${activeIdentity}" cannot connect forbidden card(s).`, 'UI');
       return;
     }
 
-    const sourceChildParent = rerouteChildPodConnection(sourceNode, nodes);
-    if (sourceChildParent) {
-      sourceId = sourceChildParent.id;
-      sourceNode = sourceChildParent;
-    }
-
-    const targetChildParent = rerouteChildPodConnection(targetNode, nodes);
-    if (targetChildParent) {
-      targetId = targetChildParent.id;
-      targetNode = targetChildParent;
-    }
-
-    if (sourceNode?.type === 'Role') {
-      const parentDep = rerouteRoleConnection(targetNode, nodes);
-      if (parentDep) {
-        targetId = parentDep.id;
-        targetNode = parentDep;
-      }
-    } else if (targetNode?.type === 'Role') {
-      const parentDep = rerouteRoleConnection(sourceNode, nodes);
-      if (parentDep) {
-        sourceId = parentDep.id;
-        sourceNode = parentDep;
-      }
-    }
+    const { sourceId, targetId, sourceNode, targetNode } = rerouteConnectionEndpoints(
+      connection.source!,
+      connection.target!,
+      nodes
+    );
 
     if (!checkHpaPrerequisite(sourceNode, targetNode, nodes, get().edges, addLog)) {
       return;
     }
 
-    const reroutedConnection = {
-      ...connection,
-      source: sourceId,
-      target: targetId,
-    };
-
     const newEdge = validateEdge({
-      ...reroutedConnection,
+      ...connection,
       id: `e${sourceId}-${targetId}-${Date.now()}`,
       type: 'custom',
       source: sourceId,
@@ -580,53 +658,14 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
 
     let isAdded = false;
     set((state) => {
-      const exists = state.edges.some((e) => e.source === sourceId && e.target === targetId);
-      if (exists) return state;
+      if (state.edges.some((e) => e.source === sourceId && e.target === targetId)) return state;
 
       isAdded = true;
       const nextEdges = addEdge(newEdge, state.edges);
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
-      // Helper function to sync PVC status and bidirectional node linking form state
-      const updateConnectedNodeState = (
-        n: Node,
-        syncedNodesList: Node[],
-        edgesList: Edge[],
-        srcId: string,
-        tgtId: string,
-        srcNode?: Node,
-        tgtNode?: Node
-      ): Node => {
-        let updated = n;
-
-        if (updated.type === 'PVC') {
-          const realTimeStatus = evaluatePvcRealtimeStatus(updated, syncedNodesList, edgesList);
-          if (updated.data?.pvcStatus !== realTimeStatus) {
-            updated = { ...updated, data: { ...updated.data, pvcStatus: realTimeStatus } };
-          }
-        }
-
-        if (updated.id === srcId) {
-          const sType = String(updated.type || updated.data?.type || srcNode?.type || '').toLowerCase();
-          const targetNodeInStore = state.nodes.find((item) => item.id === tgtId);
-          const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
-
-          if (sType === 'ingress' && tType === 'service') {
-            updated = {
-              ...updated,
-              data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
-            };
-          } else if (sType === 'service' && ['deployment', 'pod', 'replicaset'].includes(tType)) {
-            const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
-            updated = { ...updated, data: { ...updated.data, selector: targetLabel } };
-          }
-        }
-
-        return updated;
-      };
-
       syncedNodes = syncedNodes.map((n) =>
-        updateConnectedNodeState(n, syncedNodes, nextEdges, sourceId, targetId, sourceNode, targetNode)
+        updateConnectedNodeState(n, state.nodes, syncedNodes, nextEdges, sourceId, targetId, sourceNode, targetNode)
       );
 
       return {
