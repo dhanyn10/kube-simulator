@@ -324,9 +324,7 @@ const getServiceTargetLabels = (
   effectiveServiceType: string
 ): Set<string> => {
   const effectiveIngressTargets =
-    newData.ingressTargets !== undefined
-      ? newData.ingressTargets
-      : (targetNode.data?.ingressTargets as string[] | undefined);
+    newData.ingressTargets ?? (targetNode.data?.ingressTargets as string[] | undefined);
 
   if (effectiveServiceType === 'LoadBalancer' && Array.isArray(effectiveIngressTargets) && effectiveIngressTargets.length > 0) {
     return new Set(effectiveIngressTargets.map((item) => String(item).trim()).filter(Boolean));

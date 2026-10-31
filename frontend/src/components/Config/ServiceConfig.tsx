@@ -30,6 +30,8 @@ export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
   { value: 'LoadBalancer', label: 'LoadBalancer', description: 'Exposes service externally using cloud provider’s load balancer.' }
 ];
 
+const WORKLOAD_TYPES = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
+
 /**
  * Computes class names for Service Type dropdown option buttons.
  */
@@ -56,44 +58,71 @@ const getWorkloadSelectorOptionClasses = (isSelected: boolean, colorMode: string
   return getServiceTypeOptionClasses(false, isSelected, colorMode);
 };
 
+const getDropdownTriggerClasses = (colorMode: string): string => {
+  return colorMode === 'dark'
+    ? 'bg-slate-900/90 border-slate-700 text-slate-100 hover:border-slate-600 focus:border-amber-500/80'
+    : 'bg-white border-slate-300 text-slate-800 hover:border-slate-400 focus:border-amber-500/80';
+};
+
+const getDropdownMenuClasses = (colorMode: string): string => {
+  return colorMode === 'dark'
+    ? 'bg-slate-900 border-slate-800 text-slate-200'
+    : 'bg-white border-slate-200 text-slate-800';
+};
+
+const getInputFieldClasses = (colorMode: string): string => {
+  return colorMode === 'dark'
+    ? 'bg-slate-800 border-slate-700 text-slate-200'
+    : 'bg-slate-50 border-slate-200 text-slate-800';
+};
+
+const getCategoryBadgeClasses = (category: string): string => {
+  return category === 'INGRESS'
+    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+};
+
+const isNodeInServiceScope = (
+  n: any,
+  selectedNamespaceId: string | null,
+  currentServiceType: string
+): boolean => {
+  if (currentServiceType === 'LoadBalancer') return true;
+  if (!selectedNamespaceId) return !n.parentId;
+  return n.parentId === selectedNamespaceId;
+};
+
+const isSelectableWorkloadNode = (n: any): boolean => {
+  if (WORKLOAD_TYPES.has(n.type)) return true;
+  return n.type === 'Pod' && !n.parentId && !n.data?.parentId;
+};
+
 const buildServiceSelectorOptions = (
   selectedNode: any,
   nodes: any[],
   currentServiceType: string
 ): SelectorDropdownOption[] => {
   const selectedNamespaceId = selectedNode.parentId || selectedNode.data?.parentId || null;
-  const inSameNamespace = (n: any) => {
-    if (currentServiceType === 'LoadBalancer') return true;
-    if (!selectedNamespaceId) {
-      return !n.parentId;
-    }
-    return n.parentId === selectedNamespaceId;
-  };
-
   const optionsMap = new Map<string, SelectorDropdownOption>();
 
-  if (currentServiceType === 'LoadBalancer') {
-    const ingressNodes = nodes.filter((n) => n.type === 'Ingress' && inSameNamespace(n));
-    for (const n of ingressNodes) {
+  for (const n of nodes) {
+    if (!isNodeInServiceScope(n, selectedNamespaceId, currentServiceType)) continue;
+
+    if (currentServiceType === 'LoadBalancer' && n.type === 'Ingress') {
       const label = (n.data?.label as string) || n.id;
       if (label && !optionsMap.has(label)) {
         optionsMap.set(label, { label, category: 'INGRESS' });
       }
+      continue;
     }
-  }
 
-  const workloadNodes = nodes.filter((n) => {
-    if (!inSameNamespace(n)) return false;
-    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') return true;
-    return n.type === 'Pod' && !n.parentId && !n.data?.parentId;
-  });
-
-  for (const n of workloadNodes) {
-    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-    if (label && !optionsMap.has(label)) {
-      const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
-      const port = Number(n.data?.port) || undefined;
-      optionsMap.set(label, { label, category: cat, port });
+    if (isSelectableWorkloadNode(n)) {
+      const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+      if (label && !optionsMap.has(label)) {
+        const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
+        const port = Number(n.data?.port) || undefined;
+        optionsMap.set(label, { label, category: cat, port });
+      }
     }
   }
 
@@ -139,6 +168,225 @@ const buildSelectorUpdatePatch = (
   };
 };
 
+const resolveDisplaySelectorInfo = (
+  currentSelector: string,
+  availableOptions: SelectorDropdownOption[],
+  activeIngressTargets: string[]
+): {
+  isSelectorValid: boolean;
+  displaySelectorText: string;
+  displayCategory: string | undefined;
+} => {
+  const selectedOptionObj = availableOptions.find((opt) => opt.label === currentSelector);
+  const hasMultiIngress = activeIngressTargets.length > 0;
+  const isSelectorValid = hasMultiIngress || Boolean(currentSelector && selectedOptionObj);
+
+  let displaySelectorText = '---';
+  if (hasMultiIngress) {
+    displaySelectorText = activeIngressTargets.join(', ');
+  } else if (isSelectorValid) {
+    displaySelectorText = currentSelector;
+  }
+
+  const displayCategory = hasMultiIngress ? 'INGRESS' : selectedOptionObj?.category;
+  return { isSelectorValid, displaySelectorText, displayCategory };
+};
+
+const ServiceTypeDropdown = ({
+  dropdownRef,
+  isOpen,
+  setIsOpen,
+  currentServiceType,
+  isInsideNamespace,
+  colorMode,
+  performUpdate,
+}: {
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  currentServiceType: string;
+  isInsideNamespace: boolean;
+  colorMode: string;
+  performUpdate: (updates: any) => void;
+}) => {
+  const selectedServiceTypeOption =
+    SERVICE_TYPE_OPTIONS.find((opt) => opt.value === currentServiceType) || SERVICE_TYPE_OPTIONS[0];
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm',
+          getDropdownTriggerClasses(colorMode)
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-amber-500">{selectedServiceTypeOption.label}</span>
+        </div>
+        <ChevronDown size={14} className={cn('transition-transform duration-200 opacity-60', isOpen && 'rotate-180')} />
+      </button>
+
+      {isOpen && (
+        <div
+          className={cn(
+            'absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100',
+            getDropdownMenuClasses(colorMode)
+          )}
+        >
+          {SERVICE_TYPE_OPTIONS.map((option) => {
+            const isSelected = currentServiceType === option.value;
+            const isLockedInNamespace = option.value === 'LoadBalancer' && isInsideNamespace;
+            const isDisabled = Boolean(option.disabled || isLockedInNamespace);
+            const lockLabel = isLockedInNamespace ? 'Outside Namespace Only' : 'Disabled';
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={isDisabled}
+                onClick={() => {
+                  if (!isDisabled) {
+                    performUpdate({ serviceType: option.value });
+                    setIsOpen(false);
+                  }
+                }}
+                className={cn(
+                  'w-full text-left p-2 rounded text-xs transition-colors flex items-start justify-between gap-2 group',
+                  getServiceTypeOptionClasses(isDisabled, isSelected, colorMode)
+                )}
+              >
+                <div className="space-y-0.5 pr-1">
+                  <div className="flex items-center gap-1.5 font-medium font-mono flex-wrap">
+                    <span>{option.label}</span>
+                    {isDisabled && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] rounded font-sans uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                        <Lock size={10} /> {lockLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] opacity-60 leading-tight font-sans">{option.description}</p>
+                </div>
+                {isSelected && <Check size={14} className="text-amber-500 shrink-0 mt-0.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ServiceSelectorDropdown = ({
+  dropdownRef,
+  isOpen,
+  setIsOpen,
+  availableOptions,
+  activeIngressTargets,
+  currentSelector,
+  data,
+  colorMode,
+  performUpdate,
+}: {
+  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  availableOptions: SelectorDropdownOption[];
+  activeIngressTargets: string[];
+  currentSelector: string;
+  data: any;
+  colorMode: string;
+  performUpdate: (updates: any) => void;
+}) => {
+  const { isSelectorValid, displaySelectorText, displayCategory } = resolveDisplaySelectorInfo(
+    currentSelector,
+    availableOptions,
+    activeIngressTargets
+  );
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={cn(
+          'w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm',
+          getDropdownTriggerClasses(colorMode)
+        )}
+      >
+        <div className="flex items-center gap-2 overflow-hidden">
+          <span
+            className={cn(
+              'font-semibold truncate',
+              isSelectorValid ? 'text-amber-500' : 'text-rose-400 font-mono tracking-widest'
+            )}
+          >
+            {displaySelectorText}
+          </span>
+          {displayCategory && (
+            <span
+              className={cn(
+                'text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0',
+                getCategoryBadgeClasses(displayCategory)
+              )}
+            >
+              {displayCategory}
+            </span>
+          )}
+        </div>
+        <ChevronDown size={14} className={cn('transition-transform duration-200 opacity-60 shrink-0', isOpen && 'rotate-180')} />
+      </button>
+
+      {isOpen && (
+        <div
+          className={cn(
+            'absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-56 overflow-y-auto',
+            getDropdownMenuClasses(colorMode)
+          )}
+        >
+          {availableOptions.map((opt) => {
+            const isSelected =
+              opt.category === 'INGRESS'
+                ? activeIngressTargets.includes(opt.label)
+                : currentSelector === opt.label;
+
+            return (
+              <button
+                key={`${opt.category}-${opt.label}`}
+                type="button"
+                onClick={() => {
+                  performUpdate(buildSelectorUpdatePatch(opt, data, activeIngressTargets));
+                  if (opt.category !== 'INGRESS') {
+                    setIsOpen(false);
+                  }
+                }}
+                className={cn(
+                  'w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer',
+                  getWorkloadSelectorOptionClasses(isSelected, colorMode)
+                )}
+              >
+                <span className="truncate">{opt.label}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={cn(
+                      'text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider',
+                      getCategoryBadgeClasses(opt.category)
+                    )}
+                  >
+                    {opt.category}
+                  </span>
+                  {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /**
  * Configuration component for Kubernetes Service resources.
  *
@@ -176,16 +424,10 @@ export const ServiceConfig = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectedServiceTypeOption = SERVICE_TYPE_OPTIONS.find((opt) => opt.value === currentServiceType) || SERVICE_TYPE_OPTIONS[0];
   const availableOptions = buildServiceSelectorOptions(selectedNode, nodes, currentServiceType);
   const activeIngressTargets = resolveActiveIngressTargets(data, currentServiceType, availableOptions);
-
   const currentSelector = data.selector || '';
-  const selectedOptionObj = availableOptions.find((opt) => opt.label === currentSelector);
-  const hasMultiIngress = activeIngressTargets.length > 0;
-  const isSelectorValid = hasMultiIngress || Boolean(currentSelector && selectedOptionObj);
-  const displaySelectorText = hasMultiIngress ? activeIngressTargets.join(', ') : (isSelectorValid ? currentSelector : '---');
-  const displayCategory = hasMultiIngress ? 'INGRESS' : selectedOptionObj?.category;
+  const inputFieldClasses = getInputFieldClasses(colorMode);
 
   return (
     <div className="space-y-4">
@@ -198,69 +440,15 @@ export const ServiceConfig = ({
         isYamlEnabled={data.yamlSettings?.serviceType}
         onYamlToggle={() => toggleYaml('serviceType')}
       >
-        <div ref={serviceTypeDropdownRef} className="relative w-full">
-          <button
-            type="button"
-            onClick={() => setIsServiceTypeDropdownOpen((prev) => !prev)}
-            className={cn(
-              "w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm",
-              colorMode === 'dark'
-                ? "bg-slate-900/90 border-slate-700 text-slate-100 hover:border-slate-600 focus:border-amber-500/80"
-                : "bg-white border-slate-300 text-slate-800 hover:border-slate-400 focus:border-amber-500/80"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-amber-500">{selectedServiceTypeOption.label}</span>
-            </div>
-            <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60", isServiceTypeDropdownOpen && "rotate-180")} />
-          </button>
-
-          {isServiceTypeDropdownOpen && (
-            <div
-              className={cn(
-                "absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100",
-                colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
-              )}
-            >
-              {SERVICE_TYPE_OPTIONS.map((option) => {
-                const isSelected = currentServiceType === option.value;
-                const isLockedInNamespace = option.value === 'LoadBalancer' && isInsideNamespace;
-                const isDisabled = Boolean(option.disabled || isLockedInNamespace);
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    disabled={isDisabled}
-                    onClick={() => {
-                      if (!isDisabled) {
-                        performUpdate({ serviceType: option.value });
-                        setIsServiceTypeDropdownOpen(false);
-                      }
-                    }}
-                    className={cn(
-                      "w-full text-left p-2 rounded text-xs transition-colors flex items-start justify-between gap-2 group",
-                      getServiceTypeOptionClasses(isDisabled, isSelected, colorMode)
-                    )}
-                  >
-                    <div className="space-y-0.5 pr-1">
-                      <div className="flex items-center gap-1.5 font-medium font-mono flex-wrap">
-                        <span>{option.label}</span>
-                        {isDisabled && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] rounded font-sans uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                            <Lock size={10} /> {isLockedInNamespace ? 'Outside Namespace Only' : 'Disabled'}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] opacity-60 leading-tight font-sans">{option.description}</p>
-                    </div>
-                    {isSelected && <Check size={14} className="text-amber-500 shrink-0 mt-0.5" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <ServiceTypeDropdown
+          dropdownRef={serviceTypeDropdownRef}
+          isOpen={isServiceTypeDropdownOpen}
+          setIsOpen={setIsServiceTypeDropdownOpen}
+          currentServiceType={currentServiceType}
+          isInsideNamespace={isInsideNamespace}
+          colorMode={colorMode}
+          performUpdate={performUpdate}
+        />
       </ConfigSection>
 
       {/* NodePort Configuration (Only for NodePort or LoadBalancer) */}
@@ -281,10 +469,7 @@ export const ServiceConfig = ({
             value={data.nodePort ?? ''}
             onChange={(e: any) => performUpdate({ nodePort: e.target.value ? Number.parseInt(e.target.value, 10) : undefined })}
             placeholder="30000-32767 (Optional)"
-            className={cn(
-              "w-full text-[10px] p-2 rounded border outline-none font-mono",
-              colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-            )}
+            className={cn('w-full text-[10px] p-2 rounded border outline-none font-mono', inputFieldClasses)}
           />
         </ConfigSection>
       )}
@@ -300,10 +485,7 @@ export const ServiceConfig = ({
           type="number"
           value={data.port || 80}
           onChange={(e: any) => performUpdate({ port: Number.parseInt(e.target.value, 10) || 80 })}
-          className={cn(
-            "w-full text-[10px] p-2 rounded border outline-none font-mono",
-            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-          )}
+          className={cn('w-full text-[10px] p-2 rounded border outline-none font-mono', inputFieldClasses)}
         />
       </ConfigSection>
 
@@ -321,10 +503,7 @@ export const ServiceConfig = ({
           type="number"
           value={data.targetPort || 80}
           onChange={(e: any) => performUpdate({ targetPort: Number.parseInt(e.target.value, 10) || 80 })}
-          className={cn(
-            "w-full text-[10px] p-2 rounded border outline-none font-mono",
-            colorMode === 'dark' ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"
-          )}
+          className={cn('w-full text-[10px] p-2 rounded border outline-none font-mono', inputFieldClasses)}
         />
       </ConfigSection>
 
@@ -339,90 +518,17 @@ export const ServiceConfig = ({
           onYamlToggle={() => toggleYaml('selector')}
           disableYamlToggle={Boolean(data.selector) === false}
         >
-          <div ref={selectorDropdownRef} className="relative w-full">
-            <button
-              type="button"
-              onClick={() => setIsSelectorDropdownOpen((prev) => !prev)}
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-md border text-xs font-mono transition-all cursor-pointer shadow-sm",
-                colorMode === 'dark'
-                  ? "bg-slate-900/90 border-slate-700 text-slate-100 hover:border-slate-600 focus:border-amber-500/80"
-                  : "bg-white border-slate-300 text-slate-800 hover:border-slate-400 focus:border-amber-500/80"
-              )}
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
-                <span
-                  className={cn(
-                    "font-semibold truncate",
-                    isSelectorValid ? "text-amber-500" : "text-rose-400 font-mono tracking-widest"
-                  )}
-                >
-                  {displaySelectorText}
-                </span>
-                {displayCategory && (
-                  <span
-                    className={cn(
-                      "text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider shrink-0",
-                      displayCategory === 'INGRESS'
-                        ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                        : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                    )}
-                  >
-                    {displayCategory}
-                  </span>
-                )}
-              </div>
-              <ChevronDown size={14} className={cn("transition-transform duration-200 opacity-60 shrink-0", isSelectorDropdownOpen && "rotate-180")} />
-            </button>
-
-            {isSelectorDropdownOpen && (
-              <div
-                className={cn(
-                  "absolute left-0 right-0 top-full mt-1.5 z-50 rounded-md border shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-56 overflow-y-auto",
-                  colorMode === 'dark' ? "bg-slate-900 border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
-                )}
-              >
-                {availableOptions.map((opt) => {
-                  const isSelected =
-                    opt.category === 'INGRESS'
-                      ? activeIngressTargets.includes(opt.label)
-                      : currentSelector === opt.label;
-
-                  return (
-                    <button
-                      key={`${opt.category}-${opt.label}`}
-                      type="button"
-                      onClick={() => {
-                        performUpdate(buildSelectorUpdatePatch(opt, data, activeIngressTargets));
-                        if (opt.category !== 'INGRESS') {
-                          setIsSelectorDropdownOpen(false);
-                        }
-                      }}
-                      className={cn(
-                        "w-full text-left p-2 rounded text-xs transition-colors flex items-center justify-between gap-2 font-mono group cursor-pointer",
-                        getWorkloadSelectorOptionClasses(isSelected, colorMode)
-                      )}
-                    >
-                      <span className="truncate">{opt.label}</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span
-                          className={cn(
-                            "text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded tracking-wider",
-                            opt.category === 'INGRESS'
-                              ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                              : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                          )}
-                        >
-                          {opt.category}
-                        </span>
-                        {isSelected && <Check size={14} className="text-amber-500 shrink-0" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <ServiceSelectorDropdown
+            dropdownRef={selectorDropdownRef}
+            isOpen={isSelectorDropdownOpen}
+            setIsOpen={setIsSelectorDropdownOpen}
+            availableOptions={availableOptions}
+            activeIngressTargets={activeIngressTargets}
+            currentSelector={currentSelector}
+            data={data}
+            colorMode={colorMode}
+            performUpdate={performUpdate}
+          />
         </ConfigSection>
       )}
     </div>

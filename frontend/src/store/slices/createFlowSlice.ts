@@ -591,7 +591,8 @@ const buildConnectedServiceData = (
       currentSel &&
       allNodes.some((item) => item.type === 'Ingress' && ((item.data?.label as string) || item.id) === currentSel)
     );
-    const baseTargets = existingList.length > 0 ? existingList : (isCurrentSelIngress ? [currentSel] : []);
+    const fallbackTargets = isCurrentSelIngress ? [currentSel] : [];
+    const baseTargets = existingList.length > 0 ? existingList : fallbackTargets;
     const nextTargets = baseTargets.includes(targetLabel) ? baseTargets : [...baseTargets, targetLabel];
     return {
       ...data,

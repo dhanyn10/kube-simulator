@@ -311,7 +311,7 @@ export const layoutPodsInDeployment = (deployment: Node, pods: Node[]): Node[] =
 
 
 const getDomMeasuredNodeSize = (nodeId: string | undefined): { width: number; height: number } => {
-  if (!nodeId || typeof globalThis.document === 'undefined') {
+  if (!nodeId || globalThis.document === undefined) {
     return { width: 0, height: 0 };
   }
   const el = globalThis.document.querySelector(`.react-flow__node[data-id="${nodeId}"]`) as HTMLElement | null;
