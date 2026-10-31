@@ -164,16 +164,24 @@ describe('IngressNode', () => {
     expect(screen.getByText('default-clusterip-svc')).toBeInTheDocument();
   });
 
-  it('renders multiple paths as block elements when displaySettings.path is true', () => {
+  it('renders multiple paths as block elements with target service mapping and aggregated backend display', () => {
+    useFlowStore.setState({
+      colorMode: 'dark',
+      nodes: [
+        { id: 'svc1', type: 'Service', data: { label: 'api-svc', serviceType: 'ClusterIP' } },
+        { id: 'svc2', type: 'Service', data: { label: 'pay-svc', serviceType: 'ClusterIP' } },
+      ] as any,
+    });
+
     const props = {
       id: 'i-multi',
       type: 'Ingress',
       data: {
         label: 'Multi Path Ingress',
-        displaySettings: { path: true },
+        displaySettings: { path: true, backendService: true },
         ingressPaths: [
-          { id: 'p1', path: '/api' },
-          { id: 'p2', path: '/payment' },
+          { id: 'p1', path: '/api', serviceName: 'api-svc' },
+          { id: 'p2', path: '/payment', serviceName: 'pay-svc' },
         ],
       },
     } as any;
@@ -185,9 +193,10 @@ describe('IngressNode', () => {
     );
 
     expect(screen.getByText('Paths (2)')).toBeDefined();
-    const apiPath = screen.getByText('/api');
-    const paymentPath = screen.getByText('/payment');
+    const apiPath = screen.getByText('/api → api-svc');
+    const paymentPath = screen.getByText('/payment → pay-svc');
     expect(apiPath).toHaveClass('block');
     expect(paymentPath).toHaveClass('block');
+    expect(screen.getByText('api-svc, pay-svc')).toBeDefined();
   });
 });

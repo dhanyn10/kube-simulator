@@ -436,5 +436,34 @@ describe('IngressConfig', () => {
     expect(screen.getByText('/api')).toBeDefined();
     expect(screen.getByText('/payment')).toBeDefined();
     expect(screen.getByRole('button', { name: /Manage Paths \(2 paths\)/i })).toBeDefined();
+    expect(screen.queryByText('Backend Service (ClusterIP)')).toBeNull();
+  });
+
+  it('syncs single-item ingressPaths serviceName when selecting from Backend Service dropdown', () => {
+    const singlePathRuleNode = {
+      ...selectedNode,
+      data: {
+        ...selectedNode.data,
+        ingressPaths: [{ id: 'p1', path: '/api', serviceName: 'web-service', servicePort: 80 }],
+      },
+    };
+
+    render(
+      <IngressConfig
+        selectedNode={singlePathRuleNode}
+        performUpdate={performUpdate}
+        toggleVisibility={toggleVisibility}
+        toggleYaml={toggleYaml}
+      />
+    );
+
+    const dropdownBtn = screen.getByRole('button', { name: /web-service/i });
+    fireEvent.click(dropdownBtn);
+    fireEvent.click(screen.getByRole('button', { name: /api-service/i }));
+
+    expect(performUpdate).toHaveBeenCalledWith({
+      backendServiceName: 'api-service',
+      ingressPaths: [{ id: 'p1', path: '/api', serviceName: 'api-service', servicePort: 80 }],
+    });
   });
 });

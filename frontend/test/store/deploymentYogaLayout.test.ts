@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Node } from '@xyflow/react';
 import {
+  calculateCardLayoutWithYoga,
   calculateDeploymentLayoutWithYoga,
   getYogaEngine,
   getYogaInstanceSync
@@ -361,5 +362,49 @@ describe('deploymentYogaLayout', () => {
     const result = calculateDeploymentLayoutWithYoga(rsNode, [pod1], yoga);
     expect(result.width).toBeGreaterThanOrEqual(500);
     expect(result.height).toBeGreaterThanOrEqual(400);
+  });
+
+  it('expands Ingress card height when multiple ingressPaths are displayed', () => {
+    const singlePathLayout = calculateCardLayoutWithYoga(
+      {
+        type: 'Ingress',
+        data: { label: 'ing-1', ingressPath: '/' },
+      },
+      yoga
+    );
+
+    const multiPathLayout = calculateCardLayoutWithYoga(
+      {
+        type: 'Ingress',
+        data: {
+          label: 'ing-1',
+          displaySettings: { path: true },
+          ingressPaths: [
+            { id: 'p1', path: '/api', serviceName: 'api-svc', servicePort: 80 },
+            { id: 'p2', path: '/pay', serviceName: 'pay-svc', servicePort: 80 },
+            { id: 'p3', path: '/web', serviceName: 'web-svc', servicePort: 80 },
+          ],
+        },
+      },
+      yoga
+    );
+
+    expect(multiPathLayout.height).toBe(singlePathLayout.height + 32);
+
+    const hiddenPathLayout = calculateCardLayoutWithYoga(
+      {
+        type: 'Ingress',
+        data: {
+          label: 'ing-1',
+          displaySettings: { path: false },
+          ingressPaths: [
+            { id: 'p1', path: '/api', serviceName: 'api-svc', servicePort: 80 },
+            { id: 'p2', path: '/pay', serviceName: 'pay-svc', servicePort: 80 },
+          ],
+        },
+      },
+      yoga
+    );
+    expect(hiddenPathLayout.height).toBe(singlePathLayout.height);
   });
 });

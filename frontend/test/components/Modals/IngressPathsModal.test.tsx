@@ -25,8 +25,8 @@ describe('IngressPathsModal', () => {
     useFlowStore.setState({
       colorMode: 'dark',
       nodes: [
-        { id: 'svc1', type: 'Service', data: { label: 'api-service', serviceType: 'ClusterIP' } },
-        { id: 'svc2', type: 'Service', data: { label: 'web-service', serviceType: 'ClusterIP' } },
+        { id: 'svc1', type: 'Service', data: { label: 'api-service', serviceType: 'ClusterIP', port: 8080 } },
+        { id: 'svc2', type: 'Service', data: { label: 'web-service', serviceType: 'ClusterIP', port: 3000 } },
       ],
     });
   });
@@ -85,7 +85,7 @@ describe('IngressPathsModal', () => {
     expect(screen.getByDisplayValue('3000')).toBeDefined();
   });
 
-  it('adds, updates, deletes, and saves path rules', () => {
+  it('adds, updates, auto-syncs service port on target service change, deletes, and saves path rules', () => {
     render(
       <IngressPathsModal
         isOpen={true}
@@ -95,7 +95,7 @@ describe('IngressPathsModal', () => {
       />
     );
 
-    // 1. Add new path
+    // 1. Add new path (defaults to first available service api-service with port 8080)
     const addBtn = screen.getByRole('button', { name: /Add Path/i });
     fireEvent.click(addBtn);
 
@@ -107,16 +107,16 @@ describe('IngressPathsModal', () => {
     fireEvent.change(path2Input, { target: { value: '/payment' } });
     expect(screen.getByDisplayValue('/payment')).toBeDefined();
 
-    // 3. Update target service dropdown on row #2
+    // 3. Update target service dropdown on row #2 -> auto-updates port to web-service's port (3000)
     const selects = screen.getAllByRole('combobox');
     expect(selects).toHaveLength(2);
     fireEvent.change(selects[1], { target: { value: 'web-service' } });
+    expect(screen.getByDisplayValue('3000')).toBeDefined();
 
-    // 4. Update port on row #2
-    const portInputs = screen.getAllByDisplayValue('80');
-    if (portInputs.length > 0) {
-      fireEvent.change(portInputs[0], { target: { value: '9000' } });
-    }
+    // 4. Update port on row #2 manually
+    const portInput3000 = screen.getByDisplayValue('3000');
+    fireEvent.change(portInput3000, { target: { value: '9000' } });
+    expect(screen.getByDisplayValue('9000')).toBeDefined();
 
     // 5. Delete row #1
     const deleteButtons = screen.getAllByRole('button', { name: /Delete path/i });
@@ -136,6 +136,7 @@ describe('IngressPathsModal', () => {
         expect.objectContaining({
           path: '/payment',
           serviceName: 'web-service',
+          servicePort: 9000,
         }),
       ])
     );

@@ -13,6 +13,7 @@ import {
 import type { FlowState } from '@/store/types';
 import { getConnectionError } from '@/constants/connections';
 import { getAbsPos } from '@/store/helpers';
+import { safeRandom } from '@/lib/utils';
 import {
   emitLiveEdgeCreatedCommand,
   emitLiveEdgeDeletedCommand,
@@ -36,6 +37,69 @@ const NODE_TYPE_TO_RESOURCE: Record<string, string> = {
 };
 
 const WORKLOAD_CONTROLLERS = new Set(['Deployment', 'StatefulSet', 'ReplicaSet']);
+
+const buildConnectedIngressData = (
+  currentData: Record<string, any> | undefined,
+  targetNodeInStore: Node | undefined,
+  tgtId: string
+): Record<string, any> => {
+  const data = currentData || {};
+  const targetLabel = (targetNodeInStore?.data?.label as string) || targetNodeInStore?.id || tgtId;
+  const targetPort = Number(targetNodeInStore?.data?.port) || 80;
+  const existingBackend = data.backendServiceName as string | undefined;
+  const existingPaths = Array.isArray(data.ingressPaths) ? (data.ingressPaths as any[]) : [];
+
+  if (existingPaths.length > 0) {
+    const alreadyExists = existingPaths.some((p) => p?.serviceName === targetLabel);
+    if (alreadyExists) {
+      return {
+        ...data,
+        backendServiceName: existingBackend || targetLabel,
+      };
+    }
+    return {
+      ...data,
+      backendServiceName: existingBackend || targetLabel,
+      ingressPaths: [
+        ...existingPaths,
+        {
+          id: safeRandom().toString(36).slice(2, 9),
+          path: `/path-${existingPaths.length + 1}`,
+          serviceName: targetLabel,
+          servicePort: targetPort,
+        },
+      ],
+    };
+  }
+
+  if (existingBackend && existingBackend !== targetLabel) {
+    const primaryPath = (data.ingressPath as string) || '/';
+    const primaryPort = Number(data.servicePort) || 80;
+    return {
+      ...data,
+      ingressPaths: [
+        {
+          id: safeRandom().toString(36).slice(2, 9),
+          path: primaryPath,
+          serviceName: existingBackend,
+          servicePort: primaryPort,
+        },
+        {
+          id: safeRandom().toString(36).slice(2, 9),
+          path: '/path-2',
+          serviceName: targetLabel,
+          servicePort: targetPort,
+        },
+      ],
+    };
+  }
+
+  return {
+    ...data,
+    backendServiceName: targetLabel,
+    servicePort: targetPort,
+  };
+};
 
 const getDerivedResourcesForNode = (cn: Node, nodes: Node[], derivedResourcesSet: Set<string>) => {
   if (cn.type === 'Deployment' || cn.type === 'StatefulSet') {
@@ -494,8 +558,10 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
           const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
 
           if (sType === 'ingress' && tType === 'service') {
-            const targetLabel = (targetNodeInStore?.data?.label as string) || targetNodeInStore?.id || tgtId;
-            updated = { ...updated, data: { ...updated.data, backendServiceName: targetLabel } };
+            updated = {
+              ...updated,
+              data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
+            };
           } else if (sType === 'service' && ['deployment', 'pod', 'replicaset'].includes(tType)) {
             const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
             updated = { ...updated, data: { ...updated.data, selector: targetLabel } };

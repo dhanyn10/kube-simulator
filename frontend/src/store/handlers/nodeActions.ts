@@ -263,6 +263,60 @@ const processNodeDeletion = (node: Node, currentNodes: Node[], get: () => FlowSt
   return nextNodes;
 };
 
+const getIngressTargetServices = (
+  targetNode: Node,
+  newData: Partial<K8sNodeData>
+): Set<string> => {
+  const effectivePaths = newData.ingressPaths ?? (targetNode.data?.ingressPaths as any[] | undefined);
+  if (Array.isArray(effectivePaths) && effectivePaths.length > 1) {
+    const names = effectivePaths
+      .map((p) => String(p?.serviceName || '').trim())
+      .filter(Boolean);
+    return new Set(names);
+  }
+  const effectiveBackend = newData.backendServiceName ?? (targetNode.data?.backendServiceName as string | undefined);
+  return effectiveBackend ? new Set([effectiveBackend]) : new Set();
+};
+
+const syncIngressEdgesFromFormSelection = (
+  targetNode: Node,
+  newData: Partial<K8sNodeData>,
+  nodes: Node[],
+  edges: Edge[]
+): Edge[] => {
+  const targetServices = getIngressTargetServices(targetNode, newData);
+
+  let nextEdges = edges.filter((e) => {
+    if (e.source !== targetNode.id) return true;
+    const target = nodes.find((n) => n.id === e.target);
+    if (!target || target?.type !== 'Service') return true;
+    const svcLabel = (target.data?.label as string) || target.id;
+    return targetServices.has(svcLabel);
+  });
+
+  if (targetServices.size > 0) {
+    const matchingServices = nodes.filter(
+      (n) => n?.type === 'Service' && targetServices.has((n.data?.label as string) || n.id)
+    );
+
+    matchingServices.forEach((s) => {
+      const edgeExists = nextEdges.some((e) => e.source === targetNode.id && e.target === s.id);
+      if (!edgeExists) {
+        nextEdges.push({
+          id: `e-${targetNode.id}-${s.id}-${Date.now()}`,
+          source: targetNode.id,
+          target: s.id,
+          type: 'custom',
+          sourceHandle: 'right-s',
+          targetHandle: 'left-t',
+        });
+      }
+    });
+  }
+
+  return nextEdges;
+};
+
 /**
  * Synchronizes visual canvas edges when a target resource is selected in node Form Settings.
  *
@@ -321,40 +375,36 @@ const syncEdgesFromFormSelection = (
     }
   }
 
-
-  // Ingress form backendServiceName update
-  if (targetNode?.type === 'Ingress' && newData?.backendServiceName !== undefined) {
-    const newBackend = newData.backendServiceName;
-    // Remove existing outgoing edges from this Ingress to non-matching Services
-    nextEdges = nextEdges.filter((e) => {
-      if (e.source !== targetNode.id) return true;
-      const target = nodes.find((n) => n.id === e.target);
-      if (!target || target?.type !== 'Service') return true;
-      return target?.data?.label === newBackend;
-    });
-
-    if (newBackend) {
-      const matchingServices = nodes.filter(
-        (n) => n?.type === 'Service' && n?.data?.label === newBackend
-      );
-
-      matchingServices.forEach((s) => {
-        const edgeExists = nextEdges.some((e) => e.source === targetNode.id && e.target === s.id);
-        if (!edgeExists) {
-          nextEdges.push({
-            id: `e-${targetNode.id}-${s.id}-${Date.now()}`,
-            source: targetNode.id,
-            target: s.id,
-            type: 'custom',
-            sourceHandle: 'right-s',
-            targetHandle: 'left-t',
-          });
-        }
-      });
-    }
+  // Ingress form backendServiceName or ingressPaths update
+  if (
+    targetNode?.type === 'Ingress' &&
+    (newData?.backendServiceName !== undefined || newData?.ingressPaths !== undefined)
+  ) {
+    nextEdges = syncIngressEdgesFromFormSelection(targetNode, newData, nodes, nextEdges);
   }
 
   return nextEdges;
+};
+
+const invalidateIngressReference = (n: Node, oldLabel: string): Node => {
+  const matchesBackend = n.data?.backendServiceName === oldLabel;
+  const rawPaths = n.data?.ingressPaths as any[] | undefined;
+  const matchesPaths = Array.isArray(rawPaths) && rawPaths.some((p) => p?.serviceName === oldLabel);
+
+  if (!matchesBackend && !matchesPaths) return n;
+
+  const updatedPaths = Array.isArray(rawPaths)
+    ? rawPaths.map((p) => (p?.serviceName === oldLabel ? { ...p, serviceName: '' } : p))
+    : rawPaths;
+
+  return {
+    ...n,
+    data: {
+      ...n.data,
+      ...(matchesBackend ? { backendServiceName: '' } : {}),
+      ...(matchesPaths ? { ingressPaths: updatedPaths } : {}),
+    },
+  };
 };
 
 /**
@@ -377,14 +427,8 @@ const invalidateTargetReferences = (oldLabel: string | undefined, nodes: Node[])
         }
       };
     }
-    if (n?.type === 'Ingress' && n?.data?.backendServiceName === oldLabel) {
-      return {
-        ...n,
-        data: {
-          ...n.data,
-          backendServiceName: ''
-        }
-      };
+    if (n?.type === 'Ingress') {
+      return invalidateIngressReference(n, oldLabel);
     }
     return n;
   });

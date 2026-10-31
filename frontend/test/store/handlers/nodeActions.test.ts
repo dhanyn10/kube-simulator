@@ -1534,7 +1534,49 @@ describe('nodeActions', () => {
 
     const edges = useFlowStore.getState().edges;
     expect(edges.some(e => e.id === 'e-unrelated-source')).toBe(true);
+    expect(edges.some(e => e.id === 'e-unrelated-source')).toBe(true);
     expect(edges.some(e => e.source === ingress.id && e.target === svc.id)).toBe(true);
+  });
+
+  it('syncs edges for multi-path Ingress and invalidates service references inside ingressPaths', () => {
+    const ingress = {
+      id: 'ing-multi-edge',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'multi-ing', backendServiceName: 'svc-a' },
+    };
+    const svcA = { id: 'svc-a-id', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'svc-a' } };
+    const svcB = { id: 'svc-b-id', type: 'Service', position: { x: 100, y: 100 }, data: { label: 'svc-b' } };
+    const svcC = { id: 'svc-c-id', type: 'Service', position: { x: 100, y: 200 }, data: { label: 'svc-c' } };
+    const staleEdge = { id: 'e-stale', source: 'ing-multi-edge', target: 'svc-c-id' };
+
+    useFlowStore.setState({
+      nodes: [ingress, svcA, svcB, svcC] as any,
+      edges: [staleEdge] as any,
+    });
+
+    const { updateNodeData, deleteNodes } = useFlowStore.getState();
+
+    updateNodeData(ingress.id, {
+      ingressPaths: [
+        { id: 'p1', path: '/a', serviceName: 'svc-a', servicePort: 80 },
+        { id: 'p2', path: '/b', serviceName: 'svc-b', servicePort: 8080 },
+      ],
+    });
+
+    const edges = useFlowStore.getState().edges;
+    expect(edges.some((e) => e.source === ingress.id && e.target === svcA.id)).toBe(true);
+    expect(edges.some((e) => e.source === ingress.id && e.target === svcB.id)).toBe(true);
+    expect(edges.some((e) => e.source === ingress.id && e.target === svcC.id)).toBe(false);
+
+    // Deleting svcB clears serviceName inside ingressPaths for /b
+    const svcBNode = useFlowStore.getState().nodes.find((n) => n.id === svcB.id)!;
+    deleteNodes([svcBNode]);
+
+    const updatedIngress = useFlowStore.getState().nodes.find((n) => n.id === ingress.id)!;
+    const paths = updatedIngress.data.ingressPaths as any[];
+    expect(paths[0].serviceName).toBe('svc-a');
+    expect(paths[1].serviceName).toBe('');
   });
 
 });

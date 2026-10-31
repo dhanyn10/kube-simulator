@@ -504,4 +504,52 @@ describe('createFlowSlice', () => {
       expect(useFlowStore.getState().nodes).toHaveLength(1);
     });
   });
+
+  it('onConnect promotes Ingress to multi-path ingressPaths when connected to multiple Services', () => {
+    const ingress = {
+      id: 'ing-1',
+      type: 'Ingress',
+      position: { x: 0, y: 0 },
+      data: { label: 'main-ing', ingressPath: '/api' },
+    };
+    const svc1 = { id: 'svc-1', type: 'Service', position: { x: 100, y: 0 }, data: { label: 'api-svc', port: 8080 } };
+    const svc2 = { id: 'svc-2', type: 'Service', position: { x: 100, y: 100 }, data: { label: 'pay-svc', port: 3000 } };
+    const svc3 = { id: 'svc-3', type: 'Service', position: { x: 100, y: 200 }, data: { label: 'web-svc', port: 80 } };
+
+    useFlowStore.setState({
+      nodes: [ingress, svc1, svc2, svc3] as any,
+      edges: [],
+    });
+
+    // 1. Connect first service -> sets backendServiceName and servicePort
+    useFlowStore.getState().onConnect({ source: 'ing-1', target: 'svc-1' });
+    let ingNode = useFlowStore.getState().nodes.find((n) => n.id === 'ing-1')!;
+    expect(ingNode.data.backendServiceName).toBe('api-svc');
+    expect(ingNode.data.servicePort).toBe(8080);
+
+    // 2. Connect second service -> promotes to 2-item ingressPaths
+    useFlowStore.getState().onConnect({ source: 'ing-1', target: 'svc-2' });
+    ingNode = useFlowStore.getState().nodes.find((n) => n.id === 'ing-1')!;
+    expect(ingNode.data.ingressPaths).toHaveLength(2);
+    expect((ingNode.data.ingressPaths as any[])[0]).toMatchObject({
+      path: '/api',
+      serviceName: 'api-svc',
+      servicePort: 8080,
+    });
+    expect((ingNode.data.ingressPaths as any[])[1]).toMatchObject({
+      path: '/path-2',
+      serviceName: 'pay-svc',
+      servicePort: 3000,
+    });
+
+    // 3. Connect third service -> appends 3rd path rule
+    useFlowStore.getState().onConnect({ source: 'ing-1', target: 'svc-3' });
+    ingNode = useFlowStore.getState().nodes.find((n) => n.id === 'ing-1')!;
+    expect(ingNode.data.ingressPaths).toHaveLength(3);
+    expect((ingNode.data.ingressPaths as any[])[2]).toMatchObject({
+      path: '/path-3',
+      serviceName: 'web-svc',
+      servicePort: 80,
+    });
+  });
 });

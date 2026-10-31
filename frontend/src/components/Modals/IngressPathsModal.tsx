@@ -162,6 +162,13 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
     )
   );
 
+  const getServicePortByName = (svcName: string): number => {
+    const matched = clusterIpServices.find(
+      (n) => ((n.data?.label as string) || n.id) === svcName
+    );
+    return Number(matched?.data?.port) || 80;
+  };
+
   const [pathRules, setPathRules] = useState<IngressPathRule[]>([]);
 
   useEffect(() => {
@@ -172,7 +179,7 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
     } else {
       const primaryPath = ingressNode?.data?.ingressPath || '/';
       const primarySvc = ingressNode?.data?.backendServiceName || availableServiceNames[0] || '';
-      const primaryPort = Number(ingressNode?.data?.servicePort || 80);
+      const primaryPort = Number(ingressNode?.data?.servicePort || getServicePortByName(primarySvc));
       setPathRules([
         {
           id: safeRandom().toString(36).slice(2, 9),
@@ -187,8 +194,12 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
   if (!isOpen) return null;
 
   const handleUpdate = (id: string, updates: Partial<IngressPathRule>) => {
+    const resolvedUpdates =
+      updates.serviceName !== undefined && updates.servicePort === undefined
+        ? { ...updates, servicePort: getServicePortByName(updates.serviceName) }
+        : updates;
     setPathRules((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      prev.map((item) => (item.id === id ? { ...item, ...resolvedUpdates } : item))
     );
   };
 
@@ -198,13 +209,14 @@ export const IngressPathsModal: React.FC<IngressPathsModalProps> = ({
 
   const handleAdd = () => {
     const defaultSvc = availableServiceNames[0] || '';
+    const defaultPort = getServicePortByName(defaultSvc);
     setPathRules((prev) => [
       ...prev,
       {
         id: safeRandom().toString(36).slice(2, 9),
         path: `/path-${prev.length + 1}`,
         serviceName: defaultSvc,
-        servicePort: 80,
+        servicePort: defaultPort,
       },
     ]);
   };
