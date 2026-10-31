@@ -343,7 +343,7 @@ const syncEdgesFromFormSelection = (
     nextEdges = nextEdges.filter((e) => {
       if (e.source !== targetNode.id) return true;
       const target = nodes.find((n) => n.id === e.target);
-      if (!target || !['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
+      if (!target || !['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Ingress'].includes(target.type || '')) return true;
       if (target?.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
       if (!effectiveSelector) return false;
       const tLabel = (target?.data?.label as string) || (target?.data?.baseName as string);
@@ -353,7 +353,7 @@ const syncEdgesFromFormSelection = (
     if (effectiveSelector) {
       const matchingTargets = nodes.filter((n) => {
         if (n?.type === 'Ingress' && effectiveServiceType !== 'LoadBalancer') return false;
-        if (!['Deployment', 'Pod', 'ReplicaSet', 'Ingress'].includes(n?.type || '')) return false;
+        if (!['Deployment', 'StatefulSet', 'Pod', 'ReplicaSet', 'Ingress'].includes(n?.type || '')) return false;
         if (n?.type === 'Pod' && (n?.parentId || n?.data?.parentId)) return false;
         const tLabel = (n.data?.label as string) || (n.data?.baseName as string);
         return tLabel === effectiveSelector;

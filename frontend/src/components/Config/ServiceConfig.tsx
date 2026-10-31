@@ -20,7 +20,7 @@ interface ServiceTypeOption {
 
 interface SelectorDropdownOption {
   label: string;
-  category: 'INGRESS' | 'POD' | 'DEPLOYMENT' | 'REPLICASET';
+  category: 'INGRESS' | 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
 }
 
 export const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
@@ -119,7 +119,7 @@ export const ServiceConfig = ({
   // Check Pods / Deployments / ReplicaSets in same namespace for all service types
   const workloadNodes = nodes.filter((n) => {
     if (!inSameNamespace(n)) return false;
-    if (n.type === 'Deployment' || n.type === 'ReplicaSet') return true;
+    if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') return true;
     if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) return true;
     return false;
   });
@@ -127,7 +127,7 @@ export const ServiceConfig = ({
   workloadNodes.forEach((n) => {
     const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
     if (label && !optionsMap.has(label)) {
-      const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET';
+      const cat = n.type.toUpperCase() as 'POD' | 'DEPLOYMENT' | 'REPLICASET' | 'STATEFULSET';
       optionsMap.set(label, { label, category: cat });
     }
   });

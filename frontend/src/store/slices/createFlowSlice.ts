@@ -533,6 +533,17 @@ interface ConnectedNodeSyncContext {
   tgtNode?: Node;
 }
 
+const isValidServiceSelectorTarget = (
+  serviceData: Record<string, any> | undefined,
+  targetType: string
+): boolean => {
+  if (['deployment', 'statefulset', 'pod', 'replicaset'].includes(targetType)) {
+    return true;
+  }
+  const serviceType = String(serviceData?.serviceType || 'ClusterIP');
+  return targetType === 'ingress' && serviceType === 'LoadBalancer';
+};
+
 const updateConnectedNodeState = (
   n: Node,
   ctx: ConnectedNodeSyncContext
@@ -557,7 +568,7 @@ const updateConnectedNodeState = (
         ...updated,
         data: buildConnectedIngressData(updated.data, targetNodeInStore, tgtId),
       };
-    } else if (sType === 'service' && ['deployment', 'pod', 'replicaset'].includes(tType)) {
+    } else if (sType === 'service' && isValidServiceSelectorTarget(updated.data, tType)) {
       const targetLabel = (targetNodeInStore?.data?.label as string) || (targetNodeInStore?.data?.baseName as string) || targetNodeInStore?.id || tgtId;
       updated = { ...updated, data: { ...updated.data, selector: targetLabel } };
     }

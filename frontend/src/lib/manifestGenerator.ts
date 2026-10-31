@@ -262,7 +262,7 @@ const determineServiceSelector = (
   const outgoing = sourceEdgeMap.get(node.id) || [];
   for (const e of outgoing) {
     const target = nodeMap.get(e.target);
-    if (target && (target.type === 'Pod' || target.type === 'Deployment' || target.type === 'ReplicaSet')) {
+    if (target && ['Pod', 'Deployment', 'StatefulSet', 'ReplicaSet', 'Ingress'].includes(target.type)) {
       return sanitizeName(target.data?.label || name);
     }
   }

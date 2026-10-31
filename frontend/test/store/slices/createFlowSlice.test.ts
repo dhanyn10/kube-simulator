@@ -559,4 +559,44 @@ describe('createFlowSlice', () => {
     expect(ingNode.data.backendServiceName).toBe('pay-svc');
     expect((ingNode.data.ingressPaths as any[])[0].serviceName).toBe('');
   });
+
+  it('onConnect sets selector when LoadBalancer Service connects to Ingress or Service connects to StatefulSet', () => {
+    const lbSvc = {
+      id: 'svc-lb',
+      type: 'Service',
+      position: { x: 0, y: 0 },
+      data: { label: 'lb-svc', serviceType: 'LoadBalancer' },
+    };
+    const clusterSvc = {
+      id: 'svc-cip',
+      type: 'Service',
+      position: { x: 0, y: 100 },
+      data: { label: 'cip-svc', serviceType: 'ClusterIP' },
+    };
+    const ingress = {
+      id: 'ing-target',
+      type: 'Ingress',
+      position: { x: 200, y: 0 },
+      data: { label: 'edge-ingress' },
+    };
+    const statefulSet = {
+      id: 'ss-target',
+      type: 'StatefulSet',
+      position: { x: 200, y: 100 },
+      data: { label: 'db-statefulset' },
+    };
+
+    useFlowStore.setState({
+      nodes: [lbSvc, clusterSvc, ingress, statefulSet] as any,
+      edges: [],
+    });
+
+    useFlowStore.getState().onConnect({ source: 'svc-lb', target: 'ing-target' });
+    const updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'svc-lb')!;
+    expect(updatedLb.data.selector).toBe('edge-ingress');
+
+    useFlowStore.getState().onConnect({ source: 'svc-cip', target: 'ss-target' });
+    const updatedCip = useFlowStore.getState().nodes.find((n) => n.id === 'svc-cip')!;
+    expect(updatedCip.data.selector).toBe('db-statefulset');
+  });
 });

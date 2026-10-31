@@ -6,6 +6,22 @@ import { K8sNodeData } from '@/types';
 import { useFlowStore } from '@/store';
 import { cn } from '@/lib/utils';
 
+const isMatchingServiceSelectorNode = (n: any, serviceType: string, selector: string): boolean => {
+  if (serviceType === 'LoadBalancer' && n.type === 'Ingress') {
+    const label = (n.data?.label as string) || n.id;
+    return label === selector;
+  }
+  if (n.type === 'Deployment' || n.type === 'StatefulSet' || n.type === 'ReplicaSet') {
+    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+    return label === selector;
+  }
+  if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) {
+    const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
+    return label === selector;
+  }
+  return false;
+};
+
 export const ServiceNode = memo((props: NodeProps) => {
   const data = props.data as unknown as K8sNodeData;
   const colorMode = useFlowStore((state) => state.colorMode);
@@ -17,21 +33,7 @@ export const ServiceNode = memo((props: NodeProps) => {
   // Check if current selector matches an active workload or Ingress on canvas
   const isSelectorValid = Boolean(
     data.selector &&
-    nodes.some((n) => {
-      if (serviceType === 'LoadBalancer' && n.type === 'Ingress') {
-        const label = (n.data?.label as string) || n.id;
-        return label === data.selector;
-      }
-      if (n.type === 'Deployment' || n.type === 'ReplicaSet') {
-        const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-        return label === data.selector;
-      }
-      if (n.type === 'Pod' && !n.parentId && !n.data?.parentId) {
-        const label = (n.data?.label as string) || (n.data?.baseName as string) || n.id;
-        return label === data.selector;
-      }
-      return false;
-    })
+    nodes.some((n) => isMatchingServiceSelectorNode(n, serviceType, data.selector!))
   );
 
   return (
