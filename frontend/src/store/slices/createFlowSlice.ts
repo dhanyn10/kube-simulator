@@ -524,16 +524,20 @@ const rerouteConnectionEndpoints = (
   return { sourceId, targetId, sourceNode, targetNode };
 };
 
+interface ConnectedNodeSyncContext {
+  syncedNodesList: Node[];
+  edgesList: Edge[];
+  srcId: string;
+  tgtId: string;
+  srcNode?: Node;
+  tgtNode?: Node;
+}
+
 const updateConnectedNodeState = (
   n: Node,
-  stateNodes: Node[],
-  syncedNodesList: Node[],
-  edgesList: Edge[],
-  srcId: string,
-  tgtId: string,
-  srcNode?: Node,
-  tgtNode?: Node
+  ctx: ConnectedNodeSyncContext
 ): Node => {
+  const { syncedNodesList, edgesList, srcId, tgtId, srcNode, tgtNode } = ctx;
   let updated = n;
 
   if (updated.type === 'PVC') {
@@ -545,7 +549,7 @@ const updateConnectedNodeState = (
 
   if (updated.id === srcId) {
     const sType = String(updated.type || updated.data?.type || srcNode?.type || '').toLowerCase();
-    const targetNodeInStore = stateNodes.find((item) => item.id === tgtId);
+    const targetNodeInStore = syncedNodesList.find((item) => item.id === tgtId);
     const tType = String(targetNodeInStore?.type || targetNodeInStore?.data?.type || tgtNode?.type || '').toLowerCase();
 
     if (sType === 'ingress' && tType === 'service') {
@@ -665,7 +669,14 @@ export const createFlowSlice: StateCreator<FlowState, [], [], FlowSlice> = (set,
       let syncedNodes = syncRoleRulesFromConnections(state.nodes, nextEdges);
 
       syncedNodes = syncedNodes.map((n) =>
-        updateConnectedNodeState(n, state.nodes, syncedNodes, nextEdges, sourceId, targetId, sourceNode, targetNode)
+        updateConnectedNodeState(n, {
+          syncedNodesList: syncedNodes,
+          edgesList: nextEdges,
+          srcId: sourceId,
+          tgtId: targetId,
+          srcNode: sourceNode,
+          tgtNode: targetNode,
+        })
       );
 
       return {
