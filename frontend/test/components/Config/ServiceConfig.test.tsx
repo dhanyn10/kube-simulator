@@ -465,6 +465,65 @@ describe('ServiceConfig', () => {
       // Click outside document closes both
       fireEvent.mouseDown(document.body);
       expect(screen.queryByText('backend-pod')).toBeNull();
+
+      useFlowStore.setState({
+        nodes: [
+          { id: 'ing-1', type: 'Ingress', data: { label: 'ing-alpha' } },
+          { id: 'ing-2', type: 'Ingress', data: { label: 'ing-beta' } },
+          { id: 'dep-1', type: 'Deployment', data: { label: 'web-app', port: 8080 } },
+        ] as any,
+      });
+
+      const lbMultiProps = {
+        ...mockProps,
+        selectedNode: {
+          id: 's-lb-multi',
+          data: {
+            serviceType: 'LoadBalancer',
+            selector: 'ing-alpha',
+            ingressTargets: ['ing-alpha'],
+          },
+        },
+      };
+
+      const { unmount } = render(<ServiceConfig {...lbMultiProps} />);
+      fireEvent.click(screen.getByRole('button', { name: /ing-alpha/i }));
+
+      const ingBetaOpt = screen.getByText('ing-beta').closest('button')!;
+      fireEvent.click(ingBetaOpt);
+      expect(mockProps.performUpdate).toHaveBeenCalledWith({
+        selector: 'ing-alpha',
+        ingressTargets: ['ing-alpha', 'ing-beta'],
+      });
+
+      const ingAlphaOpt = screen.getAllByText('ing-alpha')[1].closest('button')!;
+      fireEvent.click(ingAlphaOpt);
+      expect(mockProps.performUpdate).toHaveBeenCalledWith({
+        selector: '',
+        ingressTargets: undefined,
+      });
+
+      const workloadOpt = screen.getAllByText('web-app').at(-1)!.closest('button')!;
+      fireEvent.click(workloadOpt);
+      expect(mockProps.performUpdate).toHaveBeenCalledWith({
+        selector: 'web-app',
+        ingressTargets: undefined,
+        targetPort: 8080,
+      });
+      unmount();
+
+      render(
+        <ServiceConfig
+          {...mockProps}
+          selectedNode={{
+            id: 's-in-ns',
+            parentId: 'ns-1',
+            data: { serviceType: 'ClusterIP', selector: 'web-app' },
+          }}
+        />
+      );
+      fireEvent.click(screen.getAllByRole('button', { name: /ClusterIP/i }).at(-1)!);
+      expect(screen.getByText('Outside Namespace Only')).toBeInTheDocument();
     } finally {
       if (SERVICE_TYPE_OPTIONS && SERVICE_TYPE_OPTIONS[2]) {
         delete SERVICE_TYPE_OPTIONS[2].disabled;

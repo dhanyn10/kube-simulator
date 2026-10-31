@@ -616,5 +616,35 @@ describe('createFlowSlice', () => {
     const updatedCip = useFlowStore.getState().nodes.find((n) => n.id === 'svc-cip')!;
     expect(updatedCip.data.selector).toBe('db-statefulset');
     expect(updatedCip.data.targetPort).toBe(5432);
+
+    // Connecting LoadBalancer (that had ingressTargets) to StatefulSet clears ingressTargets
+    useFlowStore.getState().onConnect({ source: 'svc-lb', target: 'ss-target' });
+    updatedLb = useFlowStore.getState().nodes.find((n) => n.id === 'svc-lb')!;
+    expect(updatedLb.data.selector).toBe('db-statefulset');
+    expect(updatedLb.data.ingressTargets).toBeUndefined();
+
+    // Connecting child Pod to Role reroutes sourceId to parent Deployment
+    useFlowStore.setState({
+      nodes: [
+        { id: 'dep-r', type: 'Deployment', position: { x: 0, y: 0 }, data: { label: 'dep-r' } },
+        { id: 'pod-r', type: 'Pod', parentId: 'dep-r', position: { x: 10, y: 10 }, data: { label: 'pod-r' } },
+        { id: 'role-r', type: 'Role', position: { x: 200, y: 0 }, data: { label: 'role-r', rules: [{ apiGroups: [''], resources: [], verbs: ['get'] }] } },
+      ] as any,
+      edges: [],
+    });
+    useFlowStore.getState().onConnect({ source: 'pod-r', target: 'role-r' });
+    expect(useFlowStore.getState().edges[0]?.source).toBe('dep-r');
+
+    // onQuickConnect sorts multiple candidate nodes in the same direction by distance
+    useFlowStore.setState({
+      nodes: [
+        { id: 'qc-svc', type: 'Service', position: { x: 0, y: 0 }, width: 150, height: 100, data: { label: 'qc-svc' } },
+        { id: 'qc-dep-far', type: 'Deployment', position: { x: 500, y: 0 }, width: 150, height: 100, data: { label: 'far-dep' } },
+        { id: 'qc-dep-near', type: 'Deployment', position: { x: 250, y: 0 }, width: 150, height: 100, data: { label: 'near-dep' } },
+      ] as any,
+      edges: [],
+    });
+    useFlowStore.getState().onQuickConnect('qc-svc', 'right');
+    expect(useFlowStore.getState().edges[0]?.target).toBe('qc-dep-near');
   });
 });

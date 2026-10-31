@@ -287,5 +287,26 @@ describe('ServiceNode', () => {
       </ReactFlowProvider>
     );
     expect(screen.getByText('nodePort:')).toHaveClass('text-slate-400');
+
+    // LoadBalancer with multiple ingressTargets
+    useFlowStore.setState({
+      nodes: [
+        { id: 'ing-1', type: 'Ingress', data: { label: 'ingress-one' } },
+        { id: 'ing-2', type: 'Ingress', data: {} },
+      ] as any,
+    });
+    render(
+      <ReactFlowProvider>
+        <ServiceNode
+          id="s-multi-ing"
+          type="Service"
+          data={{
+            serviceType: 'LoadBalancer',
+            ingressTargets: ['ingress-one', 'ing-2', 'stale-ingress'],
+          }}
+        />
+      </ReactFlowProvider>
+    );
+    expect(screen.getByText('app: ingress-one, ing-2')).toBeDefined();
   });
 });

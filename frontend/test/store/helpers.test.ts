@@ -719,6 +719,35 @@ describe('store helpers', () => {
     const { nodes: ejectedTopNodes } = ejectLoadBalancersFromNamespaces([ns, lbPlaceholderTop]);
     const ejectedTop = ejectedTopNodes.find((n) => n.id === 'lb-top-88')!;
     expect(ejectedTop.position.y).toBe(100 - 200 - 32);
+
+    // DOM measured node size with .react-flow__node and firstElementChild
+    const domNodeEl = document.createElement('div');
+    domNodeEl.className = 'react-flow__node';
+    domNodeEl.setAttribute('data-id', 'dom-lb');
+    Object.defineProperty(domNodeEl, 'offsetWidth', { value: 210 });
+    Object.defineProperty(domNodeEl, 'offsetHeight', { value: 195 });
+    const domChildEl = document.createElement('div');
+    Object.defineProperty(domChildEl, 'offsetWidth', { value: 220 });
+    Object.defineProperty(domChildEl, 'offsetHeight', { value: 205 });
+    domNodeEl.appendChild(domChildEl);
+    document.body.appendChild(domNodeEl);
+
+    try {
+      const lbDom = {
+        id: 'dom-lb',
+        type: 'Service',
+        position: { x: 300, y: 110 },
+        data: { label: 'dom-lb', serviceType: 'LoadBalancer' },
+      } as any;
+      const { nodes: domEjected } = ejectLoadBalancersFromNamespaces([ns, lbDom]);
+      expect(domEjected.find((n) => n.id === 'dom-lb')!.position.y).toBe(100 - 205 - 32);
+    } finally {
+      domNodeEl.remove();
+    }
+
+    // Node with empty id exercises !nodeId guard in getDomMeasuredNodeSize
+    const emptyIdNode = { id: '', type: 'Service', position: { x: 0, y: 0 }, data: {} } as any;
+    expect(resolveGlobalCollisions([emptyIdNode])).toHaveLength(1);
   });
 });
 
