@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   getLocalHardwareSpecs,
   calculateClusterBudget,
@@ -11,6 +11,26 @@ describe('workerBudgetHelpers', () => {
     const specs = getLocalHardwareSpecs();
     expect(specs.cpuCores).toBeGreaterThanOrEqual(1);
     expect(specs.memoryGb).toBeGreaterThanOrEqual(8);
+  });
+
+  it('falls back to 8 cores when navigator.hardwareConcurrency is missing', () => {
+    const originalNavigator = globalThis.navigator;
+    try {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {},
+        configurable: true,
+        writable: true,
+      });
+      const specs = getLocalHardwareSpecs();
+      expect(specs.cpuCores).toBe(8);
+      expect(specs.memoryGb).toBe(16);
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: originalNavigator,
+        configurable: true,
+        writable: true,
+      });
+    }
   });
 
   it('calculates optimal budget status when cluster resources are within hardware limits and meet demands', () => {
@@ -77,7 +97,18 @@ describe('workerBudgetHelpers', () => {
     expect(result.statusLevel).toBe('warning');
   });
 
-  it('clamps worker counts within 1 to 100 range', () => {
+  it('flags warning status when workerCount > 15 even without deficit or overload', () => {
+    const result = calculateClusterBudget({
+      workerCount: 16,
+      vCpuPerWorker: 1,
+      memoryGbPerWorker: 1,
+      nodes: [],
+      localHardware: { cpuCores: 64, memoryGb: 64 },
+    });
+    expect(result.statusLevel).toBe('warning');
+  });
+
+  it('clamps worker counts within 1 to 100 range and handles NaN', () => {
     const clampedLow = calculateClusterBudget({
       workerCount: 0,
       vCpuPerWorker: 1,
@@ -85,6 +116,14 @@ describe('workerBudgetHelpers', () => {
       nodes: [],
     });
     expect(clampedLow.workerCount).toBe(1);
+
+    const clampedNaN = calculateClusterBudget({
+      workerCount: Number.NaN,
+      vCpuPerWorker: 1,
+      memoryGbPerWorker: 2,
+      nodes: [],
+    });
+    expect(clampedNaN.workerCount).toBe(1);
 
     const clampedHigh = calculateClusterBudget({
       workerCount: 150,

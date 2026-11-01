@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { WorkerBudgetModal } from '@/components/Modals/WorkerBudgetModal';
 import { useFlowStore } from '@/store';
 
@@ -39,6 +40,11 @@ describe('WorkerBudgetModal', () => {
 
     // After choosing small preset (1 vCPU, 2 GB), 3 nodes should equal 3 vCPUs
     expect(screen.getByText('3 vCPUs')).toBeDefined();
+
+    const largePresetBtn = screen.getByTestId('worker-preset-large');
+    fireEvent.click(largePresetBtn);
+    // Large preset (4 vCPU, 8 GB), 3 nodes = 12 vCPUs
+    expect(screen.getByText('12 vCPUs')).toBeDefined();
   });
 
   it('allows adjusting worker count using quick step buttons', () => {
@@ -46,13 +52,37 @@ describe('WorkerBudgetModal', () => {
 
     const plusOneBtn = screen.getByRole('button', { name: '+1' });
     fireEvent.click(plusOneBtn);
-
     expect(screen.getByText('4 Nodes')).toBeDefined();
 
     const plusTenBtn = screen.getByRole('button', { name: '+10' });
     fireEvent.click(plusTenBtn);
-
     expect(screen.getByText('14 Nodes')).toBeDefined();
+
+    const minusOneBtn = screen.getByRole('button', { name: '-1' });
+    fireEvent.click(minusOneBtn);
+    expect(screen.getByText('13 Nodes')).toBeDefined();
+
+    const minusTenBtn = screen.getByRole('button', { name: '-10' });
+    fireEvent.click(minusTenBtn);
+    expect(screen.getByText('3 Nodes')).toBeDefined();
+  });
+
+  it('handles minimum and maximum boundaries for worker count and buttons', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    const slider = screen.getByTestId('worker-count-range-slider');
+    fireEvent.change(slider, { target: { value: '1' } });
+
+    // Expect singular label "1 Node"
+    expect(screen.getByText('1 Node')).toBeDefined();
+    expect(screen.getByRole('button', { name: '-1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '-10' })).toBeDisabled();
+
+    // Set to 100
+    fireEvent.change(slider, { target: { value: '100' } });
+    expect(screen.getByText('100 Nodes')).toBeDefined();
+    expect(screen.getByRole('button', { name: '+1' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '+10' })).toBeDisabled();
   });
 
   it('allows adjusting worker count using the range slider', () => {
@@ -62,6 +92,56 @@ describe('WorkerBudgetModal', () => {
     fireEvent.change(slider, { target: { value: '25' } });
 
     expect(screen.getByText('25 Nodes')).toBeDefined();
+  });
+
+  it('shows Local Hardware Budget Exceeded warning when demand is too high', () => {
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    const largePresetBtn = screen.getByTestId('worker-preset-large');
+    fireEvent.click(largePresetBtn);
+
+    const slider = screen.getByTestId('worker-count-range-slider');
+    fireEvent.change(slider, { target: { value: '80' } });
+
+    expect(screen.getByText(/Local Hardware Budget Exceeded/i)).toBeDefined();
+  });
+
+  it('shows Workload Capacity Warning when active pod requests exceed capacity', () => {
+    // 1 Pod requesting 8 cores and 16GB RAM, but worker count is 1 with small preset (1 core, 2GB)
+    const demandingPod = {
+      id: 'heavy-pod',
+      type: 'Pod',
+      position: { x: 0, y: 0 },
+      data: {
+        label: 'heavy-pod',
+        cpuRequest: '8000m',
+        memoryRequest: '16Gi',
+      },
+    };
+    useFlowStore.setState({ nodes: [demandingPod as any] });
+
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+
+    const smallPresetBtn = screen.getByTestId('worker-preset-small');
+    fireEvent.click(smallPresetBtn);
+
+    const slider = screen.getByTestId('worker-count-range-slider');
+    fireEvent.change(slider, { target: { value: '1' } });
+
+    expect(screen.getByText(/Workload Capacity Warning/i)).toBeDefined();
+  });
+
+  it('renders in light mode theme without errors', () => {
+    useFlowStore.setState({ colorMode: 'light' });
+    render(<WorkerBudgetModal isOpen={true} onClose={onClose} />);
+    expect(screen.getByTestId('worker-budget-modal')).toBeDefined();
+  });
+
+  it('handles closing without propOnClose by falling back to store', () => {
+    render(<WorkerBudgetModal />);
+    const closeBtn = screen.getByTestId('worker-budget-modal-close');
+    fireEvent.click(closeBtn);
+    expect(useFlowStore.getState().isWorkerBudgetModalOpen).toBe(false);
   });
 
   it('applies configuration to flow store and closes modal', () => {

@@ -66,6 +66,11 @@ test.describe('Traffic Simulation', () => {
     await page.getByRole('button', { name: 'Scaling' }).click();
     await page.getByRole('button', { name: 'HPA Auto-scaling' }).click();
 
+    // Verify HPA overview modal opens and close it
+    await expect(page.getByText('Cluster Horizontal Pod Autoscalers Overview')).toBeVisible();
+    await page.locator('dialog.modal-overlay').getByRole('button', { name: 'Close' }).first().click();
+    await expect(page.locator('dialog.modal-overlay')).not.toBeVisible();
+
     const deployment = page.locator('.react-flow__node-Deployment').first();
 
     // Configure nodes via store for reliability
@@ -73,22 +78,20 @@ test.describe('Traffic Simulation', () => {
       const state = (globalThis as any).useFlowStore.getState();
       const internet = state.nodes.find((n: any) => n.type === 'Internet');
       const deployment = state.nodes.find((n: any) => n.type === 'Deployment');
-      const hpa = state.nodes.find((n: any) => n.type === 'HPA');
 
-      if (internet && deployment && hpa) {
-        // Set low CPU limit and target to trigger scaling reliably
+      if (internet && deployment) {
+        // Set low CPU limit and attached HPA target to trigger scaling reliably
         state.updateNodeData(deployment.id, {
           webserver: 'nginx',
           cpuRequest: '100m',
           cpuLimit: '100m',
           memoryRequest: '128Mi',
-          memoryLimit: '128Mi'
+          memoryLimit: '128Mi',
+          hpas: [{ id: 'hpa-1', name: 'app-hpa', targetCPU: 5, minReplicas: 1, maxReplicas: 5 }],
         });
-        state.updateNodeData(hpa.id, { targetCPU: 5, minReplicas: 1, maxReplicas: 5 });
 
         // Connect
         state.onConnect({ source: internet.id, target: deployment.id, sourceHandle: 'right-s', targetHandle: 'left-t' });
-        state.onConnect({ source: hpa.id, target: deployment.id, sourceHandle: 'right-s', targetHandle: 'top-t' });
       }
     });
 

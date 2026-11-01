@@ -645,6 +645,10 @@ describe('WorkloadConfig', () => {
 
     fireEvent.click(openBtn);
     expect(screen.getByText(/dep-4 Workload Manager/i)).toBeDefined();
+
+    const closeBtn = screen.getByLabelText('Close');
+    fireEvent.click(closeBtn);
+    expect(screen.queryByText(/dep-4 Workload Manager/i)).toBeNull();
   });
 
   it('renders Worker Node selector when replicas <= 3 and hides it when replicas > 3', () => {
@@ -673,7 +677,18 @@ describe('WorkloadConfig', () => {
     // replicas = 3: Worker Node selector is visible
     expect(screen.getByText('Worker Node')).toBeDefined();
 
-    // Now update replicas to 4: Worker Node selector must be hidden
+    // Select worker-2 from options
+    const worker2Btn = screen.getByRole('button', { name: 'worker-2' });
+    fireEvent.click(worker2Btn);
+    expect(performUpdate).toHaveBeenCalledWith({ assignedNode: 'worker-2' });
+
+    // Toggle Worker Node visibility
+    const wnHeader = screen.getByText('Worker Node').closest('div');
+    const wnBtn = wnHeader?.querySelector('button');
+    if (wnBtn) fireEvent.click(wnBtn);
+    expect(toggleVisibility).toHaveBeenCalledWith('assignedNode');
+
+    // Now update replicas to 4: Worker Node selector must be hidden and Pod List button appears
     const dep4 = {
       id: 'dep-p3',
       type: 'Deployment',
